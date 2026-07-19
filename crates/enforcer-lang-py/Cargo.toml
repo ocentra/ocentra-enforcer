@@ -12,7 +12,6 @@ publish = false
 serde_json = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: Python validators emit the shared core finding
 # contracts and preserve branded domain rule/severity values.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: This language adapter implements the common
 # validator trait used by the deterministic fixture/parity harness.

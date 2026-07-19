@@ -42,7 +42,7 @@
 //!   malformed TOML or a missing/corrupt descriptor.
 //!
 //! `command` MUST be the absolute path this adapter is constructed with
-//! ([`CodexAdapter::new`]) — a relative path cannot resolve from an
+//! ([`CodexAdapter::try_new`]) — a relative path cannot resolve from an
 //! arbitrary repo cwd (RUST_ARCHITECTURE.md). As with c03's `ClaudeAdapter`,
 //! the binary path is adapter STATE (set once at construction) rather than
 //! re-derived per call — `plan`/`verify` both cross-check their
@@ -54,11 +54,14 @@ use std::path::{Path, PathBuf};
 use toml_edit::{value, Array, DocumentMut, Item, Table};
 
 use crate::backup::backup_before_write;
-use crate::cli_contract::RequestContext;
 use crate::core::HarnessAdapter;
 use crate::error::{InstallError, InstallResult};
-use crate::report::{AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange};
-use crate::report::{VerifyCheck, VerifyReport};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::install_types::{
+    AppliedInstallChange, ApplyResult, ArtifactKind, ChangeDisposition, CheckStatus, CheckSubject,
+    InstallBinaryPath, InstallReport, InstallReportText, InstallRequestContext, InstallRootPath,
+    InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
+};
 use enforcer_domain::paths::RepoRoot;
 use enforcer_mcp::name::SERVER_NAME;
 
@@ -66,9 +69,6 @@ use enforcer_mcp::name::SERVER_NAME;
 /// [`crate::adapters::claude::LEDGER_HOME_ENV`] (shared literal, kept local
 /// to avoid a cross-adapter dependency edge).
 pub const LEDGER_HOME_ENV: &str = "OCENTRA_LEDGER_HOME";
-
-/// This adapter's registration key, matching [`crate::report::HarnessKey`].
-const HARNESS_KEY: &str = "codex";
 
 /// The TRANSITIONAL global `AGENTS.md` managed-block markers, kept
 /// byte-for-byte identical to the legacy `src/codex-install.mjs`
@@ -92,34 +92,33 @@ pub struct CodexAdapter {
     /// when set — resolving that env var is c02's job; this adapter takes
     /// the already-resolved directory). In a test this is a temp-dir
     /// fixture root — NEVER the real `~/.codex` in a test.
-    codex_home: PathBuf,
+    codex_home: InstallRootPath,
     /// Absolute path to the installed `enforcer` binary this adapter
     /// registers as `mcp_servers.<SERVER_NAME>.command`.
-    binary_path: PathBuf,
+    binary_path: InstallBinaryPath,
 }
 
 impl CodexAdapter {
     /// Build an adapter rooted at `codex_home`, registering `binary_path`
     /// as the MCP server command.
-    #[must_use]
-    pub fn new(codex_home: impl Into<PathBuf>, binary_path: impl Into<PathBuf>) -> Self {
-        Self {
-            codex_home: codex_home.into(),
-            binary_path: binary_path.into(),
-        }
+    pub fn try_new(codex_home: PathBuf, binary_path: PathBuf) -> Result<Self, DecodeError> {
+        Ok(Self {
+            codex_home: InstallRootPath::try_from(codex_home)?,
+            binary_path: InstallBinaryPath::try_from(binary_path)?,
+        })
     }
 
     /// `<codex_home>/config.toml` — the `mcp_servers` registry table.
     #[must_use]
     pub fn config_toml_path(&self) -> PathBuf {
-        self.codex_home.join("config.toml")
+        self.codex_home.as_path().join("config.toml")
     }
 
     /// `<codex_home>/skills/<SERVER_NAME>` — the skill directory this
     /// adapter drops the enforcer skill under.
     #[must_use]
     pub fn skill_dir(&self) -> PathBuf {
-        self.codex_home.join("skills").join(SERVER_NAME)
+        self.codex_home.as_path().join("skills").join(SERVER_NAME)
     }
 
     /// `<codex_home>/skills/<SERVER_NAME>/SKILL.md`.
@@ -132,14 +131,14 @@ impl CodexAdapter {
     /// descriptor, the analog of Claude's `.claude/agents/<SERVER_NAME>.md`.
     #[must_use]
     pub fn agent_descriptor_path(&self) -> PathBuf {
-        self.codex_home.join("agents").join("openai.yaml")
+        self.codex_home.as_path().join("agents").join("openai.yaml")
     }
 
     /// `<codex_home>/AGENTS.md` — the GLOBAL managed-block doctrine
     /// reference (transitional `ocentra-enforcer` markers).
     #[must_use]
     pub fn global_agents_md_path(&self) -> PathBuf {
-        self.codex_home.join("AGENTS.md")
+        self.codex_home.as_path().join("AGENTS.md")
     }
 
     fn io_err(path: &Path, e: impl std::fmt::Display) -> InstallError {
@@ -411,18 +410,18 @@ impl CodexAdapter {
     }
 
     /// Whether `ctx.binary_path` matches this adapter's own configured
-    /// binary path — a mismatch means the caller built `RequestContext`
+    /// binary path — a mismatch means the caller built `InstallRequestContext`
     /// inconsistently with how this adapter was constructed, which would
     /// otherwise silently plan/verify against the wrong target.
-    fn check_ctx_consistency(&self, ctx: &RequestContext) -> InstallResult<()> {
-        if ctx.binary_path != self.binary_path {
+    fn check_ctx_consistency(&self, ctx: &InstallRequestContext) -> InstallResult<()> {
+        if ctx.binary_path.as_path() != self.binary_path.as_path() {
             return Err(InstallError::MalformedConfig {
                 path: self.config_toml_path().display().to_string(),
                 reason: format!(
-                    "RequestContext.binary_path `{}` does not match the path `{}` this \
+                    "InstallRequestContext.binary_path `{}` does not match the path `{}` this \
                      CodexAdapter was constructed with",
-                    ctx.binary_path.display(),
-                    self.binary_path.display()
+                    ctx.binary_path.as_path().display(),
+                    self.binary_path.as_path().display()
                 ),
             });
         }
@@ -431,27 +430,27 @@ impl CodexAdapter {
 }
 
 impl HarnessAdapter for CodexAdapter {
-    fn harness_key(&self) -> &'static str {
-        HARNESS_KEY
+    fn harness_key(&self) -> enforcer_domain::ids::HarnessId {
+        enforcer_domain::ids::BuiltInHarness::Codex.id()
     }
 
-    fn plan(&self, ctx: &RequestContext) -> InstallResult<InstallReport> {
+    fn plan(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
         self.check_ctx_consistency(ctx)?;
         let existing = self.read_config_toml()?;
-        let desired = Self::desired_table(&self.binary_path);
+        let desired = Self::desired_table(self.binary_path.as_path());
         let mut planned_changes = Vec::new();
         let mut warnings = Vec::new();
 
         let config_toml_is_update = self.config_toml_path().is_file();
         if !Self::entry_matches(&existing, &desired) {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::McpRegistration,
                 path: Self::repo_root(&self.config_toml_path())?,
-                description: format!(
+                description: InstallReportText::try_from(format!(
                     "upsert [mcp_servers.{SERVER_NAME}] in <codex_home>/config.toml (user/global scope)"
-                ),
-                is_update: config_toml_is_update,
+                ))?,
+                disposition: if config_toml_is_update { ChangeDisposition::Update } else { ChangeDisposition::Create },
             });
         }
 
@@ -463,12 +462,18 @@ impl HarnessAdapter for CodexAdapter {
                 .map(|s| s == desired_skill)
                 .unwrap_or(false);
         if !skill_matches {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::HarnessSpecific,
                 path: Self::repo_root(&skill_path)?,
-                description: format!("install {SERVER_NAME} skill under <codex_home>/skills"),
-                is_update: skill_is_update,
+                description: InstallReportText::try_from(format!(
+                    "install {SERVER_NAME} skill under <codex_home>/skills"
+                ))?,
+                disposition: if skill_is_update {
+                    ChangeDisposition::Update
+                } else {
+                    ChangeDisposition::Create
+                },
             });
         }
 
@@ -480,12 +485,18 @@ impl HarnessAdapter for CodexAdapter {
                 .map(|s| s == desired_descriptor)
                 .unwrap_or(false);
         if !descriptor_matches {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::HarnessSpecific,
                 path: Self::repo_root(&descriptor_path)?,
-                description: "emit agents/openai.yaml agent descriptor".to_owned(),
-                is_update: descriptor_is_update,
+                description: InstallReportText::try_from(
+                    "emit agents/openai.yaml agent descriptor".to_owned(),
+                )?,
+                disposition: if descriptor_is_update {
+                    ChangeDisposition::Update
+                } else {
+                    ChangeDisposition::Create
+                },
             });
         }
 
@@ -502,20 +513,26 @@ impl HarnessAdapter for CodexAdapter {
             &global_agents_path.display().to_string(),
         )?;
         if rendered_global_agents != existing_global_agents {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::DoctrineReference,
                 path: Self::repo_root(&global_agents_path)?,
-                description: "upsert global AGENTS.md ocentra-enforcer managed block".to_owned(),
-                is_update: global_agents_is_update,
+                description: InstallReportText::try_from(
+                    "upsert global AGENTS.md ocentra-enforcer managed block".to_owned(),
+                )?,
+                disposition: if global_agents_is_update {
+                    ChangeDisposition::Update
+                } else {
+                    ChangeDisposition::Create
+                },
             });
         }
 
-        if !self.codex_home.is_dir() {
-            warnings.push(format!(
+        if !self.codex_home.as_path().is_dir() {
+            warnings.push(InstallReportText::try_from(format!(
                 "Codex home `{}` does not exist yet; apply will create it",
-                self.codex_home.display()
-            ));
+                self.codex_home.as_path().display()
+            ))?);
         }
 
         Ok(InstallReport {
@@ -538,7 +555,10 @@ impl HarnessAdapter for CodexAdapter {
             match change.kind {
                 ArtifactKind::McpRegistration => {
                     let mut doc = self.read_config_toml()?;
-                    Self::merge_mcp_server(&mut doc, Self::desired_table(&self.binary_path));
+                    Self::merge_mcp_server(
+                        &mut doc,
+                        Self::desired_table(self.binary_path.as_path()),
+                    );
                     self.write_config_toml(&doc)?;
                 }
                 ArtifactKind::HarnessSpecific if target == self.skill_md_path() => {
@@ -571,9 +591,9 @@ impl HarnessAdapter for CodexAdapter {
                 }
             }
 
-            applied.push(AppliedChange {
+            applied.push(AppliedInstallChange {
                 change: change.clone(),
-                succeeded: true,
+                status: CheckStatus::Passed,
                 backup_path: backup_path.map(|p| Self::repo_root(&p)).transpose()?,
             });
         }
@@ -581,7 +601,7 @@ impl HarnessAdapter for CodexAdapter {
         Ok(ApplyResult { applied })
     }
 
-    fn verify(&self, ctx: &RequestContext) -> InstallResult<VerifyReport> {
+    fn verify(&self, ctx: &InstallRequestContext) -> InstallResult<InstallVerifyReport> {
         self.check_ctx_consistency(ctx)?;
         let mut checks = Vec::new();
 
@@ -598,40 +618,40 @@ impl HarnessAdapter for CodexAdapter {
                     .and_then(|servers| servers.get(SERVER_NAME))
                     .and_then(Item::as_table);
                 match entry {
-                    None => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "mcp-registration-present".to_owned(),
-                        passed: false,
-                        detail: format!(
+                    None => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                        status: CheckStatus::Failed,
+                        detail: InstallReportText::try_from(format!(
                             "mcp_servers.{SERVER_NAME} missing from `{}`",
                             config_toml_path.display()
-                        ),
+                        ))?,
                     },
                     Some(entry) => {
                         let command = entry.get("command").and_then(|v| v.as_str());
-                        let expected = ctx.binary_path.display().to_string();
+                        let expected = ctx.binary_path.as_path().display().to_string();
                         match command {
-                            Some(c) if c == expected => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: true,
-                                detail: String::new(),
+                            Some(c) if c == expected => InstallVerifyCheck {
+                                subject: CheckSubject::Harness(self.harness_key()),
+                                name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                                status: CheckStatus::Passed,
+                                detail: InstallReportText::try_from(String::new())?,
                             },
-                            Some(c) => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: false,
-                                detail: format!(
+                            Some(c) => InstallVerifyCheck {
+                                subject: CheckSubject::Harness(self.harness_key()),
+                                name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                                status: CheckStatus::Failed,
+                                detail: InstallReportText::try_from(format!(
                                     "mcp_servers.{SERVER_NAME}.command = `{c}`, expected `{expected}`"
-                                ),
+                                ))?,
                             },
-                            None => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: false,
-                                detail: format!(
+                            None => InstallVerifyCheck {
+                                subject: CheckSubject::Harness(self.harness_key()),
+                                name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                                status: CheckStatus::Failed,
+                                detail: InstallReportText::try_from(format!(
                                     "mcp_servers.{SERVER_NAME} has no `command` field"
-                                ),
+                                ))?,
                             },
                         }
                     }
@@ -642,33 +662,33 @@ impl HarnessAdapter for CodexAdapter {
 
         let descriptor_path = self.agent_descriptor_path();
         let descriptor_check = if !descriptor_path.is_file() {
-            VerifyCheck {
-                harness: HARNESS_KEY.to_owned(),
-                name: "agent-descriptor-present".to_owned(),
-                passed: false,
-                detail: format!(
+            InstallVerifyCheck {
+                subject: CheckSubject::Harness(self.harness_key()),
+                name: InstallReportText::try_from("agent-descriptor-present".to_owned())?,
+                status: CheckStatus::Failed,
+                detail: InstallReportText::try_from(format!(
                     "missing agent descriptor at `{}`",
                     descriptor_path.display()
-                ),
+                ))?,
             }
         } else {
             match std::fs::read_to_string(&descriptor_path) {
                 Err(e) => return Err(Self::io_err(&descriptor_path, e)),
                 Ok(raw) => match Self::validate_agent_descriptor(&raw) {
-                    Ok(()) => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "agent-descriptor-present".to_owned(),
-                        passed: true,
-                        detail: String::new(),
+                    Ok(()) => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("agent-descriptor-present".to_owned())?,
+                        status: CheckStatus::Passed,
+                        detail: InstallReportText::try_from(String::new())?,
                     },
-                    Err(reason) => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "agent-descriptor-present".to_owned(),
-                        passed: false,
-                        detail: format!(
+                    Err(reason) => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("agent-descriptor-present".to_owned())?,
+                        status: CheckStatus::Failed,
+                        detail: InstallReportText::try_from(format!(
                             "descriptor at `{}` is corrupt: {reason}",
                             descriptor_path.display()
-                        ),
+                        ))?,
                     },
                 },
             }
@@ -677,52 +697,62 @@ impl HarnessAdapter for CodexAdapter {
 
         let global_agents_path = self.global_agents_md_path();
         let global_agents_check = if !global_agents_path.is_file() {
-            VerifyCheck {
-                harness: HARNESS_KEY.to_owned(),
-                name: "global-agents-md-block-present".to_owned(),
-                passed: false,
-                detail: format!(
+            InstallVerifyCheck {
+                subject: CheckSubject::Harness(self.harness_key()),
+                name: InstallReportText::try_from("global-agents-md-block-present".to_owned())?,
+                status: CheckStatus::Failed,
+                detail: InstallReportText::try_from(format!(
                     "missing global AGENTS.md at `{}`",
                     global_agents_path.display()
-                ),
+                ))?,
             }
         } else {
             match std::fs::read_to_string(&global_agents_path) {
                 Err(e) => return Err(Self::io_err(&global_agents_path, e)),
-                Ok(raw) if raw.contains(GLOBAL_AGENTS_START) && raw.contains(GLOBAL_AGENTS_END) => {
-                    VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "global-agents-md-block-present".to_owned(),
-                        passed: true,
-                        detail: String::new(),
+                Ok(raw)
+                    if raw.as_str().contains(GLOBAL_AGENTS_START)
+                        && raw.as_str().contains(GLOBAL_AGENTS_END) =>
+                {
+                    InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from(
+                            "global-agents-md-block-present".to_owned(),
+                        )?,
+                        status: CheckStatus::Passed,
+                        detail: InstallReportText::try_from(String::new())?,
                     }
                 }
-                Ok(_) => VerifyCheck {
-                    harness: HARNESS_KEY.to_owned(),
-                    name: "global-agents-md-block-present".to_owned(),
-                    passed: false,
-                    detail: format!(
+                Ok(_) => InstallVerifyCheck {
+                    subject: CheckSubject::Harness(self.harness_key()),
+                    name: InstallReportText::try_from("global-agents-md-block-present".to_owned())?,
+                    status: CheckStatus::Failed,
+                    detail: InstallReportText::try_from(format!(
                         "managed block markers missing from `{}`",
                         global_agents_path.display()
-                    ),
+                    ))?,
                 },
             }
         };
         checks.push(global_agents_check);
 
-        let skill_check = VerifyCheck {
-            harness: HARNESS_KEY.to_owned(),
-            name: "user-skill-present".to_owned(),
-            passed: self.skill_md_path().is_file(),
-            detail: if self.skill_md_path().is_file() {
+        let skill_exists = self.skill_md_path().is_file();
+        let skill_check = InstallVerifyCheck {
+            subject: CheckSubject::Harness(self.harness_key()),
+            name: InstallReportText::try_from("user-skill-present".to_owned())?,
+            status: if skill_exists {
+                CheckStatus::Passed
+            } else {
+                CheckStatus::Failed
+            },
+            detail: InstallReportText::try_from(if skill_exists {
                 String::new()
             } else {
                 format!("missing user skill at `{}`", self.skill_md_path().display())
-            },
+            })?,
         };
         checks.push(skill_check);
 
-        Ok(VerifyReport { checks })
+        Ok(InstallVerifyReport { checks })
     }
 }
 
@@ -738,7 +768,7 @@ impl CodexAdapter {
     /// # Errors
     /// Returns [`InstallError::MalformedConfig`] if `config.toml` exists
     /// but is not valid TOML.
-    pub fn plan_uninstall(&self, ctx: &RequestContext) -> InstallResult<InstallReport> {
+    pub fn plan_uninstall(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
         self.check_ctx_consistency(ctx)?;
         let existing = self.read_config_toml()?;
         let mut planned_changes = Vec::new();
@@ -749,48 +779,53 @@ impl CodexAdapter {
             .and_then(|servers| servers.get(SERVER_NAME))
             .is_some();
         if has_entry {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::McpRegistration,
                 path: Self::repo_root(&self.config_toml_path())?,
-                description: format!(
+                description: InstallReportText::try_from(format!(
                     "remove mcp_servers.{SERVER_NAME} from <codex_home>/config.toml"
-                ),
-                is_update: true,
+                ))?,
+                disposition: ChangeDisposition::Update,
             });
         }
 
         if self.skill_md_path().is_file() {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::HarnessSpecific,
                 path: Self::repo_root(&self.skill_md_path())?,
-                description: format!("remove {SERVER_NAME} skill under <codex_home>/skills"),
-                is_update: true,
+                description: InstallReportText::try_from(format!(
+                    "remove {SERVER_NAME} skill under <codex_home>/skills"
+                ))?,
+                disposition: ChangeDisposition::Update,
             });
         }
 
         if self.agent_descriptor_path().is_file() {
-            planned_changes.push(PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes.push(PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::HarnessSpecific,
                 path: Self::repo_root(&self.agent_descriptor_path())?,
-                description: "remove agents/openai.yaml agent descriptor".to_owned(),
-                is_update: true,
+                description: InstallReportText::try_from(
+                    "remove agents/openai.yaml agent descriptor".to_owned(),
+                )?,
+                disposition: ChangeDisposition::Update,
             });
         }
 
         if self.global_agents_md_path().is_file() {
             let raw = std::fs::read_to_string(self.global_agents_md_path())
                 .map_err(|e| Self::io_err(&self.global_agents_md_path(), e))?;
-            if raw.contains(GLOBAL_AGENTS_START) {
-                planned_changes.push(PlannedChange {
-                    harness: HARNESS_KEY.to_owned(),
+            if raw.as_str().contains(GLOBAL_AGENTS_START) {
+                planned_changes.push(PlannedInstallChange {
+                    harness: self.harness_key(),
                     kind: ArtifactKind::DoctrineReference,
                     path: Self::repo_root(&self.global_agents_md_path())?,
-                    description: "remove global AGENTS.md ocentra-enforcer managed block"
-                        .to_owned(),
-                    is_update: true,
+                    description: InstallReportText::try_from(
+                        "remove global AGENTS.md ocentra-enforcer managed block".to_owned(),
+                    )?,
+                    disposition: ChangeDisposition::Update,
                 });
             }
         }
@@ -837,9 +872,9 @@ impl CodexAdapter {
                 }
             }
 
-            applied.push(AppliedChange {
+            applied.push(AppliedInstallChange {
                 change: change.clone(),
-                succeeded: true,
+                status: CheckStatus::Passed,
                 backup_path: backup_path.map(|p| Self::repo_root(&p)).transpose()?,
             });
         }
@@ -878,14 +913,16 @@ mod tests {
         remove_global_agents_block, CodexAdapter, InstallError, GLOBAL_AGENTS_END,
         GLOBAL_AGENTS_START, SERVER_NAME,
     };
-    use crate::cli_contract::RequestContext;
     use crate::core::HarnessAdapter;
+    use enforcer_domain::install_types::InstallRequestContext;
     use std::fs;
     use std::path::Path;
     use toml_edit::DocumentMut;
 
-    fn ctx(binary: &Path) -> RequestContext {
-        RequestContext::with_defaults(binary.to_path_buf())
+    fn ctx(
+        binary: &Path,
+    ) -> Result<InstallRequestContext, enforcer_domain::boundary::decode_error::DecodeError> {
+        InstallRequestContext::try_with_defaults(binary.to_path_buf())
     }
 
     fn fixture_home() -> Result<tempfile::TempDir, std::io::Error> {
@@ -896,9 +933,9 @@ mod tests {
     fn plan_on_fresh_home_proposes_every_artifact() -> Result<(), Box<dyn std::error::Error>> {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let report = adapter.plan(&ctx(&binary))?;
-        assert!(!report.is_noop());
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let report = adapter.plan(&ctx(&binary)?)?;
+        assert_eq!(report.planned_changes.len(), 4);
         assert_eq!(report.planned_changes.len(), 4);
         Ok(())
     }
@@ -909,22 +946,28 @@ mod tests {
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
         fs::write(&binary, b"installed-enforcer")?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
 
-        let plan = adapter.plan(&ctx(&binary))?;
-        assert!(!plan.is_noop());
+        let plan = adapter.plan(&ctx(&binary)?)?;
+        assert_eq!(plan.planned_changes.len(), 4);
         let applied = adapter.apply(&plan)?;
-        assert!(applied.all_succeeded());
+        assert!(applied.applied.iter().all(|change| matches!(
+            change.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
 
-        let verify = adapter.verify(&ctx(&binary))?;
+        let verify = adapter.verify(&ctx(&binary)?)?;
         assert!(
-            verify.all_passed(),
+            verify.checks.iter().all(|check| matches!(
+                check.status,
+                enforcer_domain::install_types::CheckStatus::Passed
+            )),
             "expected all checks to pass, got {verify:?}"
         );
 
         // Idempotent re-install: second plan is a no-op.
-        let second_plan = adapter.plan(&ctx(&binary))?;
-        assert!(second_plan.is_noop());
+        let second_plan = adapter.plan(&ctx(&binary)?)?;
+        assert!(second_plan.planned_changes.is_empty());
         Ok(())
     }
 
@@ -934,17 +977,18 @@ mod tests {
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
         fs::write(&binary, b"installed-enforcer")?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let plan = adapter.plan(&ctx(&binary))?;
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&plan)?;
 
         let raw = fs::read_to_string(adapter.config_toml_path())?;
         assert!(
-            raw.contains(&binary.display().to_string().replace('\\', "\\\\"))
-                || raw.contains(&binary.display().to_string())
+            raw.as_str()
+                .contains(&binary.display().to_string().replace('\\', "\\\\"))
+                || raw.as_str().contains(&binary.display().to_string())
         );
-        assert!(!raw.contains("\"node\""));
-        assert!(!raw.contains(".mjs"));
+        assert!(!raw.as_str().contains("\"node\""));
+        assert!(!raw.as_str().contains(".mjs"));
         Ok(())
     }
 
@@ -961,23 +1005,27 @@ mod tests {
         let pre_state = "[mcp_servers.other-tool]\ncommand = \"/usr/bin/other-tool\"\n\n[some_other_table]\nkeep = \"me\"\n";
         fs::write(&config_toml_path, pre_state)?;
 
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let install_plan = adapter.plan(&ctx(&binary))?;
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let install_plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&install_plan)?;
 
         let mid = fs::read_to_string(&config_toml_path)?;
-        assert!(mid.contains("other-tool"));
-        assert!(mid.contains("keep = \"me\""));
-        assert!(mid.contains(&format!("[mcp_servers.{SERVER_NAME}]")));
+        assert!(mid.as_str().contains("other-tool"));
+        assert!(mid.as_str().contains("keep = \"me\""));
+        assert!(mid
+            .as_str()
+            .contains(&format!("[mcp_servers.{SERVER_NAME}]")));
 
-        let uninstall_plan = adapter.plan_uninstall(&ctx(&binary))?;
-        assert!(!uninstall_plan.is_noop());
+        let uninstall_plan = adapter.plan_uninstall(&ctx(&binary)?)?;
+        assert_eq!(uninstall_plan.planned_changes.len(), 4);
         adapter.apply_uninstall(&uninstall_plan)?;
 
         let post = fs::read_to_string(&config_toml_path)?;
-        assert!(post.contains("other-tool"));
-        assert!(post.contains("keep = \"me\""));
-        assert!(!post.contains(&format!("[mcp_servers.{SERVER_NAME}]")));
+        assert!(post.as_str().contains("other-tool"));
+        assert!(post.as_str().contains("keep = \"me\""));
+        assert!(!post
+            .as_str()
+            .contains(&format!("[mcp_servers.{SERVER_NAME}]")));
 
         assert!(!adapter.skill_md_path().is_file());
         assert!(!adapter.agent_descriptor_path().is_file());
@@ -1019,8 +1067,8 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::write(home.path().join("config.toml"), "not [ valid toml")?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let result = adapter.plan(&ctx(&binary));
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let result = adapter.plan(&ctx(&binary)?);
         assert!(matches!(result, Err(InstallError::MalformedConfig { .. })));
         Ok(())
     }
@@ -1030,8 +1078,8 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::write(home.path().join("config.toml"), "not [ valid toml")?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let result = adapter.verify(&ctx(&binary));
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let result = adapter.verify(&ctx(&binary)?);
         assert!(matches!(result, Err(InstallError::MalformedConfig { .. })));
         Ok(())
     }
@@ -1043,15 +1091,21 @@ mod tests {
         let mut doc = DocumentMut::new();
         CodexAdapter::merge_mcp_server(&mut doc, CodexAdapter::desired_table(&binary));
         fs::write(home.path().join("config.toml"), doc.to_string())?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let report = adapter.verify(&ctx(&binary))?;
-        assert!(!report.all_passed());
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let report = adapter.verify(&ctx(&binary)?)?;
+        assert!(!report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
         let descriptor_check = report
             .checks
             .iter()
-            .find(|c| c.name == "agent-descriptor-present")
+            .find(|check| check.name.as_str() == "agent-descriptor-present")
             .ok_or("expected an agent-descriptor-present check")?;
-        assert!(!descriptor_check.passed);
+        assert!(!matches!(
+            descriptor_check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        ));
         Ok(())
     }
 
@@ -1068,9 +1122,12 @@ mod tests {
             agents_dir.join("openai.yaml"),
             "not a valid descriptor at all",
         )?;
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let report = adapter.verify(&ctx(&binary))?;
-        assert!(!report.all_passed());
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let report = adapter.verify(&ctx(&binary)?)?;
+        assert!(!report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
         Ok(())
     }
 
@@ -1081,20 +1138,27 @@ mod tests {
             CodexAdapter::validate_agent_descriptor(&rendered),
             Ok(())
         ));
-        assert!(rendered.contains(&format!("display_name: {SERVER_NAME}")));
-        assert!(rendered.contains("allow_implicit_invocation: true"));
+        assert!(rendered
+            .as_str()
+            .contains(&format!("display_name: {SERVER_NAME}")));
+        assert!(rendered
+            .as_str()
+            .contains("allow_implicit_invocation: true"));
     }
 
     #[test]
     fn validate_agent_descriptor_rejects_missing_display_name() {
         let result = CodexAdapter::validate_agent_descriptor("allow_implicit_invocation: true\n");
-        assert!(result.is_err());
+        assert_eq!(result, Err("missing `display_name:` field".to_owned()));
     }
 
     #[test]
     fn validate_agent_descriptor_rejects_missing_implicit_invocation() {
         let result = CodexAdapter::validate_agent_descriptor("display_name: enforcer\n");
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err("missing `allow_implicit_invocation: true`".to_owned())
+        );
     }
 
     #[test]
@@ -1102,8 +1166,8 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         let other_binary = home.path().join("bin").join("other-enforcer");
-        let adapter = CodexAdapter::new(home.path(), &binary);
-        let result = adapter.plan(&ctx(&other_binary));
+        let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary)?;
+        let result = adapter.plan(&ctx(&other_binary)?);
         assert!(matches!(result, Err(InstallError::MalformedConfig { .. })));
         Ok(())
     }
@@ -1120,27 +1184,40 @@ mod tests {
         let existing =
             "before\n<!-- ocentra-enforcer:start -->\nold\n<!-- ocentra-enforcer:end -->\nafter\n";
         let out = CodexAdapter::upsert_global_agents_block(existing, "AGENTS.md")?;
-        assert!(out.starts_with("before\n"));
-        assert!(out.contains("after"));
-        assert!(!out.contains("old"));
-        assert!(out.contains(SERVER_NAME));
+        assert!(out.as_str().starts_with("before\n"));
+        assert!(out.as_str().contains("after"));
+        assert!(!out.as_str().contains("old"));
+        assert!(out.as_str().contains(SERVER_NAME));
         Ok(())
     }
 
     #[test]
     fn global_agents_block_upsert_appends_when_absent() -> Result<(), Box<dyn std::error::Error>> {
         let out = CodexAdapter::upsert_global_agents_block("# My AGENTS\n", "AGENTS.md")?;
-        assert!(out.starts_with("# My AGENTS\n"));
-        assert!(out.contains(GLOBAL_AGENTS_START));
-        assert!(out.contains(GLOBAL_AGENTS_END));
+        assert!(out.as_str().starts_with("# My AGENTS\n"));
+        assert!(out.as_str().contains(GLOBAL_AGENTS_START));
+        assert!(out.as_str().contains(GLOBAL_AGENTS_END));
         Ok(())
     }
 
     #[test]
-    fn global_agents_block_upsert_detects_malformed_duplicate_markers() {
+    fn global_agents_block_upsert_detects_malformed_duplicate_markers(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let existing = "<!-- ocentra-enforcer:start -->\na\n<!-- ocentra-enforcer:start -->\nb\n<!-- ocentra-enforcer:end -->\n";
         let result = CodexAdapter::upsert_global_agents_block(existing, "AGENTS.md");
-        assert!(result.is_err());
+        let error = result
+            .err()
+            .ok_or("duplicate managed markers must be rejected")?;
+        assert_eq!(
+            error,
+            InstallError::ManagedBlockInvalid {
+                path: "AGENTS.md".to_owned(),
+                marker: "ocentra-enforcer".to_owned(),
+                reason: "expected exactly one begin/end marker pair, found 2 begin and 1 end"
+                    .to_owned(),
+            }
+        );
+        Ok(())
     }
 
     #[test]
@@ -1148,9 +1225,9 @@ mod tests {
         let existing =
             "before\n<!-- ocentra-enforcer:start -->\nold\n<!-- ocentra-enforcer:end -->\nafter\n";
         let out = remove_global_agents_block(existing);
-        assert!(out.contains("before"));
-        assert!(out.contains("after"));
-        assert!(!out.contains("old"));
-        assert!(!out.contains(GLOBAL_AGENTS_START));
+        assert!(out.as_str().contains("before"));
+        assert!(out.as_str().contains("after"));
+        assert!(!out.as_str().contains("old"));
+        assert!(!out.as_str().contains(GLOBAL_AGENTS_START));
     }
 }

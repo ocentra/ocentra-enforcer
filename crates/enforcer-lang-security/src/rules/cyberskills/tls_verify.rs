@@ -22,19 +22,12 @@
 //! PHP's cURL binding, and the shell `curl` CLI itself), scanned line by
 //! line exactly like the sibling `net_tls.rs` legacy-protocol validator.
 
+use crate::boundary::pattern::{LabelledPattern, LabelledPatternSource as TlsVerifySink};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
-
-/// One disabled-verification sink pattern: regex + human label, ordered by
-/// source ecosystem (Python, Node, Go, PHP, shell) to match the spec list.
-struct TlsVerifySink {
-    regex: &'static str,
-    label: &'static str,
-}
 
 /// The disabled-TLS-verification sinks this validator flags. Each is a
 /// well-known, high-confidence "verification turned off" API/flag from the
@@ -92,21 +85,23 @@ const TLS_VERIFY_SINKS_SRC: &[TlsVerifySink] = &[
 /// `CYBER-TLS-VERIFY.1` — flags disabled TLS certificate/hostname
 /// verification (a MITM enabler) in application source, config, or shell
 /// commands, scanned line by line.
+#[derive(Debug)]
 pub struct TlsVerificationDisabledValidator {
     rule_id: RuleId,
-    sinks: Vec<(Regex, &'static str)>,
+    sinks: Vec<LabelledPattern>,
 }
 
 impl TlsVerificationDisabledValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut sinks = Vec::with_capacity(TLS_VERIFY_SINKS_SRC.len());
         for entry in TLS_VERIFY_SINKS_SRC {
-            let regex = Regex::new(entry.regex)
-                .map_err(|err| DecodeError::new("cyberskillsTlsVerifySink", err.to_string()))?;
-            sinks.push((regex, entry.label));
+            sinks.push(LabelledPattern::compile_source(
+                "cyberskillsTlsVerifySink",
+                entry,
+            )?);
         }
         Ok(Self {
-            rule_id: "CYBER-TLS-VERIFY.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberTlsVerify.id(),
             sinks,
         })
     }
@@ -119,22 +114,23 @@ impl Validator for TlsVerificationDisabledValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
-            for (regex, label) in &self.sinks {
-                if regex.is_match(line) && !matched_labels.contains(label) {
-                    matched_labels.push(*label);
+            for pattern in &self.sinks {
+                if pattern.regex().is_match(line)
+                    && !matched_labels.contains(&pattern.label().as_str())
+                {
+                    matched_labels.push(pattern.label().as_str());
                 }
             }
             if matched_labels.is_empty() {
                 continue;
             }
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "TLS certificate/hostname verification disabled".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "TLS certificate/hostname verification disabled",
+                format!(
                     "Line disables TLS certificate or hostname verification: {}. This is a \
                      man-in-the-middle enabler: an attacker on the network path can present any \
                      certificate and go undetected. Fix: remove the disabling flag/option and let \
@@ -144,10 +140,9 @@ impl Validator for TlsVerificationDisabledValidator {
                      `CURLOPT_SSL_VERIFYPEER` to `1`, and drop `curl -k`/`--insecure`).",
                     matched_labels.join(", ")
                 ),
-                file: input.file.clone(),
-                line: line_number,
-                snippet: Some(line.to_owned()),
-            });
+                input.file,
+                (line_number, Some(line)),
+            ));
         }
         findings
     }
@@ -155,22 +150,15 @@ impl Validator for TlsVerificationDisabledValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::TlsVerificationDisabledValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_tls_verify() -> Result<(), Box<dyn std::error::Error>> {
         let v = TlsVerificationDisabledValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &v,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/net.tls-verify-disabled/bad/insecure.py",
             "tests/fixtures/cyberskills/net.tls-verify-disabled/good/secure.py",
         )?;

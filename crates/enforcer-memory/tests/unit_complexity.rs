@@ -4,16 +4,36 @@
 //! call chain, cycle safety, the query DSL surface, and a compile-only
 //! wave-B extension-point smoke check.
 
+use enforcer_domain::memory_types::{
+    ComplexityCallGraph, ComplexityCallGraphNode, ComplexityLanguage, ComplexitySymbolLocation,
+};
 use enforcer_memory::analysis::query::{execute, parse};
 use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::complexity::{self, CallGraphNode, ComplexityLanguage, NodeKindTable};
+use enforcer_memory::complexity::{self, NodeKindTable};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
+
+fn call_graph_node(
+    id: &str,
+    loop_depth: u32,
+    self_recursive: bool,
+    callees: &[&str],
+) -> ComplexityCallGraphNode {
+    ComplexityCallGraphNode {
+        id: id.to_owned().into(),
+        loop_depth: loop_depth.into(),
+        self_recursive: self_recursive.into(),
+        callees: callees
+            .iter()
+            .map(|callee| (*callee).to_owned().into())
+            .collect(),
+    }
+}
 
 fn run_git(dir: &Path, args: &[&str]) -> TestResult {
     let status = Command::new("git").args(args).current_dir(dir).status()?;
@@ -38,28 +58,28 @@ fn commit_all(dir: &Path, message: &str) -> TestResult {
 
 fn rust_metrics(source: &str, fn_name: &str) -> TestResult<complexity::ComplexityMetrics> {
     let line = find_line(source, fn_name)?;
-    let names = vec![(fn_name.to_string(), line)];
+    let names = vec![ComplexitySymbolLocation::new(fn_name, line)];
     let map = complexity::metrics_for_symbols(ComplexityLanguage::Rust, source, &names);
-    map.get(&(fn_name.to_string(), line))
+    map.get(&ComplexitySymbolLocation::new(fn_name, line))
         .copied()
         .ok_or_else(|| format!("no metrics resolved for {fn_name} in:\n{source}").into())
 }
 
 fn ts_metrics(source: &str, fn_name: &str) -> TestResult<complexity::ComplexityMetrics> {
     let line = find_line(source, fn_name)?;
-    let names = vec![(fn_name.to_string(), line)];
+    let names = vec![ComplexitySymbolLocation::new(fn_name, line)];
     let map =
         complexity::metrics_for_symbols(ComplexityLanguage::TypeScriptOrJavaScript, source, &names);
-    map.get(&(fn_name.to_string(), line))
+    map.get(&ComplexitySymbolLocation::new(fn_name, line))
         .copied()
         .ok_or_else(|| format!("no metrics resolved for {fn_name} in:\n{source}").into())
 }
 
 fn python_metrics(source: &str, fn_name: &str) -> TestResult<complexity::ComplexityMetrics> {
     let line = find_line(source, fn_name)?;
-    let names = vec![(fn_name.to_string(), line)];
+    let names = vec![ComplexitySymbolLocation::new(fn_name, line)];
     let map = complexity::metrics_for_symbols(ComplexityLanguage::Python, source, &names);
-    map.get(&(fn_name.to_string(), line))
+    map.get(&ComplexitySymbolLocation::new(fn_name, line))
         .copied()
         .ok_or_else(|| format!("no metrics resolved for {fn_name} in:\n{source}").into())
 }
@@ -230,10 +250,10 @@ fn fact(n: u64) -> u64 {
 }
 "#;
     let m = rust_metrics(source, "fact")?;
-    assert!(m.self_recursive);
-    assert!(!m.recursion_in_loop);
+    assert!(m.self_recursive.is_present());
+    assert!(!m.recursion_in_loop.is_present());
     assert!(
-        !m.unguarded_recursion,
+        !m.unguarded_recursion.is_present(),
         "the self-call sits under an `if`/`else` branch, i.e. a guarded base case exists"
     );
     Ok(())
@@ -247,9 +267,9 @@ fn spin(n: u64) -> u64 {
 }
 "#;
     let m = rust_metrics(source, "spin")?;
-    assert!(m.self_recursive);
+    assert!(m.self_recursive.is_present());
     assert!(
-        m.unguarded_recursion,
+        m.unguarded_recursion.is_present(),
         "no conditional guards the self-call -- infinite recursion by construction"
     );
     Ok(())
@@ -266,9 +286,9 @@ fn odd(n: u64) -> bool {
 }
 "#;
     let m = rust_metrics(source, "odd")?;
-    assert!(m.self_recursive);
+    assert!(m.self_recursive.is_present());
     assert!(
-        m.recursion_in_loop,
+        m.recursion_in_loop.is_present(),
         "the self-call sits inside the `while` loop"
     );
     Ok(())
@@ -363,32 +383,17 @@ fn transitive_loop_depth_propagates_across_a_three_function_call_chain() {
     // tld(middle) = 1 + tld(inner) = 2
     // tld(outer) = 1 + tld(middle) = 3
     let nodes = vec![
-        CallGraphNode {
-            id: "outer".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec!["middle".to_string()],
-        },
-        CallGraphNode {
-            id: "middle".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec!["inner".to_string()],
-        },
-        CallGraphNode {
-            id: "inner".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec![],
-        },
+        call_graph_node("outer", 1, false, &["middle"]),
+        call_graph_node("middle", 1, false, &["inner"]),
+        call_graph_node("inner", 1, false, &[]),
     ];
-    let result = complexity::propagate_transitive_loop_depth(&nodes);
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&nodes));
     assert_eq!(result["inner"].transitive_loop_depth, 1);
     assert_eq!(result["middle"].transitive_loop_depth, 2);
     assert_eq!(result["outer"].transitive_loop_depth, 3);
-    assert!(!result["outer"].recursive);
-    assert!(!result["middle"].recursive);
-    assert!(!result["inner"].recursive);
+    assert!(!result["outer"].recursive.is_present());
+    assert!(!result["middle"].recursive.is_present());
+    assert!(!result["inner"].recursive.is_present());
 }
 
 #[test]
@@ -396,47 +401,22 @@ fn transitive_loop_depth_picks_the_max_over_multiple_callees() {
     // root calls both a (tld 1) and b (tld 5) -- root's tld must follow
     // the larger branch, not the first/last one visited.
     let nodes = vec![
-        CallGraphNode {
-            id: "root".to_string(),
-            loop_depth: 0,
-            self_recursive: false,
-            callees: vec!["a".to_string(), "b".to_string()],
-        },
-        CallGraphNode {
-            id: "a".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec![],
-        },
-        CallGraphNode {
-            id: "b".to_string(),
-            loop_depth: 5,
-            self_recursive: false,
-            callees: vec![],
-        },
+        call_graph_node("root", 0, false, &["a", "b"]),
+        call_graph_node("a", 1, false, &[]),
+        call_graph_node("b", 5, false, &[]),
     ];
-    let result = complexity::propagate_transitive_loop_depth(&nodes);
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&nodes));
     assert_eq!(result["root"].transitive_loop_depth, 5);
 }
 
 #[test]
 fn transitive_loop_depth_saturates_for_extreme_graph_metrics() {
     let nodes = vec![
-        CallGraphNode {
-            id: "outer".to_string(),
-            loop_depth: u32::MAX,
-            self_recursive: false,
-            callees: vec!["inner".to_string()],
-        },
-        CallGraphNode {
-            id: "inner".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec![],
-        },
+        call_graph_node("outer", u32::MAX, false, &["inner"]),
+        call_graph_node("inner", 1, false, &[]),
     ];
 
-    let result = complexity::propagate_transitive_loop_depth(&nodes);
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&nodes));
     assert_eq!(result["outer"].transitive_loop_depth, u32::MAX);
 }
 
@@ -449,50 +429,39 @@ fn transitive_loop_depth_saturates_for_extreme_graph_metrics() {
 fn call_graph_cycle_terminates_and_flags_recursive() {
     // a -> b -> c -> a: a 3-node mutual-recursion cycle.
     let nodes = vec![
-        CallGraphNode {
-            id: "a".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec!["b".to_string()],
-        },
-        CallGraphNode {
-            id: "b".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec!["c".to_string()],
-        },
-        CallGraphNode {
-            id: "c".to_string(),
-            loop_depth: 1,
-            self_recursive: false,
-            callees: vec!["a".to_string()],
-        },
+        call_graph_node("a", 1, false, &["b"]),
+        call_graph_node("b", 1, false, &["c"]),
+        call_graph_node("c", 1, false, &["a"]),
     ];
     // The mere fact this returns (rather than hanging/overflowing the
     // stack) is the primary assertion here.
-    let result = complexity::propagate_transitive_loop_depth(&nodes);
-    assert_eq!(result.len(), 3);
-    assert!(result["a"].recursive, "cycle participant a is recursive");
-    assert!(result["b"].recursive, "cycle participant b is recursive");
-    assert!(result["c"].recursive, "cycle participant c is recursive");
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&nodes));
+    assert_eq!(result.clone().into_iter().count(), 3);
+    assert!(
+        result["a"].recursive.is_present(),
+        "cycle participant a is recursive"
+    );
+    assert!(
+        result["b"].recursive.is_present(),
+        "cycle participant b is recursive"
+    );
+    assert!(
+        result["c"].recursive.is_present(),
+        "cycle participant c is recursive"
+    );
 }
 
 #[test]
 fn direct_self_recursion_seed_is_preserved_in_transitive_metrics() {
-    let nodes = vec![CallGraphNode {
-        id: "fact".to_string(),
-        loop_depth: 0,
-        self_recursive: true,
-        callees: vec!["fact".to_string()],
-    }];
-    let result = complexity::propagate_transitive_loop_depth(&nodes);
-    assert!(result["fact"].recursive);
+    let nodes = vec![call_graph_node("fact", 0, true, &["fact"])];
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&nodes));
+    assert!(result["fact"].recursive.is_present());
 }
 
 #[test]
 fn empty_call_graph_returns_empty_map_without_panicking() {
-    let result = complexity::propagate_transitive_loop_depth(&[]);
-    assert!(result.is_empty());
+    let result = complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(&[]));
+    assert_eq!(result.into_iter().count(), 0);
 }
 
 // ---------------------------------------------------------------------
@@ -501,22 +470,26 @@ fn empty_call_graph_returns_empty_map_without_panicking() {
 
 #[test]
 fn metrics_for_symbols_skips_unresolvable_names_without_panicking() {
-    let source = "fn real() {}\n";
+    let source = "fn real() { 0; }\n";
     let names = vec![
-        ("real".to_string(), 1),
-        ("ghost".to_string(), 99), // does not exist in this source
+        ComplexitySymbolLocation::new("real", 1),
+        ComplexitySymbolLocation::new("ghost", 99), // does not exist in this source
     ];
     let map = complexity::metrics_for_symbols(ComplexityLanguage::Rust, source, &names);
-    assert!(map.contains_key(&("real".to_string(), 1)));
+    assert!(map.contains_key(&ComplexitySymbolLocation::new("real", 1)));
     assert!(
-        !map.contains_key(&("ghost".to_string(), 99)),
+        !map.contains_key(&ComplexitySymbolLocation::new("ghost", 99)),
         "an unresolvable name/line pair must be silently absent, not a panic"
     );
 }
 
 #[test]
 fn metrics_for_symbols_on_empty_source_returns_empty_map() {
-    let map = complexity::metrics_for_symbols(ComplexityLanguage::Rust, "", &[]);
+    let map = complexity::metrics_for_symbols(
+        ComplexityLanguage::Rust,
+        "",
+        Vec::<ComplexitySymbolLocation>::new(),
+    );
     assert!(map.is_empty());
 }
 
@@ -539,8 +512,8 @@ fn node_kind_table_is_a_plain_data_extension_point_for_wave_b_languages() {
         NodeKindTable::rust()
     }
     let table = hypothetical_language_table();
-    assert!(!table.loops.is_empty());
-    assert!(!table.decision_points.is_empty());
+    assert!(bool::from(table.has_loop_kinds()));
+    assert!(bool::from(table.has_decision_point_kinds()));
 }
 
 // ---------------------------------------------------------------------
@@ -570,7 +543,7 @@ fn dsl_query_over_transitive_loop_depth_and_linear_scan_matches_and_orders_corre
     )?;
     fs::write(
         dir.path().join("b.rs"),
-        "fn scanner(items: &[i32]) -> Option<&i32> { for _ in items { return items.iter().find(|x| **x > 0); } items.first() }\nfn plain() {}\n",
+        "fn scanner(items: &[i32]) -> Option<&i32> { for _ in items { return items.iter().find(|x| **x > 0); } items.first() }\nfn plain() { let _ = 0; }\n",
     )?;
     commit_all(dir.path(), "first")?;
 
@@ -590,7 +563,7 @@ fn dsl_query_over_transitive_loop_depth_and_linear_scan_matches_and_orders_corre
     // for the same convention. Node ids embed the symbol name (`sym:
     // <path>:<line>:<name>`), so a substring check on `r["f"]` is this
     // DSL's existing way to assert "this row is symbol X".
-    let ids: Vec<&String> = rows.iter().filter_map(|r| r.get("f")).collect();
+    let ids: Vec<_> = rows.iter().filter_map(|r| r.get("f")).collect();
     assert!(
         ids.iter().any(|id| id.contains("scanner")),
         "scanner's in-loop `.find(..)` call must satisfy linear_scan_in_loop >= 1; got rows: {ids:?}"

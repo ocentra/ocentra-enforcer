@@ -23,9 +23,11 @@
 //! than that repo's own sources -- see `tests/unit_languages_c.rs` for
 //! the baseline-indexing test that *does* apply (C, not C++).
 
+use crate::owned_boundary::{Retained, RetainedDisplay};
 use crate::parsers::{
-    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, SymbolKind, SymbolRef,
+    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, SymbolKind, SymbolRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost function/method a call expression is lexically inside
@@ -100,9 +102,9 @@ fn walk(
         "namespace_definition" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
                 return;
@@ -111,18 +113,18 @@ fn walk(
         "enum_specifier" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "type_definition" => {
             for alias_name in typedef_alias_names(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: alias_name,
+                    name: (alias_name).into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -132,9 +134,9 @@ fn walk(
             // shape.
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -150,39 +152,42 @@ fn walk(
         "preproc_def" if node.child_by_field_name("value").is_some() => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "preproc_include" => {
             if let Some(path) = include_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "call_expression" => {
             if let Some(function) = node.child_by_field_name("function") {
-                let callee = function.utf8_text(src).unwrap_or("").to_string();
+                let callee = function.utf8_text(src).unwrap_or("").retained_display();
                 if let Some(test_name) = gtest_macro_test_name(&callee, node, src) {
                     out.symbols.push(SymbolRef {
-                        name: test_name,
+                        name: (test_name).into(),
                         kind: SymbolKind::Test,
-                        line: node.start_position().row + 1,
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee,
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: callee.into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
             }
         }
@@ -258,25 +263,25 @@ fn handle_class_or_struct(
         SymbolKind::Class
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
 
     for base_name in base_class_names(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name: base_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: (base_name).into(),
+            line: line.into(),
         });
     }
 
     if let Some(body) = body {
         for field_name in field_names(body, src) {
             out.defines.push(DefinesRef {
-                container_name: name.clone(),
-                member_name: field_name,
-                line,
+                container_name: (name.retained()).into(),
+                member_name: (field_name).into(),
+                line: line.into(),
             });
         }
     }
@@ -350,7 +355,7 @@ fn base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
                 "type_identifier" | "qualified_identifier" | "template_type"
             ) {
                 if let Ok(text) = entry.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -416,9 +421,9 @@ fn handle_function_definition(
     // real function call.
     if let Some(test_name) = gtest_macro_test_name(&name, declarator, src) {
         out.symbols.push(SymbolRef {
-            name: test_name,
+            name: (test_name).into(),
             kind: SymbolKind::Test,
-            line,
+            line: line.into(),
         });
         walk_children(node, src, out, enclosing, fn_scope);
         return;
@@ -433,15 +438,15 @@ fn handle_function_definition(
         SymbolKind::Function
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
     if let Some(container) = container {
         out.defines.push(DefinesRef {
-            container_name: container.to_string(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained_display()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     // Descend into the body (and any nested lambdas/classes) with the
@@ -474,16 +479,17 @@ fn declarator_name_and_scope(node: Node<'_>, src: &[u8]) -> Option<(String, Opti
             .and_then(|inner| declarator_name_and_scope(inner, src)),
         "qualified_identifier" => {
             let name_node = node.child_by_field_name("name")?;
-            let name = name_node.utf8_text(src).ok()?.to_string();
+            let name = name_node.utf8_text(src).ok()?.retained_display();
             let scope = node
                 .child_by_field_name("scope")
                 .and_then(|s| s.utf8_text(src).ok())
                 .map(str::to_string);
             Some((name, scope))
         }
-        "identifier" | "field_identifier" | "destructor_name" | "operator_name" => {
-            node.utf8_text(src).ok().map(|s| (s.to_string(), None))
-        }
+        "identifier" | "field_identifier" | "destructor_name" | "operator_name" => node
+            .utf8_text(src)
+            .ok()
+            .map(|s| (s.retained_display(), None)),
         _ => None,
     }
 }
@@ -508,7 +514,7 @@ fn typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
             }
             "type_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             _ => {
@@ -555,13 +561,13 @@ fn top_level_declaration_symbols(
         }
         if let Some(name) = innermost_declarator_identifier(declarator, src) {
             out.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: if is_const {
                     SymbolKind::Constant
                 } else {
                     SymbolKind::Variable
                 },
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -598,9 +604,9 @@ fn named_lambda_binding(declaration_node: Node<'_>, src: &[u8]) -> Option<Symbol
         if value.kind() == "lambda_expression" {
             let name = innermost_declarator_identifier(declarator, src)?;
             return Some(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Lambda,
-                line: declaration_node.start_position().row + 1,
+                line: (declaration_node.start_position().row + 1).into(),
             });
         }
     }
@@ -621,11 +627,11 @@ fn named_lambda_binding_from_assignment(
     let left = child.child_by_field_name("left")?;
     let right = child.child_by_field_name("right")?;
     if right.kind() == "lambda_expression" && left.kind() == "identifier" {
-        let name = left.utf8_text(src).ok()?.to_string();
+        let name = left.utf8_text(src).ok()?.retained_display();
         return Some(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::Lambda,
-            line: expression_statement_node.start_position().row + 1,
+            line: (expression_statement_node.start_position().row + 1).into(),
         });
     }
     None
@@ -636,7 +642,7 @@ fn include_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let raw = path_node.utf8_text(src).ok()?;
     Some(
         raw.trim_matches(|c| c == '"' || c == '<' || c == '>')
-            .to_string(),
+            .retained_display(),
     )
 }
 
@@ -701,7 +707,9 @@ fn gtest_macro_test_name(callee: &str, declarator: Node<'_>, src: &[u8]) -> Opti
     if idents.len() < 2 {
         return None;
     }
-    Some(format!("{}.{}", idents[0], idents[1]))
+    let first = idents.first()?;
+    let second = idents.get(1)?;
+    Some(format!("{first}.{second}"))
 }
 
 /// For a `field_expression`-shaped callee (`x.foo()`/`x->foo()`, both
@@ -731,7 +739,7 @@ fn receiver_of_call(function_node: Node<'_>, src: &[u8]) -> (Option<String>, Opt
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Each argument expression's own source text, in written order.
@@ -746,7 +754,7 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out

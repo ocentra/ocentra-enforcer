@@ -1,14 +1,19 @@
+use enforcer_domain::events_types::{
+    AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
+    RequestCompletionOutcome, RequestId, RuntimeInstanceId, RuntimeRole, SchemaVersion,
+    SourceComponent, SourceService, TargetHandler,
+};
+use enforcer_events::boundary::event_contract_persistence::{EventContractDto, EventSourceDto};
+use enforcer_events::boundary::event_metadata_persistence::{EventEnvelopeDto, EventMetadataDto};
+use enforcer_events::boundary::stored_event_persistence::{
+    StoredEventEnvelope, StoredEventEnvelopeDto, StoredEventPayloadDto,
+};
 use enforcer_events::envelope::{
-    DomainEvent, EventContract, EventEnvelope, EventMetadata, EventSource,
+    DomainEvent, EventContract, EventFrame, EventMetadata, EventSource,
 };
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
-    AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
-    RequestId, RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService,
-    TargetHandler,
-};
-use enforcer_events::request::{RequestCompletionOutcome, RequestCompletionReport};
-use serde::{Deserialize, Serialize};
+use enforcer_events::request::RequestCompletionReport;
+use serde::{de::Error as _, Deserialize, Serialize};
 use serde_json::json;
 
 const TEST_EVENT_TYPE: &str = "eventing.unit.contract-boundary";
@@ -34,26 +39,39 @@ impl DomainEvent for EnvelopeBoundaryEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             EventType::parse(TEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(TEST_AGGREGATE_KEY)
+        Ok(AggregateKey::parse(TEST_AGGREGATE_KEY)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(TEST_IDEMPOTENCY_KEY)
+        Ok(IdempotencyKey::parse(TEST_IDEMPOTENCY_KEY)?)
     }
+}
+
+fn assert_json_round_trip<T>(original: T) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
+{
+    let wire = serde_json::to_string(&original)?;
+    let decoded: T = serde_json::from_str(&wire)?;
+    assert_eq!(decoded, original);
+    Ok(())
 }
 
 #[test]
 fn event_contract_serde_rejects_zero_schema_version(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let result = serde_json::from_value::<EventContract>(json!({
+    let result = serde_json::from_value::<
+        enforcer_events::boundary::event_contract_persistence::EventContractDto,
+    >(json!({
         "eventType": TEST_EVENT_TYPE,
         "schemaVersion": 0
-    }));
+    }))
+    .and_then(|wire| EventContract::try_from(wire).map_err(serde_json::Error::custom));
 
     let Err(error) = result else {
         return Err("expected zero schema version to be rejected on decode".into());
@@ -65,15 +83,105 @@ fn event_contract_serde_rejects_zero_schema_version(
 }
 
 #[test]
-fn stored_envelope_serde_uses_canonical_eventing_keys(
+fn persistence_dto_round_trips_preserve_typed_event_boundary_values(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let live = EventEnvelope::from_event(
+    let live = EventFrame::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
         },
         metadata()?,
     )?;
-    let stored_json = serde_json::to_value(live.store()?)?;
+    let stored = live.store()?;
+
+    assert_json_round_trip::<EventContractDto>(EventContractDto::from(&live.contract))?;
+    assert_json_round_trip::<EventSourceDto>(EventSourceDto::from(&live.source))?;
+    assert_json_round_trip::<EventMetadataDto>(EventMetadataDto::from(&metadata()?))?;
+    let original_envelope: EventEnvelopeDto<EnvelopeBoundaryEvent> = EventEnvelopeDto::from(&live);
+    let envelope_wire = serde_json::to_string(&original_envelope)?;
+    let decoded_envelope: EventEnvelopeDto<EnvelopeBoundaryEvent> =
+        serde_json::from_str(&envelope_wire)?;
+    assert_eq!(decoded_envelope, original_envelope);
+    assert_json_round_trip::<StoredEventPayloadDto>(
+        StoredEventEnvelopeDto::from(&stored).0.payload,
+    )?;
+    assert_json_round_trip::<StoredEventEnvelopeDto>(StoredEventEnvelopeDto::from(&stored))?;
+    Ok(())
+}
+
+#[test]
+fn persistence_dto_conversions_reject_invalid_domain_values(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    assert!(EventContract::try_from(EventContractDto {
+        event_type: TEST_EVENT_TYPE.to_owned(),
+        schema_version: 0,
+    })
+    .is_err());
+
+    assert!(EventSource::try_from(EventSourceDto {
+        custody: String::new(),
+        role: TEST_RUNTIME_ROLE.to_owned(),
+        service: TEST_SOURCE_SERVICE.to_owned(),
+        component: TEST_SOURCE_COMPONENT.to_owned(),
+        instance_id: TEST_RUNTIME_INSTANCE.to_owned(),
+    })
+    .is_err());
+
+    assert!(EventMetadata::try_from(EventMetadataDto {
+        event_id: String::new(),
+        correlation_id: TEST_CORRELATION_ID.to_owned(),
+        causation_id: None,
+        source: EventSourceDto::from(&metadata()?.source),
+        observed_at: TEST_OBSERVED_AT.to_owned(),
+        target_handler: Some(TEST_TARGET.to_owned()),
+        priority: Default::default(),
+        deadline: None,
+    })
+    .is_err());
+
+    let live = EventFrame::from_event(
+        EnvelopeBoundaryEvent {
+            label: String::from("typed-boundary"),
+        },
+        metadata()?,
+    )?;
+    let mut invalid_stored = StoredEventEnvelopeDto::from(&live.store()?);
+    invalid_stored.0.event_id.clear();
+    assert!(matches!(
+        StoredEventEnvelope::try_from(invalid_stored),
+        Err(EventingError::InvalidValue { field, value })
+            if field.as_str() == "event_id" && value.as_str() == "unspecified event error"
+    ));
+    Ok(())
+}
+
+#[test]
+fn stored_envelope_serde_uses_canonical_eventing_keys(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let live = EventFrame::from_event(
+        EnvelopeBoundaryEvent {
+            label: String::from("typed-boundary"),
+        },
+        metadata()?,
+    )?;
+    let stored = live.store()?;
+    let stored_dto = StoredEventEnvelopeDto::from(&stored);
+    let wire = serde_json::to_string(&stored_dto)?;
+    let round_trip_stored: StoredEventEnvelopeDto = serde_json::from_str(&wire)?;
+    let round_trip_envelope: &EventEnvelopeDto<StoredEventPayloadDto> = &round_trip_stored.0;
+    let round_trip_contract: &EventContractDto = &round_trip_envelope.contract;
+    let round_trip_source: &EventSourceDto = &round_trip_envelope.source;
+    assert_eq!(round_trip_contract.event_type.as_str(), TEST_EVENT_TYPE);
+    assert_eq!(
+        round_trip_source.instance_id.as_str(),
+        TEST_RUNTIME_INSTANCE
+    );
+
+    let metadata_dto = EventMetadataDto::from(&metadata()?);
+    let metadata_wire = serde_json::to_string(&metadata_dto)?;
+    let round_trip_metadata: EventMetadataDto = serde_json::from_str(&metadata_wire)?;
+    assert_eq!(round_trip_metadata.event_id.as_str(), TEST_EVENT_ID);
+
+    let stored_json = serde_json::to_value(&round_trip_stored)?;
 
     assert_eq!(stored_json["contract"]["eventType"], json!(TEST_EVENT_TYPE));
     assert_eq!(stored_json["contract"]["schemaVersion"], json!(1));
@@ -100,7 +208,11 @@ fn request_completion_report_serde_uses_canonical_eventing_keys(
         request_id: RequestId::parse("request-completion-1")?,
         outcome: RequestCompletionOutcome::Late,
     };
-    let report_json = serde_json::to_value(report)?;
+    let report_json = serde_json::to_value(
+        enforcer_events::boundary::request_persistence::RequestCompletionReportResponse::from(
+            &report,
+        ),
+    )?;
 
     assert_eq!(report_json["requestId"], json!("request-completion-1"));
     assert_eq!(report_json["outcome"], json!("late"));
@@ -109,19 +221,53 @@ fn request_completion_report_serde_uses_canonical_eventing_keys(
 }
 
 #[test]
+fn request_completion_report_response_reconstructs_validated_domain_report(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let report = RequestCompletionReport {
+        request_id: RequestId::parse("request-completion-1")?,
+        outcome: RequestCompletionOutcome::Late,
+    };
+    let response =
+        enforcer_events::boundary::request_persistence::RequestCompletionReportResponse::from(
+            &report,
+        );
+
+    assert_eq!(RequestCompletionReport::try_from(response)?, report);
+    Ok(())
+}
+
+#[test]
+fn request_completion_report_response_rejects_unknown_outcome(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let result = RequestCompletionReport::try_from(
+        enforcer_events::boundary::request_persistence::RequestCompletionReportResponse {
+            request_id: String::from("request-completion-1"),
+            outcome: String::from("unexpected"),
+        },
+    );
+
+    let Err(EventingError::InvalidValue { field, value }) = result else {
+        return Err("expected unknown completion outcome to be rejected".into());
+    };
+    assert_eq!(field.as_str(), "request_completion_outcome");
+    assert!(value.as_str().contains("unexpected"));
+    Ok(())
+}
+
+#[test]
 fn live_and_stored_envelopes_preserve_contract_and_metadata(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let live = EventEnvelope::from_event(
+    let live = EventFrame::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
         },
         metadata()?,
     )?;
     let stored = live.store()?;
-    let decoded: EventEnvelope<EnvelopeBoundaryEvent> = stored.decode()?;
+    let decoded: EventFrame<EnvelopeBoundaryEvent> = stored.decode()?;
 
     assert_eq!(stored.contract.event_type.as_str(), TEST_EVENT_TYPE);
-    assert_eq!(stored.contract.schema_version.value(), 1);
+    assert_eq!(stored.contract.schema_version.as_nonzero().get(), 1);
     assert_eq!(stored.event_id.as_str(), TEST_EVENT_ID);
     assert_eq!(stored.correlation_id.as_str(), TEST_CORRELATION_ID);
     assert_eq!(
@@ -133,14 +279,14 @@ fn live_and_stored_envelopes_preserve_contract_and_metadata(
         TEST_TARGET
     );
     assert_eq!(decoded.payload.label, "typed-boundary");
-    assert_eq!(decoded.contract.schema_version.value(), 1);
+    assert_eq!(decoded.contract.schema_version.as_nonzero().get(), 1);
     Ok(())
 }
 
 #[test]
 fn stored_decode_contract_mismatch_reports_event_type_and_schema_version_context(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let live = EventEnvelope::from_event(
+    let live = EventFrame::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
         },
@@ -148,7 +294,8 @@ fn stored_decode_contract_mismatch_reports_event_type_and_schema_version_context
     )?;
     let mut stored = live.store()?;
     stored.contract.event_type = EventType::parse(OTHER_EVENT_TYPE)?;
-    stored.contract.schema_version = SchemaVersion::new(2)?;
+    stored.contract.schema_version =
+        SchemaVersion::try_new(std::num::NonZeroU16::new(2).ok_or(EventingError::InvalidVersion)?);
 
     let error = match stored.decode::<EnvelopeBoundaryEvent>() {
         Err(e) => e,
@@ -160,8 +307,10 @@ fn stored_decode_contract_mismatch_reports_event_type_and_schema_version_context
         EventingError::ContractMismatch {
             expected: EventType::parse(TEST_EVENT_TYPE)?,
             received: EventType::parse(OTHER_EVENT_TYPE)?,
-            expected_schema_version: SchemaVersion::new(1)?,
-            received_schema_version: SchemaVersion::new(2)?,
+            expected_schema_version: SchemaVersion::try_new(std::num::NonZeroU16::MIN),
+            received_schema_version: SchemaVersion::try_new(
+                std::num::NonZeroU16::new(2).ok_or(EventingError::InvalidVersion)?,
+            ),
         }
     );
     assert_eq!(

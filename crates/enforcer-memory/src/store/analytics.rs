@@ -21,9 +21,9 @@
 //!   toolchain/artifact story in this repo's CI. Making it a default,
 //!   always-on dependency of `enforcer-memory` would make the crate's
 //!   OWN build flaky on the exact platform this workpack targets first
-//!   (Windows) — the opposite of "local-first, mechanically testable".
+//!   (Windows) â€” the opposite of "local-first, mechanically testable".
 //! - The requirement this subpack actually needs met is "an analytics
-//!   read model exists, is queryable, and is exercised by tests" — not
+//!   read model exists, is queryable, and is exercised by tests" â€” not
 //!   "the literal `duckdb` crate is linked". [`AnalyticsReadModel`] is
 //!   the seam: any backend that can aggregate observation-log entries
 //!   satisfies it.
@@ -35,7 +35,7 @@
 //!   about in tests).
 //! - Real DuckDB rides the SAME trait behind the `duckdb-analytics`
 //!   Cargo feature (see `Cargo.toml`). It is NOT enabled by default and
-//!   NOT exercised by this lane's gate — wiring an actual
+//!   NOT exercised by this lane's gate â€” wiring an actual
 //!   `DuckDbAnalytics: AnalyticsReadModel` impl is an explicit deferred
 //!   follow-up (tracked in the final report), so this module does not
 //!   claim a capability it has not proven. This is the fake-green
@@ -43,8 +43,10 @@
 //!   "duckdb-analytics")]` stub that is never compiled by the gate would
 //!   be worse than not mentioning DuckDB at all, so none is added here.
 
+use crate::boundary::log_schema::ObservationLogEntryDto;
 use crate::error::Result;
-use crate::schema::ObservationLogEntry;
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{MemoryAnalyticsObservationCount, MemoryAnalyticsRepoContext};
 
 /// One aggregate analytics answer: counts of clean vs. non-clean
 /// observations, grouped by `repo_context`. Intentionally the simplest
@@ -52,18 +54,18 @@ use crate::schema::ObservationLogEntry;
 /// count), not a placeholder that returns a constant.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RepoContextCounts {
-    pub repo_context: String,
-    pub clean: u64,
-    pub findings: u64,
+    pub repo_context: MemoryAnalyticsRepoContext,
+    pub clean: MemoryAnalyticsObservationCount,
+    pub findings: MemoryAnalyticsObservationCount,
 }
 
-/// The analytics read model seam. Any backend — the in-process fallback
+/// The analytics read model seam. Any backend â€” the in-process fallback
 /// here, or a real DuckDB-backed implementation behind the
-/// `duckdb-analytics` feature — satisfies this trait.
+/// `duckdb-analytics` feature â€” satisfies this trait.
 pub trait AnalyticsReadModel {
     /// Load (replacing any prior state) the given observation entries
     /// into the analytics backend.
-    fn load(&mut self, entries: &[ObservationLogEntry]) -> Result<()>;
+    fn load(&mut self, entries: &[ObservationLogEntryDto]) -> Result<()>;
 
     /// Aggregate clean/finding counts grouped by `repo_context`, sorted
     /// by `repo_context` for deterministic output.
@@ -72,14 +74,14 @@ pub trait AnalyticsReadModel {
 
 /// The default, dependency-free analytics backend: a deterministic
 /// in-process aggregator. See the module-level DuckDB decision record
-/// above for why this — not `duckdb` — is the default.
+/// above for why this â€” not `duckdb` â€” is the default.
 #[derive(Debug, Clone, Default)]
 pub struct InProcessAnalytics {
-    entries: Vec<ObservationLogEntry>,
+    entries: Vec<ObservationLogEntryDto>,
 }
 
 impl AnalyticsReadModel for InProcessAnalytics {
-    fn load(&mut self, entries: &[ObservationLogEntry]) -> Result<()> {
+    fn load(&mut self, entries: &[ObservationLogEntryDto]) -> Result<()> {
         self.entries = entries.to_vec();
         Ok(())
     }
@@ -89,11 +91,11 @@ impl AnalyticsReadModel for InProcessAnalytics {
             std::collections::BTreeMap::new();
         for entry in &self.entries {
             let bucket = by_context
-                .entry(entry.repo_context.clone())
+                .entry(entry.repo_context.retained())
                 .or_insert_with(|| RepoContextCounts {
-                    repo_context: entry.repo_context.clone(),
-                    clean: 0,
-                    findings: 0,
+                    repo_context: entry.repo_context.retained_display().into(),
+                    clean: 0.into(),
+                    findings: 0.into(),
                 });
             if entry.clean {
                 bucket.clean += 1;

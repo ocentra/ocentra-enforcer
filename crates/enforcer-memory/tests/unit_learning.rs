@@ -1,21 +1,24 @@
+use enforcer_domain::memory_types::LessonStatus;
+use enforcer_domain::memory_types::{
+    ProceduralOutcome, RecordDomain, RecordKind, RecurrenceNegativeKind,
+};
 use enforcer_domain::paths::RepoRoot;
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::boundary::record::ProvenanceDto;
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::ingest::{ingest_observation, ingest_observation_into_store, Observation};
 use enforcer_memory::learning::{
     active_lessons, learning_curve, lesson_status, project_learning_from_store, superseded_by,
-    LessonStatus,
 };
 use enforcer_memory::lesson::LessonRow;
 use enforcer_memory::model_observations::{
     record_model_runtime_observation_in_store, ModelRuntimeObservationCandidate,
-    ModelRuntimeObservationRecord, RecurrenceNegativeKind, RecurrenceOrNegativeEvidence,
+    ModelRuntimeObservationRecordDto, RecurrenceOrNegativeEvidenceDto,
 };
 use enforcer_memory::observations::{
-    record_procedural_in_store, record_route_choice_in_store, ProceduralOutcome,
-    ProceduralStoreInput, RouteChoiceStoreInput,
+    record_procedural_in_store, record_route_choice_in_store, ProceduralStoreInput,
+    RouteChoiceStoreInput,
 };
-use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
 use enforcer_memory::store::Store;
 
 fn record(id: &str, domain: RecordDomain, landed_at: Vec<&str>) -> MemoryRecord {
@@ -33,8 +36,8 @@ fn record(id: &str, domain: RecordDomain, landed_at: Vec<&str>) -> MemoryRecord 
         routes: vec![],
         landed_at: landed_at.into_iter().map(String::from).collect(),
         supersedes: None,
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     }
@@ -50,28 +53,31 @@ fn landed_record_is_active_unlanded_is_inactive() {
     ));
     graph.ingest_record(record("mem-a-0002", RecordDomain::Harness, vec![]));
     assert_eq!(
-        lesson_status(&graph, "mem-a-0001"),
+        lesson_status(&graph, &"mem-a-0001".into()),
         Some(LessonStatus::Active)
     );
     assert_eq!(
-        lesson_status(&graph, "mem-a-0002"),
+        lesson_status(&graph, &"mem-a-0002".into()),
         Some(LessonStatus::Inactive)
     );
-    assert_eq!(lesson_status(&graph, "mem-a-nonexistent"), None);
+    assert_eq!(lesson_status(&graph, &"mem-a-nonexistent".into()), None);
 }
 
 #[test]
 fn ledger_row_landed_at_drives_activation_too() {
     let mut graph = MemoryGraph::new();
     graph.ingest_lesson_row(LessonRow {
-        id: "L1".to_string(),
-        date: "2026-07-04".to_string(),
-        observed: "x".to_string(),
-        lesson: "y".to_string(),
-        landed_at: "arc-16 finding".to_string(),
-        ships_via: "arc-16".to_string(),
+        id: "L1".to_string().into(),
+        date: "2026-07-04".to_string().into(),
+        observed: "x".to_string().into(),
+        lesson: "y".to_string().into(),
+        landed_at: "arc-16 finding".to_string().into(),
+        ships_via: "arc-16".to_string().into(),
     });
-    assert_eq!(lesson_status(&graph, "L1"), Some(LessonStatus::Active));
+    assert_eq!(
+        lesson_status(&graph, &"L1".into()),
+        Some(LessonStatus::Active)
+    );
 }
 
 #[test]
@@ -89,16 +95,22 @@ fn active_lessons_excludes_inactive_and_superseded() {
 
     let active = active_lessons(&graph);
     assert!(
-        !active.contains(&"mem-a-0001"),
+        !active.contains(&"mem-a-0001".into()),
         "superseded, must be excluded"
     );
     assert!(
-        !active.contains(&"mem-a-0002"),
+        !active.contains(&"mem-a-0002".into()),
         "unlanded, must be excluded"
     );
-    assert!(active.contains(&"mem-a-0003"), "supersedes and is landed");
-    assert_eq!(superseded_by(&graph, "mem-a-0001"), Some("mem-a-0003"));
-    assert_eq!(superseded_by(&graph, "mem-a-0003"), None);
+    assert!(
+        active.contains(&"mem-a-0003".into()),
+        "supersedes and is landed"
+    );
+    assert_eq!(
+        superseded_by(&graph, &"mem-a-0001".into()),
+        Some("mem-a-0003".into())
+    );
+    assert_eq!(superseded_by(&graph, &"mem-a-0003".into()), None);
 }
 
 #[test]
@@ -116,13 +128,13 @@ fn learning_curve_tracks_landed_count_and_incidents_per_domain(
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-a-0001".to_string(),
+            lesson_id: ("mem-a-0001".to_string()).into(),
             rule_id: None,
             fault_class: None,
-            repo_context: "crates/enforcer-memory".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-04T01:00:00Z".to_string(),
+            repo_context: ("crates/enforcer-memory".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-04T01:00:00Z".to_string()).into(),
         },
     );
 
@@ -179,28 +191,28 @@ fn store_learning_projection_replays_observations_into_curves(
         &mut store,
         &mut write_projection,
         Observation {
-            lesson_id: "mem-a-0001".to_string(),
-            rule_id: Some("LRN-STORE".to_string()),
-            fault_class: Some("store-backed-recurrence".to_string()),
-            repo_context: "crates/enforcer-memory/src/learning.rs".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-07T00:01:00Z".to_string(),
+            lesson_id: ("mem-a-0001".to_string()).into(),
+            rule_id: Some("LRN-STORE".to_string().into()),
+            fault_class: Some("store-backed-recurrence".to_string().into()),
+            repo_context: ("crates/enforcer-memory/src/learning.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-07T00:01:00Z".to_string()).into(),
         },
     )?;
     record_model_runtime_observation_in_store(
         &mut store,
-        &ModelRuntimeObservationRecord::new(
+        &ModelRuntimeObservationRecordDto::new(
             "2026-07-07T00:02:00Z",
             "model-runtime-proof",
             "run-lrn-store",
-            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(
-                RecurrenceOrNegativeEvidence {
+            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(
+                RecurrenceOrNegativeEvidenceDto {
                     lesson_id: "mem-a-0001".to_string(),
                     query_id: Some("qa-lrn-store".to_string()),
                     evidence_kind: RecurrenceNegativeKind::RecurrenceCount {
-                        recurrence_count: 2,
-                        previous_count: Some(1),
+                        recurrence_count: 2.into(),
+                        previous_count: Some(1.into()),
                     },
                     clean_evidence: true,
                 },
@@ -229,7 +241,9 @@ fn store_learning_projection_replays_observations_into_curves(
     )?;
 
     assert!(
-        seed_graph.incidents_for_lesson("mem-a-0001").is_empty(),
+        seed_graph
+            .incidents_for_lesson(&"mem-a-0001".into())
+            .is_empty(),
         "projection must not mutate the seed lesson graph"
     );
 
@@ -254,7 +268,9 @@ fn store_learning_projection_replays_observations_into_curves(
         return Err("Store-derived recurrence curve must exist for the observed lesson".into());
     };
     assert_eq!(recurrence.len(), 2);
-    assert!(recurrence.iter().all(|point| point.since_landing));
+    assert!(recurrence
+        .iter()
+        .all(|point| point.since_landing.is_since_landing()));
     assert_eq!(recurrence[1].running_recurrence_count, 2);
     Ok(())
 }

@@ -12,20 +12,28 @@
 use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 
+use enforcer_domain::memory_types::{
+    ArtifactId, IndexMode, LessonStatus, MemoryFederationRejectedAt,
+};
+use enforcer_domain::memory_types::{ExportConsent, MemoryShareScope};
+use enforcer_domain::memory_types::{RecordDomain, RecordKind};
 use enforcer_memory::artifacts::{get_exact, ArtifactLookupError};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::boundary::record::ProvenanceDto;
+use enforcer_memory::boundary::share::{export_bundle, BundleGraphSnapshotDto};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::federation::{import_bundle, RejectReason, RejectedBundle, TrustList};
 use enforcer_memory::graph::MemoryGraph;
-use enforcer_memory::ids::ArtifactId;
-use enforcer_memory::learning::{lesson_status, LessonStatus};
+use enforcer_memory::learning::lesson_status;
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
 use enforcer_memory::redaction::{redact_record, RedactionConfig};
-use enforcer_memory::share::{export_bundle, BundleGraphSnapshot, ExportConsent, Scope};
 use enforcer_memory::store::manifest::ArtifactManifest;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn rejected_at() -> MemoryFederationRejectedAt {
+    "2026-07-05T01:00:00Z".into()
+}
 
 fn temp_dir(name: &str) -> std::path::PathBuf {
     let unique = format!(
@@ -54,8 +62,8 @@ fn sample_record(id: &str, landed_at: Vec<&str>) -> MemoryRecord {
         routes: vec![],
         landed_at: landed_at.into_iter().map(String::from).collect(),
         supersedes: None,
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     }
@@ -94,7 +102,12 @@ fn commit_all(dir: &std::path::Path, message: &str) -> TestResult {
 fn exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed() -> TestResult {
     let root = temp_dir("artifacts");
     let mut manifest = ArtifactManifest::open(&root)?;
-    let id = manifest.put(b"exact content", Some("a.txt"), "2026-07-05T00:00:00Z")?;
+    assert!(manifest.is_empty().is_empty());
+    let id = manifest.put(
+        b"exact content",
+        Some("a.txt".into()),
+        "2026-07-05T00:00:00Z",
+    )?;
 
     // 1. Exact hit.
     let content = get_exact(&manifest, &id)?;
@@ -129,25 +142,25 @@ fn personal_bundle_export_import_roundtrips_exactly() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1001", vec!["commit aaa"]));
     graph.ingest_lesson_row(LessonRow {
-        id: "L100".to_string(),
-        date: "2026-07-05".to_string(),
-        observed: "observed x".to_string(),
-        lesson: "learned y".to_string(),
-        landed_at: "commit bbb".to_string(),
-        ships_via: "arc-16".to_string(),
+        id: "L100".to_string().into(),
+        date: "2026-07-05".to_string().into(),
+        observed: "observed x".to_string().into(),
+        lesson: "learned y".to_string().into(),
+        landed_at: "commit bbb".to_string().into(),
+        ships_via: "arc-16".to_string().into(),
     });
-    let snapshot = BundleGraphSnapshot::from_graph(&graph);
+    let snapshot = BundleGraphSnapshotDto::from_graph(&graph);
     assert_eq!(snapshot.node_count(), 2);
 
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        enforcer_memory::share::ExportRequest {
-            scope: Scope::Personal,
+        enforcer_memory::boundary::share::ExportRequest {
+            scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
-            creator: Some("primary".to_string()),
-            git_head: Some("deadbeef".to_string()),
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            creator: Some("primary".to_string().into()),
+            git_head: Some("deadbeef".to_string().into()),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         &key,
     )?;
@@ -156,13 +169,8 @@ fn personal_bundle_export_import_roundtrips_exactly() -> TestResult {
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     let mut imported_graph = MemoryGraph::new();
-    let report = import_bundle(
-        &mut imported_graph,
-        &bundle,
-        &trust_list,
-        "2026-07-05T01:00:00Z",
-    )
-    .map_err(|rejected| format!("expected success, got {rejected:?}"))?;
+    let report = import_bundle(&mut imported_graph, &bundle, &trust_list, &rejected_at())
+        .map_err(|rejected| format!("expected success, got {rejected:?}"))?;
 
     assert_eq!(report.total(), 2);
     assert_eq!(imported_graph.len(), 2);
@@ -177,17 +185,17 @@ fn personal_bundle_export_import_roundtrips_exactly() -> TestResult {
 fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1002", vec!["commit ccc"]));
-    let snapshot = BundleGraphSnapshot::from_graph(&graph);
+    let snapshot = BundleGraphSnapshotDto::from_graph(&graph);
 
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = export_bundle(
         &snapshot,
-        enforcer_memory::share::ExportRequest {
-            scope: Scope::Personal,
+        enforcer_memory::boundary::share::ExportRequest {
+            scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
             git_head: None,
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         &key,
     )?;
@@ -197,15 +205,10 @@ fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestRes
 
     // Tamper with the signature hex itself (not the payload) -- this
     // isolates the signature check specifically.
-    bundle.signature_hex = "00".repeat(64);
+    bundle.signature_hex = "00".repeat(64).into();
 
     let mut imported_graph = MemoryGraph::new();
-    let outcome = import_bundle(
-        &mut imported_graph,
-        &bundle,
-        &trust_list,
-        "2026-07-05T01:00:00Z",
-    );
+    let outcome = import_bundle(&mut imported_graph, &bundle, &trust_list, &rejected_at());
 
     let rejected: RejectedBundle = match outcome {
         Err(rejected) => rejected,
@@ -218,7 +221,7 @@ fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestRes
     );
     assert_eq!(rejected.at, "2026-07-05T01:00:00Z");
     assert!(
-        imported_graph.is_empty(),
+        imported_graph.is_empty().is_empty(),
         "a rejected bundle must never partially populate the graph"
     );
     Ok(())
@@ -233,17 +236,17 @@ fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestRes
 fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1003", vec!["commit ddd"]));
-    let snapshot = BundleGraphSnapshot::from_graph(&graph);
+    let snapshot = BundleGraphSnapshotDto::from_graph(&graph);
 
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = export_bundle(
         &snapshot,
-        enforcer_memory::share::ExportRequest {
-            scope: Scope::Personal,
+        enforcer_memory::boundary::share::ExportRequest {
+            scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
             git_head: None,
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         &key,
     )?;
@@ -254,15 +257,10 @@ fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure()
     // Corrupt the manifest's recorded content hash WITHOUT touching the
     // signed compressed bytes -- must fail at the checksum gate, proving
     // checksum verification is independent of signature verification.
-    bundle.manifest.content_hash = format!("sha256:{}", "00".repeat(32));
+    bundle.manifest.content_hash = format!("sha256:{}", "00".repeat(32)).into();
 
     let mut imported_graph = MemoryGraph::new();
-    let outcome = import_bundle(
-        &mut imported_graph,
-        &bundle,
-        &trust_list,
-        "2026-07-05T01:00:00Z",
-    );
+    let outcome = import_bundle(&mut imported_graph, &bundle, &trust_list, &rejected_at());
     let rejected: RejectedBundle = match outcome {
         Err(rejected) => rejected,
         Ok(_) => return Err("checksum-tampered manifest must be rejected".into()),
@@ -272,7 +270,7 @@ fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure()
         "expected ChecksumTamper rejection, got {:?}",
         rejected.reason
     );
-    assert!(imported_graph.is_empty());
+    assert!(imported_graph.is_empty().is_empty());
     Ok(())
 }
 
@@ -290,17 +288,17 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() -> TestR
         "mem-primary-1004",
         vec!["exporter-commit-123"],
     ));
-    let snapshot = BundleGraphSnapshot::from_graph(&exporter_graph);
+    let snapshot = BundleGraphSnapshotDto::from_graph(&exporter_graph);
 
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        enforcer_memory::share::ExportRequest {
-            scope: Scope::Team,
+        enforcer_memory::boundary::share::ExportRequest {
+            scope: MemoryShareScope::Team,
             consent: ExportConsent::Granted,
-            creator: Some("exporter-team".to_string()),
+            creator: Some("exporter-team".to_string().into()),
             git_head: None,
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         &key,
     )?;
@@ -309,18 +307,13 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() -> TestR
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     let mut local_graph = MemoryGraph::new();
-    import_bundle(
-        &mut local_graph,
-        &bundle,
-        &trust_list,
-        "2026-07-05T01:00:00Z",
-    )
-    .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
+    import_bundle(&mut local_graph, &bundle, &trust_list, &rejected_at())
+        .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
     // Despite the exporter's own landed_at, THIS repo has not validated
     // it locally yet -- must be inactive immediately after import.
     assert_eq!(
-        lesson_status(&local_graph, "mem-primary-1004"),
+        lesson_status(&local_graph, &"mem-primary-1004".into()),
         Some(LessonStatus::Inactive)
     );
 
@@ -341,17 +334,17 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() -> TestR
         ..sample_record("mem-primary-1004-validated", vec![])
     });
     assert_eq!(
-        lesson_status(&local_graph, "mem-primary-1004-validated"),
+        lesson_status(&local_graph, &"mem-primary-1004-validated".into()),
         Some(LessonStatus::Active),
         "the local validation record is active"
     );
     let active = enforcer_memory::learning::active_lessons(&local_graph);
     assert!(
-        active.contains(&"mem-primary-1004-validated"),
+        active.contains(&"mem-primary-1004-validated".into()),
         "the validated record must be counted as active"
     );
     assert!(
-        !active.contains(&"mem-primary-1004"),
+        !active.contains(&"mem-primary-1004".into()),
         "the superseded imported id must never be counted as active"
     );
     Ok(())
@@ -372,7 +365,9 @@ fn community_redaction_matches_the_committed_golden_fixture_byte_exact() -> Test
     let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
-        Some(r"C:\Projects\enforcer"),
+        Some(
+            &enforcer_domain::memory_types::MemoryRedactionRepoRoot::from(r"C:\Projects\enforcer"),
+        ),
         RedactionConfig::default(),
     );
     let actual = serde_json::to_string(&redacted.to_dto())? + "\n";
@@ -393,16 +388,17 @@ fn code_graph_artifact_export_then_bootstrap_import_reconstructs_identical_count
     let dir = tempfile::tempdir()?;
     init_git_repo(dir.path())?;
     let file_path = dir.path().join("a.rs");
-    std::fs::write(&file_path, "fn a() {}\nfn b() {}\n")?;
+    std::fs::write(&file_path, "fn a() { let _ = 1; }\nfn b() { let _ = 2; }\n")?;
     commit_all(dir.path(), "first")?;
 
     let mut graph = CodeGraph::new();
+    assert!(graph.nodes().is_empty());
     graph.index_repository_with_options(
         dir.path(),
         std::slice::from_ref(&file_path),
         &Manifest::default(),
         enforcer_memory::code_graph::IndexOptions {
-            mode: enforcer_memory::code_graph::IndexMode::Full,
+            mode: IndexMode::Full,
             persistence: true,
             project_name: Some("demo"),
             indexed_at: Some("2026-07-05T00:00:00Z"),
@@ -437,16 +433,17 @@ fn artifact_json_has_exactly_the_baseline_field_set_and_schema_version_two() -> 
     let dir = tempfile::tempdir()?;
     init_git_repo(dir.path())?;
     let file_path = dir.path().join("a.rs");
-    std::fs::write(&file_path, "fn a() {}\n")?;
+    std::fs::write(&file_path, "fn a() { let _ = 1; }\n")?;
     commit_all(dir.path(), "first")?;
 
     let mut graph = CodeGraph::new();
+    assert!(graph.nodes().is_empty());
     graph.index_repository_with_options(
         dir.path(),
         std::slice::from_ref(&file_path),
         &Manifest::default(),
         enforcer_memory::code_graph::IndexOptions {
-            mode: enforcer_memory::code_graph::IndexMode::Full,
+            mode: IndexMode::Full,
             persistence: true,
             project_name: Some("demo"),
             indexed_at: Some("2026-07-05T00:00:00Z"),

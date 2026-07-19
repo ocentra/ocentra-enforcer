@@ -1,65 +1,32 @@
-# a10: the native self-enforcement gate -- the enforcer's own Rust rules
-# run against the enforcer's own crates on every push/PR.
-#
-# Scope split with ci.yml (a01): ci.yml owns the base fmt/clippy/test/
-# deny/audit gate across the OS matrix; THIS workflow owns the native
-# `xtask dogfood` step -- the baseline-gated rust-rule self-scan
-# (`enforcer-scan`'s engine over crates/**, gated through d02's
-# baseline-ratchet so pre-existing grandfathered debt stays demoted while
-# any NEW violation fails the job) plus the z01 terminal composing gate
-# (manifest + hash-chained proof-journal entry). `--no-toolchain` skips
-# re-running fmt/clippy/deny/audit inside xtask because ci.yml already
-# gates those on the same push -- one source of truth per check.
-#
-# There is no bypass flag: `xtask dogfood` has no override switch, and the
-# only sanctioned exceptions are the committed baseline snapshot
-# (xtask/dogfood-baseline.json, refreshed only by the explicit
-# `--baseline-write` maintenance operation) and a08-style declarative
-# waivers. A hollow self-scan (zero files dispatched) exits non-zero.
 name: Dogfood
 
 on:
-  pull_request:
-  push:
-    branches: [main, rust-build]
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   dogfood:
+    name: Frozen and native dogfood
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-
-      - name: Install pinned Rust toolchain
-        run: rustup show
-
-      - name: Cache cargo registry and build artifacts
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-dogfood-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-dogfood-
-
-      - name: Build xtask
-        run: cargo build -p xtask
-
-      - name: xtask dogfood (baseline-gated self-scan)
-        run: cargo run -p xtask -- dogfood --no-toolchain
-
-      - name: xtask dogfood-gate (z01 terminal proof gate)
-        run: cargo run -p xtask -- dogfood-gate --no-toolchain
-
+      - uses: ./.github/actions/setup-enforcer
+      - name: Verify workflow contract before self-enforcement
+        run: node scripts/ci/verify-workflow-contract.mjs
+      - name: Frozen MJS full workspace gate
+        run: node scripts/rust-rules.mjs scan --root . --languages rust --workspace
+      - name: Build native dogfood harness
+        run: cargo build --locked -p xtask
+      - name: Native dogfood scan
+        run: cargo run --locked -p xtask -- dogfood --no-toolchain
+      - name: Terminal proof-journal gate
+        run: cargo run --locked -p xtask -- dogfood-gate --no-toolchain
       - name: Upload dogfood manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dogfood-manifest
           path: proof/dogfood-manifest.json
+          if-no-files-found: error

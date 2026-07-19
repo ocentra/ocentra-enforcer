@@ -9,7 +9,7 @@
 /// parse as a valid exemption. Carrying the exact annotation text lets a
 /// caller show the offending token verbatim in a `Finding::detail`.
 #[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]
-pub enum DeferredAnnotationError {
+pub(crate) enum DeferredAnnotationError {
     /// The annotation did not start with the required `DEFERRED(` token at
     /// all (this variant is mostly internal — callers should not construct
     /// a parse attempt unless the `DEFERRED` token was already found).
@@ -38,6 +38,3 @@ pub enum DeferredAnnotationError {
         raw: String,
     },
 }
-
-/// Result alias for the annotation parser.
-pub type DeferredAnnotationResult<T> = std::result::Result<T, DeferredAnnotationError>;

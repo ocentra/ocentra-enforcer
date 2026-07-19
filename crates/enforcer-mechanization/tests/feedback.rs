@@ -10,12 +10,19 @@
 //! the real fail-closed parity oracle) rather than the crate-local unit
 //! tests in `src/feedback.rs`, which only exercise in-memory shapes.
 
-use enforcer_domain::findings::Finding;
+use enforcer_domain::findings::{Finding, FindingDetail, FindingLine, FindingTitle};
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessDiagnosticPath, HarnessExternalRuleId, HarnessLanguage,
+    HarnessRunId, HarnessSourceLine, HarnessToolName,
+};
 use enforcer_domain::ids::RuleId;
+use enforcer_domain::mechanization_types::{MechanizationClassification, RuleLifecycleStatus};
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::rules_types::RuleRegistryState;
 use enforcer_domain::severity::{Severity, Tier};
+use enforcer_domain::telemetry_types::SourceLine;
 use enforcer_harness::parsers::HarnessDiagnostic;
-use enforcer_mechanization::feedback::classify::Classification;
-use enforcer_mechanization::feedback::{ingest_and_classify, RuleStatus};
+use enforcer_mechanization::feedback::ingest_and_classify;
 use enforcer_mechanization::oracle::accept_rule;
 use enforcer_mechanization::scaffold::ScaffoldSpec;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -33,24 +40,35 @@ impl Validator for FilledInValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        if input.source.contains("FEEDBACK_MARKER") {
-            vec![Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "feedback marker present".to_owned(),
-                detail: "found FEEDBACK_MARKER".to_owned(),
-                file: input.file.clone(),
-                line: 1,
-                snippet: None,
-            }]
+        if input.source.as_str().contains("FEEDBACK_MARKER") {
+            test_finding(
+                self.rule_id.clone(),
+                input.file.clone(),
+                "feedback marker present",
+                "found FEEDBACK_MARKER",
+            )
+            .into_iter()
+            .collect()
         } else {
             Vec::new()
         }
     }
 }
 
-fn manifest_dir() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn test_finding(rule_id: RuleId, file: RelPath, title: &str, detail: &str) -> Option<Finding> {
+    Some(Finding {
+        rule_id,
+        severity: Severity::Error,
+        title: FindingTitle::new(title.to_owned()).ok()?,
+        detail: FindingDetail::new(detail.to_owned()).ok()?,
+        file,
+        line: FindingLine::known(SourceLine::try_new(std::num::NonZeroU32::MIN)),
+        snippet: None,
+    })
+}
+
+fn manifest_root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+    RepoRoot::try_from(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
 }
 
 fn rustc_diagnostic() -> HarnessDiagnostic {
@@ -59,14 +77,14 @@ fn rustc_diagnostic() -> HarnessDiagnostic {
     // produces; the feedback pipeline consumes that shape directly, never
     // re-parsing raw tool text itself.
     HarnessDiagnostic {
-        run_id: "run-feedback-1".to_owned(),
-        tool: "cargo".to_owned(),
-        language: "rust".to_owned(),
-        severity: "error".to_owned(),
-        rule_id: "E0308".to_owned(),
-        file: "src/lib.rs".to_owned(),
-        line: 12,
-        message: "mismatched types".to_owned(),
+        run_id: HarnessRunId::from_adapter("run-feedback-1"),
+        tool: HarnessToolName::from_adapter("cargo"),
+        language: HarnessLanguage::Rust,
+        severity: Severity::Error,
+        rule_id: HarnessExternalRuleId::from_adapter("E0308"),
+        file: HarnessDiagnosticPath::from_adapter("src/lib.rs"),
+        line: HarnessSourceLine::from_external(12),
+        message: HarnessDiagnosticMessage::from_adapter("mismatched types"),
         source: None,
         fingerprint: None,
     }
@@ -74,14 +92,14 @@ fn rustc_diagnostic() -> HarnessDiagnostic {
 
 fn pytest_diagnostic() -> HarnessDiagnostic {
     HarnessDiagnostic {
-        run_id: "run-feedback-2".to_owned(),
-        tool: "pytest".to_owned(),
-        language: "python".to_owned(),
-        severity: "error".to_owned(),
-        rule_id: "pytest".to_owned(),
-        file: "tests/test_x.py".to_owned(),
-        line: 1,
-        message: "AssertionError: boom".to_owned(),
+        run_id: HarnessRunId::from_adapter("run-feedback-2"),
+        tool: HarnessToolName::from_adapter("pytest"),
+        language: HarnessLanguage::Python,
+        severity: Severity::Error,
+        rule_id: HarnessExternalRuleId::from_adapter("pytest"),
+        file: HarnessDiagnosticPath::from_adapter("tests/test_x.py"),
+        line: HarnessSourceLine::from_external(1),
+        message: HarnessDiagnosticMessage::from_adapter("AssertionError: boom"),
         source: None,
         fingerprint: None,
     }
@@ -90,14 +108,14 @@ fn pytest_diagnostic() -> HarnessDiagnostic {
 fn feedback_spec() -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(ScaffoldSpec {
         rule_id: "RR-96.1".parse()?,
-        title: "No mismatched frobnication (auto-proposed from a harness failure)".to_owned(),
+        title: "No mismatched frobnication (auto-proposed from a harness failure)".parse()?,
         tier: Tier::T1,
-        validator_crate: "enforcer-mechanization".to_owned(),
-        validator_path: "feedback_integration::FilledInValidator".to_owned(),
-        fail_fixture_path: "tests/fixtures/feedback/fail.txt".to_owned(),
-        pass_fixture_path: "tests/fixtures/feedback/pass.txt".to_owned(),
-        doc_anchor: "docs/rules/FEEDBACK.md#FEEDBACK-1".to_owned(),
-        tags: vec!["harness-feedback".to_owned()],
+        validator_crate: "enforcer-mechanization".parse()?,
+        validator_path: "feedback_integration::FilledInValidator".parse()?,
+        fail_fixture_path: "tests/fixtures/feedback/fail.txt".parse()?,
+        pass_fixture_path: "tests/fixtures/feedback/pass.txt".parse()?,
+        doc_anchor: "docs/rules/FEEDBACK.md#FEEDBACK-1".parse()?,
+        tags: vec!["harness-feedback".parse()?],
     })
 }
 
@@ -107,11 +125,11 @@ fn preventable_failure_yields_a_proposed_record_that_passes_parity(
     let diagnostic = rustc_diagnostic();
     let outcome = ingest_and_classify(&diagnostic, &feedback_spec()?)?;
 
-    assert_eq!(outcome.classification, Classification::Prevent);
+    assert_eq!(outcome.classification, MechanizationClassification::Prevent);
     let Some(proposed) = outcome.proposed_rule else {
         return Err("a preventable failure must scaffold a proposed rule".into());
     };
-    assert_eq!(proposed.status, RuleStatus::Proposed);
+    assert_eq!(proposed.status, RuleLifecycleStatus::Proposed);
 
     // The PROPOSED record's shape is independently loadable (same
     // guarantee the d01 scaffolder itself proves) ...
@@ -119,7 +137,10 @@ fn preventable_failure_yields_a_proposed_record_that_passes_parity(
         .scaffold
         .record
         .clone()])?;
-    assert_eq!(registry.len(), 1);
+    assert_eq!(
+        registry.count(),
+        enforcer_domain::rules_types::RuleRecordCount::from_records([()])
+    );
 
     // ... and, with a real validator implementation supplied, the record
     // plus its declared fail/pass fixtures pass the SAME fail-closed d01
@@ -128,7 +149,11 @@ fn preventable_failure_yields_a_proposed_record_that_passes_parity(
     let validator = FilledInValidator {
         rule_id: proposed.scaffold.record.rule_id.clone(),
     };
-    accept_rule(&proposed.scaffold.record, Some(&validator), &manifest_dir())?;
+    accept_rule(
+        &proposed.scaffold.record,
+        Some(&validator),
+        &manifest_root()?,
+    )?;
 
     Ok(())
 }
@@ -138,7 +163,7 @@ fn detect_only_failure_produces_no_proposed_record() -> Result<(), Box<dyn std::
     let diagnostic = pytest_diagnostic();
     let outcome = ingest_and_classify(&diagnostic, &feedback_spec()?)?;
 
-    assert_eq!(outcome.classification, Classification::Detect);
+    assert_eq!(outcome.classification, MechanizationClassification::Detect);
     assert!(
         outcome.proposed_rule.is_none(),
         "a detect-only failure must never produce a PROPOSED registry record"
@@ -161,14 +186,14 @@ fn proposed_rules_are_non_blocking_in_a_scan() -> Result<(), Box<dyn std::error:
     let Some(proposed) = outcome.proposed_rule else {
         return Err("preventable failure scaffolds a proposal".into());
     };
-    assert_eq!(proposed.status, RuleStatus::Proposed);
+    assert_eq!(proposed.status, RuleLifecycleStatus::Proposed);
 
     // A scan engine's live registry is built ONLY from records it was
     // explicitly given; nothing about producing a `ProposedRule` feeds one
     // in automatically.
     let scan_registry = enforcer_rules::registry::RuleRegistry::from_records(vec![])?;
     assert!(
-        scan_registry.is_empty(),
+        scan_registry.state() == RuleRegistryState::Empty,
         "a PROPOSED rule must never appear in a scan's live registry without an explicit promotion step"
     );
     assert!(scan_registry

@@ -6,15 +6,24 @@
 //! default build. Instead it defines the manifest, integrity, provider,
 //! capability, and proof shapes that any real local backend must satisfy
 //! before x06 can claim local-model parity.
+//!
+//! ROUNDTRIP-TEST: tests/model_runtime_real_contract.rs::runtime_dto_domain_boundary_conversions_round_trip
 
 use std::path::{Path, PathBuf};
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::memory_types::{
+    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
+    CacheUnavailableReason, DegradedState, DownloadStatus, LoadState, LoadStateReport,
+    ManifestIntegrity, ModelCacheRootMode, ModelRuntimeObservationKind, ModelRuntimeServiceRoute,
+    ModelTask, ProviderKind, ResourceClass, ResourceClassReport, RuntimeManagedCapability,
+    RuntimeOwnershipMode, SourcePolicy,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::embed::{DegradedState, LoadState, ResourceClass};
 use crate::error::{MemoryError, Result};
-use crate::local_runtime::{RuntimeManagedCapability, RuntimeOwnershipMode};
+use crate::owned_boundary::Retained;
 
 pub const DEFAULT_EMBEDDING_MODEL_ID: &str = "Qwen/Qwen3-Embedding-0.6B";
 pub const DEFAULT_RERANKER_MODEL_ID: &str = "Qwen/Qwen3-Reranker-0.6B";
@@ -37,135 +46,9 @@ pub const TARGET_CHAT_TOKENS_PER_SECOND_HIGH: f64 = 60.0;
 pub const DEFAULT_DEVICE_PROBE_TIMEOUT_MS: u64 = 5_000;
 pub const DEFAULT_MODEL_PROBE_TIMEOUT_MS: u64 = 120_000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ModelTask {
-    Embedding,
-    Reranking,
-    Summarization,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SourcePolicy {
-    Bundled,
-    ParentInstalled,
-    LocalCache,
-    Unavailable,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CacheState {
-    Unavailable,
-    NotCached,
-    CacheReady,
-    CacheDegraded,
-    CacheCorrupted,
-    StorageError,
-    ArtifactPresent,
-    ArtifactMissing,
-    HashMismatch,
-    TokenizerMismatch,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ManifestIntegrity {
-    Unavailable,
-    Verified,
-    Unchecked,
-    ManifestMissing,
-    ChecksumMismatch,
-    SignatureInvalid,
-    Corrupted,
-    Failed,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CacheHealth {
-    Healthy,
-    Degraded,
-    Unavailable,
-    DownloadDisabled,
-    Corrupted,
-    StorageError,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DownloadStatus {
-    DownloadDisabled,
-    DownloadNotRequested,
-    DownloadInProgress,
-    DownloadComplete,
-    DownloadFailed,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CacheUnavailableReason {
-    ModelSourceUnconfigured,
-    ArtifactNotInstalled,
-    ManifestUnavailable,
-    DownloadDisabled,
-    CacheStorageUnavailable,
-    IntegrityUnverified,
-    CorruptionDetected,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CacheStorageErrorCode {
-    CacheRootUnavailable,
-    ManifestReadFailed,
-    ArtifactReadFailed,
-    MetadataWriteDisabled,
-    StoragePermissionDenied,
-    QuotaUnavailable,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CacheCorruptionReasonCode {
-    ManifestMissing,
-    ChecksumMismatch,
-    SignatureInvalid,
-    ArtifactMissing,
-    ManifestArtifactMismatch,
-    UnknownIntegrity,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ProviderKind {
-    Cpu,
-    DirectMl,
-    OpenVino,
-    Vulkan,
-    Cuda,
-    CoreMl,
-    Npu,
-}
-
-impl ProviderKind {
-    pub fn resource_class(self) -> ResourceClass {
-        match self {
-            ProviderKind::Cpu => ResourceClass::Cpu,
-            ProviderKind::DirectMl
-            | ProviderKind::OpenVino
-            | ProviderKind::Vulkan
-            | ProviderKind::Cuda
-            | ProviderKind::CoreMl => ResourceClass::Gpu,
-            ProviderKind::Npu => ResourceClass::Npu,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelSpec {
+pub struct ModelSpecDto {
     pub model_id: String,
     pub revision: String,
     pub artifact_path: PathBuf,
@@ -177,7 +60,7 @@ pub struct ModelSpec {
     pub task: ModelTask,
 }
 
-impl ModelSpec {
+impl ModelSpecDto {
     pub fn qwen3_embedding(
         artifact_path: impl Into<PathBuf>,
         artifact_sha256: impl Into<String>,
@@ -185,13 +68,13 @@ impl ModelSpec {
         tokenizer_sha256: impl Into<String>,
     ) -> Self {
         Self {
-            model_id: DEFAULT_EMBEDDING_MODEL_ID.to_owned(),
-            revision: DEFAULT_MODEL_REVISION.to_owned(),
+            model_id: DEFAULT_EMBEDDING_MODEL_ID.retained(),
+            revision: DEFAULT_MODEL_REVISION.retained(),
             artifact_path: artifact_path.into(),
             artifact_sha256: artifact_sha256.into(),
             tokenizer_path: tokenizer_path.into(),
             tokenizer_sha256: tokenizer_sha256.into(),
-            dtype: "f32".to_owned(),
+            dtype: "f32".retained(),
             dimension: 1024,
             task: ModelTask::Embedding,
         }
@@ -204,13 +87,13 @@ impl ModelSpec {
         tokenizer_sha256: impl Into<String>,
     ) -> Self {
         Self {
-            model_id: DEFAULT_RERANKER_MODEL_ID.to_owned(),
-            revision: DEFAULT_MODEL_REVISION.to_owned(),
+            model_id: DEFAULT_RERANKER_MODEL_ID.retained(),
+            revision: DEFAULT_MODEL_REVISION.retained(),
             artifact_path: artifact_path.into(),
             artifact_sha256: artifact_sha256.into(),
             tokenizer_path: tokenizer_path.into(),
             tokenizer_sha256: tokenizer_sha256.into(),
-            dtype: "f32".to_owned(),
+            dtype: "f32".retained(),
             dimension: 1,
             task: ModelTask::Reranking,
         }
@@ -219,32 +102,43 @@ impl ModelSpec {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeConfig {
+pub struct ModelRuntimeConfigDto {
     pub cache_root: PathBuf,
     pub allow_network: bool,
     pub preferred_providers: Vec<ProviderKind>,
-    pub embedding: ModelSpec,
-    pub reranker: ModelSpec,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ModelCacheRootMode {
-    DevRepoLocal,
-    AppData,
+    pub embedding: ModelSpecDto,
+    pub reranker: ModelSpecDto,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelCacheRootPolicy {
+pub struct ModelCacheRootPolicyDto {
     pub mode: ModelCacheRootMode,
     pub root: PathBuf,
     pub reason: String,
 }
 
+/// Extract the canonical domain cache-root mode from the external policy
+/// shape after validating that the root is usable. The reason remains wire
+/// metadata; policy evaluation consumes this validated domain enum.
+// NEGATIVE-TEST: tests/model_runtime_real_contract.rs::runtime_dto_domain_boundary_conversions_round_trip rejects an invalid empty root.
+impl TryFrom<ModelCacheRootPolicyDto> for ModelCacheRootMode {
+    type Error = DecodeError;
+
+    fn try_from(value: ModelCacheRootPolicyDto) -> std::result::Result<Self, Self::Error> {
+        if value.root.as_os_str().is_empty() {
+            return Err(DecodeError::new(
+                "modelCacheRootPolicy.root",
+                "must not be empty",
+            ));
+        }
+        Ok(value.mode)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeServiceConfig {
+pub struct ModelRuntimeServiceConfigDto {
     pub bind_host: String,
     pub port: u16,
     pub cache_root: PathBuf,
@@ -260,7 +154,7 @@ pub struct ModelRuntimeServiceConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ChatThroughputPolicy {
+pub struct ChatThroughputPolicyDto {
     pub min_tokens_per_second: f64,
     pub target_tokens_per_second_low: f64,
     pub target_tokens_per_second_high: f64,
@@ -268,7 +162,7 @@ pub struct ChatThroughputPolicy {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelUsabilityReport {
+pub struct ModelUsabilityReportDto {
     pub ok: bool,
     pub reason: String,
     pub min_chat_tokens_per_second: Option<f64>,
@@ -279,7 +173,7 @@ pub struct ModelUsabilityReport {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeProbePlan {
+pub struct ModelRuntimeProbePlanDto {
     pub default_probe_filter: String,
     pub one_model_at_a_time: bool,
     pub cpu_first: bool,
@@ -292,36 +186,24 @@ pub struct ModelRuntimeProbePlan {
     pub target_chat_tokens_per_second_high: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ModelRuntimeServiceRoute {
-    Health,
-    Models,
-    LoadModel,
-    UnloadModel,
-    Chat,
-    Embeddings,
-    Rerank,
-}
-
-impl ModelRuntimeConfig {
+impl ModelRuntimeConfigDto {
     pub fn source_policy(&self) -> SourcePolicy {
         let _ = self.allow_network;
         SourcePolicy::LocalCache
     }
 }
 
-impl ModelRuntimeServiceConfig {
+impl ModelRuntimeServiceConfigDto {
     pub fn dev(repo_root: impl AsRef<Path>) -> Self {
         Self {
-            bind_host: DEFAULT_MODEL_SERVICE_HOST.to_owned(),
+            bind_host: DEFAULT_MODEL_SERVICE_HOST.retained(),
             port: DEFAULT_MODEL_SERVICE_PORT,
             cache_root: dev_model_cache_root(repo_root),
             expose_llama_server: false,
             external_runtime_servers_allowed: false,
-            llama_cpp_execution_route: "enforcer-managed-llama-cpp-subprocess".to_owned(),
+            llama_cpp_execution_route: "enforcer-managed-llama-cpp-subprocess".retained(),
             llama_cpp_ownership: RuntimeOwnershipMode::EnforcerSubprocess,
-            ort_execution_route: "enforcer-isolated-ort-worker".to_owned(),
+            ort_execution_route: "enforcer-isolated-ort-worker".retained(),
             ort_ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
             managed_capabilities: default_model_service_managed_capabilities(),
             routes: default_model_service_routes(),
@@ -333,7 +215,7 @@ impl ModelRuntimeServiceConfig {
     }
 }
 
-impl Default for ChatThroughputPolicy {
+impl Default for ChatThroughputPolicyDto {
     fn default() -> Self {
         Self {
             min_tokens_per_second: DEFAULT_MIN_CHAT_TOKENS_PER_SECOND,
@@ -347,10 +229,10 @@ pub fn evaluate_chat_usability(
     is_loaded: bool,
     measured_tokens_per_second: Option<f64>,
     load_failure_reason: impl Into<String>,
-    policy: ChatThroughputPolicy,
-) -> ModelUsabilityReport {
+    policy: ChatThroughputPolicyDto,
+) -> ModelUsabilityReportDto {
     if !is_loaded {
-        return ModelUsabilityReport {
+        return ModelUsabilityReportDto {
             ok: false,
             reason: load_failure_reason.into(),
             min_chat_tokens_per_second: Some(policy.min_tokens_per_second),
@@ -366,7 +248,7 @@ pub fn evaluate_chat_usability(
         policy.target_tokens_per_second_low, policy.target_tokens_per_second_high
     );
     if measured >= policy.min_tokens_per_second {
-        ModelUsabilityReport {
+        ModelUsabilityReportDto {
             ok: true,
             reason: format!(
                 "chat usable: measured {measured:.2} tokens/sec >= required {:.2}; {target}",
@@ -378,7 +260,7 @@ pub fn evaluate_chat_usability(
             measured_tokens_per_second,
         }
     } else {
-        ModelUsabilityReport {
+        ModelUsabilityReportDto {
             ok: false,
             reason: format!(
                 "chat not usable: measured {measured:.2} tokens/sec < required {:.2}; {target}",
@@ -396,18 +278,18 @@ pub fn loaded_non_chat_usability(
     is_loaded: bool,
     measured_tokens_per_second: Option<f64>,
     load_failure_reason: impl Into<String>,
-) -> ModelUsabilityReport {
+) -> ModelUsabilityReportDto {
     if is_loaded {
-        ModelUsabilityReport {
+        ModelUsabilityReportDto {
             ok: true,
-            reason: "loaded; no chat throughput floor applies".to_owned(),
+            reason: "loaded; no chat throughput floor applies".retained(),
             min_chat_tokens_per_second: None,
             target_chat_tokens_per_second_low: None,
             target_chat_tokens_per_second_high: None,
             measured_tokens_per_second,
         }
     } else {
-        ModelUsabilityReport {
+        ModelUsabilityReportDto {
             ok: false,
             reason: load_failure_reason.into(),
             min_chat_tokens_per_second: None,
@@ -446,26 +328,26 @@ pub fn resolve_model_cache_root(
     repo_root: impl AsRef<Path>,
     mode: ModelCacheRootMode,
     explicit: Option<PathBuf>,
-) -> ModelCacheRootPolicy {
+) -> ModelCacheRootPolicyDto {
     if let Some(root) = explicit {
-        return ModelCacheRootPolicy {
+        return ModelCacheRootPolicyDto {
             mode,
             root,
-            reason: "explicit model cache root override".to_owned(),
+            reason: "explicit model cache root override".retained(),
         };
     }
     match mode {
-        ModelCacheRootMode::DevRepoLocal => ModelCacheRootPolicy {
+        ModelCacheRootMode::DevRepoLocal => ModelCacheRootPolicyDto {
             mode,
             root: dev_model_cache_root(repo_root),
             reason: "dev mode keeps downloaded models in the repository-local model directory"
-                .to_owned(),
+                .retained(),
         },
-        ModelCacheRootMode::AppData => ModelCacheRootPolicy {
+        ModelCacheRootMode::AppData => ModelCacheRootPolicyDto {
             mode,
             root: app_data_model_cache_root("OcentraEnforcer"),
             reason: "application mode keeps downloaded models in the platform app-data directory"
-                .to_owned(),
+                .retained(),
         },
     }
 }
@@ -504,7 +386,7 @@ fn home_dir() -> PathBuf {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelCapabilityReport {
+pub struct ModelCapabilityReportDto {
     pub task: ModelTask,
     pub load_state: LoadStateReport,
     pub resource_class: ResourceClassReport,
@@ -523,65 +405,9 @@ pub struct ModelCapabilityReport {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LoadStateReport {
-    Unavailable,
-    Loading,
-    Loaded,
-    DegradedProviderUnavailable,
-    DegradedOverloaded,
-    DegradedModelLoadFailed,
-    DegradedInvalidOutput,
-    DegradedLowConfidence,
-    Failed,
-}
-
-impl From<LoadState> for LoadStateReport {
-    fn from(value: LoadState) -> Self {
-        match value {
-            LoadState::Unavailable => LoadStateReport::Unavailable,
-            LoadState::Loading => LoadStateReport::Loading,
-            LoadState::Loaded => LoadStateReport::Loaded,
-            LoadState::Degraded(DegradedState::ProviderUnavailable) => {
-                LoadStateReport::DegradedProviderUnavailable
-            }
-            LoadState::Degraded(DegradedState::Overloaded) => LoadStateReport::DegradedOverloaded,
-            LoadState::Degraded(DegradedState::ModelLoadFailed) => {
-                LoadStateReport::DegradedModelLoadFailed
-            }
-            LoadState::Degraded(DegradedState::InvalidOutput) => {
-                LoadStateReport::DegradedInvalidOutput
-            }
-            LoadState::Degraded(DegradedState::LowConfidence) => {
-                LoadStateReport::DegradedLowConfidence
-            }
-            LoadState::Failed => LoadStateReport::Failed,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ResourceClassReport {
-    Cpu,
-    Gpu,
-    Npu,
-}
-
-impl From<ResourceClass> for ResourceClassReport {
-    fn from(value: ResourceClass) -> Self {
-        match value {
-            ResourceClass::Cpu => ResourceClassReport::Cpu,
-            ResourceClass::Gpu => ResourceClassReport::Gpu,
-            ResourceClass::Npu => ResourceClassReport::Npu,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeManifest {
+pub struct ModelRuntimeManifestDto {
     pub schema_version: u32,
     pub backend: String,
     pub model_id: String,
@@ -599,12 +425,12 @@ pub struct ModelRuntimeManifest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeFile {
+pub struct ModelRuntimeFileDto {
     pub path: String,
     pub size_bytes: Option<u64>,
 }
 
-impl ModelRuntimeFile {
+impl ModelRuntimeFileDto {
     pub fn new(path: impl Into<String>, size_bytes: Option<u64>) -> Self {
         Self {
             path: path.into(),
@@ -615,59 +441,48 @@ impl ModelRuntimeFile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DiscoveredModelArtifact {
+pub struct DiscoveredModelArtifactDto {
     pub onnx_path: String,
     pub dtype: String,
     pub files: Vec<String>,
     pub has_external_data: bool,
 }
 
-impl ModelRuntimeManifest {
-    pub fn from_spec(spec: &ModelSpec, backend: &str, provider: Option<ProviderKind>) -> Self {
+impl ModelRuntimeManifestDto {
+    pub fn from_spec(spec: &ModelSpecDto, backend: &str, provider: Option<ProviderKind>) -> Self {
         Self {
             schema_version: MODEL_RUNTIME_SCHEMA_VERSION,
-            backend: backend.to_owned(),
-            model_id: spec.model_id.clone(),
-            revision: spec.revision.clone(),
-            artifact_sha256: spec.artifact_sha256.clone(),
-            tokenizer_sha256: spec.tokenizer_sha256.clone(),
+            backend: backend.retained(),
+            model_id: spec.model_id.retained(),
+            revision: spec.revision.retained(),
+            artifact_sha256: spec.artifact_sha256.retained(),
+            tokenizer_sha256: spec.tokenizer_sha256.retained(),
             provider,
             task: spec.task,
-            dtype: spec.dtype.clone(),
+            dtype: spec.dtype.retained(),
             dimension: spec.dimension,
-            formatter_version: "1".to_owned(),
-            chunker_version: "1".to_owned(),
-            parser_version: "1".to_owned(),
+            formatter_version: "1".retained(),
+            chunker_version: "1".retained(),
+            parser_version: "1".retained(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeProof {
+pub struct ModelRuntimeProofDto {
     pub schema_version: u32,
     pub backend: String,
     pub zero_network_default: bool,
-    pub probe_plan: ModelRuntimeProbePlan,
-    pub embedding: ModelCapabilityReport,
-    pub reranker: ModelCapabilityReport,
+    pub probe_plan: ModelRuntimeProbePlanDto,
+    pub embedding: ModelCapabilityReportDto,
+    pub reranker: ModelCapabilityReportDto,
     pub learning_observation_kinds: Vec<ModelRuntimeObservationKind>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ModelRuntimeObservationKind {
-    ModelLoadFailed,
-    ProviderDowngraded,
-    ArtifactHashMismatch,
-    TokenizerHashMismatch,
-    DegradedFallback,
-    LocalLoadSucceeded,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelCacheStatus {
+pub struct ModelCacheStatusDto {
     pub artifact_ref: String,
     pub manifest_ref: Option<String>,
     pub source_policy: SourcePolicy,
@@ -683,7 +498,7 @@ pub struct ModelCacheStatus {
     pub corruption_reason: Option<CacheCorruptionReasonCode>,
 }
 
-impl ModelCacheStatus {
+impl ModelCacheStatusDto {
     pub fn unavailable(
         artifact_ref: impl Into<String>,
         checked_at: impl Into<String>,
@@ -787,30 +602,31 @@ pub fn extract_model_dtype(path: &str) -> String {
 
     for pattern in quant_patterns {
         if let Some(index) = lowered.find(pattern) {
-            return name_without_ext[index..]
+            let quantized_suffix = name_without_ext.get(index..).unwrap_or_default();
+            return quantized_suffix
                 .split('_')
                 .next()
-                .unwrap_or(&name_without_ext[index..])
+                .unwrap_or(quantized_suffix)
                 .to_lowercase();
         }
     }
 
-    "fp32".to_owned()
+    "fp32".retained()
 }
 
-pub fn discover_onnx_artifacts(files: &[ModelRuntimeFile]) -> Vec<DiscoveredModelArtifact> {
+pub fn discover_onnx_artifacts(files: &[ModelRuntimeFileDto]) -> Vec<DiscoveredModelArtifactDto> {
     let mut artifacts = Vec::new();
     for onnx_file in files.iter().filter(|file| is_onnx_model_file(&file.path)) {
         let onnx_path = &onnx_file.path;
         let base_name = onnx_path.strip_suffix(".onnx").unwrap_or(onnx_path);
         let data_path_underscore = format!("{base_name}.onnx_data");
         let data_path_dot = format!("{base_name}.onnx.data");
-        let mut artifact_files = vec![onnx_path.clone()];
+        let mut artifact_files = vec![onnx_path.retained()];
         let mut has_external_data = false;
 
         for file in files {
             if file.path == data_path_underscore || file.path == data_path_dot {
-                artifact_files.push(file.path.clone());
+                artifact_files.push(file.path.retained());
                 has_external_data = true;
             }
         }
@@ -823,16 +639,16 @@ pub fn discover_onnx_artifacts(files: &[ModelRuntimeFile]) -> Vec<DiscoveredMode
                 if (file_dir == onnx_dir || file_dir.is_empty())
                     && !artifact_files.contains(&file.path)
                 {
-                    supporting_files.push(file.path.clone());
+                    supporting_files.push(file.path.retained());
                 }
             }
         }
 
-        supporting_files.sort_by_key(|path| (supporting_file_rank(path), path.clone()));
+        supporting_files.sort_by_key(|path| (supporting_file_rank(path), path.retained()));
         artifact_files.extend(supporting_files);
 
-        artifacts.push(DiscoveredModelArtifact {
-            onnx_path: onnx_path.clone(),
+        artifacts.push(DiscoveredModelArtifactDto {
+            onnx_path: onnx_path.retained(),
             dtype: extract_model_dtype(onnx_path),
             files: artifact_files,
             has_external_data,
@@ -906,10 +722,10 @@ pub fn degraded_capability_report(
     task: ModelTask,
     source_policy: SourcePolicy,
     reason: impl Into<String>,
-) -> ModelCapabilityReport {
+) -> ModelCapabilityReportDto {
     let (cache_state, cache_health, manifest_integrity, unavailable_reason) =
         degraded_cache_contract(source_policy);
-    ModelCapabilityReport {
+    ModelCapabilityReportDto {
         task,
         load_state: LoadState::Degraded(DegradedState::ProviderUnavailable).into(),
         resource_class: ResourceClass::Cpu.into(),
@@ -921,7 +737,7 @@ pub fn degraded_capability_report(
         download_enabled: false,
         download_status: DownloadStatus::DownloadDisabled,
         cache_byte_size: 0,
-        checked_at: "unavailable".to_owned(),
+        checked_at: "unavailable".retained(),
         unavailable_reason,
         storage_error: None,
         corruption_reason: None,
@@ -929,10 +745,10 @@ pub fn degraded_capability_report(
     }
 }
 
-pub fn default_zero_network_proof() -> ModelRuntimeProof {
-    ModelRuntimeProof {
+pub fn default_zero_network_proof() -> ModelRuntimeProofDto {
+    ModelRuntimeProofDto {
         schema_version: MODEL_RUNTIME_SCHEMA_VERSION,
-        backend: "deterministic-fallback".to_owned(),
+        backend: "deterministic-fallback".retained(),
         zero_network_default: true,
         probe_plan: default_model_runtime_probe_plan(),
         embedding: degraded_capability_report(
@@ -946,19 +762,19 @@ pub fn default_zero_network_proof() -> ModelRuntimeProof {
             "default build has no compiled real model provider; provider probes remain unavailable",
         ),
         learning_observation_kinds: vec![
-            ModelRuntimeObservationKind::ModelLoadFailed,
-            ModelRuntimeObservationKind::ProviderDowngraded,
+            ModelRuntimeObservationKind::ModelLoadFailure,
+            ModelRuntimeObservationKind::ProviderDowngrade,
             ModelRuntimeObservationKind::ArtifactHashMismatch,
             ModelRuntimeObservationKind::TokenizerHashMismatch,
             ModelRuntimeObservationKind::DegradedFallback,
-            ModelRuntimeObservationKind::LocalLoadSucceeded,
+            ModelRuntimeObservationKind::SuccessfulLocalLoad,
         ],
     }
 }
 
-pub fn default_model_runtime_probe_plan() -> ModelRuntimeProbePlan {
-    ModelRuntimeProbePlan {
-        default_probe_filter: "chat".to_owned(),
+pub fn default_model_runtime_probe_plan() -> ModelRuntimeProbePlanDto {
+    ModelRuntimeProbePlanDto {
+        default_probe_filter: "chat".retained(),
         one_model_at_a_time: true,
         cpu_first: true,
         gpu_and_npu_require_provider_probe: true,
@@ -977,15 +793,15 @@ pub fn validate_sha256_hex(value: &str) -> Result<()> {
         Ok(())
     } else {
         Err(MemoryError::ModelRuntime {
-            operation: "validate-sha256",
-            reason: format!("expected 64 lowercase/uppercase hex chars, got {value:?}"),
+            operation: "validate-sha256".into(),
+            reason: format!("expected 64 lowercase/uppercase hex chars, got {value:?}").into(),
         })
     }
 }
 
 pub fn sha256_file(path: &Path) -> Result<String> {
     let bytes = std::fs::read(path).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+        path: path.to_path_buf().into(),
         source,
     })?;
     let digest = Sha256::digest(&bytes);
@@ -1003,16 +819,17 @@ pub fn validate_file_hash(
         Ok(())
     } else {
         Err(MemoryError::ModelRuntime {
-            operation,
+            operation: operation.into(),
             reason: format!(
                 "hash mismatch for {}: expected {expected_sha256}, actual {actual}",
                 path.display()
-            ),
+            )
+            .into(),
         })
     }
 }
 
-pub fn validate_model_artifacts(spec: &ModelSpec) -> Result<()> {
+pub fn validate_model_artifacts(spec: &ModelSpecDto) -> Result<()> {
     validate_file_hash(
         &spec.artifact_path,
         &spec.artifact_sha256,
@@ -1028,17 +845,18 @@ pub fn validate_model_artifacts(spec: &ModelSpec) -> Result<()> {
 pub fn validate_embedding_output(vector: &[f32], expected_dimension: usize) -> Result<()> {
     if vector.len() != expected_dimension {
         return Err(MemoryError::ModelRuntime {
-            operation: "validate-embedding-output",
+            operation: "validate-embedding-output".into(),
             reason: format!(
                 "dimension mismatch: expected {expected_dimension}, actual {}",
                 vector.len()
-            ),
+            )
+            .into(),
         });
     }
     if vector.iter().any(|value| !value.is_finite()) {
         return Err(MemoryError::ModelRuntime {
-            operation: "validate-embedding-output",
-            reason: "embedding contains NaN or infinite value".to_owned(),
+            operation: "validate-embedding-output".into(),
+            reason: "embedding contains NaN or infinite value".retained().into(),
         });
     }
     Ok(())
@@ -1047,17 +865,20 @@ pub fn validate_embedding_output(vector: &[f32], expected_dimension: usize) -> R
 pub fn validate_reranker_scores(scores: &[f32], candidate_count: usize) -> Result<()> {
     if scores.len() != candidate_count {
         return Err(MemoryError::ModelRuntime {
-            operation: "validate-reranker-output",
+            operation: "validate-reranker-output".into(),
             reason: format!(
                 "score count mismatch: expected {candidate_count}, actual {}",
                 scores.len()
-            ),
+            )
+            .into(),
         });
     }
     if scores.iter().any(|value| !value.is_finite()) {
         return Err(MemoryError::ModelRuntime {
-            operation: "validate-reranker-output",
-            reason: "reranker score contains NaN or infinite value".to_owned(),
+            operation: "validate-reranker-output".into(),
+            reason: "reranker score contains NaN or infinite value"
+                .retained()
+                .into(),
         });
     }
     Ok(())

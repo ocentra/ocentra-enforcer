@@ -9,85 +9,76 @@
 //! is a committed, reviewable, attributable line of policy data, not a
 //! silent escape hatch buried next to the code it exempts.
 
+use enforcer_domain::{
+    config_types::{CfgTestSkipping, Glob, PolicyOwner, PolicyReason, RegexPattern, RuleEnabled},
+    ids::RuleId,
+};
 use std::collections::BTreeMap;
-
-use enforcer_domain::ids::RuleId;
-use serde::{Deserialize, Serialize};
-
-use crate::model::Glob;
 
 /// A single per-rule override: enable/disable, severity override, and/or a
 /// waiver. Disabling a rule outright still requires [`Waiver`] fields
 /// (owner + reason) per the honesty doctrine — there is no bare `false`
 /// escape hatch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuleToggle {
     /// Whether the rule is enabled. Defaults to `true`: absence of a toggle
     /// entry never disables a rule.
-    #[serde(default = "default_true")]
-    pub enabled: bool,
+    pub enabled: RuleEnabled,
     /// Optional severity override for this rule.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub severity: Option<enforcer_domain::severity::Severity>,
     /// Required when `enabled = false`: the attributable waiver record.
     /// Absence while `enabled = false` is a boundary error (see
     /// [`crate::error::ConfigLoadError`]), not a silent disable.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waiver: Option<Waiver>,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 /// An attributable waiver: who granted the exception and why. Required to
 /// disable a rule; there is no anonymous or reasonless disable path.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Waiver {
     /// The rule this waiver applies to (redundant with the map key, kept for
     /// self-description when a waiver record is extracted/logged alone).
     pub rule_id: RuleId,
     /// Who owns/granted this waiver (person or team handle, free text).
-    pub owner: String,
+    pub owner: PolicyOwner,
     /// Why the rule is waived for this project. Must be non-empty (checked
     /// at boundary).
-    pub reason: String,
+    pub reason: PolicyReason,
 }
 
 /// The full declarative policy externalization surface. Every field here is
 /// data read from `.enforce/config`; there is no code path that lets a
 /// target source file locally suppress a rule instead.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Policy {
     /// Globs marking files whose owning team/individual is committed policy
     /// (not tribal knowledge).
-    #[serde(default)]
     pub owner_globs: Vec<Glob>,
     /// Globs exempt from enforcement entirely (e.g. generated code,
     /// vendored sources). Distinct from a rule-level waiver: this exempts
     /// the *path*, not a *rule*.
-    #[serde(default)]
     pub exempt_globs: Vec<Glob>,
     /// Regex source patterns (escaped) that, when a line/path matches, are
     /// allowed despite an otherwise-matching rule.
-    #[serde(default)]
-    pub allow_regex: Vec<String>,
+    pub allow_regex: Vec<RegexPattern>,
     /// Whether `#[cfg(test)]` modules and conventional test-path globs are
     /// skipped by scope-sensitive rules.
-    #[serde(default)]
-    pub skip_cfg_test: bool,
+    pub skip_cfg_test: CfgTestSkipping,
     /// Additional test-path globs skipped alongside `#[cfg(test)]` (e.g.
     /// `tests/**`, `**/*_test.rs`) when [`Policy::skip_cfg_test`] is set.
-    #[serde(default)]
     pub test_path_globs: Vec<Glob>,
     /// Per-rule toggles, keyed by [`RuleId`]. Absence of a key means the
     /// rule runs at its default severity — never silently disabled by
     /// omission.
-    #[serde(default)]
     pub rule_toggles: BTreeMap<RuleId, RuleToggle>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum PolicyValidationError {
+    #[error("a disabled rule has no attributable waiver")]
+    DisabledRuleWithoutWaiver,
+    #[error("a waiver rule id does not match its map key")]
+    WaiverRuleIdMismatch,
 }
 
 impl Policy {
@@ -98,27 +89,16 @@ impl Policy {
     ///
     /// # Errors
     /// Returns a description of the first invariant violation found.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), PolicyValidationError> {
         for (rule_id, toggle) in &self.rule_toggles {
             let Some(waiver) = &toggle.waiver else {
-                if !toggle.enabled {
-                    return Err(format!(
-                        "rule `{rule_id}` is disabled but carries no waiver (owner + reason required; inline/silent disables are banned)"
-                    ));
+                if matches!(toggle.enabled, RuleEnabled::Disabled) {
+                    return Err(PolicyValidationError::DisabledRuleWithoutWaiver);
                 }
                 continue;
             };
-            if waiver.owner.trim().is_empty() {
-                return Err(format!("waiver for rule `{rule_id}` has an empty owner"));
-            }
-            if waiver.reason.trim().is_empty() {
-                return Err(format!("waiver for rule `{rule_id}` has an empty reason"));
-            }
             if waiver.rule_id != *rule_id {
-                return Err(format!(
-                    "waiver.ruleId `{}` does not match its map key `{rule_id}`",
-                    waiver.rule_id
-                ));
+                return Err(PolicyValidationError::WaiverRuleIdMismatch);
             }
         }
         Ok(())
@@ -126,11 +106,11 @@ impl Policy {
 
     /// Whether `rule_id` is enabled under this policy. Absence of a toggle
     /// entry means enabled (the default), never disabled by omission.
-    pub fn is_rule_enabled(&self, rule_id: &RuleId) -> bool {
+    pub fn rule_enabled(&self, rule_id: &RuleId) -> RuleEnabled {
         self.rule_toggles
             .get(rule_id)
             .map(|toggle| toggle.enabled)
-            .unwrap_or(true)
+            .unwrap_or_else(RuleEnabled::enabled)
     }
 
     /// The effective severity for `rule_id` given `default_severity`: an
@@ -142,7 +122,7 @@ impl Policy {
     ) -> enforcer_domain::severity::Severity {
         self.rule_toggles
             .get(rule_id)
-            .filter(|toggle| toggle.enabled)
+            .filter(|toggle| matches!(toggle.enabled, RuleEnabled::Enabled))
             .and_then(|toggle| toggle.severity)
             .unwrap_or(default_severity)
     }

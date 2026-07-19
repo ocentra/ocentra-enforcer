@@ -22,8 +22,8 @@
 //! false` rows AND produce a structured `Finding` flagging them for
 //! mechanization, to be fed into d01's rule-scaffold engine (and tracked
 //! by d08). This is deliberate — an un-backed asserted rule that looked
-//! identical to an enabled one would be a fake-green result; this module
-//! makes the gap visible instead of erasing it.
+//! identical to an enabled one would report enforcement that does not
+//! exist; this module makes the gap visible instead of erasing it.
 //!
 //! This module does not itself define new Track H rule ids or validators
 //! — it consumes the crate's already-registered rule ids by string only
@@ -31,8 +31,13 @@
 //! or edits `src/rules/<name>.rs` / `src/rules/registry.rs` (the shared
 //! arc-19 seam those feature packs own).
 
+#[path = "boundary/policy_ingest/backing.rs"]
 pub mod backing;
+#[path = "boundary/policy_ingest/error.rs"]
 pub mod error;
+#[path = "boundary/policy_ingest/map.rs"]
 pub mod map;
+#[path = "boundary/policy_ingest/parse.rs"]
 pub mod parse;
+#[path = "boundary/policy_ingest/spec.rs"]
 pub mod spec;

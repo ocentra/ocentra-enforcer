@@ -1,7 +1,7 @@
 //! SQLite operational graph/read model (`rusqlite`, `bundled` feature —
 //! no system SQLite dependency). This is a REBUILT read model: the
 //! source of truth is the append-only graph-event log
-//! ([`crate::schema::GraphEventLogEntry`]); this module deterministically
+//! ([`crate::boundary::log_schema::GraphEventLogEntryDto`]); this module deterministically
 //! replays that log into a `nodes`/`edges` table pair. "Indexes are
 //! disposable, knowledge is not" (owner intent) — the SQLite file itself
 //! is never hand-edited and can always be thrown away and rebuilt from
@@ -9,13 +9,26 @@
 
 use rusqlite::{Connection, OpenFlags};
 
+use crate::boundary::log_schema::GraphEventLogEntryDto;
 use crate::error::Result;
-use crate::schema::GraphEventKind;
-use crate::schema::GraphEventLogEntry;
+use enforcer_domain::memory_types::{
+    GraphEventKind, OperationalGraphEdgeCount, OperationalGraphEdgeRow,
+    OperationalGraphEdgeSnapshot, OperationalGraphNodeCount, OperationalGraphNodeRow,
+    OperationalGraphNodeSnapshot,
+};
 
 /// An in-memory-or-file-backed SQLite operational read model.
 pub struct OperationalGraph {
     conn: Connection,
+}
+
+impl std::fmt::Debug for OperationalGraph {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OperationalGraph")
+            .field("connection", &"rusqlite::Connection")
+            .finish()
+    }
 }
 
 impl OperationalGraph {
@@ -66,7 +79,7 @@ impl OperationalGraph {
     /// Apply one graph-event log entry, skipping it if its `seq` has
     /// already been applied (idempotent replay — rebuilding from seq 0
     /// against an already-populated database is safe).
-    pub fn apply(&mut self, entry: &GraphEventLogEntry) -> Result<()> {
+    pub fn apply(&mut self, entry: &GraphEventLogEntryDto) -> Result<()> {
         let already_applied: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM applied_events WHERE seq = ?1)",
             [entry.seq],
@@ -80,14 +93,14 @@ impl OperationalGraph {
                 self.conn.execute(
                     "INSERT INTO nodes (node_id, node_kind, last_seq) VALUES (?1, ?2, ?3)
                      ON CONFLICT(node_id) DO UPDATE SET node_kind = excluded.node_kind, last_seq = excluded.last_seq",
-                    (node_id, node_kind, entry.seq),
+                    (node_id.as_str(), node_kind.as_str(), entry.seq),
                 )?;
             }
             GraphEventKind::EdgeAdded { from, to, label } => {
                 self.conn.execute(
                     "INSERT INTO edges (from_id, to_id, label, seq) VALUES (?1, ?2, ?3, ?4)
                      ON CONFLICT(from_id, to_id, label) DO UPDATE SET seq = excluded.seq",
-                    (from, to, label, entry.seq),
+                    (from.as_str(), to.as_str(), label.as_str(), entry.seq),
                 )?;
             }
         }
@@ -101,50 +114,68 @@ impl OperationalGraph {
     /// Deterministic: replaying the same entries twice into two fresh
     /// databases yields identical node/edge sets (see the rebuild
     /// determinism test).
-    pub fn rebuild(&mut self, entries: &[GraphEventLogEntry]) -> Result<()> {
+    pub fn rebuild(&mut self, entries: &[GraphEventLogEntryDto]) -> Result<()> {
         for entry in entries {
             self.apply(entry)?;
         }
         Ok(())
     }
 
-    pub fn node_count(&self) -> Result<u64> {
+    pub fn node_count(&self) -> Result<OperationalGraphNodeCount> {
         Ok(self
             .conn
-            .query_row("SELECT COUNT(*) FROM nodes", [], |row| row.get(0))?)
+            .query_row("SELECT COUNT(*) FROM nodes", [], |row| row.get::<_, u64>(0))?
+            .into())
     }
 
-    pub fn edge_count(&self) -> Result<u64> {
+    pub fn edge_count(&self) -> Result<OperationalGraphEdgeCount> {
         Ok(self
             .conn
-            .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))?)
+            .query_row("SELECT COUNT(*) FROM edges", [], |row| row.get::<_, u64>(0))?
+            .into())
     }
 
     /// Snapshot of every `(node_id, node_kind)` pair, sorted by
     /// `node_id`, for deterministic comparison in tests.
-    pub fn nodes_snapshot(&self) -> Result<Vec<(String, String)>> {
+    pub fn nodes_snapshot(&self) -> Result<OperationalGraphNodeSnapshot> {
         let mut stmt = self
             .conn
             .prepare("SELECT node_id, node_kind FROM nodes ORDER BY node_id")?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let rows = stmt.query_map([], |row| {
+            let node_id: String = row.get(0)?;
+            let node_kind: String = row.get(1)?;
+            Ok(OperationalGraphNodeRow {
+                node_id: node_id.into(),
+                node_kind: node_kind.into(),
+            })
+        })?;
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);
         }
-        Ok(out)
+        Ok(out.into())
     }
 
     /// Snapshot of every `(from_id, to_id, label)` edge, sorted for
     /// deterministic projection replay and tests.
-    pub fn edges_snapshot(&self) -> Result<Vec<(String, String, String)>> {
+    pub fn edges_snapshot(&self) -> Result<OperationalGraphEdgeSnapshot> {
         let mut stmt = self
             .conn
             .prepare("SELECT from_id, to_id, label FROM edges ORDER BY from_id, to_id, label")?;
-        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+        let rows = stmt.query_map([], |row| {
+            let from_id: String = row.get(0)?;
+            let to_id: String = row.get(1)?;
+            let label: String = row.get(2)?;
+            Ok(OperationalGraphEdgeRow {
+                from_id: from_id.into(),
+                to_id: to_id.into(),
+                label: label.into(),
+            })
+        })?;
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);
         }
-        Ok(out)
+        Ok(out.into())
     }
 }

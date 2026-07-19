@@ -22,23 +22,12 @@
 //! Node `secureProtocol`/`minVersion`, Java `SSLContext.getInstance(...)`)
 //! instead of a live handshake.
 
+use crate::boundary::pattern::{LabelledPattern, LabelledPatternSource as LegacyTlsPattern};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
-
-/// One legacy-protocol-token pattern: the `regex` crate has no
-/// lookahead/lookbehind, so each pattern explicitly CONSUMES the trailing
-/// boundary character (a non-alnum char, or end of line) instead of
-/// asserting on it, which is what lets `TLSv1` avoid matching inside
-/// `TLSv1.2`/`TLSv1.3` (a plain `\bTLSv1\b` would match there too, since
-/// `.` is already a non-word character and satisfies `\b` on its own).
-struct LegacyTlsPattern {
-    regex: &'static str,
-    label: &'static str,
-}
 
 /// Legacy TLS/SSL version tokens this validator flags, covering both the
 /// dotted (`TLSv1.1`) and underscore (`TLSv1_1`, as in Python's
@@ -75,28 +64,26 @@ const LEGACY_TLS_PATTERNS_SRC: &[LegacyTlsPattern] = &[
 /// `!`, i.e. this is an explicit "disable this protocol" directive (Apache
 /// `SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1`, mod_ssl `!SSLv3` hardening
 /// syntax) rather than something that enables the legacy version.
-fn is_explicit_disable(line: &str, start: usize) -> bool {
-    matches!(line[..start].chars().last(), Some('-') | Some('!'))
-}
-
 /// `CYBER-TLS.1` — flags a legacy TLS/SSL version (`SSLv2`, `SSLv3`,
 /// `TLSv1`/`TLSv1.0`, `TLSv1.1`) being enabled in server config or
 /// application source, scanned line by line.
+#[derive(Debug)]
 pub struct TlsLegacyVersionValidator {
     rule_id: RuleId,
-    patterns: Vec<(Regex, &'static str)>,
+    patterns: Vec<LabelledPattern>,
 }
 
 impl TlsLegacyVersionValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut patterns = Vec::with_capacity(LEGACY_TLS_PATTERNS_SRC.len());
         for entry in LEGACY_TLS_PATTERNS_SRC {
-            let regex = Regex::new(entry.regex)
-                .map_err(|err| DecodeError::new("cyberskillsTlsLegacyPattern", err.to_string()))?;
-            patterns.push((regex, entry.label));
+            patterns.push(LabelledPattern::compile_source(
+                "cyberskillsTlsLegacyPattern",
+                entry,
+            )?);
         }
         Ok(Self {
-            rule_id: "CYBER-TLS.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberNetTls.id(),
             patterns,
         })
     }
@@ -109,33 +96,31 @@ impl Validator for TlsLegacyVersionValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
-            for (regex, label) in &self.patterns {
-                let enabling_hit = regex
-                    .find_iter(line)
-                    .any(|matched| !is_explicit_disable(line, matched.start()));
-                if enabling_hit && !matched_labels.contains(label) {
-                    matched_labels.push(*label);
+            for pattern in &self.patterns {
+                let enabling_hit = pattern.regex().find_iter(line).any(|matched| {
+                    !crate::boundary::source_predicates::is_explicit_disable(line, matched.start())
+                });
+                if enabling_hit && !matched_labels.contains(&pattern.label().as_str()) {
+                    matched_labels.push(pattern.label().as_str());
                 }
             }
             if matched_labels.is_empty() {
                 continue;
             }
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "Legacy TLS/SSL version enabled".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "Legacy TLS/SSL version enabled",
+                format!(
                     "Line enables a legacy protocol version: {}. Fix: remove SSLv2/SSLv3/TLSv1/\
                      TLSv1.1 from the allowed protocol list and require TLSv1.2 or TLSv1.3 only.",
                     matched_labels.join(", ")
                 ),
-                file: input.file.clone(),
-                line: line_number,
-                snippet: Some(line.to_owned()),
-            });
+                input.file,
+                (line_number, Some(line)),
+            ));
         }
         findings
     }
@@ -143,22 +128,15 @@ impl Validator for TlsLegacyVersionValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::TlsLegacyVersionValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_net_tls() -> Result<(), Box<dyn std::error::Error>> {
         let v = TlsLegacyVersionValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &v,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/net.tls-legacy/bad/legacy.conf",
             "tests/fixtures/cyberskills/net.tls-legacy/good/modern.conf",
         )?;

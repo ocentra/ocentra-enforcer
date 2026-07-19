@@ -10,8 +10,9 @@
 //! (`call_expression`/`constructor_expression`/`macro_invocation`/
 //! `navigation_expression`).
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_swift;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

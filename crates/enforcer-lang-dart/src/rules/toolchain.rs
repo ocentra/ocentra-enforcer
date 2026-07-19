@@ -12,17 +12,19 @@
 //! `enforcer-harness`'s (arc-18) run-adapter concern, not this crate's.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::boundary::validation::ValidationMarker;
+use enforcer_domain::ids::{BuiltInDartRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::support::{finding, first_line_containing, FindingSpec};
+use super::support::{first_line_containing, FindingSpec};
 
 /// `DART-TOOL-1.1` — a project must carry a strict `analysis_options.yaml`
 /// (`include: package:flutter_lints/flutter.yaml` or a `strict-mode:`
 /// block); this validator reads a manifest-marker fixture text standing
 /// in for "this project's toolchain config", firing when the strict
 /// marker is absent.
+#[derive(Debug)]
 pub struct StrictAnalysisOptionsValidator {
     rule_id: RuleId,
 }
@@ -30,7 +32,7 @@ pub struct StrictAnalysisOptionsValidator {
 impl StrictAnalysisOptionsValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-TOOL-1.1".parse()?,
+            rule_id: BuiltInDartRule::StrictAnalysisOptions.id(),
         })
     }
 }
@@ -41,25 +43,27 @@ impl Validator for StrictAnalysisOptionsValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        if input.source.contains("strict-mode:") || input.source.contains("flutter_lints") {
+        if input.source.as_str().contains("strict-mode:")
+            || input.source.as_str().contains("flutter_lints")
+        {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "analysis_options.yaml missing or not strict",
+                rule: BuiltInDartRule::StrictAnalysisOptions,
             },
             "no strict `analysis_options.yaml` configuration found (missing `strict-mode:` / a \
-             `flutter_lints` include) — every Dart project needs a strict analyzer config."
-                .to_owned(),
+             `flutter_lints` include) — every Dart project needs a strict analyzer config.",
             &input,
-            1,
+            1_u32,
         )]
     }
 }
 
 /// `DART-TOOL-1.2` — CI must run `dart analyze --fatal-infos`.
+#[derive(Debug)]
 pub struct CiRunsAnalyzeValidator {
     rule_id: RuleId,
 }
@@ -67,7 +71,7 @@ pub struct CiRunsAnalyzeValidator {
 impl CiRunsAnalyzeValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-TOOL-1.2".parse()?,
+            rule_id: BuiltInDartRule::CiRunsAnalyze.id(),
         })
     }
 }
@@ -78,25 +82,25 @@ impl Validator for CiRunsAnalyzeValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        if input.source.contains("dart analyze --fatal-infos") {
+        if input.source.as_str().contains("dart analyze --fatal-infos") {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "CI does not run dart analyze --fatal-infos",
+                rule: BuiltInDartRule::CiRunsAnalyze,
             },
             "the CI workflow has no `dart analyze --fatal-infos` step — analyzer warnings/infos \
-             must gate CI, not just errors."
-                .to_owned(),
+             must gate CI, not just errors.",
             &input,
-            1,
+            1_u32,
         )]
     }
 }
 
 /// `DART-TOOL-1.3` — CI must run `dart format --set-exit-if-changed`.
+#[derive(Debug)]
 pub struct CiRunsFormatCheckValidator {
     rule_id: RuleId,
 }
@@ -104,7 +108,7 @@ pub struct CiRunsFormatCheckValidator {
 impl CiRunsFormatCheckValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-TOOL-1.3".parse()?,
+            rule_id: BuiltInDartRule::CiRunsFormatCheck.id(),
         })
     }
 }
@@ -115,20 +119,23 @@ impl Validator for CiRunsFormatCheckValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        if input.source.contains("dart format --set-exit-if-changed") {
+        if input
+            .source
+            .as_str()
+            .contains("dart format --set-exit-if-changed")
+        {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "CI does not run dart format --set-exit-if-changed",
+                rule: BuiltInDartRule::CiRunsFormatCheck,
             },
             "the CI workflow has no `dart format --set-exit-if-changed` step — formatting drift \
-             must fail CI."
-                .to_owned(),
+             must fail CI.",
             &input,
-            1,
+            1_u32,
         )]
     }
 }
@@ -136,6 +143,7 @@ impl Validator for CiRunsFormatCheckValidator {
 /// `DART-DEP-1.1` — `pubspec.lock` must be committed (checked at the
 /// repo-shape level elsewhere); here, `pubspec.yaml` dependency entries
 /// must be pinned (`^x.y.z`), never `foo: any`.
+#[derive(Debug)]
 pub struct UnpinnedDependencyValidator {
     rule_id: RuleId,
 }
@@ -143,7 +151,7 @@ pub struct UnpinnedDependencyValidator {
 impl UnpinnedDependencyValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-DEP-1.1".parse()?,
+            rule_id: BuiltInDartRule::UnpinnedDependency.id(),
         })
     }
 }
@@ -154,18 +162,19 @@ impl Validator for UnpinnedDependencyValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, ": any") else {
+        let Some(line) =
+            first_line_containing(input.source, ValidationMarker::from_static(": any"))
+        else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "unpinned dependency version constraint (`any`)",
+                rule: BuiltInDartRule::UnpinnedDependency,
             },
             "a `pubspec.yaml` dependency is constrained to `any` — pin it to a caret range \
-             (`^1.2.0`) instead."
-                .to_owned(),
+             (`^1.2.0`) instead.",
             &input,
             line,
         )]
@@ -179,6 +188,7 @@ impl Validator for UnpinnedDependencyValidator {
 /// the marker (while the filename still ends `.g.dart`/`.freezed.dart`)
 /// is caught by the fixture pairing itself — the marker's ABSENCE is
 /// what this validator fires on.
+#[derive(Debug)]
 pub struct HandEditedGeneratedFileValidator {
     rule_id: RuleId,
 }
@@ -186,7 +196,7 @@ pub struct HandEditedGeneratedFileValidator {
 impl HandEditedGeneratedFileValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-GEN-1.1".parse()?,
+            rule_id: BuiltInDartRule::HandEditedGeneratedFile.id(),
         })
     }
 }
@@ -202,20 +212,19 @@ impl Validator for HandEditedGeneratedFileValidator {
         if !is_generated {
             return Vec::new();
         }
-        if input.source.contains("GENERATED CODE") {
+        if input.source.as_str().contains("GENERATED CODE") {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "generated Dart file missing its GENERATED CODE marker",
+                rule: BuiltInDartRule::HandEditedGeneratedFile,
             },
             "this `.g.dart`/`.freezed.dart` file has no `// GENERATED CODE` marker — it looks \
-             hand-edited; regenerate it with `build_runner` instead of editing it directly."
-                .to_owned(),
+             hand-edited; regenerate it with `build_runner` instead of editing it directly.",
             &input,
-            1,
+            1_u32,
         )]
     }
 }

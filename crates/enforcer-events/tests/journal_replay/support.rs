@@ -1,12 +1,13 @@
+use enforcer_domain::events_types::EventErrorReason;
+use enforcer_domain::events_types::{EventId, EventType, JournalLine, JournalPath};
+use enforcer_events::boundary::stored_event_persistence::StoredEventEnvelope;
 use enforcer_events::bus::EventBus;
-use enforcer_events::envelope::{EventEnvelope, StoredEventEnvelope};
+use enforcer_events::envelope::EventFrame;
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::{EventId, EventType};
 use enforcer_events::journal::policy::JournalPolicy;
 use enforcer_events::journal::{EventJournal, JournalAppend};
 use std::{
     future::Future,
-    path::Path,
     path::PathBuf,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -18,20 +19,6 @@ use super::fixtures::{
 
 #[derive(Clone, Debug)]
 pub(super) struct TestText(pub(super) String);
-
-#[derive(Clone, Debug)]
-pub(super) struct JournalPath(pub(super) PathBuf);
-
-#[derive(Clone, Debug, Default)]
-pub(super) struct JournalLine(pub(super) String);
-
-impl std::ops::Deref for JournalLine {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct JournalLines(Vec<JournalLine>);
@@ -51,7 +38,7 @@ impl PartialEq<Vec<String>> for JournalLines {
                 .0
                 .iter()
                 .zip(other.iter())
-                .all(|(line, expected)| line.0 == *expected)
+                .all(|(line, expected)| line.as_str() == expected)
     }
 }
 
@@ -64,18 +51,6 @@ impl std::ops::DerefMut for JournalLines {
 impl JournalLines {
     fn push(&mut self, value: JournalLine) {
         self.0.push(value);
-    }
-}
-
-impl AsRef<Path> for JournalPath {
-    fn as_ref(&self) -> &Path {
-        self.0.as_ref()
-    }
-}
-
-impl From<&JournalPath> for PathBuf {
-    fn from(value: &JournalPath) -> Self {
-        value.0.clone()
     }
 }
 
@@ -101,9 +76,9 @@ pub(super) async fn subscribe_log_handler(
                 let mut log = log
                     .lock()
                     .map_err(|e| EventingError::InvalidHandlerPolicy {
-                        reason: e.to_string(),
+                        reason: EventErrorReason::from_diagnostic(e.to_string()),
                     })?;
-                log.push(JournalLine(String::from("handler")));
+                log.push(JournalLine::from_diagnostic("handler"));
                 Ok(())
             }
         },
@@ -115,16 +90,13 @@ pub(super) async fn subscribe_log_handler(
 pub(super) fn stored_event(
     event: TestEvent,
 ) -> Result<StoredEventEnvelope, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(
-        EventEnvelope::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?
-            .store()?,
-    )
+    Ok(EventFrame::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?.store()?)
 }
 
 pub(super) fn event_type(
     value: TestText,
 ) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(EventType::parse(value.0)?)
+    Ok(EventType::parse(&{ value.0 })?)
 }
 
 pub(super) fn shared_log() -> Arc<Mutex<JournalLines>> {
@@ -139,20 +111,29 @@ pub(super) fn snapshot(
 
 pub(super) fn journal_path(label: TestText) -> JournalPath {
     let label = label.0;
-    JournalPath(std::env::temp_dir().join(format!(
-        "ocentra-eventing-{label}-{}-{}.ndjson",
-        std::process::id(),
-        EventId::generated().as_str()
-    )))
+    JournalPath::from_diagnostic(
+        std::env::temp_dir()
+            .join(format!(
+                "ocentra-eventing-{label}-{}-{}.ndjson",
+                std::process::id(),
+                EventId::generated().as_str()
+            ))
+            .display()
+            .to_string(),
+    )
+}
+
+pub(super) fn journal_file_path(path: &JournalPath) -> PathBuf {
+    PathBuf::from(path.as_str())
 }
 
 pub(super) async fn read_lines(
     path: JournalPath,
 ) -> Result<JournalLines, Box<dyn std::error::Error + Send + Sync>> {
-    let lines = tokio::fs::read_to_string(path)
+    let lines = tokio::fs::read_to_string(journal_file_path(&path))
         .await?
         .lines()
-        .map(|line| JournalLine(String::from(line)))
+        .map(JournalLine::from_diagnostic)
         .collect::<Vec<_>>();
     Ok(JournalLines(lines))
 }
@@ -163,11 +144,11 @@ pub(super) async fn write_lines(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut content = lines
         .iter()
-        .map(|line| line.as_ref())
+        .map(JournalLine::as_str)
         .collect::<Vec<_>>()
         .join("\n");
     content.push('\n');
-    tokio::fs::write(path, content).await?;
+    tokio::fs::write(journal_file_path(&path), content).await?;
     Ok(())
 }
 
@@ -177,15 +158,15 @@ pub(super) async fn tamper_first_journal_payload_label(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let label = label.0;
     let mut lines = read_lines(path.clone()).await?;
-    let mut entry: serde_json::Value = serde_json::from_str(&lines[0])?;
+    let mut entry: serde_json::Value = serde_json::from_str(lines[0].as_str())?;
     entry["envelope"]["payload"]["label"] = serde_json::Value::String(label);
-    lines[0] = JournalLine(serde_json::to_string(&entry)?);
+    lines[0] = JournalLine::from_diagnostic(serde_json::to_string(&entry)?);
     write_lines(path, &lines).await?;
     Ok(())
 }
 
 pub(super) async fn cleanup(path: JournalPath) {
-    let _ = tokio::fs::remove_file(path).await;
+    let _ = tokio::fs::remove_file(journal_file_path(&path)).await;
 }
 
 struct RecordingJournal {
@@ -202,14 +183,22 @@ impl EventJournal for RecordingJournal {
                 .log
                 .lock()
                 .map_err(|e| EventingError::InvalidHandlerPolicy {
-                    reason: e.to_string(),
+                    reason: EventErrorReason::from_diagnostic(e.to_string()),
                 })?;
-            log.push(JournalLine(format!(
+            log.push(JournalLine::from_diagnostic(format!(
                 "journal:{}",
                 envelope.contract.event_type.as_str()
             )));
             Ok(JournalAppend {
-                sequence: log.len() as u64,
+                sequence: enforcer_domain::events_types::JournalSequence::try_new(
+                    std::num::NonZeroU64::new(log.len() as u64).ok_or_else(|| {
+                        EventingError::InvalidHandlerPolicy {
+                            reason: EventErrorReason::from_diagnostic(String::from(
+                                "journal sequence must be positive",
+                            )),
+                        }
+                    })?,
+                ),
                 previous_hash: None,
                 current_hash: None,
             })

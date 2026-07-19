@@ -71,6 +71,24 @@ fn record_declaration_is_a_class_symbol() {
 }
 
 #[test]
+fn record_block_does_not_hide_a_following_function() {
+    let src = "record Point : Set where\n  field\n    x : Nat\n\ngreet : Nat -> Nat\ngreet x = x\n";
+    let parsed = parse_agda(src);
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "Point"),
+        Some(&SymbolKind::Class),
+        "{:?}",
+        parsed.symbols
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "greet"),
+        Some(&SymbolKind::Function),
+        "{:?}",
+        parsed.symbols
+    );
+}
+
+#[test]
 fn application_inside_equation_body_is_a_call() -> TestResult {
     let src = "greet : Nat -> Nat\ngreet x = draw x\n";
     let parsed = parse_agda(src);

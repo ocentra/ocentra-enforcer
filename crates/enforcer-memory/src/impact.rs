@@ -12,11 +12,11 @@
 //! Baseline-source-verified correction (orchestrator, post-scout-digest
 //! extraction of the actual C source; see
 //! `docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md`
-//! §13.3): the baseline's `detect_changes` carries NO risk concept
+//! Â§13.3): the baseline's `detect_changes` carries NO risk concept
 //! whatsoever -- its response is exactly `{changed_files,
 //! changed_count, impacted_symbols, depth}` with `impacted_symbols`
 //! being FILE-LEVEL (every symbol in a changed file, not a downstream
-//! blast-radius walk) and `depth` parsed but unused (§13.4). The
+//! blast-radius walk) and `depth` parsed but unused (Â§13.4). The
 //! baseline's ONLY risk labels live in `trace_path` behind a
 //! `risk_labels` flag (pure BFS hop-distance; see
 //! [`crate::analysis::trace`]'s module docs). [`RiskFactors`] /
@@ -35,15 +35,20 @@
 
 use crate::analysis::{test_node_ids, CodeAdjacency};
 use crate::code_graph::{CodeGraph, CodeNode};
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    DetectChangesScope, ImpactNodeId, ImpactNodeRef, ImpactPath, ImpactQuantity, ImpactScope,
+    ImpactSignal, ImpactSymbolLabel, ImpactSymbolName, MemoryResolutionSymbolId, RiskLevel,
+};
 use std::collections::{BTreeSet, HashMap};
 
 /// One changed file's blast radius.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImpactedFile {
-    pub rel_path: String,
+    pub rel_path: ImpactPath,
     /// Node ids of every symbol/file that transitively depends on this
     /// file (reverse dependents), up to the analysis depth.
-    pub affected_node_ids: Vec<String>,
+    pub affected_node_ids: Vec<ImpactNodeId>,
     pub risk: RiskLevel,
 }
 
@@ -52,15 +57,8 @@ pub struct ImpactedFile {
 /// point (not the baseline's exact classifier, which is closed-source
 /// C -- BORROW_POLICY treats it as behavior-spec-only, not code to
 /// copy) -- tunable later without changing the shape callers see.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RiskLevel {
-    Low,
-    Medium,
-    High,
-}
-
-fn classify_risk(affected_count: usize) -> RiskLevel {
-    match affected_count {
+fn classify_risk(affected_count: ImpactQuantity) -> RiskLevel {
+    match affected_count.get() {
         0..=2 => RiskLevel::Low,
         3..=10 => RiskLevel::Medium,
         _ => RiskLevel::High,
@@ -75,35 +73,20 @@ pub const DEFAULT_DEPTH: usize = 2;
 
 /// Which part of the graph [`analyze_diff_impact_scoped`] walks for a
 /// changed file's blast radius.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ImpactScope {
-    /// Every node type (files, symbols, routes) -- the original
-    /// [`analyze_diff_impact`] behavior.
-    #[default]
-    All,
-    /// Only symbol nodes (functions/types/tests) in the blast radius --
-    /// for a caller that wants "what code do I need to re-review",
-    /// excluding bare file-level noise.
-    SymbolsOnly,
-    /// Only nodes that are (or are upstream of) a declared route -- for
-    /// a caller doing API-surface risk triage.
-    RoutesOnly,
-}
-
 /// The three signals [`classify_risk_from_factors`] combines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RiskFactors {
     /// Total (in + out) degree of the changed node in the adjacency
     /// view -- the centrality proxy [`crate::analysis::CodeAdjacency::hotspots`]
     /// already uses, reused here rather than a second metric.
-    pub centrality_degree: usize,
+    pub centrality_degree: ImpactQuantity,
     /// Whether at least one node in the blast radius is itself a test
     /// node, or is directly reachable from one (i.e. the change is
     /// exercised by an existing test).
-    pub has_test_coverage: bool,
+    pub has_test_coverage: ImpactSignal,
     /// Whether any route-declaring file is in the blast radius
     /// (downstream of the change).
-    pub has_downstream_route: bool,
+    pub has_downstream_route: ImpactSignal,
 }
 
 /// Combine [`RiskFactors`] into a [`RiskLevel`]. Deliberately simple
@@ -125,13 +108,14 @@ pub struct RiskFactors {
 pub fn classify_risk_from_factors(factors: RiskFactors) -> RiskLevel {
     const HIGH_CENTRALITY_DEGREE: usize = 10;
 
-    if factors.centrality_degree >= HIGH_CENTRALITY_DEGREE {
+    if factors.centrality_degree.get() >= HIGH_CENTRALITY_DEGREE {
         return RiskLevel::High;
     }
-    if factors.has_downstream_route && !factors.has_test_coverage {
+    if factors.has_downstream_route.is_present() && !factors.has_test_coverage.is_present() {
         return RiskLevel::High;
     }
-    if factors.has_downstream_route || (!factors.has_test_coverage && factors.centrality_degree > 0)
+    if factors.has_downstream_route.is_present()
+        || (!factors.has_test_coverage.is_present() && factors.centrality_degree.get() > 0)
     {
         return RiskLevel::Medium;
     }
@@ -144,8 +128,8 @@ pub fn classify_risk_from_factors(factors: RiskFactors) -> RiskLevel {
 /// struct's shape.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopedImpactedFile {
-    pub rel_path: String,
-    pub affected_node_ids: Vec<String>,
+    pub rel_path: ImpactPath,
+    pub affected_node_ids: Vec<ImpactNodeId>,
     pub factors: RiskFactorsSnapshot,
     pub risk: RiskLevel,
 }
@@ -156,19 +140,19 @@ pub struct ScopedImpactedFile {
 /// already cites -- explainable, not just a label).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RiskFactorsSnapshot {
-    pub centrality_degree: usize,
-    pub has_test_coverage: bool,
-    pub has_downstream_route: bool,
-    pub covering_test_ids: Vec<String>,
-    pub downstream_route_file_ids: Vec<String>,
+    pub centrality_degree: ImpactQuantity,
+    pub has_test_coverage: ImpactSignal,
+    pub has_downstream_route: ImpactSignal,
+    pub covering_test_ids: Vec<ImpactNodeId>,
+    pub downstream_route_file_ids: Vec<ImpactNodeId>,
 }
 
 /// The full scoped impact report.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopedImpactReport {
-    pub changed_paths: Vec<String>,
+    pub changed_paths: Vec<ImpactPath>,
     pub impacted: Vec<ScopedImpactedFile>,
-    pub total_affected_node_ids: Vec<String>,
+    pub total_affected_node_ids: Vec<ImpactNodeId>,
 }
 
 /// Scope- and depth-aware impact analysis (X06.P2 mission: `scope`
@@ -178,8 +162,8 @@ pub struct ScopedImpactReport {
 /// [`detect_changes_view`]'s parity-shaped response.
 pub fn analyze_diff_impact_scoped(
     graph: &CodeGraph,
-    changed_paths: &[String],
-    depth: usize,
+    changed_paths: &[ImpactPath],
+    depth: ImpactQuantity,
     scope: ImpactScope,
 ) -> ScopedImpactReport {
     let adjacency = CodeAdjacency::build(graph);
@@ -198,8 +182,8 @@ pub fn analyze_diff_impact_scoped(
         .hotspots(usize::MAX)
         .into_iter()
         .map(|h| {
-            let degree = h.total_degree();
-            (h.node_id, degree)
+            let degree = h.total_degree().get();
+            (h.node_id.retained_display(), degree)
         })
         .collect();
 
@@ -207,28 +191,28 @@ pub fn analyze_diff_impact_scoped(
     let mut total: BTreeSet<String> = BTreeSet::new();
 
     for rel_path in changed_paths {
-        let file_id = format!("file:{rel_path}");
+        let file_id = format!("file:{}", rel_path.as_str());
         let mut seeds: BTreeSet<String> = BTreeSet::new();
         for symbol in graph.symbol_nodes() {
             if symbol.file_id == file_id {
                 // CLONE-JUSTIFICATION: graph-owned symbol ids must outlive this borrowed graph during traversal.
-                seeds.insert(symbol.id.clone());
+                seeds.insert(symbol.id.retained());
             }
         }
         seeds.insert(file_id);
 
         let mut affected: BTreeSet<String> = BTreeSet::new();
         for seed in &seeds {
-            for id in adjacency.reverse_dependents(seed, depth) {
-                if !seeds.contains(&id) {
-                    affected.insert(id);
+            for id in adjacency.reverse_dependents(seed, depth.get()) {
+                if !seeds.contains(id.as_str()) {
+                    affected.insert(String::from(id));
                 }
             }
         }
 
         let scoped_affected: Vec<String> = affected
             .iter()
-            .filter(|id| node_in_scope(graph, id, scope))
+            .filter(|id| node_in_scope(graph, id.as_str().into(), scope).is_present())
             .cloned()
             .collect();
 
@@ -240,7 +224,7 @@ pub fn analyze_diff_impact_scoped(
 
         let covering_test_ids: Vec<String> = affected
             .iter()
-            .filter(|id| test_ids.contains(id.as_str()))
+            .filter(|id| test_ids.contains(&MemoryResolutionSymbolId::from(id.as_str())))
             .cloned()
             .collect();
         let has_test_coverage = !covering_test_ids.is_empty();
@@ -253,27 +237,30 @@ pub fn analyze_diff_impact_scoped(
         let has_downstream_route = !downstream_route_file_ids.is_empty();
 
         let factors = RiskFactors {
-            centrality_degree,
-            has_test_coverage,
-            has_downstream_route,
+            centrality_degree: centrality_degree.into(),
+            has_test_coverage: has_test_coverage.into(),
+            has_downstream_route: has_downstream_route.into(),
         };
         let risk = classify_risk_from_factors(factors);
 
         for id in &scoped_affected {
             // CLONE-JUSTIFICATION: the aggregate report and this file-level report independently own each id.
-            total.insert(id.clone());
+            total.insert(id.retained());
         }
 
         impacted.push(ScopedImpactedFile {
             // CLONE-JUSTIFICATION: the report owns this path after the borrowed changed-path input is released.
-            rel_path: rel_path.clone(),
-            affected_node_ids: scoped_affected,
+            rel_path: rel_path.retained(),
+            affected_node_ids: scoped_affected.into_iter().map(Into::into).collect(),
             factors: RiskFactorsSnapshot {
-                centrality_degree,
-                has_test_coverage,
-                has_downstream_route,
-                covering_test_ids,
-                downstream_route_file_ids,
+                centrality_degree: centrality_degree.into(),
+                has_test_coverage: has_test_coverage.into(),
+                has_downstream_route: has_downstream_route.into(),
+                covering_test_ids: covering_test_ids.into_iter().map(Into::into).collect(),
+                downstream_route_file_ids: downstream_route_file_ids
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             },
             risk,
         });
@@ -282,7 +269,7 @@ pub fn analyze_diff_impact_scoped(
     ScopedImpactReport {
         changed_paths: changed_paths.to_vec(),
         impacted,
-        total_affected_node_ids: total.into_iter().collect(),
+        total_affected_node_ids: total.into_iter().map(Into::into).collect(),
     }
 }
 
@@ -291,16 +278,24 @@ pub fn analyze_diff_impact_scoped(
 /// stale manifest) are excluded from `SymbolsOnly`/`RoutesOnly` scopes
 /// rather than assumed to match -- `All` always includes them (matches
 /// the original [`analyze_diff_impact`]'s unfiltered behavior).
-fn node_in_scope(graph: &CodeGraph, node_id: &str, scope: ImpactScope) -> bool {
+fn node_in_scope(
+    graph: &CodeGraph,
+    node_id: ImpactNodeRef<'_>,
+    scope: ImpactScope,
+) -> ImpactSignal {
     match scope {
         ImpactScope::All => true,
-        ImpactScope::SymbolsOnly => graph.symbol_nodes().any(|s| s.id == node_id),
-        ImpactScope::RoutesOnly => graph.routes().iter().any(|r| r.from_file_id == node_id),
+        ImpactScope::SymbolsOnly => graph.symbol_nodes().any(|s| s.id == node_id.as_str()),
+        ImpactScope::RoutesOnly => graph
+            .routes()
+            .iter()
+            .any(|r| r.from_file_id == node_id.as_str()),
     }
+    .into()
 }
 
 /// One entry in [`DetectChangesView::impacted_symbols`]: the baseline's
-/// exact per-symbol shape (`{name, label, file}`, §13.5 of the baseline
+/// exact per-symbol shape (`{name, label, file}`, Â§13.5 of the baseline
 /// tool-schemas ref) -- `label` is `"Function"`/`"Type"`/`"Test"`
 /// mirroring [`CodeNode`]'s own variant names (the baseline's `label`
 /// values are its own KG's node-label strings; enforcer's closest
@@ -309,53 +304,40 @@ fn node_in_scope(graph: &CodeGraph, node_id: &str, scope: ImpactScope) -> bool {
 /// this crate's graph model does not otherwise track).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangedSymbol {
-    pub name: String,
-    pub label: String,
-    pub file: String,
+    pub name: ImpactSymbolName,
+    pub label: ImpactSymbolLabel,
+    pub file: ImpactPath,
 }
 
-/// The baseline-parity `detect_changes` response shape (§13.5): exactly
+/// The baseline-parity `detect_changes` response shape (Â§13.5): exactly
 /// `{changed_files, changed_count, impacted_symbols, depth}`, nothing
 /// more. `impacted_symbols` is FILE-LEVEL -- every symbol defined in a
-/// changed file, per §13.4's "no BFS/graph-traversal step at all in
+/// changed file, per Â§13.4's "no BFS/graph-traversal step at all in
 /// this handler" finding -- never a downstream blast-radius walk (that
 /// richer analysis is [`analyze_diff_impact_scoped`], an explicitly
 /// separate, non-parity extension). `depth` is echoed back exactly as
 /// passed in, never used to bound anything, matching the baseline's own
-/// documented "dead/cosmetic parameter" behavior (§13.4) -- this
+/// documented "dead/cosmetic parameter" behavior (Â§13.4) -- this
 /// module does not "fix" that by making `depth` do something the
 /// baseline never did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DetectChangesView {
-    pub changed_files: Vec<String>,
-    pub changed_count: usize,
+    pub changed_files: Vec<ImpactPath>,
+    pub changed_count: ImpactQuantity,
     pub impacted_symbols: Vec<ChangedSymbol>,
-    pub depth: usize,
+    pub depth: ImpactQuantity,
 }
 
 /// Whether [`DetectChangesView::impacted_symbols`] should be populated
 /// (baseline's `want_symbols` gate, mcp.c:5224/5352-5354): `"symbols"`
 /// or `"impact"` include it; any other scope value (including an
 /// unrecognized string) leaves it empty -- the key is always present,
-/// per §13.5's "the key itself is not omitted" note, so this only gates
+/// per Â§13.5's "the key itself is not omitted" note, so this only gates
 /// population, not presence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DetectChangesScope {
-    Symbols,
-    Impact,
-    FilesOnly,
-}
-
-impl DetectChangesScope {
-    fn wants_symbols(self) -> bool {
-        matches!(self, Self::Symbols | Self::Impact)
-    }
-}
-
 /// Build the baseline-parity `detect_changes` response over an
 /// already-computed list of `changed_files` (repo-relative,
 /// forward-slash-normalized paths -- the caller's job to produce via
-/// `git diff`/`git status`, per §13.2's three-merged-git-sources
+/// `git diff`/`git status`, per Â§13.2's three-merged-git-sources
 /// mechanism; this library layer does not shell out to git itself, same
 /// posture as [`analyze_diff_impact`]). `depth` is echoed verbatim into
 /// the response and never used to bound traversal (see
@@ -363,14 +345,17 @@ impl DetectChangesScope {
 /// `impacted_symbols` is populated.
 pub fn detect_changes_view(
     graph: &CodeGraph,
-    changed_files: &[String],
-    depth: usize,
+    changed_files: &[ImpactPath],
+    depth: ImpactQuantity,
     scope: DetectChangesScope,
 ) -> DetectChangesView {
     let mut impacted_symbols = Vec::new();
-    if scope.wants_symbols() {
+    if matches!(
+        scope,
+        DetectChangesScope::Symbols | DetectChangesScope::Impact
+    ) {
         for file in changed_files {
-            let file_id = format!("file:{file}");
+            let file_id = format!("file:{}", file.as_str());
             for node in graph.nodes() {
                 let symbol = match node {
                     CodeNode::Function(s) if s.file_id == file_id => Some((s, "Function")),
@@ -381,10 +366,10 @@ pub fn detect_changes_view(
                 if let Some((symbol, label)) = symbol {
                     impacted_symbols.push(ChangedSymbol {
                         // CLONE-JUSTIFICATION: the response owns graph-derived symbol text after traversal.
-                        name: symbol.name.clone(),
-                        label: label.to_string(),
+                        name: symbol.name.retained().into(),
+                        label: label.retained_display().into(),
                         // CLONE-JUSTIFICATION: each response row owns its file while the input slice remains borrowed.
-                        file: file.clone(),
+                        file: file.retained(),
                     });
                 }
             }
@@ -399,7 +384,7 @@ pub fn detect_changes_view(
 
     DetectChangesView {
         changed_files: changed_files.to_vec(),
-        changed_count: changed_files.len(),
+        changed_count: changed_files.len().into(),
         impacted_symbols,
         depth,
     }
@@ -408,10 +393,10 @@ pub fn detect_changes_view(
 /// The full impact report for one diff.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImpactReport {
-    pub changed_paths: Vec<String>,
+    pub changed_paths: Vec<ImpactPath>,
     pub impacted: Vec<ImpactedFile>,
     /// The union of every impacted node id across all changed files.
-    pub total_affected_node_ids: Vec<String>,
+    pub total_affected_node_ids: Vec<ImpactNodeId>,
 }
 
 /// Analyze the impact of `changed_paths` (repo-relative,
@@ -420,15 +405,15 @@ pub struct ImpactReport {
 /// (same depth-limit contract as [`CodeAdjacency::related`]).
 pub fn analyze_diff_impact(
     graph: &CodeGraph,
-    changed_paths: &[String],
-    max_depth: usize,
+    changed_paths: &[ImpactPath],
+    max_depth: ImpactQuantity,
 ) -> ImpactReport {
     let adjacency = CodeAdjacency::build(graph);
     let mut impacted = Vec::new();
     let mut total: BTreeSet<String> = BTreeSet::new();
 
     for rel_path in changed_paths {
-        let file_id = format!("file:{rel_path}");
+        let file_id = format!("file:{}", rel_path.as_str());
         // Seed the reverse walk from the file node AND every symbol it
         // contains -- an upstream caller reaches a changed file via a
         // CALLS edge into one of *its symbols*, not via any edge
@@ -440,18 +425,18 @@ pub fn analyze_diff_impact(
         for symbol in graph.symbol_nodes() {
             if symbol.file_id == file_id {
                 // CLONE-JUSTIFICATION: graph-owned symbol ids must outlive this borrowed graph during traversal.
-                seeds.insert(symbol.id.clone());
+                seeds.insert(symbol.id.retained());
             }
         }
         seeds.insert(file_id);
 
         let mut affected: BTreeSet<String> = BTreeSet::new();
         for seed in &seeds {
-            for id in adjacency.reverse_dependents(seed, max_depth) {
+            for id in adjacency.reverse_dependents(seed, max_depth.get()) {
                 // Never report the changed file's own nodes as
                 // "affected by itself".
-                if !seeds.contains(&id) {
-                    affected.insert(id);
+                if !seeds.contains(id.as_str()) {
+                    affected.insert(String::from(id));
                 }
             }
         }
@@ -459,13 +444,13 @@ pub fn analyze_diff_impact(
         let affected: Vec<String> = affected.into_iter().collect();
         for id in &affected {
             // CLONE-JUSTIFICATION: the aggregate report and this file-level report independently own each id.
-            total.insert(id.clone());
+            total.insert(id.retained());
         }
-        let risk = classify_risk(affected.len());
+        let risk = classify_risk(affected.len().into());
         impacted.push(ImpactedFile {
             // CLONE-JUSTIFICATION: the report owns this path after the borrowed changed-path input is released.
-            rel_path: rel_path.clone(),
-            affected_node_ids: affected,
+            rel_path: rel_path.retained(),
+            affected_node_ids: affected.into_iter().map(Into::into).collect(),
             risk,
         });
     }
@@ -473,6 +458,6 @@ pub fn analyze_diff_impact(
     ImpactReport {
         changed_paths: changed_paths.to_vec(),
         impacted,
-        total_affected_node_ids: total.into_iter().collect(),
+        total_affected_node_ids: total.into_iter().map(Into::into).collect(),
     }
 }

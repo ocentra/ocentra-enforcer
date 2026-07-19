@@ -20,11 +20,10 @@ const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_gomod";
 fn extracts_require_directive_as_import() -> TestResult {
     let src = "module example.com/foo\n\nrequire github.com/bar/baz v1.2.3\n";
     let parsed = parse_gomod(src);
-    parsed
+    assert!(parsed
         .imports
         .iter()
-        .find(|i| i.module_path == "github.com/bar/baz")
-        .ok_or("expected an import for github.com/bar/baz")?;
+        .any(|i| i.module_path == "github.com/bar/baz"));
     Ok(())
 }
 
@@ -56,11 +55,10 @@ fn parses_fixture_go_mod_without_panicking() -> TestResult {
     let path = Path::new(FIXTURE_DIR).join("go.mod");
     let src = fs::read_to_string(&path)?;
     let parsed = parse_gomod(&src);
-    parsed
+    assert!(parsed
         .imports
         .iter()
-        .find(|i| i.module_path == "github.com/bar/baz")
-        .ok_or("expected an import for github.com/bar/baz")?;
+        .any(|i| i.module_path == "github.com/bar/baz"));
     Ok(())
 }
 
@@ -74,6 +72,6 @@ fn incremental_reindex_is_deterministic() {
 
 #[test]
 fn malformed_source_does_not_panic() {
-    let parsed = parse_gomod("this is not [[[ valid go.mod @@@");
-    let _ = parsed;
+    let source = "this is not [[[ valid go.mod @@@";
+    assert_eq!(parse_gomod(source), parse_gomod(source));
 }

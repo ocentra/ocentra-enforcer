@@ -14,7 +14,7 @@ const steps = [
   [
     'literal-risk Rust scanner tests',
     'cargo',
-    ['test', '--manifest-path', path.join(PACK_ROOT, 'Tools', 'ocentra-literal-scan', 'Cargo.toml')],
+    ['test', '--manifest-path', path.join(PACK_ROOT, 'crates', 'enforcer-literal-scan', 'Cargo.toml')],
   ],
   ['test suite', ...npm(['test'])],
   ['policy rule tests', ...npm(['run', 'test:policy'])],

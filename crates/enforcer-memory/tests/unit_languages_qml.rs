@@ -250,7 +250,10 @@ Item {
 }
 "#;
     let parsed = parse_qml(src);
-    assert!(symbol_kind(&parsed.symbols, "f").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "f"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

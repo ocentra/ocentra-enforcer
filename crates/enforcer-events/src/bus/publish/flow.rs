@@ -1,13 +1,19 @@
-use std::sync::PoisonError;
+use serde::Serialize;
 
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use crate::{
-    DomainEvent, EventEnvelope, EventMetadata, EventingError, JournalDispatchPhase, PublishReport,
-    QueueDisposition, StoredEventEnvelope,
+    bus::reports::handler::PublishReport,
+    envelope::{DomainEvent, EventFrame, EventMetadata},
+    error::EventingError,
+    queue::policy::QueueReport,
+};
+use enforcer_domain::events_types::{
+    HandlerOutcome, JournalAppendDecision, JournalDispatchPhase, QueueDisposition,
 };
 
 use super::{DispatchMode, DispatchStoredError, EventBus};
 use crate::bus::reports::dead_letters_for;
-use crate::bus::reports::handler::{HandlerOutcome, HandlerReport};
+use crate::bus::reports::handler::HandlerReport;
 use crate::bus::SubscriberRecord;
 
 mod dispatching;
@@ -29,10 +35,10 @@ pub(super) async fn publish_with_mode<E>(
     dispatch_mode: DispatchMode,
 ) -> Result<PublishReport, EventingError>
 where
-    E: DomainEvent,
+    E: DomainEvent + Serialize,
 {
     bus.ensure_active()?;
-    let stored = EventEnvelope::from_event(event, metadata)?.store()?;
+    let stored = EventFrame::from_event(event, metadata)?.store()?;
     if stored.is_deadline_expired(bus.clock.now()) {
         return dispatching::dead_letter_expired_deadline(bus, stored, dispatch_mode).await;
     }
@@ -48,7 +54,7 @@ where
             dispatch_mode,
         },
         queue_report,
-        true,
+        JournalAppendDecision::Append,
     )
     .await
 }
@@ -57,10 +63,10 @@ impl EventBus {
     pub(in crate::bus) async fn dispatch_stored(
         &self,
         request: DispatchRequest,
-        queue_report: crate::QueueReport,
-        write_journal: bool,
+        queue_report: QueueReport,
+        journal_decision: JournalAppendDecision,
     ) -> Result<PublishReport, EventingError> {
-        self.dispatch_stored_checked(request, queue_report, write_journal)
+        self.dispatch_stored_checked(request, queue_report, journal_decision)
             .await
             .map_err(DispatchStoredError::into_error)
     }
@@ -68,8 +74,8 @@ impl EventBus {
     pub(in crate::bus) async fn dispatch_stored_checked(
         &self,
         request: DispatchRequest,
-        queue_report: crate::QueueReport,
-        write_journal: bool,
+        queue_report: QueueReport,
+        journal_decision: JournalAppendDecision,
     ) -> Result<PublishReport, DispatchStoredError> {
         let DispatchRequest {
             stored,
@@ -78,18 +84,21 @@ impl EventBus {
         } = request;
         let reservation = self.queue.reserve_dispatch(&stored)?;
         let _active_dispatch = self.active_dispatches.enter();
-        if write_journal {
+        if journal_decision == JournalAppendDecision::Append {
             self.record_stored_snapshot(&stored).await;
         }
         self.append_journal_phase(&stored, JournalDispatchPhase::BeforeDispatch)
             .await
             .map_err(DispatchStoredError::BeforeDispatch)?;
         let handler_reports = self
+            // CLONE-JUSTIFICATION: dispatch owns the envelope/subscriber batch while publication retains them for reports and dead letters.
             .dispatch(stored.clone(), subscribers.clone(), dispatch_mode)
-            .await;
+            .await
+            .map_err(DispatchStoredError::BeforeDispatch)?;
         reservation.complete();
         let dead_letters = dead_letters_for(&stored, &handler_reports);
         if !dead_letters.is_empty() {
+            // CLONE-JUSTIFICATION: journal recording owns a batch while the publish report returns the same dead letters.
             self.record_dead_letters(dead_letters.clone()).await;
         }
         self.append_journal_phase(&stored, JournalDispatchPhase::AfterDispatch)
@@ -100,12 +109,14 @@ impl EventBus {
             event_type: stored.contract.event_type,
             dispatch_mode,
             queue_report,
-            subscriber_count: subscribers.len(),
-            handled_count: handler_reports
-                .iter()
-                .filter(|report| report.outcome == HandlerOutcome::Handled)
-                .count(),
-            dead_letter_count: dead_letters.len(),
+            subscriber_count: crate::boundary::event_values::event_count(subscribers.len()),
+            handled_count: crate::boundary::event_values::event_count(
+                handler_reports
+                    .iter()
+                    .filter(|report| report.outcome == HandlerOutcome::Handled)
+                    .count(),
+            ),
+            dead_letter_count: crate::boundary::event_values::event_count(dead_letters.len()),
             handler_reports,
         })
     }
@@ -114,11 +125,12 @@ impl EventBus {
         &self,
         stored: &StoredEventEnvelope,
     ) -> Vec<SubscriberRecord> {
-        let registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
-        let subscribers = registry
-            .get(&stored.contract.event_type)
-            .cloned()
-            .unwrap_or_default();
+        let registry = self.registry.lock();
+        let subscribers = match registry.get(&stored.contract.event_type) {
+            // CLONE-JUSTIFICATION: dispatch owns a subscriber snapshot after the registry lock is released.
+            Some(subscribers) => subscribers.clone(),
+            None => Vec::new(),
+        };
         match &stored.target_handler {
             Some(target) => subscribers
                 .into_iter()
@@ -133,7 +145,7 @@ impl EventBus {
         stored: StoredEventEnvelope,
         subscribers: Vec<SubscriberRecord>,
         dispatch_mode: DispatchMode,
-    ) -> Vec<HandlerReport> {
+    ) -> Result<Vec<HandlerReport>, EventingError> {
         dispatching::dispatch(self, stored, subscribers, dispatch_mode).await
     }
 }

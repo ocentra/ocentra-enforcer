@@ -8,13 +8,13 @@
 //! after the format string — the common case an inline capture could
 //! replace.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{ExprMacro, Lit};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RulePredicateResult;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
@@ -23,6 +23,7 @@ const FMT_MACROS: &[&str] = &[
 ];
 
 /// The `RUST-FMT-CAPTURED-IDENT` `Validator`.
+#[derive(Debug)]
 pub struct FmtCapturedIdentValidator {
     rule_id: RuleId,
 }
@@ -32,7 +33,7 @@ impl FmtCapturedIdentValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-FMT-CAPTURED-IDENT".parse()?,
+            rule_id: BuiltInRustRule::FmtCapturedIdent.id(),
         })
     }
 }
@@ -43,12 +44,12 @@ impl Validator for FmtCapturedIdentValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -62,53 +63,64 @@ impl Validator for FmtCapturedIdentValidator {
 /// content matched by name coincidentally).
 fn parse_macro_args(mac: &syn::Macro) -> Option<Vec<syn::Expr>> {
     let parser = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated;
-    let parsed = mac.parse_body_with(parser).ok()?;
+    let parsed = match mac.parse_body_with(parser) {
+        Ok(parsed) => parsed,
+        Err(_) => return None,
+    };
     Some(parsed.into_iter().collect())
 }
 
-fn has_positional_placeholder_with_trailing_args(mac: &syn::Macro) -> bool {
+fn has_positional_placeholder_with_trailing_args(mac: &syn::Macro) -> RulePredicateResult {
     let Some(args) = parse_macro_args(mac) else {
-        return false;
+        return RulePredicateResult::NotMatched;
     };
     let Some(first) = args.first() else {
-        return false;
+        return RulePredicateResult::NotMatched;
     };
     let syn::Expr::Lit(expr_lit) = first else {
-        return false;
+        return RulePredicateResult::NotMatched;
     };
     let Lit::Str(lit_str) = &expr_lit.lit else {
-        return false;
+        return RulePredicateResult::NotMatched;
     };
-    lit_str.value().contains("{}") && args.len() > 1
+    if lit_str.value().contains("{}") && args.len() > 1 {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
+    }
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_expr_macro(&mut self, item: &'ast ExprMacro) {
         if let Some(segment) = item.mac.path.segments.last() {
-            let name = segment.ident.to_string();
-            if FMT_MACROS.contains(&name.as_str())
-                && has_positional_placeholder_with_trailing_args(&item.mac)
+            let Some(name) = FMT_MACROS.iter().find(|name| segment.ident == **name) else {
+                visit::visit_expr_macro(self, item);
+                return;
+            };
+            if has_positional_placeholder_with_trailing_args(&item.mac)
+                == RulePredicateResult::Matched
             {
-                let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
-                self.findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Warning,
-                    title: format!("`{name}!` uses positional `{{}}` instead of a captured ident"),
-                    detail: format!(
+                let line = crate::boundary::finding::source_line(item);
+                let Ok(finding) = crate::boundary::finding::from_source(
+                    (self.rule_id, Severity::Warning),
+                    format!("`{name}!` uses positional `{{}}` instead of a captured ident"),
+                    format!(
                         "Fix: replace the positional `{{}}` placeholder and its trailing \
                          argument in this `{name}!` call with an inline captured identifier, \
                          e.g. `{name}!(\"{{path}}\")`."
                     ),
-                    file: self.file.clone(),
+                    self.file,
                     line,
-                    snippet: None,
-                });
+                ) else {
+                    return;
+                };
+                self.findings.push(finding);
             }
         }
         visit::visit_expr_macro(self, item);
@@ -117,14 +129,13 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
-    use super::FmtCapturedIdentValidator;
+    use super::{parse_macro_args, FmtCapturedIdentValidator};
 
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    fn parse_macro(source: &str) -> Result<syn::Macro, syn::Error> {
+        syn::parse_str::<syn::ExprMacro>(source).map(|expression| expression.mac)
     }
 
     #[test]
@@ -132,7 +143,6 @@ mod tests {
         let validator = FmtCapturedIdentValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/fmt-captured-ident/fail_positional.rs",
             "fixtures/fmt-captured-ident/pass_captured.rs",
         )?;
@@ -140,16 +150,59 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = FmtCapturedIdentValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "not valid rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn parse_macro_args_rejects_malformed_tokens() -> Result<(), Box<dyn std::error::Error>> {
+        let malformed = "format!(;)";
+        let macro_call = parse_macro(malformed)?;
+        assert!(parse_macro_args(&macro_call).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn parse_macro_args_handles_empty_input() -> Result<(), Box<dyn std::error::Error>> {
+        let macro_call = parse_macro("format!()")?;
+        assert_eq!(
+            parse_macro_args(&macro_call).map(|args| args.len()),
+            Some(0)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_macro_args_handles_oversized_argument_list() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let arguments = std::iter::repeat_n("value", 128)
+            .collect::<Vec<_>>()
+            .join(",");
+        let macro_call = parse_macro(&format!("format!({arguments})"))?;
+        assert_eq!(
+            parse_macro_args(&macro_call).map(|args| args.len()),
+            Some(128)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_macro_args_rejects_invalid_non_expression_input(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let macro_call = parse_macro("format!(let value)")?;
+        assert!(parse_macro_args(&macro_call).is_none());
         Ok(())
     }
 }

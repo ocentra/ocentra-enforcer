@@ -8,6 +8,11 @@
 //! [`parse_file`] below.
 
 use crate::languages::generic;
+use enforcer_domain::memory_types::{
+    GraphSourceLine, ParsedCallee, ParsedExpressionText, ParsedModulePath, ParsedReferenceName,
+    ParsedRouteMethod, ParsedRoutePath, ParsedSymbolName, ParserRelativePath, ParserSourceText,
+    ParserTestPath, ParserTestSuffixes, ReceiverHint,
+};
 
 /// One extracted symbol: a function, type, or test found in a source
 /// file. Route/import/call extraction is intentionally modeled
@@ -29,11 +34,11 @@ use crate::languages::generic;
 /// [`crate::code_graph::SymbolNode`], never on this type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolRef {
-    pub name: String,
+    pub name: ParsedSymbolName,
     pub kind: SymbolKind,
     /// 1-based start line in the source file, for stable ids and for
     /// human-readable "why selected" traces.
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,9 +80,9 @@ pub enum SymbolKind {
 /// Axum/Actix/Express/FastAPI decorator or macro).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteRef {
-    pub method: String,
-    pub path: String,
-    pub line: usize,
+    pub method: ParsedRouteMethod,
+    pub path: ParsedRoutePath,
+    pub line: GraphSourceLine,
 }
 
 /// One import/use statement, module-path as written in source (not yet
@@ -85,8 +90,8 @@ pub struct RouteRef {
 /// job once every file in the repo has been parsed).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportRef {
-    pub module_path: String,
-    pub line: usize,
+    pub module_path: ParsedModulePath,
+    pub line: GraphSourceLine,
 }
 
 /// One function-call expression's callee name, as written (unresolved
@@ -99,21 +104,21 @@ pub struct ImportRef {
 /// when a field is absent, never panics or silently mis-resolves.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CallRef {
-    pub callee: String,
-    pub line: usize,
+    pub callee: ParsedCallee,
+    pub line: GraphSourceLine,
     /// The name of the function/method that lexically contains this
     /// call expression, if any (module-/file-scope calls have no
     /// enclosing symbol and leave this `None`).
-    pub from_symbol: Option<String>,
+    pub from_symbol: Option<ParsedSymbolName>,
     /// The 1-based start line of `from_symbol`'s own definition --
     /// paired with the name to build a stable `sym:` id the same way
     /// [`crate::code_graph`] already does (`sym:<rel_path>:<line>:<name>`),
     /// without this module needing to know the file path itself.
-    pub from_symbol_line: Option<usize>,
+    pub from_symbol_line: Option<GraphSourceLine>,
     /// For a method-call-shaped callee (`x.foo(...)`), the receiver
     /// expression's own text (`x`, `self.inner`, `Foo::new()`, ...).
     /// `None` for a plain/unqualified call (`foo(...)`).
-    pub receiver_text: Option<String>,
+    pub receiver_text: Option<ParsedExpressionText>,
     /// A syntactic classification of [`Self::receiver_text`], cheap to
     /// compute at extraction time (no type information needed) and
     /// useful to [`crate::resolution`] as a fast first pass before
@@ -124,33 +129,7 @@ pub struct CallRef {
     /// DATA_FLOW follow-up does not need a second pass over every
     /// extractor. Unresolved/unanalyzed here, same rationale as every
     /// other `*Ref` field in this module.
-    pub arg_texts: Vec<String>,
-}
-
-/// Cheap syntactic classification of a call's receiver expression --
-/// computed by each language extractor from local syntax alone (no
-/// symbol table, no type inference), giving [`crate::resolution`] a
-/// fast, always-available signal before it attempts full type-driven
-/// resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReceiverHint {
-    /// `self.foo()` / `this.foo()`.
-    SelfOrThis,
-    /// `Type::new(...)` / `new Type(...)` -- a fresh instance the
-    /// callee is invoked on.
-    NewExpression,
-    /// The receiver is a bare identifier (`x.foo()`) -- most likely a
-    /// local variable or parameter; [`crate::resolution`] looks up its
-    /// declared/inferred type.
-    Identifier,
-    /// A string/number/bool/etc. literal receiver (`"x".foo()`) --
-    /// resolution has no local/param type to look up, so this is
-    /// recorded purely for completeness/debugging.
-    Literal,
-    /// Anything else (a nested call, an index expression, ...) --
-    /// still recorded as *some* receiver text, but not further
-    /// classified.
-    Other,
+    pub arg_texts: Vec<ParsedExpressionText>,
 }
 
 /// X06 rich vocabulary (additive): one INHERITS edge as written in
@@ -159,18 +138,18 @@ pub enum ReceiverHint {
 /// as written (unresolved, same rationale as [`ImportRef`]/[`CallRef`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InheritsRef {
-    pub sub_name: String,
-    pub super_name: String,
-    pub line: usize,
+    pub sub_name: ParsedReferenceName,
+    pub super_name: ParsedReferenceName,
+    pub line: GraphSourceLine,
 }
 
 /// One IMPLEMENTS edge as written in source (`impl Trait for Type`,
 /// `class C implements I`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImplementsRef {
-    pub type_name: String,
-    pub trait_name: String,
-    pub line: usize,
+    pub type_name: ParsedReferenceName,
+    pub trait_name: ParsedReferenceName,
+    pub line: GraphSourceLine,
 }
 
 /// One DECORATES edge: a decorator/attribute-macro applied to a
@@ -178,18 +157,18 @@ pub struct ImplementsRef {
 /// best-effort).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecoratesRef {
-    pub target_name: String,
-    pub decorator_name: String,
-    pub line: usize,
+    pub target_name: ParsedReferenceName,
+    pub decorator_name: ParsedReferenceName,
+    pub line: GraphSourceLine,
 }
 
 /// One TYPE_REF edge: a type usage in a signature (parameter type,
 /// return type, field type), as written (unresolved).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeRefRef {
-    pub from_name: String,
-    pub type_name: String,
-    pub line: usize,
+    pub from_name: ParsedReferenceName,
+    pub type_name: ParsedReferenceName,
+    pub line: GraphSourceLine,
 }
 
 /// One DEFINES edge: a container symbol (class/struct/module/impl)
@@ -197,9 +176,9 @@ pub struct TypeRefRef {
 /// written, resolved lazily like every other edge here.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DefinesRef {
-    pub container_name: String,
-    pub member_name: String,
-    pub line: usize,
+    pub container_name: ParsedReferenceName,
+    pub member_name: ParsedReferenceName,
+    pub line: GraphSourceLine,
 }
 
 /// The language-agnostic result of parsing one source file.
@@ -1114,11 +1093,11 @@ pub enum Language {
 
 /// Classify a file purely by its extension. Case-insensitive so
 /// `Foo.RS`/`foo.rs` land the same way.
-pub fn classify(rel_path: &str) -> Language {
+pub fn classify<'a>(rel_path: impl Into<ParserRelativePath<'a>>) -> Language {
+    let rel_path = rel_path.into().as_str();
     let ext = rel_path
-        .rsplit('.')
-        .next()
-        .unwrap_or_default()
+        .rsplit_once('.')
+        .map_or(rel_path, |(_, extension)| extension)
         .to_lowercase();
     match ext.as_str() {
         "rs" => Language::Rust,
@@ -1423,7 +1402,13 @@ pub fn classify(rel_path: &str) -> Language {
 /// `rel_path` additionally lets the Go extractor recognize `_test.go`
 /// files (Go test detection is filename-gated, not annotation-gated,
 /// per Go convention -- see `languages/go.rs`'s module doc).
-pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<ParsedFile> {
+pub fn parse_file<'a>(
+    language: Language,
+    source: impl Into<ParserSourceText<'a>>,
+    rel_path: impl Into<ParserRelativePath<'a>>,
+) -> Option<ParsedFile> {
+    let source = source.into().as_str();
+    let rel_path = rel_path.into().as_str();
     match language {
         Language::Rust => {
             // G1b: routed through the generic spec-table engine
@@ -1453,12 +1438,12 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
         }
         Language::Go => {
             // G1: routed through the generic spec-table engine
-            // (`languages::generic::parse_go`) rather than the bespoke
+            // (`languages::generic::go::parse_go`) rather than the bespoke
             // `languages::go` extractor -- `tests/unit_lang_spec_engine.rs`
             // proves the two produce identical node/edge sets on every
             // existing Go fixture/scenario before this cutover.
             let is_test_file = rel_path.to_lowercase().ends_with("_test.go");
-            Some(generic::parse_go(source, is_test_file))
+            Some(generic::go::parse_go(source, is_test_file))
         }
         Language::Java => {
             // G1b: routed through the generic spec-table engine
@@ -1472,7 +1457,8 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // (`languages::generic::parse_c`) -- see
             // `tests/unit_languages_c.rs`, run unchanged against this
             // dispatch, for the zero-regression proof.
-            let is_test_file = is_c_family_test_path(rel_path, &["_test.c"]);
+            let is_test_file =
+                is_c_family_test_path(rel_path.into(), (&["_test.c"][..]).into()).is_test();
             Some(generic::parse_c(source, is_test_file))
         }
         Language::Cpp => {
@@ -1480,23 +1466,26 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // (`languages::generic::parse_cpp`) -- see
             // `tests/unit_languages_cpp.rs`, run unchanged against this
             // dispatch, for the zero-regression proof.
-            let is_test_file =
-                is_c_family_test_path(rel_path, &["_test.cpp", "_test.cc", "_test.cxx"]);
+            let is_test_file = is_c_family_test_path(
+                rel_path.into(),
+                (&["_test.cpp", "_test.cc", "_test.cxx"][..]).into(),
+            )
+            .is_test();
             Some(generic::parse_cpp(source, is_test_file))
         }
         Language::CSharp => {
             // G1b: routed through the generic spec-table engine
-            // (`languages::generic::parse_csharp`) -- see
+            // (`languages::generic::csharp::parse_csharp`) -- see
             // `tests/unit_languages_csharp.rs`, run unchanged against
             // this dispatch, for the zero-regression proof.
-            Some(generic::parse_csharp(source))
+            Some(generic::csharp::parse_csharp(source))
         }
         Language::Php => {
             // G1b: routed through the generic spec-table engine
-            // (`languages::generic::parse_php`) -- see
+            // (`languages::generic::php::parse_php`) -- see
             // `tests/unit_languages_php.rs`, run unchanged against
             // this dispatch, for the zero-regression proof.
-            Some(generic::parse_php(source))
+            Some(generic::php::parse_php(source))
         }
         Language::Kotlin => {
             // Language-parity wave G2.1a: onboarded directly through
@@ -1625,7 +1614,9 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // see `LangSpec::cuda`'s own doc comment) -- same `tests/`/
             // `_test.cu`-suffix convention as every other C-family
             // language in this crate; see `tests/unit_languages_cuda.rs`.
-            let is_test_file = is_c_family_test_path(rel_path, &["_test.cu", "_test.cuh"]);
+            let is_test_file =
+                is_c_family_test_path(rel_path.into(), (&["_test.cu", "_test.cuh"][..]).into())
+                    .is_test();
             Some(generic::parse_cuda(source, is_test_file))
         }
         Language::D => {
@@ -2452,11 +2443,17 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
 /// *_test.c(pp)"): a path with any `test`-named path segment (`test/`,
 /// `tests/`, case-insensitive) OR whose filename ends with one of
 /// `suffixes` (e.g. `_test.c`, `_test.cpp`).
-fn is_c_family_test_path(rel_path: &str, suffixes: &[&str]) -> bool {
-    let lower = rel_path.to_lowercase().replace('\\', "/");
+fn is_c_family_test_path(
+    rel_path: ParserRelativePath<'_>,
+    suffixes: ParserTestSuffixes<'_>,
+) -> ParserTestPath {
+    let lower = rel_path.as_str().to_lowercase().replace('\\', "/");
     let under_test_dir = lower
         .split('/')
         .any(|segment| segment == "test" || segment == "tests");
-    let matches_suffix = suffixes.iter().any(|suffix| lower.ends_with(suffix));
-    under_test_dir || matches_suffix
+    let matches_suffix = suffixes
+        .as_slice()
+        .iter()
+        .any(|suffix| lower.ends_with(suffix));
+    (under_test_dir || matches_suffix).into()
 }

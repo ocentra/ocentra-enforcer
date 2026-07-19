@@ -9,8 +9,9 @@
 //! `call_expression`'s repeated `"argument"` field, and
 //! `selector_call_expression`'s pointer-dereference method-call syntax.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_odin;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -197,7 +198,10 @@ main :: proc() {
 }
 "#;
     let parsed = parse_odin(src);
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]
@@ -219,8 +223,14 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         "{:?}",
         parsed.inherits
     );
-    assert!(symbol_kind(&parsed.symbols, "draw").is_some());
-    assert!(symbol_kind(&parsed.symbols, "render").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "draw"),
+        Some(&SymbolKind::Function)
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "render"),
+        Some(&SymbolKind::Function)
+    );
     Ok(())
 }
 

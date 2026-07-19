@@ -5,6 +5,7 @@
 //! per rule id, no orphans, no duplicates.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::RuleId;
 use enforcer_validator::validator::Validator;
 
 use super::eslint_json::EslintJsonValidator;
@@ -19,10 +20,28 @@ use super::toolchain::ToolchainValidator;
 /// One registry row: the rule id (as the literal from its owning spec/
 /// validator) paired with the constructed [`Validator`] trait object.
 pub struct RegistryRow {
-    /// The rule id this row proves, e.g. `TS-6.1`.
-    pub rule_id: &'static str,
     /// The constructed validator for this rule.
     pub validator: Box<dyn Validator>,
+}
+
+impl RegistryRow {
+    /// The canonical id owned by this row's validator.
+    pub fn rule_id(&self) -> &RuleId {
+        self.validator.rule_id()
+    }
+}
+
+impl std::fmt::Debug for RegistryRow {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RegistryRow")
+            .field("rule_id", &self.rule_id())
+            .finish_non_exhaustive()
+    }
+}
+
+fn registry_row(validator: Box<dyn Validator>) -> RegistryRow {
+    RegistryRow { validator }
 }
 
 /// Build every one of the 73 TS-family rows. Fails closed (propagates the
@@ -33,54 +52,24 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
     let mut rows = Vec::new();
 
     for spec in source_scan::SPECS {
-        rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(SpecValidator::new(*spec)?),
-        });
+        rows.push(registry_row(Box::new(SpecValidator::new(*spec)?)));
     }
 
-    rows.push(RegistryRow {
-        rule_id: "TS-3.1",
-        validator: Box::new(TestScanValidator::new()?),
-    });
+    rows.push(registry_row(Box::new(TestScanValidator::new()?)));
 
-    rows.push(RegistryRow {
-        rule_id: "TS-4.1",
-        validator: Box::new(ImportBoundariesValidator::new()?),
-    });
+    rows.push(registry_row(Box::new(ImportBoundariesValidator::new()?)));
 
-    rows.push(RegistryRow {
-        rule_id: "TS-5.1",
-        validator: Box::new(ToolchainValidator::ts_5_1()?),
-    });
-    rows.push(RegistryRow {
-        rule_id: "TS-7.1",
-        validator: Box::new(ToolchainValidator::ts_7_1()?),
-    });
-    rows.push(RegistryRow {
-        rule_id: "TS-7.12",
-        validator: Box::new(ToolchainValidator::ts_7_12()?),
-    });
-    rows.push(RegistryRow {
-        rule_id: "TS-7.13",
-        validator: Box::new(ToolchainValidator::ts_7_13()?),
-    });
+    rows.push(registry_row(Box::new(ToolchainValidator::ts_5_1()?)));
+    rows.push(registry_row(Box::new(ToolchainValidator::ts_7_1()?)));
+    rows.push(registry_row(Box::new(ToolchainValidator::ts_7_12()?)));
+    rows.push(registry_row(Box::new(ToolchainValidator::ts_7_13()?)));
 
-    rows.push(RegistryRow {
-        rule_id: "TS-5.2",
-        validator: Box::new(EslintJsonValidator::new()?),
-    });
+    rows.push(registry_row(Box::new(EslintJsonValidator::new()?)));
 
-    rows.push(RegistryRow {
-        rule_id: "TS-8.10",
-        validator: Box::new(DecoderNegativeCaseValidator::new()?),
-    });
+    rows.push(registry_row(Box::new(DecoderNegativeCaseValidator::new()?)));
 
     for spec in generic_scanner::SPECS {
-        rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(SpecValidator::new(*spec)?),
-        });
+        rows.push(registry_row(Box::new(SpecValidator::new(*spec)?)));
     }
 
     Ok(rows)
@@ -93,7 +82,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert!(!rows.is_empty());
+        assert_eq!(rows.len(), 73);
         Ok(())
     }
 }

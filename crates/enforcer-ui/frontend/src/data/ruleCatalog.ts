@@ -1,20 +1,21 @@
 import type { Project } from "./enforcerAppData";
+import type { UiCount, UiFlag, UiMaybe, UiTextList } from "./enforcerAppData";
 
 export type RuleSeverity = "error" | "warning" | "info";
 
 export type RuleOverride = {
   ruleId: string;
-  enabled: boolean;
-  severity?: RuleSeverity;
-  waiver?: { owner: string; reason: string };
+  enabled: UiFlag;
+  severity: UiMaybe<RuleSeverity>;
+  waiver: UiMaybe<{ owner: string; reason: string }>;
 };
 
 export type ProjectRuleCoverage = {
-  detectedLanguages: string[];
-  catalogLanguages: string[];
-  observedWithoutCatalog: string[];
+  detectedLanguages: UiTextList;
+  catalogLanguages: UiTextList;
+  observedWithoutCatalog: UiTextList;
   settingsStatus: string;
-  rules: Array<{ ruleId: string; language: string; scope: "universal" | "language-match" | "not-detected"; effectiveSeverity: RuleSeverity; state: string; pathMatchStatus: "matched" | "no-match" | "invalid-pattern" | "unscoped"; matchedPathCount: number }>;
+  rules: Array<{ ruleId: string; language: string; scope: "universal" | "language-match" | "not-detected"; effectiveSeverity: RuleSeverity; state: string; pathMatchStatus: "matched" | "no-match" | "invalid-pattern" | "unscoped"; matchedPathCount: UiCount }>;
 };
 
 export type CatalogRule = {
@@ -30,24 +31,40 @@ export type CatalogRule = {
   waivable: boolean;
   requiresFailFixture: boolean;
   requiresPassFixture: boolean;
-  appliesTo: string[];
-  triggers: string[];
+  appliesTo: UiTextList;
+  triggers: UiTextList;
   validator: string;
   doc: string;
 };
 
-export function projectRuleLanguages(project: Project, catalog: CatalogRule[]): string[] {
+type ProjectCatalogRule = CatalogRule & {
+  override: UiMaybe<RuleOverride>;
+  effectiveSeverity: RuleSeverity;
+  coverage: UiMaybe<ProjectRuleCoverage["rules"][number]>;
+};
+
+type RuleFamilySummary = {
+  id: string;
+  language: string;
+  family: string;
+  count: UiCount;
+  blocking: UiCount;
+  configurable: UiCount;
+};
+
+export function projectRuleLanguages(project: Project, catalog: CatalogRule[]): UiTextList {
   const policyLanguages = new Set(catalog.map((rule) => rule.language));
   return ["common", ...project.detectedLanguages.filter((language) => language !== "common" && policyLanguages.has(language))];
 }
 
-export function unsupportedProjectRuleLanguages(project: Project, catalog: CatalogRule[]): string[] {
+export function unsupportedProjectRuleLanguages(project: Project, catalog: CatalogRule[]): UiTextList {
   const policyLanguages = new Set(catalog.map((rule) => rule.language));
   return [...new Set(project.detectedLanguages.filter((language) => language !== "common" && !policyLanguages.has(language)))];
 }
 
-export function rulesForProject(project: Project, view: "universal" | "detected" | "all" | "overrides", overrides: RuleOverride[], catalog: CatalogRule[], coverage?: ProjectRuleCoverage) {
-  const coverageByRule = new Map(coverage?.rules.map((row) => [row.ruleId, row]));
+export function rulesForProject(project: Project, view: "universal" | "detected" | "all" | "overrides", overrides: RuleOverride[], catalog: CatalogRule[], coverage: UiMaybe<ProjectRuleCoverage>): ProjectCatalogRule[] {
+  const coverageByRule = new Map<ProjectRuleCoverage["rules"][number]["ruleId"], ProjectRuleCoverage["rules"][number]>();
+  for (const row of coverage?.rules ?? []) coverageByRule.set(row.ruleId, row);
   const projectLanguages = coverage?.catalogLanguages.filter((language) => language === "common" || coverage.detectedLanguages.includes(language)) ?? projectRuleLanguages(project, catalog);
   const rows = catalog.filter((rule) => {
     if (view === "all") return true;
@@ -68,10 +85,11 @@ export function rulesForProject(project: Project, view: "universal" | "detected"
   }));
 }
 
-export function ruleFamilySummary(rules: CatalogRule[]) {
-  const families = new Map<string, { language: string; family: string; count: number; blocking: number; configurable: number }>();
+export function ruleFamilySummary(rules: CatalogRule[]): RuleFamilySummary[] {
+  type RuleFamilyKey = `${string}:${string}`;
+  const families = new Map<RuleFamilyKey, { language: string; family: string; count: UiCount; blocking: UiCount; configurable: UiCount }>();
   for (const rule of rules) {
-    const key = `${rule.language}:${rule.family}`;
+    const key: RuleFamilyKey = `${rule.language}:${rule.family}`;
     const current = families.get(key) ?? { language: rule.language, family: rule.family, count: 0, blocking: 0, configurable: 0 };
     current.count += 1;
     if (rule.severity === "error") current.blocking += 1;
@@ -83,7 +101,7 @@ export function ruleFamilySummary(rules: CatalogRule[]) {
     .sort((left, right) => right.count - left.count || left.family.localeCompare(right.family));
 }
 
-export function ruleSource(rule: CatalogRule) {
+export function ruleSource(rule: CatalogRule): string {
   if (rule.lockLevel === "immutable") return "harness invariant";
   if (rule.language === "common") return "universal policy";
   return `${rule.language} policy`;

@@ -1,6 +1,6 @@
-use super::validation::{
-    EventDeliveryDecisionInput, EventDeliveryRequiredArtifact, EventDeliveryRouteKind,
-};
+use enforcer_domain::events_types::{EventDeliveryRequiredArtifact, EventDeliveryRouteKind};
+
+use super::validation::EventDeliveryDecisionInput;
 
 pub(super) fn required_artifacts(
     route_kind: EventDeliveryRouteKind,

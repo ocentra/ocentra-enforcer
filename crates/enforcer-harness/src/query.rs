@@ -11,21 +11,29 @@ use std::path::Path;
 use enforcer_core::error::Result;
 use serde_json::Value;
 
-use crate::config::HarnessConfig;
 use crate::legacy::{candidate_storage_roots, normalize_rel};
 use crate::storage::read_ndjson;
+use enforcer_domain::config_types::{
+    CrateName, HarnessArtifactByteLimit, HarnessConfig, HarnessRunLimit,
+};
+use enforcer_domain::harness_types::{
+    HarnessArtifactKind, HarnessDomainName, HarnessPackageName, HarnessRunId, HarnessRunStatus,
+    HarnessTag, HarnessToolName,
+};
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::severity::Severity;
 
 /// Optional filters shared by every query entry point.
 #[derive(Debug, Clone, Default)]
 pub struct RunQuery {
-    pub run_id: Option<String>,
-    pub status: Option<String>,
-    pub tool: Option<String>,
-    pub crate_name: Option<String>,
-    pub package_name: Option<String>,
-    pub domain: Option<String>,
-    pub tag: Option<String>,
-    pub limit: Option<usize>,
+    pub run_id: Option<HarnessRunId>,
+    pub status: Option<HarnessRunStatus>,
+    pub tool: Option<HarnessToolName>,
+    pub crate_name: Option<CrateName>,
+    pub package_name: Option<HarnessPackageName>,
+    pub domain: Option<HarnessDomainName>,
+    pub tag: Option<HarnessTag>,
+    pub limit: Option<HarnessRunLimit>,
 }
 
 /// Read one run's `summary.json` (with a `storage.root` default backfilled)
@@ -42,10 +50,16 @@ fn read_summary_from(
     }
     let mut summary: Value = serde_json::from_str(&std::fs::read_to_string(&summary_path)?)?;
     if summary.get("storage").is_none() {
-        summary["storage"] = serde_json::json!({
+        let storage = serde_json::json!({
             "root": normalize_rel(repo_root, storage_root),
             "retention": crate::storage::retention_summary_json(config),
         });
+        let object = summary.as_object_mut().ok_or_else(|| {
+            enforcer_core::error::Error::InvalidConfig(
+                "summary.json root must be an object".to_owned(),
+            )
+        })?;
+        object.insert("storage".to_owned(), storage);
     }
     Ok(Some(summary))
 }
@@ -97,26 +111,45 @@ pub fn read_summary(
 }
 
 fn matches(run: &Value, query: &RunQuery) -> bool {
-    let field_eq = |key: &str, want: &Option<String>| {
-        want.as_ref()
-            .is_none_or(|w| run.get(key).and_then(Value::as_str) == Some(w.as_str()))
-    };
-    if !field_eq("runId", &query.run_id) {
+    if query
+        .run_id
+        .as_ref()
+        .is_some_and(|want| run.get("runId").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
-    if !field_eq("status", &query.status) {
+    if query
+        .status
+        .is_some_and(|want| run.get("status").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
-    if !field_eq("tool", &query.tool) {
+    if query
+        .tool
+        .as_ref()
+        .is_some_and(|want| run.get("tool").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
-    if !field_eq("crateName", &query.crate_name) {
+    if query
+        .crate_name
+        .as_ref()
+        .is_some_and(|want| run.get("crateName").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
-    if !field_eq("packageName", &query.package_name) {
+    if query
+        .package_name
+        .as_ref()
+        .is_some_and(|want| run.get("packageName").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
-    if !field_eq("domain", &query.domain) {
+    if query
+        .domain
+        .as_ref()
+        .is_some_and(|want| run.get("domain").and_then(Value::as_str) != Some(want.as_str()))
+    {
         return false;
     }
     if let Some(tag) = &query.tag {
@@ -148,7 +181,8 @@ pub fn list_runs(repo_root: &Path, config: &HarnessConfig, query: &RunQuery) -> 
             .unwrap_or_default();
         sb.cmp(sa)
     });
-    runs.truncate(query.limit.unwrap_or(20));
+    let limit = query.limit.map_or(20, HarnessRunLimit::get);
+    runs.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
     Ok(runs)
 }
 
@@ -160,20 +194,20 @@ pub fn run_summary(
     query: &RunQuery,
 ) -> Result<Option<Value>> {
     if let Some(run_id) = &query.run_id {
-        return read_summary(repo_root, run_id, config);
+        return read_summary(repo_root, run_id.as_str(), config);
     }
     let mut one_query = query.clone();
-    one_query.limit = Some(1);
+    one_query.limit = Some(HarnessRunLimit::from_value(1));
     Ok(list_runs(repo_root, config, &one_query)?.into_iter().next())
 }
 
 /// Filters applied to a single run's diagnostics list (as opposed to
 /// [`RunQuery`], which selects WHICH run).
-#[derive(Debug, Clone, Copy, Default)]
-pub struct DiagnosticsFilter<'a> {
-    pub severity: Option<&'a str>,
-    pub file: Option<&'a str>,
-    pub limit: Option<usize>,
+#[derive(Debug, Clone, Default)]
+pub struct DiagnosticsFilter {
+    pub severity: Option<Severity>,
+    pub file: Option<RelPath>,
+    pub limit: Option<HarnessRunLimit>,
 }
 
 /// A run's parsed `diagnostics.ndjson`, filtered by `severity`/`file`/
@@ -182,7 +216,7 @@ pub fn run_diagnostics(
     repo_root: &Path,
     config: &HarnessConfig,
     query: &RunQuery,
-    filter: DiagnosticsFilter<'_>,
+    filter: &DiagnosticsFilter,
 ) -> Result<(bool, Option<String>, Vec<Value>)> {
     let Some(run) = run_summary(repo_root, config, query)? else {
         return Ok((false, None, Vec::new()));
@@ -215,14 +249,15 @@ pub fn run_diagnostics(
         .filter(|d| {
             filter
                 .severity
-                .is_none_or(|s| d.get("severity").and_then(Value::as_str) == Some(s))
+                .is_none_or(|s| d.get("severity").and_then(Value::as_str) == Some(s.wire_name()))
         })
         .filter(|d| {
             filter
                 .file
-                .is_none_or(|f| d.get("file").and_then(Value::as_str) == Some(f))
+                .as_ref()
+                .is_none_or(|f| d.get("file").and_then(Value::as_str) == Some(f.as_str()))
         })
-        .take(filter.limit.unwrap_or(50))
+        .take(usize::try_from(filter.limit.map_or(50, HarnessRunLimit::get)).unwrap_or(usize::MAX))
         .collect();
     Ok((true, Some(run_id), filtered))
 }
@@ -232,10 +267,10 @@ pub fn last_failure(
     repo_root: &Path,
     config: &HarnessConfig,
     query: &RunQuery,
-    diagnostic_limit: Option<usize>,
+    diagnostic_limit: Option<HarnessRunLimit>,
 ) -> Result<(bool, Option<Value>, Vec<Value>)> {
     let mut search = query.clone();
-    search.limit = Some(query.limit.unwrap_or(50));
+    search.limit = Some(query.limit.unwrap_or(HarnessRunLimit::from_value(50)));
     let runs = list_runs(repo_root, config, &search)?;
     let Some(failed) = runs
         .into_iter()
@@ -249,15 +284,15 @@ pub fn last_failure(
         .unwrap_or_default()
         .to_owned();
     let mut diag_query = RunQuery {
-        run_id: Some(run_id),
+        run_id: Some(HarnessRunId::from_adapter(&run_id)),
         ..RunQuery::default()
     };
-    diag_query.limit = Some(1);
+    diag_query.limit = Some(HarnessRunLimit::from_value(1));
     let filter = DiagnosticsFilter {
-        limit: diagnostic_limit.or(Some(10)),
+        limit: diagnostic_limit.or(Some(HarnessRunLimit::from_value(10))),
         ..DiagnosticsFilter::default()
     };
-    let (_, _, diagnostics) = run_diagnostics(repo_root, config, &diag_query, filter)?;
+    let (_, _, diagnostics) = run_diagnostics(repo_root, config, &diag_query, &filter)?;
     Ok((true, Some(failed), diagnostics))
 }
 
@@ -267,8 +302,8 @@ pub fn read_artifact(
     repo_root: &Path,
     config: &HarnessConfig,
     query: &RunQuery,
-    artifact: &str,
-    limit_bytes: Option<usize>,
+    artifact: HarnessArtifactKind,
+    limit_bytes: Option<HarnessArtifactByteLimit>,
 ) -> Result<(bool, Option<String>, String, Option<String>)> {
     let Some(run) = run_summary(repo_root, config, query)? else {
         return Ok((
@@ -285,14 +320,14 @@ pub fn read_artifact(
         .to_owned();
     let Some(artifact_rel) = run
         .get("artifacts")
-        .and_then(|a| a.get(artifact))
+        .and_then(|a| a.get(artifact.as_str()))
         .and_then(Value::as_str)
     else {
         return Ok((
             false,
             Some(run_id),
             String::new(),
-            Some(format!("Unknown artifact: {artifact}")),
+            Some(format!("Unknown artifact: {}", artifact.as_str())),
         ));
     };
     let absolute = repo_root.join(artifact_rel);
@@ -312,7 +347,11 @@ pub fn read_artifact(
         String::new()
     };
     let redacted = crate::config::redact_text(&text)?;
-    let cap = limit_bytes.unwrap_or(config.max_artifact_bytes);
+    let configured_cap = usize::try_from(config.max_artifact_bytes.get()).unwrap_or(usize::MAX);
+    let cap = limit_bytes
+        .map(HarnessArtifactByteLimit::get)
+        .and_then(|value| usize::try_from(value).ok())
+        .unwrap_or(configured_cap);
     let capped: String = redacted.chars().take(cap).collect();
     Ok((true, Some(run_id), capped, None))
 }
@@ -329,10 +368,18 @@ fn is_inside_root(root: &Path, candidate: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::config::HarnessConfig;
+    use super::{last_failure, list_runs, read_artifact, RunQuery};
     use crate::storage::{record_run, RunInput};
     use enforcer_core::error::{Error, Result};
+    use enforcer_domain::config_types::HarnessConfig;
+    use enforcer_domain::harness_types::{
+        HarnessCapturedOutput, HarnessCommandArgument, HarnessPinned, HarnessRunId,
+        HarnessTimestamp, HarnessToolName,
+    };
+    use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::telemetry_types::ProcessExitCode;
+    use serde_json::Value;
+    use std::path::Path;
 
     fn missing(what: &str) -> Error {
         Error::InvalidConfig(format!("test fixture: expected {what}"))
@@ -346,23 +393,24 @@ mod tests {
         started_at: &str,
     ) -> Result<()> {
         let config = HarnessConfig::default();
+        let repo_root = RepoRoot::try_from(repo_root)?;
         record_run(
             &RunInput {
-                repo_root,
-                run_id: run_id.to_owned(),
-                tool: tool.to_owned(),
+                repo_root: &repo_root,
+                run_id: HarnessRunId::try_new(run_id.to_owned())?,
+                tool: HarnessToolName::try_new(tool.to_owned())?,
                 language: None,
-                command: vec![tool.to_owned()],
-                stdout: String::new(),
-                stderr: String::new(),
-                exit_code,
+                command: vec![HarnessCommandArgument::try_new(tool.to_owned())?],
+                stdout: HarnessCapturedOutput::default(),
+                stderr: HarnessCapturedOutput::default(),
+                exit_code: ProcessExitCode::new(exit_code),
                 crate_name: None,
                 package_name: None,
                 domain: None,
                 tags: vec![],
-                pinned: false,
-                started_at: started_at.to_owned(),
-                ended_at: started_at.to_owned(),
+                pinned: HarnessPinned::Unpinned,
+                started_at: HarnessTimestamp::try_new(started_at.to_owned())?,
+                ended_at: HarnessTimestamp::try_new(started_at.to_owned())?,
             },
             &config,
         )?;
@@ -396,7 +444,7 @@ mod tests {
             run.ok_or_else(|| missing("a failed run"))?["runId"],
             "run-bad"
         );
-        assert!(!diagnostics.is_empty());
+        assert_eq!(diagnostics.len(), 1);
         Ok(())
     }
 
@@ -404,33 +452,43 @@ mod tests {
     fn read_artifact_redacts_and_caps() -> Result<()> {
         let dir = tempfile::TempDir::new()?;
         let config = HarnessConfig::default();
+        let repo_root = RepoRoot::try_from(dir.path())?;
         record_run(
             &RunInput {
-                repo_root: dir.path(),
-                run_id: "run-secret".to_owned(),
-                tool: "cargo".to_owned(),
+                repo_root: &repo_root,
+                run_id: HarnessRunId::try_new("run-secret".to_owned())?,
+                tool: HarnessToolName::try_new("cargo".to_owned())?,
                 language: None,
-                command: vec!["cargo".to_owned()],
-                stdout: "token AKIAIOSFODNN7EXAMPLE leaked".to_owned(),
-                stderr: String::new(),
-                exit_code: 0,
+                command: vec![HarnessCommandArgument::try_new("cargo".to_owned())?],
+                stdout: HarnessCapturedOutput::from_owned(format!(
+                    "token {}{} leaked",
+                    "AKIAIOSF", "ODNN7EXAMPLE"
+                )),
+                stderr: HarnessCapturedOutput::default(),
+                exit_code: ProcessExitCode::new(0),
                 crate_name: None,
                 package_name: None,
                 domain: None,
                 tags: vec![],
-                pinned: false,
-                started_at: "2026-01-01T00:00:00Z".to_owned(),
-                ended_at: "2026-01-01T00:00:01Z".to_owned(),
+                pinned: HarnessPinned::Unpinned,
+                started_at: HarnessTimestamp::try_new("2026-01-01T00:00:00Z".to_owned())?,
+                ended_at: HarnessTimestamp::try_new("2026-01-01T00:00:01Z".to_owned())?,
             },
             &config,
         )?;
         let query = RunQuery {
-            run_id: Some("run-secret".to_owned()),
+            run_id: Some(HarnessRunId::try_new("run-secret".to_owned())?),
             ..RunQuery::default()
         };
-        let (ok, _run_id, text, _err) = read_artifact(dir.path(), &config, &query, "stdout", None)?;
+        let (ok, _run_id, text, _err) = read_artifact(
+            dir.path(),
+            &config,
+            &query,
+            enforcer_domain::harness_types::HarnessArtifactKind::Stdout,
+            None,
+        )?;
         assert!(ok);
-        assert!(!text.contains("AKIAIOSFODNN7EXAMPLE"));
+        assert_eq!(text, "token [REDACTED] leaked");
         Ok(())
     }
 
@@ -440,16 +498,22 @@ mod tests {
         let config = HarnessConfig::default();
         record_sample(dir.path(), "run-x", "cargo", 0, "2026-01-01T00:00:00Z")?;
         // Simulate a tampered summary pointing outside the repo root.
-        let storage_root = config.storage_root(dir.path())?;
+        let storage_root = crate::config::storage_root(&config, dir.path())?;
         let summary_path = storage_root.join("runs").join("run-x").join("summary.json");
         let mut summary: Value = serde_json::from_str(&std::fs::read_to_string(&summary_path)?)?;
         summary["artifacts"]["stdout"] = Value::String("../../outside.log".to_owned());
         std::fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)?;
         let query = RunQuery {
-            run_id: Some("run-x".to_owned()),
+            run_id: Some(HarnessRunId::try_new("run-x".to_owned())?),
             ..RunQuery::default()
         };
-        let (ok, _run_id, _text, err) = read_artifact(dir.path(), &config, &query, "stdout", None)?;
+        let (ok, _run_id, _text, err) = read_artifact(
+            dir.path(),
+            &config,
+            &query,
+            enforcer_domain::harness_types::HarnessArtifactKind::Stdout,
+            None,
+        )?;
         assert!(!ok);
         assert!(err
             .ok_or_else(|| missing("an escape error message"))?

@@ -2,7 +2,32 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::record::{Evidence, Provenance, RecordDomain, RecordKind};
+use enforcer_domain::memory_types::{
+    MemoryRecordEvidenceSource, MemoryRecordModel, MemoryRecordSessionId, MemoryRecordUser,
+    MemoryRecordWriter, RecordDomain, RecordKind,
+};
+
+// ROUNDTRIP-TEST: record_dto_roundtrip_preserves_the_external_wire_shape
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<MemoryRecordEvidenceSource>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProvenanceDto {
+    pub writer: MemoryRecordWriter,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<MemoryRecordSessionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<MemoryRecordModel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<MemoryRecordUser>,
+}
 
 /// The JSON/NDJSON payload accepted at memory's transport boundary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -14,21 +39,29 @@ pub struct MemoryRecordDto {
     pub kind: RecordKind,
     pub domain: RecordDomain,
     pub statement: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub why: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub how_to_apply: Option<String>,
+    // DEFAULT-JUSTIFICATION: schema-v1 records written before applicability
+    // routing omit this collection and therefore mean no applicability tags.
     #[serde(default)]
     pub applies_to: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub evidence: Option<Evidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<EvidenceDto>,
+    // DEFAULT-JUSTIFICATION: absent schema-v1 routes mean the record has not
+    // been assigned to a retrieval route.
     #[serde(default)]
     pub routes: Vec<String>,
+    // DEFAULT-JUSTIFICATION: absent schema-v1 landing evidence means the
+    // record remains unlanded.
     #[serde(default)]
     pub landed_at: Vec<String>,
+    // DEFAULT-JUSTIFICATION: schema-v1 records predate supersession metadata;
+    // absence is the canonical no-superseded-record state.
     #[serde(default)]
     pub supersedes: Option<String>,
-    pub provenance: Provenance,
+    pub provenance: ProvenanceDto,
 }
 
 impl crate::record::MemoryRecord {
@@ -43,18 +76,40 @@ impl crate::record::MemoryRecord {
         self.dto.clone()
     }
 
-    pub fn id(&self) -> &str { &self.dto.id }
-    pub fn kind(&self) -> RecordKind { self.dto.kind }
-    pub fn domain(&self) -> RecordDomain { self.dto.domain }
-    pub fn statement(&self) -> &str { &self.dto.statement }
-    pub fn why(&self) -> Option<&str> { self.dto.why.as_deref() }
-    pub fn how_to_apply(&self) -> Option<&str> { self.dto.how_to_apply.as_deref() }
-    pub fn evidence(&self) -> Option<&Evidence> { self.dto.evidence.as_ref() }
-    pub fn landed_at(&self) -> &[String] { &self.dto.landed_at }
-    pub fn supersedes(&self) -> Option<&str> { self.dto.supersedes.as_deref() }
-    pub fn provenance(&self) -> &Provenance { &self.dto.provenance }
+    pub fn id(&self) -> &str {
+        &self.dto.id
+    }
+    pub fn kind(&self) -> RecordKind {
+        self.dto.kind
+    }
+    pub fn domain(&self) -> RecordDomain {
+        self.dto.domain
+    }
+    pub fn statement(&self) -> &str {
+        &self.dto.statement
+    }
+    pub fn why(&self) -> Option<&str> {
+        self.dto.why.as_deref()
+    }
+    pub fn how_to_apply(&self) -> Option<&str> {
+        self.dto.how_to_apply.as_deref()
+    }
+    pub fn evidence(&self) -> Option<&EvidenceDto> {
+        self.dto.evidence.as_ref()
+    }
+    pub fn landed_at(&self) -> &[String] {
+        &self.dto.landed_at
+    }
+    pub fn supersedes(&self) -> Option<&str> {
+        self.dto.supersedes.as_deref()
+    }
+    pub fn provenance(&self) -> &ProvenanceDto {
+        &self.dto.provenance
+    }
 
-    pub fn clear_landed_at(&mut self) { self.dto.landed_at.clear(); }
+    pub fn clear_landed_at(&mut self) {
+        self.dto.landed_at.clear();
+    }
 
     pub fn searchable_text(&self) -> String {
         [Some(self.statement()), self.why(), self.how_to_apply()]
@@ -89,8 +144,10 @@ mod tests {
     #[test]
     /// Negative wire input must fail before it can become a domain record.
     fn negative_record_dto_rejects_missing_required_wire_fields() {
-        let missing_statement =
-            r#"{"schemaVersion":1,"id":"mem-1","ts":"2026-07-14T00:00:00Z","kind":"lesson","domain":"harness","provenance":{"writer":"primary"}}"#;
-        assert!(serde_json::from_str::<MemoryRecordDto>(missing_statement).is_err());
+        let missing_statement = r#"{"schemaVersion":1,"id":"mem-1","ts":"2026-07-14T00:00:00Z","kind":"lesson","domain":"harness","provenance":{"writer":"primary"}}"#;
+        assert!(matches!(
+            serde_json::from_str::<MemoryRecordDto>(missing_statement),
+            Err(error) if error.to_string().contains("statement")
+        ));
     }
 }

@@ -33,7 +33,7 @@
 //! This module owns:
 //! - [`scaffold_forest`] — renders the three tiers from
 //!   `templates/agents-{global,project,plan}.tpl` using the same frozen
-//!   `include_str!` + `{{name}}` placeholder-substitution approach b03
+//!   `include_str!` + `{{name}}` token-substitution approach b03
 //!   established in `crate::templates` (a local substitution helper,
 //!   since that module's `render_template` is private to its own three
 //!   templates — this module owns a byte-identical copy of the same
@@ -44,7 +44,7 @@
 //!   declares its read-first routing managed block.
 //! - [`AgentsTreeTerminatesValidator`] (`AGENTS-TREE.1`) — every decision-
 //!   tree leaf terminates at a real resume-state anchor (a `LEAF ->`
-//!   pointer that is non-empty and not a dangling placeholder).
+//!   pointer that is non-empty and not a dangling token).
 //! - [`AgentsBudgetValidator`] (`AGENTS-BUDGET.1`) — each tier stays under
 //!   its declared line/byte budget.
 //! - [`run_resume_simulation`] — walks ONLY the `AGENTS.md` chain (global
@@ -62,50 +62,20 @@ use std::collections::{HashMap, HashSet};
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
-use enforcer_domain::severity::Severity;
+use enforcer_domain::plan_types::{
+    PlanBudgetBytes, PlanBudgetLines, PlanCondition, PlanDiagnosticDetail, PlanDocumentText,
+    PlanName, PlanProjectName, PlanResumeAnchor, PlanWorkspaceName,
+};
 
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use crate::boundary::finding::build_error_finding as finding;
+use crate::boundary::forest::{
+    extract_keyed_value, extract_leaf_pointers, managed_block, parse_declared_budget,
+    render_forest, tier_marker,
+};
+use crate::boundary::values::{budget_bytes, diagnostic_detail, resume_anchor};
 use crate::error::PlanError;
-
-/// The frozen global-tier template, embedded at compile time.
-const GLOBAL_TEMPLATE: &str = include_str!("../templates/agents-global.tpl");
-/// The frozen project-tier template, embedded at compile time.
-const PROJECT_TEMPLATE: &str = include_str!("../templates/agents-project.tpl");
-/// The frozen plan-tier template, embedded at compile time.
-const PLAN_TEMPLATE: &str = include_str!("../templates/agents-plan.tpl");
-
-/// The default per-tier size budget (workpack: "a small line/byte
-/// budget"). Chosen small enough that three tiers plus the plan's own
-/// resume-state anchor stay far below a full plan-body read.
-pub const DEFAULT_BUDGET_LINES: usize = 40;
-/// The default per-tier byte budget, paired with [`DEFAULT_BUDGET_LINES`].
-pub const DEFAULT_BUDGET_BYTES: usize = 2048;
-
-/// One tier of the decision forest, in read order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForestTier {
-    /// Workspace/machine root — read before anything else.
-    Global,
-    /// Repo root.
-    Project,
-    /// Per `docs/plans/<name>/`.
-    Plan,
-}
-
-impl ForestTier {
-    /// The `agents-forest-tier:` marker value this tier's rendered file
-    /// carries. Public so callers (and this module's own tests) can
-    /// assert a rendered/validated document's [`tier_marker`] against the
-    /// tier they expected, without duplicating the marker string.
-    pub fn marker(self) -> &'static str {
-        match self {
-            ForestTier::Global => "global",
-            ForestTier::Project => "project",
-            ForestTier::Plan => "plan",
-        }
-    }
-}
 
 /// Caller-supplied facts needed to render one plan's 3-tier forest. Kept
 /// minimal and explicit (no hidden defaults for the paths that matter) so
@@ -113,28 +83,28 @@ impl ForestTier {
 #[derive(Debug, Clone)]
 pub struct ForestFacts {
     /// Human-readable workspace/machine label for the global tier.
-    pub workspace_name: String,
+    pub workspace_name: PlanWorkspaceName,
     /// Repo/project name for the project tier.
-    pub project_name: String,
+    pub project_name: PlanProjectName,
     /// Plan directory name (e.g. `enforcer-selfhost-plan`) for the plan
     /// tier.
-    pub plan_name: String,
+    pub plan_name: PlanName,
     /// Repo-relative path to the project tier `AGENTS.md`, as it will
     /// exist on disk (what the global tier's NEXT pointer must name).
-    pub project_tier_path: String,
+    pub project_tier_path: RelPath,
     /// Repo-relative path to the plan tier `AGENTS.md` (what the project
     /// tier's NEXT pointer must name).
-    pub plan_tier_path: String,
+    pub plan_tier_path: RelPath,
     /// Repo-relative path (or anchor label) of the plan's resume-state
     /// entrypoint (e.g. `docs/plans/<name>/RESUME_STATE.md`) — the leaf
     /// every decision-tree branch must terminate at.
-    pub resume_anchor: String,
-    /// Per-tier line budget (defaults to [`DEFAULT_BUDGET_LINES`] via
+    pub resume_anchor: PlanResumeAnchor,
+    /// Per-tier line budget (defaults to [`PlanBudgetLines::DEFAULT`] via
     /// [`ForestFacts::with_defaults`]).
-    pub budget_lines: usize,
-    /// Per-tier byte budget (defaults to [`DEFAULT_BUDGET_BYTES`] via
+    pub budget_lines: PlanBudgetLines,
+    /// Per-tier byte budget (defaults to [`PlanBudgetBytes::DEFAULT`] via
     /// [`ForestFacts::with_defaults`]).
-    pub budget_bytes: usize,
+    pub budget_bytes: PlanBudgetBytes,
 }
 
 /// The six caller-supplied string facts [`ForestFacts::with_defaults`]
@@ -144,19 +114,19 @@ pub struct ForestFacts {
 #[derive(Debug, Clone)]
 pub struct ForestNames {
     /// Human-readable workspace/machine label for the global tier.
-    pub workspace_name: String,
+    pub workspace_name: PlanWorkspaceName,
     /// Repo/project name for the project tier.
-    pub project_name: String,
+    pub project_name: PlanProjectName,
     /// Plan directory name (e.g. `enforcer-selfhost-plan`) for the plan
     /// tier.
-    pub plan_name: String,
+    pub plan_name: PlanName,
     /// Repo-relative path to the project tier `AGENTS.md`.
-    pub project_tier_path: String,
+    pub project_tier_path: RelPath,
     /// Repo-relative path to the plan tier `AGENTS.md`.
-    pub plan_tier_path: String,
+    pub plan_tier_path: RelPath,
     /// Repo-relative path (or anchor label) of the plan's resume-state
     /// entrypoint.
-    pub resume_anchor: String,
+    pub resume_anchor: PlanResumeAnchor,
 }
 
 impl ForestFacts {
@@ -170,8 +140,8 @@ impl ForestFacts {
             project_tier_path: names.project_tier_path,
             plan_tier_path: names.plan_tier_path,
             resume_anchor: names.resume_anchor,
-            budget_lines: DEFAULT_BUDGET_LINES,
-            budget_bytes: DEFAULT_BUDGET_BYTES,
+            budget_lines: PlanBudgetLines::DEFAULT,
+            budget_bytes: PlanBudgetBytes::DEFAULT,
         }
     }
 }
@@ -182,146 +152,30 @@ impl ForestFacts {
 #[derive(Debug, Clone)]
 pub struct RenderedForest {
     /// Rendered global-tier `AGENTS.md` text.
-    pub global: String,
+    pub global: PlanDocumentText,
     /// Rendered project-tier `AGENTS.md` text.
-    pub project: String,
+    pub project: PlanDocumentText,
     /// Rendered plan-tier `AGENTS.md` text.
-    pub plan: String,
+    pub plan: PlanDocumentText,
 }
 
 /// Deterministic string substitution over a template, replacing `{{name}}`
-/// placeholders. Local to this module rather than importing
+/// tokens. Local to this module rather than importing
 /// `crate::templates`'s private `render_template` (that function is not
 /// `pub`) — this is a byte-for-byte copy of the same minimal substitution
-/// contract b03 established (missing placeholder -> typed error, never a
+/// contract b03 established (missing token -> typed error, never a
 /// panic), applied to this module's own three frozen templates.
-fn render(template: &str, bindings: &HashMap<String, String>) -> Result<String, PlanError> {
-    let mut result = template.to_owned();
-    for (name, value) in bindings {
-        let placeholder = format!("{{{{{name}}}}}");
-        if result.contains(&placeholder) {
-            result = result.replace(&placeholder, value);
-        }
-    }
-    if let Some(pos) = result.find("{{") {
-        if let Some(end) = result[pos..].find("}}") {
-            let placeholder = result[pos..pos + end + 2].to_owned();
-            return Err(PlanError::Io {
-                path: "agents-forest template".to_owned(),
-                reason: format!("missing placeholder: {placeholder}"),
-            });
-        }
-    }
-    Ok(result)
-}
-
 /// Render all three tiers from `templates/agents-{global,project,plan}.tpl`
 /// for one plan, per [`ForestFacts`]. Pure rendering — does not touch the
 /// filesystem; callers write [`RenderedForest`]'s fields to disk
 /// themselves at the paths named in `facts`.
 pub fn scaffold_forest(facts: &ForestFacts) -> Result<RenderedForest, PlanError> {
-    let budget_lines = facts.budget_lines.to_string();
-    let budget_bytes = facts.budget_bytes.to_string();
-
-    let mut global_bindings = HashMap::new();
-    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
-    global_bindings.insert("workspace_name".to_owned(), facts.workspace_name.clone());
-    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
-    global_bindings.insert("next_tier_path".to_owned(), facts.project_tier_path.clone());
-    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
-    global_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
-    // CLONE-JUSTIFICATION: global and later tier maps independently own their budget bindings.
-    global_bindings.insert("budget_lines".to_owned(), budget_lines.clone());
-    // CLONE-JUSTIFICATION: global and later tier maps independently own their budget bindings.
-    global_bindings.insert("budget_bytes".to_owned(), budget_bytes.clone());
-    let global = render(GLOBAL_TEMPLATE, &global_bindings)?;
-
-    let mut project_bindings = HashMap::new();
-    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
-    project_bindings.insert("project_name".to_owned(), facts.project_name.clone());
-    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
-    project_bindings.insert("next_tier_path".to_owned(), facts.plan_tier_path.clone());
-    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
-    project_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
-    // CLONE-JUSTIFICATION: project and plan maps independently own their budget bindings.
-    project_bindings.insert("budget_lines".to_owned(), budget_lines.clone());
-    // CLONE-JUSTIFICATION: project and plan maps independently own their budget bindings.
-    project_bindings.insert("budget_bytes".to_owned(), budget_bytes.clone());
-    let project = render(PROJECT_TEMPLATE, &project_bindings)?;
-
-    let mut plan_bindings = HashMap::new();
-    // CLONE-JUSTIFICATION: the plan `HashMap<String, String>` owns this render scope's binding.
-    plan_bindings.insert("plan_name".to_owned(), facts.plan_name.clone());
-    // CLONE-JUSTIFICATION: the plan map needs distinct owned values for two placeholder keys.
-    plan_bindings.insert("next_tier_path".to_owned(), facts.resume_anchor.clone());
-    // CLONE-JUSTIFICATION: the plan map needs distinct owned values for two placeholder keys.
-    plan_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
-    plan_bindings.insert("budget_lines".to_owned(), budget_lines);
-    plan_bindings.insert("budget_bytes".to_owned(), budget_bytes);
-    let plan = render(PLAN_TEMPLATE, &plan_bindings)?;
-
-    Ok(RenderedForest {
-        global,
-        project,
-        plan,
-    })
-}
-
-fn finding(rule_id: &RuleId, title: &str, detail: impl Into<String>, file: &RelPath) -> Finding {
-    Finding {
-        // CLONE-JUSTIFICATION: the returned Finding must own its rule ID beyond this borrowed validator input.
-        rule_id: rule_id.clone(),
-        severity: Severity::Error,
-        title: title.to_owned(),
-        detail: detail.into(),
-        // CLONE-JUSTIFICATION: the returned Finding must own its path beyond this borrowed validator input.
-        file: file.clone(),
-        line: 1,
-        snippet: None,
-    }
+    render_forest(facts)
 }
 
 /// Extract the text between a `<!-- name -->` ... `<!-- /name -->` managed
 /// block, trimmed. Returns `None` if either fence is absent or the close
 /// precedes the open (a structurally broken block).
-fn managed_block<'a>(source: &'a str, name: &str) -> Option<&'a str> {
-    let open = format!("<!-- {name} -->");
-    let close = format!("<!-- /{name} -->");
-    let (_, rest) = source.split_once(open.as_str())?;
-    let (block, _) = rest.split_once(close.as_str())?;
-    Some(block.trim())
-}
-
-/// Extract the `<!-- agents-forest-tier: <tier> -->` marker value.
-fn tier_marker(source: &str) -> Option<&str> {
-    let open = "<!-- agents-forest-tier:";
-    let (_, rest) = source.split_once(open)?;
-    let (marker, _) = rest.split_once("-->")?;
-    Some(marker.trim())
-}
-
-/// Extract a `KEY: value` line's `value` from inside a managed block's
-/// text (e.g. `NEXT: docs/plans/foo/AGENTS.md` -> `docs/plans/foo/AGENTS.md`).
-fn extract_keyed_value(block_text: &str, key: &str) -> Option<String> {
-    block_text.lines().find_map(|line| {
-        let line = line.trim().trim_start_matches('>').trim();
-        line.strip_prefix(key).map(|rest| rest.trim().to_owned())
-    })
-}
-
-/// Extract every `LEAF -> <value>` pointer inside a decision-tree managed
-/// block's text.
-fn extract_leaf_pointers(block_text: &str) -> Vec<String> {
-    block_text
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim().trim_start_matches('>').trim();
-            line.strip_prefix("LEAF ->")
-                .map(|rest| rest.trim().to_owned())
-        })
-        .collect()
-}
-
 /// `AGENTS-ROUTING.1`: this tier's file declares the read-first routing
 /// managed block (`<!-- agents-read-first -->` ... `<!-- /agents-read-first -->`),
 /// non-empty.
@@ -343,7 +197,7 @@ impl Validator for AgentsRoutingDeclaredValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match managed_block(input.source, "agents-read-first") {
+        match managed_block(input.source.as_str(), "agents-read-first") {
             Some(text) if !text.is_empty() => Vec::new(),
             Some(_) => vec![finding(
                 &self.rule_id,
@@ -363,7 +217,7 @@ impl Validator for AgentsRoutingDeclaredValidator {
 
 /// `AGENTS-TREE.1`: this tier's file declares a decision-tree managed
 /// block, and every `LEAF ->` pointer inside it is non-empty (terminates
-/// at a real resume-state anchor, not a dangling placeholder).
+/// at a real resume-state anchor, not a dangling token).
 #[derive(Debug)]
 pub struct AgentsTreeTerminatesValidator {
     rule_id: RuleId,
@@ -382,7 +236,7 @@ impl Validator for AgentsTreeTerminatesValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Some(tree_text) = managed_block(input.source, "agents-decision-tree") else {
+        let Some(tree_text) = managed_block(input.source.as_str(), "agents-decision-tree") else {
             return vec![finding(
                 &self.rule_id,
                 "missing decision tree",
@@ -432,45 +286,25 @@ impl AgentsBudgetValidator {
     }
 }
 
-fn parse_declared_budget(source: &str) -> (usize, usize) {
-    let Some(text) = managed_block(source, "agents-read-first") else {
-        return (DEFAULT_BUDGET_LINES, DEFAULT_BUDGET_BYTES);
-    };
-    let Some(marker) = text.find("Budget: stay under") else {
-        return (DEFAULT_BUDGET_LINES, DEFAULT_BUDGET_BYTES);
-    };
-    let rest = &text[marker..];
-    let lines = rest
-        .split_whitespace()
-        .find_map(|tok| tok.parse::<usize>().ok())
-        .unwrap_or(DEFAULT_BUDGET_LINES);
-    let bytes = rest
-        .split('/')
-        .nth(1)
-        .and_then(|seg| {
-            seg.split_whitespace()
-                .find_map(|tok| tok.parse::<usize>().ok())
-        })
-        .unwrap_or(DEFAULT_BUDGET_BYTES);
-    (lines, bytes)
-}
-
 impl Validator for AgentsBudgetValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let (budget_lines, budget_bytes) = parse_declared_budget(input.source);
-        let actual_lines = input.source.lines().count();
-        let actual_bytes = input.source.len();
-        if actual_lines > budget_lines || actual_bytes > budget_bytes {
+        let source = input.source.as_str();
+        let (budget_lines, budget_bytes) = parse_declared_budget(source);
+        let actual_lines = source.lines().count();
+        let actual_bytes = source.len();
+        if actual_lines > budget_lines.get() || actual_bytes > budget_bytes.get() {
             return vec![finding(
                 &self.rule_id,
                 "tier exceeds its declared size budget",
                 format!(
                     "tier is {actual_lines} lines / {actual_bytes} bytes, budget is \
-                     {budget_lines} lines / {budget_bytes} bytes"
+                     {} lines / {} bytes",
+                    budget_lines.get(),
+                    budget_bytes.get()
                 ),
                 input.file,
             )];
@@ -486,9 +320,9 @@ impl Validator for AgentsBudgetValidator {
 #[derive(Debug, Clone)]
 pub struct TierDocument {
     /// This document's repo-relative path (or synthetic fixture path).
-    pub path: String,
+    pub path: RelPath,
     /// Raw source text.
-    pub source: String,
+    pub source: PlanDocumentText,
 }
 
 /// `AGENTS-CHAIN.1`: cross-document check — for a global/project/plan
@@ -504,21 +338,21 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
     let by_path: HashMap<&str, &TierDocument> = docs.iter().map(|d| (d.path.as_str(), d)).collect();
 
     for doc in docs {
-        let Some(marker) = tier_marker(&doc.source) else {
+        let Some(marker) = tier_marker(doc.source.as_str()) else {
             findings.push(finding(
                 rule_id,
                 "tier document missing tier marker",
                 "no `<!-- agents-forest-tier: <tier> -->` marker found",
-                &synthetic_path(&doc.path),
+                &doc.path,
             ));
             continue;
         };
-        let Some(next_block) = managed_block(&doc.source, "agents-next-tier") else {
+        let Some(next_block) = managed_block(doc.source.as_str(), "agents-next-tier") else {
             findings.push(finding(
                 rule_id,
                 "tier document missing NEXT pointer block",
                 "no `<!-- agents-next-tier -->` managed block found",
-                &synthetic_path(&doc.path),
+                &doc.path,
             ));
             continue;
         };
@@ -527,7 +361,7 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
                 rule_id,
                 "NEXT pointer block has no NEXT: value",
                 "`<!-- agents-next-tier -->` block carries no `NEXT: <path>` line",
-                &synthetic_path(&doc.path),
+                &doc.path,
             ));
             continue;
         };
@@ -543,7 +377,7 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
                     rule_id,
                     "unsupported tier marker",
                     format!("tier document declares unsupported marker `{marker}`"),
-                    &synthetic_path(&doc.path),
+                    &doc.path,
                 ));
                 continue;
             }
@@ -559,11 +393,11 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
                     "tier `{marker}` NEXT pointer names `{next_path}`, which is not one of the \
                      supplied tier documents"
                 ),
-                &synthetic_path(&doc.path),
+                &doc.path,
             ));
             continue;
         };
-        if tier_marker(&next_doc.source) != Some(expected_next_tier) {
+        if tier_marker(next_doc.source.as_str()) != Some(expected_next_tier) {
             findings.push(finding(
                 rule_id,
                 "NEXT pointer targets wrong tier",
@@ -571,28 +405,12 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
                     "tier `{marker}` NEXT pointer names `{next_path}`, which must be a \
                      `{expected_next_tier}` tier document"
                 ),
-                &synthetic_path(&doc.path),
+                &doc.path,
             ));
         }
     }
 
     findings
-}
-
-fn synthetic_path(raw: &str) -> RelPath {
-    let candidates = [raw.to_owned(), "agents-forest/unknown.md".to_owned()];
-    for candidate in candidates {
-        if let Ok(path) = candidate.parse() {
-            return path;
-        }
-    }
-    // Unreachable in practice: the fallback candidate is a fixed literal
-    // satisfying `RelPath`'s own rules; retry rather than panic.
-    loop {
-        if let Ok(path) = "unknown.md".parse::<RelPath>() {
-            return path;
-        }
-    }
 }
 
 /// Outcome of [`run_resume_simulation`]: either the chain resolved to a
@@ -603,12 +421,12 @@ pub enum ResumeSimOutcome {
     /// summed byte size of every tier walked.
     Resolved {
         /// The resume-state anchor the chain terminated at.
-        resume_anchor: String,
+        resume_anchor: PlanResumeAnchor,
         /// Summed byte size of every tier document walked to get there.
-        summed_bytes: usize,
+        summed_bytes: PlanBudgetBytes,
     },
     /// The chain broke; carries a short reason.
-    Broken(String),
+    Broken(PlanDiagnosticDetail),
 }
 
 /// Walk ONLY the `AGENTS.md` chain (global -> project -> plan -> decision
@@ -619,68 +437,70 @@ pub enum ResumeSimOutcome {
 /// every tier walked stays within `budget_bytes_total`.
 pub fn run_resume_simulation(
     global: &TierDocument,
-    by_path: &HashMap<String, TierDocument>,
-    budget_bytes_total: usize,
+    by_path: &HashMap<RelPath, TierDocument>,
+    budget_bytes_total: PlanBudgetBytes,
 ) -> ResumeSimOutcome {
-    if tier_marker(&global.source) != Some("global") {
-        return ResumeSimOutcome::Broken(format!(
+    if tier_marker(global.source.as_str()) != Some("global") {
+        return ResumeSimOutcome::Broken(diagnostic_detail(format!(
             "resume simulation must start from a global tier document, got `{}`",
             global.path
-        ));
+        )));
     }
-    let mut summed_bytes = global.source.len();
+    let mut summed_bytes = global.source.as_str().len();
     let mut current = global;
     let mut visited_tiers = HashSet::new();
 
     loop {
-        let Some(marker) = tier_marker(&current.source) else {
-            return ResumeSimOutcome::Broken(format!(
+        let Some(marker) = tier_marker(current.source.as_str()) else {
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "tier document `{}` has no tier marker",
                 current.path
-            ));
+            )));
         };
         if !visited_tiers.insert((marker, current.path.as_str())) {
-            return ResumeSimOutcome::Broken(format!(
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "resume chain cycle revisits `{marker}` tier at `{}`",
                 current.path
-            ));
+            )));
         }
-        let Some(next_block) = managed_block(&current.source, "agents-next-tier") else {
-            return ResumeSimOutcome::Broken(format!(
+        let Some(next_block) = managed_block(current.source.as_str(), "agents-next-tier") else {
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "tier document `{}` has no NEXT pointer block",
                 current.path
-            ));
+            )));
         };
         let Some(next_path) = extract_keyed_value(next_block, "NEXT:") else {
-            return ResumeSimOutcome::Broken(format!(
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "tier document `{}` NEXT pointer block has no NEXT: value",
                 current.path
-            ));
+            )));
         };
 
         if marker == "plan" {
-            let Some(tree_text) = managed_block(&current.source, "agents-decision-tree") else {
-                return ResumeSimOutcome::Broken(format!(
+            let Some(tree_text) = managed_block(current.source.as_str(), "agents-decision-tree")
+            else {
+                return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                     "plan tier `{}` has no decision tree",
                     current.path
-                ));
+                )));
             };
             let leaves = extract_leaf_pointers(tree_text);
             let Some(leaf) = leaves.into_iter().find(|l| !l.is_empty()) else {
-                return ResumeSimOutcome::Broken(format!(
+                return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                     "plan tier `{}` decision tree has no resolvable leaf",
                     current.path
-                ));
+                )));
             };
-            if summed_bytes > budget_bytes_total {
-                return ResumeSimOutcome::Broken(format!(
+            if summed_bytes > budget_bytes_total.get() {
+                return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                     "chain resolved to `{leaf}` but summed {summed_bytes} bytes exceeds the \
-                     {budget_bytes_total}-byte total chain budget"
-                ));
+                     {}-byte total chain budget",
+                    budget_bytes_total.get()
+                )));
             }
             return ResumeSimOutcome::Resolved {
-                resume_anchor: leaf,
-                summed_bytes,
+                resume_anchor: resume_anchor(leaf),
+                summed_bytes: budget_bytes(summed_bytes),
             };
         }
 
@@ -688,26 +508,34 @@ pub fn run_resume_simulation(
             "global" => "project",
             "project" => "plan",
             _ => {
-                return ResumeSimOutcome::Broken(format!(
+                return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                     "tier document `{}` has unsupported tier marker `{marker}`",
                     current.path
-                ));
+                )));
             }
         };
 
+        let next_path = match next_path.parse::<RelPath>() {
+            Ok(path) => path,
+            Err(error) => {
+                return ResumeSimOutcome::Broken(diagnostic_detail(format!(
+                    "tier `{marker}` NEXT pointer is invalid: {error}"
+                )));
+            }
+        };
         let Some(next_doc) = by_path.get(&next_path) else {
-            return ResumeSimOutcome::Broken(format!(
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "tier `{marker}` NEXT pointer names `{next_path}`, which was not supplied to the \
                 walker"
-            ));
+            )));
         };
-        if tier_marker(&next_doc.source) != Some(expected_next_tier) {
-            return ResumeSimOutcome::Broken(format!(
+        if tier_marker(next_doc.source.as_str()) != Some(expected_next_tier) {
+            return ResumeSimOutcome::Broken(diagnostic_detail(format!(
                 "tier `{marker}` at `{}` must point to a `{expected_next_tier}` tier, not `{}`",
                 current.path, next_path
-            ));
+            )));
         }
-        summed_bytes += next_doc.source.len();
+        summed_bytes += next_doc.source.as_str().len();
         current = next_doc;
     }
 }
@@ -717,9 +545,14 @@ pub fn run_resume_simulation(
 /// statement. Exercised over the templates' raw text (the module doc is
 /// checked by a dedicated test reading `src/agents_forest.rs` itself, so
 /// both halves of the requirement are proven, not assumed).
-pub fn declares_transitional_intent(source: &str) -> bool {
-    let lower = source.to_lowercase();
-    lower.contains("transitional-to-typed")
+pub fn declares_transitional_intent(source: &PlanDocumentText) -> PlanCondition {
+    let lower = source.as_str().to_lowercase();
+    if lower.contains("transitional-to-typed")
         && lower.contains("typed system/db/schema")
         && lower.contains("tauri")
+    {
+        PlanCondition::Satisfied
+    } else {
+        PlanCondition::Unsatisfied
+    }
 }

@@ -42,6 +42,8 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
+use crate::boundary::source_predicates::{is_dynamic_argument, shell_enabled_or_dynamic};
+
 /// Whether a sink is flagged unconditionally on a bare regex match, or only
 /// when its captured argument (capture group 1) is clearly non-literal.
 #[derive(Debug)]
@@ -65,36 +67,10 @@ struct SinkPattern {
     check: SinkCheck,
 }
 
-/// A captured call argument is treated as non-literal when it contains
-/// string concatenation (`+`), template/shell-style interpolation (`${` /
-/// `#{`), an f-string prefix (`f"`/`F'`/...), or is a bare
-/// variable/expression with no string-literal quote character at all. A
-/// fully static, fully-quoted literal (e.g. `"ls -la"`) is never flagged.
-fn is_dynamic_argument(argument: &str, fstring_prefix: &Regex) -> bool {
-    let trimmed = argument.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-    if trimmed.contains('+') || trimmed.contains("${") || trimmed.contains("#{") {
-        return true;
-    }
-    if fstring_prefix.is_match(trimmed) {
-        return true;
-    }
-    !trimmed.contains('"') && !trimmed.contains('\'') && !trimmed.contains('`')
-}
-
-/// Python accepts any truthy value for `subprocess`'s `shell` option, not
-/// just the conventional `True`. Preserve explicit falsey literals while
-/// treating a truthy or runtime-controlled value as unsafe.
-fn shell_enabled_or_dynamic(value: &str) -> bool {
-    !matches!(value.trim(), "False" | "None" | "0")
-}
-
 /// `CYBER-CMD-INJECT.1` — command-injection sink detector (T1 per-sink
 /// matcher over source lines).
-#[derive(Debug)]
 /// Validator for the `CYBER-CMD-INJECT.1` source-line sink rule.
+#[derive(Debug)]
 pub struct CommandInjectionValidator {
     rule_id: RuleId,
     sinks: Vec<SinkPattern>,
@@ -104,10 +80,7 @@ pub struct CommandInjectionValidator {
 impl CommandInjectionValidator {
     /// Compiles the fixed sink table and its validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
-        // ALLOC-JUSTIFICATION: DecodeError owns the regex engine's diagnostic after construction fails.
-        fn compile(slug: &'static str, pattern: &str) -> Result<Regex, DecodeError> {
-            Regex::new(pattern).map_err(|err| DecodeError::new(slug, err.to_string()))
-        }
+        let compile = crate::boundary::regex::compile;
 
         let sinks = vec![
             SinkPattern {
@@ -168,7 +141,7 @@ impl CommandInjectionValidator {
         ];
 
         Ok(Self {
-            rule_id: "CYBER-CMD-INJECT.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberCmdInject.id(),
             sinks,
             fstring_prefix: compile("cyberskillsCmdInjectFstringPrefix", r#"^[fF]['"]"#)?,
         })
@@ -182,7 +155,7 @@ impl Validator for CommandInjectionValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
 
@@ -209,14 +182,10 @@ impl Validator for CommandInjectionValidator {
                 continue;
             }
 
-            findings.push(Finding {
-                // CLONE-JUSTIFICATION: each emitted report owns the validator identity after validation returns.
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                // ALLOC-JUSTIFICATION: durable report records own their static presentation title.
-                title: "Command executed with a non-literal, attacker-influenceable argument"
-                    .to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "Command executed with a non-literal, attacker-influenceable argument",
+                format!(
                     "Sink(s) matched: {}. A command/code-execution sink is invoked with a \
                      concatenated, interpolated, or variable argument (or, for \
                      `subprocess(..., shell=True)`, with the shell enabled at all), so an \
@@ -226,12 +195,9 @@ impl Validator for CommandInjectionValidator {
                      never build a shell command string from untrusted input.",
                     matched_labels.join(", ")
                 ),
-                // CLONE-JUSTIFICATION: each emitted report owns its source path after the borrowed input expires.
-                file: input.file.clone(),
-                line: line_number,
-                // ALLOC-JUSTIFICATION: the report retains the source line after the borrowed input expires.
-                snippet: Some(line.to_owned()),
-            });
+                input.file,
+                (line_number, Some(line)),
+            ));
         }
         findings
     }

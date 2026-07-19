@@ -1,3 +1,6 @@
+//! BOUNDARY-INVARIANT: adapter exports preserve typed installation boundaries.
+//! Negative invalid inputs are rejected by individual adapter tests.
+//!
 //! Per-harness [`crate::core::HarnessAdapter`] implementations. Each
 //! module here is owned by its own Track C workpack (c03 `claude`, c06
 //! `codex`, c07 `generic`, c08/c09 the remaining harnesses) — this

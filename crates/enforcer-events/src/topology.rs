@@ -1,75 +1,64 @@
 use std::collections::BTreeSet;
 
-use serde::Serialize;
-
-use crate::topology_presentation_boundary::{EventTopologyMarkdown, EventTopologyRustType};
-
-use crate::{
-    EventContract, EventContractRegistry, EventNamespace, EventType, SourceComponent, SubscriberId,
+use enforcer_domain::events_types::{
+    EventNamespace, EventTopologyStatus, EventType, RustTypeName, SourceComponent, SubscriberId,
     TargetHandler,
 };
 
+use crate::boundary::topology_presentation::{
+    EventTopologyManifestResponse, EventTopologyMarkdown,
+};
 
-/// SERIALIZATION-DOC: outbound topology input is emitted in the canonical eventing manifest.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+use crate::{contract_registry::EventContractRegistry, envelope::EventContract};
+
+/// Typed publisher input used to build a canonical topology manifest.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventTopologyPublisher {
     pub event_type: EventType,
     pub source_component: SourceComponent,
 }
 
-/// SERIALIZATION-DOC: outbound subscriber wiring is emitted in the canonical eventing manifest.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+/// Typed subscriber input used to build a canonical topology manifest.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventTopologySubscriber {
     pub event_type: EventType,
     pub subscriber_id: SubscriberId,
     pub target_handler: TargetHandler,
 }
 
-/// SERIALIZATION-DOC: outbound event-family variants are emitted in the canonical eventing manifest.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+/// Typed event-family input used to build a canonical topology manifest.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventTopologyFamilyVariant {
     pub family: EventNamespace,
     pub event_type: EventType,
 }
 
-/// SERIALIZATION-DOC: outbound subscriber targets use stable camelCase field names.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// Canonical subscriber target retained by a topology manifest.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EventTopologySubscriberTarget {
     pub subscriber_id: SubscriberId,
     pub target_handler: TargetHandler,
 }
 
-/// SERIALIZATION-DOC: outbound topology status is a stable kebab-case wire value.
-/// SERDE-TAG-JUSTIFICATION: this fieldless enum is represented as its explicit status string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "status", rename_all = "kebab-case")]
-pub enum EventTopologyStatus {
-    Covered,
-    NoPublisher,
-    NoSubscriber,
-    AcceptedOneSided,
-}
-
-/// SERIALIZATION-DOC: generated manifest entries are the published topology report contract.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// Canonical generated topology entry.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventTopologyEntry {
     pub contract: EventContract,
-    pub(crate) rust_type: EventTopologyRustType,
+    pub(crate) rust_type: RustTypeName,
     pub publishers: Vec<SourceComponent>,
     pub subscribers: Vec<EventTopologySubscriberTarget>,
     pub families: Vec<EventNamespace>,
     pub status: EventTopologyStatus,
 }
 
-/// SERIALIZATION-DOC: generated manifest wraps the ordered published topology entries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+/// Canonical ordered topology manifest.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventTopologyManifest {
     pub(crate) entries: Vec<EventTopologyEntry>,
 }
 
 impl EventTopologyManifest {
+    /// Executes the from registry event-runtime operation.
     pub fn from_registry(
         registry: &EventContractRegistry,
         publishers: &[EventTopologyPublisher],
@@ -109,7 +98,7 @@ impl EventTopologyManifest {
                 EventTopologyEntry {
                     // CLONE-JUSTIFICATION: descriptors remain owned by the registry while the manifest owns its contract.
                     contract: EventContract::new(event_type.clone(), descriptor.schema_version()),
-                    rust_type: EventTopologyRustType::from_static(descriptor.rust_type()),
+                    rust_type: descriptor.rust_type().clone(),
                     status: status_for(event_type, &publishers, &subscribers, &accepted),
                     publishers,
                     subscribers,
@@ -120,19 +109,33 @@ impl EventTopologyManifest {
         Self { entries }
     }
 
+    /// Executes the entries event-runtime operation.
     pub fn entries(&self) -> &[EventTopologyEntry] {
         &self.entries
     }
 
+    /// Executes the unready entries event-runtime operation.
     pub fn unready_entries(&self) -> Vec<&EventTopologyEntry> {
         self.entries
             .iter()
-            .filter(|entry| matches!(entry.status, EventTopologyStatus::NoPublisher | EventTopologyStatus::NoSubscriber))
+            .filter(|entry| {
+                matches!(
+                    entry.status,
+                    EventTopologyStatus::NoPublisher | EventTopologyStatus::NoSubscriber
+                )
+            })
             .collect()
     }
 
+    /// Executes the render markdown event-runtime operation.
     pub fn render_markdown(&self) -> EventTopologyMarkdown {
         EventTopologyMarkdown::render(&self.entries)
+    }
+
+    /// Convert canonical topology values to the explicit presentation contract
+    /// used by JSON/reporting callers.
+    pub fn presentation(&self) -> EventTopologyManifestResponse {
+        EventTopologyManifestResponse::from(self)
     }
 }
 

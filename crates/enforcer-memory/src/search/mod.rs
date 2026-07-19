@@ -30,18 +30,19 @@
 pub mod document;
 pub mod search_graph;
 
-pub use document::{DocumentKind, SearchDocument};
-pub use search_graph::{
-    search_graph as run_search_graph, search_graph_with_semantic, NodeLabel, SearchGraphError,
-    SearchGraphHit, SearchGraphResult, SearchGraphSpec, SearchMode,
-};
+use document::SearchDocument;
 
-use crate::embed::{DegradedState, Embedder, LoadState};
+use crate::embed::Embedder;
 use crate::error::Result;
 use crate::fulltext::FullTextIndex;
 use crate::ranking::{fuse_rrf, CandidateTrace, HardFilter, RankFusionResult, RankedHit};
 use crate::rerank::Reranker;
 use crate::vector::VectorIndex;
+use enforcer_domain::memory_types::{
+    DegradedState, LoadState, MemoryContextReductionRatio, MemorySearchAverageDocumentBytes,
+    MemorySearchDocumentText, MemorySearchIsDegraded, MemorySearchNaiveFileCount,
+    MemorySearchQuery, MemorySearchRerankerLift, MemorySearchTokenCount,
+};
 
 /// D-08: candidate pool pulled from each retriever before fusion.
 pub const CANDIDATE_POOL_MIN: usize = 100;
@@ -68,7 +69,7 @@ pub struct SearchResult {
     pub pre_rerank_pool: Vec<CandidateTrace>,
     /// Reranker-lift measurement: pre-rerank vs post-rerank ordering
     /// delta, see [`crate::ranking::reranker_lift`].
-    pub reranker_lift: f64,
+    pub reranker_lift: MemorySearchRerankerLift,
     /// Estimated token cost of the context pack vs. a naive "hand
     /// Claude the top N whole files" baseline. See
     /// [`token_reduction_estimate`].
@@ -86,10 +87,10 @@ pub struct SearchResult {
 /// measurement hook, not a claim about any specific LLM's tokenizer --
 /// callers with a real tokenizer can substitute exact counts using the
 /// same shape.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct TokenReductionEstimate {
-    pub naive_tokens: usize,
-    pub context_tokens: usize,
+    pub naive_tokens: MemorySearchTokenCount,
+    pub context_tokens: MemorySearchTokenCount,
 }
 
 impl TokenReductionEstimate {
@@ -97,20 +98,33 @@ impl TokenReductionEstimate {
     /// `context_tokens` is zero (an empty context pack is not a
     /// reduction claim -- treat as "no data" by returning 0.0 instead of
     /// dividing by zero).
-    pub fn ratio(&self) -> f64 {
+    pub fn ratio(&self) -> MemoryContextReductionRatio {
         if self.context_tokens == 0 {
-            0.0
+            0.0.into()
         } else {
-            self.naive_tokens as f64 / self.context_tokens as f64
+            (crate::owned_boundary::usize_to_f64(self.naive_tokens.get())
+                / crate::owned_boundary::usize_to_f64(self.context_tokens.get()))
+            .into()
         }
+    }
+}
+
+impl std::fmt::Debug for TokenReductionEstimate {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TokenReductionEstimate")
+            .field("naive_tokens", &"[REDACTED]")
+            .field("context_tokens", &"[REDACTED]")
+            .finish()
     }
 }
 
 /// Very rough token estimate: ~4 bytes/token, matching common English
 /// tokenizer heuristics closely enough for a *relative* reduction
 /// measurement (this is never used as an exact-billing number).
-pub fn estimate_tokens(text: &str) -> usize {
-    (text.len() / 4).max(1)
+pub fn estimate_tokens(text: impl Into<MemorySearchDocumentText>) -> MemorySearchTokenCount {
+    let text = text.into();
+    (text.as_str().len() / 4).max(1).into()
 }
 
 /// Compute the token-reduction estimate for a context pack against a
@@ -118,17 +132,18 @@ pub fn estimate_tokens(text: &str) -> usize {
 /// `naive_avg_len` bytes each.
 pub fn token_reduction_estimate(
     context: &[RankedHit],
-    naive_file_count: usize,
-    naive_avg_len: usize,
+    naive_file_count: MemorySearchNaiveFileCount,
+    naive_avg_len: MemorySearchAverageDocumentBytes,
 ) -> TokenReductionEstimate {
     let context_tokens: usize = context
         .iter()
-        .map(|hit| estimate_tokens(&hit.snippet))
+        .map(|hit| estimate_tokens(hit.snippet.as_str()).get())
         .sum();
-    let naive_tokens = estimate_tokens(&"x".repeat(naive_avg_len)) * naive_file_count.max(1);
+    let naive_tokens =
+        estimate_tokens("x".repeat(naive_avg_len.get())).get() * naive_file_count.get().max(1);
     TokenReductionEstimate {
-        naive_tokens,
-        context_tokens,
+        naive_tokens: naive_tokens.into(),
+        context_tokens: context_tokens.into(),
     }
 }
 
@@ -139,6 +154,18 @@ pub struct HybridSearcher<'a> {
     pub vector: &'a VectorIndex,
     pub embedder: &'a dyn Embedder,
     pub reranker: &'a dyn Reranker,
+}
+
+impl std::fmt::Debug for HybridSearcher<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HybridSearcher")
+            .field("fulltext", &"<fulltext-index>")
+            .field("vector", &"<vector-index>")
+            .field("embedder", &"<embedder>")
+            .field("reranker", &"<reranker>")
+            .finish()
+    }
 }
 
 impl<'a> HybridSearcher<'a> {
@@ -162,22 +189,29 @@ impl<'a> HybridSearcher<'a> {
     /// [`crate::ranking::fuse_rrf`]).
     pub fn search(
         &self,
-        query: &str,
+        query: impl Into<MemorySearchQuery>,
         corpus: &[SearchDocument],
         hard_filters: &[HardFilter],
     ) -> Result<SearchResult> {
+        let query = query.into();
         let pool_size = CANDIDATE_POOL_MAX.min(corpus.len().max(1));
-        let fulltext_ranked = self.fulltext.search(query, pool_size)?;
+        let fulltext_query =
+            enforcer_domain::memory_types::MemoryFullTextQuery::from(query.as_str());
+        let fulltext_ranked = self.fulltext.search(&fulltext_query, pool_size.into())?;
         let embedding_state = self.embedder.state();
-        let query_vec = self.embedder.embed(query)?;
-        let vector_ranked = self.vector.search(&query_vec, pool_size);
+        let query_vec =
+            self.embedder
+                .embed(enforcer_domain::memory_types::ParserSourceText::from(
+                    query.as_str(),
+                ))?;
+        let vector_ranked = self.vector.search(query_vec, pool_size);
 
         let fused = fuse_rrf(
             &fulltext_ranked,
             &vector_ranked,
             corpus,
             hard_filters,
-            RRF_K,
+            RRF_K.into(),
         );
         let RankFusionResult {
             pre_rerank_pool,
@@ -185,9 +219,14 @@ impl<'a> HybridSearcher<'a> {
         } = fused;
 
         let rerank_take = RERANK_POOL_MAX.min(candidates.len());
-        let to_rerank = &candidates[..rerank_take];
+        let to_rerank = candidates
+            .get(..rerank_take)
+            .unwrap_or(candidates.as_slice());
         let reranker_state = self.reranker.state();
-        let reranked = self.reranker.rerank(query, to_rerank)?;
+        let reranked = self.reranker.rerank(
+            enforcer_domain::memory_types::ParserSourceText::from(query.as_str()),
+            to_rerank,
+        )?;
 
         let context_take = CONTEXT_MAX
             .min(reranked.len())
@@ -195,12 +234,12 @@ impl<'a> HybridSearcher<'a> {
         let context: Vec<RankedHit> = reranked.into_iter().take(context_take).collect();
 
         let lift = crate::ranking::reranker_lift(&pre_rerank_pool, &context);
-        let token_estimate = token_reduction_estimate(&context, corpus.len(), 2000);
+        let token_estimate = token_reduction_estimate(&context, corpus.len().into(), 2000.into());
 
         Ok(SearchResult {
             context,
             pre_rerank_pool,
-            reranker_lift: lift,
+            reranker_lift: lift.get().into(),
             token_reduction_estimate: token_estimate,
             embedder_state: embedding_state,
             reranker_state,
@@ -211,11 +250,12 @@ impl<'a> HybridSearcher<'a> {
 /// Whether either capability ran in a state the workpack forbids
 /// claiming as feature parity (D-03/OWNER_INTENT: "degraded mode is
 /// labeled and never claimed as parity").
-pub fn is_degraded(result: &SearchResult) -> bool {
-    matches!(result.embedder_state, LoadState::Degraded(_))
+pub fn is_degraded(result: &SearchResult) -> MemorySearchIsDegraded {
+    (matches!(result.embedder_state, LoadState::Degraded(_))
         || matches!(result.reranker_state, LoadState::Degraded(_))
         || matches!(result.embedder_state, LoadState::Failed)
-        || matches!(result.reranker_state, LoadState::Failed)
+        || matches!(result.reranker_state, LoadState::Failed))
+    .into()
 }
 
 /// Convenience: the reason for a degraded capability state, if any, for

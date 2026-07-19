@@ -5,7 +5,7 @@
 //! produces an empty report.
 
 use enforcer_domain::config_types::InlineTestPolicy;
-use enforcer_domain::findings::{Finding, Report};
+use enforcer_domain::findings::{Finding, Report, ReportOutcome};
 use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::scan_types::ScopeRequest;
 use enforcer_domain::severity::Severity;
@@ -39,7 +39,11 @@ fn pass_fixture_tree_produces_an_empty_report() -> Result<(), Box<dyn std::error
     );
     let validators = build_family_validators()?;
     let report = run(&resolved, &files, &validators);
-    assert!(report.ok, "clean fixture tree must produce an ok report");
+    assert_eq!(
+        report.ok,
+        ReportOutcome::Clean,
+        "clean fixture tree must produce an ok report"
+    );
     assert!(report.violations.is_empty());
     Ok(())
 }
@@ -58,7 +62,7 @@ fn fail_fixture_tree_routes_planted_violation_to_rust_family(
     let validators = build_family_validators()?;
     let report = run(&resolved, &files, &validators);
     assert!(
-        !report.ok,
+        report.ok == ReportOutcome::Violations,
         "planted unwrap() must trip a blocking violation"
     );
     assert!(
@@ -98,7 +102,18 @@ fn parallel_and_serial_walk_over_the_same_fixture_agree() -> Result<(), Box<dyn 
 #[test]
 fn inline_test_policy_is_configurable_and_external_tests_are_exempt(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let root_path = fixture_root("inline_test_policy");
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("src"))?;
+    std::fs::create_dir_all(temp.path().join("tests"))?;
+    std::fs::write(
+        temp.path().join("src/lib.py"),
+        "def test_inline():\n    assert 2 + 2 == 4\n",
+    )?;
+    std::fs::write(
+        temp.path().join("tests/external.ts"),
+        "describe(\"organized\", () => { test(\"stable\", () => {}); });\n",
+    )?;
+    let root_path = temp.path().to_path_buf();
     let root: RepoRoot = root_path.to_string_lossy().parse()?;
     let resolved = resolve(&ScopeRequest::All, &root)?;
     let files = walk(&root_path, &IgnoreRules::default())?;
@@ -113,13 +128,23 @@ fn inline_test_policy_is_configurable_and_external_tests_are_exempt(
     let forbid_findings = inline_test_findings(&forbid);
     assert_eq!(forbid_findings.len(), 1);
     assert_eq!(forbid_findings[0].severity, Severity::Error);
-    assert!(!forbid.ok, "forbid must make inline tests blocking");
-    assert_eq!(forbid_findings[0].file.as_str(), "src/lib.rs");
+    assert_eq!(
+        forbid.ok,
+        ReportOutcome::Violations,
+        "forbid must make inline tests blocking"
+    );
+    assert_eq!(forbid_findings[0].file.as_str(), "src/lib.py");
 
     let warn_findings = inline_test_findings(&warn);
     assert_eq!(warn_findings.len(), 1);
     assert_eq!(warn_findings[0].severity, Severity::Warning);
-    assert!(warn.ok, "warn must remain advisory-only");
+    assert!(
+        !warn
+            .violations
+            .iter()
+            .any(|violation| violation.finding().rule_id.as_str() == "TEST-2.2"),
+        "warn must remain advisory-only for TEST-2.2"
+    );
 
     assert!(
         inline_test_findings(&allow).is_empty(),
@@ -130,6 +155,28 @@ fn inline_test_policy_is_configurable_and_external_tests_are_exempt(
             .iter()
             .all(|finding| !finding.file.as_str().starts_with("tests/")),
         "tests/ files are organized external tests and must never be reported"
+    );
+    Ok(())
+}
+
+#[test]
+fn rust_inline_tests_are_exempt_from_test_2_2() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("src"))?;
+    std::fs::write(
+        temp.path().join("src/lib.rs"),
+        "#[cfg(test)]\nmod tests { #[test] fn stable() { assert_eq!(2 + 2, 4); } }\n",
+    )?;
+    let root_path = temp.path().to_path_buf();
+    let root: RepoRoot = root_path.to_string_lossy().parse()?;
+    let resolved = resolve(&ScopeRequest::All, &root)?;
+    let files = walk(&root_path, &IgnoreRules::default())?;
+    let validators = build_family_validators()?;
+    let report =
+        run_with_inline_test_policy(&resolved, &files, &validators, InlineTestPolicy::Forbid);
+    assert!(
+        inline_test_findings(&report).is_empty(),
+        "Rust inline unit tests are idiomatic and exempt from TEST-2.2"
     );
     Ok(())
 }

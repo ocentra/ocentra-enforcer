@@ -9,30 +9,27 @@
 //! implementation snake_case while this boundary contract names the crossing.
 //! boundaryOwnerNote: enforcer-install owns the producer CI/archive seam.
 
-use crate::{
-    ci::release_pipeline::{BinaryVariant, ReleaseAsset},
-    distribution::TargetPlatform,
+use enforcer_domain::install_types::ReleaseAsset;
+use enforcer_domain::install_types::{
+    BinaryVariant, EmptyReleaseVersion, ReleaseVersion, TargetPlatform,
 };
 
-/// Release-tag text supplied by CI or a release provider.
+/// Raw CI release-tag DTO converted to [`ReleaseVersion`] before rendering.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReleaseVersionWire {
-    /// Raw release tag at the external CI boundary.
+    /// Raw release tag supplied by CI.
     pub value: String,
 }
 
-/// Typed rejection for an empty CI release tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EmptyReleaseVersion;
-
 impl ReleaseVersionWire {
-    /// Converts an external CI release tag before matrix rendering.
+    /// Validates raw CI input at this boundary.
     pub fn from_raw_ci_tag(value: String) -> Result<Self, EmptyReleaseVersion> {
-        if value.trim().is_empty() {
-            Err(EmptyReleaseVersion)
-        } else {
-            Ok(Self { value })
-        }
+        ReleaseVersion::try_from(value.clone())?;
+        Ok(Self { value })
+    }
+
+    fn to_domain(&self) -> Result<ReleaseVersion, EmptyReleaseVersion> {
+        ReleaseVersion::try_from(self.value.clone())
     }
 }
 
@@ -50,10 +47,13 @@ pub struct ReleaseAssetRecord {
 /// Produces the complete provider-facing matrix and its typed gate identities.
 #[must_use]
 pub fn release_matrix(version: &ReleaseVersionWire) -> Vec<ReleaseAssetRecord> {
+    let Ok(version) = version.to_domain() else {
+        return Vec::new();
+    };
     let mut assets = Vec::with_capacity(TargetPlatform::all().len() * BinaryVariant::all().len());
     for platform in TargetPlatform::all() {
         for variant in BinaryVariant::all() {
-            assets.push(render_asset(*platform, *variant, version));
+            assets.push(render_asset_domain(*platform, *variant, &version));
         }
     }
     assets
@@ -66,6 +66,21 @@ pub fn render_asset(
     variant: BinaryVariant,
     version: &ReleaseVersionWire,
 ) -> ReleaseAssetRecord {
+    match version.to_domain() {
+        Ok(version) => render_asset_domain(platform, variant, &version),
+        Err(EmptyReleaseVersion) => ReleaseAssetRecord {
+            asset: to_domain_asset(platform, variant),
+            asset_name: String::new(),
+            checksum_name: String::new(),
+        },
+    }
+}
+
+fn render_asset_domain(
+    platform: TargetPlatform,
+    variant: BinaryVariant,
+    version: &ReleaseVersion,
+) -> ReleaseAssetRecord {
     let extension = if matches!(platform, TargetPlatform::WindowsX86_64) {
         "zip"
     } else {
@@ -73,7 +88,7 @@ pub fn render_asset(
     };
     let asset_name = format!(
         "enforcer-v{}-{}-{}.{}",
-        version.value,
+        version.as_str(),
         render_variant_label(variant),
         platform.target_triple(),
         extension
@@ -115,9 +130,9 @@ fn to_domain_asset(platform: TargetPlatform, variant: BinaryVariant) -> ReleaseA
 
 #[cfg(test)]
 mod tests {
-    use super::{release_matrix, EmptyReleaseVersion, ReleaseVersionWire};
-    use crate::ci::release_pipeline::BinaryVariant;
-    use crate::distribution::TargetPlatform;
+    use super::release_matrix;
+    use super::ReleaseVersionWire;
+    use enforcer_domain::install_types::{BinaryVariant, EmptyReleaseVersion, TargetPlatform};
 
     #[test]
     fn rejects_empty_release_version_at_boundary() {

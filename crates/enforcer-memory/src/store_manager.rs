@@ -37,9 +37,11 @@
 //! `Instant` (see the `tests` module below) so idle-eviction behavior is
 //! exercised without a real sleep anywhere in this crate's test suite.
 
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::{StoreCacheContains, StoreCacheIdleTimeout, StoreCacheInstant};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Matches the baseline's `CBM_STORE_IDLE_TIMEOUT_S` default exactly
 /// (mission brief: "default 60s to match baseline STORE_IDLE_TIMEOUT_S").
@@ -49,7 +51,7 @@ pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 /// (opened or accessed) at.
 struct CacheEntry<T> {
     value: T,
-    last_touched: Instant,
+    last_touched: StoreCacheInstant,
 }
 
 /// A per-key cache of open-store handles (or any `T`) with idle-timeout
@@ -74,7 +76,17 @@ struct CacheEntry<T> {
 /// server-runtime) charter.
 pub struct StoreCache<K, T> {
     entries: HashMap<K, CacheEntry<T>>,
-    idle_timeout: Duration,
+    idle_timeout: StoreCacheIdleTimeout,
+}
+
+impl<K, T> std::fmt::Debug for StoreCache<K, T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("StoreCache")
+            .field("entry_count", &self.entries.len())
+            .field("idle_timeout", &self.idle_timeout)
+            .finish()
+    }
 }
 
 impl<K, T> StoreCache<K, T>
@@ -89,10 +101,10 @@ where
     /// A cache with a caller-supplied idle timeout -- the baseline's
     /// `CBM_STORE_IDLE_TIMEOUT_S` env var is this crate's config-layer
     /// concern to read and pass in here, not this module's.
-    pub fn with_idle_timeout(idle_timeout: Duration) -> Self {
+    pub fn with_idle_timeout(idle_timeout: impl Into<StoreCacheIdleTimeout>) -> Self {
         Self {
             entries: HashMap::new(),
-            idle_timeout,
+            idle_timeout: idle_timeout.into(),
         }
     }
 
@@ -108,14 +120,19 @@ where
 
     /// Whether `key` is currently cached, regardless of idle state --
     /// for tests and diagnostics.
-    pub fn contains(&self, key: &K) -> bool {
-        self.entries.contains_key(key)
+    pub fn contains(&self, key: &K) -> StoreCacheContains {
+        self.entries.contains_key(key).into()
     }
 
     /// Fetch `key`'s cached value, opening it via `open` on a miss.
     /// Every call (hit or miss) refreshes the entry's `last_touched` to
     /// `now` -- see the struct docs' "never drops a store mid-use" note.
-    pub fn get_or_insert_with(&mut self, key: K, now: Instant, open: impl FnOnce() -> T) -> &mut T {
+    pub fn get_or_insert_with(
+        &mut self,
+        key: K,
+        now: StoreCacheInstant,
+        open: impl FnOnce() -> T,
+    ) -> &mut T {
         let entry = self.entries.entry(key).or_insert_with(|| CacheEntry {
             value: open(),
             last_touched: now,
@@ -140,13 +157,13 @@ where
     /// An entry touched at exactly `now - idle_timeout` IS evicted
     /// (`elapsed >= idle_timeout`, not `>`) -- matching the ordinary
     /// "timeout means timeout" reading of an idle-timeout config value.
-    pub fn evict_idle(&mut self, now: Instant) -> Vec<K> {
+    pub fn evict_idle(&mut self, now: StoreCacheInstant) -> Vec<K> {
         let mut evicted = Vec::new();
         self.entries.retain(|key, entry| {
             let elapsed = now.saturating_duration_since(entry.last_touched);
-            let keep = elapsed < self.idle_timeout;
+            let keep = elapsed < self.idle_timeout.get();
             if !keep {
-                evicted.push(key.clone());
+                evicted.push(key.retained());
             }
             keep
         });

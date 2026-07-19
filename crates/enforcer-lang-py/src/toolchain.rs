@@ -14,10 +14,13 @@
 //! invocation.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::findings::{Finding, FindingTitle};
+use enforcer_domain::ids::{BuiltInPythonRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
+
+use crate::boundary::finding::{static_title, PythonFindingMessage};
+use crate::boundary::source::{diagnostics_count, DiagnosticsArray};
 
 /// A validator that fires when a toolchain's JSON diagnostics payload
 /// contains at least one entry in `array_key` (e.g. Ruff's top-level JSON
@@ -28,8 +31,8 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 /// "assume a violation").
 struct StructuredDiagnosticsValidator {
     rule_id: RuleId,
-    title: &'static str,
-    array_key: Option<&'static str>,
+    title: FindingTitle,
+    diagnostics_array: DiagnosticsArray,
 }
 
 impl Validator for StructuredDiagnosticsValidator {
@@ -38,26 +41,23 @@ impl Validator for StructuredDiagnosticsValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(input.source) else {
-            return Vec::new();
-        };
-        let array = match self.array_key {
-            Some(key) => parsed.get(key).and_then(serde_json::Value::as_array),
-            None => parsed.as_array(),
-        };
-        let count = array.map_or(0, Vec::len);
+        let count = diagnostics_count(input.source, self.diagnostics_array);
         if count == 0 {
             return Vec::new();
         }
-        vec![Finding {
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            title: self.title.to_owned(),
-            detail: format!("toolchain reported {count} diagnostic(s)"),
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }]
+        crate::boundary::finding::from_python_source(
+            &self.rule_id,
+            Severity::Error,
+            input.file,
+            1,
+            PythonFindingMessage::new(
+                self.title.as_str(),
+                format!("toolchain reported {count} diagnostic(s)"),
+                None,
+            ),
+        )
+        .into_iter()
+        .collect()
     }
 }
 
@@ -66,24 +66,24 @@ impl Validator for StructuredDiagnosticsValidator {
 pub fn all() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
     Ok(vec![
         Box::new(StructuredDiagnosticsValidator {
-            rule_id: "PY-3.1".parse()?,
-            title: "Ruff diagnostics must pass",
-            array_key: None,
+            rule_id: BuiltInPythonRule::Py3Rule1.id(),
+            title: static_title("Ruff diagnostics must pass")?,
+            diagnostics_array: DiagnosticsArray::Root,
         }),
         Box::new(StructuredDiagnosticsValidator {
-            rule_id: "PY-3.2".parse()?,
-            title: "Python type-check diagnostics must pass",
-            array_key: Some("generalDiagnostics"),
+            rule_id: BuiltInPythonRule::Py3Rule2.id(),
+            title: static_title("Python type-check diagnostics must pass")?,
+            diagnostics_array: DiagnosticsArray::GeneralDiagnostics,
         }),
         Box::new(StructuredDiagnosticsValidator {
-            rule_id: "PY-5.5".parse()?,
-            title: "Ruff diagnostics must be structured",
-            array_key: None,
+            rule_id: BuiltInPythonRule::Py5Rule5.id(),
+            title: static_title("Ruff diagnostics must be structured")?,
+            diagnostics_array: DiagnosticsArray::Root,
         }),
         Box::new(StructuredDiagnosticsValidator {
-            rule_id: "PY-5.6".parse()?,
-            title: "Python type diagnostics must be structured",
-            array_key: Some("generalDiagnostics"),
+            rule_id: BuiltInPythonRule::Py5Rule6.id(),
+            title: static_title("Python type diagnostics must be structured")?,
+            diagnostics_array: DiagnosticsArray::GeneralDiagnostics,
         }),
     ])
 }

@@ -23,9 +23,9 @@ pub(super) fn fmt_contract_error(
             formatter,
             "event contract mismatch: expected {}@{}, received {}@{}",
             expected.as_str(),
-            expected_schema_version.value(),
+            expected_schema_version.as_nonzero().get(),
             received.as_str(),
-            received_schema_version.value()
+            received_schema_version.as_nonzero().get()
         ),
         EventingError::DuplicateEventContract { event_type } => {
             write!(

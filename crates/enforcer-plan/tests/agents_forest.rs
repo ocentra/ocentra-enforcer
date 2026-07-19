@@ -1,12 +1,17 @@
 use std::collections::HashMap;
 
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::paths::RelPath;
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::plan_types::{
+    ForestTier, PlanBudgetBytes, PlanCondition, PlanDocumentText, PlanName, PlanProjectName,
+    PlanResumeAnchor, PlanWorkspaceName,
+};
 use enforcer_plan::agents_forest::{
     check_chain_resolves, declares_transitional_intent, run_resume_simulation, scaffold_forest,
     AgentsBudgetValidator, AgentsRoutingDeclaredValidator, AgentsTreeTerminatesValidator,
-    ForestFacts, ForestNames, ForestTier, ResumeSimOutcome, TierDocument,
+    ForestFacts, ForestNames, ResumeSimOutcome, TierDocument,
 };
 use enforcer_validator::harness::run_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -19,37 +24,53 @@ fn rid(s: &str) -> Result<RuleId, Box<dyn std::error::Error>> {
     Ok(s.parse()?)
 }
 
-fn facts() -> ForestFacts {
-    ForestFacts::with_defaults(ForestNames {
-        workspace_name: "dev-machine".to_owned(),
-        project_name: "ocentra-enforcer".to_owned(),
-        plan_name: "enforcer-selfhost-plan".to_owned(),
-        project_tier_path: "AGENTS.md".to_owned(),
-        plan_tier_path: "docs/plans/enforcer-selfhost-plan/AGENTS.md".to_owned(),
-        resume_anchor: "docs/plans/enforcer-selfhost-plan/RESUME_STATE.md".to_owned(),
-    })
+fn repo_root() -> Result<RepoRoot, Box<dyn std::error::Error>> {
+    Ok(RepoRoot::try_from(
+        manifest_dir().to_string_lossy().into_owned(),
+    )?)
+}
+
+fn rel(path: &str) -> Result<RelPath, Box<dyn std::error::Error>> {
+    Ok(path.parse()?)
+}
+
+fn facts() -> Result<ForestFacts, Box<dyn std::error::Error>> {
+    Ok(ForestFacts::with_defaults(ForestNames {
+        workspace_name: PlanWorkspaceName::try_new("dev-machine".to_owned())?,
+        project_name: PlanProjectName::try_new("ocentra-enforcer".to_owned())?,
+        plan_name: PlanName::try_new("enforcer-selfhost-plan")?,
+        project_tier_path: "AGENTS.md".parse()?,
+        plan_tier_path: "docs/plans/enforcer-selfhost-plan/AGENTS.md".parse()?,
+        resume_anchor: PlanResumeAnchor::try_new(
+            "docs/plans/enforcer-selfhost-plan/RESUME_STATE.md".to_owned(),
+        )?,
+    }))
+}
+
+fn document(source: impl Into<String>) -> Result<PlanDocumentText, Box<dyn std::error::Error>> {
+    Ok(PlanDocumentText::try_new(source.into())?)
 }
 
 #[test]
 fn scaffold_renders_all_three_tiers_with_structured_markers(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let forest = scaffold_forest(&facts())?;
+    let forest = scaffold_forest(&facts()?)?;
     for (tier, rendered) in [
         (ForestTier::Global, &forest.global),
         (ForestTier::Project, &forest.project),
         (ForestTier::Plan, &forest.plan),
     ] {
-        assert!(rendered.contains("<!-- agents-read-first -->"));
-        assert!(rendered.contains("<!-- agents-next-tier -->"));
-        assert!(rendered.contains("<!-- agents-decision-tree -->"));
-        assert!(rendered.contains(tier.marker()));
+        assert!(rendered.as_str().contains("<!-- agents-read-first -->"));
+        assert!(rendered.as_str().contains("<!-- agents-next-tier -->"));
+        assert!(rendered.as_str().contains("<!-- agents-decision-tree -->"));
+        assert!(rendered.as_str().contains(tier.marker()));
     }
     Ok(())
 }
 
 #[test]
 fn scaffold_is_deterministic_across_two_runs() -> Result<(), Box<dyn std::error::Error>> {
-    let f = facts();
+    let f = facts()?;
     let first = scaffold_forest(&f)?;
     let second = scaffold_forest(&f)?;
     assert_eq!(first.global, second.global);
@@ -60,10 +81,10 @@ fn scaffold_is_deterministic_across_two_runs() -> Result<(), Box<dyn std::error:
 
 #[test]
 fn scaffolded_forest_resolves_and_simulates_resume() -> Result<(), Box<dyn std::error::Error>> {
-    let f = facts();
+    let f = facts()?;
     let forest = scaffold_forest(&f)?;
     let global_doc = TierDocument {
-        path: "AGENTS.md".to_owned(),
+        path: "AGENTS.md".parse()?,
         source: forest.global,
     };
     let project_doc = TierDocument {
@@ -81,7 +102,7 @@ fn scaffolded_forest_resolves_and_simulates_resume() -> Result<(), Box<dyn std::
     by_path.insert(project_doc.path.clone(), project_doc);
     by_path.insert(plan_doc.path.clone(), plan_doc);
     assert!(matches!(
-        run_resume_simulation(&global_doc, &by_path, 10_000),
+        run_resume_simulation(&global_doc, &by_path, PlanBudgetBytes::try_new(10_000)?),
         ResumeSimOutcome::Resolved { resume_anchor, .. } if resume_anchor == f.resume_anchor
     ));
     Ok(())
@@ -89,10 +110,10 @@ fn scaffolded_forest_resolves_and_simulates_resume() -> Result<(), Box<dyn std::
 
 #[test]
 fn resume_simulation_fails_closed_over_tight_budget() -> Result<(), Box<dyn std::error::Error>> {
-    let f = facts();
+    let f = facts()?;
     let forest = scaffold_forest(&f)?;
     let global_doc = TierDocument {
-        path: "AGENTS.md".to_owned(),
+        path: "AGENTS.md".parse()?,
         source: forest.global,
     };
     let project_doc = TierDocument {
@@ -107,21 +128,22 @@ fn resume_simulation_fails_closed_over_tight_budget() -> Result<(), Box<dyn std:
     by_path.insert(project_doc.path.clone(), project_doc);
     by_path.insert(plan_doc.path.clone(), plan_doc);
     assert!(matches!(
-        run_resume_simulation(&global_doc, &by_path, 1),
+        run_resume_simulation(&global_doc, &by_path, PlanBudgetBytes::try_new(1)?),
         ResumeSimOutcome::Broken(_)
     ));
     Ok(())
 }
 
 #[test]
-fn resume_simulation_fails_closed_on_a_cyclic_next_chain() {
+fn resume_simulation_fails_closed_on_a_backward_next_chain(
+) -> Result<(), Box<dyn std::error::Error>> {
     let global = TierDocument {
-        path: "global/AGENTS.md".to_owned(),
-        source: "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: project/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+        path: "global/AGENTS.md".parse()?,
+        source: document("<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: project/AGENTS.md\n<!-- /agents-next-tier -->")?,
     };
     let project = TierDocument {
-        path: "project/AGENTS.md".to_owned(),
-        source: "<!-- agents-forest-tier: project -->\n<!-- agents-next-tier -->\nNEXT: global/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+        path: "project/AGENTS.md".parse()?,
+        source: document("<!-- agents-forest-tier: project -->\n<!-- agents-next-tier -->\nNEXT: global/AGENTS.md\n<!-- /agents-next-tier -->")?,
     };
     let by_path = HashMap::from([
         (global.path.clone(), global.clone()),
@@ -129,55 +151,62 @@ fn resume_simulation_fails_closed_on_a_cyclic_next_chain() {
     ]);
 
     assert!(matches!(
-        run_resume_simulation(&global, &by_path, 10_000),
-        ResumeSimOutcome::Broken(reason) if reason.contains("cycle")
+        run_resume_simulation(&global, &by_path, PlanBudgetBytes::try_new(10_000)?),
+        ResumeSimOutcome::Broken(reason)
+            if reason.as_str().contains("must point to a `plan` tier")
     ));
+    Ok(())
 }
 
 #[test]
 fn resume_simulation_rejects_skipping_the_project_tier() -> Result<(), Box<dyn std::error::Error>> {
-    let f = facts();
+    let f = facts()?;
     let forest = scaffold_forest(&f)?;
     let global = TierDocument {
-        path: "AGENTS.md".to_owned(),
-        source: format!(
+        path: "AGENTS.md".parse()?,
+        source: document(format!(
             "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: {}\n<!-- /agents-next-tier -->",
             f.plan_tier_path
-        ),
+        ))?,
     };
     let plan = TierDocument {
-        path: f.plan_tier_path.clone(),
+        path: f.plan_tier_path,
         source: forest.plan,
     };
     let by_path = HashMap::from([(plan.path.clone(), plan)]);
 
     assert!(matches!(
-        run_resume_simulation(&global, &by_path, 10_000),
-        ResumeSimOutcome::Broken(reason) if reason.contains("must point to a `project` tier")
+        run_resume_simulation(&global, &by_path, PlanBudgetBytes::try_new(10_000)?),
+        ResumeSimOutcome::Broken(reason) if reason.as_str().contains("must point to a `project` tier")
     ));
     Ok(())
 }
 
 #[test]
 fn validators_hold_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
-    let root = manifest_dir();
+    let root = repo_root()?;
+    let routing_fail = rel("tests/fixtures/agents_forest/fail/missing-routing/AGENTS.md")?;
+    let global_pass = rel("tests/fixtures/agents_forest/pass/global/AGENTS.md")?;
     run_fixture_parity(
         &AgentsRoutingDeclaredValidator::new(rid("AGENTS-ROUTING.1")?),
         &root,
-        "tests/fixtures/agents_forest/fail/missing-routing/AGENTS.md",
-        "tests/fixtures/agents_forest/pass/global/AGENTS.md",
+        &routing_fail,
+        &global_pass,
     )?;
+    let tree_fail = rel("tests/fixtures/agents_forest/fail/dangling-leaf/AGENTS.md")?;
+    let plan_pass = rel("tests/fixtures/agents_forest/pass/plan/AGENTS.md")?;
     run_fixture_parity(
         &AgentsTreeTerminatesValidator::new(rid("AGENTS-TREE.1")?),
         &root,
-        "tests/fixtures/agents_forest/fail/dangling-leaf/AGENTS.md",
-        "tests/fixtures/agents_forest/pass/plan/AGENTS.md",
+        &tree_fail,
+        &plan_pass,
     )?;
+    let budget_fail = rel("tests/fixtures/agents_forest/fail/oversized/AGENTS.md")?;
     run_fixture_parity(
         &AgentsBudgetValidator::new(rid("AGENTS-BUDGET.1")?),
         &root,
-        "tests/fixtures/agents_forest/fail/oversized/AGENTS.md",
-        "tests/fixtures/agents_forest/pass/global/AGENTS.md",
+        &budget_fail,
+        &global_pass,
     )?;
     Ok(())
 }
@@ -192,13 +221,13 @@ fn chain_resolves_fires_on_broken_next_pointer() -> Result<(), Box<dyn std::erro
                 "tests/fixtures/agents_forest/fail/broken-chain/{name}"
             )))?;
             Ok(TierDocument {
-                path: name.to_owned(),
-                source,
+                path: name.parse()?,
+                source: document(source)?,
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     let findings = check_chain_resolves(&rid("AGENTS-CHAIN.1")?, &docs);
-    assert!(!findings.is_empty());
+    assert_eq!(findings.len(), 2);
     assert!(findings
         .iter()
         .all(|finding| finding.rule_id.as_str() == "AGENTS-CHAIN.1"));
@@ -210,18 +239,21 @@ fn chain_resolves_rejects_a_next_pointer_that_skips_a_tier(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let docs = vec![
         TierDocument {
-            path: "global/AGENTS.md".to_owned(),
-            source: "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: plan/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+            path: "global/AGENTS.md".parse()?,
+            source: document("<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: plan/AGENTS.md\n<!-- /agents-next-tier -->")?,
         },
         TierDocument {
-            path: "plan/AGENTS.md".to_owned(),
-            source: "<!-- agents-forest-tier: plan -->\n<!-- agents-next-tier -->\nNEXT: RESUME_STATE.md\n<!-- /agents-next-tier -->".to_owned(),
+            path: "plan/AGENTS.md".parse()?,
+            source: document("<!-- agents-forest-tier: plan -->\n<!-- agents-next-tier -->\nNEXT: RESUME_STATE.md\n<!-- /agents-next-tier -->")?,
         },
     ];
 
     let findings = check_chain_resolves(&rid("AGENTS-CHAIN.1")?, &docs);
     assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].title, "NEXT pointer targets wrong tier");
+    assert_eq!(
+        findings[0].title.as_str(),
+        "NEXT pointer targets wrong tier"
+    );
     Ok(())
 }
 
@@ -234,7 +266,10 @@ fn chain_resolves_silent_on_pass_fixtures() -> Result<(), Box<dyn std::error::Er
             let path = format!("pass/{tier}/AGENTS.md");
             let source =
                 std::fs::read_to_string(root.join("tests/fixtures/agents_forest").join(&path))?;
-            Ok(TierDocument { path, source })
+            Ok(TierDocument {
+                path: path.parse()?,
+                source: document(source)?,
+            })
         })
         .collect::<Result<Vec<_>, _>>()?;
     assert!(check_chain_resolves(&rid("AGENTS-CHAIN.1")?, &docs).is_empty());
@@ -244,15 +279,18 @@ fn chain_resolves_silent_on_pass_fixtures() -> Result<(), Box<dyn std::error::Er
 #[test]
 fn transition_intent_and_file_scope_contract_hold() -> Result<(), Box<dyn std::error::Error>> {
     let module_source = std::fs::read_to_string(manifest_dir().join("src/agents_forest.rs"))?;
-    assert!(declares_transitional_intent(&module_source));
-    let forest = scaffold_forest(&facts())?;
+    assert_eq!(
+        declares_transitional_intent(&document(module_source)?),
+        PlanCondition::Satisfied
+    );
+    let forest = scaffold_forest(&facts()?)?;
     for tier in [&forest.global, &forest.project, &forest.plan] {
-        assert!(declares_transitional_intent(tier));
+        assert_eq!(declares_transitional_intent(tier), PlanCondition::Satisfied);
     }
     let file: RelPath = "AGENTS.md".parse()?;
     let input = ValidationInput {
         file: &file,
-        source: "no managed blocks",
+        source: ValidationSource::from_text("no managed blocks"),
         scope: ScanScope::Files,
     };
     assert_eq!(

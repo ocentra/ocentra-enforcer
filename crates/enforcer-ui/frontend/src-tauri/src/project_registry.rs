@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use enforcer_domain::paths::RepoRoot;
 use enforcer_literal_scan::language_registry;
 use enforcer_memory::ids::repo_root;
 use enforcer_memory::store::Store;
@@ -43,7 +44,7 @@ pub(crate) struct ProjectRegistrationPreview {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GitWorktree {
-    pub(crate) root: PathBuf,
+    pub(crate) root: RepoRoot,
     pub(crate) branch: String,
 }
 
@@ -91,11 +92,18 @@ pub(crate) fn desktop_project_registration_preview(
     let requested_root = requested_root
         .canonicalize()
         .map_err(|error| format!("cannot resolve project root: {error}"))?;
-    let git_root = git_value(&requested_root, &["rev-parse", "--show-toplevel"]).map(PathBuf::from);
+    let requested_root = RepoRoot::try_from(requested_root.as_path())
+        .map_err(|error| format!("invalid project root: {error}"))?;
+    let git_root = git_value(
+        project_path(&requested_root),
+        &["rev-parse", "--show-toplevel"],
+    )
+    .map(|value| RepoRoot::try_from(value).map_err(|error| format!("invalid Git root: {error}")))
+    .transpose()?;
 
     let (root, repo_key, kind, main_root, branch, worktree, topology, git_worktree_count) =
         if let Some(git_root) = git_root {
-            let worktrees = discover_git_worktrees(&git_root)?;
+            let worktrees = discover_git_worktrees(project_path(&git_root))?;
             let main_root = worktrees
                 .first()
                 .ok_or_else(|| "git did not report a primary worktree".to_owned())?
@@ -104,11 +112,13 @@ pub(crate) fn desktop_project_registration_preview(
             let selected = worktrees
                 .iter()
                 .enumerate()
-                .find(|(_, worktree)| paths_equal(&worktree.root, &git_root))
+                .find(|(_, worktree)| {
+                    paths_equal(project_path(&worktree.root), project_path(&git_root))
+                })
                 .ok_or_else(|| {
                     format!(
                         "Git reported {} as a checkout, but it was absent from worktree discovery",
-                        git_root.display()
+                        git_root.as_str()
                     )
                 })?;
             let is_primary = selected.0 == 0;
@@ -122,9 +132,9 @@ pub(crate) fn desktop_project_registration_preview(
             };
             (
                 root,
-                project_repo_key(&main_root.display().to_string()),
+                project_repo_key(&main_root),
                 kind.to_owned(),
-                (!is_primary).then(|| main_root.display().to_string()),
+                (!is_primary).then(|| main_root.as_str().to_owned()),
                 selected.1.branch.clone(),
                 worktree.to_owned(),
                 topology.to_owned(),
@@ -133,7 +143,7 @@ pub(crate) fn desktop_project_registration_preview(
         } else {
             (
                 requested_root.clone(),
-                project_repo_key(&requested_root.display().to_string()),
+                project_repo_key(&requested_root),
                 "external".to_owned(),
                 None,
                 "not a Git checkout".to_owned(),
@@ -142,12 +152,14 @@ pub(crate) fn desktop_project_registration_preview(
                 0,
             )
         };
-    let root_display = root.display().to_string();
-    let indexed = memory_index_available(&root)
-        .then_some("ready")
-        .unwrap_or("missing");
+    let root_display = root.as_str().to_owned();
+    let indexed = if memory_index_available(&root) {
+        "ready"
+    } else {
+        "missing"
+    };
     let project = DesktopProject {
-        id: project_id_for_root(&root_display),
+        id: project_id_for_root(&root),
         name: project_name_for_root(&root),
         root: root_display,
         repo_key,
@@ -156,11 +168,11 @@ pub(crate) fn desktop_project_registration_preview(
         branch,
         worktree,
         indexed: indexed.to_owned(),
-        detected_languages: detect_project_languages(&root),
+        detected_languages: detect_project_languages(project_path(&root)),
         inspection: Some("live".to_owned()),
     };
     Ok(ProjectRegistrationPreview {
-        requested_root: requested_root.display().to_string(),
+        requested_root: requested_root.as_str().to_owned(),
         project,
         topology,
         git_worktree_count,
@@ -177,21 +189,22 @@ pub(crate) fn discover_desktop_project_worktrees(
         .first()
         .ok_or_else(|| "git did not report a primary worktree".to_owned())?
         .root
-        .display()
-        .to_string();
+        .clone();
+    let main_root_display = main_root.as_str().to_owned();
     let registry_path = desktop_project_registry_path()?;
     let mut projects = load_desktop_projects_from(&registry_path)?;
 
     for (index, worktree) in worktrees.iter().enumerate() {
-        let root = worktree.root.display().to_string();
+        let root = worktree.root.clone();
+        let root_display = root.as_str().to_owned();
         let kind = if index == 0 { "main" } else { "worktree" };
         let generated = DesktopProject {
             id: project_id_for_root(&root),
             name: project_name_for_root(&worktree.root),
-            root: root.clone(),
+            root: root_display.clone(),
             repo_key: project_repo_key(&main_root),
             kind: kind.to_owned(),
-            main_root: (index != 0).then(|| main_root.clone()),
+            main_root: (index != 0).then(|| main_root_display.clone()),
             branch: worktree.branch.clone(),
             worktree: if index == 0 {
                 "primary".to_owned()
@@ -199,12 +212,12 @@ pub(crate) fn discover_desktop_project_worktrees(
                 "linked".to_owned()
             },
             indexed: "missing".to_owned(),
-            detected_languages: detect_project_languages(&worktree.root),
+            detected_languages: detect_project_languages(project_path(&worktree.root)),
             inspection: Some("live".to_owned()),
         };
         if let Some(existing) = projects
             .iter_mut()
-            .find(|project| project.root.eq_ignore_ascii_case(&root))
+            .find(|project| project.root.eq_ignore_ascii_case(&root_display))
         {
             existing.repo_key = generated.repo_key;
             existing.kind = generated.kind;
@@ -221,7 +234,7 @@ pub(crate) fn discover_desktop_project_worktrees(
     Ok(ProjectDiscoveryPayload {
         projects,
         discovered_count: worktrees.len(),
-        main_root,
+        main_root: main_root_display,
     })
 }
 
@@ -260,14 +273,16 @@ pub(crate) fn paths_equal(left: &Path, right: &Path) -> bool {
         .eq_ignore_ascii_case(&right.as_os_str().to_string_lossy())
 }
 
-pub(crate) fn memory_index_available(root: &Path) -> bool {
-    let root_display = root.display().to_string();
-    let Ok(normalized_root) = repo_root(&root_display) else {
+pub(crate) fn memory_index_available(root: &RepoRoot) -> bool {
+    let Ok(normalized_root) = repo_root(root.as_str()) else {
         return false;
     };
-    Store::open(&root.join(".enforce").join("memory"), &normalized_root)
-        .map(|store| store.sqlite_path().exists())
-        .unwrap_or(false)
+    Store::open(
+        &project_path(root).join(".enforce").join("memory"),
+        &normalized_root,
+    )
+    .map(|store| store.sqlite_path().exists())
+    .unwrap_or(false)
 }
 
 pub(crate) fn parse_git_worktree_porcelain(input: &str) -> Result<Vec<GitWorktree>, String> {
@@ -278,7 +293,10 @@ pub(crate) fn parse_git_worktree_porcelain(input: &str) -> Result<Vec<GitWorktre
         let mut detached = false;
         for line in block.lines() {
             if let Some(value) = line.strip_prefix("worktree ") {
-                root = Some(PathBuf::from(value));
+                root = Some(
+                    RepoRoot::try_from(value.to_owned())
+                        .map_err(|error| format!("invalid Git worktree root: {error}"))?,
+                );
             } else if let Some(value) = line.strip_prefix("branch ") {
                 branch = Some(
                     value
@@ -309,12 +327,17 @@ pub(crate) fn parse_git_worktree_porcelain(input: &str) -> Result<Vec<GitWorktre
     Ok(worktrees)
 }
 
-fn project_id_for_root(root: &str) -> String {
+fn project_path(root: &RepoRoot) -> &Path {
+    Path::new(root.as_str())
+}
+
+fn project_id_for_root(root: &RepoRoot) -> String {
     format!("git-{}", project_repo_key(root))
 }
 
-fn project_repo_key(root: &str) -> String {
+fn project_repo_key(root: &RepoRoot) -> String {
     let slug: String = root
+        .as_str()
         .chars()
         .map(|character| {
             if character.is_ascii_alphanumeric() {
@@ -330,8 +353,9 @@ fn project_repo_key(root: &str) -> String {
         .join("-")
 }
 
-fn project_name_for_root(root: &Path) -> String {
-    root.file_name()
+fn project_name_for_root(root: &RepoRoot) -> String {
+    project_path(root)
+        .file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.trim().is_empty())
         .unwrap_or("Git worktree")
@@ -354,7 +378,10 @@ pub(crate) fn register_desktop_project_at(
         .iter()
         .position(|existing| existing.id == project.id)
     {
-        projects[index] = project;
+        let existing = projects
+            .get_mut(index)
+            .ok_or_else(|| "registered project index disappeared during update".to_owned())?;
+        *existing = project;
     } else if let Some(existing) = projects
         .iter()
         .find(|existing| existing.root.eq_ignore_ascii_case(&project.root))
@@ -405,16 +432,18 @@ fn validate_desktop_project(project: &DesktopProject) -> Result<(), String> {
     if !matches!(project.indexed.as_str(), "ready" | "stale" | "missing") {
         return Err("desktop project index state must be ready, stale, or missing".to_owned());
     }
-    if project.kind == "worktree"
-        && project
-            .main_root
-            .as_deref()
-            .is_none_or(|root| root.trim().is_empty())
-    {
+    let missing_main_root = match project.main_root.as_deref() {
+        None => true,
+        Some(root) => root.trim().is_empty(),
+    };
+    if project.kind == "worktree" && missing_main_root {
         return Err("desktop worktree registration requires mainRoot".to_owned());
     }
     if project.detected_languages.iter().any(|language| {
-        language != "iac" && !language_registry().iter().any(|spec| spec.id == language)
+        language != "iac"
+            && !language_registry()
+                .iter()
+                .any(|spec| spec.id.as_str() == language)
     }) {
         return Err("desktop project languages must be recognized scanner registry IDs".to_owned());
     }

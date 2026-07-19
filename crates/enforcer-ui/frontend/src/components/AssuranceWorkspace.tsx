@@ -1,11 +1,11 @@
 import { CircleAlert, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { type ReactElement, useState } from "react";
 import type { Project } from "../data/enforcerAppData";
 
 export type SecurityProfilePayload = { sourcePath: string; profileName: string; requiredTestCategories: string[]; invariants: string[]; rules: Array<{ ruleId: string; tier: string; backed: boolean }>; activated: boolean; projectActivation: string; caveat: string };
 type AssuranceTab = "profile" | "tests" | "invariants" | "rules";
 
-export function AssuranceWorkspace({ project, profile, loading, error, onActivate }: { project: Project; profile?: SecurityProfilePayload; loading: boolean; error: string; onActivate: (request: { sourceSpec: string; owner: string; reason: string }) => Promise<void> }) {
+export function AssuranceWorkspace({ project, profile, loading, error, onActivate }: { project: Project; profile?: SecurityProfilePayload | undefined; loading: boolean; error: string; onActivate: (request: { sourceSpec: string; owner: string; reason: string }) => Promise<void> }): ReactElement {
   const [sourceSpec, setSourceSpec] = useState(""); const [owner, setOwner] = useState(""); const [reason, setReason] = useState(""); const [saving, setSaving] = useState(false); const [saveError, setSaveError] = useState("");
   const [tab, setTab] = useState<AssuranceTab>("profile");
   return <section className="main-surface assurance-workspace">

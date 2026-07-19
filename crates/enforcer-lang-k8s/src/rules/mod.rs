@@ -2,4 +2,4 @@
 //! the per-family rule-id breakdown.
 
 pub mod registry;
-pub mod spec;
+pub(crate) mod spec;

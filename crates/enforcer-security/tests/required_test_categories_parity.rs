@@ -19,7 +19,7 @@ use enforcer_security::rules::required_test_categories::{
     RequiredTestCategoriesMapValidator, RequiredTestCategoriesSevenValidator,
 };
 use enforcer_validator::error::HarnessError;
-use enforcer_validator::harness::run_fixture_parity;
+use enforcer_validator::harness::run_fixture_parity as assert_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// Typed failure surface for this proof file — every fallible step maps
@@ -62,7 +62,10 @@ fn h02_rule_scaffold_parity_is_clean() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let catalog_path = manifest_dir.join("rules/required-test-categories.json");
     let registry: RuleRegistry = load_registry_from_files(&[catalog_path.as_path()])?;
-    assert_eq!(registry.len(), 2);
+    assert_eq!(
+        registry.count(),
+        enforcer_domain::rules_types::RuleRecordCount::from_records(0..2)
+    );
 
     let lookup = H02Lookup {
         seven: RequiredTestCategoriesSevenValidator::new()?,
@@ -75,7 +78,11 @@ fn h02_rule_scaffold_parity_is_clean() -> Result<(), ProofFailure> {
         .map(std::path::Path::to_path_buf)
         .ok_or(ProofFailure::RepoRoot)?;
 
-    let oracle = ParityOracle::new(&registry, &repo_root, BTreeSet::new());
+    let oracle = ParityOracle::new(
+        &registry,
+        enforcer_domain::paths::RepoRoot::try_from(repo_root.as_path())?,
+        BTreeSet::new(),
+    );
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),
@@ -88,11 +95,11 @@ fn h02_rule_scaffold_parity_is_clean() -> Result<(), ProofFailure> {
 fn req_testcat_seven_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = RequiredTestCategoriesSevenValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/required_test_categories/endpoint_a/bad/missing_replay_concurrency/manifest.json",
-        "tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/required_test_categories/endpoint_a/bad/missing_replay_concurrency/manifest.json".parse()?,
+        &"tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json".parse()?,
     )?;
 
     // The bad fixture's single finding must name every missing category.
@@ -102,7 +109,7 @@ fn req_testcat_seven_fixture_parity() -> Result<(), ProofFailure> {
     let record_path: RelPath = "crates/x/required-test-categories.json".parse()?;
     let bad_findings = validator.validate(ValidationInput {
         file: &record_path,
-        source: &bad_source,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(&bad_source),
         scope: ScanScope::Files,
     });
     assert_eq!(bad_findings.len(), 1);
@@ -110,7 +117,10 @@ fn req_testcat_seven_fixture_parity() -> Result<(), ProofFailure> {
         return Err(ProofFailure::MissingFinding);
     };
     assert!(
-        first.detail.contains("missing: replay, concurrency"),
+        first
+            .detail
+            .as_str()
+            .contains("missing: replay, concurrency"),
         "the finding must name exactly the missing categories, got: {}",
         first.detail
     );
@@ -121,11 +131,13 @@ fn req_testcat_seven_fixture_parity() -> Result<(), ProofFailure> {
 fn req_testcat_map_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = RequiredTestCategoriesMapValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/required_test_categories/orphan/bad/unit_no_tests/manifest.json",
-        "tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/required_test_categories/orphan/bad/unit_no_tests/manifest.json"
+            .parse()?,
+        &"tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -146,13 +158,13 @@ fn malformed_and_invalid_records_stay_silent() -> Result<(), ProofFailure> {
     for source in silent_inputs {
         let seven_findings = seven.validate(ValidationInput {
             file: &record_path,
-            source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
             scope: ScanScope::Files,
         });
         assert!(seven_findings.is_empty(), "expected silence for: {source}");
         let map_findings = map.validate(ValidationInput {
             file: &record_path,
-            source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
             scope: ScanScope::Files,
         });
         assert!(map_findings.is_empty(), "expected silence for: {source}");
@@ -174,7 +186,7 @@ fn fully_covered_unit_stays_clean_across_both_validators() -> Result<(), ProofFa
     ] {
         let findings = validator.validate(ValidationInput {
             file: &record_path,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         assert!(
@@ -200,7 +212,7 @@ fn orphan_unit_is_silent_under_the_seven_category_validator() -> Result<(), Proo
     let validator = RequiredTestCategoriesSevenValidator::new()?;
     let findings = validator.validate(ValidationInput {
         file: &record_path,
-        source: &source,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
         scope: ScanScope::Files,
     });
     assert!(findings.is_empty());
@@ -253,7 +265,7 @@ fn req_testcat_seven_property_over_all_category_subsets() -> Result<(), ProofFai
         let source = record_for_subset(mask);
         let seven_findings = seven.validate(ValidationInput {
             file: &record_path,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         let expected_seven = usize::from(mask != full_mask);
@@ -268,7 +280,7 @@ fn req_testcat_seven_property_over_all_category_subsets() -> Result<(), ProofFai
 
         let map_findings = map.validate(ValidationInput {
             file: &record_path,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         let expected_map = usize::from(mask == 0);

@@ -34,11 +34,7 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
-/// One high-confidence weak-crypto call-site pattern.
-struct WeakCryptoPattern {
-    regex: &'static str,
-    label: &'static str,
-}
+use crate::boundary::pattern::{LabelledPattern, LabelledPatternSource as WeakCryptoPattern};
 
 /// Call-site patterns for the vendor's `weak_hash`, `weak_cipher`, and
 /// `ecb_mode` categories (agent.py L27-44), narrowed from bare-word matches
@@ -96,9 +92,10 @@ const WEAK_CRYPTO_PATTERNS_SRC: &[WeakCryptoPattern] = &[
 /// `CYBER-WEAK-CRYPTO.1` — flags weak/broken cryptographic primitives
 /// (MD5/SHA1 hashing, DES/3DES/RC4 ciphers, ECB mode) as errors, and
 /// `Math.random()` used to build a secret/token as a warning.
+#[derive(Debug)]
 pub struct WeakCryptoValidator {
     rule_id: RuleId,
-    patterns: Vec<(Regex, &'static str)>,
+    patterns: Vec<LabelledPattern>,
     math_random: Regex,
     token_context: Regex,
 }
@@ -107,12 +104,14 @@ impl WeakCryptoValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut patterns = Vec::with_capacity(WEAK_CRYPTO_PATTERNS_SRC.len());
         for entry in WEAK_CRYPTO_PATTERNS_SRC {
-            let regex = Regex::new(entry.regex)
-                .map_err(|err| DecodeError::new("cyberskillsWeakCryptoPattern", err.to_string()))?;
-            patterns.push((regex, entry.label));
+            patterns.push(LabelledPattern::compile_source(
+                "cyberskillsWeakCryptoPattern",
+                entry,
+            )?);
         }
-        let math_random = Regex::new(r"Math\.random\s*\(\s*\)")
-            .map_err(|err| DecodeError::new("cyberskillsWeakCryptoMathRandom", err.to_string()))?;
+        let math_random = Regex::new(r"Math\.random\s*\(\s*\)").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsWeakCryptoMathRandom", err)
+        })?;
         // No `\b` before the keyword: real call sites name these values with
         // camelCase identifiers (`resetToken`, `authToken`, `sessionSecret`),
         // where a word-boundary assertion would never fire before the
@@ -120,9 +119,9 @@ impl WeakCryptoValidator {
         let token_context = Regex::new(
             r"(?i)(?:token|secret|password|passwd|session|api[_-]?key|auth)",
         )
-        .map_err(|err| DecodeError::new("cyberskillsWeakCryptoTokenContext", err.to_string()))?;
+        .map_err(|err| crate::boundary::regex::decode("cyberskillsWeakCryptoTokenContext", err))?;
         Ok(Self {
-            rule_id: "CYBER-WEAK-CRYPTO.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberWeakCrypto.id(),
             patterns,
             math_random,
             token_context,
@@ -137,45 +136,42 @@ impl Validator for WeakCryptoValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
-            for (regex, label) in &self.patterns {
-                if regex.is_match(line) && !matched_labels.contains(label) {
-                    matched_labels.push(*label);
+            for pattern in &self.patterns {
+                if pattern.regex().is_match(line)
+                    && !matched_labels.contains(&pattern.label().as_str())
+                {
+                    matched_labels.push(pattern.label().as_str());
                 }
             }
             if !matched_labels.is_empty() {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Weak or broken cryptographic primitive".to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Weak or broken cryptographic primitive",
+                    format!(
                         "Line uses a weak/broken cryptographic primitive: {}. Fix: use SHA-256 or \
                          SHA-3 for hashing, AES-256-GCM or ChaCha20-Poly1305 for encryption, and \
                          GCM/CTR (never ECB) as the cipher mode.",
                         matched_labels.join(", ")
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
             if self.math_random.is_match(line) && self.token_context.is_match(line) {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Warning,
-                    title: "Insecure randomness used for a security-sensitive value".to_owned(),
-                    detail: "Line uses Math.random() alongside a token/secret/session/auth \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Warning),
+                    "Insecure randomness used for a security-sensitive value",
+                    "Line uses Math.random() alongside a token/secret/session/auth \
                              keyword. Math.random() is not cryptographically secure and its \
                              output is predictable. Fix: use crypto.getRandomValues() or \
                              crypto.randomBytes() (JS/Node), the secrets module (Python), or \
-                             SecureRandom (Java) instead."
-                        .to_owned(),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                             SecureRandom (Java) instead.",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -184,22 +180,15 @@ impl Validator for WeakCryptoValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::WeakCryptoValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_weak_crypto() -> Result<(), Box<dyn std::error::Error>> {
         let v = WeakCryptoValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &v,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/crypto.weak-algorithm/bad/weak.py",
             "tests/fixtures/cyberskills/crypto.weak-algorithm/good/strong.py",
         )?;

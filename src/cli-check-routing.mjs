@@ -1,4 +1,5 @@
 import process from "node:process";
+import { withCachedArchitectureReports } from "./cli-architecture-scan-cache.mjs";
 
 function scopeLabel(scope) {
   if (!scope || scope.mode === "all") return "workspace";
@@ -38,11 +39,16 @@ function createArchitectureProgressReporter(context, checks) {
   };
 }
 
+function canonicalArchitectureChecks(checks, normalizeCheckName) {
+  return [...new Set(checks.filter((check) => check !== "architecture-policy").map((check) => normalizeCheckName(check)))];
+}
+
 export function runArchitecturePolicyCheck(context, deps) {
   const checks =
     context.config.architecturePolicyChecks ??
     deps.DEFAULT_ARCHITECTURE_POLICY_CHECKS;
-  const routedChecks = checks.filter((check) => check !== "architecture-policy");
+  const routedChecks = canonicalArchitectureChecks(checks, deps.normalizeCheckName);
+  const cachedDeps = withCachedArchitectureReports(deps);
   const progress = createArchitectureProgressReporter(context, routedChecks);
   const reports = routedChecks.map((check, index) => {
     progress("start", { check, index: index + 1 });
@@ -60,7 +66,7 @@ export function runArchitecturePolicyCheck(context, deps) {
           tracked: context.decoded.tracked,
           strictEmptyTestTrees: context.decoded.strictEmptyTestTrees,
         },
-        deps,
+        cachedDeps,
       );
     progress("done", {
       check,

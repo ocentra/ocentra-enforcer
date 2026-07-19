@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::severity::Severity;
-use enforcer_plan::lessons::{
-    run_doctor, ArtifactRef, LessonDomain, LessonId, LessonRecord, LessonRoute,
+use enforcer_domain::plan_types::{
+    ArtifactRef, LessonDomain, LessonId, LessonRoute, PlanCondition, PlanFileContent,
     RuleCandidateFixtures,
 };
+use enforcer_domain::severity::Severity;
+use enforcer_plan::lessons::{run_doctor, LessonRecord};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -24,10 +25,18 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
         supersedes_seq: None,
     };
     let mut contents = HashMap::new();
-    contents.insert(artifact, "lessonId L9".to_owned());
+    contents.insert(
+        artifact,
+        PlanFileContent::try_new("lessonId L9".to_owned())?,
+    );
     let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
 
-    let findings = run_doctor(&rule_id, &[record.clone()], &contents, &HashMap::new())?;
+    let findings = run_doctor(
+        &rule_id,
+        std::slice::from_ref(&record),
+        &contents,
+        &HashMap::new(),
+    )?;
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].severity, Severity::Error);
 
@@ -38,7 +47,7 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
     ] {
         let findings = run_doctor(
             &rule_id,
-            &[record.clone()],
+            std::slice::from_ref(&record),
             &contents,
             &HashMap::from([(id.clone(), incomplete)]),
         )?;
@@ -64,7 +73,7 @@ fn doctor_rejects_duplicate_artifact_references_for_distinct_required_routes() -
     let id: LessonId = "L10".parse()?;
     let artifact: ArtifactRef = "rule-candidate.json#L10".parse()?;
     let record = LessonRecord {
-        id: id.clone(),
+        id,
         date: "2026-07-13".parse()?,
         domain: LessonDomain::Harness,
         observed: "one artifact was repeated in persisted input".parse()?,
@@ -73,15 +82,19 @@ fn doctor_rejects_duplicate_artifact_references_for_distinct_required_routes() -
         landed_at: vec![artifact.clone(), artifact.clone()],
         supersedes_seq: None,
     };
-    let contents = HashMap::from([(artifact, "lessonId L10".to_owned())]);
+    let contents = HashMap::from([(
+        artifact,
+        PlanFileContent::try_new("lessonId L10".to_owned())?,
+    )]);
     let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
 
-    assert!(!record.is_fully_landed());
+    assert_eq!(record.landing_condition(), PlanCondition::Unsatisfied);
     let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new())?;
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].severity, Severity::Error);
     assert!(findings[0]
         .detail
+        .as_str()
         .contains("only 1 landed artifact(s) verified"));
     Ok(())
 }
@@ -100,6 +113,6 @@ fn duplicate_route_entries_do_not_inflate_required_landing_count() -> TestResult
         supersedes_seq: None,
     };
 
-    assert!(record.is_fully_landed());
+    assert_eq!(record.landing_condition(), PlanCondition::Satisfied);
     Ok(())
 }

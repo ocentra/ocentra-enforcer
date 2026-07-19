@@ -6,17 +6,19 @@
 //! `unsafe { ... }` block must be preceded by a `// SAFETY:` line comment
 //! explaining the invariant the caller is upholding.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::ExprUnsafe;
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RulePredicateResult;
 use enforcer_domain::severity::Severity;
+use enforcer_domain::telemetry_types::SourceLine;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The `RUST-SAFETY-COMMENT` `Validator`.
+#[derive(Debug)]
 pub struct SafetyCommentValidator {
     rule_id: RuleId,
 }
@@ -26,7 +28,7 @@ impl SafetyCommentValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-SAFETY-COMMENT".parse()?,
+            rule_id: BuiltInRustRule::SafetyComment.id(),
         })
     }
 }
@@ -37,7 +39,7 @@ impl Validator for SafetyCommentValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         // Line-based SAFETY-comment lookup: for each `unsafe { ... }`
@@ -45,80 +47,82 @@ impl Validator for SafetyCommentValidator {
         // non-blank source line contains `SAFETY:`. `syn` discards regular
         // comments from its AST, so this rule intentionally cross-checks
         // against the raw source text rather than the parsed tree.
-        let lines: Vec<&str> = input.source.lines().collect();
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
-            lines,
+            source: input.source,
         };
         visitor.visit_file(&file);
         visitor.findings
     }
 }
 
-struct Visitor<'s> {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a, 's> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
-    lines: Vec<&'s str>,
+    source: enforcer_domain::boundary::validation::ValidationSource<'s>,
 }
 
-impl<'s> Visitor<'s> {
-    fn has_safety_comment_above(&self, line_1_based: u32) -> bool {
+impl<'s> Visitor<'_, 's> {
+    fn has_safety_comment_above(&self, line: SourceLine) -> RulePredicateResult {
         // Walk upward through the contiguous `//`-comment block
         // immediately preceding the `unsafe` block (skipping blank lines
         // between the block start and the code line), checking each
         // comment line for `SAFETY:` — a multi-line `// SAFETY: ...` /
         // `// continuation...` block only needs the marker on ONE of its
         // lines, not necessarily the line directly touching `unsafe`.
-        let mut idx = line_1_based.saturating_sub(2); // convert to 0-based, step back one
+        let mut idx = line.value().get().saturating_sub(2); // convert to 0-based, step back one
         let mut seen_comment = false;
         loop {
-            let Some(text) = self.lines.get(idx as usize) else {
-                return false;
+            let Ok(index) = usize::try_from(idx) else {
+                return RulePredicateResult::NotMatched;
+            };
+            let Some(text) = self.source.as_str().lines().nth(index) else {
+                return RulePredicateResult::NotMatched;
             };
             let trimmed = text.trim();
             if trimmed.is_empty() {
                 if seen_comment || idx == 0 {
-                    return false;
+                    return RulePredicateResult::NotMatched;
                 }
                 if idx == 0 {
-                    return false;
+                    return RulePredicateResult::NotMatched;
                 }
                 idx -= 1;
                 continue;
             }
             if !trimmed.starts_with("//") {
-                return false;
+                return RulePredicateResult::NotMatched;
             }
             if trimmed.contains("SAFETY:") {
-                return true;
+                return RulePredicateResult::Matched;
             }
             seen_comment = true;
             if idx == 0 {
-                return false;
+                return RulePredicateResult::NotMatched;
             }
             idx -= 1;
         }
     }
 }
 
-impl<'ast, 's> Visit<'ast> for Visitor<'s> {
+impl<'ast, 's> Visit<'ast> for Visitor<'_, 's> {
     fn visit_expr_unsafe(&mut self, item: &'ast ExprUnsafe) {
-        let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
-        if !self.has_safety_comment_above(line) {
-            self.findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "`unsafe` block with no `// SAFETY:` comment".to_owned(),
-                detail: "Fix: add a `// SAFETY: ...` comment immediately above this `unsafe` \
-                          block explaining the invariant the caller upholds."
-                    .to_owned(),
-                file: self.file.clone(),
+        let line = crate::boundary::finding::source_line(item);
+        if self.has_safety_comment_above(line) == RulePredicateResult::NotMatched {
+            let Ok(finding) = crate::boundary::finding::from_source(
+                (self.rule_id, Severity::Error),
+                "`unsafe` block with no `// SAFETY:` comment",
+                "Fix: add a `// SAFETY: ...` comment immediately above this `unsafe` \
+                          block explaining the invariant the caller upholds.",
+                self.file,
                 line,
-                snippet: None,
-            });
+            ) else {
+                return;
+            };
+            self.findings.push(finding);
         }
         visit::visit_expr_unsafe(self, item);
     }
@@ -126,15 +130,10 @@ impl<'ast, 's> Visit<'ast> for Visitor<'s> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::SafetyCommentValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_missing_safety_comment_and_silent_when_present(
@@ -142,7 +141,6 @@ mod tests {
         let validator = SafetyCommentValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/safety-comment/fail_unsafe.rs",
             "fixtures/safety-comment/pass_unsafe.rs",
         )?;
@@ -150,13 +148,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = SafetyCommentValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

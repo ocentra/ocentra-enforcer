@@ -6,56 +6,20 @@
 //! [`build_route_plan`] is the single entry point: given a walked path list
 //! and the f03 [`ResolvedProjectTie`], it runs [`super::detect`],
 //! [`super::scope`], and [`super::native_tie`] and folds their outputs into
-//! one [`RoutePlanDto`]. Fixtures assert on the emitted plan, never on side
+//! one [`RoutePlanResponse`]. Fixtures assert on the emitted plan, never on side
 //! effects — this module performs no I/O of its own beyond what the caller
 //! already walked.
 
 use std::collections::BTreeSet;
 
+use crate::boundary::router::{NativeToolRouteResponse, RoutePlanResponse};
 use enforcer_config::project_tie::ResolvedProjectTie;
 use enforcer_domain::paths::RelPath;
-use serde::{Deserialize, Serialize};
+use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
-use super::detect::{detect_languages, DetectedLanguage};
-use super::native_tie::{native_tools_for, NativeToolRouteDto};
-use super::scope::{narrow, RouteScope};
-
-/// The enforcer rule pack a detected language routes to. One variant per
-/// landed `enforcer-lang-*` family crate (arc-06..12), plus the always-on
-/// literal-scan universal floor (arc-13). Deliberately does not
-/// reimplement any pack — this is a selection key only.
-#[doc = "SERDE-TAG-JUSTIFICATION: `RulePack` is a closed string-token set in the route-plan wire format. A tagged enum would alter that stable array shape; its containing `RoutePlanDto` supplies the object boundary and field name."]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum RulePack {
-    /// `enforcer-lang-rust` (arc-06).
-    Rust,
-    /// `enforcer-lang-ts` (arc-07).
-    TypeScript,
-    /// `enforcer-lang-py` (arc-08).
-    Python,
-    /// `enforcer-lang-security` (arc-10), attached alongside every detected
-    /// language's own pack — security rules are cross-cutting, not
-    /// language-exclusive.
-    Security,
-    /// The literal-scan universal floor (arc-13) — the T2 floor every
-    /// detected file gets, including [`DetectedLanguage::Other`] and
-    /// otherwise-unrouted extensions. Never a T1 blocker on its own.
-    LiteralScanFloor,
-    /// The h11 cyberskills-corpus security-audit pack
-    /// (`enforcer-lang-security::rules::cyberskills` +
-    /// `enforcer-security::cyberskills`) — IaC/cloud/manifest/header
-    /// predicates plus the scored WAF-SQLi matcher, harvested from the
-    /// vendored `anthropic-cybersecurity-skills` corpus. Cross-cutting like
-    /// [`RulePack::Security`] (attached alongside every detected
-    /// language's own pack, not language-exclusive): [`build_route_plan`]
-    /// attaches it once, unconditionally, whenever any language is
-    /// detected, exactly like [`RulePack::LiteralScanFloor`]. Additive
-    /// registration only (h11) — this variant does not replace or
-    /// restructure [`RulePack::Security`] or any pre-existing routing
-    /// rule.
-    SecurityAudit,
-}
+use super::detect::detect_languages;
+use super::native_tie::native_tools_for;
+use super::scope::narrow;
 
 /// Map a [`DetectedLanguage`] to the [`RulePack`]s it routes to (excluding
 /// the universal [`RulePack::LiteralScanFloor`], which [`build_route_plan`]
@@ -76,71 +40,42 @@ fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
     }
 }
 
-/// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
-/// proves the complete DTO, including all nested route DTOs, round-trips.
-///
-/// The full, serializable route plan: what scope it applies to, which
-/// languages were detected inside that scope, which enforcer rule packs
-/// each of those routes to, and which native tools (per f03's tie config)
-/// run alongside them. This is the one struct every consumer (f01, the
-/// check/scan/run MCP tools, c04) reads instead of hardcoding a language or
-/// tool.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RoutePlanDto {
-    /// The scope this plan was narrowed to (default: whole repo).
-    pub scope: RoutePlanScope,
-    /// Every language detected within `scope`, in stable sorted order.
-    pub languages: Vec<DetectedLanguage>,
-    /// The union of every detected language's rule packs, plus the
-    /// universal literal-scan floor whenever `languages` is non-empty. In
-    /// stable sorted order; never duplicated.
-    pub rule_packs: Vec<RulePack>,
-    /// The native tools selected to run per f03's tie config, one entry per
-    /// detected language that has a mapped [`super::native_tie::NativeToolRouteDto`].
-    /// In stable sorted order.
-    pub native_tools: Vec<NativeToolRouteDto>,
-}
+// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
+// proves the complete DTO, including all nested route DTOs, round-trips.
+//
+// The full, serializable route plan: what scope it applies to, which
+// languages were detected inside that scope, which enforcer rule packs
+// each of those routes to, and which native tools (per f03's tie config)
+// run alongside them. This is the one struct every consumer (f01, the
+// check/scan/run MCP tools, c04) reads instead of hardcoding a language or
+// tool.
+// The scope this plan was narrowed to (default: whole repo).
+// Every language detected within `scope`, in stable sorted order.
+// The union of every detected language's rule packs, plus the
+// universal literal-scan floor whenever `languages` is non-empty. In
+// stable sorted order; never duplicated.
+// The native tools selected to run per f03's tie config, one entry per
+// detected language that has a mapped [`super::native_tie::NativeToolRouteResponse`].
+// In stable sorted order.
+// RoutePlanResponse is defined in crate::boundary::router.
 
-/// The wire-serializable projection of [`RouteScope`] carried on
-/// [`RoutePlanDto`]. `RouteScope` itself is not `Serialize`/`Deserialize` (it
-/// borrows no data requiring that), but consumers reading a persisted or
-/// MCP-transmitted plan need a flat, self-describing shape — this mirrors
-/// [`RouteScope`]'s variants one-to-one.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "root", rename_all = "camelCase")]
-pub enum RoutePlanScope {
-    /// Whole repository.
-    Repo,
-    /// Whole Cargo workspace.
-    Workspace,
-    /// One Cargo crate, carrying its repo-relative root.
-    Crate(String),
-    /// One non-Cargo package, carrying its repo-relative root.
-    Package(String),
-    /// An arbitrary folder, carrying its repo-relative root.
-    Folder(String),
-    /// A named monorepo domain, carrying its repo-relative root.
-    Domain(String),
-    /// A git diff range.
-    Diff,
-}
+// The wire-serializable projection of [`RouteScope`] carried on
+// [`RoutePlanResponse`]. `RouteScope` itself is not `Serialize`/`Deserialize` (it
+// borrows no data requiring that), but consumers reading a persisted or
+// MCP-transmitted plan need a flat, self-describing shape — this mirrors
+// [`RouteScope`]'s variants one-to-one.
+// RouteScope is the canonical domain enum; its wire serde lives in
+// enforcer-domain's scan boundary.
+// Whole repository.
+// Whole Cargo workspace.
+// One Cargo crate, carrying its repo-relative root.
+// One non-Cargo package, carrying its repo-relative root.
+// An arbitrary folder, carrying its repo-relative root.
+// A named monorepo domain, carrying its repo-relative root.
+// A git diff range.
+// No crate-local route-scope projection is maintained.
 
-impl From<&RouteScope> for RoutePlanScope {
-    fn from(scope: &RouteScope) -> Self {
-        match scope {
-            RouteScope::Repo => RoutePlanScope::Repo,
-            RouteScope::Workspace => RoutePlanScope::Workspace,
-            RouteScope::Crate(root) => RoutePlanScope::Crate(root.clone()),
-            RouteScope::Package(root) => RoutePlanScope::Package(root.clone()),
-            RouteScope::Folder(root) => RoutePlanScope::Folder(root.clone()),
-            RouteScope::Domain(root) => RoutePlanScope::Domain(root.clone()),
-            RouteScope::Diff => RoutePlanScope::Diff,
-        }
-    }
-}
-
-/// Build the [`RoutePlanDto`] for a walked, repo-relative path list, narrowed
+/// Build the [`RoutePlanResponse`] for a walked, repo-relative path list, narrowed
 /// to `scope`, with native tools attached per `tie` (f03's resolved
 /// `.enforce/config` view).
 ///
@@ -150,7 +85,7 @@ impl From<&RouteScope> for RoutePlanScope {
 /// 2. detect languages within the narrowed set
 ///    ([`super::detect::detect_languages`]).
 /// 3. route each detected language to its [`RulePack`]s and, per `tie`, its
-///    [`NativeToolRouteDto`] ([`super::native_tie::native_tools_for`]).
+///    [`NativeToolRouteResponse`] ([`super::native_tie::native_tools_for`]).
 ///
 /// An empty or fully-unknown narrowed set yields an honest empty plan
 /// (`languages`/`rule_packs`/`native_tools` all empty) — never a false
@@ -159,7 +94,7 @@ pub fn build_route_plan(
     paths: &[RelPath],
     scope: &RouteScope,
     tie: &ResolvedProjectTie,
-) -> RoutePlanDto {
+) -> RoutePlanResponse {
     let narrowed = narrow(paths, scope);
     let narrowed_paths: Vec<RelPath> = narrowed.into_iter().cloned().collect();
     let languages_set = detect_languages(&narrowed_paths);
@@ -177,15 +112,17 @@ pub fn build_route_plan(
         rule_packs.insert(RulePack::SecurityAudit);
     }
 
-    let mut native_tools: Vec<NativeToolRouteDto> = Vec::new();
+    let mut native_tools: Vec<NativeToolRouteResponse> = Vec::new();
     for language in &languages {
         native_tools.extend(native_tools_for(*language, tie));
     }
     native_tools.sort_by_key(|route| route.tool);
     native_tools.dedup_by_key(|route| route.tool);
 
-    RoutePlanDto {
-        scope: RoutePlanScope::from(scope),
+    RoutePlanResponse {
+        // CLONE-JUSTIFICATION: the response owns its canonical scope after
+        // the borrowed planning input is released.
+        scope: scope.clone(),
         languages,
         rule_packs: rule_packs.into_iter().collect(),
         native_tools,
@@ -194,22 +131,21 @@ pub fn build_route_plan(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_route_plan, RoutePlanScope, RulePack};
-    use crate::router::detect::DetectedLanguage;
-    use crate::router::scope::RouteScope;
+    use super::build_route_plan;
     use enforcer_config::project_tie::{ProjectConfig, ResolvedProjectTie};
     use enforcer_config::serde::{WireNativeMode, WireNativeTool};
     use enforcer_domain::config_types::{ConfigJson, ConfigSource};
+    use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
     use std::str::FromStr;
 
-    fn rel(path: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
-        Ok(enforcer_domain::paths::RelPath::from_str(path)?)
+    fn rel(literal: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
+        Ok(enforcer_domain::paths::RelPath::from_str(literal)?)
     }
 
     fn default_tie() -> Result<ResolvedProjectTie, Box<dyn std::error::Error>> {
         Ok(ResolvedProjectTie::resolve(
             &ProjectConfig::default(),
-            &ConfigSource("<test>".to_owned()),
+            &ConfigSource::from_owned("<test>".to_owned()),
         )?)
     }
 
@@ -224,20 +160,28 @@ mod tests {
         ];
         let tie = default_tie()?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
-        assert_eq!(plan.scope, RoutePlanScope::Repo);
-        assert!(plan.languages.contains(&DetectedLanguage::Rust));
-        assert!(plan.languages.contains(&DetectedLanguage::TypeScript));
-        assert!(plan.rule_packs.contains(&RulePack::Rust));
-        assert!(plan.rule_packs.contains(&RulePack::TypeScript));
-        assert!(plan.rule_packs.contains(&RulePack::LiteralScanFloor));
-        assert!(plan
-            .native_tools
-            .iter()
-            .any(|route| route.tool == WireNativeTool::Cargo));
-        assert!(plan
-            .native_tools
-            .iter()
-            .any(|route| route.tool == WireNativeTool::Tsc));
+        assert_eq!(plan.scope, RouteScope::Repo);
+        assert_eq!(
+            plan.languages,
+            vec![DetectedLanguage::Rust, DetectedLanguage::TypeScript]
+        );
+        assert_eq!(
+            plan.rule_packs,
+            vec![
+                RulePack::Rust,
+                RulePack::TypeScript,
+                RulePack::Security,
+                RulePack::LiteralScanFloor,
+                RulePack::SecurityAudit,
+            ]
+        );
+        assert_eq!(
+            plan.native_tools
+                .iter()
+                .map(|route| route.tool)
+                .collect::<Vec<_>>(),
+            vec![WireNativeTool::Cargo, WireNativeTool::Tsc]
+        );
         Ok(())
     }
 
@@ -247,8 +191,15 @@ mod tests {
         let tie = default_tie()?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
         assert_eq!(plan.languages, vec![DetectedLanguage::Python]);
-        assert!(!plan.rule_packs.contains(&RulePack::Rust));
-        assert!(plan.rule_packs.contains(&RulePack::Python));
+        assert_eq!(
+            plan.rule_packs,
+            vec![
+                RulePack::Python,
+                RulePack::Security,
+                RulePack::LiteralScanFloor,
+                RulePack::SecurityAudit,
+            ]
+        );
         Ok(())
     }
 
@@ -261,10 +212,18 @@ mod tests {
             rel("web/index.ts")?,
         ];
         let tie = default_tie()?;
-        let scope = RouteScope::Crate("crates/enforcer-scan".to_owned());
+        let scope = RouteScope::Crate("crates/enforcer-scan".parse()?);
         let plan = build_route_plan(&paths, &scope, &tie);
         assert_eq!(plan.languages, vec![DetectedLanguage::Rust]);
-        assert!(!plan.languages.contains(&DetectedLanguage::TypeScript));
+        assert_eq!(
+            plan.rule_packs,
+            vec![
+                RulePack::Rust,
+                RulePack::Security,
+                RulePack::LiteralScanFloor,
+                RulePack::SecurityAudit,
+            ]
+        );
         Ok(())
     }
 
@@ -291,7 +250,15 @@ mod tests {
         let paths = vec![rel("Cargo.toml")?, rel("src/lib.rs")?];
         let tie = default_tie()?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
-        assert!(plan.rule_packs.contains(&RulePack::SecurityAudit));
+        assert_eq!(
+            plan.rule_packs,
+            vec![
+                RulePack::Rust,
+                RulePack::Security,
+                RulePack::LiteralScanFloor,
+                RulePack::SecurityAudit,
+            ]
+        );
         Ok(())
     }
 
@@ -318,8 +285,8 @@ mod tests {
         })
         .to_string();
         let tie = enforcer_config::project_tie::parse_project_tie(
-            &ConfigJson(raw),
-            &ConfigSource("<test>".to_owned()),
+            &ConfigJson::from_owned(raw),
+            &ConfigSource::from_owned("<test>".to_owned()),
         )?;
         let paths = vec![rel("Cargo.toml")?, rel("src/lib.rs")?];
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);

@@ -26,7 +26,7 @@ const FAILING_INGEST_TRACES_ARGS: &str =
 #[test]
 fn cli_invoke_unknown_tool_is_ok_with_the_exact_binding_text() -> TestResult {
     let output = cli_invoke("not_a_real_tool", "{}")?;
-    assert!(is_error_result(&output));
+    assert!(is_error_result(&output).is_error());
     assert!(output.contains("unknown tool: not_a_real_tool"));
     Ok(())
 }
@@ -40,19 +40,21 @@ fn cli_invoke_rejects_malformed_json_arguments() {
 #[test]
 fn cli_invoke_tool_level_error_is_ok_with_error_payload() -> TestResult {
     let output = cli_invoke("ingest_traces", FAILING_INGEST_TRACES_ARGS)?;
-    assert!(is_error_result(&output));
+    assert!(is_error_result(&output).is_error());
     assert!(output.contains("is not a directory"));
     Ok(())
 }
 
 #[test]
 fn is_error_result_false_for_a_genuine_ok_envelope() {
-    assert!(!is_error_result(r#"{"isError": false}"#));
+    let envelope = r#"{"isError": false}"#.into();
+    assert!(!is_error_result(&envelope).is_error());
 }
 
 #[test]
 fn is_error_result_true_for_malformed_json() {
-    assert!(is_error_result("not json"));
+    let envelope = "not json".into();
+    assert!(is_error_result(&envelope).is_error());
 }
 
 #[test]
@@ -62,17 +64,20 @@ fn parse_cli_args_extracts_json_output_and_progress_flags_in_any_position() -> T
         .map(|s| s.to_string())
         .collect();
     let parsed = parse_cli_args(&argv)?;
-    assert!(parsed.json_output);
-    assert!(parsed.progress);
+    assert!(parsed.json_output.is_json_output());
+    assert!(parsed.progress.reports_progress());
     assert_eq!(parsed.tool, "list_projects");
     assert_eq!(parsed.args_json, "{}");
     Ok(())
 }
 
 #[test]
-fn parse_cli_args_missing_tool_is_an_error() {
+fn parse_cli_args_rejects_invalid_empty_arguments_without_a_tool() {
     let argv: Vec<String> = ["--json"].iter().map(|s| s.to_string()).collect();
-    assert!(parse_cli_args(&argv).is_err());
+    assert!(matches!(
+        parse_cli_args(&argv),
+        Err(CliError::InvalidJson(reason)) if reason.contains("missing required <tool>")
+    ));
 }
 
 #[test]
@@ -146,7 +151,10 @@ fn run_cli_help_flag_exits_zero_without_dispatching_any_tool() {
         let argv: Vec<String> = [flag].iter().map(|s| s.to_string()).collect();
         let outcome = run_cli(&argv);
         assert_eq!(outcome.exit_code, 0);
-        assert!(outcome.stdout.is_some());
+        assert_eq!(
+            outcome.stdout.as_ref().map(ToString::to_string),
+            Some("Usage: enforcer-memory cli [--progress] [--json] <tool> [json|--flags]\n\nRun `tools/list` over the MCP surface (crate::mcp) for the full list of 14 tools and their input schemas.".to_owned())
+        );
         assert!(outcome.stderr.is_none());
     }
 }
@@ -213,7 +221,10 @@ fn run_cli_unknown_tool_exits_one_with_the_exact_binding_text() -> TestResult {
 
 #[test]
 fn run_cli_missing_tool_argument_is_a_usage_error_exit_one() {
-    let outcome = run_cli(&[]);
+    let outcome = run_cli(Vec::<String>::new());
     assert_eq!(outcome.exit_code, 1);
-    assert!(outcome.stderr.is_some());
+    assert_eq!(
+        outcome.stderr.as_ref().map(ToString::to_string),
+        Some("invalid JSON arguments: missing required <tool> argument".to_owned())
+    );
 }

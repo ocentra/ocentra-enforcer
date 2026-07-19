@@ -29,10 +29,12 @@ pub const BRANCH_FLOOR_PCT: CoveragePct = CoveragePct(80.0);
 // `super::adapters::coverage_report`, which rejects out-of-range values as
 // malformed, and by the two floor constants above.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+/// Validated finite coverage percentage in the inclusive zero-to-one-hundred range.
 pub struct CoveragePct(pub(crate) f64);
 
 /// Coverage metrics one recorded tool run reported, fully branded.
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Validated coverage metrics retained after recorded-report decoding.
 pub struct CoverageMetrics {
     /// Observed line coverage.
     pub line: CoveragePct,
@@ -92,63 +94,63 @@ impl CoverageFloorGate {
         };
         let mut findings = Vec::new();
         if metrics.line < LINE_FLOOR_PCT {
-            let title = String::from("line coverage below floor");
-            findings.push(Finding {
+            if let Some(finding) = domain_finding!(
                 // CLONE-JUSTIFICATION: each finding owns its rule id and
                 // file so the report outlives this borrowed gate/input.
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title,
-                detail: format!(
+                self.rule_id.clone(),
+                Severity::Error,
+                "line coverage below floor".to_owned(),
+                format!(
                     "line coverage {:.1}% is below the {:.0}% floor",
                     metrics.line.0, LINE_FLOOR_PCT.0
                 ),
                 // CLONE-JUSTIFICATION: same owned-report rationale as
                 // `rule_id` above.
-                file: file.clone(),
-                line: 1,
-                snippet: None,
-            });
+                file.clone(),
+                1,
+            ) {
+                findings.push(finding);
+            }
         }
         if metrics.branch < BRANCH_FLOOR_PCT {
-            let title = String::from("branch coverage below floor");
-            findings.push(Finding {
+            if let Some(finding) = domain_finding!(
                 // CLONE-JUSTIFICATION: each finding owns its rule id and
                 // file so the report outlives this borrowed gate/input.
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title,
-                detail: format!(
+                self.rule_id.clone(),
+                Severity::Error,
+                "branch coverage below floor".to_owned(),
+                format!(
                     "branch coverage {:.1}% is below the {:.0}% floor",
                     metrics.branch.0, BRANCH_FLOOR_PCT.0
                 ),
                 // CLONE-JUSTIFICATION: same owned-report rationale as
                 // `rule_id` above.
-                file: file.clone(),
-                line: 1,
-                snippet: None,
-            });
+                file.clone(),
+                1,
+            ) {
+                findings.push(finding);
+            }
         }
         if let Some(previous) = metrics.previous_line {
             if metrics.line < previous {
-                let title = String::from("line coverage dropped from previous run");
-                findings.push(Finding {
+                if let Some(finding) = domain_finding!(
                     // CLONE-JUSTIFICATION: each finding owns its rule id
                     // and file so the report outlives this borrowed
                     // gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title,
-                    detail: format!(
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    "line coverage dropped from previous run".to_owned(),
+                    format!(
                         "line coverage fell from {:.1}% to {:.1}%",
                         previous.0, metrics.line.0
                     ),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: file.clone(),
-                    line: 1,
-                    snippet: None,
-                });
+                    file.clone(),
+                    1,
+                ) {
+                    findings.push(finding);
+                }
             }
         }
         findings
@@ -164,23 +166,25 @@ impl Validator for CoverageFloorGate {
     /// coverage run is required in CI. A report the adapters boundary
     /// rejects is itself a blocking finding, never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match crate::security_pipeline::adapters::coverage_report::parse_recorded(input.source) {
+        match crate::security_pipeline::adapters::coverage_report::parse_recorded(
+            input.source.as_str(),
+        ) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
-                let title = String::from("coverage adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title,
-                    detail: format!("{rejection}"),
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    "coverage adapter output rejected".to_owned(),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

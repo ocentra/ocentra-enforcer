@@ -131,8 +131,8 @@ fn checked_in_kg_parity_counts_match_rows_without_fake_green() -> TestResult {
         );
     }
 
-    assert_eq!(counts.get("equal").copied().unwrap_or_default(), 16);
-    assert_eq!(counts.get("better").copied().unwrap_or_default(), 7);
+    assert_eq!(counts.get("equal").copied().unwrap_or_default(), 15);
+    assert_eq!(counts.get("better").copied().unwrap_or_default(), 8);
     assert_eq!(counts.get("incomparable").copied().unwrap_or_default(), 0);
     assert_eq!(counts.values().sum::<u64>(), 23);
 

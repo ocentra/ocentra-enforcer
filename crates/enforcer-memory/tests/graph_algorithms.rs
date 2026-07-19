@@ -15,12 +15,14 @@
 //! - `unrelated.rs`: a standalone function with no edges to the other
 //!   two files -- for "not everything is connected" negative coverage.
 
+use enforcer_domain::memory_types::RiskLevel;
+use enforcer_domain::memory_types::TraceDirection;
 use enforcer_memory::adr::{AdrError, AdrRecord, AdrStore};
 use enforcer_memory::analysis::query::{self, QueryError};
-use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::architecture;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::impact::{self, RiskLevel};
+use enforcer_memory::impact;
 use serde_json::json;
 use std::error::Error;
 use std::fs;
@@ -255,7 +257,7 @@ fn diff_impact_finds_transitively_affected_files_and_symbols() -> TestResult {
     let dir = tempfile::tempdir()?;
     let graph = build_fixture_graph(dir.path())?;
 
-    let report = impact::analyze_diff_impact(&graph, &["widgets.rs".to_string()], 3);
+    let report = impact::analyze_diff_impact(&graph, &["widgets.rs".into()], 3.into());
     assert_eq!(report.impacted.len(), 1);
     let impacted = &report.impacted[0];
     assert_eq!(impacted.rel_path, "widgets.rs");
@@ -275,7 +277,7 @@ fn diff_impact_on_unrelated_file_has_low_risk_and_no_cross_file_impact() -> Test
     let dir = tempfile::tempdir()?;
     let graph = build_fixture_graph(dir.path())?;
 
-    let report = impact::analyze_diff_impact(&graph, &["unrelated.rs".to_string()], 3);
+    let report = impact::analyze_diff_impact(&graph, &["unrelated.rs".into()], 3.into());
     assert_eq!(report.impacted.len(), 1);
     let impacted = &report.impacted[0];
     assert_eq!(impacted.risk, RiskLevel::Low);
@@ -396,5 +398,6 @@ fn query_with_relationship_hop_traverses_route_containment() -> TestResult {
 #[test]
 fn malformed_query_is_a_parse_error_not_a_panic() {
     let result = query::parse("MATCH n RETURN");
+    assert!(result.is_err());
     assert!(matches!(result, Err(QueryError::Parse { .. })));
 }

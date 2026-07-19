@@ -4,12 +4,12 @@ use super::fixtures::{
     metadata, metadata_with_event_id, subscriber, test_event_with_idempotency, TestEvent, TestText,
     TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
-use crate::bus::reports::dead_letter::DeadLetterReason;
 use crate::bus::EventBus;
 use crate::error::EventingError;
 use crate::queue::policy::EventQueuePolicy;
 use crate::request::EventResponseContract;
 use crate::request::RequestOptions;
+use enforcer_domain::events_types::DeadLetterReason;
 
 const IN_MEMORY_RETENTION_PROBE_COUNT: usize = 4097;
 const EXPECTED_IN_MEMORY_RETENTION_LIMIT: usize = 4096;
@@ -17,7 +17,8 @@ const EXPECTED_IN_MEMORY_RETENTION_LIMIT: usize = 4096;
 #[tokio::test]
 async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let policy = EventQueuePolicy::no_subscriber_queue(1)?.with_idempotency_registry();
+    let policy =
+        EventQueuePolicy::no_subscriber_queue(crate::event_count(1))?.with_idempotency_registry();
     let bus = EventBus::with_queue_policy(policy);
     bus.publish(
         test_event_with_idempotency(
@@ -43,14 +44,23 @@ async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
     .await?;
 
     let queued = bus.metrics_snapshot().await;
-    assert_eq!(queued.subscription_count, 0);
-    assert_eq!(queued.stored_event_count, 2);
-    assert_eq!(queued.dead_letter_count, 1);
-    assert_eq!(queued.queue.queued_event_count, 1);
-    assert_eq!(queued.queue.queued_event_id_count, 1);
-    assert_eq!(queued.queue.queued_idempotency_key_count, 1);
-    assert_eq!(queued.queue.completed_idempotency_key_count, 1);
-    assert_eq!(queued.queue.capacity, Some(1));
+    assert_eq!(crate::event_count_value(queued.subscription_count), 0);
+    assert_eq!(crate::event_count_value(queued.stored_event_count), 2);
+    assert_eq!(crate::event_count_value(queued.dead_letter_count), 1);
+    assert_eq!(crate::event_count_value(queued.queue.queued_event_count), 1);
+    assert_eq!(
+        crate::event_count_value(queued.queue.queued_event_id_count),
+        1
+    );
+    assert_eq!(
+        crate::event_count_value(queued.queue.queued_idempotency_key_count),
+        1
+    );
+    assert_eq!(
+        crate::event_count_value(queued.queue.completed_idempotency_key_count),
+        1
+    );
+    assert_eq!(queued.queue.capacity, Some(crate::event_count(1)));
 
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
@@ -61,15 +71,21 @@ async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
     )
     .await?;
     let drained = bus.metrics_snapshot().await;
-    assert_eq!(drained.subscription_count, 1);
-    assert_eq!(drained.queue.queued_event_count, 0);
-    assert_eq!(drained.queue.completed_idempotency_key_count, 2);
+    assert_eq!(crate::event_count_value(drained.subscription_count), 1);
+    assert_eq!(
+        crate::event_count_value(drained.queue.queued_event_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(drained.queue.completed_idempotency_key_count),
+        2
+    );
 
     let timeout = bus
         .publish_request(
             SlowMetricsRequest::new()?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(1))?,
+            RequestOptions::with_timeout(Duration::from_millis(1).into())?,
         )
         .await;
     assert!(matches!(
@@ -77,9 +93,15 @@ async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
         Err(EventingError::RequestTimedOut { .. })
     ));
     let timed_out = bus.metrics_snapshot().await;
-    assert_eq!(timed_out.requests.pending_request_count, 0);
-    assert_eq!(timed_out.requests.timed_out_request_count, 1);
-    assert_eq!(timed_out.dead_letter_count, 1);
+    assert_eq!(
+        crate::event_count_value(timed_out.requests.pending_request_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(timed_out.requests.timed_out_request_count),
+        1
+    );
+    assert_eq!(crate::event_count_value(timed_out.dead_letter_count), 1);
     assert_eq!(
         bus.dead_letters().await[0].reason,
         DeadLetterReason::QueueOverflow
@@ -109,7 +131,7 @@ async fn metrics_snapshot_reports_bounded_in_memory_event_retention(
     let journal = bus.journal().await;
 
     assert_eq!(
-        metrics.stored_event_count,
+        crate::event_count_value(metrics.stored_event_count),
         EXPECTED_IN_MEMORY_RETENTION_LIMIT
     );
     assert_eq!(journal.len(), EXPECTED_IN_MEMORY_RETENTION_LIMIT);
@@ -126,13 +148,13 @@ async fn metrics_snapshot_reports_bounded_in_memory_event_retention(
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct SlowMetricsRequest {
-    request_id: crate::RequestId,
+    request_id: String,
 }
 
 impl SlowMetricsRequest {
     fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            request_id: crate::RequestId::parse("metrics-request-1")?,
+            request_id: "metrics-request-1".to_owned(),
         })
     }
 }
@@ -141,16 +163,16 @@ impl crate::DomainEvent for SlowMetricsRequest {
     fn contract(&self) -> Result<crate::EventContract, EventingError> {
         Ok(crate::EventContract::new(
             crate::EventType::parse("eventing.metrics.request")?,
-            crate::SchemaVersion::new(1)?,
+            crate::SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<crate::AggregateKey, EventingError> {
-        crate::AggregateKey::parse("metrics-request-aggregate")
+        Ok(crate::AggregateKey::parse("metrics-request-aggregate")?)
     }
 
     fn idempotency_key(&self) -> Result<crate::IdempotencyKey, EventingError> {
-        crate::IdempotencyKey::parse("metrics-request-idempotency")
+        Ok(crate::IdempotencyKey::parse("metrics-request-idempotency")?)
     }
 }
 
@@ -158,7 +180,7 @@ impl crate::RequestEvent for SlowMetricsRequest {
     type Response = MetricsResponse;
 
     fn request_id(&self) -> Result<crate::RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(crate::RequestId::parse(&self.request_id)?)
     }
 }
 

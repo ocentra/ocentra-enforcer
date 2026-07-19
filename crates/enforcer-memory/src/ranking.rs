@@ -1,5 +1,5 @@
 //! X06.4 rank fusion (D-08 LOCKED): hybrid dense+BM25 via Reciprocal
-//! Rank Fusion (RRF, k≈60), hard filters EXCLUDE before rerank, soft
+//! Rank Fusion (RRF, kâ‰ˆ60), hard filters EXCLUDE before rerank, soft
 //! signals only boost, and the Recall@100-pre-rerank / reranker-lift
 //! measurement hooks the QA/parity harness (X06.9) reads.
 //!
@@ -10,7 +10,12 @@
 
 use std::collections::HashMap;
 
-use crate::search::document::{DocumentKind, SearchDocument};
+use crate::owned_boundary::Retained;
+use crate::search::document::SearchDocument;
+use enforcer_domain::memory_types::{
+    DocumentKind, RankingDocumentId, RankingFilterDecision, RankingFilterName,
+    RankingHardFilterPredicate, RankingPosition, RankingScore, RankingSnippet, RankingSourcePath,
+};
 
 /// One retriever's scored hit for one document. Full-text
 /// ([`crate::fulltext::FullTextIndex::search`]) and vector
@@ -18,35 +23,45 @@ use crate::search::document::{DocumentKind, SearchDocument};
 /// shape so [`fuse_rrf`] can treat them uniformly.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScoredCandidate {
-    pub doc_id: String,
-    pub score: f64,
+    pub doc_id: RankingDocumentId,
+    pub score: RankingScore,
 }
 
 /// A hard, binary inclusion/exclusion filter (permission/trust/repo
 /// scoping, D-08: "hard filters EXCLUDE before rerank"). `allow` returns
 /// `true` if `doc_id` may appear in the candidate pool at all.
 pub struct HardFilter {
-    name: &'static str,
-    predicate: Box<dyn Fn(&str) -> bool + Send + Sync>,
+    name: RankingFilterName,
+    predicate: RankingHardFilterPredicate,
+}
+
+impl std::fmt::Debug for HardFilter {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HardFilter")
+            .field("name", &self.name)
+            .field("predicate", &self.predicate)
+            .finish()
+    }
 }
 
 impl HardFilter {
-    pub fn new(
-        name: &'static str,
-        predicate: impl Fn(&str) -> bool + Send + Sync + 'static,
+    pub fn from_predicate(
+        name: RankingFilterName,
+        predicate: impl Fn(&RankingDocumentId) -> RankingFilterDecision + Send + Sync + 'static,
     ) -> Self {
         Self {
             name,
-            predicate: Box::new(predicate),
+            predicate: RankingHardFilterPredicate::from_predicate(predicate),
         }
     }
 
-    pub fn name(&self) -> &'static str {
-        self.name
+    pub fn name(&self) -> &RankingFilterName {
+        &self.name
     }
 
-    fn allows(&self, doc_id: &str) -> bool {
-        (self.predicate)(doc_id)
+    fn allows(&self, doc_id: &RankingDocumentId) -> RankingFilterDecision {
+        self.predicate.is_allowed(doc_id).into()
     }
 }
 
@@ -55,10 +70,10 @@ impl HardFilter {
 /// Recall@100 pre-rerank; the reranker cannot fix a missing candidate").
 #[derive(Debug, Clone, PartialEq)]
 pub struct CandidateTrace {
-    pub doc_id: String,
-    pub fulltext_rank: Option<usize>,
-    pub vector_rank: Option<usize>,
-    pub rrf_score: f64,
+    pub doc_id: RankingDocumentId,
+    pub fulltext_rank: Option<RankingPosition>,
+    pub vector_rank: Option<RankingPosition>,
+    pub rrf_score: RankingScore,
 }
 
 /// One ranked hit surviving into the reranked/context stage, carrying
@@ -66,14 +81,14 @@ pub struct CandidateTrace {
 /// needs a second corpus lookup.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RankedHit {
-    pub doc_id: String,
+    pub doc_id: RankingDocumentId,
     pub kind: DocumentKind,
-    pub snippet: String,
-    pub source_path: Option<String>,
+    pub snippet: RankingSnippet,
+    pub source_path: Option<RankingSourcePath>,
     /// Fusion-stage score (RRF). Overwritten by the reranker's own score
     /// once reranking runs, so this always reflects "the score this hit
     /// carried at the point it was last ranked".
-    pub score: f64,
+    pub score: RankingScore,
 }
 
 /// The output of [`fuse_rrf`]: the full pre-rerank trace (for
@@ -98,12 +113,17 @@ pub fn fuse_rrf(
     vector_ranked: &[ScoredCandidate],
     corpus: &[SearchDocument],
     hard_filters: &[HardFilter],
-    k: f64,
+    k: RankingScore,
 ) -> RankFusionResult {
+    let k = k.get();
     let corpus_index: HashMap<&str, &SearchDocument> =
         corpus.iter().map(|doc| (doc.id.as_str(), doc)).collect();
 
-    let passes_filters = |doc_id: &str| hard_filters.iter().all(|filter| filter.allows(doc_id));
+    let passes_filters = |doc_id: &RankingDocumentId| {
+        hard_filters
+            .iter()
+            .all(|filter| filter.allows(doc_id).is_allowed())
+    };
 
     let fulltext_rank_of: HashMap<&str, usize> = fulltext_ranked
         .iter()
@@ -137,16 +157,16 @@ pub fn fuse_rrf(
             let vector_rank = vector_rank_of.get(doc_id).copied();
             let mut rrf_score = 0.0;
             if let Some(rank) = fulltext_rank {
-                rrf_score += 1.0 / (k + rank as f64);
+                rrf_score += 1.0 / (k + crate::owned_boundary::usize_to_f64(rank));
             }
             if let Some(rank) = vector_rank {
-                rrf_score += 1.0 / (k + rank as f64);
+                rrf_score += 1.0 / (k + crate::owned_boundary::usize_to_f64(rank));
             }
             Some(CandidateTrace {
-                doc_id: doc_id.to_owned(),
-                fulltext_rank,
-                vector_rank,
-                rrf_score,
+                doc_id: doc_id.retained().into(),
+                fulltext_rank: fulltext_rank.map(Into::into),
+                vector_rank: vector_rank.map(Into::into),
+                rrf_score: rrf_score.into(),
             })
         })
         .collect();
@@ -163,10 +183,10 @@ pub fn fuse_rrf(
         .filter_map(|trace| {
             let doc = corpus_index.get(trace.doc_id.as_str())?;
             Some(RankedHit {
-                doc_id: trace.doc_id.clone(),
+                doc_id: trace.doc_id.retained(),
                 kind: doc.kind,
-                snippet: doc.snippet.clone(),
-                source_path: doc.source_path.clone(),
+                snippet: doc.snippet.as_str().into(),
+                source_path: doc.source_path.as_ref().map(|path| path.as_str().into()),
                 score: trace.rrf_score,
             })
         })
@@ -189,9 +209,9 @@ pub fn fuse_rrf(
 /// QA/parity harness (X06.9) pairs it with relevance grades to decide
 /// whether the movement was an improvement. Recording the raw magnitude
 /// here keeps this module's contract simple and testable.
-pub fn reranker_lift(pre_rerank_pool: &[CandidateTrace], context: &[RankedHit]) -> f64 {
+pub fn reranker_lift(pre_rerank_pool: &[CandidateTrace], context: &[RankedHit]) -> RankingScore {
     if pre_rerank_pool.is_empty() || context.is_empty() {
-        return 0.0;
+        return 0.0.into();
     }
     let pre_rank_of: HashMap<&str, usize> = pre_rerank_pool
         .iter()
@@ -204,13 +224,17 @@ pub fn reranker_lift(pre_rerank_pool: &[CandidateTrace], context: &[RankedHit]) 
     for (post_index, hit) in context.iter().enumerate() {
         if let Some(&pre_rank) = pre_rank_of.get(hit.doc_id.as_str()) {
             let post_rank = post_index + 1;
-            total_shift += (pre_rank as f64 - post_rank as f64).abs();
+            total_shift += (crate::owned_boundary::usize_to_f64(pre_rank)
+                - crate::owned_boundary::usize_to_f64(post_rank))
+            .abs();
             counted += 1;
         }
     }
     if counted == 0 {
-        return 0.0;
+        return 0.0.into();
     }
-    let pool_size = pre_rerank_pool.len() as f64;
-    (total_shift / counted as f64 / pool_size).min(1.0)
+    let pool_size = crate::owned_boundary::usize_to_f64(pre_rerank_pool.len());
+    (total_shift / crate::owned_boundary::usize_to_f64(counted) / pool_size)
+        .min(1.0)
+        .into()
 }

@@ -2,7 +2,7 @@
 //! `index_status` over the X06.1 [`crate::store::Store`] layout (one
 //! store directory per project under a caller-supplied `stores_dir`),
 //! matching the codebase-memory-mcp parity baseline's `list_projects`/
-//! `delete_project`/`index_status` tools (scout digest §1, rows 9-11).
+//! `delete_project`/`index_status` tools (scout digest Â§1, rows 9-11).
 //!
 //! [`crate::store::Store`] itself only knows how to open/init exactly
 //! one project at a time (see its module docs on the "no ghost project
@@ -27,7 +27,7 @@
 //! # Scope note: this is the library layer, not the MCP wire shape
 //!
 //! `docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md`
-//! (once its §9-12 follow-up pass lands) and the orchestrator's
+//! (once its Â§9-12 follow-up pass lands) and the orchestrator's
 //! subsequent verified-shape directive describe `list_projects`/
 //! `index_status`/`delete_project` as MCP tool *responses* -- JSON field
 //! names, project-argument aliases (`project`/`project_name`/
@@ -59,82 +59,61 @@
 //! (or a future `git.rs` accessor added by its own owning lane) is where
 //! that enrichment belongs.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use serde::Deserialize;
+use crate::boundary::store::ProjectStoreMarkerDto;
 
 use crate::error::MemoryError;
+use crate::owned_boundary::Retained;
 use crate::store::manifest::check_index_freshness;
+use enforcer_domain::memory_types::{
+    FreshnessState, IndexManifestWatermark, MemoryProjectCount, MemoryProjectId,
+    MemoryProjectInitializedAt, MemoryProjectLogName, MemoryProjectRepoRoot,
+    MemoryProjectStoreRoot, MemoryStorePath, MemoryStoresDirectory, MemoryStoresRoot,
+    ProjectStatus,
+};
 
 const STORE_MARKER_FILE: &str = "store.json";
 
 /// The subset of `store.json` this module reads back out (mirrors
-/// `crate::store::StoreMarker`, which is private to `store::mod` -- this
+/// `crate::store::StoreMarkerDto`, which is private to `store::mod` -- this
 /// is a deliberately separate, read-only projection rather than a
 /// visibility change to that module, per this lane's "consume Store API,
 /// smallest additive accessor" scope). Field names match
-/// `crate::store::StoreMarker`'s exactly (plain snake_case on the wire --
+/// `crate::store::StoreMarkerDto`'s exactly (plain snake_case on the wire --
 /// that struct has no `#[serde(rename_all)]`), so this projection reads
 /// the same `store.json` byte-for-byte without a separate wire format.
-#[derive(Debug, Clone, Deserialize)]
-struct StoreMarker {
-    project_id: String,
-    repo_root: String,
-    initialized_at: String,
-}
-
 /// One project's registry entry, as returned by [`list_projects`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectSummary {
-    pub project_id: String,
-    pub repo_root: String,
-    pub initialized_at: String,
-    pub store_root: PathBuf,
+    pub project_id: MemoryProjectId,
+    pub repo_root: MemoryProjectRepoRoot,
+    pub initialized_at: MemoryProjectInitializedAt,
+    pub store_root: MemoryProjectStoreRoot,
 }
 
 /// Per-log staleness detail inside an [`IndexStatusSummary`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogIndexStatus {
-    pub log_name: String,
-    pub log_length: u64,
+    pub log_name: MemoryProjectLogName,
+    pub log_length: MemoryProjectCount,
     pub state: FreshnessState,
 }
 
 /// Whether a log's derived index (if any) is safe to trust for reads.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FreshnessState {
-    /// No index manifest has been written for this log yet -- there is
-    /// nothing to be stale relative to (matches
-    /// [`crate::store::manifest::check_index_freshness`]'s `Ok(None)`
-    /// case).
-    NoIndexBuilt,
-    /// An index manifest exists and its recorded high-watermark matches
-    /// (or exceeds -- cannot happen by construction, but tolerated) the
-    /// log's current length.
-    Fresh { built_at: String, watermark: u64 },
-    /// An index manifest exists but is behind the log's current length.
-    Stale { watermark: u64, log_length: u64 },
-}
-
 /// Baseline-aligned coarse status (module docs, "scope note"): `Ready`
 /// when the operational graph has at least one node, `Empty` otherwise
 /// -- literally `nodes > 0` on the baseline, reproduced the same way
 /// here.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProjectStatus {
-    Ready,
-    Empty,
-}
-
 /// The staleness summary for one project, as returned by
 /// [`index_status`]. `nodes`/`edges`/`status` are the baseline-aligned
 /// fields (module docs, "scope note"); `logs` is this module's own
 /// staleness-summary contribution, kept as an extension alongside them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexStatusSummary {
-    pub project_id: String,
-    pub nodes: u64,
-    pub edges: u64,
+    pub project_id: MemoryProjectId,
+    pub nodes: MemoryProjectCount,
+    pub edges: MemoryProjectCount,
     pub status: ProjectStatus,
     pub logs: Vec<LogIndexStatus>,
 }
@@ -154,8 +133,8 @@ pub enum ProjectsError {
     /// a project id string, not yet a resolved store root.
     #[error("no project {project_id:?} found under {stores_dir:?}")]
     UnknownProject {
-        project_id: String,
-        stores_dir: PathBuf,
+        project_id: MemoryProjectId,
+        stores_dir: MemoryStoresRoot,
     },
 
     /// `delete_project`'s path-containment check failed: the resolved
@@ -163,8 +142,8 @@ pub enum ProjectsError {
     /// never deletes anything in this case.
     #[error("refusing to delete {resolved:?}: it is not inside stores_dir {stores_dir:?}")]
     PathTraversal {
-        resolved: PathBuf,
-        stores_dir: PathBuf,
+        resolved: MemoryProjectStoreRoot,
+        stores_dir: MemoryStoresRoot,
     },
 }
 
@@ -186,7 +165,7 @@ pub fn list_projects(stores_dir: &Path) -> ProjectsResult<Vec<ProjectSummary>> {
     let mut projects = Vec::new();
     let entries = std::fs::read_dir(stores_dir).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: stores_dir.to_path_buf(),
+            path: stores_dir.to_path_buf().into(),
             source,
         })
     })?;
@@ -194,7 +173,7 @@ pub fn list_projects(stores_dir: &Path) -> ProjectsResult<Vec<ProjectSummary>> {
     for entry in entries {
         let entry = entry.map_err(|source| {
             ProjectsError::Memory(MemoryError::Io {
-                path: stores_dir.to_path_buf(),
+                path: stores_dir.to_path_buf().into(),
                 source,
             })
         })?;
@@ -207,7 +186,7 @@ pub fn list_projects(stores_dir: &Path) -> ProjectsResult<Vec<ProjectSummary>> {
                 project_id: marker.project_id,
                 repo_root: marker.repo_root,
                 initialized_at: marker.initialized_at,
-                store_root: path,
+                store_root: path.into(),
             });
         }
     }
@@ -221,18 +200,18 @@ pub fn list_projects(stores_dir: &Path) -> ProjectsResult<Vec<ProjectSummary>> {
 /// Read `<project_root>/store.json`, returning `None` (not an error) if
 /// the marker does not exist -- this is how a non-project directory is
 /// distinguished from a real one throughout this module.
-fn read_marker(project_root: &Path) -> ProjectsResult<Option<StoreMarker>> {
+fn read_marker(project_root: &Path) -> ProjectsResult<Option<ProjectStoreMarkerDto>> {
     let marker_path = project_root.join(STORE_MARKER_FILE);
     if !marker_path.exists() {
         return Ok(None);
     }
     let raw = std::fs::read_to_string(&marker_path).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: marker_path.clone(),
+            path: marker_path.retained().into(),
             source,
         })
     })?;
-    let marker: StoreMarker = serde_json::from_str(&raw)
+    let marker: ProjectStoreMarkerDto = crate::boundary::json::decode(&raw)
         .map_err(|source| ProjectsError::Memory(MemoryError::Json(source)))?;
     Ok(Some(marker))
 }
@@ -250,16 +229,21 @@ fn read_marker(project_root: &Path) -> ProjectsResult<Option<StoreMarker>> {
 /// project whose SQLite file does not exist yet (never indexed) reports
 /// `nodes: 0, edges: 0, status: Empty` rather than an error, matching
 /// the baseline's `nodes>0 ? ready : empty` derivation exactly.
-pub fn index_status(stores_dir: &Path, project_id: &str) -> ProjectsResult<IndexStatusSummary> {
-    let store_root = resolve_existing_project(stores_dir, project_id)?;
+pub fn index_status<'a>(
+    stores_dir: impl Into<MemoryStoresDirectory<'a>>,
+    project_id: impl Into<MemoryProjectId>,
+) -> ProjectsResult<IndexStatusSummary> {
+    let stores_dir = stores_dir.into();
+    let project_id = project_id.into();
+    let store_root = resolve_existing_project(stores_dir, &project_id)?;
 
     let sqlite_path = store_root.join("operational.sqlite3");
     let (nodes, edges) = if sqlite_path.exists() {
         let graph = crate::store::sqlite::OperationalGraph::open(&sqlite_path)
             .map_err(ProjectsError::Memory)?;
         (
-            graph.node_count().map_err(ProjectsError::Memory)?,
-            graph.edge_count().map_err(ProjectsError::Memory)?,
+            graph.node_count().map_err(ProjectsError::Memory)?.get(),
+            graph.edge_count().map_err(ProjectsError::Memory)?.get(),
         )
     } else {
         (0, 0)
@@ -272,7 +256,7 @@ pub fn index_status(stores_dir: &Path, project_id: &str) -> ProjectsResult<Index
 
     let mut logs = Vec::new();
     for log_name in ["observations", "graph-events"] {
-        let log_path = store_root.join(format!("{log_name}.ndjson"));
+        let log_path: MemoryStorePath = store_root.join(format!("{log_name}.ndjson")).into();
         let log_length = ndjson_line_count(&log_path)?;
 
         let manifest_path = store_root.join(format!("{log_name}.index-manifest.json"));
@@ -287,82 +271,91 @@ pub fn index_status(stores_dir: &Path, project_id: &str) -> ProjectsResult<Index
                 log_length,
                 ..
             }) => FreshnessState::Stale {
-                watermark: manifest_watermark,
-                log_length,
+                watermark: manifest_watermark.get(),
+                log_length: log_length.get(),
             },
             Err(other) => return Err(ProjectsError::Memory(other)),
         };
 
         logs.push(LogIndexStatus {
-            log_name: log_name.to_owned(),
-            log_length,
+            log_name: log_name.into(),
+            log_length: log_length.get().into(),
             state,
         });
     }
 
     Ok(IndexStatusSummary {
-        project_id: project_id.to_owned(),
-        nodes,
-        edges,
+        project_id,
+        nodes: nodes.into(),
+        edges: edges.into(),
         status,
         logs,
     })
 }
 
-fn ndjson_line_count(path: &Path) -> ProjectsResult<u64> {
+fn ndjson_line_count(path: &MemoryStorePath) -> ProjectsResult<IndexManifestWatermark> {
     if !path.exists() {
-        return Ok(0);
+        return Ok(0.into());
     }
     let content = std::fs::read_to_string(path).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: path.to_path_buf(),
+            path: path.to_path_buf().into(),
             source,
         })
     })?;
-    Ok(content
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .count() as u64)
+    Ok(u64::try_from(
+        content
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .count(),
+    )
+    .unwrap_or(u64::MAX)
+    .into())
 }
 
 /// Delete project `project_id`'s store directory under `stores_dir`,
 /// removing ONLY the derived store -- never a path outside `stores_dir`
 /// (see module docs' path-traversal rejection), and never a directory
 /// that is not a real, marker-bearing store.
-pub fn delete_project(stores_dir: &Path, project_id: &str) -> ProjectsResult<()> {
-    let store_root = resolve_existing_project(stores_dir, project_id)?;
+pub fn delete_project<'a>(
+    stores_dir: impl Into<MemoryStoresDirectory<'a>>,
+    project_id: impl Into<MemoryProjectId>,
+) -> ProjectsResult<()> {
+    let stores_dir = stores_dir.into();
+    let project_id = project_id.into();
+    let store_root = resolve_existing_project(stores_dir, &project_id)?;
 
-    let canonical_stores_dir = std::fs::canonicalize(stores_dir).map_err(|source| {
+    let canonical_stores_dir = std::fs::canonicalize(stores_dir.as_path()).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: stores_dir.to_path_buf(),
+            path: stores_dir.as_path().to_path_buf().into(),
             source,
         })
     })?;
-    let canonical_store_root = std::fs::canonicalize(&store_root).map_err(|source| {
+    let canonical_store_root = std::fs::canonicalize(store_root.as_path()).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: store_root.clone(),
+            path: store_root.as_path().to_path_buf().into(),
             source,
         })
     })?;
 
     if !canonical_store_root.starts_with(&canonical_stores_dir) {
         return Err(ProjectsError::PathTraversal {
-            resolved: canonical_store_root,
-            stores_dir: canonical_stores_dir,
+            resolved: canonical_store_root.into(),
+            stores_dir: canonical_stores_dir.into(),
         });
     }
     // Refuse to ever delete stores_dir itself (a project_id of "" or
     // "." would otherwise resolve straight back to it).
     if canonical_store_root == canonical_stores_dir {
         return Err(ProjectsError::PathTraversal {
-            resolved: canonical_store_root,
-            stores_dir: canonical_stores_dir,
+            resolved: canonical_store_root.into(),
+            stores_dir: canonical_stores_dir.into(),
         });
     }
 
-    std::fs::remove_dir_all(&store_root).map_err(|source| {
+    std::fs::remove_dir_all(store_root.as_path()).map_err(|source| {
         ProjectsError::Memory(MemoryError::Io {
-            path: store_root,
+            path: store_root.as_path().to_path_buf().into(),
             source,
         })
     })
@@ -372,13 +365,16 @@ pub fn delete_project(stores_dir: &Path, project_id: &str) -> ProjectsResult<()>
 /// marker is actually present -- shared by [`index_status`] and
 /// [`delete_project`] so both fail closed on an unknown project id in
 /// exactly the same way [`list_projects`] would have omitted it.
-fn resolve_existing_project(stores_dir: &Path, project_id: &str) -> ProjectsResult<PathBuf> {
-    let candidate = stores_dir.join(project_id);
+fn resolve_existing_project(
+    stores_dir: MemoryStoresDirectory<'_>,
+    project_id: &MemoryProjectId,
+) -> ProjectsResult<MemoryProjectStoreRoot> {
+    let candidate: MemoryProjectStoreRoot = stores_dir.as_path().join(project_id.as_str()).into();
     let marker = read_marker(&candidate)?;
     if marker.is_none() {
         return Err(ProjectsError::UnknownProject {
-            project_id: project_id.to_owned(),
-            stores_dir: stores_dir.to_path_buf(),
+            project_id: project_id.retained(),
+            stores_dir: stores_dir.as_path().to_path_buf().into(),
         });
     }
     Ok(candidate)

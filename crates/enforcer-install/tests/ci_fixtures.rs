@@ -34,6 +34,16 @@ fn checked_in_action_yml_matches_the_rust_rendered_source_of_truth(
 }
 
 #[test]
+fn checked_in_action_yml_pins_cache_to_an_immutable_revision(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root()?.join(".github/actions/enforcer-scan/action.yml");
+    let on_disk = std::fs::read_to_string(&path)?;
+    assert!(on_disk.contains("uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684"));
+    assert!(!on_disk.contains("actions/cache@v4"));
+    Ok(())
+}
+
+#[test]
 fn checked_in_install_sh_matches_the_rust_rendered_source_of_truth(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = repo_root()?.join("install.sh");
@@ -84,8 +94,8 @@ fn smoke_fixture_pair_exists_as_a_seeded_fail_and_a_clean_pass(
     // The fail fixture seeds a real violation (`unwrap()` on a `None`),
     // the pass fixture does not -- proving the pair is a genuine
     // fail/pass contrast, not two copies of the same clean file.
-    assert!(fail_src.contains("unwrap()"));
-    assert!(!pass_src.contains("unwrap()"));
+    assert!(fail_src.as_str().contains("unwrap()"));
+    assert!(!pass_src.as_str().contains("unwrap()"));
     Ok(())
 }
 
@@ -107,17 +117,21 @@ fn dist_workspace_toml_declares_every_platform_in_the_release_matrix(
         "aarch64-unknown-linux-gnu",
     ] {
         assert!(
-            targets
-                .iter()
-                .any(|target| target.as_str() == Some(triple)),
+            targets.iter().any(|target| target.as_str() == Some(triple)),
             "dist-workspace.toml is missing declared target `{triple}`"
         );
     }
     let variants = document["dist"]["variants"]
         .as_table()
         .ok_or("dist-workspace.toml must declare release variants")?;
-    assert!(variants.contains_key("full"), "full release variant is required");
-    assert!(variants.contains_key("lite"), "lite release variant is required");
+    assert!(
+        variants.contains_key("full"),
+        "full release variant is required"
+    );
+    assert!(
+        variants.contains_key("lite"),
+        "lite release variant is required"
+    );
     let smoke_test = document["dist"]["smoke-test"]
         .as_table()
         .ok_or("dist-workspace.toml must declare a smoke-test gate")?;
@@ -155,7 +169,7 @@ fn no_owned_ci_artifact_contains_a_hardcoded_local_absolute_path(
         let full = root.join(path);
         let contents = std::fs::read_to_string(&full)?;
         for needle in banned_needles {
-            if contents.contains(needle) {
+            if contents.as_str().contains(needle) {
                 offenders.push(format!("{candidate} contains banned literal `{needle}`"));
             }
         }

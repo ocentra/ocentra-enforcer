@@ -51,6 +51,7 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 /// `CYBER-GHA.1` — insecure GitHub Actions workflow configuration.
+#[derive(Debug)]
 pub struct GithubActionsSecurityValidator {
     rule_id: RuleId,
     /// A `contents: write` key nested under a top-level `permissions:`
@@ -71,25 +72,26 @@ pub struct GithubActionsSecurityValidator {
 impl GithubActionsSecurityValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-GHA.1".parse()?,
-            top_level_contents_write: Regex::new(r"(?i)^\s*contents:\s*write\b")
-                .map_err(|err| DecodeError::new("cyberskillsGhaContentsWrite", err.to_string()))?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberGithubActions.id(),
+            top_level_contents_write: Regex::new(r"(?i)^\s*contents:\s*write\b").map_err(
+                |err| crate::boundary::regex::decode("cyberskillsGhaContentsWrite", err),
+            )?,
             // Ref runs to the next whitespace/quote/comment so a trailing
             // `# v4.1.1` comment is never folded into the captured ref.
             uses_ref: Regex::new(r##"(?i)uses:\s*['"]?([^\s'"@]+)@([^\s'"#]+)"##)
-                .map_err(|err| DecodeError::new("cyberskillsGhaUsesRef", err.to_string()))?,
+                .map_err(|err| crate::boundary::regex::decode("cyberskillsGhaUsesRef", err))?,
             pinned_sha: Regex::new(r"^[0-9a-fA-F]{40}$")
-                .map_err(|err| DecodeError::new("cyberskillsGhaPinnedSha", err.to_string()))?,
+                .map_err(|err| crate::boundary::regex::decode("cyberskillsGhaPinnedSha", err))?,
             // Allows a wrapping function call (e.g. `format(...)`) between
             // the `${{`/`}}` delimiters and the dangerous context.
             injection_expr: Regex::new(
                 r"\$\{\{[^}]*\bgithub\.(?:event\.[A-Za-z0-9_.]+|head_ref)\b[^}]*\}\}",
             )
-            .map_err(|err| DecodeError::new("cyberskillsGhaInjectionExpr", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsGhaInjectionExpr", err))?,
             checkout_pr_head_ref: Regex::new(
                 r#"(?i)ref:\s*['"]?\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}"#,
             )
-            .map_err(|err| DecodeError::new("cyberskillsGhaCheckoutHeadRef", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsGhaCheckoutHeadRef", err))?,
         })
     }
 }
@@ -100,11 +102,21 @@ impl Validator for GithubActionsSecurityValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        if !matches!(
+            input
+                .file
+                .as_str()
+                .rsplit_once('.')
+                .map(|(_, extension)| extension),
+            Some("yml" | "yaml")
+        ) {
+            return Vec::new();
+        }
         let mut findings = Vec::new();
         let mut in_top_level_permissions = false;
         let mut in_run_block = false;
 
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let trimmed = line.trim_start();
             let leading_ws = line.len() - trimmed.len();
@@ -113,75 +125,62 @@ impl Validator for GithubActionsSecurityValidator {
             // --- Check 1: broad permissions ---
             if is_top_level_key {
                 if let Some(rest) = trimmed.strip_prefix("permissions:") {
-                    let value = rest.split('#').next().unwrap_or_default().trim();
+                    let value = rest.split_once('#').map_or(rest, |(value, _)| value).trim();
                     if value.eq_ignore_ascii_case("write-all") {
-                        // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
-                        findings.push(Finding {
-                            rule_id: self.rule_id.clone(),
-                            severity: Severity::Error,
-                            title: "GitHub Actions workflow grants write-all permissions"
-                                .to_owned(),
-                            detail: "Top-level `permissions: write-all` grants the GITHUB_TOKEN \
+                        findings.extend(crate::boundary::finding::from_source(
+                            (&self.rule_id, Severity::Error),
+                            "GitHub Actions workflow grants write-all permissions",
+                            "Top-level `permissions: write-all` grants the GITHUB_TOKEN \
                                       write access to every resource the workflow can touch. \
                                       Fix: replace with `permissions: {}` at the workflow level \
                                       and grant only the specific scopes each job needs (e.g. \
-                                      `contents: read`)."
-                                .to_owned(),
-                            // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
-                            file: input.file.clone(),
-                            line: line_number,
-                            snippet: Some(line.to_owned()),
-                        });
+                                      `contents: read`).",
+                            input.file,
+                            (line_number, Some(line)),
+                        ));
                     }
                     in_top_level_permissions = value.is_empty();
                 } else {
                     in_top_level_permissions = false;
                 }
             } else if in_top_level_permissions && self.top_level_contents_write.is_match(line) {
-                // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "GitHub Actions workflow grants broad top-level write permission"
-                        .to_owned(),
-                    detail: "The top-level `permissions:` block grants `contents: write` to \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "GitHub Actions workflow grants broad top-level write permission",
+                    "The top-level `permissions:` block grants `contents: write` to \
                               every job in the workflow. Fix: remove `contents: write` from the \
                               workflow-level `permissions:` block and grant it only on the \
-                              specific job(s) that need it."
-                        .to_owned(),
-                    // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                              specific job(s) that need it.",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
 
             // --- Check 2: unpinned action `uses:` ---
             let is_docker_ref = line.contains("docker://");
             if let Some(captures) = self.uses_ref.captures(line) {
-                let action = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
-                let reference = captures.get(2).map(|m| m.as_str()).unwrap_or_default();
+                let (Some(action), Some(reference)) = (
+                    captures.get(1).map(|capture| capture.as_str()),
+                    captures.get(2).map(|capture| capture.as_str()),
+                ) else {
+                    continue;
+                };
                 let is_local_action = action.starts_with("./");
                 let is_pinned = self.pinned_sha.is_match(reference);
                 if !is_docker_ref && !is_local_action && !is_pinned {
-                    // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Warning,
-                        title: "GitHub Action referenced by a mutable ref, not a pinned SHA"
-                            .to_owned(),
-                        detail: format!(
+                    findings.extend(crate::boundary::finding::from_source(
+                        (&self.rule_id, Severity::Warning),
+                        "GitHub Action referenced by a mutable ref, not a pinned SHA",
+                        format!(
                             "`{action}@{reference}` is not pinned to a full 40-character commit \
                              SHA. A mutable branch or tag can be overwritten by an attacker who \
                              compromises the action's repository, silently pulling malicious \
                              code into this workflow. Fix: pin to the immutable commit SHA, \
                              e.g. `{action}@<40-char-sha>  # {reference}`."
                         ),
-                        // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
-                        file: input.file.clone(),
-                        line: line_number,
-                        snippet: Some(line.to_owned()),
-                    });
+                        input.file,
+                        (line_number, Some(line)),
+                    ));
                 }
             }
 
@@ -189,25 +188,19 @@ impl Validator for GithubActionsSecurityValidator {
             let is_run_key = trimmed.starts_with("run:");
             let currently_in_run = is_run_key || in_run_block;
             if currently_in_run && self.injection_expr.is_match(line) {
-                // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Untrusted GitHub event data interpolated into a shell command"
-                        .to_owned(),
-                    detail: "A `${{ github.event.* }}`/`${{ github.head_ref }}` expression is \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Untrusted GitHub event data interpolated into a shell command",
+                    "A `${{ github.event.* }}`/`${{ github.head_ref }}` expression is \
                               interpolated directly into a `run:` step. These values are \
                               attacker-controlled (PR title/body, issue/comment text, branch \
                               name) and are substituted into the shell command BEFORE it runs, \
                               allowing arbitrary command injection. Fix: pass the value through \
                               an `env:` variable and reference it as a shell variable (e.g. \
-                              `${PR_TITLE}`) instead of interpolating the expression directly."
-                        .to_owned(),
-                    // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                              `${PR_TITLE}`) instead of interpolating the expression directly.",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
             if is_run_key {
                 in_run_block = true;
@@ -221,11 +214,11 @@ impl Validator for GithubActionsSecurityValidator {
         }
 
         // --- Check 4: pull_request_target + untrusted checkout (whole-source correlation) ---
-        let has_pr_target_trigger = input.source.contains("pull_request_target");
-        let has_checkout_action = input.source.contains("actions/checkout");
+        let has_pr_target_trigger = input.source.as_str().contains("pull_request_target");
+        let has_checkout_action = input.source.as_str().contains("actions/checkout");
         let mut head_ref_hit: Option<(u32, &str)> = None;
         if has_pr_target_trigger && has_checkout_action {
-            for (index, line) in input.source.lines().enumerate() {
+            for (index, line) in input.source.as_str().lines().enumerate() {
                 if self.checkout_pr_head_ref.is_match(line) {
                     let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
                     head_ref_hit = Some((line_number, line));
@@ -234,12 +227,10 @@ impl Validator for GithubActionsSecurityValidator {
             }
         }
         if let Some((line_number, matched_line)) = head_ref_hit {
-            // CLONE-JUSTIFICATION: delayed workflow finding owns rule and file identity beyond source scanning.
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "pull_request_target checks out untrusted PR head code".to_owned(),
-                detail: "This workflow triggers on `pull_request_target` (which runs with the \
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "pull_request_target checks out untrusted PR head code",
+                "This workflow triggers on `pull_request_target` (which runs with the \
                           base repository's privileged GITHUB_TOKEN and secrets) AND checks out \
                           the PR's own head commit/branch via `actions/checkout` with `ref: \
                           ${{ github.event.pull_request.head.sha }}`/`.head.ref`. Any later \
@@ -247,13 +238,10 @@ impl Validator for GithubActionsSecurityValidator {
                           Fix: use the `pull_request` trigger instead, or if \
                           `pull_request_target` is required, never check out the PR head — \
                           only check out the base branch, and gate privileged steps behind a \
-                          maintainer label/review."
-                    .to_owned(),
-                // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
-                file: input.file.clone(),
-                line: line_number,
-                snippet: Some(matched_line.to_owned()),
-            });
+                          maintainer label/review.",
+                input.file,
+                (line_number, Some(matched_line)),
+            ));
         }
 
         findings
@@ -262,25 +250,36 @@ impl Validator for GithubActionsSecurityValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
+    use enforcer_domain::findings::ScanScope;
+    use enforcer_validator::validator::{ValidationInput, Validator};
 
     use super::GithubActionsSecurityValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_github_actions() -> Result<(), Box<dyn std::error::Error>> {
         let validator = GithubActionsSecurityValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/ci.github-actions/bad/workflow.yml",
             "tests/fixtures/cyberskills/ci.github-actions/good/workflow.yml",
         )?;
+        Ok(())
+    }
+
+    #[test]
+    fn rust_rendering_template_is_not_treated_as_a_workflow(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let validator = GithubActionsSecurityValidator::new()?;
+        let file = crate::boundary::fixture::rel_path("src/github_action.rs")?;
+        let source = "let template = \"uses: actions/cache@{ACTIONS_CACHE_SHA}\";";
+        assert!(validator
+            .validate(ValidationInput {
+                file: &file,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source,),
+                scope: ScanScope::Files,
+            })
+            .is_empty());
         Ok(())
     }
 }

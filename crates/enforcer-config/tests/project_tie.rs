@@ -11,10 +11,10 @@
 //!   `Augment` default (never whole-repo); an inline-disable fixture is NOT
 //!   honored (only declarative policy is).
 
-use enforcer_config::project_tie::{
-    load_project_tie, parse_project_tie, EnforcerScope, NativeMode, NativeTool,
-};
-use enforcer_config::ConfigLoadError;
+use enforcer_config::error::ConfigLoadError;
+use enforcer_config::project_tie::{load_project_tie, parse_project_tie};
+use enforcer_domain::config_types::{ConfigJson, ConfigSource};
+use enforcer_domain::config_types::{EnforcerScope, NativeMode, NativeTool, RegexPattern};
 use std::path::Path;
 
 const VALID_FIXTURE: &str = include_str!("fixtures/project_tie/valid.enforce.config.json");
@@ -30,7 +30,10 @@ const MALFORMED_JSON_FIXTURE: &str =
 #[test]
 fn bad_native_mode_is_rejected_with_typed_boundary_error() {
     assert!(matches!(
-        parse_project_tie(BAD_NATIVE_MODE_FIXTURE, "invalid_bad_native_mode.json"),
+        parse_project_tie(
+            &ConfigJson::from_owned(BAD_NATIVE_MODE_FIXTURE.to_owned()),
+            &ConfigSource::from_owned("invalid_bad_native_mode.json".to_owned())
+        ),
         Err(ConfigLoadError::Parse(_))
     ));
 }
@@ -38,7 +41,10 @@ fn bad_native_mode_is_rejected_with_typed_boundary_error() {
 #[test]
 fn unknown_key_is_rejected_with_typed_boundary_error() {
     assert!(matches!(
-        parse_project_tie(UNKNOWN_KEY_FIXTURE, "invalid_unknown_key.json"),
+        parse_project_tie(
+            &ConfigJson::from_owned(UNKNOWN_KEY_FIXTURE.to_owned()),
+            &ConfigSource::from_owned("invalid_unknown_key.json".to_owned())
+        ),
         Err(ConfigLoadError::Parse(_))
     ));
 }
@@ -46,7 +52,10 @@ fn unknown_key_is_rejected_with_typed_boundary_error() {
 #[test]
 fn malformed_json_is_rejected_with_typed_boundary_error() {
     assert!(matches!(
-        parse_project_tie(MALFORMED_JSON_FIXTURE, "invalid_malformed_json.json"),
+        parse_project_tie(
+            &ConfigJson::from_owned(MALFORMED_JSON_FIXTURE.to_owned()),
+            &ConfigSource::from_owned("invalid_malformed_json.json".to_owned())
+        ),
         Err(ConfigLoadError::Parse(_))
     ));
 }
@@ -56,21 +65,21 @@ fn malformed_json_is_rejected_with_typed_boundary_error() {
 #[test]
 fn valid_fixture_resolves_and_round_trips_policy_fields() -> Result<(), Box<dyn std::error::Error>>
 {
-    let resolved = parse_project_tie(VALID_FIXTURE, "valid.enforce.config.json")?;
+    let resolved = parse_project_tie(
+        &ConfigJson::from_owned(VALID_FIXTURE.to_owned()),
+        &ConfigSource::from_owned("valid.enforce.config.json".to_owned()),
+    )?;
 
     // Explicit override honored: cargo stays augment/scoped (matches the
     // scoped-augment default, but here it is explicit in the fixture).
     let cargo = resolved.tie(NativeTool::Cargo);
     assert_eq!(cargo.mode, NativeMode::Augment);
     assert_eq!(cargo.scope, EnforcerScope::Scoped);
-    assert!(cargo.runs_enforcer_checks());
-    assert!(cargo.runs_native_tool());
 
     // tsc explicitly set to override: native tool is replaced, not run
     // alongside ours.
     let tsc = resolved.tie(NativeTool::Tsc);
     assert_eq!(tsc.mode, NativeMode::Override);
-    assert!(!tsc.runs_native_tool());
 
     // Untouched tool (dart) still resolves to the scoped-augment default.
     let dart = resolved.tie(NativeTool::Dart);
@@ -98,9 +107,12 @@ fn valid_fixture_resolves_and_round_trips_policy_fields() -> Result<(), Box<dyn 
     );
     assert_eq!(
         resolved.policy.allow_regex,
-        vec!["^// generated:".to_owned()]
+        vec![RegexPattern::new("^// generated:".to_owned())?]
     );
-    assert!(resolved.policy.skip_cfg_test);
+    assert!(matches!(
+        resolved.policy.skip_cfg_test,
+        enforcer_domain::config_types::CfgTestSkipping::Enabled
+    ));
 
     // Per-rule toggle takes effect: severity override for an enabled rule,
     // and a disabled rule (with waiver) is actually disabled.
@@ -109,14 +121,20 @@ fn valid_fixture_resolves_and_round_trips_policy_fields() -> Result<(), Box<dyn 
     use std::str::FromStr;
 
     let rr = RuleId::from_str("RR-1.1")?;
-    assert!(resolved.policy.is_rule_enabled(&rr));
+    assert!(matches!(
+        resolved.policy.rule_enabled(&rr),
+        enforcer_domain::config_types::RuleEnabled::Enabled
+    ));
     assert_eq!(
         resolved.policy.effective_severity(&rr, Severity::Error),
         Severity::Warning
     );
 
     let sec = RuleId::from_str("SEC-2.2")?;
-    assert!(!resolved.policy.is_rule_enabled(&sec));
+    assert!(matches!(
+        resolved.policy.rule_enabled(&sec),
+        enforcer_domain::config_types::RuleEnabled::Disabled
+    ));
 
     Ok(())
 }
@@ -156,12 +174,18 @@ fn empty_config_keeps_a_rule_enabled_without_a_declarative_toggle(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // A resolver built from a config with no matching declarative toggle
     // keeps the rule enabled.
-    let resolved = parse_project_tie("{}", "empty.json")?;
+    let resolved = parse_project_tie(
+        &ConfigJson::from_owned("{}".to_owned()),
+        &ConfigSource::from_owned("empty.json".to_owned()),
+    )?;
     use enforcer_domain::ids::RuleId;
     use std::str::FromStr;
     let rr = RuleId::from_str("RR-1.1")?;
     assert!(
-        resolved.policy.is_rule_enabled(&rr),
+        matches!(
+            resolved.policy.rule_enabled(&rr),
+            enforcer_domain::config_types::RuleEnabled::Enabled
+        ),
         "an inline comment-style disable must have zero effect; only declarative policy counts"
     );
     Ok(())

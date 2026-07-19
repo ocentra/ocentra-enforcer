@@ -99,8 +99,18 @@ fn assert_parsed_file_equivalent_full(bespoke: &ParsedFile, generic: &ParsedFile
 
 fn compare(src: &str, is_test_file: bool, label: &str) {
     let bespoke = go::parse(src, is_test_file);
-    let via_generic = generic::parse_go(src, is_test_file);
+    let via_generic = generic::go::parse_go(src, is_test_file);
     assert_parsed_file_equivalent(&bespoke, &via_generic, label);
+}
+
+fn assert_go_equivalent(src: &str, is_test_file: bool, label: &str) {
+    compare(src, is_test_file, label);
+}
+
+fn assert_malformed_parsers_complete(bespoke: ParsedFile, generic: ParsedFile) {
+    // For malformed input the contract is successful, panic-free completion;
+    // the parser outputs may legitimately differ because of error recovery.
+    drop((bespoke, generic));
 }
 
 fn compare_rust(src: &str, label: &str) {
@@ -141,13 +151,13 @@ fn compare_cpp(src: &str, is_test_file: bool, label: &str) {
 
 fn compare_csharp(src: &str, label: &str) {
     let bespoke = csharp::parse(src);
-    let via_generic = generic::parse_csharp(src);
+    let via_generic = generic::csharp::parse_csharp(src);
     assert_parsed_file_equivalent_full(&bespoke, &via_generic, label);
 }
 
 fn compare_php(src: &str, label: &str) {
     let bespoke = php::parse(src);
-    let via_generic = generic::parse_php(src);
+    let via_generic = generic::php::parse_php(src);
     assert_parsed_file_equivalent_full(&bespoke, &via_generic, label);
 }
 
@@ -370,14 +380,14 @@ var registry = makeRegistry()
 fn matches_bespoke_on_malformed_source_does_not_panic() {
     let src = "package ( { this is not valid go @@@";
     let bespoke = go::parse(src, false);
-    let via_generic = generic::parse_go(src, false);
+    let via_generic = generic::go::parse_go(src, false);
     // Malformed-source tolerance only: tree-sitter's own error recovery
     // may legitimately differ in exactly which partial nodes it
     // manages to recognize between two independent walks over its
     // error-recovery tree, so this case is a panic-safety check only,
     // not a content-equivalence one (both callers already exercise
     // that in `unit_languages_go.rs::malformed_source_does_not_panic`).
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 #[test]
@@ -385,7 +395,7 @@ fn matches_bespoke_on_shared_fixture_file() -> TestResult {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join(FIXTURE_DIR).join("widget.go");
     let src = fs::read_to_string(&fixture)?;
-    compare(&src, false, "shared_fixture_widget_go");
+    assert_go_equivalent(&src, false, "shared_fixture_widget_go");
     Ok(())
 }
 
@@ -394,7 +404,7 @@ fn matches_bespoke_on_shared_fixture_test_file() -> TestResult {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join(FIXTURE_DIR).join("widget_test.go");
     let src = fs::read_to_string(&fixture)?;
-    compare(&src, true, "shared_fixture_widget_test_go");
+    assert_go_equivalent(&src, true, "shared_fixture_widget_test_go");
     Ok(())
 }
 
@@ -523,7 +533,7 @@ fn matches_bespoke_rust_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_rust(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for TypeScript/JavaScript
@@ -658,7 +668,7 @@ fn matches_bespoke_ts_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_typescript(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for Python
@@ -758,7 +768,7 @@ fn matches_bespoke_py_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_python(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for Java
@@ -1027,7 +1037,7 @@ fn matches_bespoke_java_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_java(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for C (`languages::generic::
@@ -1147,7 +1157,7 @@ fn matches_bespoke_c_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_c(src, false);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for C++
@@ -1303,11 +1313,11 @@ fn matches_bespoke_cpp_on_malformed_source_does_not_panic() {
     let via_generic = generic::parse_cpp(src, false);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for C#
-// (`languages::generic::parse_csharp` vs the bespoke
+// (`languages::generic::csharp::parse_csharp` vs the bespoke
 // `languages::csharp` extractor) -- mirrors every pure-extractor
 // scenario `unit_languages_csharp.rs` already covers.
 
@@ -1490,14 +1500,14 @@ class WidgetsController : ControllerBase {
 fn matches_bespoke_csharp_on_malformed_source_does_not_panic() {
     let src = "class ( { this is not valid C# @@@";
     let bespoke = csharp::parse(src);
-    let via_generic = generic::parse_csharp(src);
+    let via_generic = generic::csharp::parse_csharp(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }
 
 // G1b: same zero-regression proof, now for PHP
-// (`languages::generic::parse_php` vs the bespoke `languages::php`
+// (`languages::generic::php::parse_php` vs the bespoke `languages::php`
 // extractor) -- mirrors every pure-extractor scenario
 // `unit_languages_php.rs` already covers. PHP needed `call_override`
 // (not just `on_unmatched_node`) for its four call-shaped node kinds
@@ -1641,7 +1651,7 @@ class C {
     }
 }
 "#;
-    let parsed = generic::parse_php(src);
+    let parsed = generic::php::parse_php(src);
     let routes: Vec<(&str, &str)> = parsed
         .routes
         .iter()
@@ -1723,8 +1733,8 @@ fn matches_bespoke_php_on_nested_class_inside_namespace() {
 fn matches_bespoke_php_on_malformed_source_does_not_panic() {
     let src = "<?php class ( { this is not valid PHP @@@";
     let bespoke = php::parse(src);
-    let via_generic = generic::parse_php(src);
+    let via_generic = generic::php::parse_php(src);
     // Malformed-source tolerance only, same rationale as
     // `matches_bespoke_on_malformed_source_does_not_panic` above.
-    let _ = (bespoke, via_generic);
+    assert_malformed_parsers_complete(bespoke, via_generic);
 }

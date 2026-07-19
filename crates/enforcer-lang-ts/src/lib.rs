@@ -35,4 +35,5 @@
 //! its owning validator and fixture pair, and is the single source the
 //! count-parity completeness test in `tests/completeness.rs` walks.
 
+mod boundary;
 pub mod rules;

@@ -2,8 +2,8 @@ import { escapeRegExp, maskRustCode } from "./rust-rules-path-core.mjs";
 import { balancedBodyAt } from "./rust-rules-source-test-evidence-ranges-balanced.mjs";
 
 /** Collects unit-test bodies from Rust source text. */
-export function rustTestBodies(source) {
-  const masked = maskRustCode(source);
+export function rustTestBodies(source, maskedSource = null) {
+  const masked = typeof maskedSource === "string" ? maskedSource : maskRustCode(source);
   const bodies = [];
   for (const match of masked.matchAll(/^\s*#\[test\]\s*$/gmu)) {
     const functionStart = masked.indexOf("fn ", match.index + match[0].length);

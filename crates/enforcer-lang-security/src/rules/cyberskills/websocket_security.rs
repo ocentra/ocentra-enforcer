@@ -71,24 +71,18 @@
 //! multi-line shape does not produce one duplicate `Finding` per
 //! overlapping window position.
 
+use crate::boundary::pattern::{LabelledPattern, LabelledPatternSource as WebSocketPattern};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
 
 /// How many source lines are folded into one match window (see the "Window
 /// note" above). Large enough to cover a `cors: { ... }` object or a small
 /// `verifyClient` function body split across a handful of lines, small
 /// enough that unrelated, far-apart code never lands in the same window.
 const WINDOW_LINES: usize = 5;
-
-/// One high-confidence insecure-WebSocket-configuration pattern.
-struct WebSocketPattern {
-    regex: &'static str,
-    label: &'static str,
-}
 
 /// The insecure server-configuration shapes named in the module doc
 /// comment above.
@@ -137,22 +131,23 @@ const WEBSOCKET_PATTERNS_SRC: &[WebSocketPattern] = &[
 /// enables cross-site WebSocket hijacking (CSWSH): a permissive socket.io
 /// CORS/origins setting, an explicitly disabled origin check, or a
 /// `verifyClient` hook that unconditionally accepts every origin.
+#[derive(Debug)]
 pub struct WebSocketSecurityValidator {
     rule_id: RuleId,
-    patterns: Vec<(Regex, &'static str)>,
+    patterns: Vec<LabelledPattern>,
 }
 
 impl WebSocketSecurityValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut patterns = Vec::with_capacity(WEBSOCKET_PATTERNS_SRC.len());
         for entry in WEBSOCKET_PATTERNS_SRC {
-            let regex = Regex::new(entry.regex).map_err(|err| {
-                DecodeError::new("cyberskillsWebSocketSecurityPattern", err.to_string())
-            })?;
-            patterns.push((regex, entry.label));
+            patterns.push(LabelledPattern::compile_source(
+                "cyberskillsWebSocketSecurityPattern",
+                entry,
+            )?);
         }
         Ok(Self {
-            rule_id: "CYBER-WEBSOCKET.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberWebsocket.id(),
             patterns,
         })
     }
@@ -164,7 +159,7 @@ impl Validator for WebSocketSecurityValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
         let mut findings = Vec::new();
         // Tracks which pattern labels have already produced a Finding
         // anywhere in this file, so a multi-line shape caught by several
@@ -173,13 +168,18 @@ impl Validator for WebSocketSecurityValidator {
 
         for (index, line) in lines.iter().copied().enumerate() {
             let window_end = (index + WINDOW_LINES).min(lines.len());
-            let window = lines[index..window_end].join("\n");
+            let Some(window_lines) = lines.get(index..window_end) else {
+                continue;
+            };
+            let window = window_lines.join("\n");
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
 
             let mut matched_labels: Vec<&str> = Vec::new();
-            for (regex, label) in &self.patterns {
-                if !already_flagged.contains(label) && regex.is_match(&window) {
-                    matched_labels.push(*label);
+            for pattern in &self.patterns {
+                if !already_flagged.contains(&pattern.label().as_str())
+                    && pattern.regex().is_match(&window)
+                {
+                    matched_labels.push(pattern.label().as_str());
                 }
             }
 
@@ -187,22 +187,19 @@ impl Validator for WebSocketSecurityValidator {
                 for label in &matched_labels {
                     already_flagged.push(*label);
                 }
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Insecure WebSocket server configuration enables cross-site WebSocket \
-                            hijacking (CSWSH)"
-                        .to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Insecure WebSocket server configuration enables cross-site WebSocket \
+                     hijacking (CSWSH)",
+                    format!(
                         "{}. Fix: validate the WebSocket handshake's Origin header (or socket.io's \
                          `cors.origin`) against an explicit allowlist of trusted origins instead of \
                          accepting any/all origins.",
                         matched_labels.join(", ")
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -211,22 +208,15 @@ impl Validator for WebSocketSecurityValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::WebSocketSecurityValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_websocket_security() -> Result<(), Box<dyn std::error::Error>> {
         let v = WebSocketSecurityValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &v,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.websocket-security/bad/vuln.js",
             "tests/fixtures/cyberskills/web.websocket-security/good/safe.js",
         )?;

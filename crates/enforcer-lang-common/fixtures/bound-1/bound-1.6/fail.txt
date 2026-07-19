@@ -1,4 +1,2 @@
-// Fixture for BOUND-1.6: Boundary raw type count is budgeted
-// Ported from legacy validator id `common/architecture` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
-// This line trips the rule:
+// Fixture for BOUND-1.6: Boundary raw type count is budgeted.
 ENFORCER_BOUND_1_6_MARKER

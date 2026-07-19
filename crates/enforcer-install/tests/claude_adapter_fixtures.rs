@@ -10,8 +10,8 @@
 //! crate's tests NEVER write into the checked-in fixture tree, and NEVER
 //! touch the real `~/.claude.json` (the live session's actual config).
 
+use enforcer_domain::install_types::InstallRequestContext;
 use enforcer_install::adapters::claude::ClaudeAdapter;
-use enforcer_install::cli_contract::RequestContext;
 use enforcer_install::core::HarnessAdapter;
 use enforcer_install::error::InstallError;
 use std::path::{Path, PathBuf};
@@ -39,7 +39,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
 }
 
 /// Stand up an isolated temp-dir copy of `fixture_name`, returning the
-/// `TempDir` handle (kept alive for the test's duration) plus the fake
+/// `TempDir` handle (kept alive for the test's duration) plus the fixture
 /// `enforcer` binary path every test registers.
 fn isolated_fixture(
     fixture_name: &str,
@@ -48,24 +48,33 @@ fn isolated_fixture(
     copy_dir_all(&fixture_root(fixture_name), dir.path())?;
     let binary = dir.path().join("bin").join("enforcer");
     std::fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-    std::fs::write(&binary, b"fake-enforcer-binary")?;
+    std::fs::write(&binary, b"fixture-enforcer-binary")?;
     Ok((dir, binary))
 }
 
 #[test]
 fn pass_fixture_install_then_verify_is_all_green() -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("pass")?;
-    let adapter = ClaudeAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let plan = adapter.plan(&ctx)?;
-    assert!(!plan.is_noop(), "fresh pass fixture must have work to do");
+    assert!(
+        !plan.planned_changes.is_empty(),
+        "fresh pass fixture must have work to do"
+    );
     let applied = adapter.apply(&plan)?;
-    assert!(applied.all_succeeded());
+    assert!(applied.applied.iter().all(|change| matches!(
+        change.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    )));
 
     let verify = adapter.verify(&ctx)?;
     assert!(
-        verify.all_passed(),
+        verify.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )),
         "expected every check green, got {verify:?}"
     );
 
@@ -105,19 +114,26 @@ fn descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip(
     let fixed = raw.replace("PLACEHOLDER_BINARY_PATH", escaped_binary);
     std::fs::write(&claude_json_path, fixed)?;
 
-    let adapter = ClaudeAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let verify = adapter.verify(&ctx)?;
-    assert!(!verify.all_passed());
+    assert!(!verify.checks.iter().all(|check| matches!(
+        check.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    )));
     let descriptor_check = verify
         .checks
         .iter()
-        .find(|c| c.name == "agent-descriptor-present")
+        .find(|check| check.name.as_str() == "agent-descriptor-present")
         .ok_or("expected an agent-descriptor-present check to be present, not skipped")?;
-    assert!(!descriptor_check.passed);
+    assert!(!matches!(
+        descriptor_check.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    ));
     assert!(descriptor_check
         .detail
+        .as_str()
         .contains("missing opening `---` frontmatter fence"));
     Ok(())
 }
@@ -126,8 +142,8 @@ fn descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip(
 fn claude_json_fail_fixture_verify_fails_closed_with_typed_error(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("claude_json_fail")?;
-    let adapter = ClaudeAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let result = adapter.verify(&ctx);
     assert!(
@@ -153,8 +169,8 @@ fn pass_fixture_round_trip_install_uninstall_restores_byte_for_byte(
     let pre_bytes = std::fs::read(&claude_json_path)?;
     let pre_value: serde_json::Value = serde_json::from_slice(&pre_bytes)?;
 
-    let adapter = ClaudeAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let install_plan = adapter.plan(&ctx)?;
     adapter.apply(&install_plan)?;
@@ -162,7 +178,11 @@ fn pass_fixture_round_trip_install_uninstall_restores_byte_for_byte(
     assert!(adapter.skill_md_path().is_file());
 
     let uninstall_plan = adapter.plan_uninstall(&ctx)?;
-    assert!(!uninstall_plan.is_noop());
+    assert_eq!(
+        uninstall_plan.planned_changes.len(),
+        4,
+        "uninstall must remove the MCP registration, hook entries, agent descriptor, and skill"
+    );
     adapter.apply_uninstall(&uninstall_plan)?;
 
     let post_value: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
@@ -210,8 +230,8 @@ fn pass_fixture_preserves_unrelated_hook_entries_and_removes_only_enforcer_hooks
     std::fs::write(&claude_json_path, serde_json::to_string_pretty(&value)?)?;
     let pre_value: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
 
-    let adapter = ClaudeAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary.clone());
+    let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
 
     adapter.apply(&adapter.plan(&ctx)?)?;
     let mid: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
@@ -229,7 +249,7 @@ fn pass_fixture_preserves_unrelated_hook_entries_and_removes_only_enforcer_hooks
     );
     assert_eq!(
         mid["hooks"]["PreToolUse"][1]["hooks"][0]["command"],
-        format!("{} check --hook-mode=pretooluse", binary.display())
+        format!("{} hook pretooluse", binary.display())
     );
 
     adapter.apply_uninstall(&adapter.plan_uninstall(&ctx)?)?;

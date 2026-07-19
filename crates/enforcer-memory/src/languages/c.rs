@@ -92,9 +92,9 @@ fn walk(
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(body) = node.child_by_field_name("body") {
                     walk_children(
@@ -115,16 +115,16 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Struct,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(body) = node.child_by_field_name("body") {
                     for field_name in struct_field_names(body, src) {
                         out.defines.push(DefinesRef {
-                            container_name: name.clone(),
-                            member_name: field_name,
-                            line,
+                            container_name: (name.clone()).into(),
+                            member_name: (field_name).into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -135,18 +135,18 @@ fn walk(
         "enum_specifier" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "type_definition" => {
             for alias_name in typedef_alias_names(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: alias_name,
+                    name: (alias_name).into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -161,27 +161,27 @@ fn walk(
         "preproc_def" if node.child_by_field_name("value").is_some() => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "preproc_include" => {
             if let Some(path) = include_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "call_expression" => {
             if let Some(function) = node.child_by_field_name("function") {
                 out.calls.push(CallRef {
-                    callee: function.utf8_text(src).unwrap_or("").to_string(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
+                    callee: (function.utf8_text(src).unwrap_or("").to_string()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
                     // C has no method-call syntax (`x.foo()` is a
                     // struct field access to a function *pointer*
                     // value, not a receiver-dispatched call) -- no
@@ -189,7 +189,10 @@ fn walk(
                     // "unresolved as-written" posture elsewhere.
                     receiver_text: None,
                     receiver_hint: None,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
             }
         }
@@ -340,13 +343,13 @@ fn top_level_declaration_symbols(
         }
         if let Some(name) = innermost_declarator_identifier(declarator, src) {
             out.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: if is_const {
                     SymbolKind::Constant
                 } else {
                     SymbolKind::Variable
                 },
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
     }

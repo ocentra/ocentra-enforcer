@@ -2,7 +2,7 @@ use std::sync::{Arc, PoisonError};
 
 use tokio::sync::Semaphore;
 
-use crate::AggregateKey;
+use enforcer_domain::events_types::AggregateKey;
 
 use super::EventBus;
 

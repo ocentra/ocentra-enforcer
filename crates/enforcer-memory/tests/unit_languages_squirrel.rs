@@ -18,8 +18,9 @@
 //! `crates/enforcer-memory/vendor/tree-sitter-squirrel-local/src/lib.rs`'s
 //! own module doc for the full finding).
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_squirrel;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -174,7 +175,10 @@ function f(x) {
 }
 "#;
     let parsed = parse_squirrel(src);
-    assert!(symbol_kind(&parsed.symbols, "f").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "f"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

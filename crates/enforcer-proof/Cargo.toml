@@ -11,16 +11,11 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha2 = { workspace = true }
 thiserror = { workspace = true }
-# DEPENDENCY-JUSTIFICATION: shared execution, domain, scan, and event
-# contracts required to capture and verify durable proof artifacts.
+# DEPENDENCY-JUSTIFICATION: shared execution and domain contracts required
+# to capture and verify durable proof artifacts.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
-enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
-# DEPENDENCY-JUSTIFICATION: Proof execution records and replays typed event
-# lifecycle evidence while preserving the workspace event contract.
-enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
 
 [dev-dependencies]
 # DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for proof artifact

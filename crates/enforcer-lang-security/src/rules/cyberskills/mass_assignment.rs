@@ -55,11 +55,7 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
-/// One high-confidence unfiltered whole-object-bind call-site pattern.
-struct MassAssignPattern {
-    regex: &'static str,
-    label: &'static str,
-}
+use crate::boundary::pattern::{LabelledPattern, LabelledPatternSource as MassAssignPattern};
 
 /// Call-site patterns for a WHOLE untrusted request object bound directly
 /// into a model/entity with no field allowlist (SKILL.md's "Mass
@@ -131,9 +127,10 @@ const MASS_ASSIGN_PATTERNS_SRC: &[MassAssignPattern] = &[
 /// `findByIdAndUpdate` fed a bare `req.body`/`req.query`/`req.params`
 /// (JS/Node), and `Model.new`/`.update`/`.update_attributes` fed raw,
 /// unpermitted `params` (Ruby).
+#[derive(Debug)]
 pub struct MassAssignmentValidator {
     rule_id: RuleId,
-    patterns: Vec<(Regex, &'static str)>,
+    patterns: Vec<LabelledPattern>,
     request_items_loop: Regex,
     setattr_call: Regex,
 }
@@ -142,9 +139,10 @@ impl MassAssignmentValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut patterns = Vec::with_capacity(MASS_ASSIGN_PATTERNS_SRC.len());
         for entry in MASS_ASSIGN_PATTERNS_SRC {
-            let regex = Regex::new(entry.regex)
-                .map_err(|err| DecodeError::new("cyberskillsMassAssignPattern", err.to_string()))?;
-            patterns.push((regex, entry.label));
+            patterns.push(LabelledPattern::compile_source(
+                "cyberskillsMassAssignPattern",
+                entry,
+            )?);
         }
         // Python: a bare for-loop STATEMENT (the whole line, up to the
         // trailing `:`) that destructures every key/value out of one of the
@@ -157,11 +155,12 @@ impl MassAssignmentValidator {
         let request_items_loop = Regex::new(
             r"(?m)^\s*for\s+\w+\s*,\s*\w+\s+in\s+request\.(?:json\b|get_json\s*\(\s*\)|form\b|POST\b|data\b)\.items\s*\(\s*\)\s*:\s*$",
         )
-        .map_err(|err| DecodeError::new("cyberskillsMassAssignItemsLoop", err.to_string()))?;
-        let setattr_call = Regex::new(r"\bsetattr\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsMassAssignSetattrCall", err.to_string()))?;
+        .map_err(|err| crate::boundary::regex::decode("cyberskillsMassAssignItemsLoop", err))?;
+        let setattr_call = Regex::new(r"\bsetattr\s*\(").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsMassAssignSetattrCall", err)
+        })?;
         Ok(Self {
-            rule_id: "CYBER-MASS-ASSIGN.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberMassAssign.id(),
             patterns,
             request_items_loop,
             setattr_call,
@@ -181,24 +180,24 @@ impl Validator for MassAssignmentValidator {
         // whole-request accessor's .items() somewhere in the same scanned
         // unit (mirrors the `proto_pollution`/`weak_crypto` same-source
         // correlated-context idiom).
-        let has_request_items_loop = self.request_items_loop.is_match(input.source);
+        let has_request_items_loop = self.request_items_loop.is_match(input.source.as_str());
 
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
 
             let mut matched_labels: Vec<&str> = Vec::new();
-            for (regex, label) in &self.patterns {
-                if regex.is_match(line) && !matched_labels.contains(label) {
-                    matched_labels.push(*label);
+            for pattern in &self.patterns {
+                if pattern.regex().is_match(line)
+                    && !matched_labels.contains(&pattern.label().as_str())
+                {
+                    matched_labels.push(pattern.label().as_str());
                 }
             }
             if !matched_labels.is_empty() {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Mass assignment: whole request object bound with no field allowlist"
-                        .to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Mass assignment: whole request object bound with no field allowlist",
+                    format!(
                         "Line binds an entire untrusted request object directly onto a \
                          model/entity with no field allowlist: {}. Fix: allowlist explicit \
                          fields (Rails `params.require(:model).permit(:field, ...)`, an \
@@ -206,32 +205,26 @@ impl Validator for MassAssignmentValidator {
                          object) instead of binding the whole request object.",
                         matched_labels.join(", ")
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
 
             if self.setattr_call.is_match(line) && has_request_items_loop {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title:
-                        "Mass assignment: setattr loop binds every request field with no allowlist"
-                            .to_owned(),
-                    detail: "Line calls setattr() in a file that also has a for-loop statement \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Mass assignment: setattr loop binds every request field with no allowlist",
+                    "Line calls setattr() in a file that also has a for-loop statement \
                              destructuring every key/value out of a whole-request accessor's \
                              .items() (request.json / request.get_json() / request.form / \
                              request.POST / request.data). This is the hand-rolled equivalent of \
                              Model(**request.json): every request key is written onto the object \
                              with no field allowlist. Fix: iterate only over an explicit \
                              allowlist of field names (or a pre-filtered dict built from one) \
-                             before calling setattr()."
-                        .to_owned(),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                             before calling setattr().",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -240,22 +233,15 @@ impl Validator for MassAssignmentValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::MassAssignmentValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_mass_assignment() -> Result<(), Box<dyn std::error::Error>> {
         let validator = MassAssignmentValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
             "tests/fixtures/cyberskills/web.mass-assignment/good/safe.py",
         )?;

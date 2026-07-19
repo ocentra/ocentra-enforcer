@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { pathToFileURL } from 'node:url';
+
+/** Return deterministic workflow-contract failures for the selected repository root. */
+export function verifyWorkflowContract(root) {
+  const required = new Map([
+    ['workflows/ci.yml', [
+      'plan-impacted', 'run-impacted.mjs', 'check-cargo-workspace-members.mjs --fmt-check',
+      'npm run ci:local', 'cargo audit --deny warnings', 'name: required',
+      'Enforcer Required Gate',
+      'needs: [plan-impacted, impacted, workspace, local-parity, policy, dogfood]',
+    ]],
+    ['workflows/dogfood.yml', [
+      'rust-rules.mjs scan --root . --languages rust --workspace',
+      'verify-workflow-contract.mjs', 'dogfood-manifest',
+    ]],
+    ['workflows/release.yml', [
+      'needs: validate', 'npm run ci:local', 'Pre-publish smoke gate', 'attest-build-provenance',
+      'cargo audit --deny warnings', 'release-security-material', 'macos-15-intel',
+      'ubuntu-24.04-arm', 'id-token: write', 'fail_on_unmatched_files: true',
+    ]],
+    ['actions/setup-enforcer/action.yml', [
+      'node-version: 22.22.2', 'toolchain: 1.95.0', 'npm@11.7.0',
+      'cargo-audit --version 0.22.2', 'cargo-deny --version 0.20.2',
+    ]],
+  ]);
+  const failures = [];
+  for (const [name, needles] of required) {
+    const file = path.join(root, '.github', name);
+    let content;
+    try {
+      content = readFileSync(file, 'utf8');
+    } catch {
+      failures.push(`${name}: missing workflow`);
+      continue;
+    }
+    for (const needle of needles) {
+      if (!content.includes(needle)) failures.push(`${name}: missing contract marker ${needle}`);
+    }
+    if (/uses:\s+[^\s]+@v\d+/u.test(content)) {
+      failures.push(`${name}: action reference uses a mutable major-version tag`);
+    }
+  }
+  return failures;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const failures = verifyWorkflowContract(process.cwd());
+  if (failures.length > 0) {
+    for (const failure of failures) console.error(failure);
+    process.exit(1);
+  }
+  console.log('Workflow contract verified.');
+}

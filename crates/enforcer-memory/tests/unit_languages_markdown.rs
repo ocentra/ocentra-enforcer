@@ -22,11 +22,10 @@ const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_markdown";
 fn extracts_atx_heading_as_class_symbol() -> TestResult {
     let src = "# Title\n\nBody text.\n";
     let parsed = parse_markdown(src);
-    parsed
+    assert!(parsed
         .symbols
         .iter()
-        .find(|s| s.kind == SymbolKind::Class && s.name.contains("Title"))
-        .ok_or("expected a Title heading symbol")?;
+        .any(|s| s.kind == SymbolKind::Class && s.name.contains("Title")));
     Ok(())
 }
 
@@ -47,11 +46,10 @@ fn parses_fixture_without_panicking() -> TestResult {
     let path = Path::new(FIXTURE_DIR).join("sample.md");
     let src = fs::read_to_string(&path)?;
     let parsed = parse_markdown(&src);
-    parsed
+    assert!(parsed
         .symbols
         .iter()
-        .find(|s| s.kind == SymbolKind::Class && s.name.contains("Title"))
-        .ok_or("expected a Title heading symbol")?;
+        .any(|s| s.kind == SymbolKind::Class && s.name.contains("Title")));
     Ok(())
 }
 
@@ -65,6 +63,6 @@ fn incremental_reindex_is_deterministic() {
 
 #[test]
 fn malformed_source_does_not_panic() {
-    let parsed = parse_markdown("not really markdown but that's fine too");
-    let _ = parsed;
+    let source = "not really markdown but that's fine too";
+    assert_eq!(parse_markdown(source), parse_markdown(source));
 }

@@ -5,6 +5,9 @@ use std::path::PathBuf;
 
 use enforcer_config::env::{ConfigEnv, EnvLookup, ENFORCER_CONFIG_PATH_VAR, ENFORCER_PROFILE_VAR};
 use enforcer_config::error::{ConfigLoadError, ConfigResult};
+use enforcer_domain::config_types::{
+    ConfigEnvironmentValue, ConfigEnvironmentVariable, ConfigErrorReason,
+};
 
 struct ControlledEnv {
     values: BTreeMap<&'static str, String>,
@@ -28,10 +31,17 @@ impl ControlledEnv {
 }
 
 impl EnvLookup for ControlledEnv {
-    fn lookup(&self, name: &str) -> ConfigResult<Option<String>> {
+    fn lookup(
+        &self,
+        name: &ConfigEnvironmentVariable,
+    ) -> ConfigResult<Option<ConfigEnvironmentValue>> {
         match &self.failure {
             Some(error) => Err(error.clone()),
-            None => Ok(self.values.get(name).cloned()),
+            None => Ok(self
+                .values
+                .get(name.as_str())
+                .cloned()
+                .map(ConfigEnvironmentValue::from_owned)),
         }
     }
 }
@@ -48,7 +58,10 @@ fn config_path_var_decodes_to_typed_path_buf() -> Result<(), Box<dyn std::error:
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_CONFIG_PATH_VAR, "custom/cfg.json".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.config_path.as_ref().map(|path| path.as_path()), Some(PathBuf::from("custom/cfg.json").as_path()));
+    assert_eq!(
+        decoded.config_path.as_deref(),
+        Some(PathBuf::from("custom/cfg.json").as_path())
+    );
     assert_eq!(decoded.profile_name, None);
     Ok(())
 }
@@ -58,31 +71,28 @@ fn empty_config_path_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_CONFIG_PATH_VAR, "   ".to_owned());
     let error = ConfigEnv::read_from(&ControlledEnv::with_values(values))
-        .expect_err("empty path must fail");
-    assert!(matches!(
-        error,
-        ConfigLoadError::InvalidEnvVar {
-            var: ENFORCER_CONFIG_PATH_VAR,
-            ..
-        }
-    ));
+        .err()
+        .ok_or("empty path must fail")?;
+    let ConfigLoadError::InvalidEnvVar { var, .. } = error else {
+        return Err("expected InvalidEnvVar".into());
+    };
+    assert_eq!(var.as_str(), ENFORCER_CONFIG_PATH_VAR);
     Ok(())
 }
 
 #[test]
-fn config_path_with_nul_byte_fails_at_the_environment_boundary() -> Result<(), Box<dyn std::error::Error>> {
+fn config_path_with_nul_byte_fails_at_the_environment_boundary(
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_CONFIG_PATH_VAR, "config\0override.json".to_owned());
     let error = ConfigEnv::read_from(&ControlledEnv::with_values(values))
-        .expect_err("NUL path must fail");
-    assert!(matches!(
-        error,
-        ConfigLoadError::InvalidEnvVar {
-            var: ENFORCER_CONFIG_PATH_VAR,
-            reason,
-            ..
-        } if reason == "path override must not contain NUL bytes"
-    ));
+        .err()
+        .ok_or("NUL path must fail")?;
+    let ConfigLoadError::InvalidEnvVar { var, reason, .. } = error else {
+        return Err("expected InvalidEnvVar".into());
+    };
+    assert_eq!(var.as_str(), ENFORCER_CONFIG_PATH_VAR);
+    assert_eq!(reason.as_str(), "path override must not contain NUL bytes");
     Ok(())
 }
 
@@ -91,7 +101,13 @@ fn profile_var_with_known_name_decodes() -> Result<(), Box<dyn std::error::Error
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_PROFILE_VAR, "strict".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.profile_name.as_ref().map(|profile| profile.as_str()), Some("strict"));
+    assert_eq!(
+        decoded
+            .profile_name
+            .as_ref()
+            .map(|profile| profile.as_str()),
+        Some("strict")
+    );
     Ok(())
 }
 
@@ -100,30 +116,30 @@ fn profile_var_with_unknown_name_fails_closed() -> Result<(), Box<dyn std::error
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_PROFILE_VAR, "bogus-profile".to_owned());
     let error = ConfigEnv::read_from(&ControlledEnv::with_values(values))
-        .expect_err("unknown profile must fail");
-    assert!(matches!(
-        error,
-        ConfigLoadError::InvalidEnvVar {
-            var: ENFORCER_PROFILE_VAR,
-            value,
-            ..
-        } if value == "bogus-profile"
-    ));
+        .err()
+        .ok_or("unknown profile must fail")?;
+    let ConfigLoadError::InvalidEnvVar { var, value, .. } = error else {
+        return Err("expected InvalidEnvVar".into());
+    };
+    assert_eq!(var.as_str(), ENFORCER_PROFILE_VAR);
+    assert_eq!(value.as_str(), "bogus-profile");
     Ok(())
 }
 
 #[test]
 fn lookup_errors_are_not_treated_as_absent_overrides() -> Result<(), Box<dyn std::error::Error>> {
     let env = ControlledEnv::failing_with(ConfigLoadError::EnvVarRead {
-        var: ENFORCER_PROFILE_VAR.to_owned(),
-        reason: "environment value is not valid Unicode".to_owned(),
+        var: ConfigEnvironmentVariable::new(ENFORCER_PROFILE_VAR.to_owned())?,
+        reason: ConfigErrorReason::from_owned("environment value is not valid Unicode".to_owned()),
     });
-    let error = ConfigEnv::read_from(&env).expect_err("lookup error must propagate");
-    assert!(matches!(
-        error,
-        ConfigLoadError::EnvVarRead { var, reason }
-            if var == ENFORCER_PROFILE_VAR && reason == "environment value is not valid Unicode"
-    ));
+    let error = ConfigEnv::read_from(&env)
+        .err()
+        .ok_or("lookup error must propagate")?;
+    let ConfigLoadError::EnvVarRead { var, reason } = error else {
+        return Err("expected EnvVarRead".into());
+    };
+    assert_eq!(var.as_str(), ENFORCER_PROFILE_VAR);
+    assert_eq!(reason.as_str(), "environment value is not valid Unicode");
     Ok(())
 }
 
@@ -133,7 +149,16 @@ fn both_vars_set_decode_independently() -> Result<(), Box<dyn std::error::Error>
     values.insert(ENFORCER_CONFIG_PATH_VAR, "a/b.json".to_owned());
     values.insert(ENFORCER_PROFILE_VAR, "ocentra-parent".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.config_path.as_ref().map(|path| path.as_path()), Some(PathBuf::from("a/b.json").as_path()));
-    assert_eq!(decoded.profile_name.as_ref().map(|profile| profile.as_str()), Some("ocentra-parent"));
+    assert_eq!(
+        decoded.config_path.as_deref(),
+        Some(PathBuf::from("a/b.json").as_path())
+    );
+    assert_eq!(
+        decoded
+            .profile_name
+            .as_ref()
+            .map(|profile| profile.as_str()),
+        Some("ocentra-parent")
+    );
     Ok(())
 }

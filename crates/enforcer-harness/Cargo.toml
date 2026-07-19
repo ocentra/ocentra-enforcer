@@ -37,6 +37,8 @@ toml_edit = { workspace = true }
 [dev-dependencies]
 # DEPENDENCY-JUSTIFICATION: integration tests require isolated filesystem fixtures.
 tempfile = "=3.27.0"
+# DEPENDENCY-JUSTIFICATION: parser boundaries require generated totality coverage across arbitrary text.
+proptest = "=1.9.0"
 # Dev-only: the h12 dogfood-exclusion integration test
 # (tests/cyberskills_adapters.rs) mirrors h11's real-repo-walk proof, which
 # needs the resolved profile config and the scan-crate's walk/IgnoreRules.

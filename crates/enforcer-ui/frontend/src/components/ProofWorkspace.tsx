@@ -1,14 +1,17 @@
 import { FileCheck2, ShieldAlert, TerminalSquare } from "lucide-react";
+import type { ReactElement } from "react";
 import type { Project } from "../data/enforcerAppData";
+import type { UiCount, UiMaybe, UiTextList } from "../data/enforcerAppData";
 
-type ProofArtifact = { path: string; modifiedAt: string; bytes: number };
+type ProofArtifact = { path: string; modifiedAt: string; bytes: UiCount };
 type ProjectProofSnapshot = {
   proofRoot: string;
-  currentGit: { commit?: string; branch?: string; dirty?: boolean };
-  journal: { path: string; state: "missing" | "verified" | "invalid"; recordCount: number; latestEventType?: string; latestProofId?: string; latestTimestamp?: string; error?: string };
-  runs: Array<{ path: string; proofRun?: { proofId: string; runId: string; title: string; capability: string; status: string; endedAt: string; pinned: boolean; diagnosticCount: number }; freshness: string; artifacts: { declared: number; present: number; missing: number; totalBytes: number }; parseError?: string }>;
-  claim: { registryPath: string; state: string; requiredProofIds: string[]; claim?: { accepted: Array<{ proofId: string; runId: string }>; violations: Array<{ proofId: string; code: string; message: string }> }; error?: string };
+  currentGit: { commit: UiMaybe<string>; branch: UiMaybe<string>; dirty: UiMaybe<boolean> };
+  journal: { path: string; state: "missing" | "verified" | "invalid"; recordCount: UiCount; latestEventType: UiMaybe<string>; latestProofId: UiMaybe<string>; latestTimestamp: UiMaybe<string>; error: UiMaybe<string> };
+  runs: Array<{ path: string; proofRun: UiMaybe<{ proofId: string; runId: string; title: string; capability: string; status: string; endedAt: string; pinned: boolean; diagnosticCount: UiCount }>; freshness: string; artifacts: { declared: UiCount; present: UiCount; missing: UiCount; totalBytes: UiCount }; parseError: UiMaybe<string> }>;
+  claim: { registryPath: string; state: string; requiredProofIds: UiTextList; claim: UiMaybe<{ accepted: Array<{ proofId: string; runId: string }>; violations: Array<{ proofId: string; code: string; message: string }> }>; error: UiMaybe<string> };
 };
+type ProofWorkspaceProps = { project: Project; snapshot: UiMaybe<ProjectProofSnapshot>; artifacts: ProofArtifact[]; loading: boolean; error: string; onOpenRules: () => void; onOpenScan: () => void };
 
 function proofTone(value: string): "ready" | "partial" | "missing" {
   if (["verified", "ready", "passed", "current"].includes(value)) return "ready";
@@ -16,7 +19,7 @@ function proofTone(value: string): "ready" | "partial" | "missing" {
   return "partial";
 }
 
-export function ProofWorkspace({ project, snapshot, artifacts, loading, error, onOpenRules, onOpenScan }: { project: Project; snapshot?: ProjectProofSnapshot; artifacts: ProofArtifact[]; loading: boolean; error: string; onOpenRules: () => void; onOpenScan: () => void }) {
+export function ProofWorkspace({ project, snapshot, artifacts, loading, error, onOpenRules, onOpenScan }: ProofWorkspaceProps): ReactElement {
   const journal = snapshot?.journal;
   const claim = snapshot?.claim;
   return (
@@ -45,7 +48,7 @@ export function ProofWorkspace({ project, snapshot, artifacts, loading, error, o
         <dl className="meta-grid"><dt>Journal</dt><dd>{journal?.state ?? "loading"}</dd><dt>Runs</dt><dd>{snapshot?.runs.length ?? 0} recorded</dd><dt>Git</dt><dd>{snapshot?.currentGit.commit?.slice(0, 12) ?? "unavailable"}{snapshot?.currentGit.dirty ? " / dirty" : ""}</dd><dt>Claim</dt><dd>{claim?.state ?? "loading"}</dd></dl>
         <div className="proof-command"><TerminalSquare size={16} /><code>{journal?.path ?? ".enforce/proofs/journal.ndjson"}</code></div>
         {claim?.state === "blocked" && <div className="proof-gap"><ShieldAlert size={17} /><span>{claim.claim?.violations[0]?.message ?? "The configured proof claim is blocked."}</span></div>}
-        {journal?.state === "invalid" && <div className="proof-gap"><ShieldAlert size={17} /><span>Journal verification failed. The desktop refuses to treat its records as evidence.</span></div>}
+        {journal?.state === "invalid" && <div className="proof-gap"><ShieldAlert size={17} /><span>Journal verification failed. The desktop refuses to trust these records.</span></div>}
         <div className="action-row proof-actions"><button className="ghost-button" onClick={onOpenScan}>Open scan</button><button className="primary-action" onClick={onOpenRules}>Inspect proof rules</button></div>
       </aside>
     </section>

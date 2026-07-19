@@ -4,118 +4,121 @@
 //! rule fires on its own literal marker; fail/pass fixtures live under
 //! `fixtures/npm-1/<rule-id>/{fail,pass}.txt`.
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::findings::FindingTitle;
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::Validator;
 
-use crate::registry::reg;
+use crate::boundary::register_pattern as reg;
 
 /// Build every `NPM-1` validator.
-pub fn validators() -> Vec<Box<dyn Validator>> {
+pub fn validators() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
     let mut v: Vec<Box<dyn Validator>> = Vec::new();
     reg(
         &mut v,
-        "NPM-1.1",
-        "package-lock.json is required",
+        "NPM-1.1".parse::<RuleId>()?,
+        "package-lock.json is required".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_1_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.2",
-        "npm ci is required in CI",
+        "NPM-1.2".parse::<RuleId>()?,
+        "npm ci is required in CI".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_2_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.3",
-        "Enforcer dependencies must be pinned",
+        "NPM-1.3".parse::<RuleId>()?,
+        "Enforcer dependencies must be pinned".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_3_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.4",
-        "packageManager must pin npm",
+        "NPM-1.4".parse::<RuleId>()?,
+        "packageManager must pin npm".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_4_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.5",
-        "Node engine must be bounded",
+        "NPM-1.5".parse::<RuleId>()?,
+        "Node engine must be bounded".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_5_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.6",
-        "Dependency install scripts require approval",
+        "NPM-1.6".parse::<RuleId>()?,
+        "Dependency install scripts require approval".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_6_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.7",
-        "Git dependencies are forbidden",
+        "NPM-1.7".parse::<RuleId>()?,
+        "Git dependencies are forbidden".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_7_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.8",
-        "File and path dependencies are forbidden",
+        "NPM-1.8".parse::<RuleId>()?,
+        "File and path dependencies are forbidden".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_8_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.9",
-        "npm audit high and critical findings must fail",
+        "NPM-1.9".parse::<RuleId>()?,
+        "npm audit high and critical findings must fail".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_9_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.10",
-        "Dependency licenses must match policy",
+        "NPM-1.10".parse::<RuleId>()?,
+        "Dependency licenses must match policy".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_10_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.11",
-        "Suspicious dependency names are forbidden",
+        "NPM-1.11".parse::<RuleId>()?,
+        "Suspicious dependency names are forbidden".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_11_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.12",
-        "SBOM must be generated for release",
+        "NPM-1.12".parse::<RuleId>()?,
+        "SBOM must be generated for release".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_12_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.13",
-        "Published package files must be explicit",
+        "NPM-1.13".parse::<RuleId>()?,
+        "Published package files must be explicit".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_13_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.14",
-        "Package bin paths must exist",
+        "NPM-1.14".parse::<RuleId>()?,
+        "Package bin paths must exist".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_14_MARKER",
     );
     reg(
         &mut v,
-        "NPM-1.15",
-        "Package export paths must exist",
+        "NPM-1.15".parse::<RuleId>()?,
+        "Package export paths must exist".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_NPM_1_15_MARKER",
     );
-    v
+    Ok(v)
 }

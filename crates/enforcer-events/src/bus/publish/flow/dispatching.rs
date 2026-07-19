@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use crate::bus::dispatch::{dispatch_concurrent, dispatch_sequential};
 use crate::bus::publisher::EventPublisher;
-use crate::bus::reports::dead_letter::{DeadLetter, DeadLetterReason};
+use crate::bus::reports::dead_letter::DeadLetter;
 use crate::bus::reports::empty_publish_report;
 use crate::bus::{DispatchMode, EventBus, SubscriberRecord};
 use crate::queue::state::NoSubscriberQueueDecision;
-use crate::{EventingError, PublishReport, QueueDisposition, StoredEventEnvelope};
+use crate::{bus::reports::handler::PublishReport, error::EventingError};
+use enforcer_domain::events_types::{DeadLetterReason, EventCount, QueueDisposition};
 
 pub(super) async fn publish_without_subscribers(
     bus: &EventBus,
@@ -25,7 +27,7 @@ pub(super) async fn publish_without_subscribers(
                 &stored,
                 dispatch_mode,
                 queue_report,
-                0,
+                EventCount::ZERO,
             ))
         }
         NoSubscriberQueueDecision::QueuedWithDeadLetter(queue_report, dropped, reason, error) => {
@@ -40,7 +42,7 @@ pub(super) async fn publish_without_subscribers(
                 &stored,
                 dispatch_mode,
                 queue_report,
-                1,
+                crate::boundary::event_values::event_count(1),
             ))
         }
         NoSubscriberQueueDecision::DeadLetter(queue_report, reason, error) => {
@@ -54,7 +56,7 @@ pub(super) async fn publish_without_subscribers(
                 &stored,
                 dispatch_mode,
                 queue_report,
-                1,
+                crate::boundary::event_values::event_count(1),
             ))
         }
     }
@@ -83,7 +85,7 @@ pub(super) async fn dead_letter_expired_deadline(
         dispatch_mode,
         bus.queue
             .report(QueueDisposition::DeadLetteredDeadlineExpired),
-        1,
+        crate::boundary::event_values::event_count(1),
     ))
 }
 
@@ -92,10 +94,10 @@ pub(super) async fn dispatch(
     stored: StoredEventEnvelope,
     subscribers: Vec<SubscriberRecord>,
     dispatch_mode: DispatchMode,
-) -> Vec<crate::bus::reports::handler::HandlerReport> {
+) -> Result<Vec<crate::bus::reports::handler::HandlerReport>, EventingError> {
     match dispatch_mode {
         DispatchMode::Sequential => {
-            dispatch_sequential(
+            Ok(dispatch_sequential(
                 stored,
                 subscribers,
                 // CLONE-JUSTIFICATION: dispatch task owns publisher context beyond this borrowed bus.
@@ -104,10 +106,10 @@ pub(super) async fn dispatch(
                 bus.handler_policy.clone(),
                 Arc::clone(&bus.clock),
             )
-            .await
+            .await)
         }
         DispatchMode::Concurrent => {
-            dispatch_concurrent(
+            Ok(dispatch_concurrent(
                 stored,
                 subscribers,
                 // CLONE-JUSTIFICATION: dispatch task owns publisher context beyond this borrowed bus.
@@ -116,18 +118,16 @@ pub(super) async fn dispatch(
                 bus.handler_policy.clone(),
                 Arc::clone(&bus.clock),
             )
-            .await
+            .await)
         }
         DispatchMode::OrderedByAggregateKey => {
             // CLONE-JUSTIFICATION: aggregate gate lookup retains key after stored event moves into dispatch.
             let aggregate_key = stored.aggregate_key.clone();
             let aggregate_gate = bus.aggregate_gate(&aggregate_key);
-            // The aggregate gate semaphore is never closed anywhere in this
-            // crate, so `acquire_owned` returning `Err` is not reachable in
-            // practice. Degrade gracefully (dispatch without the ordering
-            // permit) rather than panicking if that invariant is ever
-            // violated by a future change.
-            let aggregate_permit = Arc::clone(&aggregate_gate).acquire_owned().await.ok();
+            let aggregate_permit = Arc::clone(&aggregate_gate)
+                .acquire_owned()
+                .await
+                .map_err(|_closed| EventingError::BusShutdown)?;
             let reports = dispatch_sequential(
                 stored,
                 subscribers,
@@ -140,7 +140,7 @@ pub(super) async fn dispatch(
             .await;
             drop(aggregate_permit);
             bus.release_idle_aggregate_gate(&aggregate_key, &aggregate_gate);
-            reports
+            Ok(reports)
         }
     }
 }

@@ -119,7 +119,10 @@ bool tree_sitter_COBOL_external_scanner_scan(void *payload, TSLexer *lexer,
     }
 
     if(valid_symbols[LINE_PREFIX_COMMENT] && lexer->get_column(lexer) <= 5) {
-        while(lexer->get_column(lexer) <= 5) {
+        // A short malformed line can reach EOF before COBOL's six-column
+        // prefix.  Advancing at EOF never changes the lexer state, so the
+        // old column-only loop spun forever on inputs such as "&\\x1bW".
+        while(lexer->get_column(lexer) <= 5 && lexer->lookahead != 0) {
             lexer->advance(lexer, true);
         }
         lexer->result_symbol = LINE_PREFIX_COMMENT;

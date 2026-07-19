@@ -26,7 +26,7 @@ export type GraphSourceSnippet = {
 };
 
 export type GraphFocus = { query: string; nodeId?: string };
-export type GraphFolderAggregate = { path: string; files: number; symbols: number; calls: number };
+type GraphFolderAggregate = { path: string; files: number; symbols: number; calls: number };
 
 type NativeGraphNode = Omit<GraphNode, "x" | "y" | "summary" | "snippet">;
 
@@ -39,8 +39,8 @@ export type NativeGraphPayload = {
   nodes: NativeGraphNode[];
   edges: GraphEdge[];
   projectionLimited: boolean;
-  focusQuery?: string;
-  focusNodeId?: string;
+  focusQuery?: string | undefined;
+  focusNodeId?: string | undefined;
   focusMatched: boolean;
 };
 
@@ -52,11 +52,11 @@ export type ProjectGraph = {
   filesIndexed: number;
   folderAggregates: GraphFolderAggregate[];
   projectionLimited: boolean;
-  focusQuery?: string;
-  focusNodeId?: string;
+  focusQuery?: string | undefined;
+  focusNodeId?: string | undefined;
   focusMatched: boolean;
   available: boolean;
-  error?: string;
+  error?: string | undefined;
   nodes: GraphNode[];
   edges: GraphEdge[];
 };

@@ -32,6 +32,9 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Plan parser properties exercise arbitrary
+# workpack text and prove the typed parser remains total and panic-free.
+proptest = "=1.9.0"
 # DEPENDENCY-JUSTIFICATION: External plan tests use isolated temporary trees
 # to verify scaffold overwrite and filesystem validation behavior.
 tempfile = "=3.27.0"

@@ -81,17 +81,15 @@ harness before relying on it.
 
 ## Verify the connection
 
-Start a new harness session and ask it to call the route tool for one explicit
-file in a disposable target repository. Confirm that it returns a compact
-structured response and that the target root is the path you supplied.
+Start a new harness session and call `ocentra_enforcer_mcp_status`. Confirm the
+server name is `enforcer` and the response is healthy. The current Rust MCP
+router also wires coordination status, exact-path coordination claim, and UI
+launch/status.
 
-When diagnosing a failure, use the MCP diagnostics or the CLI command that
-matches the operation before reading raw logs. The normal workflow is:
-
-1. Route the file or scope.
-2. Run the smallest relevant check.
-3. Repair the reported condition.
-4. Repeat the check, then run the wider verification gate.
+Do not use discovery alone as evidence that a tool works. Route, scan, check,
+diagnostics, proof, and broader coordination contracts are registered but
+currently return a structured not-wired error. Run validation through the
+native CLI with an explicit path, diff, or `--all` scope.
 
 ## Skill setup
 

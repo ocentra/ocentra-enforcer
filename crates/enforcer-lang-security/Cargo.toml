@@ -20,7 +20,6 @@ serde_yaml = "0.9"
 regex = "=1.12.4"
 # DEPENDENCY-JUSTIFICATION: Security validators emit the shared typed findings and
 # consume the domain rule and severity vocabulary used by routed scan reports.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: This crate implements the shared Validator trait and
 # fixture-parity contract for security rule families.

@@ -23,5 +23,10 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # resolved compatible release so this crate's build remains reproducible.
 regex = "=1.12.4"
 
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: property-based path normalization proof exercises
+# arbitrary Unicode and separator combinations required by RR-12.27.
+proptest = "=1.9.0"
+
 [lints]
 workspace = true

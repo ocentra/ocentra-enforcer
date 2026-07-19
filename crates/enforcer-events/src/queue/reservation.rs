@@ -1,4 +1,4 @@
-use crate::{EventId, IdempotencyKey};
+use enforcer_domain::events_types::{EventId, IdempotencyKey};
 
 use super::state::EventQueue;
 

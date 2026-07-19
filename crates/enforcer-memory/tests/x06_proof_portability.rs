@@ -9,31 +9,27 @@ fn workspace_root() -> std::path::PathBuf {
 
 fn looks_like_machine_absolute_path(value: &str) -> bool {
     let chars: Vec<char> = value.chars().collect();
-    for index in 0..chars.len().saturating_sub(3) {
-        let drive = chars[index];
+    chars.windows(4).enumerate().any(|(index, window)| {
+        let drive = window[0];
         if !drive.is_ascii_alphabetic() || chars[index + 1] != ':' {
-            continue;
+            return false;
         }
 
-        let separator = chars[index + 2];
+        let separator = window[2];
         if separator != '\\' && separator != '/' {
-            continue;
+            return false;
         }
 
         let previous = index
             .checked_sub(1)
             .map(|previous_index| chars[previous_index]);
         if previous.is_some_and(|character| character.is_ascii_alphanumeric()) {
-            continue;
+            return false;
         }
 
-        let next = chars[index + 3];
-        if next.is_ascii_alphanumeric() || matches!(next, '.' | '_' | '-' | '\\' | '/') {
-            return true;
-        }
-    }
-
-    false
+        let next = window[3];
+        next.is_ascii_alphanumeric() || matches!(next, '.' | '_' | '-' | '\\' | '/')
+    })
 }
 
 fn collect_json_path_leaks(

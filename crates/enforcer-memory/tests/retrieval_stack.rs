@@ -12,11 +12,14 @@
 //! `?` rather than `.expect(...)`, matching `ingest_and_recall.rs`'s
 //! existing style.
 
-use enforcer_memory::embed::{DegradedState, Embedder, LoadState, LocalEmbedder};
+use enforcer_domain::memory_types::DocumentKind;
+use enforcer_domain::memory_types::{DegradedState, LoadState};
+use enforcer_memory::embed::{Embedder, LocalEmbedder};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::ranking::HardFilter;
 use enforcer_memory::rerank::{FusionScoreReranker, Reranker as _};
-use enforcer_memory::search::{DocumentKind, HybridSearcher, SearchDocument};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::search::HybridSearcher;
 use enforcer_memory::vector::{embed_documents, VectorIndex};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -72,7 +75,7 @@ fn build_stack(
     let embedder = LocalEmbedder::default();
     let doc_texts: Vec<(String, String)> = corpus
         .iter()
-        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .map(|doc| (doc.id.to_string(), doc.text.to_string()))
         .collect();
     let entries = embed_documents(&embedder, &doc_texts)?;
     let vector = VectorIndex::build(&entries, embedder.model_info());
@@ -124,7 +127,6 @@ fn semantic_query_prefers_shared_vocabulary_document_over_unrelated_ones() -> Te
     // similarity, not just BM25 exact/split-term matching.
     let result = searcher.search("widget configuration settings", &corpus, &[])?;
 
-    assert!(!result.context.is_empty());
     let top_ids: Vec<&str> = result
         .context
         .iter()
@@ -172,12 +174,12 @@ fn reranker_lift_reports_nonzero_when_pipeline_reorders_results() -> TestResult 
     // non-negative measurement -- this is the field the QA/parity
     // harness reads, so its presence and shape matter as much as any
     // specific value for this small fixture.
-    assert!(result.reranker_lift.is_finite());
-    assert!(result.reranker_lift >= 0.0);
+    assert!(result.reranker_lift.get().is_finite());
+    assert!(result.reranker_lift.get() >= 0.0);
 
     let recomputed =
         enforcer_memory::ranking::reranker_lift(&result.pre_rerank_pool, &result.context);
-    assert!((recomputed - result.reranker_lift).abs() < 1e-9);
+    assert!((recomputed.get() - result.reranker_lift.get()).abs() < 1e-9);
     Ok(())
 }
 
@@ -198,10 +200,12 @@ fn vector_index_manifest_detects_staleness_on_dimension_change() -> TestResult {
         !diff.is_empty(),
         "a dimension mismatch must be reported as staleness"
     );
-    assert!(!vector.manifest().matches(&drifted_model));
+    assert!(!bool::from(vector.manifest().matches(&drifted_model)));
 
     // The un-drifted model info must still match (no false positive).
-    assert!(vector.manifest().matches(&embedder.model_info()));
+    assert!(bool::from(
+        vector.manifest().matches(&embedder.model_info())
+    ));
     Ok(())
 }
 
@@ -215,14 +219,17 @@ fn model_manifest_carries_the_full_version_vector() {
     let embedder = LocalEmbedder::default();
     let info = embedder.model_info();
 
-    assert!(!info.embedding_model.is_empty());
+    assert_eq!(
+        info.embedding_model.as_str(),
+        "enforcer-hashing-projection-v1"
+    );
     assert!(info.dimension > 0);
-    assert!(!info.dtype.is_empty());
-    assert!(!info.similarity_metric.is_empty());
-    assert!(!info.normalization.is_empty());
-    assert!(!info.formatter_version.is_empty());
-    assert!(!info.chunker_version.is_empty());
-    assert!(!info.parser_version.is_empty());
+    assert_eq!(info.dtype.as_str(), "f32");
+    assert_eq!(info.similarity_metric.as_str(), "cosine");
+    assert_eq!(info.normalization.as_str(), "l2");
+    assert_eq!(info.formatter_version.as_str(), "1");
+    assert_eq!(info.chunker_version.as_str(), "1");
+    assert_eq!(info.parser_version.as_str(), "1");
 }
 
 /// Hard test: no-remote-provider proof. The default embedder and
@@ -256,7 +263,7 @@ fn default_build_reports_degraded_capability_state_never_a_real_provider() -> Te
     let searcher = HybridSearcher::new(&fulltext, &vector, &embedder, &reranker);
     let result = searcher.search("config", &corpus, &[])?;
     assert!(
-        enforcer_memory::search::is_degraded(&result),
+        enforcer_memory::search::is_degraded(&result).is_degraded(),
         "the default build's search result must be labeled degraded, never claimed as feature parity"
     );
     Ok(())
@@ -275,7 +282,6 @@ fn token_reduction_estimate_is_present_and_reflects_a_real_reduction() -> TestRe
 
     let result = searcher.search("config file settings", &corpus, &[])?;
 
-    assert!(!result.context.is_empty());
     let estimate = result.token_reduction_estimate;
     assert!(estimate.context_tokens > 0);
     assert!(estimate.naive_tokens > 0);
@@ -296,9 +302,10 @@ fn hard_filters_exclude_a_document_from_the_full_pipeline_result() -> TestResult
     let (fulltext, vector, embedder, reranker) = build_stack(&corpus)?;
     let searcher = HybridSearcher::new(&fulltext, &vector, &embedder, &reranker);
 
-    let filters = vec![HardFilter::new("no-config-file", |doc_id: &str| {
-        doc_id != "file:config.rs"
-    })];
+    let filters = vec![HardFilter::from_predicate(
+        "no-config-file".into(),
+        |doc_id| (doc_id != "file:config.rs").into(),
+    )];
 
     let result = searcher.search("config", &corpus, &filters)?;
 

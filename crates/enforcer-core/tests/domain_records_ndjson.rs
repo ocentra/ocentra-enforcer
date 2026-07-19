@@ -1,6 +1,7 @@
 use enforcer_core::ndjson_writer::{read_all, NdjsonWriter};
 use enforcer_domain::ids::CorrelationId;
-use enforcer_domain::records::{EnforcerEvent, RunEvent, SCHEMA_VERSION};
+use enforcer_domain::records::{EnforcerEvent, RunEvent, ToolName, SCHEMA_VERSION};
+use enforcer_domain::telemetry_types::{DurationMillis, EpochMillis, ProcessExitCode};
 
 #[test]
 fn core_ndjson_sink_round_trips_domain_records() -> enforcer_core::error::Result<()> {
@@ -17,10 +18,10 @@ fn core_ndjson_sink_round_trips_domain_records() -> enforcer_core::error::Result
         schema_version: SCHEMA_VERSION,
         correlation_id: CorrelationId::try_from("run-001".to_owned())?,
         causation_id: None,
-        epoch_ms: 1_700_000_000_000,
-        tool: "cargo".to_owned(),
-        exit_code: 0,
-        duration_ms: 1234,
+        epoch_ms: EpochMillis::new(1_700_000_000_000),
+        tool: ToolName::new("cargo".to_owned())?,
+        exit_code: ProcessExitCode::new(0),
+        duration_ms: DurationMillis::new(1234),
     });
     {
         let mut sink: NdjsonWriter<EnforcerEvent> = NdjsonWriter::open(&path)?;

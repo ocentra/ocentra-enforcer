@@ -1,11 +1,11 @@
-use enforcer_events::bus::subscriber::EventSubscriber;
-use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
-use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
+use enforcer_domain::events_types::{
     AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
     RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService, SubscriberId,
     TargetHandler,
 };
+use enforcer_events::bus::subscriber::EventSubscriber;
+use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
+use enforcer_events::error::EventingError;
 use serde::{Deserialize, Serialize};
 
 pub(super) const TEST_EVENT_TYPE: &str = "eventing.test.observed";
@@ -32,25 +32,25 @@ pub(super) struct TestText(pub(super) String);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct TestEvent {
     pub(super) label: String,
-    aggregate_key: AggregateKey,
-    idempotency_key: IdempotencyKey,
-    event_type: EventType,
+    aggregate_key: String,
+    idempotency_key: String,
+    event_type: String,
 }
 
 impl DomainEvent for TestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
-            self.event_type.clone(),
-            SchemaVersion::new(1)?,
+            EventType::parse(&self.event_type)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        Ok(self.aggregate_key.clone())
+        Ok(AggregateKey::parse(&self.aggregate_key)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        Ok(self.idempotency_key.clone())
+        Ok(IdempotencyKey::parse(&self.idempotency_key)?)
     }
 }
 
@@ -95,9 +95,9 @@ pub(super) fn test_event_for_type_with_aggregate_and_idempotency(
 ) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestEvent {
         label: label.0.clone(),
-        aggregate_key: AggregateKey::parse(aggregate_key.0.as_str())?,
-        idempotency_key: IdempotencyKey::parse(idempotency_key.0.as_str())?,
-        event_type: EventType::parse(event_type.0.as_str())?,
+        aggregate_key: aggregate_key.0.clone(),
+        idempotency_key: idempotency_key.0.clone(),
+        event_type: event_type.0.clone(),
     })
 }
 

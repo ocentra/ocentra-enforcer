@@ -103,7 +103,7 @@ pub struct LangSpec {
 
 impl LangSpec {
     /// Go: smallest arrays of the 10 (this wave's migration proof --
-    /// see `generic::parse_go`). Node kinds read off
+    /// see `generic::go::parse_go`). Node kinds read off
     /// `languages/go.rs`'s bespoke walk plus
     /// `crate::complexity::NodeKindTable::go`.
     pub const fn go() -> Self {
@@ -519,11 +519,9 @@ impl LangSpec {
         }
     }
 
-    /// Kotlin: node kinds copied from the baseline's
-    /// `kotlin_func_types`/`kotlin_class_types`/`kotlin_module_types`/
-    /// `kotlin_call_types`/`kotlin_import_types`/`kotlin_branch_types`/
-    /// `kotlin_decorator_types` (`codebase-memory-mcp/internal/cbm/lang_specs.c`
-    /// :437-450), verified directly against the `tree-sitter-grammars/
+    /// Kotlin node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:437-450) and the
+    /// `tree-sitter-grammars/
     /// tree-sitter-kotlin` grammar's own `src/node-types.json` (the
     /// upstream the `tree-sitter-kotlin-ng` crate packages, confirmed
     /// via its crates.io `repository` metadata field, and the same
@@ -592,11 +590,8 @@ impl LangSpec {
         }
     }
 
-    /// Swift: node kinds copied from the baseline's
-    /// `swift_func_types`/`swift_class_types`/`swift_field_types`/
-    /// `swift_call_types`/`swift_import_types`/`swift_branch_types`/
-    /// `swift_decorator_types` (`codebase-memory-mcp/internal/cbm/lang_specs.c`
-    /// :556-569), verified directly against the actual
+    /// Swift node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:556-569) and the actual
     /// `alex-pinkus/tree-sitter-swift` grammar's own generated
     /// `src/node-types.json` (fetched from the grammar's real GitHub
     /// repository via the GitHub contents API, not guessed) -- the same
@@ -646,7 +641,7 @@ impl LangSpec {
     ///   from calling a function literally named `Widget` (Swift has no
     ///   dedicated `new`-keyword-equivalent for its common construction
     ///   idiom, so [`generic::swift_call_override`]'s `call_expression`
-    ///   arm correctly records it with no [`crate::parsers::ReceiverHint::NewExpression`]
+    ///   arm correctly records it with no [`enforcer_domain::memory_types::ReceiverHint::NewExpression`]
     ///   hint at all -- there is no syntactic signal here to hang one
     ///   on). `constructor_expression` only fires for a generic type
     ///   constructed with explicit type arguments (`Array<Int>()`),
@@ -740,12 +735,8 @@ impl LangSpec {
         }
     }
 
-    /// Solidity: node kinds copied from the baseline's
-    /// `solidity_func_types`/`solidity_class_types`/
-    /// `solidity_field_types`/`solidity_call_types`/
-    /// `solidity_import_types`/`solidity_branch_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:990-1012`),
-    /// cross-checked node-kind-by-node-kind against the actual
+    /// Solidity node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:990-1012) and the actual
     /// `node-types.json` shipped in the `tree-sitter-solidity` crate this
     /// row binds (crates.io `tree-sitter-solidity = "1.2"`, ABI 15) --
     /// every kind below is confirmed present with the field names this
@@ -868,13 +859,8 @@ impl LangSpec {
         }
     }
 
-    /// GDScript: node kinds copied from the baseline's
-    /// `gdscript_func_types`/`gdscript_class_types`/
-    /// `gdscript_field_types`/`gdscript_call_types`/
-    /// `gdscript_import_types`/`gdscript_branch_types`/
-    /// `gdscript_decorator_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1020-1034`),
-    /// cross-checked node-kind-by-node-kind against the actual
+    /// GDScript node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1020-1034) and the actual
     /// `node-types.json` shipped in the `tree-sitter-gdscript` crate this
     /// row binds (crates.io `tree-sitter-gdscript = "6"`, ABI 14), plus a
     /// real parse tree dump (`cargo run` against a scratch crate
@@ -1214,9 +1200,9 @@ impl LangSpec {
         }
     }
 
-    /// Ruby: node kinds verified directly against the `tree-sitter-ruby`
-    /// 0.23.1 crate's own `src/node-types.json` (not blindly copied from
-    /// the C baseline's `internal/cbm/lang_specs.c` `ruby_*` arrays,
+    /// Ruby uses the `tree-sitter-ruby` 0.23.1 grammar contract. Its
+    /// `src/node-types.json` differs from the C baseline's
+    /// `internal/cbm/lang_specs.c` `ruby_*` arrays,
     /// which target a different grammar snapshot -- e.g. the baseline's
     /// `extract_objc_callee` reads a `"selector"` field that does not
     /// exist on this crate's `message_expression`; see [`Self::objc`]'s
@@ -1249,7 +1235,7 @@ impl LangSpec {
     ///   "call"`), so `"command_call"` never actually matches anything
     ///   for this specific crate version -- kept for baseline-parity
     ///   documentation, harmless as dead data.
-    /// - `call_function_field`/`call_arguments_field` are placeholders,
+    /// - `call_function_field`/`call_arguments_field` are unavailable,
     ///   never actually consulted: Ruby's `call` node's callee lives in
     ///   a `"method"` field (not `"function"`), with a separate
     ///   `"receiver"` field for the qualifying expression (`d.bark` ->
@@ -1312,7 +1298,7 @@ impl LangSpec {
     ///   node itself (matches `internal/cbm/extract_defs.c`'s
     ///   `CBM_LANG_ZIG` case at :3731-3740: "the name is the parent
     ///   variable_declaration's identifier child"). `name_field` below
-    ///   is consequently a placeholder never consulted for these three
+    ///   is consequently an unavailable-field sentinel for these three
     ///   kinds -- [`crate::languages::generic::zig_quirk`] claims them
     ///   in full, walking one level *up* via [`tree_sitter::Node::parent`]
     ///   rather than reading any field on the node itself.
@@ -1409,7 +1395,7 @@ impl LangSpec {
     /// generic engine's own `name_field`-keyed fallback, same posture
     /// and for the same declarator-unwrapping reasons as [`Self::c`]/
     /// [`Self::cpp`] (see their own doc comments) -- `name_field`/
-    /// `call_function_field` below are consequently placeholders, never
+    /// `call_function_field` below are consequently unavailable and never
     /// actually consulted.
     /// - `class_types` includes both the C-family shapes
     ///   (`struct_specifier`/`enum_specifier`/`type_definition`/
@@ -1516,11 +1502,8 @@ impl LangSpec {
         }
     }
 
-    /// Haskell: node kinds copied from the baseline's `haskell_func_types`/
-    /// `haskell_class_types`/`haskell_module_types`/`haskell_call_types`/
-    /// `haskell_import_types`/`haskell_branch_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:515-521),
-    /// cross-checked node-kind-by-node-kind against the actual
+    /// Haskell node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:515-521) and the actual
     /// `tree-sitter-haskell` 0.23.1 crate's own `src/node-types.json` (G2.2g
     /// grammar onboarding) plus a real parse-tree dump (`cargo run` against a
     /// scratch crate depending on `tree-sitter-haskell` directly) -- every
@@ -1575,7 +1558,7 @@ impl LangSpec {
     /// working field the generic engine's own class-shape fallback COULD
     /// read on its own -- see this const's own `name_field` bullet below
     /// for why (the field is shared with the func/method branch, which
-    /// genuinely does need it to be a placeholder). `module_types` is
+    /// genuinely does need it to be unavailable). `module_types` is
     /// intentionally empty, NOT baseline's
     /// `["haskell"]` (the grammar's own root node kind): identical rationale
     /// to [`Self::solidity`]'s own doc comment -- the baseline's
@@ -1601,7 +1584,7 @@ impl LangSpec {
     /// arm at `internal/cbm/extract_calls.c`:345-354 exactly) -- neither shape
     /// fits a single `function`/`arguments`-field pair the generic engine's
     /// default reconstruction assumes.
-    /// - `name_field` is a placeholder (`"UNUSED_SEE_HASKELL_QUIRK"`), NOT
+    /// - `name_field` is unavailable (`"UNUSED_SEE_HASKELL_QUIRK"`), NOT
     ///   the real `"name"` string, DESPITE `function`/`bind` genuinely
     ///   having a working `name` field (confirmed above) -- this is
     ///   deliberate, not an oversight: the generic engine's own func/method
@@ -1610,7 +1593,7 @@ impl LangSpec {
     ///   symbol AND RETURNS immediately, before `on_unmatched_node` (where
     ///   [`crate::languages::generic::haskell_quirk`]'s own `function`/`bind`
     ///   arm lives) would ever get a chance to run at all. Since Haskell's
-    ///   `body_field` is ALSO a placeholder (there is no single flat body
+    ///   `body_field` is ALSO unavailable (there is no single flat body
     ///   field -- the actual body lives across one or more `match`
     ///   children, see [`crate::languages::generic::haskell_walk_scoped`]'s
     ///   own doc comment), a real `name_field` here would let the generic
@@ -1649,18 +1632,16 @@ impl LangSpec {
             branch_types: &["match", "guards", "if", "case", "do", "boolean"],
             decorator_types: &[],
             // See this const's own doc comment for why this is
-            // deliberately a placeholder despite `function`/`bind` having
+            // deliberately unavailable despite `function`/`bind` having
             // a real, working `"name"` field.
             name_field: "UNUSED_SEE_HASKELL_QUIRK",
             body_field: "UNUSED_SEE_HASKELL_QUIRK",
         }
     }
 
-    /// OCaml: node kinds copied from the baseline's `ocaml_func_types`/
-    /// `ocaml_class_types`/`ocaml_module_types`/`ocaml_call_types`/
-    /// `ocaml_import_types`/`ocaml_branch_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:525-536), verified
-    /// node-kind-by-node-kind against the actual `tree-sitter-ocaml` 0.25.0
+    /// OCaml node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:525-536) and the
+    /// actual `tree-sitter-ocaml` 0.25.0
     /// crate's own `grammars/ocaml/src/node-types.json` (G2.2g grammar
     /// onboarding) plus a real parse-tree dump -- every node kind the
     /// baseline names is genuinely present in this grammar (unlike some
@@ -1884,11 +1865,9 @@ impl LangSpec {
         }
     }
 
-    /// Erlang: node kinds copied from the baseline's `erlang_func_types`/
-    /// `erlang_class_types`/`erlang_module_types`/`erlang_call_types`/
-    /// `erlang_import_types`/`erlang_branch_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:613-619), verified
-    /// node-kind-by-node-kind against the actual `tree-sitter-erlang` 0.19.0
+    /// Erlang node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:613-619) and the
+    /// actual `tree-sitter-erlang` 0.19.0
     /// crate's own `src/node-types.json` (G2.2g grammar onboarding, the
     /// canonical WhatsApp-authored grammar -- confirmed via the crate's
     /// `repository` metadata) plus a real parse-tree dump -- Erlang shows
@@ -2030,7 +2009,7 @@ impl LangSpec {
             import_types: &["import_attribute"],
             branch_types: &["if_expr", "case_expr", "receive_expr"],
             decorator_types: &[],
-            // NOT a placeholder here, unlike this file's usual
+            // This is a real field, unlike this file's usual
             // "UNUSED_SEE_..." convention for a fully-quirk-claimed
             // array: `class_types`' own `type_alias` IS fully claimed by
             // `erlang_quirk`'s two-level `type_name` unwrap (so this
@@ -2040,7 +2019,7 @@ impl LangSpec {
             // generic engine's ordinary func/method branch instead,
             // which reads this exact field by name
             // (`generic::walk`'s `child_text(node, spec.name_field, ..)`
-            // call) -- a placeholder string here would silently break
+            // call) -- an unavailable-field sentinel here would silently break
             // `function_clause`'s own real, working `"name"` field
             // lookup (caught by this row's own
             // `tests/unit_languages_erlang.rs::extracts_function_clause_as_function`
@@ -2563,7 +2542,7 @@ impl LangSpec {
     ///   [`Self::solidity`]'s identical `new Helper(a)` finding and Go's
     ///   `NewXxx(...)` convention are both handled the same way
     ///   elsewhere in this file -- captured, not stripped).
-    /// - `call_function_field`/`call_arguments_field` are placeholders,
+    /// - `call_function_field`/`call_arguments_field` are unavailable,
     ///   never actually consulted: `call_expression` has NO fields at
     ///   all (confirmed above) -- its callee is ALWAYS the node's own
     ///   FIRST child (an `identifier` for a plain call, `super` for a
@@ -2773,7 +2752,7 @@ impl LangSpec {
     ///   itself only lists `{"invokation_expression", "command", NULL}`,
     ///   so this row's two-entry array already matches it exactly, unlike
     ///   [`Self::d`]'s array-shrinking correction above.
-    /// - `call_function_field`/`call_arguments_field` are placeholders,
+    /// - `call_function_field`/`call_arguments_field` are unavailable,
     ///   never actually consulted -- every `call_types` entry is claimed
     ///   by `ps_call_override` before either fallback would run (see
     ///   `call_types`'s own note above for why neither kind has a usable
@@ -2948,7 +2927,7 @@ impl LangSpec {
     ///   `type_name` node as a positional child (NOT a field --
     ///   `type_name` here is the grammar's own concrete NODE KIND,
     ///   confusingly reused as that same node's OWN field name for its
-    ///   inner identifier), so `name_field` is a placeholder never
+    ///   inner identifier), so `name_field` is an unavailable-field sentinel
     ///   consulted for any of them --
     ///   [`crate::languages::generic::fsharp_quirk`] finds the `type_name`
     ///   child directly, then reads ITS OWN real `type_name` field (this
@@ -3309,7 +3288,7 @@ impl LangSpec {
             // in full); `func_types`/`method_types` DO use the ordinary
             // generic name-field path (`function`/`external_function`
             // both have a real `"name"` field), so this value is live for
-            // those two, unlike every other placeholder row in this file.
+            // those two, unlike rows whose fields are unavailable.
             name_field: "name",
             body_field: "body",
         }
@@ -3395,11 +3374,9 @@ impl LangSpec {
         }
     }
 
-    /// Ada: node kinds copied from the baseline's `ada_func_types`/
-    /// `ada_class_types`/`ada_field_types`/`ada_call_types`/
-    /// `ada_import_types`/`ada_branch_types` (`codebase-memory-mcp/
-    /// internal/cbm/lang_specs.c:1118-1138`), cross-checked node-kind-by-
-    /// node-kind against the actual `node-types.json`/`grammar.js` shipped
+    /// Ada node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1118-1138) and the
+    /// actual `node-types.json`/`grammar.js` shipped
     /// in the `tree-sitter-ada` crate this row binds (crates.io
     /// `tree-sitter-ada = "0.1"`, `briot/tree-sitter-ada`), plus a real
     /// parse tree dump (`cargo run` against a scratch crate depending on
@@ -3539,7 +3516,7 @@ impl LangSpec {
     ///   rule, not a separate decorator-shaped node any array here could
     ///   name) -- matches [`Self::zig`]'s identical finding for the
     ///   identical reason.
-    /// - `name_field`/`body_field` are placeholders, never actually
+    /// - `name_field`/`body_field` are unavailable and never actually
     ///   consulted: every one of `func_types`/`method_types`/`class_types`/
     ///   `field_types` above is empty or fully quirk-claimed (see each
     ///   bullet above) -- same posture as [`Self::c`]/[`Self::cpp`].
@@ -3578,11 +3555,8 @@ impl LangSpec {
         }
     }
 
-    /// Apex: node kinds copied from the baseline's `apex_func_types`/
-    /// `apex_class_types`/`apex_field_types`/`apex_call_types`/
-    /// `apex_import_types`/`apex_branch_types`/`apex_decorator_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1565-1580`),
-    /// cross-checked node-kind-by-node-kind against the actual
+    /// Apex node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1565-1580) and the actual
     /// `node-types.json`/`grammar.js` shipped in the `tree-sitter-sfapex`
     /// crate's `apex` grammar this row binds (crates.io
     /// `tree-sitter-sfapex = "3.0"`, `aheber/tree-sitter-sfapex` --
@@ -3731,12 +3705,9 @@ impl LangSpec {
         }
     }
 
-    /// Crystal: node kinds copied from the baseline's `crystal_func_types`/
-    /// `crystal_class_types`/`crystal_field_types`/`crystal_call_types`/
-    /// `crystal_import_types`/`crystal_branch_types`/
-    /// `crystal_decorator_types` (`codebase-memory-mcp/internal/cbm/
-    /// lang_specs.c:1196-1208`), cross-checked node-kind-by-node-kind
-    /// against the actual `node-types.json`/`grammar.js` in the
+    /// Crystal node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1196-1208) and the
+    /// actual `node-types.json`/`grammar.js` in the
     /// `crystal-lang-tools/tree-sitter-crystal` repository this row binds
     /// (git dependency pinned to commit `50ca9e6` -- EXACT copyright-line
     /// match, "Gabriel Holodak", against this crate's own vendored
@@ -3877,7 +3848,7 @@ impl LangSpec {
     ///   established (e.g. [`Self::gdscript`]'s `decorator_types` is
     ///   likewise recorded without this row's own `class_types`/
     ///   `func_types` consuming it for a DECORATES edge).
-    /// - `name_field`/`body_field` are placeholders, never actually
+    /// - `name_field`/`body_field` are unavailable and never actually
     ///   consulted for `field_types` (fully quirk-claimed, see above) --
     ///   `func_types`/`method_types`/`class_types` DO still use the
     ///   ordinary flat `name_field`/`body_field` path (both real fields on
@@ -3919,10 +3890,8 @@ impl LangSpec {
             body_field: "body",
         }
     }
-    /// R: node kinds copied from the baseline's `r_func_types`/
-    /// `r_module_types`/`r_call_types`/`r_import_types`/`r_branch_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:625-630),
-    /// cross-checked node-kind-by-node-kind against the actual
+    /// R node kinds are verified against the baseline table
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:625-630) and the actual
     /// `tree-sitter-r` 1.3.0 crate's own `src/node-types.json` (G2.2h grammar
     /// onboarding) plus a real parse-tree dump (`cargo run` against a scratch
     /// crate depending on `tree-sitter-r` directly) -- every node kind the
@@ -4002,7 +3971,7 @@ impl LangSpec {
     /// - `call_function_field`/`call_arguments_field`/`name_field`/
     ///   `body_field` are real values (`"function"`/`"arguments"` work
     ///   unmodified for `call_types`; `name_field`/`body_field` are
-    ///   placeholders since `func_types` is fully quirk-claimed, same
+    ///   unavailable since `func_types` is fully quirk-claimed, same
     ///   "arrays fully claimed elsewhere" posture as [`Self::c`]'s own doc
     ///   note, confined to the func/method arrays only here the same way
     ///   [`Self::dart`]'s doc comment describes for its own analogous case).
@@ -4034,10 +4003,9 @@ impl LangSpec {
         }
     }
 
-    /// Perl: node kinds verified directly against the `ts-parser-perl` 1.2.1
-    /// crate's own `src/node-types.json` (G2.2h grammar onboarding) plus a
-    /// real parse-tree dump (`cargo run` against a scratch crate depending on
-    /// `ts-parser-perl` directly) -- NOT copied from the baseline's
+    /// Perl uses the `ts-parser-perl` 1.2.1 grammar contract, verified from
+    /// its `src/node-types.json` and a real parse-tree dump. It intentionally
+    /// differs from the baseline's
     /// `perl_func_types`/`perl_module_types`/`perl_call_types`/
     /// `perl_import_types`/`perl_branch_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:588-595), and NOT
@@ -4489,7 +4457,7 @@ impl LangSpec {
     /// fallback paths would ever run" posture as [`Self::c`]/[`Self::cpp`]/
     /// [`Self::objc`] -- `name_field`/`call_function_field`/
     /// `call_arguments_field`/`body_field` below are consequently
-    /// placeholders, never actually consulted.
+    /// unavailable and never actually consulted.
     /// - `func_types` is `["function_definition"]` only, NOT baseline's
     ///   `{"function_definition", "short_function_definition",
     ///   "assignment", NULL}`: this grammar version has NO
@@ -4949,7 +4917,7 @@ impl LangSpec {
     ///   [`crate::languages::generic::pascal_call_override`] rather than
     ///   the generic engine's own single-field reconstruction (this row's
     ///   `call_function_field`/`call_arguments_field` below are
-    ///   consequently placeholders, never actually consulted).
+    ///   consequently unavailable and never actually consulted).
     /// - `import_types` is `["declUses"]`, matching baseline's
     ///   `pascal_import_types` exactly -- confirmed via a real parse tree
     ///   that a single `uses SysUtils, Classes, Foo.Bar;` clause holds
@@ -5040,7 +5008,7 @@ impl LangSpec {
             decorator_types: &[],
             // `"name"`/`"body"` ARE real, consulted field names --
             // UNLIKE `LangSpec::c()`/`LangSpec::cpp()`/`LangSpec::objc()`/
-            // `LangSpec::julia()`'s identically-worded placeholders, this
+            // `LangSpec::julia()`'s identically-worded sentinels, this
             // row is only PARTIALLY quirk-claimed: `declProc` (this row's
             // sole `func_types`/`method_types` entry) has a genuine
             // `"name"` field of its own (confirmed in `node-types.json`),
@@ -5057,7 +5025,7 @@ impl LangSpec {
             // `body_field` is simply never found for `declProc` (a
             // bodyless declaration has no `"body"` field to match,
             // exactly like `LangSpec::zig()`'s own `function_signature`
-            // case) -- not a placeholder, just correctly absent on that
+            // case) -- not a sentinel, just correctly absent on that
             // specific node in practice. Only `class_types` (`declClass`/
             // `declIntf`/`declHelper`/`declObject`/`declRecord`, none of
             // which has ANY field of its own, name included -- see this
@@ -5070,10 +5038,9 @@ impl LangSpec {
         }
     }
 
-    /// QML (Qt Modeling Language, `.qml`): node kinds copied from the
-    /// baseline's `qml_class_types`/`qml_field_types`/`qml_import_types`
-    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:254-266,
-    /// `CBM_LANG_QML` row at :2022-2027), which reuses TypeScript/
+    /// QML (`.qml`) uses the baseline `CBM_LANG_QML` contract
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2022-2027), including
+    /// its reuse of TypeScript/
     /// JavaScript's own shared `ts_func_types`/`js_module_types`/
     /// `js_call_types`/`js_branch_types`/`ts_decorator_types` arrays
     /// verbatim (the baseline's own comment: "QMLJS grammar is a
@@ -5209,7 +5176,7 @@ impl LangSpec {
         }
     }
 
-    /// ReScript (`.res`/`.resi`): node kinds copied from the baseline's
+    /// ReScript (`.res`/`.resi`): node kinds derived from the baseline's
     /// `rescript_func_types`/`rescript_class_types`/`rescript_call_types`/
     /// `rescript_import_types`/`rescript_branch_types`/
     /// `rescript_decorator_types`
@@ -5369,7 +5336,7 @@ impl LangSpec {
         }
     }
 
-    /// Squirrel (`.nut`): node kinds copied from the baseline's
+    /// Squirrel (`.nut`): node kinds derived from the baseline's
     /// `squirrel_func_types`/`squirrel_class_types`/`squirrel_call_types`/
     /// `squirrel_branch_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1487-1496,
@@ -5522,7 +5489,7 @@ impl LangSpec {
     ///   [`crate::complexity::NodeKindTable`] being this array's real,
     ///   separate consumer; complexity extraction is deferred entirely
     ///   for this language per this wave's own scope, matching G2.1's
-    ///   convention), so this choice is documentation-only for now.
+    ///   convention), so this choice is documentation-only at present.
     /// - `import_types` is empty, NOT the baseline's own
     ///   `squirrel_import_types = {"extends"}`. This is PROVABLY dead
     ///   data in the baseline itself, not merely unused-by-choice: the
@@ -5799,7 +5766,7 @@ impl LangSpec {
     /// `extract_typst_callee`'s own implementation confirms this exactly
     /// (`ts_node_child_by_field_name(node, "item")`, no `arguments` field
     /// read anywhere), so this row's `call_function_field`/
-    /// `call_arguments_field` are UNUSED placeholders and
+    /// `call_arguments_field` are unavailable and
     /// [`crate::languages::generic::Quirks::call_override`] fully claims
     /// `call` instead; (2) `typst_func_types`' `"let"` entry describes a
     /// node that is ONLY a function definition when its OWN `pattern` field
@@ -5829,7 +5796,7 @@ impl LangSpec {
             field_types: &[],
             module_types: &["source_file"],
             call_types: &["call"],
-            // Unused placeholders -- see this const's own doc comment:
+            // Unavailable fields -- see this const's own doc comment:
             // `call` is fully claimed by `generic::typst_call_override`
             // (its real field is `item`, with no separate `arguments`
             // field to point at at all).
@@ -5874,7 +5841,7 @@ impl LangSpec {
     /// `while (named_child_count > 0 && type != "identifier") head =
     /// named_child(head, 0)` loop -- caught via `call_override`, this
     /// row's `call_function_field`/`call_arguments_field` are unused
-    /// placeholders; (2) `wgsl_module_types`' `"translation_unit"` entry
+    /// unavailable fields; (2) `wgsl_module_types`' `"translation_unit"` entry
     /// does not exist anywhere in this grammar's real node-kind vocabulary
     /// at all (confirmed via an exhaustive `node-types.json` scan) -- this
     /// grammar's actual (and only) root rule is named `source_file`
@@ -5884,7 +5851,7 @@ impl LangSpec {
     /// initially introduced (caught only by actually RUNNING the
     /// extractor against a real fixture with a call nested inside a
     /// function body, not by `node-types.json` inspection alone):
-    /// `body_field` was first written as an unused placeholder string on
+    /// `body_field` was first written as an unavailable-field sentinel on
     /// the mistaken assumption that this language's own def/call shapes
     /// needed no body recursion at all -- in fact `function_declaration`
     /// DOES have a real `body` field (see this doc comment's opening
@@ -5915,7 +5882,7 @@ impl LangSpec {
             field_types: &[],
             module_types: &["source_file"],
             call_types: &["type_constructor_or_function_call_expression"],
-            // Unused placeholders -- see this const's own doc comment:
+            // Unavailable fields -- see this const's own doc comment:
             // fully claimed by `generic::wgsl_call_override` (deepest-
             // identifier-descent reconstruction, no fields on this node
             // kind at all).
@@ -6014,7 +5981,7 @@ impl LangSpec {
             field_types: &[],
             module_types: &["source_file"],
             call_types: &["apply"],
-            // Unused placeholders -- see this const's own doc comment:
+            // Unavailable fields -- see this const's own doc comment:
             // `apply` is fully claimed by `generic::wolfram_call_override`
             // (positional-child reconstruction, `FIELD_COUNT 0` in this
             // grammar).
@@ -6032,7 +5999,7 @@ impl LangSpec {
             import_types: &["get_top"],
             branch_types: &[],
             decorator_types: &[],
-            // Unused placeholders -- see this const's own doc comment:
+            // Unavailable fields -- see this const's own doc comment:
             // `set`/`set_delayed`/... naming is fully claimed by
             // `generic::wolfram_quirk` (positional-child reconstruction,
             // `FIELD_COUNT 0` in this grammar).
@@ -6151,7 +6118,7 @@ impl LangSpec {
     /// - `mixin_statement`/`function_statement`'s own body-holding child is
     ///   named `"block"` in the tree but is NOT a real field (`"fields":
     ///   {}` for both in `node-types.json`; `block` is listed only under
-    ///   `"children"`) -- so [`Self::body_field`] below is a placeholder,
+    ///   `"children"`) -- so [`Self::body_field`] below is unavailable,
     ///   never actually consulted:
     ///   [`crate::languages::generic::scss_on_method_defined`] finds the
     ///   `block` child by KIND (not field) and recurses into it itself,
@@ -6173,7 +6140,7 @@ impl LangSpec {
     ///   unfielded (`"fields": {}`), matching the baseline's own
     ///   `extract_scss_callee`'s `cbm_find_child_by_kind(node,
     ///   "function_name")` (NOT `ts_node_child_by_field_name`) exactly, so
-    ///   [`Self::call_function_field`] below is likewise a placeholder --
+    ///   [`Self::call_function_field`] below is likewise unavailable --
     ///   [`crate::languages::generic::scss_call_override`] claims it via
     ///   kind-search instead.
     /// - `include_statement`'s target is a bare `identifier` child
@@ -6246,7 +6213,7 @@ impl LangSpec {
     /// `normal_command` an empty `"fields": {}`, confirmed by the real
     /// dump too -- no field label on ANY child of these node kinds) --
     /// [`Self::name_field`]/[`Self::body_field`]/[`Self::call_function_field`]
-    /// below are consequently all placeholders, matching this row's own
+    /// below are consequently all unavailable, matching this row's own
     /// [`crate::languages::generic::cmake_quirk`]/
     /// [`crate::languages::generic::cmake_call_override`] fully claiming
     /// every one of `func_types`/`call_types` via kind-search before the
@@ -6321,7 +6288,7 @@ impl LangSpec {
     /// `"function"` field via the generic engine's ordinary single-field
     /// path -- a genuine simplification the baseline's own hardcoded-
     /// string special case did not need to take.
-    /// - [`Self::call_arguments_field`] below is a placeholder, NOT a
+    /// - [`Self::call_arguments_field`] below is unavailable, NOT a
     ///   real fix: `node-types.json` confirms `function_call`/
     ///   `shell_function` EACH have exactly ONE field, `"function"` --
     ///   NEITHER has an `"arguments"` field at all (a real bug this row's
@@ -6441,7 +6408,7 @@ impl LangSpec {
     /// field name for the same semantic role) -- the generic engine's
     /// single [`Self::call_function_field`] cannot serve both node kinds
     /// with one field name, so [`Self::call_function_field`] below is a
-    /// placeholder and [`crate::languages::generic::fortran_call_override`]
+    /// unavailable and [`crate::languages::generic::fortran_call_override`]
     /// claims both kinds explicitly, reading whichever real field applies.
     /// - `function`/`subroutine` (this row's own `func_types`, the OUTER
     ///   wrapping node) have NO fields at all (confirmed, `"fields": {}`)
@@ -6451,7 +6418,7 @@ impl LangSpec {
     ///   documented quirk (`internal/cbm/extract_defs.c`:812-826, "the
     ///   outer node walk_defs matched has no name itself"). This row's
     ///   own [`Self::name_field`]/[`Self::body_field`] are consequently
-    ///   both placeholders -- [`crate::languages::generic::fortran_quirk`]
+    ///   both unavailable -- [`crate::languages::generic::fortran_quirk`]
     ///   fully claims `function`/`subroutine`, finding the inner
     ///   `*_statement` child by kind, reading ITS real `"name"` field, and
     ///   recursing into the OUTER node's own body content itself (the
@@ -6774,7 +6741,7 @@ impl LangSpec {
     ///   reads that real field directly (a genuine simplification over
     ///   finding it by kind), rather than needing a kind-search fallback.
     ///   [`Self::name_field`]/[`Self::body_field`] below remain
-    ///   placeholders purely because `value_declaration` still needs a
+    ///   unavailable purely because `value_declaration` still needs a
     ///   full quirk claim for the NAME half (no working name field), even
     ///   though the body half could technically use the generic engine's
     ///   own `body_field` mechanism if reached -- it never is, since name
@@ -6832,7 +6799,7 @@ impl LangSpec {
             // NOT yet actually wired to emit a symbol for it either
             // (`class_types`' own generic dispatch also needs a working
             // `name_field`, and this row's own [`Self::name_field`] is a
-            // placeholder for `value_declaration`'s sake -- `elm_quirk`
+            // unavailable for `value_declaration`'s sake -- `elm_quirk`
             // does not claim `module_declaration`, so it currently falls
             // through with no symbol emitted, just still recursed into) --
             // left as a genuine, documented gap rather than a plausible-
@@ -6850,7 +6817,7 @@ impl LangSpec {
             import_types: &["import_clause"],
             branch_types: &["case_of_expr", "if_else_expr"],
             decorator_types: &[],
-            // A REAL field, unlike every other placeholder `name_field` in
+            // A REAL field, unlike unavailable `name_field` entries in
             // this wave's own batch -- confirmed via `node-types.json`:
             // `type_declaration`/`type_alias_declaration`/
             // `module_declaration` (this row's own `class_types` entries)
@@ -6866,9 +6833,9 @@ impl LangSpec {
             // intended either way -- a genuine, confirmed-safe
             // simplification found only after `tests/unit_languages_elm.rs`
             // caught `type_declaration`/`module_declaration` silently
-            // emitting NO symbol at all with the original placeholder
+            // emitting NO symbol at all with the original sentinel
             // value (this row originally copied the "fully quirk-claimed"
-            // placeholder convention from languages like R/Puppet without
+            // sentinel convention from languages like R/Puppet without
             // checking whether it was actually needed for every one of
             // THIS row's own def-shaped node kinds, not just
             // `value_declaration`).
@@ -6878,7 +6845,7 @@ impl LangSpec {
     }
 
     /// Bicep (Azure IaC, `.bicep`). Language-parity wave G2.3c. Node
-    /// kinds copied from the baseline's `bicep_func_types`/
+    /// kinds derived from the baseline's `bicep_func_types`/
     /// `bicep_class_types`/`bicep_import_types`/`bicep_var_types`/
     /// `bicep_call_types`/`bicep_module_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1361-1369`),
@@ -6954,7 +6921,7 @@ impl LangSpec {
     }
 
     /// BitBake (Yocto build recipes, `.bb`/`.bbappend`/`.bbclass`/`.inc`).
-    /// Language-parity wave G2.3c. Node kinds copied from the baseline's
+    /// Language-parity wave G2.3c. Node kinds derived from the baseline's
     /// `bitbake_func_types`/`bitbake_var_types`/`bitbake_call_types`/
     /// `bitbake_import_types`/`bitbake_module_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1437-1445`),
@@ -7037,7 +7004,7 @@ impl LangSpec {
     }
 
     /// Cairo (StarkNet smart contracts, `.cairo`). Language-parity wave
-    /// G2.3c. Node kinds copied from the baseline's `cairo_func_types`/
+    /// G2.3c. Node kinds derived from the baseline's `cairo_func_types`/
     /// `cairo_class_types`/`cairo_call_types`/`cairo_import_types`/
     /// `cairo_branch_types`/`cairo_var_types`/`cairo_assign_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1465-1475`),
@@ -7150,7 +7117,7 @@ impl LangSpec {
     }
 
     /// CFScript (ColdFusion/CFML script dialect, `.cfc`). Language-parity
-    /// wave G2.3c. Node kinds copied from the baseline's
+    /// wave G2.3c. Node kinds derived from the baseline's
     /// `cfscript_func_types`/`cfscript_field_types`/
     /// `cfscript_import_types` plus the shared `js_module_types`/
     /// `js_call_types`/`js_branch_types` arrays its own baseline row
@@ -7279,7 +7246,7 @@ impl LangSpec {
     }
 
     /// FunC (TON smart contracts, `.fc`/`.func`). Language-parity wave
-    /// G2.3c. Node kinds copied from the baseline's `func_func_types`/
+    /// G2.3c. Node kinds derived from the baseline's `func_func_types`/
     /// `func_call_types`/`func_import_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1497-1500`),
     /// cross-checked against the actual `node-types.json` (vendored --
@@ -7369,7 +7336,7 @@ impl LangSpec {
     }
 
     /// Move (Aptos/Sui smart contracts, `.move`). Language-parity wave
-    /// G2.3c. Node kinds copied from the baseline's `move_func_types`/
+    /// G2.3c. Node kinds derived from the baseline's `move_func_types`/
     /// `move_call_types`/`move_import_types`/`move_branch_types`/
     /// `move_var_types`/`move_module_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1476-1486`),
@@ -7454,7 +7421,7 @@ impl LangSpec {
     }
 
     /// Nickel (config language, `.ncl`). Language-parity wave G2.3c.
-    /// Node kinds copied from the baseline's `nickel_func_types`/
+    /// Node kinds derived from the baseline's `nickel_func_types`/
     /// `nickel_call_types`/`nickel_import_types`/`nickel_branch_types`/
     /// `nickel_var_types`/`nickel_module_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1185-1195`),
@@ -7577,7 +7544,7 @@ impl LangSpec {
     }
 
     /// Jsonnet (JSON templating, `.jsonnet`/`.libsonnet`). Language-parity
-    /// wave G2.3c. Node kinds copied from the baseline's
+    /// wave G2.3c. Node kinds derived from the baseline's
     /// `jsonnet_func_types`/`jsonnet_call_types`/`jsonnet_import_types`/
     /// `jsonnet_branch_types`/`jsonnet_var_types`/`jsonnet_module_types`
     /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1323-1328`),
@@ -7997,7 +7964,7 @@ impl LangSpec {
     /// mechanism (`bound_op`'s own `[parameter]` field is repeated, not
     /// one list-node; `function_evaluation` has no field at all), so
     /// [`generic::tlaplus_call_override`] reconstructs both directly --
-    /// left as a placeholder, matching this file's established
+    /// left unavailable, matching this file's established
     /// "UNUSED_SEE_..." convention for a fully quirk-claimed call shape
     /// (e.g. [`Self::erlang`]/[`Self::clojure`]).
     ///
@@ -8247,9 +8214,9 @@ impl LangSpec {
     /// generic single-field `call_function_field` mechanism at all (not
     /// merely one, as this row's own first draft assumed), ALL FOUR are
     /// instead claimed in full by [`generic::vhdl_quirk`] rather than
-    /// leaving three of them to silently fail a placeholder field lookup
+    /// leaving three of them to silently fail an unavailable-field lookup
     /// -- `call_function_field`/`call_arguments_field` below are both
-    /// placeholders, matching this file's own "UNUSED_SEE_..."
+    /// unavailable fields, matching this file's own "UNUSED_SEE_..."
     /// convention for a fully quirk-claimed call shape (same posture as
     /// [`Self::c`]/[`Self::cpp`]/[`Self::php`]'s own full-claim rows this
     /// file's module doc already calls out). [`generic::vhdl_quirk`]
@@ -8503,7 +8470,7 @@ impl LangSpec {
     /// path-dependency, added below in `Cargo.toml`'s own
     /// `[dependencies]` table). The crate literally named
     /// `tree-sitter-cobol` (0.1.0) ships NO usable Rust API at all (a
-    /// `[[bin]]`-only placeholder publish, confirmed by downloading and
+    /// `[[bin]]`-only non-library publish, confirmed by downloading and
     /// inspecting its own `Cargo.toml`/source directly -- no `[lib]`
     /// section, zero dependencies); the real grammar
     /// (`github.com/yutaro-sakamoto/tree-sitter-cobol`, unpublished,
@@ -9158,7 +9125,7 @@ impl LangSpec {
     ///   `add(1, 2)` parses as `call_expression { field:callee ->
     ///   identifier "add", "(", number "1", ",", number "2", ")" }`, no
     ///   wrapping arguments-list node at all) -- `call_arguments_field` is
-    ///   consequently a placeholder never actually consulted;
+    ///   consequently unavailable and never actually consulted;
     ///   [`generic::hare_call_override`] reconstructs `arg_texts` by
     ///   scanning `call_expression`'s own remaining named children instead
     ///   (skipping the callee itself), the same "no wrapping node, scan
@@ -9589,7 +9556,7 @@ impl LangSpec {
     /// Cap'n Proto has no call-expression concept at all (it is a pure
     /// schema/IDL language, never executable), so `call_types` and
     /// both call-field names are meaningless here and left at their
-    /// placeholder defaults, matching this file's own established
+    /// unavailable defaults, matching this file's own established
     /// convention for languages whose full quirk claim makes the
     /// generic engine's field-based fallback logic unreachable (see
     /// `LangSpec::c`/`cpp`/`php`'s own identical doc-comment note).
@@ -9682,14 +9649,14 @@ impl LangSpec {
     /// here rather than copied blindly (same class of stale-baseline-
     /// entry finding as [`Self::lua`]/[`Self::bash`]'s own doc comments).
     /// - `func_types`/`name_field`/`body_field` are all empty/
-    ///   placeholder: `func_def` has a real `name` field but NO
+    ///   unavailable: `func_def` has a real `name` field but NO
     ///   `body`-named field at all (its `block` child is purely
     ///   positional, confirmed by both `node-types.json` --
     ///   `"fields": {"name": ...}` only -- and the real parse dump
     ///   above) -- this file's generic func/method branch
     ///   unconditionally `return`s once it resolves a name, whether or
     ///   not `child_by_field_name(body_field)` finds anything, so
-    ///   listing `func_def` in `func_types` with a placeholder
+    ///   listing `func_def` in `func_types` with an unavailable
     ///   `body_field` would silently DROP every call/nested statement
     ///   inside every AWK function body.
     ///   [`crate::languages::generic::awk_quirk`] claims `func_def`
@@ -9745,7 +9712,7 @@ impl LangSpec {
     /// argument: (word)) (command name: (word) argument:
     /// (variable_expansion ...))))`) -- G2.4a grammar onboarding.
     /// - `func_types`/`name_field`/`body_field` are all empty/
-    ///   placeholder: `function_definition` has a real `name` field,
+    ///   unavailable: `function_definition` has a real `name` field,
     ///   but its own body statements are positional siblings of that
     ///   field (confirmed above -- no `body`-named field exists at
     ///   all), the identical "generic func/method branch would silently
@@ -10314,7 +10281,7 @@ impl LangSpec {
     ///   baseline's assumed `function`) and a real `arguments` field --
     ///   `call_function_field`/`call_arguments_field` are set to match
     ///   the real grammar directly rather than the generic engine's own
-    ///   placeholder defaults.
+    ///   unavailable defaults.
     /// - The real grammar's numeric-for-loop node kind is
     ///   `numeric_for_statement`, NOT baseline's bare `for_statement`
     ///   (which does not exist in this grammar at all -- confirmed via
@@ -10839,7 +10806,7 @@ impl LangSpec {
     /// Protobuf is a pure schema/IDL language with no executable
     /// call-expression concept at all, matching [`Self::capnp`]'s own
     /// identical finding -- `call_types` and both call-field names are
-    /// left at their placeholder defaults.
+    /// left at their unavailable defaults.
     pub const fn protobuf() -> Self {
         Self {
             name: "protobuf",
@@ -12416,10 +12383,11 @@ impl LangSpec {
     }
 
     /// Java/Jakarta `.properties` (`.properties`). Language-parity wave
-    /// G2.5c (Tier-0, nominal). Grammar: `tree-sitter-properties` 0.3.0,
-    /// a real crates.io crate already depending on the
-    /// `tree-sitter-language` ABI-stable shim (no vendoring needed,
-    /// unlike this wave's other eight languages).
+    /// G2.5c (Tier-0, nominal). The published
+    /// `tree-sitter-properties` 0.3.0 grammar documents the node
+    /// vocabulary below, but runtime parsing is intentionally avoided:
+    /// its native parser can loop on valid one-line input. The Tier-0
+    /// extractor recognizes the document directly instead.
     ///
     /// Baseline's own `properties_module_types` is `["file",
     /// "source_file", NULL]`; this crate's own root rule is confirmed
@@ -13187,7 +13155,7 @@ impl LangSpec {
     /// ordinary generic path. There is no corresponding `arguments`
     /// field on this node (its own children -- `brace_word`/`command`/
     /// `quote_word` -- are purely positional), so
-    /// `call_arguments_field` is left at a placeholder;
+    /// `call_arguments_field` is unavailable;
     /// `generic::call_arg_texts` already degrades gracefully to an
     /// empty argument list when the named field is absent, matching
     /// this grammar's own shallow reality rather than needing a quirk to
@@ -13518,7 +13486,7 @@ impl LangSpec {
     /// via a real grammar probe: dumping a parse tree with
     /// `field_name_for_child` at every node found not a single
     /// non-`None` result) -- `call_function_field`/`call_arguments_field`/
-    /// `name_field`/`body_field` are all unreachable placeholders;
+    /// `name_field`/`body_field` are all unreachable sentinels;
     /// every extraction is positional, handled entirely by
     /// [`crate::languages::generic::agda_quirks`]'s
     /// `on_unmatched_node`/`call_override` hooks. `branch_types` drops

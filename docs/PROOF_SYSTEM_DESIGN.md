@@ -1,16 +1,18 @@
-# Enforcer Proof System Design
+# Internal Proof System Design Reference
 
 <!-- ai-dense -->
 ```yaml
 crate: enforcer-proof (hash-chained NDJSON journal, verify-on-open + on-replay)
 model: "evidence-backed claim for a commit+scope+profile+capability, never a raw terminal dump, never a permanent source artifact"
 storage: ".enforce/proofs/runs/<run-id>/ under the TARGET repo"
-pr_ready_gate: "proof claim --pr-ready rejects missing/stale/manual-required/failed/artifact-broken claims"
+public_status: "proof engine contracts exist; native proof CLI and Rust MCP proof tools are not wired"
 ```
 <!-- /ai-dense -->
 
-This document defines the reusable proof system. It is intentionally
-generic: large legacy repositories are consumers, not owners of the model.
+This document records an internal design for the reusable proof engine. It is
+not a current product contract. The native `enforcer proof` command group and
+the Rust MCP proof tools are registered boundaries but are not wired to engine
+delegates.
 
 ## Why This Exists
 
@@ -145,8 +147,8 @@ permission.
 
 ## Deterministic Migration Sequence
 
-1. Inventory: run `enforcer proof inventory --root <repo> --json` and
-   inspect `migrationMatrix` before opening individual scripts.
+1. Inventory: collect a bounded inventory through an existing repository
+   process; the native proof CLI cannot perform this step yet.
 2. Route: pick one plan bucket and one template, for example
    `eventing-network + RuntimeEventProof`.
 3. Define: add Enforcer proof definitions or project profile entries for that
@@ -161,10 +163,10 @@ permission.
 8. Delete: remove the old script only after the parity report is equivalent or
    stricter and CI can recollect the proof.
 
-## Executable Parity Bridge
+## Planned Parity Bridge
 
-The bridge is intentionally artifact-first. It does not compare two JavaScript
-files line by line; it compares proof evidence.
+This planned bridge is artifact-first. The command examples below are contract
+sketches, not executable commands in the current native CLI.
 
 ```text
 enforcer proof import-legacy --root <repo> --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json

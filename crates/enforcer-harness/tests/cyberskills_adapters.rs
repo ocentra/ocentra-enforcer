@@ -9,6 +9,8 @@
 use std::path::{Path, PathBuf};
 
 use enforcer_config::resolve::resolve_profile_only;
+use enforcer_domain::config_types::ConfigProfileName;
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::severity::Severity;
 use enforcer_harness::adapters::cyberskills::gate::SeverityThresholdGate;
 use enforcer_harness::adapters::cyberskills::recorded::parse_recorded;
@@ -97,12 +99,16 @@ fn cyberskills_adapter_graceful_skip() -> Result<(), Box<dyn std::error::Error>>
 #[test]
 fn cyberskills_adapter_severity_gate() -> Result<(), Box<dyn std::error::Error>> {
     let gate = SeverityThresholdGate::new("CYBER-ADAPTER-SCA-SEVERITY.1".parse()?, Severity::Error);
-    run_fixture_parity(
-        &gate,
-        &manifest_dir(),
-        "tests/fixtures/cyberskills_adapters/sca/bad/high_cve_over_threshold.json",
-        "tests/fixtures/cyberskills_adapters/sca/good/below_threshold.json",
-    )?;
+    let root = RepoRoot::try_from(manifest_dir().as_path())?;
+    let fail: RelPath =
+        "tests/fixtures/cyberskills_adapters/sca/bad/high_cve_over_threshold.json".parse()?;
+    let pass: RelPath =
+        "tests/fixtures/cyberskills_adapters/sca/good/below_threshold.json".parse()?;
+    let fail_outcome = parse_recorded(&read_fixture(fail.as_str())?)?;
+    let pass_outcome = parse_recorded(&read_fixture(pass.as_str())?)?;
+    assert_eq!(gate.evaluate(&fail_outcome, &fail).len(), 1);
+    assert!(gate.evaluate(&pass_outcome, &pass).is_empty());
+    run_fixture_parity(&gate, &root, &fail, &pass)?;
     Ok(())
 }
 
@@ -123,15 +129,9 @@ fn cyberskills_adapters_not_dogfooded() -> Result<(), Box<dyn std::error::Error>
         return Ok(());
     }
 
-    let config = resolve_profile_only("ocentra-enforcer")?;
-    let rules = IgnoreRules {
-        ignore_dirs: config.ignore_dirs.clone(),
-        ignore_file_globs: config
-            .ignore_file_globs
-            .iter()
-            .map(|glob| glob.as_str().to_owned())
-            .collect(),
-    };
+    let profile_name = ConfigProfileName::try_new("ocentra-enforcer".to_owned())?;
+    let config = resolve_profile_only(&profile_name)?;
+    let rules = IgnoreRules::new(config.ignore_dirs, config.ignore_file_globs);
 
     let walked = walk(&root, &rules)?;
     let hits: Vec<_> = walked
@@ -163,10 +163,7 @@ fn without_the_adapters_glob_the_walk_would_see_adapter_files(
         return Ok(());
     }
 
-    let rules = IgnoreRules {
-        ignore_dirs: Vec::new(),
-        ignore_file_globs: Vec::new(),
-    };
+    let rules = IgnoreRules::default();
     let walked = walk(&root, &rules)?;
     let hits = walked
         .iter()

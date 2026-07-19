@@ -5,17 +5,17 @@
 //! named in `TEST_PROOF_EXPECTATIONS.md` (`literal-scan-universal-threshold`,
 //! `literal-scan-graceful-skip`).
 
-use std::path::{Path, PathBuf};
-
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::{ScanScope, Violation};
-use enforcer_domain::paths::RelPath;
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::severity::Severity;
-use enforcer_literal_scan::LiteralScanBridgeValidator;
-use enforcer_validator::harness::run_fixture_parity;
+use enforcer_literal_scan::bridge::LiteralScanBridgeValidator;
+use enforcer_validator::harness::run_fixture_parity as assert_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-fn manifest_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
+fn manifest_root() -> Result<RepoRoot, DecodeError> {
+    RepoRoot::try_from(env!("CARGO_MANIFEST_DIR").to_owned())
 }
 
 /// Named proof row `literal-scan-universal-threshold`: a high-literal-risk
@@ -24,12 +24,10 @@ fn manifest_dir() -> PathBuf {
 #[test]
 fn dart_threshold_crossing_parity() -> Result<(), Box<dyn std::error::Error>> {
     let validator = LiteralScanBridgeValidator::new()?;
-    run_fixture_parity(
-        &validator,
-        &manifest_dir(),
-        "tests/fixtures/universal/fail/dart-secret.dart",
-        "tests/fixtures/universal/pass/dart-clean.dart",
-    )?;
+    let root = manifest_root()?;
+    let fail: RelPath = "tests/fixtures/universal/fail/dart-secret.dart".parse()?;
+    let pass: RelPath = "tests/fixtures/universal/pass/dart-clean.dart".parse()?;
+    assert_fixture_parity(&validator, &root, &fail, &pass)?;
     Ok(())
 }
 
@@ -39,12 +37,10 @@ fn dart_threshold_crossing_parity() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn cfml_threshold_crossing_parity() -> Result<(), Box<dyn std::error::Error>> {
     let validator = LiteralScanBridgeValidator::new()?;
-    run_fixture_parity(
-        &validator,
-        &manifest_dir(),
-        "tests/fixtures/universal/fail/cfml-secret.cfm",
-        "tests/fixtures/universal/pass/cfml-clean.cfm",
-    )?;
+    let root = manifest_root()?;
+    let fail: RelPath = "tests/fixtures/universal/fail/cfml-secret.cfm".parse()?;
+    let pass: RelPath = "tests/fixtures/universal/pass/cfml-clean.cfm".parse()?;
+    assert_fixture_parity(&validator, &root, &fail, &pass)?;
     Ok(())
 }
 
@@ -58,19 +54,22 @@ fn cfml_threshold_crossing_parity() -> Result<(), Box<dyn std::error::Error>> {
 fn advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let validator = LiteralScanBridgeValidator::new()?;
+    let root = manifest_root()?;
 
     let fail_file: RelPath = "tests/fixtures/universal/fail/dart-secret.dart".parse()?;
-    let fail_source = std::fs::read_to_string(manifest_dir().join(fail_file.as_str()))?;
+    let fail_source = std::fs::read_to_string(root.resolve(&fail_file))?;
     let findings = validator.validate(ValidationInput {
         file: &fail_file,
-        source: &fail_source,
+        source: ValidationSource::from_text(&fail_source),
         scope: ScanScope::Files,
     });
     assert!(!findings.is_empty(), "fail fixture must cross threshold");
     for finding in findings {
         assert_ne!(finding.severity, Severity::Error);
-        let error = Violation::try_from(finding)
-            .expect_err("advisory findings must not convert into blocking violations");
+        let error = match Violation::try_from(finding) {
+            Ok(_) => return Err("advisory finding converted into a blocking violation".into()),
+            Err(error) => error,
+        };
         assert_eq!(error.path, "violation.severity");
         assert_eq!(error.reason, "a violation must carry severity `error`");
     }
@@ -78,7 +77,7 @@ fn advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully(
     let unknown_file: RelPath = "tests/fixtures/universal/fail/no-extension".parse()?;
     let graceful = validator.validate(ValidationInput {
         file: &unknown_file,
-        source: "arbitrary text, no registered language for this path",
+        source: ValidationSource::from_text("arbitrary text, no registered language for this path"),
         scope: ScanScope::Files,
     });
     assert!(graceful.is_empty(), "unrecognized target must skip cleanly");

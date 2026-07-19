@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn server_name_is_non_empty() {
-        assert!(!SERVER_NAME.is_empty());
+        assert_eq!(SERVER_NAME.len(), 8);
     }
 
     #[test]

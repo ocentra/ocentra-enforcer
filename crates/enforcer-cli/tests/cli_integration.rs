@@ -100,31 +100,25 @@ fn fail_fixture_paths_mode_exits_non_zero_with_violations_class(
 }
 
 #[test]
-fn inline_test_policy_flows_from_project_config_to_the_real_cli_binary(
+fn inline_test_policy_keeps_rust_unit_tests_exempt_in_the_real_cli_binary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     write_inline_test_fixture(temp.path())?;
 
     let default_status = run_check(temp.path(), &["src/lib.rs"])?;
-    assert_eq!(
-        default_status.code(),
-        Some(1),
-        "the default inlineTestPolicy must forbid inline tests"
+    assert!(
+        default_status.success(),
+        "Rust cfg(test) modules are exempt from TEST-2.2"
     );
 
-    write_inline_test_policy(temp.path(), "warn")?;
-    let warning_status = run_check(temp.path(), &["src/lib.rs"])?;
-    assert!(
-        warning_status.success(),
-        "warn must render an advisory without turning the CLI verdict into a failure"
-    );
-
-    write_inline_test_policy(temp.path(), "allow")?;
-    let allow_status = run_check(temp.path(), &["src/lib.rs"])?;
-    assert!(
-        allow_status.success(),
-        "allow must emit no blocking placement finding"
-    );
+    for policy in ["forbid", "warn", "allow"] {
+        write_inline_test_policy(temp.path(), policy)?;
+        let status = run_check(temp.path(), &["src/lib.rs"])?;
+        assert!(
+            status.success(),
+            "Rust cfg(test) remains exempt with {policy} policy"
+        );
+    }
     Ok(())
 }
 
@@ -223,6 +217,99 @@ fn help_never_advertises_a_bypass_flag() -> Result<(), Box<dyn std::error::Error
             "check --help must never advertise `{bad_word}`"
         );
     }
+    Ok(())
+}
+
+fn install_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::process::Command {
+    let home = fixture.join("home");
+    let app_data = fixture.join("config");
+    let mut command = Command::new(binary);
+    command
+        .current_dir(fixture)
+        .arg("install")
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .env("APPDATA", &app_data)
+        .env("XDG_CONFIG_HOME", &app_data)
+        .env("CODEX_HOME", home.join(".codex"));
+    command
+}
+
+#[test]
+fn install_registers_every_native_harness_and_is_idempotent(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    let binary = binary_path()?;
+    let first = install_command(&binary, fixture.path()).status()?;
+    assert_eq!(
+        first.code(),
+        Some(0),
+        "a complete native install plus doctor verification must exit 0"
+    );
+
+    let home = fixture.path().join("home");
+    let config_root = fixture.path().join("config");
+    let json_paths = [
+        home.join(".claude.json"),
+        home.join(".gemini").join("settings.json"),
+        home.join(".gemini").join("config").join("mcp_config.json"),
+        home.join(".cursor").join("mcp.json"),
+        home.join(".kiro").join("settings").join("mcp.json"),
+        home.join(".codeium")
+            .join("windsurf")
+            .join("mcp_config.json"),
+        config_root
+            .join("Code")
+            .join("User")
+            .join("globalStorage")
+            .join("kilocode.kilo-code")
+            .join("settings")
+            .join("mcp_settings.json"),
+        config_root.join("Zed").join("settings.json"),
+    ];
+    for path in &json_paths {
+        assert!(
+            path.is_file(),
+            "native install must create `{}`",
+            path.display()
+        );
+    }
+    let codex_config = home.join(".codex").join("config.toml");
+    assert!(
+        codex_config.is_file(),
+        "native install must create `{}`",
+        codex_config.display()
+    );
+
+    let gemini: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&json_paths[1])?)?;
+    assert_eq!(
+        gemini["mcpServers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        serde_json::json!(binary.display().to_string())
+    );
+    let zed: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&json_paths[7])?)?;
+    assert_eq!(
+        zed["context_servers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        serde_json::json!(binary.display().to_string())
+    );
+    let codex_before = std::fs::read(&codex_config)?;
+    let json_before = json_paths
+        .iter()
+        .map(std::fs::read)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let second = install_command(&binary, fixture.path()).status()?;
+    assert_eq!(
+        second.code(),
+        Some(0),
+        "an idempotent reinstall plus doctor verification must exit 0"
+    );
+    assert_eq!(std::fs::read(&codex_config)?, codex_before);
+    let json_after = json_paths
+        .iter()
+        .map(std::fs::read)
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(json_after, json_before);
     Ok(())
 }
 
@@ -415,5 +502,42 @@ fn architecture_bare_without_check_is_a_usage_error() -> Result<(), Box<dyn std:
         .args(["architecture"])
         .status()?;
     assert_eq!(status.code(), Some(2));
+    Ok(())
+}
+
+#[cfg(feature = "full")]
+#[test]
+fn memory_cli_forwards_hyphenated_index_flags_to_the_real_binary(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let repo = tempfile::tempdir()?;
+    std::fs::write(repo.path().join("sample.rs"), "pub fn sample() {}\n")?;
+    let stores_dir = repo.path().join(".enforce").join("ci-memory");
+    let output = Command::new(binary_path()?)
+        .args([
+            "memory",
+            "cli",
+            "--json",
+            "index_repository",
+            "--repo-path",
+            repo.path()
+                .to_str()
+                .ok_or("temp repository path was not UTF-8")?,
+            "--stores-dir",
+            stores_dir.to_str().ok_or("stores path was not UTF-8")?,
+            "--mode",
+            "fast",
+        ])
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("\"isError\": false"),
+        "stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
     Ok(())
 }

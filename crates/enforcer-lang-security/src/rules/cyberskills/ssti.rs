@@ -49,9 +49,13 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
+use crate::boundary::pattern::LabelledSinkPattern as SinkPattern;
+use crate::boundary::source_predicates::{is_dynamic_template, is_interpolated_template_literal};
+
 /// Whether a sink's captured argument (capture group 1) is checked with the
 /// general dynamic-template-text predicate, or with the narrower
 /// template-literal-interpolation-only predicate used for `.compile(...)`.
+#[derive(Debug)]
 enum SinkKind {
     /// Flag when [`is_dynamic_template`] returns `true` for the captured
     /// argument (f-string, concatenation, `.format(...)`, `%`-formatting,
@@ -63,12 +67,6 @@ enum SinkKind {
     InterpolatedLiteralOnly,
 }
 
-struct SinkPattern {
-    label: &'static str,
-    regex: Regex,
-    kind: SinkKind,
-}
-
 /// A captured template-text argument is treated as dynamically built when it
 /// contains string concatenation (`+`), a `.format(...)` call, backtick
 /// interpolation (`` ` `` together with `${`), an f-string prefix
@@ -76,80 +74,55 @@ struct SinkPattern {
 /// `"..." % title` or `"..." % (a, b)`), or is a bare variable/expression
 /// with no string-literal quote character at all. A fully static, fully
 /// quoted literal (e.g. `"<h1>Hello</h1>"`) is never flagged.
-fn is_dynamic_template(argument: &str, fstring_prefix: &Regex, percent_format: &Regex) -> bool {
-    let trimmed = argument.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-    if trimmed.contains('+') || trimmed.contains(".format(") {
-        return true;
-    }
-    if trimmed.contains('`') && trimmed.contains("${") {
-        return true;
-    }
-    if fstring_prefix.is_match(trimmed) || percent_format.is_match(trimmed) {
-        return true;
-    }
-    !trimmed.contains('"') && !trimmed.contains('\'') && !trimmed.contains('`')
-}
-
 /// A captured `.compile(...)` argument is flagged only when it is itself a
 /// backtick template literal containing `${...}` interpolation — a bare
 /// variable or a fully static (non-backtick) string is not flagged here,
 /// since `.compile(...)` is routinely called with a static or pre-loaded
 /// template string and only the interpolated-literal case names the
 /// template SOURCE being built from a variable.
-fn is_interpolated_template_literal(argument: &str) -> bool {
-    let trimmed = argument.trim();
-    trimmed.contains('`') && trimmed.contains("${")
-}
-
 /// `CYBER-SSTI.1` — flags server-side template injection sinks whose
 /// template-text argument is dynamically constructed from untrusted input.
+#[derive(Debug)]
 pub struct TemplateInjectionValidator {
     rule_id: RuleId,
-    sinks: Vec<SinkPattern>,
+    sinks: Vec<SinkPattern<SinkKind>>,
     fstring_prefix: Regex,
     percent_format: Regex,
 }
 
 impl TemplateInjectionValidator {
     pub fn new() -> Result<Self, DecodeError> {
-        fn compile(slug: &'static str, pattern: &str) -> Result<Regex, DecodeError> {
-            Regex::new(pattern).map_err(|err| DecodeError::new(slug, err.to_string()))
-        }
+        let compile = crate::boundary::regex::compile;
 
         let sinks = vec![
-            SinkPattern {
-                label: "Flask/Jinja2 render_template_string(...) with a dynamically built template",
-                regex: compile(
-                    "cyberskillsSstiRenderTemplateString",
-                    r"render_template_string\s*\((.*?)\)",
-                )?,
-                kind: SinkKind::DynamicTemplateText,
-            },
-            SinkPattern {
-                label: "Template(...).render(...) with a dynamically built template (jinja2/mako/string.Template)",
-                regex: compile(
-                    "cyberskillsSstiTemplateRender",
-                    r"Template\s*\((.*?)\)\s*\.render\s*\(",
-                )?,
-                kind: SinkKind::DynamicTemplateText,
-            },
-            SinkPattern {
-                label: "JS new Function(...) built from interpolated/concatenated code text",
-                regex: compile("cyberskillsSstiNewFunction", r"new\s+Function\s*\((.*?)\)")?,
-                kind: SinkKind::DynamicTemplateText,
-            },
-            SinkPattern {
-                label: "JS template-engine .compile(...) fed a backtick literal with ${...} interpolation",
-                regex: compile("cyberskillsSstiCompile", r"\.compile\s*\((.*?)\)")?,
-                kind: SinkKind::InterpolatedLiteralOnly,
-            },
+            SinkPattern::compile(
+                "cyberskillsSstiRenderTemplateString",
+                r"render_template_string\s*\((.*?)\)",
+                "Flask/Jinja2 render_template_string(...) with a dynamically built template",
+                SinkKind::DynamicTemplateText,
+            )?,
+            SinkPattern::compile(
+                "cyberskillsSstiTemplateRender",
+                r"Template\s*\((.*?)\)\s*\.render\s*\(",
+                "Template(...).render(...) with a dynamically built template (jinja2/mako/string.Template)",
+                SinkKind::DynamicTemplateText,
+            )?,
+            SinkPattern::compile(
+                "cyberskillsSstiNewFunction",
+                r"new\s+Function\s*\((.*?)\)",
+                "JS new Function(...) built from interpolated/concatenated code text",
+                SinkKind::DynamicTemplateText,
+            )?,
+            SinkPattern::compile(
+                "cyberskillsSstiCompile",
+                r"\.compile\s*\((.*?)\)",
+                "JS template-engine .compile(...) fed a backtick literal with ${...} interpolation",
+                SinkKind::InterpolatedLiteralOnly,
+            )?,
         ];
 
         Ok(Self {
-            rule_id: "CYBER-SSTI.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberSsti.id(),
             sinks,
             fstring_prefix: compile("cyberskillsSstiFstringPrefix", r#"^[fF]['"]"#)?,
             percent_format: compile("cyberskillsSstiPercentFormat", r#"["']\s*%\s*[\w(]"#)?,
@@ -164,23 +137,23 @@ impl Validator for TemplateInjectionValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
 
             for sink in &self.sinks {
-                let Some(captures) = sink.regex.captures(line) else {
+                let Some(captures) = sink.regex().captures(line) else {
                     continue;
                 };
                 let argument = captures.get(1).map_or("", |m| m.as_str());
-                let dynamic = match sink.kind {
+                let dynamic = match sink.kind() {
                     SinkKind::DynamicTemplateText => {
                         is_dynamic_template(argument, &self.fstring_prefix, &self.percent_format)
                     }
                     SinkKind::InterpolatedLiteralOnly => is_interpolated_template_literal(argument),
                 };
-                if dynamic && !matched_labels.contains(&sink.label) {
-                    matched_labels.push(sink.label);
+                if dynamic && !matched_labels.contains(&sink.label().as_str()) {
+                    matched_labels.push(sink.label().as_str());
                 }
             }
 
@@ -188,11 +161,10 @@ impl Validator for TemplateInjectionValidator {
                 continue;
             }
 
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "Template rendered from a dynamically constructed source (SSTI)".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "Template rendered from a dynamically constructed source (SSTI)",
+                format!(
                     "Sink(s) matched: {}. The template TEXT itself is built from a variable \
                      (f-string, concatenation, `.format()`/`%`-formatting, or backtick \
                      interpolation), so an attacker who controls that variable can inject \
@@ -204,10 +176,9 @@ impl Validator for TemplateInjectionValidator {
                      source string from untrusted input.",
                     matched_labels.join(", ")
                 ),
-                file: input.file.clone(),
-                line: line_number,
-                snippet: Some(line.to_owned()),
-            });
+                input.file,
+                (line_number, Some(line)),
+            ));
         }
         findings
     }
@@ -215,22 +186,15 @@ impl Validator for TemplateInjectionValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::TemplateInjectionValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_ssti() -> Result<(), Box<dyn std::error::Error>> {
         let validator = TemplateInjectionValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.template-injection/bad/vuln.py",
             "tests/fixtures/cyberskills/web.template-injection/good/safe.py",
         )?;

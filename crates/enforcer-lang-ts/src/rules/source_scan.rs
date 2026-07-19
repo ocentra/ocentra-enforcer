@@ -4,11 +4,11 @@
 //! TS slice, whose `triggers` field restates the rule title and needs a
 //! bespoke pattern per rule — see [`super::generic_scanner`]).
 
-use super::spec::{RuleSpec, TriggerKind};
+use crate::boundary::rule_spec::{RawRuleSpec as RuleSpec, TriggerKind};
 
 /// Every `typescript/source-scan` rule's static spec, in `rules.json`
 /// declaration order.
-pub const SPECS: &[RuleSpec] = &[
+pub(crate) const SPECS: &[RuleSpec] = &[
     RuleSpec {
         rule_id: "TS-1.1",
         title: "TypeScript/JavaScript re-exports are forbidden",
@@ -145,13 +145,8 @@ pub const SPECS: &[RuleSpec] = &[
 #[cfg(test)]
 mod tests {
     use super::SPECS;
+    use crate::boundary::test_fixtures::run_fixture_parity;
     use crate::rules::spec::SpecValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn every_source_scan_spec_fires_on_fail_and_stays_silent_on_pass(
@@ -161,7 +156,7 @@ mod tests {
             let slug = spec.rule_id.to_lowercase().replace('.', "-");
             let fail = format!("fixtures/source-scan/{slug}/fail.ts");
             let pass = format!("fixtures/source-scan/{slug}/pass.ts");
-            run_fixture_parity(&validator, &manifest_dir(), &fail, &pass)
+            run_fixture_parity(&validator, &fail, &pass)
                 .map_err(|e| format!("{}: {e}", spec.rule_id))?;
         }
         Ok(())

@@ -1,11 +1,14 @@
-use enforcer_events::bus::{DispatchMode, EventBus};
+use enforcer_domain::events_types::CorrelationId;
+use enforcer_domain::events_types::DispatchMode;
+use enforcer_domain::events_types::JournalSelector;
+use enforcer_domain::events_types::ReplayMode;
+use enforcer_events::bus::EventBus;
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::CorrelationId;
 use enforcer_events::journal::ndjson::{NdjsonEventJournal, NdjsonJournalOptions};
-use enforcer_events::journal::policy::{JournalPolicy, JournalSelector};
+use enforcer_events::journal::policy::JournalPolicy;
 use enforcer_events::journal::EventJournal;
 use enforcer_events::queue::policy::EventQueuePolicy;
-use enforcer_events::replay::{ReplayCursor, ReplayFilter, ReplayMode};
+use enforcer_events::replay::{ReplayCursor, ReplayFilter};
 use std::sync::Arc;
 
 use super::fixtures::{
@@ -21,7 +24,7 @@ use super::support::{
 async fn replay_cursor_and_filters_read_ordered_projection_records(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("replay-filters".to_owned()));
-    let journal = NdjsonEventJournal::new(&path);
+    let journal = NdjsonEventJournal::new(path.clone());
     let first = stored_event(test_event(TestText(TEST_LABEL.to_owned()))?)?;
     let second = stored_event(test_event_for_type(
         TestText("other".to_owned()),
@@ -38,16 +41,18 @@ async fn replay_cursor_and_filters_read_ordered_projection_records(
         .replay_projection(
             ReplayFilter::for_event_type(event_type(SupportText(TEST_EVENT_TYPE.to_owned()))?)
                 .with_correlation_id(third.correlation_id.clone())
-                .with_cursor(ReplayCursor::after(1)),
+                .with_cursor(ReplayCursor::after(
+                    enforcer_domain::events_types::JournalSequence::first(),
+                )),
         )
         .await?;
 
     assert_eq!(report.mode, ReplayMode::ProjectionOnly);
     assert_eq!(report.records.len(), 1);
-    assert_eq!(report.records[0].sequence, 3);
+    assert_eq!(report.records[0].sequence.as_nonzero().get(), 3);
     assert_eq!(report.records[0].envelope.event_id, third.event_id);
-    assert_eq!(report.cursor.next_sequence, 4);
-    assert_eq!(report.skipped_count, 2);
+    assert_eq!(report.cursor.next_sequence.as_nonzero().get(), 4);
+    assert_eq!(crate::event_count_value(report.skipped_count), 2);
     cleanup(path).await;
     Ok(())
 }
@@ -56,14 +61,15 @@ async fn replay_cursor_and_filters_read_ordered_projection_records(
 async fn replay_corrupt_line_is_reported_explicitly(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("corrupt-line".to_owned()));
-    tokio::fs::write(&path, "not-json\n").await?;
-    let journal = NdjsonEventJournal::new(&path);
+    tokio::fs::write(super::support::journal_file_path(&path), "not-json\n").await?;
+    let journal = NdjsonEventJournal::new(path.clone());
 
     let result = journal.replay_projection(ReplayFilter::all()).await;
 
     assert!(matches!(
         result,
-        Err(EventingError::JournalCorruptLine { line: 1, .. })
+        Err(EventingError::JournalCorruptLine { line, .. })
+            if crate::event_count_value(line) == 1
     ));
     cleanup(path).await;
     Ok(())
@@ -73,7 +79,8 @@ async fn replay_corrupt_line_is_reported_explicitly(
 async fn replay_rejects_tampered_hash_chain_payload(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("replay-tampered-hash-chain".to_owned()));
-    let journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
+    let journal =
+        NdjsonEventJournal::with_options(path.clone(), NdjsonJournalOptions::hash_chain());
     journal
         .append(&stored_event(test_event(TestText(TEST_LABEL.to_owned()))?)?)
         .await?;
@@ -88,11 +95,12 @@ async fn replay_rejects_tampered_hash_chain_payload(
 
     let result = journal.replay_projection(ReplayFilter::all()).await;
 
-    let Err(EventingError::JournalCorruptLine { line: 1, reason }) = result else {
+    let Err(EventingError::JournalCorruptLine { line, reason }) = result else {
         return Err("expected a corrupt-line error at line 1 for the tampered payload".into());
     };
+    assert_eq!(crate::event_count_value(line), 1);
     assert_eq!(
-        reason.split(": expected ").next(),
+        reason.as_str().split(": expected ").next(),
         Some("journal hash-chain current hash mismatch at sequence 1")
     );
     cleanup(path).await;
@@ -103,11 +111,11 @@ async fn replay_rejects_tampered_hash_chain_payload(
 async fn action_replay_dispatches_queued_drain_event_once(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("queued-drain-action-replay".to_owned()));
-    let journal = NdjsonEventJournal::new(&path);
+    let journal = NdjsonEventJournal::new(path.clone());
     let bus = EventBus::with_journal_and_queue_policy(
         JournalPolicy::before_and_after_dispatch(JournalSelector::All),
         journal.clone().shared(),
-        EventQueuePolicy::no_subscriber_queue(2)?,
+        EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?,
     );
     bus.publish(
         test_event_with_idempotency(
@@ -161,7 +169,7 @@ async fn action_replay_dispatches_queued_drain_event_once(
 
     assert_eq!(projection.records.len(), 2);
     assert_eq!(reports.len(), 1);
-    assert_eq!(reports[0].handled_count, 1);
+    assert_eq!(crate::event_count_value(reports[0].handled_count), 1);
     assert_eq!(*replay_handled.lock().await, 1);
     cleanup(path).await;
     Ok(())
@@ -171,7 +179,7 @@ async fn action_replay_dispatches_queued_drain_event_once(
 async fn projection_replay_cannot_run_handlers_without_action_mode(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("projection-gate".to_owned()));
-    let journal = NdjsonEventJournal::new(&path);
+    let journal = NdjsonEventJournal::new(path.clone());
     journal
         .append(&stored_event(test_event(TestText(TEST_LABEL.to_owned()))?)?)
         .await?;
@@ -212,7 +220,7 @@ async fn projection_replay_cannot_run_handlers_without_action_mode(
         .await?;
 
     assert_eq!(reports.len(), 1);
-    assert_eq!(reports[0].handled_count, 1);
+    assert_eq!(crate::event_count_value(reports[0].handled_count), 1);
     assert_eq!(*handled.lock().await, 1);
     cleanup(path).await;
     Ok(())

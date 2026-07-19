@@ -44,7 +44,7 @@
 //! `list_projects`/`delete_project`/`index_status` (-> [`projects`]),
 //! `manage_adr` (-> [`adr::AdrStore`]), `detect_changes` (->
 //! [`impact::analyze_diff_impact`]), and `ingest_traces` (->
-//! [`crate::traces::TraceStore`]). [`not_wired`]/[`NotWiredError`] remain
+//! [`crate::traces::TraceStore`]). [`not_wired`]/[`NotWiredErrorDto`] remain
 //! in this module as the honest shape a genuinely unlanded tool/mode
 //! would return -- no arm in [`dispatch_tool`] reaches them today, but
 //! removing the mechanism itself would be a regression for the next
@@ -57,7 +57,7 @@
 //! arm from [`not_wired`] to a real handler call -- no other structural
 //! change required.
 //!
-//! # Wire envelope (binding: `refs/x06-baseline-tool-schemas.md` §1)
+//! # Wire envelope (binding: `refs/x06-baseline-tool-schemas.md` Â§1)
 //!
 //! [`dispatch_tool`] returns this crate's own tool-result JSON directly
 //! (`{"ok": bool, ...}`); [`wrap_envelope`] is the one place that shape is
@@ -75,9 +75,9 @@
 //! ```
 //!
 //! `isError` is `true` exactly when the inner JSON's `"ok"` field is not
-//! `true` (covers both this crate's [`ToolError`] and [`NotWiredError`]
+//! `true` (covers both this crate's [`ToolErrorDto`] and [`NotWiredErrorDto`]
 //! shapes, matching the baseline's own "no single fixed error-object
-//! schema, treat `content[0].text` as opaque-or-parseable" posture, §17).
+//! schema, treat `content[0].text` as opaque-or-parseable" posture, Â§17).
 //!
 //! # Further binding facts
 //!
@@ -115,6 +115,8 @@
 //!   (`event: "mcp.request"`, fields `protocol`/`method`/`tool`/`status`/
 //!   `duration`) to stderr via [`crate::diagnostics::emit_to_stderr`], at
 //!   WARN level on error and INFO otherwise.
+//!
+//! ROUNDTRIP-TEST: tests/unit_mcp.rs::tool_descriptor_maps_to_canonical_name
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -125,33 +127,38 @@ use crate::adr::{AdrDocument, AdrRecord, AdrStore};
 use crate::analysis::trace::{
     trace_calls, trace_cross_service, trace_data_flow, TraceCallsParams, TraceCrossServiceParams,
 };
-use crate::analysis::{query as graph_query, CodeAdjacency, TraceDirection};
-use crate::architecture::{self, Aspect};
+use crate::analysis::{query as graph_query, CodeAdjacency};
+use crate::architecture;
 use crate::code_graph::{CodeGraph, Manifest};
-use crate::code_search::{self, SearchMode, SearchQuery};
+use crate::code_search::{self, SearchQuery};
 use crate::embed::Embedder;
 use crate::fulltext::FullTextIndex;
 use crate::graph_schema;
 use crate::impact;
 use crate::local_runtime::{
-    arbitrate_runtime_workload, validate_control_plane, LocalRuntimeControlPlane,
-    RuntimeActivityState, RuntimeWorkload,
+    arbitrate_runtime_workload, validate_control_plane, LocalRuntimeControlPlaneDto,
 };
-use crate::model_runtime::{default_model_runtime_probe_plan, ModelRuntimeServiceConfig};
+use crate::model_runtime::{default_model_runtime_probe_plan, ModelRuntimeServiceConfigDto};
 use crate::projects;
-use crate::search::document::{DocumentKind, SearchDocument};
-use crate::search::search_graph::{
-    search_graph_with_semantic, NodeLabel as SearchGraphNodeLabel, SearchGraphSpec,
-};
+use crate::search::document::SearchDocument;
+use crate::search::search_graph::{search_graph_with_semantic, SearchGraphSpec};
 use crate::snippet;
 use crate::store::manifest::write_index_manifest;
 use crate::store::sqlite::OperationalGraph;
 use crate::store::Store;
 use crate::traces::{TraceRecord, TraceStore};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::mcp_types::{McpToolName, RpcErrorBody, RpcErrorCode, RpcErrorMessage};
+use enforcer_domain::memory_types::ArchitectureReportPath;
+use enforcer_domain::memory_types::{Aspect, DocumentKind};
+use enforcer_domain::memory_types::{NodeLabel as SearchGraphNodeLabel, TraceDirection};
+use enforcer_domain::memory_types::{RuntimeActivityState, RuntimeWorkload};
 
-use enforcer_mcp::transport::{
-    encode_frame, Frame, FrameReader, Framing, RpcError, RpcMessage, RpcResult,
-};
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{CodeSearchMode, GraphSearchMode};
+use enforcer_mcp::boundary::rpc_request::RpcMessageDto;
+use enforcer_mcp::boundary::rpc_response::{RpcErrorDto, RpcResultDto};
+use enforcer_mcp::transport::{encode_frame, Frame, FrameReader, Framing};
 
 /// The baseline 14-tool parity floor (`refs/x06-baseline-tool-schemas.md`)
 /// plus the X06 extension tool, in the digest's own enumeration order.
@@ -202,8 +209,9 @@ const WIRED_TOOLS: &[&str] = &[
 /// `inputSchema` plus a constant `outputSchema` identical for every tool
 /// (`{"type":"object","additionalProperties":true}`) -- no `$schema` draft
 /// URI anywhere, matching the baseline.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ToolDescriptor {
+// ROUNDTRIP-TEST: tests/mcp_cli_live.rs::tool_descriptor_dto_round_trip_through_json
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ToolDescriptorDto {
     pub name: String,
     pub title: String,
     pub description: String,
@@ -211,6 +219,16 @@ pub struct ToolDescriptor {
     pub input_schema: Value,
     #[serde(rename = "outputSchema")]
     pub output_schema: Value,
+}
+
+/// Decode the externally serialized descriptor's identifier into the
+/// canonical MCP tool-name brand before routing or catalog lookup.
+impl TryFrom<ToolDescriptorDto> for McpToolName {
+    type Error = DecodeError;
+
+    fn try_from(value: ToolDescriptorDto) -> Result<Self, Self::Error> {
+        McpToolName::try_new(&value.name)
+    }
 }
 
 /// The constant `outputSchema` every tool descriptor carries (binding:
@@ -223,17 +241,17 @@ fn constant_output_schema() -> Value {
 /// Build every tool's descriptor for `tools/list`. All 14 baseline tools
 /// plus the X06 extension tool are always advertised (parity requirement)
 /// regardless of wiring state; a caller discovers wiring state only by
-/// calling `tools/call` and reading [`NotWiredError`], never by a tool
+/// calling `tools/call` and reading [`NotWiredErrorDto`], never by a tool
 /// being missing from this list. Use [`handle_tools_list`] for the actual
 /// `tools/list` response -- this function returns the full, unpaginated
 /// set (also the seam [`crate::cli`] and tests use directly).
-pub fn tool_descriptors() -> Vec<ToolDescriptor> {
+pub fn tool_descriptors() -> Vec<ToolDescriptorDto> {
     TOOL_NAMES
         .iter()
-        .map(|&name| ToolDescriptor {
-            name: name.to_owned(),
-            title: tool_title(name).to_owned(),
-            description: tool_description(name).to_owned(),
+        .map(|&name| ToolDescriptorDto {
+            name: name.retained(),
+            title: tool_title(name).retained(),
+            description: tool_description(name).retained(),
             input_schema: tool_input_schema(name),
             output_schema: constant_output_schema(),
         })
@@ -290,7 +308,7 @@ fn tool_input_schema(name: &str) -> Value {
             "properties": {
                 "repoPath": { "type": "string", "description": "Absolute path to the repository root. Baseline wire alias: repo_path." },
                 "repo_path": { "type": "string", "description": "Baseline wire alias for repoPath." },
-                "mode": { "type": "string", "enum": ["full", "moderate", "fast", "cross-repo-intelligence"], "default": "full", "description": "\"cross-repo-intelligence\" short-circuits before any indexing pipeline (baseline §9.2): matches this project's outbound HTTP call sites against target_projects' declared routes. See crate::cross_repo for the exact heuristic." },
+                "mode": { "type": "string", "enum": ["full", "moderate", "fast", "cross-repo-intelligence"], "default": "full", "description": "\"cross-repo-intelligence\" short-circuits before any indexing pipeline (baseline Â§9.2): matches this project's outbound HTTP call sites against target_projects' declared routes. See crate::cross_repo for the exact heuristic." },
                 "targetProjects": { "type": "array", "items": { "type": "string" }, "description": "Required only for mode=\"cross-repo-intelligence\": project ids (resolved via storesDir) or, if storesDir is omitted, literal repo paths to match against. [\"*\"] means every project storesDir knows about. Baseline wire alias: target_projects." },
                 "target_projects": { "type": "array", "items": { "type": "string" }, "description": "Baseline wire alias for targetProjects in cross-repo-intelligence mode." },
                 "storesDir": { "type": "string", "description": "Optional Store registry root. In cross-repo-intelligence mode this resolves targetProjects ids. In plain index mode it primes a fresh Store-backed operational graph projection for repoPath; append/refresh into an already-populated graph-event log is rejected until delete/reset graph-event semantics are implemented." },
@@ -303,11 +321,11 @@ fn tool_input_schema(name: &str) -> Value {
             "properties": {
                 "repoPath": {
                     "type": "string",
-                    "description": "Deviation from baseline's `project` param (refs/x06-baseline-tool-schemas.md §2): this lane has no project-scoped indexed-graph cache wired into search_graph yet, so the tool takes a filesystem path and indexes it fresh per call rather than resolving a named project."
+                    "description": "Deviation from baseline's `project` param (refs/x06-baseline-tool-schemas.md Â§2): this lane has no project-scoped indexed-graph cache wired into search_graph yet, so the tool takes a filesystem path and indexes it fresh per call rather than resolving a named project."
                 },
                 "query": { "type": "string" },
-                "namePattern": { "type": "string", "description": "Regex mode: matched against node name (baseline §2.1 name_pattern)." },
-                "qnPattern": { "type": "string", "description": "Regex mode: matched against qualified name (baseline §2.1 qn_pattern)." },
+                "namePattern": { "type": "string", "description": "Regex mode: matched against node name (baseline Â§2.1 name_pattern)." },
+                "qnPattern": { "type": "string", "description": "Regex mode: matched against qualified name (baseline Â§2.1 qn_pattern)." },
                 "label": { "type": "string", "enum": ["Function", "Type", "Test", "File", "TextOnly"] },
                 "filePattern": { "type": "string" },
                 "relationship": { "type": "string" },
@@ -322,7 +340,7 @@ fn tool_input_schema(name: &str) -> Value {
                 "embeddingDimension": { "type": "integer", "minimum": 1, "default": 1024 },
                 "offset": { "type": "integer", "minimum": 0, "default": 0 },
                 "mode": { "type": "string", "enum": ["bm25", "regex", "semantic"], "default": "bm25", "description": "All three modes are wired: bm25 (fulltext::FullTextIndex, the minimal {repoPath,query} shape), regex (namePattern/qnPattern + filters), and semantic (semanticQuery, combined with the regex path per crate::search::search_graph's mode-interaction contract)." },
-                "limit": { "type": "integer", "minimum": 1, "default": 100, "description": "Matches the baseline's actual BM25_DEFAULT_LIMIT code default (100), not its docstring's claim of 200 -- refs/x06-baseline-tool-schemas.md §2.1." }
+                "limit": { "type": "integer", "minimum": 1, "default": 100, "description": "Matches the baseline's actual BM25_DEFAULT_LIMIT code default (100), not its docstring's claim of 200 -- refs/x06-baseline-tool-schemas.md Â§2.1." }
             }
         }),
         "query_graph" => json!({
@@ -424,18 +442,18 @@ fn tool_input_schema(name: &str) -> Value {
             "type": "object",
             "required": ["project"],
             "properties": {
-                "project": { "type": "string", "description": "Baseline (refs/x06-baseline-tool-schemas.md §14.1) project id the ADR document is scoped to." },
+                "project": { "type": "string", "description": "Baseline (refs/x06-baseline-tool-schemas.md Â§14.1) project id the ADR document is scoped to." },
                 "mode": {
                     "type": "string",
                     "enum": ["get", "update", "sections"],
                     "default": "get",
-                    "description": "Baseline §14.1: defaults to \"get\" when absent; the handler also accepts the undocumented alias \"store\" as a synonym for \"update\" (not in this enum, matching the baseline's hidden extra value)."
+                    "description": "Baseline Â§14.1: defaults to \"get\" when absent; the handler also accepts the undocumented alias \"store\" as a synonym for \"update\" (not in this enum, matching the baseline's hidden extra value)."
                 },
                 "document": {
                     "type": "string",
                     "description": "Deviation from baseline: this lane has no persistence layer, so the caller round-trips the whole stored document (the baseline's SQLite-backed blob) across calls the same way manage_adr's section-based extension round-trips \"adrs\" below."
                 },
-                "content": { "type": "string", "description": "Baseline §14.1: the full ADR markdown body, required for mode=\"update\"/\"store\" -- whole-document replace, not a diff/merge." },
+                "content": { "type": "string", "description": "Baseline Â§14.1: the full ADR markdown body, required for mode=\"update\"/\"store\" -- whole-document replace, not a diff/merge." },
                 "operation": { "type": "string", "enum": ["get", "update_section", "link_node", "create"], "description": "Extension mode (not in the baseline): section-based ADR API, reached by passing \"operation\" instead of \"mode\"." },
                 "adrs": { "type": "array", "description": "Extension mode: current ADR list the caller persists between calls (round-tripped)." },
                 "id": { "type": "string" },
@@ -482,7 +500,7 @@ fn tool_input_schema(name: &str) -> Value {
 /// callers can match on `capabilityState` to distinguish this from a real
 /// error.
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct NotWiredError {
+pub struct NotWiredErrorDto {
     #[serde(rename = "capabilityState")]
     pub capability_state: &'static str,
     pub tool: String,
@@ -490,15 +508,15 @@ pub struct NotWiredError {
 }
 
 fn not_wired(tool: &str, reason: impl Into<String>) -> Value {
-    let error = NotWiredError {
+    let error = NotWiredErrorDto {
         capability_state: "not_wired",
-        tool: tool.to_owned(),
+        tool: tool.retained(),
         reason: reason.into(),
     };
     json!({ "ok": false, "error": error })
 }
 
-/// A dispatch-level error: distinct from [`NotWiredError`] (which is a
+/// A dispatch-level error: distinct from [`NotWiredErrorDto`] (which is a
 /// *result value*, not a failure of dispatch itself) -- this covers bad
 /// arguments, a repo path that will not index, a query that fails to
 /// parse, etc. Always reported as `{"ok": false, "error": {...}}` in MCP
@@ -507,13 +525,13 @@ fn not_wired(tool: &str, reason: impl Into<String>) -> Value {
 /// RPC carrying a failure payload) and as a nonzero exit from the CLI
 /// mirror ([`crate::cli`]).
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct ToolError {
+pub struct ToolErrorDto {
     pub tool: String,
     pub message: String,
 }
 
 fn tool_error(tool: &str, message: impl Into<String>) -> Value {
-    json!({ "ok": false, "error": ToolError { tool: tool.to_owned(), message: message.into() } })
+    json!({ "ok": false, "error": ToolErrorDto { tool: tool.retained(), message: message.into() } })
 }
 
 /// Dispatch one `tools/call`-shaped request: `name` is the tool name as
@@ -558,7 +576,7 @@ pub fn dispatch_tool(name: &str, args: &Value) -> Value {
 
 /// Wrap [`dispatch_tool`]'s inner result JSON into the baseline's exact
 /// MCP tool-result envelope (binding: `refs/x06-baseline-tool-schemas.md`
-/// §1):
+/// Â§1):
 ///
 /// ```json
 /// { "content": [{ "type": "text", "text": "<inner JSON as a string>" }],
@@ -570,14 +588,14 @@ pub fn dispatch_tool(name: &str, args: &Value) -> Value {
 /// crate's uniform success/failure marker across every handler above) --
 /// `true` whenever `"ok"` is anything other than the literal `true`,
 /// matching the baseline's "no single fixed error-object schema" posture
-/// (§17): a not-wired result, a tool_error, and any other non-success
+/// (Â§17): a not-wired result, a tool_error, and any other non-success
 /// shape all become `isError: true` the same way. Applied identically by
 /// the `tools/call` handler ([`handle_tools_call`]) and
 /// [`crate::cli::cli_invoke`] so CLI mirror parity holds on the
 /// envelope-wrapped shape, not just the inner JSON.
 pub fn wrap_envelope(inner: &Value) -> Value {
     let is_error = inner.get("ok").and_then(Value::as_bool) != Some(true);
-    let text = serde_json::to_string(inner).unwrap_or_else(|_| "{}".to_owned());
+    let text = serde_json::to_string(inner).unwrap_or_else(|_| "{}".retained());
     if is_error {
         json!({
             "content": [{ "type": "text", "text": text }],
@@ -618,7 +636,8 @@ pub fn call_tool(name: &str, args: &Value) -> Value {
 /// [`CodeGraph::index_repository`] deliberately does not walk the
 /// filesystem itself (its own module docs: "directory walking is a
 /// caller/CLI concern") -- this is that caller. A fixed, small ignore
-/// list (`.git`, `target`, `node_modules`, `.enforcer-memory`) keeps this
+/// list (`.git`, `target`, `target-*`, `.tmp-*`, `node_modules`,
+/// `.enforcer-memory`) keeps this
 /// from indexing build output; it is not a full `.gitignore` evaluator
 /// (out of scope for this lane).
 fn walk_repo_files(repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
@@ -633,7 +652,10 @@ fn walk_repo_files(repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
             if file_type.is_dir() {
                 let name = entry.file_name();
                 let name = name.to_string_lossy();
-                if IGNORED_DIRS.contains(&name.as_ref()) {
+                if IGNORED_DIRS.contains(&name.as_ref())
+                    || name.starts_with("target-")
+                    || name.starts_with(".tmp-")
+                {
                     continue;
                 }
                 stack.push(path);
@@ -710,7 +732,7 @@ fn try_build_graph_from_store_projection(
     let Some(stores_dir) = args.get("storesDir").and_then(Value::as_str) else {
         return Ok(None);
     };
-    let repo_root = crate::ids::repo_root(repo_path)
+    let repo_root = crate::ids::repo_root(&repo_path.into())
         .map_err(|source| tool_error("query_graph", format!("invalid repoPath: {source}")))?;
     let store = match Store::open(Path::new(stores_dir), &repo_root) {
         Ok(store) => store,
@@ -827,7 +849,7 @@ fn persist_store_projection(
         return Ok(json!({ "enabled": false }));
     };
 
-    let repo_root = crate::ids::repo_root(repo_path)
+    let repo_root = crate::ids::repo_root(&repo_path.into())
         .map_err(|source| tool_error("index_repository", format!("invalid repoPath: {source}")))?;
     let ts = opaque_store_timestamp_now();
     let stores_root = Path::new(stores_dir);
@@ -878,7 +900,7 @@ fn persist_store_projection(
     })?;
     let sqlite_path = store.sqlite_path();
     let store_root = store.root().to_path_buf();
-    let project_id = store.project_id().as_str().to_owned();
+    let project_id = store.project_id().as_str().retained();
     drop(store);
 
     let mut operational = OperationalGraph::open(&sqlite_path).map_err(|source| {
@@ -894,9 +916,9 @@ fn persist_store_projection(
         )
     })?;
     write_index_manifest(
-        &store_root.join("graph-events.index-manifest.json"),
+        store_root.join("graph-events.index-manifest.json"),
         "graph-event",
-        entries.entries.len() as u64,
+        crate::owned_boundary::usize_to_u64(entries.entries.len()),
         &ts,
     )
     .map_err(|source| {
@@ -929,7 +951,7 @@ fn opaque_store_timestamp_now() -> String {
 // index_repository(mode="cross-repo-intelligence") ->
 // crate::cross_repo::match_cross_repo
 //
-// Baseline binding: refs/x06-baseline-tool-schemas.md §9.2/§9.5. Unlike
+// Baseline binding: refs/x06-baseline-tool-schemas.md Â§9.2/Â§9.5. Unlike
 // the plain-mode branch above, this never re-extracts a fresh CodeGraph
 // through `insert_file_and_chunks`'s full symbol/edge pipeline for its
 // own sake -- it builds one stateless graph per project (this crate has
@@ -939,7 +961,7 @@ fn opaque_store_timestamp_now() -> String {
 // routes/calls off of, then matches. `targetProjects: ["*"]` resolves to
 // every project `storesDir` knows about via `crate::projects::list_projects`
 // (its own `repo_root`), exactly matching the baseline's "[\"*\"] means
-// all indexed projects" note (§9.1) -- resolved here in the MCP layer
+// all indexed projects" note (Â§9.1) -- resolved here in the MCP layer
 // for this lane (the baseline resolves it one level deeper, inside its
 // own matcher; this crate's project registry is a caller-supplied
 // `storesDir`, so this handler is the natural place to read it, still
@@ -993,7 +1015,7 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
             Some(dir) => match projects::list_projects(Path::new(dir)) {
                 Ok(list) => list
                     .into_iter()
-                    .map(|p| (p.project_id, p.repo_root))
+                    .map(|p| (p.project_id.into(), p.repo_root.into()))
                     .collect(),
                 Err(source) => {
                     return tool_error("index_repository", format!("{source}"));
@@ -1006,11 +1028,15 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
             Ok(list) => {
                 let by_id: std::collections::HashMap<String, String> = list
                     .into_iter()
-                    .map(|p| (p.project_id, p.repo_root))
+                    .map(|p| (p.project_id.into(), p.repo_root.into()))
                     .collect();
                 target_names
                     .iter()
-                    .filter_map(|name| by_id.get(name).map(|root| (name.clone(), root.clone())))
+                    .filter_map(|name| {
+                        by_id
+                            .get(name)
+                            .map(|root| (name.retained(), root.retained()))
+                    })
                     .collect()
             }
             Err(source) => {
@@ -1021,7 +1047,7 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
         // No storesDir: treat each target name as a literal repo path.
         target_names
             .iter()
-            .map(|name| (name.clone(), name.clone()))
+            .map(|name| (name.retained(), name.retained()))
             .collect()
     };
 
@@ -1032,7 +1058,7 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
     for (name, root) in &resolved_targets {
         match build_graph(root) {
             Ok(graph) => {
-                target_graphs.insert(name.clone(), graph);
+                target_graphs.insert(name.retained(), graph);
             }
             Err(_) => {
                 // A target that fails to build (missing dir, unreadable
@@ -1047,9 +1073,12 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
         }
     }
 
-    let target_refs: std::collections::BTreeMap<String, &CodeGraph> = target_graphs
+    let target_refs: std::collections::BTreeMap<
+        enforcer_domain::memory_types::CrossRepoProjectName,
+        &CodeGraph,
+    > = target_graphs
         .iter()
-        .map(|(name, graph)| (name.clone(), graph))
+        .map(|(name, graph)| (name.as_str().into(), graph))
         .collect();
 
     let report = crate::cross_repo::match_cross_repo(current_project, &current_graph, &target_refs);
@@ -1059,22 +1088,22 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
         "ok": true,
         "status": "success",
         "mode": "cross-repo-intelligence",
-        "project": report.project,
-        "projects_scanned": report.projects_scanned,
-        "cross_http_calls": report.baseline_cross_http_call_count(),
-        "cross_literal_url_calls": report.literal_url_cross_http_call_count(),
-        "cross_async_calls": report.cross_async_calls,
-        "cross_channel": report.cross_channel,
-        "cross_grpc_calls": report.cross_grpc_calls,
-        "cross_graphql_calls": report.cross_graphql_calls,
-        "cross_trpc_calls": report.cross_trpc_calls,
-        "total_cross_edges": report.baseline_cross_http_call_count()
-            + report.cross_async_calls
-            + report.cross_channel
-            + report.cross_grpc_calls
-            + report.cross_graphql_calls
-            + report.cross_trpc_calls,
-        "total_cross_edges_including_extensions": report.total_cross_edges(),
+        "project": report.project.as_str(),
+        "projects_scanned": report.projects_scanned.get(),
+        "cross_http_calls": report.baseline_cross_http_call_count().get(),
+        "cross_literal_url_calls": report.literal_url_cross_http_call_count().get(),
+        "cross_async_calls": report.cross_async_calls.get(),
+        "cross_channel": report.cross_channel.get(),
+        "cross_grpc_calls": report.cross_grpc_calls.get(),
+        "cross_graphql_calls": report.cross_graphql_calls.get(),
+        "cross_trpc_calls": report.cross_trpc_calls.get(),
+        "total_cross_edges": report.baseline_cross_http_call_count().get()
+            + report.cross_async_calls.get()
+            + report.cross_channel.get()
+            + report.cross_grpc_calls.get()
+            + report.cross_graphql_calls.get()
+            + report.cross_trpc_calls.get(),
+        "total_cross_edges_including_extensions": report.total_cross_edges().get(),
         "elapsed_ms": elapsed_ms,
     })
 }
@@ -1105,15 +1134,19 @@ fn documents_from_graph(graph: &CodeGraph) -> Vec<SearchDocument> {
     let mut docs = Vec::new();
     for file in graph.file_nodes() {
         docs.push(
-            SearchDocument::new(file.id.clone(), DocumentKind::File, file.rel_path.clone())
-                .with_source_path(file.rel_path.clone()),
+            SearchDocument::new(
+                file.id.retained(),
+                DocumentKind::File,
+                file.rel_path.retained(),
+            )
+            .with_source_path(file.rel_path.retained()),
         );
     }
     for symbol in graph.symbol_nodes() {
         docs.push(SearchDocument::new(
-            symbol.id.clone(),
+            symbol.id.retained(),
             DocumentKind::Function,
-            symbol.name.clone(),
+            symbol.name.retained(),
         ));
     }
     docs
@@ -1132,15 +1165,17 @@ fn parse_node_label(raw: &str) -> Option<SearchGraphNodeLabel> {
 
 fn search_graph_hit_json(hit: &crate::search::search_graph::SearchGraphHit) -> Value {
     json!({
-        "name": hit.name,
-        "qualifiedName": hit.qualified_name,
-        "label": hit.label,
-        "filePath": hit.file_path,
-        "rank": hit.rank,
-        "inDegree": hit.in_degree,
-        "outDegree": hit.out_degree,
-        "connectedNames": hit.connected_names,
-        "score": hit.score,
+        "name": hit.name.as_str(),
+        "qualifiedName": hit.qualified_name.as_str(),
+        "label": hit.label.as_str(),
+        "filePath": hit.file_path.as_str(),
+        "rank": hit.rank.map(|rank| rank.get()),
+        "inDegree": hit.in_degree.map(|degree| degree.get()),
+        "outDegree": hit.out_degree.map(|degree| degree.get()),
+        "connectedNames": hit.connected_names.as_ref().map(|names| {
+            names.iter().map(|name| name.as_str()).collect::<Vec<_>>()
+        }),
+        "score": hit.score.map(|score| score.get()),
     })
 }
 
@@ -1165,14 +1200,15 @@ fn handle_search_graph(args: &Value) -> Value {
             Err(err) => return err,
         };
         // Default 100, matching the baseline's actual BM25_DEFAULT_LIMIT
-        // code default (refs/x06-baseline-tool-schemas.md §2.1) rather
+        // code default (refs/x06-baseline-tool-schemas.md Â§2.1) rather
         // than its own docstring's claim of 200 for all modes -- see the
         // inputSchema description for this param.
-        let limit = args
-            .get("limit")
-            .and_then(Value::as_u64)
-            .unwrap_or(100)
-            .max(1) as usize;
+        let limit = crate::owned_boundary::u64_to_usize(
+            args.get("limit")
+                .and_then(Value::as_u64)
+                .unwrap_or(100)
+                .max(1),
+        );
 
         let graph = match build_graph(repo_path) {
             Ok(graph) => graph,
@@ -1188,7 +1224,8 @@ fn handle_search_graph(args: &Value) -> Value {
                 )
             }
         };
-        let hits = match index.search(query, limit) {
+        let query = enforcer_domain::memory_types::MemoryFullTextQuery::from(query);
+        let hits = match index.search(&query, limit.into()) {
             Ok(hits) => hits,
             Err(source) => return tool_error("search_graph", format!("search failed: {source}")),
         };
@@ -1215,7 +1252,7 @@ fn handle_search_graph(args: &Value) -> Value {
             None => return tool_error("search_graph", format!("unknown label {raw:?}")),
         };
     }
-    let semantic_query: Option<Vec<String>> = args
+    let semantic_query = args
         .get("semanticQuery")
         .and_then(Value::as_array)
         .map(|items| {
@@ -1223,46 +1260,67 @@ fn handle_search_graph(args: &Value) -> Value {
                 .iter()
                 .filter_map(Value::as_str)
                 .map(str::to_owned)
+                .map(Into::into)
                 .collect()
         });
 
     let spec = SearchGraphSpec {
-        query: args.get("query").and_then(Value::as_str).map(str::to_owned),
+        query: args
+            .get("query")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .map(Into::into),
         name_pattern: args
             .get("namePattern")
             .and_then(Value::as_str)
-            .map(str::to_owned),
+            .map(str::to_owned)
+            .map(Into::into),
         qn_pattern: args
             .get("qnPattern")
             .and_then(Value::as_str)
-            .map(str::to_owned),
+            .map(str::to_owned)
+            .map(Into::into),
         label,
         file_pattern: args
             .get("filePattern")
             .and_then(Value::as_str)
-            .map(str::to_owned),
+            .map(str::to_owned)
+            .map(Into::into),
         relationship: args
             .get("relationship")
             .and_then(Value::as_str)
-            .map(str::to_owned),
-        min_degree: args.get("minDegree").and_then(Value::as_i64),
-        max_degree: args.get("maxDegree").and_then(Value::as_i64),
+            .map(str::to_owned)
+            .map(Into::into),
+        min_degree: args
+            .get("minDegree")
+            .and_then(Value::as_i64)
+            .map(Into::into),
+        max_degree: args
+            .get("maxDegree")
+            .and_then(Value::as_i64)
+            .map(Into::into),
         exclude_entry_points: args
             .get("excludeEntryPoints")
             .and_then(Value::as_bool)
-            .unwrap_or(false),
+            .unwrap_or(false)
+            .into(),
         include_connected: args
             .get("includeConnected")
             .and_then(Value::as_bool)
-            .unwrap_or(false),
+            .unwrap_or(false)
+            .into(),
         semantic_query,
         limit: args
             .get("limit")
             .and_then(Value::as_u64)
-            .map(|v| v as usize),
-        offset: args.get("offset").and_then(Value::as_u64).unwrap_or(0) as usize,
-        label_affects_bm25: false,
-        label_affects_semantic: false,
+            .map(crate::owned_boundary::u64_to_usize)
+            .map(Into::into),
+        offset: crate::owned_boundary::u64_to_usize(
+            args.get("offset").and_then(Value::as_u64).unwrap_or(0),
+        )
+        .into(),
+        label_affects_bm25: false.into(),
+        label_affects_semantic: false.into(),
     };
 
     let graph = match build_graph(repo_path) {
@@ -1275,7 +1333,7 @@ fn handle_search_graph(args: &Value) -> Value {
     let semantic_docs = documents_from_graph(&graph);
     let doc_texts: Vec<(String, String)> = semantic_docs
         .iter()
-        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .map(|doc| (doc.id.retained_display(), doc.text.retained_display()))
         .collect();
     let entries = match crate::vector::embed_documents(embedder, &doc_texts) {
         Ok(entries) => entries,
@@ -1292,14 +1350,14 @@ fn handle_search_graph(args: &Value) -> Value {
         Ok(result) => json!({
             "ok": true,
             "mode": match result.search_mode {
-                crate::search::search_graph::SearchMode::Bm25 => "bm25",
-                crate::search::search_graph::SearchMode::Regex => "regex",
+                GraphSearchMode::Bm25 => "bm25",
+                GraphSearchMode::Regex => "regex",
             },
             "results": result.results.iter().map(search_graph_hit_json).collect::<Vec<_>>(),
             "semanticResults": result.semantic_results.iter().map(search_graph_hit_json).collect::<Vec<_>>(),
-            "total": result.total,
-            "hasMore": result.has_more,
-            "connectedNames": result.connected_names,
+            "total": result.total.get(),
+            "hasMore": bool::from(result.has_more),
+            "connectedNames": result.connected_names.iter().map(|name| name.as_str()).collect::<Vec<_>>(),
             "embeddingRuntime": embedder_resolution.to_json(),
         }),
         Err(source) => tool_error("search_graph", format!("{source}")),
@@ -1310,8 +1368,8 @@ struct SearchGraphEmbedderResolution {
     embedder: crate::embed::LocalEmbedder,
     requested_backend: &'static str,
     resolved_backend: &'static str,
-    requested_provider: Option<crate::model_runtime::ProviderKind>,
-    resolved_provider: Option<crate::model_runtime::ProviderKind>,
+    requested_provider: Option<enforcer_domain::memory_types::ProviderKind>,
+    resolved_provider: Option<enforcer_domain::memory_types::ProviderKind>,
     fallback_kind: Option<&'static str>,
     fallback_reason: Option<String>,
 }
@@ -1319,7 +1377,7 @@ struct SearchGraphEmbedderResolution {
 impl SearchGraphEmbedderResolution {
     fn hashing(
         requested_backend: &'static str,
-        requested_provider: Option<crate::model_runtime::ProviderKind>,
+        requested_provider: Option<enforcer_domain::memory_types::ProviderKind>,
         fallback_kind: Option<&'static str>,
         fallback_reason: Option<String>,
     ) -> Self {
@@ -1336,7 +1394,7 @@ impl SearchGraphEmbedderResolution {
 
     fn ort(
         embedder: crate::embed::LocalEmbedder,
-        provider: crate::model_runtime::ProviderKind,
+        provider: enforcer_domain::memory_types::ProviderKind,
     ) -> Self {
         Self {
             embedder,
@@ -1351,30 +1409,30 @@ impl SearchGraphEmbedderResolution {
 
     fn to_json(&self) -> Value {
         let state = match self.embedder.state() {
-            crate::embed::LoadState::Unavailable => "unavailable",
-            crate::embed::LoadState::Loading => "loading",
-            crate::embed::LoadState::Loaded => "loaded",
-            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ProviderUnavailable) => {
-                "degraded/provider-unavailable"
-            }
-            crate::embed::LoadState::Degraded(crate::embed::DegradedState::Overloaded) => {
-                "degraded/overloaded"
-            }
-            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ModelLoadFailed) => {
-                "degraded/model-load-failed"
-            }
-            crate::embed::LoadState::Degraded(crate::embed::DegradedState::InvalidOutput) => {
-                "degraded/invalid-output"
-            }
-            crate::embed::LoadState::Degraded(crate::embed::DegradedState::LowConfidence) => {
-                "degraded/low-confidence"
-            }
-            crate::embed::LoadState::Failed => "failed",
+            enforcer_domain::memory_types::LoadState::Unavailable => "unavailable",
+            enforcer_domain::memory_types::LoadState::Loading => "loading",
+            enforcer_domain::memory_types::LoadState::Loaded => "loaded",
+            enforcer_domain::memory_types::LoadState::Degraded(
+                enforcer_domain::memory_types::DegradedState::ProviderUnavailable,
+            ) => "degraded/provider-unavailable",
+            enforcer_domain::memory_types::LoadState::Degraded(
+                enforcer_domain::memory_types::DegradedState::Overloaded,
+            ) => "degraded/overloaded",
+            enforcer_domain::memory_types::LoadState::Degraded(
+                enforcer_domain::memory_types::DegradedState::ModelLoadFailed,
+            ) => "degraded/model-load-failed",
+            enforcer_domain::memory_types::LoadState::Degraded(
+                enforcer_domain::memory_types::DegradedState::InvalidOutput,
+            ) => "degraded/invalid-output",
+            enforcer_domain::memory_types::LoadState::Degraded(
+                enforcer_domain::memory_types::DegradedState::LowConfidence,
+            ) => "degraded/low-confidence",
+            enforcer_domain::memory_types::LoadState::Failed => "failed",
         };
         let resource_class = match self.embedder.resource_class() {
-            crate::embed::ResourceClass::Cpu => "cpu",
-            crate::embed::ResourceClass::Gpu => "gpu",
-            crate::embed::ResourceClass::Npu => "npu",
+            enforcer_domain::memory_types::ResourceClass::Cpu => "cpu",
+            enforcer_domain::memory_types::ResourceClass::Gpu => "gpu",
+            enforcer_domain::memory_types::ResourceClass::Npu => "npu",
         };
         let model = self.embedder.model_info();
         json!({
@@ -1409,7 +1467,7 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
             .map(parse_provider_kind)
             .transpose()
         {
-            Ok(provider) => provider.unwrap_or(crate::model_runtime::ProviderKind::Cpu),
+            Ok(provider) => provider.unwrap_or(enforcer_domain::memory_types::ProviderKind::Cpu),
             Err(reason) => {
                 return SearchGraphEmbedderResolution::hashing(
                     "ort",
@@ -1424,7 +1482,7 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
                 "ort",
                 Some(provider),
                 Some("cache-root-missing"),
-                Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".to_owned()),
+                Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".retained()),
             );
         };
         let dimension = args
@@ -1432,7 +1490,19 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
             .and_then(Value::as_u64)
             .and_then(|value| usize::try_from(value).ok())
             .unwrap_or(1024);
-        let hf_spec = crate::hf_cache::HfModelSpec::qwen3_embedding_onnx();
+        let hf_spec = match crate::hf_cache::HfModelSpec::qwen3_embedding_onnx() {
+            Ok(spec) => spec,
+            Err(err) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    Some(provider),
+                    Some("canonical-hf-spec-invalid"),
+                    Some(format!(
+                        "canonical ORT model specification was invalid: {err}"
+                    )),
+                );
+            }
+        };
         let spec = match crate::hf_cache::resolve_cached_hf_model_spec(
             &hf_spec,
             std::path::Path::new(cache_root),
@@ -1469,30 +1539,30 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
 
 fn parse_provider_kind(
     raw: &str,
-) -> std::result::Result<crate::model_runtime::ProviderKind, String> {
+) -> std::result::Result<enforcer_domain::memory_types::ProviderKind, String> {
     match raw {
-        "cpu" => Ok(crate::model_runtime::ProviderKind::Cpu),
-        "direct-ml" => Ok(crate::model_runtime::ProviderKind::DirectMl),
-        "open-vino" => Ok(crate::model_runtime::ProviderKind::OpenVino),
-        "vulkan" => Ok(crate::model_runtime::ProviderKind::Vulkan),
-        "cuda" => Ok(crate::model_runtime::ProviderKind::Cuda),
-        "core-ml" => Ok(crate::model_runtime::ProviderKind::CoreMl),
-        "npu" => Ok(crate::model_runtime::ProviderKind::Npu),
+        "cpu" => Ok(enforcer_domain::memory_types::ProviderKind::Cpu),
+        "direct-ml" => Ok(enforcer_domain::memory_types::ProviderKind::DirectMl),
+        "open-vino" => Ok(enforcer_domain::memory_types::ProviderKind::OpenVino),
+        "vulkan" => Ok(enforcer_domain::memory_types::ProviderKind::Vulkan),
+        "cuda" => Ok(enforcer_domain::memory_types::ProviderKind::Cuda),
+        "core-ml" => Ok(enforcer_domain::memory_types::ProviderKind::CoreMl),
+        "npu" => Ok(enforcer_domain::memory_types::ProviderKind::Npu),
         other => Err(format!(
             "unknown embeddingProvider {other:?}; expected cpu, direct-ml, open-vino, vulkan, cuda, core-ml, or npu"
         )),
     }
 }
 
-fn provider_json(provider: crate::model_runtime::ProviderKind) -> &'static str {
+fn provider_json(provider: enforcer_domain::memory_types::ProviderKind) -> &'static str {
     match provider {
-        crate::model_runtime::ProviderKind::Cpu => "cpu",
-        crate::model_runtime::ProviderKind::DirectMl => "direct-ml",
-        crate::model_runtime::ProviderKind::OpenVino => "open-vino",
-        crate::model_runtime::ProviderKind::Vulkan => "vulkan",
-        crate::model_runtime::ProviderKind::Cuda => "cuda",
-        crate::model_runtime::ProviderKind::CoreMl => "core-ml",
-        crate::model_runtime::ProviderKind::Npu => "npu",
+        enforcer_domain::memory_types::ProviderKind::Cpu => "cpu",
+        enforcer_domain::memory_types::ProviderKind::DirectMl => "direct-ml",
+        enforcer_domain::memory_types::ProviderKind::OpenVino => "open-vino",
+        enforcer_domain::memory_types::ProviderKind::Vulkan => "vulkan",
+        enforcer_domain::memory_types::ProviderKind::Cuda => "cuda",
+        enforcer_domain::memory_types::ProviderKind::CoreMl => "core-ml",
+        enforcer_domain::memory_types::ProviderKind::Npu => "npu",
     }
 }
 
@@ -1528,7 +1598,12 @@ fn handle_query_graph(args: &Value) -> Value {
         "graphSource": query_input.source.as_str(),
         "rowCount": rows.len(),
         "rows": rows.into_iter().map(|row| {
-            let map: BTreeMap<String, String> = row.into_iter().collect();
+            let map: BTreeMap<String, String> = row
+                .iter()
+                .map(|(variable, node_id)| {
+                    (variable.as_str().to_owned(), node_id.as_str().to_owned())
+                })
+                .collect();
             json!(map)
         }).collect::<Vec<_>>(),
     })
@@ -1566,11 +1641,12 @@ fn handle_trace_path(args: &Value) -> Value {
             .and_then(Value::as_str)
             .unwrap_or("out"),
     );
-    let depth = args
-        .get("depth")
-        .and_then(Value::as_u64)
-        .unwrap_or(3)
-        .max(1) as usize;
+    let depth = crate::owned_boundary::u64_to_usize(
+        args.get("depth")
+            .and_then(Value::as_u64)
+            .unwrap_or(3)
+            .max(1),
+    );
     let include_tests = args
         .get("includeTests")
         .and_then(Value::as_bool)
@@ -1586,10 +1662,10 @@ fn handle_trace_path(args: &Value) -> Value {
         "calls" => {
             let params = TraceCallsParams {
                 direction,
-                depth,
-                include_tests,
+                depth: depth.into(),
+                include_tests: include_tests.into(),
                 edge_types: None,
-                risk_labels: false,
+                risk_labels: false.into(),
             };
             let report = trace_calls(&adjacency, &graph, start_node_id, &params);
             json!({
@@ -1605,10 +1681,10 @@ fn handle_trace_path(args: &Value) -> Value {
         "data_flow" => {
             let params = TraceCallsParams {
                 direction,
-                depth,
-                include_tests,
+                depth: depth.into(),
+                include_tests: include_tests.into(),
                 edge_types: None,
-                risk_labels: false,
+                risk_labels: false.into(),
             };
             let report = trace_data_flow(&adjacency, &graph, start_node_id, &params);
             json!({
@@ -1635,8 +1711,8 @@ fn handle_trace_path(args: &Value) -> Value {
                 start_node_id,
                 TraceCrossServiceParams {
                     direction,
-                    depth,
-                    include_tests,
+                    depth: depth.into(),
+                    include_tests: include_tests.into(),
                 },
             );
             json!({
@@ -1762,17 +1838,20 @@ fn handle_get_architecture(args: &Value) -> Value {
         Ok(value) => value,
         Err(err) => return err,
     };
-    let hotspot_limit = args
-        .get("hotspotLimit")
-        .and_then(Value::as_u64)
-        .unwrap_or(10)
-        .max(1) as usize;
-    let max_iterations = args
-        .get("maxIterations")
-        .and_then(Value::as_u64)
-        .unwrap_or(100)
-        .max(1) as usize;
-    let path_prefix = args.get("path").and_then(Value::as_str);
+    let hotspot_limit = crate::owned_boundary::u64_to_usize(
+        args.get("hotspotLimit")
+            .and_then(Value::as_u64)
+            .unwrap_or(10)
+            .max(1),
+    );
+    let max_iterations = crate::owned_boundary::u64_to_usize(
+        args.get("maxIterations")
+            .and_then(Value::as_u64)
+            .unwrap_or(100)
+            .max(1),
+    );
+    let path_prefix: Option<ArchitectureReportPath> =
+        args.get("path").and_then(Value::as_str).map(Into::into);
 
     let mut aspects: Vec<Aspect> = Vec::new();
     if let Some(raw_aspects) = args.get("aspects").and_then(Value::as_array) {
@@ -1861,11 +1940,11 @@ fn file_tree_to_json(node: &architecture::FileTreeNode) -> Value {
 // search_code -> code_search::search_code
 // ---------------------------------------------------------------------
 
-fn parse_search_mode(raw: &str) -> SearchMode {
+fn parse_search_mode(raw: &str) -> CodeSearchMode {
     match raw {
-        "full" => SearchMode::Full,
-        "files" => SearchMode::Files,
-        _ => SearchMode::Compact,
+        "full" => CodeSearchMode::Full,
+        "files" => CodeSearchMode::Files,
+        _ => CodeSearchMode::Compact,
     }
 }
 
@@ -1883,8 +1962,12 @@ fn handle_search_code(args: &Value) -> Value {
             .and_then(Value::as_str)
             .unwrap_or("compact"),
     );
-    let context_lines = args.get("context").and_then(Value::as_u64).unwrap_or(0) as usize;
-    let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(10) as usize;
+    let context_lines = crate::owned_boundary::u64_to_usize(
+        args.get("context").and_then(Value::as_u64).unwrap_or(0),
+    );
+    let limit = crate::owned_boundary::u64_to_usize(
+        args.get("limit").and_then(Value::as_u64).unwrap_or(10),
+    );
 
     let graph = match build_graph(repo_path) {
         Ok(graph) => graph,
@@ -1892,26 +1975,26 @@ fn handle_search_code(args: &Value) -> Value {
     };
     let root = PathBuf::from(repo_path);
     let query = SearchQuery {
-        pattern,
+        pattern: pattern.into(),
         mode,
-        context_lines,
-        limit,
+        context_lines: context_lines.into(),
+        limit: limit.into(),
     };
     match code_search::search_code(&graph, &root, &query) {
         Ok(outcome) => json!({
             "ok": true,
             "hits": outcome.hits.into_iter().map(|hit| json!({
-                "relPath": hit.rel_path,
-                "line": hit.line,
-                "text": hit.text,
-                "containingSymbol": hit.containing_symbol,
-                "contextBefore": hit.context_before,
-                "contextAfter": hit.context_after,
+                "relPath": hit.rel_path.as_str(),
+                "line": hit.line.get(),
+                "text": hit.text.as_str(),
+                "containingSymbol": hit.containing_symbol.as_ref().map(|symbol| symbol.as_str()),
+                "contextBefore": hit.context_before.iter().map(|line| line.as_str()).collect::<Vec<_>>(),
+                "contextAfter": hit.context_after.iter().map(|line| line.as_str()).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
-            "files": outcome.files,
-            "totalMatches": outcome.total_matches,
+            "files": outcome.files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+            "totalMatches": outcome.total_matches.get(),
             "unreadableFiles": outcome.unreadable_files.into_iter().map(|f| json!({
-                "relPath": f.rel_path, "reason": f.reason,
+                "relPath": f.rel_path.as_str(), "reason": f.reason.as_str(),
             })).collect::<Vec<_>>(),
         }),
         Err(source) => tool_error("search_code", format!("{source}")),
@@ -1993,22 +2076,23 @@ fn handle_detect_changes(args: &Value) -> Value {
     let Some(changed_paths) = args.get("changedPaths").and_then(Value::as_array) else {
         return tool_error("detect_changes", "missing required field \"changedPaths\"");
     };
-    let changed_paths: Vec<String> = changed_paths
+    let changed_paths: Vec<enforcer_domain::memory_types::ImpactPath> = changed_paths
         .iter()
         .filter_map(Value::as_str)
-        .map(str::to_owned)
+        .map(Into::into)
         .collect();
-    let max_depth = args
-        .get("maxDepth")
-        .and_then(Value::as_u64)
-        .unwrap_or(3)
-        .max(1) as usize;
+    let max_depth = crate::owned_boundary::u64_to_usize(
+        args.get("maxDepth")
+            .and_then(Value::as_u64)
+            .unwrap_or(3)
+            .max(1),
+    );
 
     let graph = match build_graph(repo_path) {
         Ok(graph) => graph,
         Err(err) => return err,
     };
-    let report = impact::analyze_diff_impact(&graph, &changed_paths, max_depth);
+    let report = impact::analyze_diff_impact(&graph, &changed_paths, max_depth.into());
     json!({
         "ok": true,
         "changedPaths": report.changed_paths,
@@ -2040,7 +2124,7 @@ fn adr_store_from_json(adrs: &Value) -> AdrStore {
         if let Some(sections) = item.get("sections").and_then(Value::as_object) {
             for (name, body) in sections {
                 if let Some(body) = body.as_str() {
-                    record = record.with_section(name.clone(), body.to_owned());
+                    record = record.with_section(name.retained(), body.retained());
                 }
             }
         }
@@ -2073,9 +2157,9 @@ fn adr_store_to_json(store: &AdrStore) -> Value {
 }
 
 /// Baseline whole-document `manage_adr` (`refs/x06-baseline-tool-schemas.md`
-/// §14): `mode` defaults to `"get"`; `"store"` is an undocumented alias for
+/// Â§14): `mode` defaults to `"get"`; `"store"` is an undocumented alias for
 /// `"update"`; `mode="update"`/`"store"` with no `content` silently degrades
-/// to a `get`-shaped response (§14.1: `content` is "required for
+/// to a `get`-shaped response (Â§14.1: `content` is "required for
 /// mode=\"update\"/\"store\" only" but the baseline has no distinct
 /// missing-content error path -- it just falls through as if `get` had been
 /// requested); an empty/never-stored document returns `content:""` with
@@ -2106,7 +2190,7 @@ fn handle_manage_adr_document(args: &Value, project: &str) -> Value {
                 store.update_document(project, content);
                 json!({ "ok": true, "status": "updated", "document": content })
             }
-            // Baseline §14.1/§14.4: missing content on update/store has no
+            // Baseline Â§14.1/Â§14.4: missing content on update/store has no
             // distinct error path -- it silently degrades to a get-shaped
             // response over whatever was already stored.
             None => adr_document_get_response(&store, project),
@@ -2121,7 +2205,7 @@ fn handle_manage_adr_document(args: &Value, project: &str) -> Value {
 
 fn adr_document_get_response(store: &AdrStore, project: &str) -> Value {
     let AdrDocument { content, no_adr } = store.get_document(project);
-    if no_adr {
+    if no_adr.is_no_document() {
         json!({
             "ok": true,
             "content": "",
@@ -2135,7 +2219,7 @@ fn adr_document_get_response(store: &AdrStore, project: &str) -> Value {
 
 fn handle_manage_adr(args: &Value) -> Value {
     // Baseline dispatch: a `project` argument selects the whole-document
-    // API (`refs/x06-baseline-tool-schemas.md` §14). The pre-existing
+    // API (`refs/x06-baseline-tool-schemas.md` Â§14). The pre-existing
     // section-based `operation` argument remains reachable as an extension
     // mode for callers that want richer per-section CRUD than the baseline
     // exposes.
@@ -2235,9 +2319,9 @@ fn handle_ingest_traces(args: &Value) -> Value {
             );
         };
         records.push(TraceRecord {
-            caller: caller.to_owned(),
-            callee: callee.to_owned(),
-            count,
+            caller: caller.retained().into(),
+            callee: callee.retained().into(),
+            count: count.into(),
         });
     }
 
@@ -2280,9 +2364,9 @@ fn handle_model_runtime_status(args: &Value) -> Value {
         .unwrap_or_else(|| {
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
         });
-    let service = ModelRuntimeServiceConfig::dev(&repo_root);
-    let llama = LocalRuntimeControlPlane::llama_cpp_managed();
-    let ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    let service = ModelRuntimeServiceConfigDto::dev(&repo_root);
+    let llama = LocalRuntimeControlPlaneDto::llama_cpp_managed();
+    let ort = LocalRuntimeControlPlaneDto::onnx_ort_managed();
     let llama_ok = validate_control_plane(&llama).is_ok();
     let ort_ok = validate_control_plane(&ort).is_ok();
 
@@ -2347,17 +2431,16 @@ pub fn run_stdio_session(
 /// the test harness can drive it directly against in-memory buffers
 /// without a real stdio handle.
 pub(crate) fn handle_frame(frame: &Frame, out: &mut impl std::io::Write) -> std::io::Result<()> {
-    let message: RpcMessage = match serde_json::from_str(&frame.body) {
+    let message: RpcMessageDto = match serde_json::from_str(&frame.body) {
         Ok(message) => message,
         Err(err) => {
             // Binding: refs/x06-baseline-tool-schemas.md -- only two
             // JSON-RPC error codes exist in the baseline; a parse failure
             // has no request id to echo, so the baseline hardcodes `0`
             // (never `null`) for this one case.
-            let error = RpcError::new(
+            let error = RpcErrorDto::new(
                 json!(0),
-                RpcError::PARSE_ERROR,
-                format!("Parse error: {err}"),
+                rpc_error(RpcErrorCode::ParseError, format!("Parse error: {err}")),
             );
             return write_reply(out, &error, frame.framing);
         }
@@ -2371,7 +2454,7 @@ pub(crate) fn handle_frame(frame: &Frame, out: &mut impl std::io::Write) -> std:
         // spec exactly.
         return Ok(());
     }
-    let Some(id) = message.id.clone() else {
+    let Some(id) = message.id.retained() else {
         return Ok(());
     };
     let tool_name = tool_name_from_params(&message);
@@ -2382,23 +2465,23 @@ pub(crate) fn handle_frame(frame: &Frame, out: &mut impl std::io::Write) -> std:
         Err(_) => true,
     };
     let record = crate::diagnostics::RequestRecord {
-        protocol: "mcp",
-        method: message.method,
-        tool: tool_name,
-        duration: started.elapsed(),
-        is_error,
+        protocol: "mcp".into(),
+        method: message.method.into(),
+        tool: tool_name.map(Into::into),
+        duration: started.elapsed().into(),
+        is_error: is_error.into(),
     };
     let diagnostics = crate::diagnostics::Diagnostics::from_env();
     crate::diagnostics::emit_to_stderr(&diagnostics, record.level(), &record);
     match outcome {
-        Ok(result) => write_reply(out, &RpcResult::new(id, result), frame.framing),
-        Err((code, msg)) => write_reply(out, &RpcError::new(id, code, msg), frame.framing),
+        Ok(result) => write_reply(out, &RpcResultDto::new(id, result), frame.framing),
+        Err(error) => write_reply(out, &RpcErrorDto::new(id, error), frame.framing),
     }
 }
 
 /// Extract the tool name from a `tools/call` message's params, for the
 /// per-request diagnostic record; `None` for every other method.
-fn tool_name_from_params(message: &RpcMessage) -> Option<String> {
+fn tool_name_from_params(message: &RpcMessageDto) -> Option<String> {
     if message.method != "tools/call" {
         return None;
     }
@@ -2420,8 +2503,8 @@ fn result_is_error(result: &Value) -> bool {
     result.get("isError").and_then(Value::as_bool) == Some(true)
 }
 
-fn handle_method(message: &RpcMessage) -> Result<Value, (i64, String)> {
-    let params = message.params.clone().unwrap_or(Value::Null);
+fn handle_method(message: &RpcMessageDto) -> Result<Value, RpcErrorBody> {
+    let params = message.params.retained().unwrap_or(Value::Null);
     match message.method.as_str() {
         "initialize" => Ok(initialize_result(&params)),
         "ping" => Ok(json!({})),
@@ -2433,10 +2516,18 @@ fn handle_method(message: &RpcMessage) -> Result<Value, (i64, String)> {
         // tools/call) is a normal result with isError:true, never a
         // JSON-RPC error -- see handle_tools_call/dispatch_tool/
         // wrap_envelope, which never return through this Err path.
-        other => Err((
-            RpcError::METHOD_NOT_FOUND,
+        other => Err(rpc_error(
+            RpcErrorCode::MethodNotFound,
             format!("Unknown method: {other}"),
         )),
+    }
+}
+
+fn rpc_error(code: RpcErrorCode, message: impl Into<String>) -> RpcErrorBody {
+    let message = message.into();
+    match RpcErrorMessage::try_new(&message) {
+        Ok(message) => RpcErrorBody::new(code, message),
+        Err(_) => RpcErrorBody::new(code, RpcErrorMessage::fallback()),
     }
 }
 
@@ -2499,12 +2590,16 @@ fn handle_tools_list(params: &Value) -> Value {
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
     let all = tool_descriptors();
-    let page: Vec<&ToolDescriptor> = all.iter().skip(cursor).take(TOOLS_LIST_PAGE_SIZE).collect();
+    let page: Vec<&ToolDescriptorDto> =
+        all.iter().skip(cursor).take(TOOLS_LIST_PAGE_SIZE).collect();
     let mut result = serde_json::Map::new();
-    result.insert("tools".to_owned(), json!(page));
+    result.insert("tools".retained(), json!(page));
     let next_offset = cursor + page.len();
     if next_offset < all.len() {
-        result.insert("nextCursor".to_owned(), json!(next_offset.to_string()));
+        result.insert(
+            "nextCursor".retained(),
+            json!(next_offset.retained_display()),
+        );
     }
     Value::Object(result)
 }
@@ -2526,7 +2621,7 @@ fn write_reply(
 ) -> std::io::Result<()> {
     let body = serde_json::to_string(reply).unwrap_or_else(|_| {
         "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"encode failure\"}}"
-            .to_owned()
+            .retained()
     });
     out.write_all(&encode_frame(&body, framing))?;
     out.flush()

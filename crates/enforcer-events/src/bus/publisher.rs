@@ -1,10 +1,13 @@
 use crate::{
-    DomainEvent, EventEnvelope, EventMetadata, EventingError, RequestCompletionReport,
-    RequestEvent, RequestId,
+    envelope::{DomainEvent, EventFrame, EventMetadata},
+    error::EventingError,
+    request::{RequestCompletionReport, RequestEvent},
 };
+use enforcer_domain::events_types::RequestId;
 
 use super::{DispatchMode, EventBus, PublishReport};
 
+/// Event-runtime data for event publisher.
 #[derive(Clone)]
 pub struct EventPublisher {
     bus: EventBus,
@@ -15,17 +18,19 @@ impl EventPublisher {
         Self { bus }
     }
 
+    /// Executes the publish event-runtime operation.
     pub async fn publish<E>(
         &self,
         event: E,
         metadata: EventMetadata,
     ) -> Result<PublishReport, EventingError>
     where
-        E: DomainEvent,
+        E: DomainEvent + serde::Serialize,
     {
         self.bus.publish(event, metadata).await
     }
 
+    /// Executes the publish with mode event-runtime operation.
     pub async fn publish_with_mode<E>(
         &self,
         event: E,
@@ -33,13 +38,14 @@ impl EventPublisher {
         dispatch_mode: DispatchMode,
     ) -> Result<PublishReport, EventingError>
     where
-        E: DomainEvent,
+        E: DomainEvent + serde::Serialize,
     {
         self.bus
             .publish_with_mode(event, metadata, dispatch_mode)
             .await
     }
 
+    /// Executes the complete request event-runtime operation.
     pub async fn complete_request<E>(
         &self,
         request_id: RequestId,
@@ -58,12 +64,13 @@ impl std::fmt::Debug for EventPublisher {
     }
 }
 
+/// Event-runtime data for event context.
 #[derive(Clone, Debug)]
 pub struct EventContext<E>
 where
     E: DomainEvent,
 {
-    envelope: EventEnvelope<E>,
+    envelope: EventFrame<E>,
     publisher: EventPublisher,
 }
 
@@ -71,21 +78,24 @@ impl<E> EventContext<E>
 where
     E: DomainEvent,
 {
-    pub(super) fn new(envelope: EventEnvelope<E>, publisher: EventPublisher) -> Self {
+    pub(super) fn new(envelope: EventFrame<E>, publisher: EventPublisher) -> Self {
         Self {
             envelope,
             publisher,
         }
     }
 
-    pub fn envelope(&self) -> &EventEnvelope<E> {
+    /// Executes the envelope event-runtime operation.
+    pub fn envelope(&self) -> &EventFrame<E> {
         &self.envelope
     }
 
+    /// Executes the payload event-runtime operation.
     pub fn payload(&self) -> &E {
         &self.envelope.payload
     }
 
+    /// Executes the publisher event-runtime operation.
     pub fn publisher(&self) -> &EventPublisher {
         &self.publisher
     }
@@ -95,6 +105,7 @@ impl<E> EventContext<E>
 where
     E: RequestEvent,
 {
+    /// Executes the complete request event-runtime operation.
     pub async fn complete_request(
         &self,
         response: E::Response,

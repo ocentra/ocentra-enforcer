@@ -1,5 +1,5 @@
 //! X06.P2: parity `trace_path` -- the three trace modes the baseline's
-//! `trace_path` tool exposes (scout digest §1, row 4: "modes
+//! `trace_path` tool exposes (scout digest section 1, row 4: "modes
 //! calls/data_flow/cross_service; direction in/out/both; depth default
 //! 3"), built as library functions over [`super::CodeAdjacency`] /
 //! [`crate::code_graph::CodeGraph`] rather than a duplicate traversal
@@ -12,9 +12,9 @@
 //!   logic, just the parity-shaped request/response envelope this pack
 //!   requires (`direction`/`depth`/`include_tests`/`edge_types`).
 //! - [`TraceMode::DataFlow`] follows the *same* call-graph edges as
-//!   `calls` mode (now including [`super::EdgeKind::DataFlows`], the
+//!   `calls` mode (now including [`MemoryEdgeKind::DataFlows`], the
 //!   symbol-scoped edge [`super::CodeAdjacency::build`] adds alongside
-//!   [`super::EdgeKind::Calls`] for every resolved call that has
+//!   [`MemoryEdgeKind::Calls`] for every resolved call that has
 //!   captured argument expressions -- see [`crate::data_flow`]'s module
 //!   doc for the baseline C source this mirrors and exactly why it stops
 //!   short of the baseline's route-mediated closure), and additionally
@@ -51,7 +51,7 @@
 //! `Both` per the pack), `depth` (default [`DEFAULT_DEPTH`] = 3),
 //! `include_tests` (filters [`crate::code_graph::CodeNode::Test`] nodes
 //! out of hop lists when `false`), and `edge_types` (keep only hops
-//! whose [`super::EdgeKind`] is in the given set; `None`/empty means "no
+//! whose [`MemoryEdgeKind`] is in the given set; `None`/empty means "no
 //! filter").
 //!
 //! # Parity risk labels (`risk_labels`)
@@ -84,17 +84,18 @@
 //! parity contract ("deterministic ordering", per this lane's mission)
 //! holds even if the underlying traversal's internal order ever changes.
 
-use super::{test_node_ids, CodeAdjacency, EdgeKind, PathHop, TraceDirection};
+use super::{test_node_ids, CodeAdjacency, PathHop};
 use crate::code_graph::CodeGraph;
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    Approximation, MemoryAnalysisNodeId, MemoryEdgeKind, MemoryResolutionSymbolId, RiskLabel,
+    TraceArgumentExpression, TraceDepth, TraceDirection, TraceIncludeTests, TraceNodeId,
+    TraceParameterName, TracePathExists, TraceRiskLabels, TraceRouteMethod, TraceRoutePath,
+};
 use std::collections::{BTreeSet, HashSet};
 
-/// Default trace depth (scout digest §1: "depth default 3").
+/// Default trace depth (scout digest section 1: "depth default 3").
 pub const DEFAULT_DEPTH: usize = 3;
-
-/// One hop in a `calls`-mode trace: identical shape to
-/// [`super::PathHop`], re-exported under this module's naming so callers
-/// of the parity surface do not need to reach into `super` directly.
-pub type CallHop = PathHop;
 
 /// A full traced path: an ordered hop list plus which node the path
 /// started from (paths themselves never include the start node as a
@@ -104,37 +105,18 @@ pub type CallHop = PathHop;
 /// see the module docs' "Parity risk labels" section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TracedPath {
-    pub start_node_id: String,
-    pub hops: Vec<CallHop>,
+    pub start_node_id: TraceNodeId,
+    pub hops: Vec<PathHop>,
     pub risk_labels: Option<Vec<RiskLabel>>,
 }
 
 /// The baseline's `cbm_hop_to_risk` labels, reproduced verbatim
 /// (uppercase strings on the wire via [`RiskLabel::as_str`]) -- see the
 /// module docs' "Parity risk labels" section. Named distinctly from
-/// [`crate::impact::RiskLevel`] (three-tier, PascalCase, used for this
+/// [`enforcer_domain::memory_types::RiskLevel`] (three-tier, PascalCase, used for this
 /// crate's own richer classification) so the two are never confused at
 /// the type level, matching the orchestrator's "expose both, never
 /// overwrite" directive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RiskLabel {
-    Critical,
-    High,
-    Medium,
-    Low,
-}
-
-impl RiskLabel {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            RiskLabel::Critical => "CRITICAL",
-            RiskLabel::High => "HIGH",
-            RiskLabel::Medium => "MEDIUM",
-            RiskLabel::Low => "LOW",
-        }
-    }
-}
-
 /// The baseline's `cbm_hop_to_risk`: pure BFS hop-distance from the
 /// traced root. `hop_number` is 1-indexed (the first hop away from
 /// root is hop 1, matching a [`TracedPath`]'s `hops[0]`); the root node
@@ -142,8 +124,8 @@ impl RiskLabel {
 /// "root" in the baseline's `root/4+ = LOW` is naturally covered by the
 /// `_ => Low` arm at hop_number >= 4 -- there is no hop_number=0 case
 /// to special-case separately.
-pub fn hop_to_risk_label(hop_number: usize) -> RiskLabel {
-    match hop_number {
+pub fn hop_to_risk_label(hop_number: impl Into<TraceDepth>) -> RiskLabel {
+    match hop_number.into().get() {
         1 => RiskLabel::Critical,
         2 => RiskLabel::High,
         3 => RiskLabel::Medium,
@@ -169,20 +151,20 @@ pub struct CallTraceReport {
 #[derive(Debug, Clone)]
 pub struct TraceCallsParams<'a> {
     pub direction: TraceDirection,
-    pub depth: usize,
-    pub include_tests: bool,
-    pub edge_types: Option<&'a [EdgeKind]>,
-    pub risk_labels: bool,
+    pub depth: TraceDepth,
+    pub include_tests: TraceIncludeTests,
+    pub edge_types: Option<&'a [MemoryEdgeKind]>,
+    pub risk_labels: TraceRiskLabels,
 }
 
 impl Default for TraceCallsParams<'_> {
     fn default() -> Self {
         Self {
             direction: TraceDirection::Both,
-            depth: DEFAULT_DEPTH,
-            include_tests: true,
+            depth: DEFAULT_DEPTH.into(),
+            include_tests: true.into(),
             edge_types: None,
-            risk_labels: false,
+            risk_labels: false.into(),
         }
     }
 }
@@ -197,10 +179,12 @@ impl Default for TraceCallsParams<'_> {
 pub fn trace_calls(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
-    start: &str,
+    start: impl Into<TraceNodeId>,
     params: &TraceCallsParams<'_>,
 ) -> CallTraceReport {
-    let raw_paths = adjacency.trace_calls(start, params.direction, params.depth);
+    let start = start.into();
+    let start = start.as_str();
+    let raw_paths = adjacency.trace_calls(start, params.direction, params.depth.get());
     let test_ids = test_node_ids(graph);
 
     let mut paths: Vec<TracedPath> = raw_paths
@@ -209,9 +193,10 @@ pub fn trace_calls(
         .map(|hops| {
             let labels = params
                 .risk_labels
+                .includes_risk_labels()
                 .then(|| (1..=hops.len()).map(hop_to_risk_label).collect::<Vec<_>>());
             TracedPath {
-                start_node_id: start.to_string(),
+                start_node_id: start.retained_display().into(),
                 hops,
                 risk_labels: labels,
             }
@@ -225,14 +210,6 @@ pub fn trace_calls(
 /// How much of a real argument-expression-to-parameter binding a
 /// [`DataFlowHop`] actually carries. `CallGraphOnly` is the only variant
 /// this crate can honestly produce today -- see module docs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Approximation {
-    /// Only call-graph edges (who calls whom) are known; no
-    /// argument-expression-to-parameter linkage data exists in the
-    /// parser layer this crate builds on.
-    CallGraphOnly,
-}
-
 /// A call site's captured argument expression, optionally paired with
 /// the parameter name it binds to. `parameter_name` is never populated
 /// by this crate's current parser layer (see module docs and
@@ -241,8 +218,8 @@ pub enum Approximation {
 /// it in without another [`DataFlowHop`] shape break.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamLink {
-    pub argument_expr: String,
-    pub parameter_name: Option<String>,
+    pub argument_expr: TraceArgumentExpression,
+    pub parameter_name: Option<TraceParameterName>,
 }
 
 /// One hop in a `data_flow`-mode trace: the call-graph hop plus a
@@ -253,13 +230,13 @@ pub struct ParamLink {
 /// [`trace_data_flow`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowHop {
-    pub hop: CallHop,
+    pub hop: PathHop,
     pub param_link: Option<ParamLink>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowPath {
-    pub start_node_id: String,
+    pub start_node_id: TraceNodeId,
     pub hops: Vec<DataFlowHop>,
 }
 
@@ -282,7 +259,7 @@ pub struct DataFlowReport {
 /// [`crate::data_flow::materialize`] recorded at least one argument
 /// expression flowing into it (via
 /// [`crate::data_flow::argument_exprs_by_target`], keyed by resolved
-/// target symbol id -- the same id space [`CallHop::node_id`] uses). A
+/// target symbol id -- the same id space [`PathHop::node_id`] uses). A
 /// hop with no matching [`crate::data_flow::DataFlowEdge`] (no captured
 /// arguments for any call resolving to it, or an `Imports`-kind hop that
 /// was never a call at all) keeps `param_link: None`, never a fabricated
@@ -295,9 +272,11 @@ pub struct DataFlowReport {
 pub fn trace_data_flow(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
-    start: &str,
+    start: impl Into<TraceNodeId>,
     params: &TraceCallsParams<'_>,
 ) -> DataFlowReport {
+    let start = start.into();
+    let start = start.as_str();
     let call_report = trace_calls(adjacency, graph, start, params);
     let data_flow_graph = crate::data_flow::materialize(graph);
     let args_by_target = crate::data_flow::argument_exprs_by_target(&data_flow_graph);
@@ -313,7 +292,7 @@ pub fn trace_data_flow(
                 .map(|hop| {
                     let param_link = args_by_target.get(hop.node_id.as_str()).and_then(|exprs| {
                         exprs.first().map(|expr| ParamLink {
-                            argument_expr: expr.to_string(),
+                            argument_expr: expr.retained_display().into(),
                             parameter_name: None,
                         })
                     });
@@ -332,10 +311,10 @@ pub fn trace_data_flow(
 /// One producer -> route -> consumer path for `cross_service` mode.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteMediator {
-    pub method: String,
-    pub path: String,
+    pub method: TraceRouteMethod,
+    pub path: TraceRoutePath,
     /// The file node id that declares the route (the producer).
-    pub producer_node_id: String,
+    pub producer_node_id: TraceNodeId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -343,10 +322,10 @@ pub struct CrossServicePath {
     pub mediator: RouteMediator,
     /// The consumer node id: a file that reaches the producer via an
     /// `Imports` or `Calls` edge within the trace depth.
-    pub consumer_node_id: String,
+    pub consumer_node_id: TraceNodeId,
     /// The hop chain from the consumer to the producer (same shape as
-    /// [`CallHop`] so callers can render it identically to `calls` mode).
-    pub hops: Vec<CallHop>,
+    /// [`PathHop`] so callers can render it identically to `calls` mode).
+    pub hops: Vec<PathHop>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -359,12 +338,12 @@ pub struct CrossServiceReport {
 /// clippy's default too-many-arguments threshold without an `#[allow]`
 /// (same posture as [`TraceCallsParams`]/this crate's `DfsPathState`/
 /// `RelatedWalkState` bundling in [`super`] -- this crate runs clippy
-/// with zero `#[allow(clippy::…)]`, per the workpack gate).
+/// with zero `#[allow(clippy::...)]`, per the workpack gate).
 #[derive(Debug, Clone, Copy)]
 pub struct TraceCrossServiceParams {
     pub direction: TraceDirection,
-    pub depth: usize,
-    pub include_tests: bool,
+    pub depth: TraceDepth,
+    pub include_tests: TraceIncludeTests,
 }
 
 /// `cross_service` mode: producer/route/consumer paths mediated by
@@ -376,9 +355,10 @@ pub struct TraceCrossServiceParams {
 pub fn trace_cross_service(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
-    start: &str,
+    start: impl Into<TraceNodeId>,
     params: TraceCrossServiceParams,
 ) -> CrossServiceReport {
+    let start = start.into();
     let TraceCrossServiceParams {
         direction,
         depth,
@@ -388,11 +368,12 @@ pub fn trace_cross_service(
     let mut paths = Vec::new();
 
     for route in graph.routes() {
-        let producer_id = route.from_file_id.clone();
+        let producer_id: MemoryAnalysisNodeId = route.from_file_id.as_str().into();
+        let start_analysis: MemoryAnalysisNodeId = start.as_str().into();
         let mediator = RouteMediator {
-            method: route.method.clone(),
-            path: route.path.clone(),
-            producer_node_id: producer_id.clone(),
+            method: route.method.as_str().retained().into(),
+            path: route.path.as_str().retained().into(),
+            producer_node_id: producer_id.as_str().retained().into(),
         };
 
         // Consumers: every node that reaches the producer via an
@@ -402,7 +383,7 @@ pub fn trace_cross_service(
         // `direction` -- `direction` only gates *which* relationship
         // `start` must have to this route before it is reported (see
         // below), not how consumers themselves are discovered.
-        let consumers = adjacency.reverse_dependents(&producer_id, depth);
+        let consumers = adjacency.reverse_dependents(producer_id.as_str(), depth.get());
 
         // `start`'s relationship to this route depends on `direction`,
         // mirroring `trace_calls`'s own Out/In/Both contract:
@@ -414,10 +395,11 @@ pub fn trace_cross_service(
         //   I consume upstream".
         // - Both: either of the above.
         let reaches_as_out = matches!(direction, TraceDirection::Out | TraceDirection::Both)
-            && path_exists(adjacency, start, &producer_id, depth);
+            && path_exists(adjacency, &start_analysis, &producer_id, depth).exists();
         let reaches_as_in = matches!(direction, TraceDirection::In | TraceDirection::Both)
-            && consumers.iter().any(|id| id == start);
-        let producer_reachable = producer_id == start || reaches_as_out || reaches_as_in;
+            && consumers.iter().any(|id| id == start.as_str());
+        let producer_reachable =
+            producer_id.as_str() == start.as_str() || reaches_as_out || reaches_as_in;
 
         if !producer_reachable {
             continue;
@@ -428,18 +410,20 @@ pub fn trace_cross_service(
             if consumer_id == producer_id {
                 continue;
             }
-            if !include_tests && test_ids.contains(&consumer_id) {
+            if !include_tests.includes_tests()
+                && test_ids.contains(&MemoryResolutionSymbolId::from(consumer_id.as_str()))
+            {
                 continue;
             }
             let hops = adjacency
-                .trace_calls(&consumer_id, TraceDirection::Out, depth)
+                .trace_calls(consumer_id.retained(), TraceDirection::Out, depth.get())
                 .into_iter()
                 .find(|path| path.iter().any(|hop| hop.node_id == producer_id))
-                .unwrap_or_default();
+                .unwrap_or_else(Vec::new);
 
             paths.push(CrossServicePath {
-                mediator: mediator.clone(),
-                consumer_node_id: consumer_id,
+                mediator: mediator.retained(),
+                consumer_node_id: consumer_id.as_str().into(),
                 hops,
             });
             emitted_for_route = true;
@@ -455,8 +439,8 @@ pub fn trace_cross_service(
         // dropping the route from the report.
         if !emitted_for_route {
             paths.push(CrossServicePath {
-                mediator: mediator.clone(),
-                consumer_node_id: producer_id.clone(),
+                mediator: mediator.retained(),
+                consumer_node_id: producer_id.as_str().retained().into(),
                 hops: Vec::new(),
             });
         }
@@ -481,11 +465,17 @@ pub fn trace_cross_service(
 /// `direction`. Used only by [`trace_cross_service`]'s outbound check;
 /// deliberately reuses [`CodeAdjacency::trace_calls`] rather than a
 /// second traversal implementation.
-fn path_exists(adjacency: &CodeAdjacency, from: &str, to: &str, depth: usize) -> bool {
+fn path_exists(
+    adjacency: &CodeAdjacency,
+    from: &MemoryAnalysisNodeId,
+    to: &MemoryAnalysisNodeId,
+    depth: TraceDepth,
+) -> TracePathExists {
     adjacency
-        .trace_calls(from, TraceDirection::Out, depth)
+        .trace_calls(from.as_str(), TraceDirection::Out, depth.get())
         .iter()
-        .any(|path| path.iter().any(|hop| hop.node_id == to))
+        .any(|path| path.iter().any(|hop| hop.node_id == to.as_str()))
+        .into()
 }
 
 /// Apply `include_tests`/`edge_types` filtering to one raw path. A path
@@ -493,13 +483,16 @@ fn path_exists(adjacency: &CodeAdjacency, from: &str, to: &str, depth: usize) ->
 /// entirely rather than returned as a vacuous zero-hop path.
 fn filter_path(
     hops: Vec<PathHop>,
-    include_tests: bool,
-    edge_types: Option<&[EdgeKind]>,
-    test_ids: &HashSet<String>,
+    include_tests: TraceIncludeTests,
+    edge_types: Option<&[MemoryEdgeKind]>,
+    test_ids: &HashSet<MemoryResolutionSymbolId>,
 ) -> Option<Vec<PathHop>> {
     let filtered: Vec<PathHop> = hops
         .into_iter()
-        .filter(|hop| include_tests || !test_ids.contains(&hop.node_id))
+        .filter(|hop| {
+            include_tests.includes_tests()
+                || !test_ids.contains(&MemoryResolutionSymbolId::from(hop.node_id.as_str()))
+        })
         .filter(|hop| {
             edge_types
                 .map(|kinds| kinds.contains(&hop.via))
@@ -518,20 +511,21 @@ fn filter_path(
 /// concatenated hop-id sequence, then by length.
 fn sort_paths(paths: &mut [TracedPath]) {
     paths.sort_by(|a, b| {
-        let a_key: Vec<&str> = a.hops.iter().map(|h| h.node_id.as_str()).collect();
-        let b_key: Vec<&str> = b.hops.iter().map(|h| h.node_id.as_str()).collect();
-        a_key.cmp(&b_key)
+        a.hops
+            .iter()
+            .map(|h| h.node_id.as_str())
+            .cmp(b.hops.iter().map(|h| h.node_id.as_str()))
     });
 }
 
 /// Distinct node ids touched by a [`CallTraceReport`] -- a small helper
 /// the MCP/CLI wrapper lane (out of scope here) is expected to want;
 /// kept here since it is a pure function of this module's own types.
-pub fn distinct_node_ids(report: &CallTraceReport) -> Vec<String> {
+pub fn distinct_node_ids(report: &CallTraceReport) -> Vec<TraceNodeId> {
     let set: BTreeSet<&str> = report
         .paths
         .iter()
         .flat_map(|p| p.hops.iter().map(|h| h.node_id.as_str()))
         .collect();
-    set.into_iter().map(str::to_string).collect()
+    set.into_iter().map(Into::into).collect()
 }

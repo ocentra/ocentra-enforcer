@@ -6,10 +6,11 @@
 //! instead of reimplementing this check.
 
 use std::fs;
-use std::path::Path;
 
+use enforcer_domain::boundary::validation::ValidationSourceText;
 use enforcer_domain::findings::ScanScope;
-use enforcer_domain::paths::RelPath;
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::telemetry_types::FindingCount;
 
 use crate::error::{HarnessError, HarnessResult};
 use crate::validator::{ValidationInput, Validator};
@@ -28,62 +29,73 @@ use crate::validator::{ValidationInput, Validator};
 /// repo-relative paths a `RuleRecord.fixtures` entry would carry.
 pub fn run_fixture_parity(
     validator: &dyn Validator,
-    repo_root: &Path,
-    fail_fixture_path: &str,
-    pass_fixture_path: &str,
+    repo_root: &RepoRoot,
+    fail_fixture_path: &RelPath,
+    pass_fixture_path: &RelPath,
 ) -> HarnessResult<()> {
-    let rule_id = validator.rule_id().to_string();
+    // CLONE-JUSTIFICATION: returned harness errors own the validator rule identity.
+    let rule_id = validator.rule_id().clone();
 
     let fail_source = read_fixture(repo_root, fail_fixture_path)?;
-    let fail_file = fixture_rel_path(fail_fixture_path)?;
     let fail_findings = validator.validate(ValidationInput {
-        file: &fail_file,
-        source: &fail_source,
+        file: fail_fixture_path,
+        source: fail_source.as_source(),
         scope: ScanScope::Files,
     });
     if fail_findings.is_empty() {
         return Err(HarnessError::DidNotFireOnFail {
             rule_id,
-            fixture: fail_fixture_path.to_owned(),
+            // CLONE-JUSTIFICATION: the returned error outlives this borrowed fixture path.
+            fixture: fail_fixture_path.clone(),
         });
     }
     if let Some(mismatch) = fail_findings
         .iter()
-        .find(|finding| finding.rule_id.as_str() != rule_id)
+        .find(|finding| finding.rule_id != rule_id)
     {
-        return Err(HarnessError::DidNotFireOnFail {
-            rule_id: format!(
-                "{rule_id} (fixture produced mismatched ruleId `{}`)",
-                mismatch.rule_id.as_str()
-            ),
-            fixture: fail_fixture_path.to_owned(),
+        return Err(HarnessError::MismatchedRule {
+            expected_rule_id: rule_id,
+            // CLONE-JUSTIFICATION: the returned error owns the mismatched finding identity.
+            actual_rule_id: mismatch.rule_id.clone(),
+            // CLONE-JUSTIFICATION: the returned error outlives this borrowed fixture path.
+            fixture: fail_fixture_path.clone(),
         });
     }
 
     let pass_source = read_fixture(repo_root, pass_fixture_path)?;
-    let pass_file = fixture_rel_path(pass_fixture_path)?;
     let pass_findings = validator.validate(ValidationInput {
-        file: &pass_file,
-        source: &pass_source,
+        file: pass_fixture_path,
+        source: pass_source.as_source(),
         scope: ScanScope::Files,
     });
     if !pass_findings.is_empty() {
+        let finding_count = u64::try_from(pass_findings.len())
+            .map(FindingCount::new)
+            .map_err(|source| HarnessError::FindingCountOverflow {
+                // CLONE-JUSTIFICATION: the returned error outlives this borrowed fixture path.
+                fixture: pass_fixture_path.clone(),
+                source,
+            })?;
         return Err(HarnessError::FiredOnPass {
             rule_id,
-            fixture: pass_fixture_path.to_owned(),
-            finding_count: pass_findings.len(),
+            // CLONE-JUSTIFICATION: the returned error outlives this borrowed fixture path.
+            fixture: pass_fixture_path.clone(),
+            finding_count,
         });
     }
 
     Ok(())
 }
 
-fn read_fixture(repo_root: &Path, rel: &str) -> HarnessResult<String> {
-    let full = repo_root.join(rel);
-    fs::read_to_string(&full).map_err(|source| HarnessError::FixtureRead {
-        path: full.display().to_string(),
-        source,
-    })
+fn read_fixture(repo_root: &RepoRoot, rel_path: &RelPath) -> HarnessResult<ValidationSourceText> {
+    let full = repo_root.resolve(rel_path);
+    fs::read_to_string(&full)
+        .map(ValidationSourceText::try_new)
+        .map_err(|source| HarnessError::FixtureRead {
+            // CLONE-JUSTIFICATION: the returned I/O error outlives this borrowed fixture path.
+            path: rel_path.clone(),
+            source,
+        })
 }
 
 /// Build a [`RelPath`] for a fixture for use as `Finding::file`. Fixture
@@ -92,22 +104,14 @@ fn read_fixture(repo_root: &Path, rel: &str) -> HarnessResult<String> {
 /// caller passed a malformed fixture path — that is a harness-usage bug,
 /// surfaced as [`HarnessError::FixtureRead`] rather than a panic, keeping
 /// this crate `unwrap`/`expect`-free per workspace lint policy.
-fn fixture_rel_path(rel: &str) -> HarnessResult<RelPath> {
-    rel.parse().map_err(
-        |decode_error: enforcer_domain::boundary::decode_error::DecodeError| {
-            HarnessError::FixtureRead {
-                path: rel.to_owned(),
-                source: std::io::Error::new(std::io::ErrorKind::InvalidInput, decode_error),
-            }
-        },
-    )
-}
-
 #[cfg(test)]
 mod tests {
-    use enforcer_domain::findings::Finding;
+    use enforcer_domain::boundary::decode_error::DecodeError;
+    use enforcer_domain::findings::{Finding, FindingDetail, FindingLine, FindingTitle};
     use enforcer_domain::ids::RuleId;
+    use enforcer_domain::paths::RepoRoot;
     use enforcer_domain::severity::Severity;
+    use enforcer_domain::telemetry_types::SourceLine;
 
     use super::run_fixture_parity;
     use crate::error::HarnessError;
@@ -117,6 +121,9 @@ mod tests {
     /// literal marker `FORBIDDEN`.
     struct MarkerValidator {
         rule_id: RuleId,
+        title: FindingTitle,
+        detail: FindingDetail,
+        line: SourceLine,
     }
 
     impl Validator for MarkerValidator {
@@ -125,14 +132,14 @@ mod tests {
         }
 
         fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-            if input.source.contains("FORBIDDEN") {
+            if input.source.as_str().contains("FORBIDDEN") {
                 vec![Finding {
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
-                    title: "forbidden marker present".to_owned(),
-                    detail: "found the literal marker FORBIDDEN".to_owned(),
+                    title: self.title.clone(),
+                    detail: self.detail.clone(),
                     file: input.file.clone(),
-                    line: 1,
+                    line: FindingLine::known(self.line),
                     snippet: None,
                 }]
             } else {
@@ -162,6 +169,9 @@ mod tests {
     /// validator: it must be caught on the PASS fixture.
     struct AlwaysFiresValidator {
         rule_id: RuleId,
+        title: FindingTitle,
+        detail: FindingDetail,
+        line: SourceLine,
     }
 
     impl Validator for AlwaysFiresValidator {
@@ -173,29 +183,47 @@ mod tests {
             vec![Finding {
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Error,
-                title: "always fires".to_owned(),
-                detail: "this validator is broken and fires unconditionally".to_owned(),
+                title: self.title.clone(),
+                detail: self.detail.clone(),
                 file: input.file.clone(),
-                line: 1,
+                line: FindingLine::known(self.line),
                 snippet: None,
             }]
         }
     }
 
-    fn manifest_dir() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    fn manifest_root() -> Result<RepoRoot, DecodeError> {
+        RepoRoot::try_from(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+    }
+
+    fn marker_validator() -> Result<MarkerValidator, DecodeError> {
+        Ok(MarkerValidator {
+            rule_id: "RR-99.1".parse()?,
+            title: FindingTitle::new("forbidden marker present".to_owned())?,
+            detail: FindingDetail::new("found the literal marker FORBIDDEN".to_owned())?,
+            line: SourceLine::try_new(std::num::NonZeroU32::MIN),
+        })
+    }
+
+    fn always_fires_validator() -> Result<AlwaysFiresValidator, DecodeError> {
+        Ok(AlwaysFiresValidator {
+            rule_id: "RR-99.1".parse()?,
+            title: FindingTitle::new("always fires".to_owned())?,
+            detail: FindingDetail::new(
+                "this validator is broken and fires unconditionally".to_owned(),
+            )?,
+            line: SourceLine::try_new(std::num::NonZeroU32::MIN),
+        })
     }
 
     #[test]
     fn correct_validator_passes_both_directions() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = MarkerValidator {
-            rule_id: "RR-99.1".parse()?,
-        };
+        let validator = marker_validator()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "fixtures/sample/fail.txt",
-            "fixtures/sample/pass.txt",
+            &manifest_root()?,
+            &"fixtures/sample/fail.txt".parse()?,
+            &"fixtures/sample/pass.txt".parse()?,
         )?;
         Ok(())
     }
@@ -208,9 +236,9 @@ mod tests {
         };
         let outcome = run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "fixtures/sample/fail.txt",
-            "fixtures/sample/pass.txt",
+            &manifest_root()?,
+            &"fixtures/sample/fail.txt".parse()?,
+            &"fixtures/sample/pass.txt".parse()?,
         );
         assert!(matches!(
             outcome,
@@ -222,14 +250,12 @@ mod tests {
     #[test]
     fn broken_always_fires_validator_is_caught_on_pass_fixture(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let validator = AlwaysFiresValidator {
-            rule_id: "RR-99.1".parse()?,
-        };
+        let validator = always_fires_validator()?;
         let outcome = run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "fixtures/sample/fail.txt",
-            "fixtures/sample/pass.txt",
+            &manifest_root()?,
+            &"fixtures/sample/fail.txt".parse()?,
+            &"fixtures/sample/pass.txt".parse()?,
         );
         assert!(matches!(outcome, Err(HarnessError::FiredOnPass { .. })));
         Ok(())
@@ -237,14 +263,12 @@ mod tests {
 
     #[test]
     fn missing_fixture_reports_read_error() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = MarkerValidator {
-            rule_id: "RR-99.1".parse()?,
-        };
+        let validator = marker_validator()?;
         let outcome = run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "fixtures/sample/does-not-exist.txt",
-            "fixtures/sample/pass.txt",
+            &manifest_root()?,
+            &"fixtures/sample/does-not-exist.txt".parse()?,
+            &"fixtures/sample/pass.txt".parse()?,
         );
         assert!(matches!(outcome, Err(HarnessError::FixtureRead { .. })));
         Ok(())

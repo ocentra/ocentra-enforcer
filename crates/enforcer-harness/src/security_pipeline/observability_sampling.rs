@@ -49,25 +49,24 @@ impl SamplingDropGate {
                 event.kind == EventKind::SecurityEvent
                     && event.sampling == SamplingDisposition::DroppedBySampling
             })
-            .map(|event| {
+            .filter_map(|event| {
                 let title = String::from("security event dropped by sampling");
-                Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: each finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!(
+                    format!(
                         "security event `{}` was dropped by trace sampling — security events \
                          must be recorded with sampling disabled",
-                        event.label.0
+                        event.label
                     ),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: file.clone(),
-                    line: 1,
-                    snippet: None,
-                }
+                    file.clone(),
+                    1,
+                )
             })
             .collect()
     }
@@ -83,24 +82,26 @@ impl Validator for SamplingDropGate {
     /// boundary rejects (malformed or dishonest) is itself a blocking
     /// finding, never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match crate::security_pipeline::adapters::observability_report::parse_recorded(input.source)
-        {
+        match crate::security_pipeline::adapters::observability_report::parse_recorded(
+            input.source.as_str(),
+        ) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
                 let title = String::from("observability adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!("{rejection}"),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

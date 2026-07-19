@@ -2,68 +2,85 @@
 //! high-watermark staleness detection).
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
+use crate::boundary::log_schema::{ArtifactManifestEntryDto, IndexManifestDto, SCHEMA_VERSION};
 use crate::error::{MemoryError, Result};
-use crate::ids::ArtifactId;
-use crate::schema::{ArtifactManifestEntry, IndexManifest, SCHEMA_VERSION};
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::{
+    ArtifactId, ArtifactManifestEntryCount, ArtifactManifestEntryKey, ArtifactManifestIsEmpty,
+    ArtifactManifestRelativePath, ArtifactManifestTimestamp, GraphArtifactByteCount,
+    IndexManifestBuiltAt, IndexManifestSourceLog, IndexManifestWatermark, MemoryArtifactBytes,
+    MemoryStorePath,
+};
 
 /// A content-addressed artifact store: `put` writes content keyed by its
 /// own SHA-256 digest (so identical content is stored once, and the id
 /// is never caller-assigned), `get` re-verifies the digest on every read
 /// so a corrupted blob is detected rather than silently returned.
+#[derive(Debug)]
 pub struct ArtifactManifest {
-    root: PathBuf,
-    entries: BTreeMap<String, ArtifactManifestEntry>,
-    manifest_path: PathBuf,
+    root: MemoryStorePath,
+    entries: BTreeMap<ArtifactManifestEntryKey, ArtifactManifestEntryDto>,
+    manifest_path: MemoryStorePath,
 }
 
 impl ArtifactManifest {
     /// Open (or create) the artifact manifest rooted at `root`. Loads
     /// any existing `manifest.json` index of entries.
-    pub fn open(root: &Path) -> Result<Self> {
-        std::fs::create_dir_all(root).map_err(|source| MemoryError::Io {
-            path: root.to_path_buf(),
+    pub fn open(root: impl Into<MemoryStorePath>) -> Result<Self> {
+        let root = root.into();
+        std::fs::create_dir_all(&root).map_err(|source| MemoryError::Io {
+            path: root.to_path_buf().into(),
             source,
         })?;
         let manifest_path = root.join("manifest.json");
         let entries = if manifest_path.exists() {
             let raw =
                 std::fs::read_to_string(&manifest_path).map_err(|source| MemoryError::Io {
-                    path: manifest_path.clone(),
+                    path: manifest_path.retained().into(),
                     source,
                 })?;
-            serde_json::from_str(&raw)?
+            crate::boundary::json::decode(&raw)?
         } else {
             BTreeMap::new()
         };
         Ok(Self {
-            root: root.to_path_buf(),
+            root,
             entries,
-            manifest_path,
+            manifest_path: manifest_path.into(),
         })
     }
 
     /// Store `content`, keyed by its own content-addressed id. If an
     /// artifact with this exact content already exists, this is a no-op
     /// dedup (same id, no rewrite). Returns the artifact id.
-    pub fn put(&mut self, content: &[u8], rel_path: Option<&str>, ts: &str) -> Result<ArtifactId> {
-        let id = ArtifactId::from_content(content);
+    pub fn put(
+        &mut self,
+        content: impl Into<MemoryArtifactBytes>,
+        rel_path: Option<ArtifactManifestRelativePath>,
+        ts: impl Into<ArtifactManifestTimestamp>,
+    ) -> Result<ArtifactId> {
+        let content = content.into();
+        let ts = ts.into();
+        let id = ArtifactId::from_content(content.as_ref());
         let blob_path = self.blob_path(&id);
         if !blob_path.exists() {
-            std::fs::write(&blob_path, content).map_err(|source| MemoryError::Io {
-                path: blob_path.clone(),
+            std::fs::write(&blob_path, content.as_ref()).map_err(|source| MemoryError::Io {
+                path: blob_path.as_ref().into(),
                 source,
             })?;
         }
         self.entries.insert(
-            id.as_str().to_owned(),
-            ArtifactManifestEntry {
+            id.as_str().into(),
+            ArtifactManifestEntryDto {
                 schema_version: SCHEMA_VERSION,
-                id: id.as_str().to_owned(),
-                rel_path: rel_path.map(str::to_owned),
-                byte_len: content.len() as u64,
-                ts: ts.to_owned(),
+                id: id.as_str().retained(),
+                rel_path: rel_path.map(Into::into),
+                byte_len: match GraphArtifactByteCount::try_from(content.as_ref().len()) {
+                    Ok(byte_count) => byte_count.into(),
+                    Err(_) => u64::MAX,
+                },
+                ts: ts.into(),
             },
         );
         self.persist()?;
@@ -74,43 +91,45 @@ impl ArtifactManifest {
     /// against the id itself — a corrupted blob (bytes on disk no longer
     /// hash to `id`) is a hard error, never a silent wrong-content
     /// return.
-    pub fn get(&self, id: &ArtifactId) -> Result<Vec<u8>> {
+    pub fn get(&self, id: &ArtifactId) -> Result<MemoryArtifactBytes> {
         let blob_path = self.blob_path(id);
         let content = std::fs::read(&blob_path).map_err(|source| MemoryError::Io {
-            path: blob_path,
+            path: blob_path.as_ref().into(),
             source,
         })?;
         let actual = ArtifactId::from_content(&content);
         if actual.as_str() != id.as_str() {
             return Err(MemoryError::ArtifactDigestMismatch {
-                id: id.as_str().to_owned(),
-                expected: id.as_str().to_owned(),
-                actual: actual.as_str().to_owned(),
+                id: id.as_str().retained().into(),
+                expected: id.as_str().retained().into(),
+                actual: actual.as_str().retained().into(),
             });
         }
-        Ok(content)
+        Ok(content.into())
     }
 
-    pub fn entry(&self, id: &ArtifactId) -> Option<&ArtifactManifestEntry> {
-        self.entries.get(id.as_str())
+    pub fn entry(&self, id: &ArtifactId) -> Option<&ArtifactManifestEntryDto> {
+        self.entries
+            .iter()
+            .find_map(|(key, entry)| (key.as_str() == id.as_str()).then_some(entry))
     }
 
-    pub fn len(&self) -> usize {
-        self.entries.len()
+    pub fn len(&self) -> ArtifactManifestEntryCount {
+        self.entries.len().into()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    pub fn is_empty(&self) -> ArtifactManifestIsEmpty {
+        self.entries.is_empty().into()
     }
 
-    fn blob_path(&self, id: &ArtifactId) -> PathBuf {
-        self.root.join(id.digest().hex())
+    fn blob_path(&self, id: &ArtifactId) -> MemoryStorePath {
+        self.root.join(id.digest().hex()).into()
     }
 
     fn persist(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&self.entries)?;
         std::fs::write(&self.manifest_path, json).map_err(|source| MemoryError::Io {
-            path: self.manifest_path.clone(),
+            path: self.manifest_path.as_ref().to_path_buf().into(),
             source,
         })
     }
@@ -123,22 +142,24 @@ impl ArtifactManifest {
 /// `Ok(None)` if no manifest exists yet (nothing to be stale relative
 /// to).
 pub fn check_index_freshness(
-    path: &Path,
-    current_log_length: u64,
-) -> Result<Option<IndexManifest>> {
+    path: impl Into<MemoryStorePath>,
+    current_log_length: impl Into<IndexManifestWatermark>,
+) -> Result<Option<IndexManifestDto>> {
+    let path = path.into();
+    let current_log_length = current_log_length.into().get();
     if !path.exists() {
         return Ok(None);
     }
-    let raw = std::fs::read_to_string(path).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+    let raw = std::fs::read_to_string(&path).map_err(|source| MemoryError::Io {
+        path: path.to_path_buf().into(),
         source,
     })?;
-    let manifest: IndexManifest = serde_json::from_str(&raw)?;
+    let manifest: IndexManifestDto = crate::boundary::json::decode(&raw)?;
     if manifest.source_high_watermark < current_log_length {
         return Err(MemoryError::StaleIndex {
-            path: path.to_path_buf(),
-            manifest_watermark: manifest.source_high_watermark,
-            log_length: current_log_length,
+            path: path.to_path_buf().into(),
+            manifest_watermark: manifest.source_high_watermark.into(),
+            log_length: current_log_length.into(),
         });
     }
     Ok(Some(manifest))
@@ -147,20 +168,24 @@ pub fn check_index_freshness(
 /// Write a fresh index manifest recording `source_log`'s current length
 /// as the high-watermark this index was built against.
 pub fn write_index_manifest(
-    path: &Path,
-    source_log: &str,
-    source_high_watermark: u64,
-    built_at: &str,
+    path: impl Into<MemoryStorePath>,
+    source_log: impl Into<IndexManifestSourceLog>,
+    source_high_watermark: impl Into<IndexManifestWatermark>,
+    built_at: impl Into<IndexManifestBuiltAt>,
 ) -> Result<()> {
-    let manifest = IndexManifest {
+    let path = path.into();
+    let source_log = source_log.into();
+    let source_high_watermark = source_high_watermark.into();
+    let built_at = built_at.into();
+    let manifest = IndexManifestDto {
         schema_version: SCHEMA_VERSION,
-        source_log: source_log.to_owned(),
-        source_high_watermark,
-        built_at: built_at.to_owned(),
+        source_log: source_log.into(),
+        source_high_watermark: source_high_watermark.get(),
+        built_at: built_at.into(),
     };
     let json = serde_json::to_string_pretty(&manifest)?;
-    std::fs::write(path, json).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+    std::fs::write(&path, json).map_err(|source| MemoryError::Io {
+        path: path.to_path_buf().into(),
         source,
     })
 }

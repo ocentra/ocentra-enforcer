@@ -28,70 +28,21 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
+use crate::boundary::terraform::{
+    allows_public_cidr, compile_regex, covers_port_22, ingress_subblocks, resource_blocks,
+    statement_blocks, string_attr_eq,
+};
+
 /// Split `source` into `resource "<type>" "<name>" { ... }` blocks (brace
 /// depth-aware, so a nested block inside a resource does not truncate it
 /// early). Only top-level `resource` blocks are collected.
-pub(crate) struct ResourceBlock<'a> {
-    pub(crate) resource_type: &'a str,
-    pub(crate) name: &'a str,
-    pub(crate) body: &'a str,
-    pub(crate) line: u32,
-}
-
-pub(crate) fn resource_blocks(source: &str) -> Vec<ResourceBlock<'_>> {
-    let Ok(header) = Regex::new(r#"resource\s+"([A-Za-z0-9_]+)"\s+"([A-Za-z0-9_-]+)"\s*\{"#) else {
-        return Vec::new();
-    };
-    let mut blocks = Vec::new();
-    for capture in header.captures_iter(source) {
-        let Some(whole) = capture.get(0) else {
-            continue;
-        };
-        let open_brace = whole.end() - 1;
-        let Some(close_brace) = matching_brace(source, open_brace) else {
-            continue;
-        };
-        let Some(prefix) = source.get(..whole.start()) else {
-            continue;
-        };
-        let line = 1 + prefix.matches('\n').count() as u32;
-        let Some(body) = source.get(open_brace.saturating_add(1)..close_brace) else {
-            continue;
-        };
-        blocks.push(ResourceBlock {
-            resource_type: capture.get(1).map_or("", |m| m.as_str()),
-            name: capture.get(2).map_or("", |m| m.as_str()),
-            body,
-            line,
-        });
-    }
-    blocks
-}
-
 /// Find the index of the `}` that closes the `{` at `open_brace`, tracking
 /// nested brace depth. Returns `None` if the source is malformed (no
 /// matching close) — callers skip such a block rather than panicking.
-fn matching_brace(source: &str, open_brace: usize) -> Option<usize> {
-    let bytes = source.as_bytes();
-    let mut depth = 0i32;
-    for (offset, byte) in bytes.iter().enumerate().skip(open_brace) {
-        match byte {
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(offset);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
 /// `CYBER-IAC-S3-SSE.1` — an `aws_s3_bucket` resource missing
 /// `server_side_encryption_configuration` is flagged (Rego:
 /// `aws_s3_encryption.rego`).
+#[derive(Debug)]
 pub struct S3EncryptionRequiredValidator {
     rule_id: RuleId,
 }
@@ -99,7 +50,7 @@ pub struct S3EncryptionRequiredValidator {
 impl S3EncryptionRequiredValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-IAC-S3-SSE.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberIacS3Sse.id(),
         })
     }
 }
@@ -111,27 +62,25 @@ impl Validator for S3EncryptionRequiredValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for block in resource_blocks(input.source) {
+        for block in resource_blocks(input.source.as_str()) {
             if block.resource_type != "aws_s3_bucket" {
                 continue;
             }
             if block.body.contains("server_side_encryption_configuration") {
                 continue;
             }
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "S3 bucket must have server-side encryption enabled".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_owned_source(
+                (&self.rule_id, Severity::Error),
+                "S3 bucket must have server-side encryption enabled",
+                format!(
                     "S3 bucket '{}' has no `server_side_encryption_configuration` block. \
                      Fix: add a `server_side_encryption_configuration` block enabling SSE \
                      (e.g. AES256 or aws:kms).",
                     block.name
                 ),
-                file: input.file.clone(),
-                line: block.line,
-                snippet: None,
-            });
+                input.file,
+                (block.line, None),
+            ));
         }
         findings
     }
@@ -140,6 +89,7 @@ impl Validator for S3EncryptionRequiredValidator {
 /// `CYBER-IAC-IAM-WILDCARD.1` — an `aws_iam_policy` statement with
 /// `Action == "*"` (or an `Action` list containing `"*"`) and
 /// `Effect == "Allow"` is flagged (Rego: `aws_iam_no_wildcards.rego`).
+#[derive(Debug)]
 pub struct IamNoWildcardActionValidator {
     rule_id: RuleId,
     /// Vendor deny-rule A (`aws_iam_no_wildcards.rego` L159-165):
@@ -156,14 +106,10 @@ pub struct IamNoWildcardActionValidator {
     allow_effect: Regex,
 }
 
-fn compile_regex(pattern: &str) -> Result<Regex, DecodeError> {
-    Regex::new(pattern).map_err(|err| DecodeError::new("cyberskillsIacRegex", err.to_string()))
-}
-
 impl IamNoWildcardActionValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-IAC-IAM-WILDCARD.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberIacIamWildcard.id(),
             wildcard_action: compile_regex(
                 r#"(?i)"?Action"?\s*[:=]\s*(?:\[[^]]*"\*"[^]]*]|"\*")"#,
             )?,
@@ -185,7 +131,7 @@ impl Validator for IamNoWildcardActionValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for block in resource_blocks(input.source) {
+        for block in resource_blocks(input.source.as_str()) {
             if block.resource_type != "aws_iam_policy" {
                 continue;
             }
@@ -193,7 +139,7 @@ impl Validator for IamNoWildcardActionValidator {
             // action paired with an Allow effect anywhere in the block is
             // the same shape the Rego rule matches over
             // `resource.policy.Statement[_]`.
-            let statements = split_statements(block.body);
+            let statements = statement_blocks(block.body);
             for statement in statements {
                 if !self.allow_effect.is_match(statement) {
                     continue;
@@ -223,15 +169,13 @@ impl Validator for IamNoWildcardActionValidator {
                         block.name
                     )
                 };
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "IAM policy must not use wildcard (*) actions".to_owned(),
+                findings.extend(crate::boundary::finding::from_owned_source(
+                    (&self.rule_id, Severity::Error),
+                    "IAM policy must not use wildcard (*) actions",
                     detail,
-                    file: input.file.clone(),
-                    line: block.line,
-                    snippet: None,
-                });
+                    input.file,
+                    (block.line, None),
+                ));
                 break;
             }
         }
@@ -244,43 +188,10 @@ impl Validator for IamNoWildcardActionValidator {
 /// back to treating the whole body as one chunk if no `Statement` array
 /// marker is found (still lets the wildcard+allow predicate fire on an
 /// inline single-statement shape).
-fn split_statements(body: &str) -> Vec<&str> {
-    let Some(marker) = body.find("Statement") else {
-        return vec![body];
-    };
-    let mut chunks = Vec::new();
-    let mut cursor = marker;
-    let bytes = body.as_bytes();
-    while let Some(remaining) = body.get(cursor..) {
-        let Some(rel_open) = remaining.find('{') else {
-            break;
-        };
-        let open = cursor + rel_open;
-        let Some(close) = matching_brace(body, open) else {
-            break;
-        };
-        let Some(chunk) = body.get(open..=close) else {
-            break;
-        };
-        chunks.push(chunk);
-        let Some(next_cursor) = close.checked_add(1) else {
-            break;
-        };
-        cursor = next_cursor;
-        if cursor >= bytes.len() {
-            break;
-        }
-    }
-    if chunks.is_empty() {
-        vec![body]
-    } else {
-        chunks
-    }
-}
-
 /// `CYBER-IAC-SG-SSH.1` — a security-group ingress rule allowing
 /// `0.0.0.0/0` across a port range covering 22 is flagged (Rego:
 /// `aws_no_public_ingress.rego`).
+#[derive(Debug)]
 pub struct SgNoPublicSshIngressValidator {
     rule_id: RuleId,
 }
@@ -288,43 +199,8 @@ pub struct SgNoPublicSshIngressValidator {
 impl SgNoPublicSshIngressValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-IAC-SG-SSH.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberIacSgSsh.id(),
         })
-    }
-}
-
-/// Extract an integer HCL attribute (`name = 22` or `name = "22"`) from
-/// `body`, if present.
-pub(crate) fn int_attr(body: &str, name: &str) -> Option<i64> {
-    let pattern = Regex::new(&format!(r#"(?i){name}\s*=\s*"?(-?\d+)"?"#)).ok()?;
-    pattern
-        .captures(body)
-        .and_then(|c| c.get(1))
-        .and_then(|m| m.as_str().parse().ok())
-}
-
-pub(crate) fn allows_public_cidr(body: &str) -> bool {
-    body.contains("0.0.0.0/0")
-}
-
-/// True when `body` declares a string HCL attribute `name = "value"`
-/// (case-insensitive), e.g. `type = "ingress"`. Used to honor the vendor
-/// Rego's explicit `resource.type == "ingress"` predicate so an `egress`
-/// rule to `0.0.0.0/0` on port 22 is NOT flagged.
-pub(crate) fn string_attr_eq(body: &str, name: &str, value: &str) -> bool {
-    let Ok(pattern) = Regex::new(&format!(r#"(?i)\b{name}\s*=\s*"([^"]*)""#)) else {
-        return false;
-    };
-    pattern
-        .captures(body)
-        .and_then(|c| c.get(1))
-        .is_some_and(|m| m.as_str().eq_ignore_ascii_case(value))
-}
-
-fn covers_port_22(body: &str) -> bool {
-    match (int_attr(body, "from_port"), int_attr(body, "to_port")) {
-        (Some(from), Some(to)) => from <= 22 && to >= 22,
-        _ => false,
     }
 }
 
@@ -335,7 +211,7 @@ impl Validator for SgNoPublicSshIngressValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for block in resource_blocks(input.source) {
+        for block in resource_blocks(input.source.as_str()) {
             // The two shapes the vendor Rego + inline-block convention
             // cover, kept faithful to `aws_no_public_ingress.rego` (which
             // fires only when `resource.type == "ingress"`):
@@ -357,72 +233,30 @@ impl Validator for SgNoPublicSshIngressValidator {
                 _ => false,
             };
             if is_public_ssh_ingress {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Security group rule allows SSH from 0.0.0.0/0".to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_owned_source(
+                    (&self.rule_id, Severity::Error),
+                    "Security group rule allows SSH from 0.0.0.0/0",
+                    format!(
                         "Security group rule '{}' allows ingress from `0.0.0.0/0` across a \
                          port range covering 22 (SSH). Fix: restrict `cidr_blocks` to a \
                          known range or remove port 22 from the public rule.",
                         block.name
                     ),
-                    file: input.file.clone(),
-                    line: block.line,
-                    snippet: None,
-                });
+                    input.file,
+                    (block.line, None),
+                ));
             }
         }
         findings
     }
 }
 
-pub(crate) fn ingress_subblocks(body: &str) -> Vec<&str> {
-    let Ok(header) = Regex::new(r"ingress\s*\{") else {
-        return Vec::new();
-    };
-    let mut blocks = Vec::new();
-    for capture in header.captures_iter(body) {
-        let Some(whole) = capture.get(0) else {
-            continue;
-        };
-        let open_brace = whole.end() - 1;
-        if let Some(close_brace) = matching_brace(body, open_brace) {
-            if let Some(block) = body.get(open_brace.saturating_add(1)..close_brace) {
-                blocks.push(block);
-            }
-        }
-    }
-    blocks
-}
-
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_domain::findings::ScanScope;
-    use enforcer_domain::paths::RelPath;
-    use enforcer_validator::harness::run_fixture_parity;
-    use enforcer_validator::validator::{ValidationInput, Validator};
+    use crate::boundary::fixture::{finding_count, run_manifest_fixture_parity};
 
     use super::SgNoPublicSshIngressValidator;
     use super::{IamNoWildcardActionValidator, S3EncryptionRequiredValidator};
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn sg_findings(source: &str) -> Result<usize, Box<dyn std::error::Error>> {
-        let validator = SgNoPublicSshIngressValidator::new()?;
-        let file: RelPath = "main.tf".parse()?;
-        Ok(validator
-            .validate(ValidationInput {
-                file: &file,
-                source,
-                scope: ScanScope::Files,
-            })
-            .len())
-    }
 
     /// Regression for the egress false-positive: the vendor Rego fires only
     /// when `resource.type == "ingress"`, so a standalone
@@ -442,7 +276,11 @@ resource "aws_security_group_rule" "out" {
 }
 "#;
         assert_eq!(
-            sg_findings(egress)?,
+            finding_count(
+                &SgNoPublicSshIngressValidator::new()?,
+                "main.tf",
+                egress,
+            )?,
             0,
             "an egress rule to 0.0.0.0/0 on port 22 must not be flagged (vendor requires type==ingress)"
         );
@@ -458,7 +296,7 @@ resource "aws_security_group_rule" "in" {
 }
 "#;
         assert_eq!(
-            sg_findings(ingress)?,
+            finding_count(&SgNoPublicSshIngressValidator::new()?, "main.tf", ingress,)?,
             1,
             "a standalone ingress rule to 0.0.0.0/0 on port 22 must be flagged"
         );
@@ -468,9 +306,8 @@ resource "aws_security_group_rule" "in" {
     #[test]
     fn cyberskills_iac_tf_s3_encryption() -> Result<(), Box<dyn std::error::Error>> {
         let validator = S3EncryptionRequiredValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/iac.tf.s3-encryption-required/bad/no_sse.tf",
             "tests/fixtures/cyberskills/iac.tf.s3-encryption-required/good/sse.tf",
         )?;
@@ -480,9 +317,8 @@ resource "aws_security_group_rule" "in" {
     #[test]
     fn cyberskills_iac_tf_iam_wildcard() -> Result<(), Box<dyn std::error::Error>> {
         let validator = IamNoWildcardActionValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/bad/wildcard.tf",
             "tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/good/scoped.tf",
         )?;
@@ -492,9 +328,8 @@ resource "aws_security_group_rule" "in" {
     #[test]
     fn cyberskills_iac_tf_sg_ssh() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SgNoPublicSshIngressValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/bad/public_ssh.tf",
             "tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/good/restricted.tf",
         )?;

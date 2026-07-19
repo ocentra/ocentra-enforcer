@@ -10,17 +10,18 @@
 //! external types in a file with no local enum stay unflagged) while still
 //! catching the common single-file case the fixture pair exercises.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Arm, ExprMatch, ItemEnum, Pat};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RulePredicateResult;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The `RUST-MATCH-NO-WILDCARD` `Validator`.
+#[derive(Debug)]
 pub struct MatchWildcardValidator {
     rule_id: RuleId,
 }
@@ -30,7 +31,7 @@ impl MatchWildcardValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-MATCH-NO-WILDCARD".parse()?,
+            rule_id: BuiltInRustRule::MatchNoWildcard.id(),
         })
     }
 }
@@ -41,19 +42,19 @@ impl Validator for MatchWildcardValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
 
-        let mut has_local_enum = HasLocalEnum(false);
+        let mut has_local_enum = HasLocalEnum(RulePredicateResult::NotMatched);
         has_local_enum.visit_file(&file);
-        if !has_local_enum.0 {
+        if has_local_enum.0 == RulePredicateResult::NotMatched {
             return Vec::new();
         }
 
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -61,40 +62,48 @@ impl Validator for MatchWildcardValidator {
     }
 }
 
-struct HasLocalEnum(bool);
+struct HasLocalEnum(RulePredicateResult);
 
 impl<'ast> Visit<'ast> for HasLocalEnum {
     fn visit_item_enum(&mut self, _item: &'ast ItemEnum) {
-        self.0 = true;
+        self.0 = RulePredicateResult::Matched;
     }
 }
 
-fn arm_is_wildcard(arm: &Arm) -> bool {
-    matches!(arm.pat, Pat::Wild(_))
+fn arm_is_wildcard(arm: &Arm) -> RulePredicateResult {
+    if matches!(arm.pat, Pat::Wild(_)) {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
+    }
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_expr_match(&mut self, item: &'ast ExprMatch) {
-        if item.arms.iter().any(arm_is_wildcard) {
-            let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
-            self.findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "catch-all `_ =>` arm on a match over a local enum".to_owned(),
-                detail: "Fix: replace the `_ =>` catch-all with exhaustive per-variant arms so \
+        if item
+            .arms
+            .iter()
+            .any(|arm| arm_is_wildcard(arm) == RulePredicateResult::Matched)
+        {
+            let line = crate::boundary::finding::source_line(item);
+            let Ok(finding) = crate::boundary::finding::from_source(
+                (self.rule_id, Severity::Error),
+                "catch-all `_ =>` arm on a match over a local enum",
+                "Fix: replace the `_ =>` catch-all with exhaustive per-variant arms so \
                           the compiler forces this match to be updated when a new variant is \
-                          added."
-                    .to_owned(),
-                file: self.file.clone(),
+                          added.",
+                self.file,
                 line,
-                snippet: None,
-            });
+            ) else {
+                return;
+            };
+            self.findings.push(finding);
         }
         visit::visit_expr_match(self, item);
     }
@@ -102,15 +111,10 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::MatchWildcardValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_wildcard_arm_and_silent_on_exhaustive_arms(
@@ -118,7 +122,6 @@ mod tests {
         let validator = MatchWildcardValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/match-wildcard/fail_wildcard.rs",
             "fixtures/match-wildcard/pass_exhaustive.rs",
         )?;
@@ -126,13 +129,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = MatchWildcardValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

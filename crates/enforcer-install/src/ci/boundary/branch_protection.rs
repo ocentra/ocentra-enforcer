@@ -2,82 +2,17 @@
 //!
 //! This module owns the raw JSON response shape from `gh api`. Callers must
 //! convert it into [`ObservedBranchProtection`] before applying policy.
+//!
+//! ROUNDTRIP-TEST: `github_branch_protection_dtos_round_trip` exercises the
+//! JSON contracts and the canonical verification conversion below.
 
-use std::collections::BTreeSet;
-
-use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::GitHubCheckContext;
+//! BOUNDARY-INVARIANT: branch-protection reports convert through canonical domain policy.
+//!
 use serde::{Deserialize, Serialize};
 
-use super::super::branch_protection::{DesiredProtection, RefusalReason, Verification};
-use super::super::branch_protection_domain::{
-    BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
-    RequiredChecksHealth, UpToDateRequirement,
+use enforcer_domain::install_types::{
+    ContextRequirement, DesiredProtection, ObservedBranchProtection, RefusalReason, Verification,
 };
-
-/// Raw workflow declaration used only to derive GitHub check contexts.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkflowJobDeclaration {
-    /// Workflow `name:` value.
-    pub workflow_name: String,
-    /// Workflow job identifier.
-    pub job_id: String,
-    /// Matrix values in GitHub's rendered order.
-    pub matrix: Vec<String>,
-}
-
-impl TryFrom<WorkflowJobDeclaration> for BTreeSet<GitHubCheckContext> {
-    type Error = DecodeError;
-
-    fn try_from(dto: WorkflowJobDeclaration) -> Result<Self, Self::Error> {
-        let values = if dto.matrix.is_empty() {
-            vec![format!("{} / {}", dto.workflow_name, dto.job_id)]
-        } else {
-            dto.matrix
-                .into_iter()
-                .map(|value| format!("{} / {} ({value})", dto.workflow_name, dto.job_id))
-                .collect()
-        };
-        values
-            .into_iter()
-            .map(GitHubCheckContext::try_from)
-            .collect()
-    }
-}
-
-/// Raw GitHub PUT payload emitted from the typed policy.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BranchProtectionWriteDto {
-    /// Required status check settings.
-    pub required_status_checks: RequiredStatusChecksDto,
-    /// GitHub setting that blocks administrator bypass when true.
-    pub enforce_admins: bool,
-    /// GitHub setting requiring pull requests when true.
-    pub required_pull_request: bool,
-    /// GitHub setting permitting force pushes when true.
-    pub allow_force_pushes: bool,
-    /// GitHub setting permitting branch deletion when true.
-    pub allow_deletions: bool,
-}
-
-impl From<&DesiredProtection> for BranchProtectionWriteDto {
-    fn from(desired: &DesiredProtection) -> Self {
-        Self {
-            required_status_checks: RequiredStatusChecksDto {
-                strict: true,
-                contexts: desired
-                    .required_contexts()
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect(),
-            },
-            enforce_admins: true,
-            required_pull_request: true,
-            allow_force_pushes: false,
-            allow_deletions: false,
-        }
-    }
-}
 
 /// JSON-friendly result consumed by installer and CI callers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -148,102 +83,66 @@ fn refusal_code(reason: &RefusalReason) -> String {
     .to_owned()
 }
 
-/// Raw `required_status_checks` object returned by GitHub's branch-protection
-/// endpoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RequiredStatusChecksDto {
-    /// GitHub's stale-branch requirement flag.
-    pub strict: bool,
-    /// Raw GitHub check-run contexts; validated during domain conversion.
-    pub contexts: Vec<String>,
-}
+impl TryFrom<BranchProtectionReportDto> for Verification {
+    type Error = enforcer_domain::boundary::decode_error::DecodeError;
 
-/// Raw GitHub branch-protection response DTO.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LiveProtectionStateDto {
-    /// GitHub's required-check configuration, when configured.
-    pub required_status_checks: Option<RequiredStatusChecksDto>,
-    /// GitHub flag: `true` prevents administrator bypass.
-    pub enforce_admins: bool,
-    /// GitHub flag: `true` requires pull requests.
-    pub required_pull_request: bool,
-    /// GitHub flag: `true` allows force pushes.
-    pub allow_force_pushes: bool,
-    /// GitHub flag: `true` allows branch deletion.
-    pub allow_deletions: bool,
-    /// GitHub check health: `Some(true)` is green; false or absent is unsafe.
-    pub required_checks_passing: Option<bool>,
-}
+    fn try_from(value: BranchProtectionReportDto) -> Result<Self, Self::Error> {
+        if value.attested {
+            if value.exit_code != 0 || !value.refusal_codes.is_empty() {
+                return Err(Self::Error::new(
+                    "verification",
+                    "attested reports cannot carry refusal codes or a non-zero exit code",
+                ));
+            }
+            return Ok(Self::Attested);
+        }
 
-impl TryFrom<LiveProtectionStateDto> for ObservedBranchProtection {
-    type Error = DecodeError;
+        if value.exit_code <= 0 || value.refusal_codes.is_empty() {
+            return Err(Self::Error::new(
+                "verification",
+                "refused reports require at least one refusal code and a positive exit code",
+            ));
+        }
 
-    fn try_from(dto: LiveProtectionStateDto) -> Result<Self, Self::Error> {
-        let contexts = match dto.required_status_checks.as_ref() {
-            Some(checks) => checks
-                .contexts
-                .iter()
-                .cloned()
-                .map(GitHubCheckContext::try_from)
-                .collect::<Result<BTreeSet<_>, _>>()?,
-            None => BTreeSet::new(),
-        };
-        let up_to_date = match dto
-            .required_status_checks
-            .as_ref()
-            .map(|checks| checks.strict)
-        {
-            Some(true) => UpToDateRequirement::Required,
-            Some(false) | None => UpToDateRequirement::NotRequired,
-        };
-        let required_checks =
-            if dto.required_status_checks.is_some() && dto.required_checks_passing == Some(true) {
-                RequiredChecksHealth::Passing
-            } else {
-                RequiredChecksHealth::RedOrPending
-            };
-
-        Ok(ObservedBranchProtection::new(
-            contexts,
-            up_to_date,
-            if dto.required_pull_request {
-                PullRequestRequirement::Required
-            } else {
-                PullRequestRequirement::NotRequired
-            },
-            if dto.enforce_admins {
-                BypassAllowance::Denied
-            } else {
-                BypassAllowance::Allowed
-            },
-            if dto.allow_force_pushes {
-                BypassAllowance::Allowed
-            } else {
-                BypassAllowance::Denied
-            },
-            if dto.allow_deletions {
-                BypassAllowance::Allowed
-            } else {
-                BypassAllowance::Denied
-            },
-            required_checks,
-        ))
+        let reasons = value
+            .refusal_codes
+            .into_iter()
+            .map(|code| match code.as_str() {
+                "no_required_checks" => Ok(RefusalReason::NoRequiredChecks),
+                "missing_required_context" => Ok(RefusalReason::MissingRequiredContext),
+                "admin_override_allowed" => Ok(RefusalReason::AdministratorBypassAllowed),
+                "force_push_allowed" => Ok(RefusalReason::ForcePushAllowed),
+                "deletion_allowed" => Ok(RefusalReason::DeletionAllowed),
+                "not_required_up_to_date" => Ok(RefusalReason::UpToDateNotRequired),
+                "pull_request_not_required" => Ok(RefusalReason::PullRequestNotRequired),
+                "required_checks_not_passing" => Ok(RefusalReason::RequiredChecksNotPassing),
+                _ => Err(Self::Error::new(
+                    "refusalCode",
+                    "unknown branch-protection refusal code",
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self::Refused(reasons))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use enforcer_domain::ids::GitHubCheckContext;
-
-    use super::{
-        BranchProtectionReportDto, BranchProtectionWriteDto, LiveProtectionStateDto,
-        RequiredStatusChecksDto, WorkflowJobDeclaration,
-    };
-    use crate::ci::branch_protection_domain::{
-        BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
-        RequiredChecksHealth, UpToDateRequirement,
+    use enforcer_domain::{
+        ids::GitHubCheckContext,
+        install_types::{
+            BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
+            RequiredChecksHealth, UpToDateRequirement, Verification,
+        },
     };
 
+    use super::BranchProtectionReportDto;
+    use crate::ci::boundary::{
+        branch_protection_payload::{
+            BranchProtectionWriteDto, LiveProtectionStateDto, RequiredStatusChecksDto,
+        },
+        branch_protection_workflow::WorkflowJobDeclaration,
+    };
     fn pass_dto() -> LiveProtectionStateDto {
         LiveProtectionStateDto {
             required_status_checks: Some(RequiredStatusChecksDto {
@@ -279,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn github_read_dto_rejects() {
+    fn github_read_dto_rejects() -> Result<(), Box<dyn std::error::Error>> {
         let dto = LiveProtectionStateDto {
             required_status_checks: Some(RequiredStatusChecksDto {
                 strict: true,
@@ -292,18 +191,35 @@ mod tests {
             required_checks_passing: Some(true),
         };
 
-        assert!(ObservedBranchProtection::try_from(dto).is_err());
+        let error = ObservedBranchProtection::try_from(dto)
+            .err()
+            .ok_or("newline-spoofed check context must be rejected")?;
+        assert_eq!(error.path, "githubCheckContext");
+        assert_eq!(
+            error.reason,
+            "expected 1..=512 printable characters without line breaks"
+        );
+        Ok(())
     }
 
     #[test]
-    fn workflow_job_declaration_rejects_invalid_context() {
+    fn workflow_job_declaration_rejects_invalid_context() -> Result<(), Box<dyn std::error::Error>>
+    {
         let invalid = WorkflowJobDeclaration {
             workflow_name: "Rust CI\nspoof".to_owned(),
             job_id: "rust-ci".to_owned(),
             matrix: Vec::new(),
         };
 
-        assert!(std::collections::BTreeSet::<GitHubCheckContext>::try_from(invalid).is_err());
+        let error = std::collections::BTreeSet::<GitHubCheckContext>::try_from(invalid)
+            .err()
+            .ok_or("newline-spoofed workflow name must be rejected")?;
+        assert_eq!(error.path, "githubCheckContext");
+        assert_eq!(
+            error.reason,
+            "expected 1..=512 printable characters without line breaks"
+        );
+        Ok(())
     }
 
     #[test]
@@ -346,6 +262,24 @@ mod tests {
             serde_json::from_str::<BranchProtectionReportDto>(&report_json)?,
             report
         );
+        assert_eq!(Verification::try_from(report)?, Verification::Attested);
+        Ok(())
+    }
+
+    #[test]
+    fn report_rejects_unknown_refusal_code() -> Result<(), Box<dyn std::error::Error>> {
+        let report = BranchProtectionReportDto {
+            branch: "main".to_owned(),
+            expected_contexts: Vec::new(),
+            observed_contexts: Vec::new(),
+            attested: false,
+            exit_code: 1,
+            refusal_codes: vec!["unknown".to_owned()],
+        };
+        let error = Verification::try_from(report)
+            .err()
+            .ok_or("unknown refusal code must be rejected")?;
+        assert_eq!(error.path, "refusalCode");
         Ok(())
     }
 }

@@ -21,166 +21,14 @@
 //! when a caller supplies no scope at all — is [`ScanMode::Scoped`] (the
 //! cwd crate/folder), never whole-repo.
 
-use std::path::PathBuf;
-use std::str::FromStr;
-
-use enforcer_domain::boundary::decode_error::DecodeError;
+use crate::boundary::modes::{validate_scope_input, ScanRequest};
 use enforcer_domain::paths::{RelPath, RepoRoot};
-use enforcer_domain::scan_types::{CommitRef, ScopeRequest};
+use enforcer_domain::scan_types::{
+    CommitRef, ResolvedScanPlan, ScanMode, ScanModeError, ScopeRequest, TierFilter,
+    TierFilterDecision,
+};
 use enforcer_domain::severity::Tier;
-
-
-/// The named scan modes an agent/CLI/MCP caller selects. Each variant is a
-/// caller *intent*; [`ScanRequest::resolve`] turns it into a concrete
-/// [`crate::scope::ScopeRequest`] + [`TierFilter`] pair.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum ScanMode {
-    /// Fast, most-common T1 subset over the resolved scope.
-    Quick,
-    /// Everything the enforcer can do (every tier) over the resolved scope.
-    Full,
-    /// The whole repository tree (an explicit alias of `workspace`, kept
-    /// distinct in the wire enum because callers spell it both ways).
-    Repo,
-    /// The whole workspace tree.
-    Workspace,
-    /// The current crate/folder only — the safe, narrow default.
-    Scoped,
-    /// Only files changed between two commit-ish endpoints.
-    Diff,
-    /// Validate a plan directory (`docs/plans/<name>/**`) rather than
-    /// source code.
-    PlanScan,
-}
-
-impl FromStr for ScanMode {
-    type Err = ScanModeError;
-
-    fn from_str(raw: &str) -> Result<Self, ScanModeError> {
-        match raw {
-            "quick" => Ok(Self::Quick),
-            "full" => Ok(Self::Full),
-            "repo" => Ok(Self::Repo),
-            "workspace" => Ok(Self::Workspace),
-            "scoped" => Ok(Self::Scoped),
-            "diff" => Ok(Self::Diff),
-            "plan-scan" => Ok(Self::PlanScan),
-            other => Err(ScanModeError::UnknownMode {
-                raw: other.to_owned(),
-            }),
-        }
-    }
-}
-
-impl std::fmt::Display for ScanMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Quick => "quick",
-            Self::Full => "full",
-            Self::Repo => "repo",
-            Self::Workspace => "workspace",
-            Self::Scoped => "scoped",
-            Self::Diff => "diff",
-            Self::PlanScan => "plan-scan",
-        };
-        f.write_str(s)
-    }
-}
-
-/// Boundary/validation failure for a [`ScanMode`]/[`ScanRequest`]. Every
-/// variant is a typed, non-defaulting rejection — a malformed mode or scope
-/// never silently falls back to a default mode.
-///
-/// `enforcer-scan` does not depend on the `thiserror` crate directly (only
-/// `enforcer-core` does), so this implements [`std::error::Error`] /
-/// [`std::fmt::Display`] by hand, in the same structured-message spirit as
-/// [`enforcer_domain::boundary::decode_error::DecodeError`] (which this type wraps and defers
-/// to for scope/commit-ish validation failures).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ScanModeError {
-    /// The mode string did not match any named [`ScanMode`].
-    UnknownMode {
-        /// The raw, rejected mode string.
-        raw: String,
-    },
-    /// `diff` mode was selected but no `base`/`head` pair was supplied.
-    DiffRangeMissing,
-    /// A mode other than `diff` was given a `base`/`head` pair, which would
-    /// silently be ignored — rejected instead of dropped.
-    DiffRangeUnexpected {
-        /// The mode that unexpectedly carried a diff range.
-        mode: ScanMode,
-    },
-    /// `plan-scan` mode was selected but no scope path was supplied (there
-    /// is no whole-repo default for a plan target).
-    PlanScanScopeMissing,
-    /// The supplied scope path failed to normalize to a repo-relative path.
-    Scope(DecodeError),
-}
-
-impl std::fmt::Display for ScanModeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnknownMode { raw } => write!(
-                f,
-                "unknown scan mode `{raw}`; expected one of: quick, full, repo, workspace, scoped, diff, plan-scan"
-            ),
-            Self::DiffRangeMissing => {
-                write!(f, "scan mode `diff` requires both a `base` and `head` commit-ish")
-            }
-            Self::DiffRangeUnexpected { mode } => write!(
-                f,
-                "`base`/`head` was supplied but scan mode is `{mode}`, not `diff`"
-            ),
-            Self::PlanScanScopeMissing => write!(
-                f,
-                "scan mode `plan-scan` requires a `scope` path naming the plan directory"
-            ),
-            Self::Scope(inner) => write!(f, "scan request scope failed to resolve: {inner}"),
-        }
-    }
-}
-
-impl std::error::Error for ScanModeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Scope(inner) => Some(inner),
-            _ => None,
-        }
-    }
-}
-
-impl From<DecodeError> for ScanModeError {
-    fn from(inner: DecodeError) -> Self {
-        Self::Scope(inner)
-    }
-}
-
-/// The rule/tier subset a resolved mode drives over the arc-15 fan-out.
-/// `None` means every tier (the `full` mode); `Some(tier)` is an inclusive
-/// floor — every tier at or below the named mechanical-enforcement
-/// strictness. [`Tier`] itself has no total order in `enforcer-domain`, so
-/// this floor is expressed as an explicit allow-set rather than a `<=`
-/// comparison.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TierFilter {
-    /// Every tier — no filtering.
-    All,
-    /// Only findings whose rule tier is in this explicit set.
-    Only(Vec<Tier>),
-}
-
-impl TierFilter {
-    /// Does `tier` pass this filter?
-    #[must_use]
-    pub fn allows(&self, tier: Tier) -> bool {
-        match self {
-            Self::All => true,
-            Self::Only(tiers) => tiers.contains(&tier),
-        }
-    }
-}
+use std::path::PathBuf;
 
 /// The caller-facing scan request: a [`ScanMode`] plus the optional scope
 /// narrowing (`scoped`/`diff`/`plan-scan` inputs) needed to resolve it.
@@ -189,57 +37,19 @@ impl TierFilter {
 /// [`ScanRequest::resolve`] at the boundary.
 ///
 /// ROUNDTRIP-TEST: `tests/modes.rs::scan_mode_and_request_round_trip_through_the_external_wire_contract`
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScanRequest {
-    /// The named mode selected by the caller.
-    pub mode: ScanMode,
-    /// For `scoped`/`plan-scan`: the crate/folder/plan-dir to restrict to.
-    /// Repo-relative or absolute; normalized during [`ScanRequest::resolve`].
-    /// Ignored (must be absent) for `full`/`repo`/`workspace`/`diff`.
-    // SERDE-DEFAULT-JUSTIFICATION: omission means no caller-selected scope;
-    // resolution deliberately substitutes only the caller's current scope.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub scope: Option<String>,
-    /// For `diff`: the older commit-ish endpoint. Required iff `mode` is
-    /// `diff`.
-    // SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base: Option<String>,
-    /// For `diff`: the newer commit-ish endpoint. Required iff `mode` is
-    /// `diff`.
-    // SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub head: Option<String>,
-}
-
-impl Default for ScanRequest {
-    /// The no-arg default: `scoped` with no explicit scope path (resolved
-    /// against the caller's cwd by [`ScanRequest::resolve`]) — never
-    /// whole-repo.
-    fn default() -> Self {
-        Self {
-            mode: ScanMode::Scoped,
-            scope: None,
-            base: None,
-            head: None,
-        }
-    }
-}
-
-/// A [`ScanRequest`] resolved against a repository root into the concrete
-/// inputs [`crate::engine::run`] and [`crate::walk::walk`] consume.
-/// This is an internal execution plan, not a serialized request payload.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResolvedScanPlan {
-    /// The mode this resolution was computed for.
-    pub mode: ScanMode,
-    /// The tri-modal scope request feeding [`crate::scope::resolve`].
-    pub scope_request: ScopeRequest,
-    /// The tier subset this mode drives over the fan-out's findings.
-    pub tier_filter: TierFilter,
-}
-
+/// The named mode selected by the caller.
+/// For `scoped`/`plan-scan`: the crate/folder/plan-dir to restrict to.
+/// Repo-relative or absolute; normalized during [`ScanRequest::resolve`].
+/// Ignored (must be absent) for `full`/`repo`/`workspace`/`diff`.
+// SERDE-DEFAULT-JUSTIFICATION: omission means no caller-selected scope;
+// resolution deliberately substitutes only the caller's current scope.
+/// For `diff`: the older commit-ish endpoint. Required iff `mode` is
+/// `diff`.
+// SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
+/// For `diff`: the newer commit-ish endpoint. Required iff `mode` is
+/// `diff`.
+// SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
+/// against the caller's cwd by [`ScanRequest::resolve`]) — never
 impl ScanRequest {
     /// Resolve this request against `repo_root`, given the caller's current
     /// working directory expressed as a repo-relative path (used only when
@@ -333,53 +143,28 @@ fn tier_only(tiers: &[Tier]) -> TierFilter {
     TierFilter::Only(tiers.to_vec())
 }
 
+/// Return whether a resolved scan tier filter includes `tier`.
+#[must_use]
+pub fn tier_filter_allows(filter: &TierFilter, tier: Tier) -> TierFilterDecision {
+    match filter {
+        TierFilter::All => TierFilterDecision::Allowed,
+        TierFilter::Only(tiers) if tiers.contains(&tier) => TierFilterDecision::Allowed,
+        TierFilter::Only(_) => TierFilterDecision::Rejected,
+    }
+}
+
 /// Validate a caller-supplied scope string's shape (non-empty, no
 /// root-escaping `..`) at THIS boundary, before it reaches
 /// [`crate::scope::resolve`]. An absolute (drive-letter/UNC) scope is
 /// accepted here — the tri-modal resolver strips the repo-root prefix
 /// downstream — so this only rejects structurally-empty or escaping input,
 /// never a silent default.
-fn validate_scope_input(raw: &str) -> Result<(), DecodeError> {
-    let normalized = enforcer_core::platform::normalize_separators(raw);
-    let trimmed = normalized.trim_start_matches('/');
-    if trimmed.is_empty() {
-        return Err(DecodeError::new("scanRequest.scope", "must not be empty"));
-    }
-    if is_drive_or_unc_absolute(trimmed) {
-        return Ok(());
-    }
-    let mut depth: i32 = 0;
-    for segment in trimmed.split('/') {
-        match segment {
-            ".." => {
-                depth -= 1;
-                if depth < 0 {
-                    return Err(DecodeError::new(
-                        "scanRequest.scope",
-                        "`..` segment escapes the repository root",
-                    ));
-                }
-            }
-            "" | "." => {}
-            _ => depth += 1,
-        }
-    }
-    Ok(())
-}
-
-fn is_drive_or_unc_absolute(normalized: &str) -> bool {
-    normalized.starts_with("//")
-        || (normalized.len() >= 3
-            && normalized.as_bytes()[0].is_ascii_alphabetic()
-            && normalized.as_bytes()[1] == b':'
-            && normalized.as_bytes()[2] == b'/')
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{ScanMode, ScanModeError, ScanRequest, TierFilter};
-    use enforcer_domain::scan_types::ScopeRequest;
+    use super::{tier_filter_allows, ScanRequest};
     use enforcer_domain::paths::{RelPath, RepoRoot};
+    use enforcer_domain::scan_types::ScopeRequest;
+    use enforcer_domain::scan_types::{ScanMode, ScanModeError, TierFilter, TierFilterDecision};
     use enforcer_domain::severity::Tier;
     use std::str::FromStr;
 
@@ -417,8 +202,14 @@ mod tests {
 
     #[test]
     fn serde_boundary_rejects_unknown_mode() {
-        let outcome: Result<ScanMode, _> = serde_json::from_str("\"bogus-mode\"");
-        assert!(outcome.is_err(), "malformed mode must not silently decode");
+        let outcome = crate::boundary::modes::decode_scan_mode_json("\"bogus-mode\"");
+        assert_eq!(
+            outcome.err().map(|error| error.to_string()),
+            Some(
+                "invalid type: string \"bogus-mode\", expected internally tagged enum ScanModeWire at line 1 column 12"
+                    .to_owned()
+            )
+        );
     }
 
     #[test]
@@ -433,10 +224,7 @@ mod tests {
         let request = ScanRequest::default();
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
         assert_eq!(resolved.mode, ScanMode::Scoped);
-        assert!(matches!(
-            resolved.scope_request,
-            ScopeRequest::Paths(_)
-        ));
+        assert!(matches!(resolved.scope_request, ScopeRequest::Paths(_)));
         Ok(())
     }
 
@@ -459,9 +247,18 @@ mod tests {
             ..ScanRequest::default()
         };
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
-        assert!(resolved.tier_filter.allows(Tier::T1));
-        assert!(!resolved.tier_filter.allows(Tier::T2));
-        assert!(!resolved.tier_filter.allows(Tier::T3));
+        assert_eq!(
+            tier_filter_allows(&resolved.tier_filter, Tier::T1),
+            TierFilterDecision::Allowed
+        );
+        assert_eq!(
+            tier_filter_allows(&resolved.tier_filter, Tier::T2),
+            TierFilterDecision::Rejected
+        );
+        assert_eq!(
+            tier_filter_allows(&resolved.tier_filter, Tier::T3),
+            TierFilterDecision::Rejected
+        );
         Ok(())
     }
 
@@ -485,10 +282,7 @@ mod tests {
             ..ScanRequest::default()
         };
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
-        assert!(matches!(
-            resolved.scope_request,
-            ScopeRequest::Diff { .. }
-        ));
+        assert!(matches!(resolved.scope_request, ScopeRequest::Diff { .. }));
         Ok(())
     }
 
@@ -527,10 +321,7 @@ mod tests {
             ..ScanRequest::default()
         };
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
-        assert!(matches!(
-            resolved.scope_request,
-            ScopeRequest::Paths(_)
-        ));
+        assert!(matches!(resolved.scope_request, ScopeRequest::Paths(_)));
         Ok(())
     }
 
@@ -542,7 +333,7 @@ mod tests {
             ..ScanRequest::default()
         };
         let outcome = request.resolve(&repo_root()?, &cwd()?);
-        assert!(outcome.is_err());
+        assert!(matches!(outcome, Err(ScanModeError::Scope(_))));
         Ok(())
     }
 
@@ -554,7 +345,7 @@ mod tests {
             ..ScanRequest::default()
         };
         let outcome = request.resolve(&repo_root()?, &cwd()?);
-        assert!(outcome.is_err());
+        assert!(matches!(outcome, Err(ScanModeError::Scope(_))));
         Ok(())
     }
 }

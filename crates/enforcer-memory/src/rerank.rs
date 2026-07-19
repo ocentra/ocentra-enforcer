@@ -9,10 +9,11 @@
 //! model weights, honestly reporting
 //! `LoadState::Degraded(DegradedState::ProviderUnavailable)`.
 
-use crate::embed::{DegradedState, LoadState};
 use crate::error::Result;
 use crate::fulltext::tokenize;
+use crate::owned_boundary::Retained;
 use crate::ranking::RankedHit;
+use enforcer_domain::memory_types::{DegradedState, LoadState, ParserSourceText, RankingScore};
 
 /// The reranking capability seam.
 pub trait Reranker: Send + Sync {
@@ -20,7 +21,11 @@ pub trait Reranker: Send + Sync {
     /// first. Implementations own their own scoring; the returned
     /// `Vec<RankedHit>` has each hit's `score` field overwritten with the
     /// reranker's own score (never the caller's fusion score).
-    fn rerank(&self, query: &str, candidates: &[RankedHit]) -> Result<Vec<RankedHit>>;
+    fn rerank(
+        &self,
+        query: ParserSourceText<'_>,
+        candidates: &[RankedHit],
+    ) -> Result<Vec<RankedHit>>;
 
     /// Current capability state, mirroring [`crate::embed::Embedder::state`].
     fn state(&self) -> LoadState;
@@ -42,37 +47,52 @@ impl FusionScoreReranker {
         Self
     }
 
-    fn overlap_score(query_terms: &[String], candidate_text: &str) -> f64 {
+    fn overlap_score(
+        query_terms: &[enforcer_domain::memory_types::MemoryFullTextToken],
+        candidate_text: ParserSourceText<'_>,
+    ) -> RankingScore {
         if query_terms.is_empty() {
-            return 0.0;
+            return 0.0.into();
         }
-        let candidate_terms: std::collections::HashSet<String> =
-            tokenize(candidate_text).into_iter().collect();
+        let candidate_terms = tokenize(&enforcer_domain::memory_types::MemoryFullTextInput::from(
+            candidate_text.as_str(),
+        ))
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
         let hits = query_terms
             .iter()
             .filter(|term| candidate_terms.contains(*term))
             .count();
-        hits as f64 / query_terms.len() as f64
+        (crate::owned_boundary::usize_to_f64(hits)
+            / crate::owned_boundary::usize_to_f64(query_terms.len()))
+        .into()
     }
 }
 
 impl Reranker for FusionScoreReranker {
-    fn rerank(&self, query: &str, candidates: &[RankedHit]) -> Result<Vec<RankedHit>> {
-        let query_terms = tokenize(query);
+    fn rerank(
+        &self,
+        query: ParserSourceText<'_>,
+        candidates: &[RankedHit],
+    ) -> Result<Vec<RankedHit>> {
+        let query_terms = tokenize(&enforcer_domain::memory_types::MemoryFullTextInput::from(
+            query.as_str(),
+        ));
         let mut reranked: Vec<RankedHit> = candidates
             .iter()
             .map(|hit| {
-                let overlap = Self::overlap_score(&query_terms, &hit.snippet);
+                let overlap =
+                    Self::overlap_score(&query_terms, ParserSourceText::from(hit.snippet.as_str()));
                 // Blend: lexical overlap dominates (this reranker's only
                 // real signal), fusion score breaks ties among equal
                 // overlap so upstream ranking is not discarded entirely.
-                let score = overlap * 1000.0 + hit.score;
+                let score = overlap.get() * 1000.0 + hit.score.get();
                 RankedHit {
-                    doc_id: hit.doc_id.clone(),
+                    doc_id: hit.doc_id.retained(),
                     kind: hit.kind,
-                    snippet: hit.snippet.clone(),
-                    source_path: hit.source_path.clone(),
-                    score,
+                    snippet: hit.snippet.retained(),
+                    source_path: hit.source_path.retained(),
+                    score: score.into(),
                 }
             })
             .collect();

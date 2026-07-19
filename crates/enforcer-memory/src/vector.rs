@@ -21,7 +21,13 @@ use std::collections::HashMap;
 
 use crate::embed::EmbeddingModelInfo;
 use crate::error::Result;
+use crate::owned_boundary::RetainedDisplay;
 use crate::ranking::ScoredCandidate;
+use enforcer_domain::memory_types::{
+    EmbeddingCosineSimilarity, EmbeddingVector, SearchGraphFlag, VectorDocumentId, VectorDocuments,
+    VectorIndexEntries, VectorIndexEntry, VectorManifestMatches, VectorSearchLimit,
+    VectorStaleReason,
+};
 
 /// The version-vector manifest one [`VectorIndex`] was built under. Two
 /// manifests are compared field-by-field, not by a single hash, so a
@@ -29,21 +35,6 @@ use crate::ranking::ScoredCandidate;
 #[derive(Debug, Clone, PartialEq)]
 pub struct VectorManifest {
     pub model: EmbeddingModelInfo,
-}
-
-/// Why a vector index is considered stale relative to a candidate
-/// embedder/model-info -- named per mismatched field so callers/
-/// diagnostics can report precisely, never just "stale".
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StaleReason {
-    EmbeddingModel { expected: String, actual: String },
-    Dimension { expected: usize, actual: usize },
-    Dtype { expected: String, actual: String },
-    SimilarityMetric { expected: String, actual: String },
-    Normalization { expected: String, actual: String },
-    FormatterVersion { expected: String, actual: String },
-    ChunkerVersion { expected: String, actual: String },
-    ParserVersion { expected: String, actual: String },
 }
 
 impl VectorManifest {
@@ -55,69 +46,69 @@ impl VectorManifest {
     /// mismatched field (D-04: "stale detection on any mismatch" --
     /// report all mismatches, not just the first, so a caller rebuilding
     /// the index knows the full extent of drift).
-    pub fn diff(&self, candidate: &EmbeddingModelInfo) -> Vec<StaleReason> {
+    pub fn diff(&self, candidate: &EmbeddingModelInfo) -> Vec<VectorStaleReason> {
         let mut reasons = Vec::new();
         let expected = &self.model;
         if expected.embedding_model != candidate.embedding_model {
-            reasons.push(StaleReason::EmbeddingModel {
+            reasons.push(VectorStaleReason::EmbeddingModel {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.embedding_model.clone(),
+                expected: expected.embedding_model.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.embedding_model.clone(),
+                actual: candidate.embedding_model.retained_display(),
             });
         }
         if expected.dimension != candidate.dimension {
-            reasons.push(StaleReason::Dimension {
-                expected: expected.dimension,
-                actual: candidate.dimension,
+            reasons.push(VectorStaleReason::Dimension {
+                expected: expected.dimension.get(),
+                actual: candidate.dimension.get(),
             });
         }
         if expected.dtype != candidate.dtype {
-            reasons.push(StaleReason::Dtype {
+            reasons.push(VectorStaleReason::Dtype {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.dtype.clone(),
+                expected: expected.dtype.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.dtype.clone(),
+                actual: candidate.dtype.retained_display(),
             });
         }
         if expected.similarity_metric != candidate.similarity_metric {
-            reasons.push(StaleReason::SimilarityMetric {
+            reasons.push(VectorStaleReason::SimilarityMetric {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.similarity_metric.clone(),
+                expected: expected.similarity_metric.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.similarity_metric.clone(),
+                actual: candidate.similarity_metric.retained_display(),
             });
         }
         if expected.normalization != candidate.normalization {
-            reasons.push(StaleReason::Normalization {
+            reasons.push(VectorStaleReason::Normalization {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.normalization.clone(),
+                expected: expected.normalization.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.normalization.clone(),
+                actual: candidate.normalization.retained_display(),
             });
         }
         if expected.formatter_version != candidate.formatter_version {
-            reasons.push(StaleReason::FormatterVersion {
+            reasons.push(VectorStaleReason::FormatterVersion {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.formatter_version.clone(),
+                expected: expected.formatter_version.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.formatter_version.clone(),
+                actual: candidate.formatter_version.retained_display(),
             });
         }
         if expected.chunker_version != candidate.chunker_version {
-            reasons.push(StaleReason::ChunkerVersion {
+            reasons.push(VectorStaleReason::ChunkerVersion {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.chunker_version.clone(),
+                expected: expected.chunker_version.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.chunker_version.clone(),
+                actual: candidate.chunker_version.retained_display(),
             });
         }
         if expected.parser_version != candidate.parser_version {
-            reasons.push(StaleReason::ParserVersion {
+            reasons.push(VectorStaleReason::ParserVersion {
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
-                expected: expected.parser_version.clone(),
+                expected: expected.parser_version.retained_display(),
                 // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
-                actual: candidate.parser_version.clone(),
+                actual: candidate.parser_version.retained_display(),
             });
         }
         reasons
@@ -125,17 +116,18 @@ impl VectorManifest {
 
     /// `true` if `candidate`'s version vector matches this manifest in
     /// every field.
-    pub fn matches(&self, candidate: &EmbeddingModelInfo) -> bool {
-        self.diff(candidate).is_empty()
+    pub fn matches(&self, candidate: &EmbeddingModelInfo) -> VectorManifestMatches {
+        self.diff(candidate).is_empty().into()
     }
 }
 
 /// HNSW-backed dense vector index over a fixed set of `(doc_id,
 /// embedding)` pairs, built for one embedder's version vector at a
 /// time (recorded in [`VectorIndex::manifest`]).
+#[derive(Debug)]
 pub struct VectorIndex {
     manifest: VectorManifest,
-    entries: Vec<(String, Vec<f32>)>,
+    entries: VectorIndexEntries,
 }
 
 impl VectorIndex {
@@ -143,10 +135,10 @@ impl VectorIndex {
     /// tagged with `model` as this index's version-vector manifest.
     /// Rebuilding is always correct and cheap (D-02: "indexes are
     /// disposable") -- there is no incremental-update API in this slice.
-    pub fn build(entries: &[(String, Vec<f32>)], model: EmbeddingModelInfo) -> Self {
+    pub fn build(entries: impl Into<VectorIndexEntries>, model: EmbeddingModelInfo) -> Self {
         Self {
             manifest: VectorManifest::new(model),
-            entries: entries.to_vec(),
+            entries: entries.into(),
         }
     }
 
@@ -154,12 +146,12 @@ impl VectorIndex {
         &self.manifest
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    pub fn is_empty(&self) -> SearchGraphFlag {
+        self.entries.is_empty().into()
     }
 
-    pub fn len(&self) -> usize {
-        self.entries.len()
+    pub fn len(&self) -> VectorSearchLimit {
+        self.entries.len().into()
     }
 
     /// Nearest-neighbor search: the top `limit` documents by cosine
@@ -168,23 +160,32 @@ impl VectorIndex {
     /// [`crate::fulltext::FullTextIndex::search`]). The current proof
     /// corpora are small enough that exact search is preferable to a
     /// transitive ANN dependency with unmaintained serialization baggage.
-    pub fn search(&self, query_vector: &[f32], limit: usize) -> Vec<ScoredCandidate> {
+    pub fn search(
+        &self,
+        query_vector: impl Into<EmbeddingVector>,
+        limit: impl Into<VectorSearchLimit>,
+    ) -> Vec<ScoredCandidate> {
+        let query_vector = query_vector.into();
+        let limit = limit.into().get();
         if self.entries.is_empty() || limit == 0 {
             return Vec::new();
         }
         let mut scored: Vec<ScoredCandidate> = self
             .entries
             .iter()
-            .map(|(doc_id, vector)| ScoredCandidate {
+            .map(|entry| ScoredCandidate {
                 // CLONE-JUSTIFICATION: returned search result owns its document id beyond the index borrow.
-                doc_id: doc_id.clone(),
-                score: cosine_similarity(query_vector, vector),
+                doc_id: entry.doc_id.as_str().into(),
+                score: cosine_similarity(&query_vector, &entry.vector)
+                    .as_f64()
+                    .into(),
             })
             .collect();
         scored.sort_by(|left, right| {
             right
                 .score
-                .total_cmp(&left.score)
+                .get()
+                .total_cmp(&left.score.get())
                 .then_with(|| left.doc_id.cmp(&right.doc_id))
         });
         scored.truncate(limit);
@@ -192,9 +193,11 @@ impl VectorIndex {
     }
 }
 
-fn cosine_similarity(left: &[f32], right: &[f32]) -> f64 {
+fn cosine_similarity(left: &EmbeddingVector, right: &EmbeddingVector) -> EmbeddingCosineSimilarity {
+    let left = left.as_ref();
+    let right = right.as_ref();
     if left.len() != right.len() || left.is_empty() {
-        return 0.0;
+        return 0.0.into();
     }
     let mut dot = 0.0_f64;
     let mut left_norm = 0.0_f64;
@@ -207,9 +210,11 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f64 {
         right_norm += right * right;
     }
     if left_norm == 0.0 || right_norm == 0.0 {
-        return 0.0;
+        return 0.0.into();
     }
-    dot / (left_norm.sqrt() * right_norm.sqrt())
+    // CAST-JUSTIFICATION: cosine is accumulated in f64 for stable ranking,
+    // while the shared similarity brand stores the compact f32 wire value.
+    ((dot / (left_norm.sqrt() * right_norm.sqrt())) as f32).into()
 }
 
 /// Build the `(doc_id, embedding)` entries an embedder produces for a
@@ -217,14 +222,20 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f64 {
 /// relying on iteration-order alignment.
 pub fn embed_documents(
     embedder: &dyn crate::embed::Embedder,
-    documents: &[(String, String)],
-) -> Result<Vec<(String, Vec<f32>)>> {
+    documents: impl Into<VectorDocuments>,
+) -> Result<VectorIndexEntries> {
+    let documents = documents.into();
     let mut seen: HashMap<&str, ()> = HashMap::new();
-    let mut entries = Vec::new();
-    for (doc_id, text) in documents {
-        if seen.insert(doc_id.as_str(), ()).is_none() {
+    let mut entries = VectorIndexEntries::new();
+    for document in documents.iter() {
+        if seen.insert(document.id.as_str(), ()).is_none() {
             // CLONE-JUSTIFICATION: returned embedded entry owns its id beyond the borrowed documents slice.
-            entries.push((doc_id.clone(), embedder.embed(text)?));
+            entries.push(VectorIndexEntry {
+                doc_id: VectorDocumentId::from(document.id.as_str()),
+                vector: embedder.embed(enforcer_domain::memory_types::ParserSourceText::from(
+                    document.text.as_str(),
+                ))?,
+            });
         }
     }
     Ok(entries)

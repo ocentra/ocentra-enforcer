@@ -35,6 +35,37 @@
 //! later pass MAY port an optional DuckDB ingestion path behind the same
 //! `duckdb-status.json` contract without breaking this crate's public API.
 
+macro_rules! domain_finding {
+    ($rule_id:expr, $severity:expr, $title:expr, $detail:expr, $file:expr, $line:expr $(,)?) => {{
+        let line_value = $line;
+        let line = if line_value == 0 {
+            Some(enforcer_domain::findings::FindingLine::Unspecified)
+        } else {
+            std::num::NonZeroU32::new(line_value).map(|value| {
+                enforcer_domain::findings::FindingLine::known(
+                    enforcer_domain::telemetry_types::SourceLine::try_new(value),
+                )
+            })
+        };
+        match (
+            enforcer_domain::findings::FindingTitle::new($title),
+            enforcer_domain::findings::FindingDetail::new($detail),
+            line,
+        ) {
+            (Ok(title), Ok(detail), Some(line)) => Some(enforcer_domain::findings::Finding {
+                rule_id: $rule_id,
+                severity: $severity,
+                title,
+                detail,
+                file: $file,
+                line,
+                snippet: None,
+            }),
+            _ => None,
+        }
+    }};
+}
+
 pub mod adapters;
 pub mod ci_parity;
 pub mod config;

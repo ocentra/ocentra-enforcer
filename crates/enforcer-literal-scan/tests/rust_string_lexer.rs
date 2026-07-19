@@ -24,9 +24,9 @@ fn rust_string_lexer_keeps_closed_raw_strings_and_handles_unterminated_ones(
         "const VALUE: &str = r#\"unterminated\n",
     )?;
     let opts = CliOptions {
-        root: root.clone(),
-        include_low: true,
-        min_score: 0,
+        root: root.clone().into(),
+        include_low: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
         ..CliOptions::default()
     };
 

@@ -13,7 +13,7 @@ use crate::{
     EventingError, IdempotencyKey, RequestEvent, RequestId, RequestOptions, SchemaVersion,
     ShutdownMode,
 };
-use enforcer_events::bus::reports::dead_letter::DeadLetterReason;
+use enforcer_domain::events_types::{DeadLetterReason, EventShutdownState};
 
 const SHUTDOWN_REQUEST_EVENT_TYPE: &str = "eventing.shutdown.request";
 const SHUTDOWN_REQUEST_ID: &str = "eventing-shutdown-request";
@@ -23,7 +23,9 @@ const SHUTDOWN_REQUEST_IDEMPOTENCY: &str = "eventing-shutdown-idempotency";
 #[tokio::test]
 async fn production_shutdown_drain_dispatches_queue_and_dead_letters_remaining(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(4)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(4),
+    )?);
     bus.publish(
         test_event_with_idempotency(
             TestText(TEST_LABEL.to_owned()),
@@ -83,13 +85,16 @@ async fn production_shutdown_drain_dispatches_queue_and_dead_letters_remaining(
         .await;
 
     assert_eq!(report.mode, ShutdownMode::Drain);
-    assert!(!report.already_shutdown);
-    assert_eq!(report.subscription_count, 1);
-    assert_eq!(report.queued_event_count, 1);
-    assert_eq!(report.queued_dispatched_count, 0);
-    assert_eq!(report.queued_expired_count, 0);
-    assert_eq!(report.queued_dead_lettered_count, 1);
-    assert_eq!(report.queued_dropped_count, 0);
+    assert_eq!(report.shutdown_state, EventShutdownState::Active);
+    assert_eq!(crate::event_count_value(report.subscription_count), 1);
+    assert_eq!(crate::event_count_value(report.queued_event_count), 1);
+    assert_eq!(crate::event_count_value(report.queued_dispatched_count), 0);
+    assert_eq!(crate::event_count_value(report.queued_expired_count), 0);
+    assert_eq!(
+        crate::event_count_value(report.queued_dead_lettered_count),
+        1
+    );
+    assert_eq!(crate::event_count_value(report.queued_dropped_count), 0);
     assert_eq!(handled.lock().await.as_slice(), &[TEST_LABEL.to_string()]);
     assert_eq!(dead_letters.len(), 1);
     assert_eq!(dead_letters[0].reason, DeadLetterReason::Shutdown);
@@ -107,7 +112,9 @@ async fn production_shutdown_drain_dispatches_queue_and_dead_letters_remaining(
 #[tokio::test]
 async fn production_shutdown_dead_letters_queued_without_dispatch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(2),
+    )?);
     bus.publish(
         test_event_with_idempotency(
             TestText(TEST_LABEL.to_owned()),
@@ -120,9 +127,12 @@ async fn production_shutdown_dead_letters_queued_without_dispatch(
     let report = bus.shutdown(ShutdownMode::DeadLetterQueued).await?;
     let dead_letters = bus.dead_letters().await;
 
-    assert_eq!(report.queued_event_count, 1);
-    assert_eq!(report.queued_dispatched_count, 0);
-    assert_eq!(report.queued_dead_lettered_count, 1);
+    assert_eq!(crate::event_count_value(report.queued_event_count), 1);
+    assert_eq!(crate::event_count_value(report.queued_dispatched_count), 0);
+    assert_eq!(
+        crate::event_count_value(report.queued_dead_lettered_count),
+        1
+    );
     assert_eq!(dead_letters.len(), 1);
     assert_eq!(dead_letters[0].reason, DeadLetterReason::Shutdown);
     Ok(())
@@ -160,21 +170,21 @@ async fn production_shutdown_waits_for_active_dispatch_before_clearing_state(
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let publish =
-        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish_task = async move { publish_bus.publish(publish_event, publish_metadata).await };
+    let publish = tokio::spawn(publish_task);
     handler_started.notified().await;
     let shutdown_bus = bus.clone();
     let shutdown = tokio::spawn(async move { shutdown_bus.shutdown(ShutdownMode::Drain).await });
-    tokio::time::sleep(Duration::from_millis(10)).await;
+    tokio::task::yield_now().await;
 
     assert!(!shutdown.is_finished());
     release_handler.notify_waiters();
     let report = shutdown.await??;
     let publish_report = publish.await??;
 
-    assert_eq!(report.in_flight_dispatch_count, 1);
-    assert_eq!(report.subscription_count, 1);
-    assert_eq!(publish_report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.in_flight_dispatch_count), 1);
+    assert_eq!(crate::event_count_value(report.subscription_count), 1);
+    assert_eq!(crate::event_count_value(publish_report.handled_count), 1);
     assert_eq!(*handled.lock().await, 1);
     assert!(matches!(
         bus.publish(
@@ -190,7 +200,9 @@ async fn production_shutdown_waits_for_active_dispatch_before_clearing_state(
 #[tokio::test]
 async fn test_only_shutdown_drop_reports_dropped_queued_work(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(2),
+    )?);
     bus.publish(
         test_event_with_idempotency(
             TestText(TEST_LABEL.to_owned()),
@@ -203,9 +215,12 @@ async fn test_only_shutdown_drop_reports_dropped_queued_work(
     let report = bus.shutdown(ShutdownMode::DropQueuedForTestOnly).await?;
     let dead_letters = bus.dead_letters().await;
 
-    assert_eq!(report.queued_event_count, 1);
-    assert_eq!(report.queued_dead_lettered_count, 0);
-    assert_eq!(report.queued_dropped_count, 1);
+    assert_eq!(crate::event_count_value(report.queued_event_count), 1);
+    assert_eq!(
+        crate::event_count_value(report.queued_dead_lettered_count),
+        0
+    );
+    assert_eq!(crate::event_count_value(report.queued_dropped_count), 1);
     assert!(dead_letters.is_empty());
     Ok(())
 }
@@ -235,7 +250,7 @@ async fn production_shutdown_cancels_pending_request_completion(
     let request_bus = bus.clone();
     let request_event = ShutdownRequestEvent::new()?;
     let request_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let request_timeout = RequestOptions::with_timeout(Duration::from_secs(60))?;
+    let request_timeout = RequestOptions::with_timeout(Duration::from_secs(60).into())?;
     let request = tokio::spawn(async move {
         request_bus
             .publish_request(request_event, request_metadata, request_timeout)
@@ -247,22 +262,28 @@ async fn production_shutdown_cancels_pending_request_completion(
     let result = request.await?;
     let second_shutdown = bus.shutdown(ShutdownMode::Drain).await?;
 
-    assert_eq!(report.pending_request_count, 1);
+    assert_eq!(crate::event_count_value(report.pending_request_count), 1);
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
-    assert!(second_shutdown.already_shutdown);
-    assert_eq!(second_shutdown.queued_event_count, 0);
+    assert_eq!(
+        second_shutdown.shutdown_state,
+        EventShutdownState::AlreadyShutdown
+    );
+    assert_eq!(
+        crate::event_count_value(second_shutdown.queued_event_count),
+        0
+    );
     Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ShutdownRequestEvent {
-    request_id: RequestId,
+    request_id: String,
 }
 
 impl ShutdownRequestEvent {
     fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            request_id: RequestId::parse(SHUTDOWN_REQUEST_ID)?,
+            request_id: SHUTDOWN_REQUEST_ID.to_owned(),
         })
     }
 }
@@ -271,16 +292,16 @@ impl DomainEvent for ShutdownRequestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             crate::EventType::parse(SHUTDOWN_REQUEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(SHUTDOWN_REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(SHUTDOWN_REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(SHUTDOWN_REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(SHUTDOWN_REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -288,7 +309,7 @@ impl RequestEvent for ShutdownRequestEvent {
     type Response = ShutdownResponse;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 

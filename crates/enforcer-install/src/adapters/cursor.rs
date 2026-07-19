@@ -1,134 +1,124 @@
-//! c08 — the Cursor adapter stub.
+//! Cursor user-scope MCP registration.
 //!
-//! # Charter
-//!
-//! Cursor's real config surface (`~/.cursor/mcp.json` `mcpServers`) is
-//! structurally close to the generic `.mcp.json` shape but is NOT yet
-//! wired here — this module is contract-only. It exists so the
-//! [`crate::core::HarnessAdapter`] registry can resolve the `"cursor"`
-//! key (c02 autodetect, the arc-22 CLI) without a typed-error dead end or
-//! a silent no-op that looks like success. Every call is safe: `plan`
-//! reports a deferred warning and zero planned changes, `apply` never
-//! touches the filesystem, and `verify` reports a single passing advisory
-//! check that says mechanization has not landed yet.
-//!
-//! # Deferred
-//!
-//! An ADBP-style config converter for Cursor's `mcp.json` `mcpServers`
-//! map (USER/GLOBAL scope, absolute binary path, x01 `SERVER_NAME` const,
-//! value-merge preserving unrelated keys) is Track B future work, not
-//! this workpack (c08 is deliberately scoped contract-only so that later
-//! work can land without touching this module's `HarnessAdapter`
-//! interface).
+//! Cursor reads global custom servers from `~/.cursor/mcp.json` under the
+//! top-level `mcpServers` object. The shared generic JSON adapter performs
+//! an idempotent value merge and preserves unrelated settings and servers.
 
-use crate::cli_contract::RequestContext;
+//! BOUNDARY-INVARIANT: adapter configuration is normalized before install decisions.
+//!
+use std::path::PathBuf;
+
+use crate::adapters::generic::{GenericAdapter, GenericAdapterConfig};
 use crate::core::HarnessAdapter;
 use crate::error::InstallResult;
-use crate::report::{ApplyResult, InstallReport, VerifyCheck, VerifyReport};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::BuiltInHarness;
+use enforcer_domain::install_types::{
+    ApplyResult, InstallBinaryPath, InstallReport, InstallRequestContext, InstallRootPath,
+    InstallTargetPath, InstallVerifyReport,
+};
 
-/// Advisory verify-check name every c08 stub reports under.
-const DEFERRED_CHECK_NAME: &str = "adapter-mechanization";
-
-/// Advisory verify-check detail every c08 stub reports under (T3 —
-/// informational tier, never `Error` severity: the check runs and passes
-/// closed, it does not fail a `doctor` run just because mechanization has
-/// not landed yet).
-const DEFERRED_DETAIL: &str = "deferred: no mechanization yet (T3)";
-
-/// The Cursor adapter stub. Holds no state — a stub has nothing to
-/// configure until its real config-converter work lands.
-#[derive(Debug, Clone, Default)]
-pub struct CursorAdapter;
+/// Cursor adapter rooted at the user's home directory.
+#[derive(Debug, Clone)]
+pub struct CursorAdapter {
+    home: InstallRootPath,
+    inner: GenericAdapter,
+}
 
 impl CursorAdapter {
-    /// Build a stub instance.
+    /// Build a global Cursor adapter.
+    pub fn try_new(home: PathBuf, binary_path: PathBuf) -> Result<Self, DecodeError> {
+        let home = InstallRootPath::try_from(home)?;
+        let target = InstallTargetPath::try_from(home.as_path().join(".cursor").join("mcp.json"))?;
+        let inner = GenericAdapter::new(GenericAdapterConfig::new(
+            BuiltInHarness::Cursor.id(),
+            target,
+            InstallBinaryPath::try_from(binary_path)?,
+        ));
+        Ok(Self { home, inner })
+    }
+
+    /// Native Cursor global MCP path.
     #[must_use]
-    pub fn new() -> Self {
-        Self
+    pub fn config_path(&self) -> PathBuf {
+        self.home.as_path().join(".cursor").join("mcp.json")
     }
 }
 
 impl HarnessAdapter for CursorAdapter {
-    fn harness_key(&self) -> &'static str {
-        "cursor"
+    fn harness_key(&self) -> enforcer_domain::ids::HarnessId {
+        BuiltInHarness::Cursor.id()
     }
 
-    fn plan(&self, _ctx: &RequestContext) -> InstallResult<InstallReport> {
-        Ok(InstallReport {
-            planned_changes: vec![],
-            warnings: vec![format!("cursor adapter {DEFERRED_DETAIL}")],
-        })
+    fn plan(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
+        self.inner.plan(ctx)
     }
 
-    fn apply(&self, _report: &InstallReport) -> InstallResult<ApplyResult> {
-        // A stub's plan never produces planned_changes, so this has
-        // nothing to iterate -- but the contract still holds even if a
-        // caller hands it an unexpected non-empty report: no write, ever.
-        Ok(ApplyResult::default())
+    fn apply(&self, report: &InstallReport) -> InstallResult<ApplyResult> {
+        self.inner.apply(report)
     }
 
-    fn verify(&self, _ctx: &RequestContext) -> InstallResult<VerifyReport> {
-        Ok(VerifyReport {
-            checks: vec![VerifyCheck {
-                harness: self.harness_key().to_owned(),
-                name: DEFERRED_CHECK_NAME.to_owned(),
-                passed: true,
-                detail: DEFERRED_DETAIL.to_owned(),
-            }],
-        })
+    fn verify(&self, ctx: &InstallRequestContext) -> InstallResult<InstallVerifyReport> {
+        self.inner.verify(ctx)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::CursorAdapter;
-    use crate::cli_contract::RequestContext;
     use crate::core::HarnessAdapter;
-    use std::path::PathBuf;
+    use enforcer_domain::install_types::{CheckStatus, InstallRequestContext};
 
     #[test]
-    fn harness_key_is_cursor() {
-        assert_eq!(CursorAdapter::new().harness_key(), "cursor");
-    }
+    fn native_mcp_file_round_trip_is_idempotent_and_preserves_unrelated_values(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let home = tempfile::tempdir()?;
+        let binary = home.path().join("bin").join("enforcer");
+        let adapter = CursorAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        std::fs::create_dir_all(adapter.config_path().parent().ok_or("missing parent")?)?;
+        std::fs::write(
+            adapter.config_path(),
+            serde_json::to_string_pretty(&serde_json::json!({
+                "unrelated": true,
+                "mcpServers": {
+                    "other": { "command": "/abs/other" }
+                }
+            }))?,
+        )?;
+        let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
 
-    #[test]
-    fn plan_produces_zero_planned_changes() -> Result<(), Box<dyn std::error::Error>> {
-        let adapter = CursorAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
         let plan = adapter.plan(&ctx)?;
-        assert!(plan.is_noop());
-        assert_eq!(plan.warnings.len(), 1);
-        assert!(plan.warnings[0].contains("deferred"));
+        assert_eq!(plan.planned_changes.len(), 1);
+        adapter.apply(&plan)?;
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(adapter.config_path())?)?;
+        assert_eq!(written["unrelated"], true);
+        assert_eq!(written["mcpServers"]["other"]["command"], "/abs/other");
+        assert_eq!(
+            written["mcpServers"]["enforcer"]["command"],
+            binary.display().to_string()
+        );
+        assert!(adapter
+            .verify(&ctx)?
+            .checks
+            .iter()
+            .all(|check| matches!(check.status, CheckStatus::Passed)));
+        assert!(adapter.plan(&ctx)?.planned_changes.is_empty());
         Ok(())
     }
 
     #[test]
-    fn apply_writes_zero_files_against_a_temp_dir_fixture() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let dir = tempfile::tempdir()?;
-        let before: Vec<_> = std::fs::read_dir(dir.path())?.collect();
-        assert!(before.is_empty());
-
-        let adapter = CursorAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
-        let plan = adapter.plan(&ctx)?;
-        let applied = adapter.apply(&plan)?;
-        assert!(applied.applied.is_empty());
-
-        let after: Vec<_> = std::fs::read_dir(dir.path())?.collect();
-        assert!(after.is_empty(), "stub apply must write zero files");
-        Ok(())
-    }
-
-    #[test]
-    fn verify_returns_a_single_passing_advisory_check() -> Result<(), Box<dyn std::error::Error>> {
-        let adapter = CursorAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
-        let report = adapter.verify(&ctx)?;
-        assert_eq!(report.checks.len(), 1);
-        assert!(report.all_passed());
-        assert!(report.checks[0].detail.contains("deferred"));
-        assert!(report.checks[0].detail.contains("T3"));
+    fn malformed_mcp_file_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+        let home = tempfile::tempdir()?;
+        let binary = home.path().join("enforcer");
+        let adapter = CursorAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        std::fs::create_dir_all(adapter.config_path().parent().ok_or("missing parent")?)?;
+        std::fs::write(adapter.config_path(), "{ invalid json")?;
+        let ctx = InstallRequestContext::try_with_defaults(binary)?;
+        assert!(matches!(
+            adapter.verify(&ctx),
+            Err(crate::error::InstallError::MalformedConfig { .. })
+        ));
         Ok(())
     }
 }

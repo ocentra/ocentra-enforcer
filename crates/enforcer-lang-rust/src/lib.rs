@@ -26,4 +26,5 @@
 //! hosts): consumers path through the modules directly, e.g.
 //! `enforcer_lang_rust::rules::no_reexports::NoReexportsValidator`.
 
+pub(crate) mod boundary;
 pub mod rules;

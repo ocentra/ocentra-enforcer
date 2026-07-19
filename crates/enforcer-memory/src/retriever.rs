@@ -17,6 +17,7 @@
 #![cfg(feature = "embeddings")]
 
 use crate::graph::MemoryNode;
+use enforcer_domain::memory_types::MemoryRecallQuery;
 
 /// A retriever that ranks graph nodes by embedding similarity to a
 /// query. Implementations of this trait are expected to live in a
@@ -28,5 +29,9 @@ pub trait EmbeddingRetriever {
     /// Implementations MUST NOT perform any network call; any model
     /// weights they depend on must already be resolved locally (e.g.
     /// via arc-23 install) before this is called.
-    fn rank<'a>(&self, query: &str, candidates: &[&'a MemoryNode]) -> Vec<&'a MemoryNode>;
+    fn rank<'a>(
+        &self,
+        query: &MemoryRecallQuery,
+        candidates: &[&'a MemoryNode],
+    ) -> Vec<&'a MemoryNode>;
 }

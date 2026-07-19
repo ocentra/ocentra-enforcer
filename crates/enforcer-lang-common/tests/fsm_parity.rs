@@ -7,24 +7,31 @@
 //! (a seeded gap on each leg must fail closed).
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
+
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::paths::RepoRoot;
 
 use enforcer_domain::ids::RuleId;
 use enforcer_mechanization::parity::{ParityOracle, ValidatorLookup};
-use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
+use enforcer_rules::loader::load_registry_from_records;
 use enforcer_validator::validator::Validator;
+
+mod support;
 
 const FSM_JSON: &str = include_str!("../../enforcer-rules/rules/fsm.json");
 
 /// Repo root: three levels up from this crate's manifest dir
 /// (`crates/enforcer-lang-common` -> workspace root), matching the
 /// `RuleRecord.fixtures` paths, which are workspace-root-relative.
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn repo_root() -> Result<RepoRoot, DecodeError> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .and_then(|p| p.parent())
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+        .and_then(|path| path.parent())
+        .ok_or_else(|| {
+            DecodeError::new("repoRoot", "crate manifest directory has no workspace root")
+        })?;
+    RepoRoot::try_from(root)
 }
 
 /// A lookup mapping each FSM `RuleId` to its concrete validator instance.
@@ -50,10 +57,10 @@ impl ValidatorLookup for FsmLookup {
 
 #[test]
 fn every_fsm_rule_passes_the_d01_five_way_parity_sweep() -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(FSM_JSON, "rules/fsm.json")?;
+    let records = support::parse_catalog(FSM_JSON, "rules/fsm.json")?;
     let registry = load_registry_from_records(records)?;
     let lookup = FsmLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(findings.is_empty(), "FSM 5-way parity gaps: {findings:#?}");
     Ok(())
@@ -61,7 +68,7 @@ fn every_fsm_rule_passes_the_d01_five_way_parity_sweep() -> Result<(), Box<dyn s
 
 #[test]
 fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(FSM_JSON, "rules/fsm.json")?;
+    let records = support::parse_catalog(FSM_JSON, "rules/fsm.json")?;
     let registry = load_registry_from_records(records)?;
 
     struct EmptyLookup;
@@ -71,7 +78,7 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
         }
     }
 
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&EmptyLookup);
     assert_eq!(
         findings.len(),
@@ -83,26 +90,26 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
 
 #[test]
 fn seeded_dangling_doc_anchor_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(FSM_JSON, "rules/fsm.json")?;
-    records[0].doc_anchor = "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".to_owned();
+    let mut records = support::parse_catalog(FSM_JSON, "rules/fsm.json")?;
+    records[0].doc_anchor = "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".parse()?;
     let registry = load_registry_from_records(records)?;
     let lookup = FsmLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(findings
         .iter()
-        .any(|f| f.detail.contains("does not resolve")));
+        .any(|f| f.detail.as_str().contains("does not resolve")));
     Ok(())
 }
 
 #[test]
 fn seeded_missing_fail_fixture_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(FSM_JSON, "rules/fsm.json")?;
+    let mut records = support::parse_catalog(FSM_JSON, "rules/fsm.json")?;
     records[0].fixtures.fail =
-        "crates/enforcer-lang-common/tests/fixtures/fsm/does-not-exist.py".to_owned();
+        support::rel_path("crates/enforcer-lang-common/tests/fixtures/fsm/does-not-exist.py")?;
     let registry = load_registry_from_records(records)?;
     let lookup = FsmLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert_eq!(findings.len(), 1);
     Ok(())

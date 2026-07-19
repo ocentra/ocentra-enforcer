@@ -15,177 +15,39 @@
 //!   runtime response;
 //! - parity claims are only allowed when a real local backend was
 //!   selected.
+//!
+//! ROUNDTRIP-TEST: tests/local_runtime.rs::runtime_arbitration_dto_domain_boundary_conversions_round_trip
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
+use enforcer_domain::memory_types::{
+    LocalRuntimeAcceleration, LocalRuntimeArtifactKind, LocalRuntimeKind, ModelTask,
+    OrtWorkerLifecycleAction, OrtWorkerLifecycleState, OrtWorkerTask, ProviderKind,
+    RuntimeActivityState, RuntimeAdmission, RuntimeExecutionIsolation, RuntimeManagedCapability,
+    RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload, SourcePolicy,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{MemoryError, Result};
-use crate::model_runtime::{ModelSpec, ModelTask, ProviderKind, SourcePolicy};
-
-/// Runtime/provider kind for the local model seam.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LocalRuntimeKind {
-    LlamaCpp,
-    OnnxOrt,
-    DeterministicFallback,
-}
-
-impl LocalRuntimeKind {
-    pub fn is_real_backend(self) -> bool {
-        !matches!(self, Self::DeterministicFallback)
-    }
-}
-
-/// Backend alias used by the model-cache contract.
-pub type LocalRuntimeBackend = LocalRuntimeKind;
-
-/// Artifact kind inferred from a cache entry path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LocalRuntimeArtifactKind {
-    Manifest,
-    Model,
-    Tokenizer,
-    Config,
-    Adapter,
-    ExternalData,
-    Unknown,
-}
-
-/// Runtime acceleration hint for a cached local backend.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LocalRuntimeAcceleration {
-    Auto,
-    Cpu,
-    Gpu,
-    Npu,
-}
-
-/// Runtime workload class for resource arbitration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeWorkload {
-    Chat,
-    Embedding,
-    Reranking,
-}
-
-/// Current runtime activity used to decide whether new work may run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeActivityState {
-    Idle,
-    Loading,
-    ChatActive,
-    EmbeddingActive,
-    RerankingActive,
-    Paused,
-}
-
-/// Admission result for a requested runtime workload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeAdmission {
-    Admit,
-    Queue,
-    PauseBackgroundThenAdmit,
-}
+use crate::model_runtime::ModelSpecDto;
 
 /// Deterministic resource-arbitration result for the runtime manager.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeArbitrationDecision {
+pub struct RuntimeArbitrationDecisionDto {
     pub active: RuntimeActivityState,
     pub requested: RuntimeWorkload,
     pub admission: RuntimeAdmission,
     pub reason: String,
 }
 
-/// Who owns the runtime lifecycle for a backend.
-///
-/// X06 requires Enforcer-owned lifecycle control. External servers can
-/// be useful for exploratory proof/debug work, but they cannot be the
-/// product contract because Enforcer must own load, unload, cancel,
-/// timeout/kill, history policy, provider selection, and cache policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeOwnershipMode {
-    EnforcerSubprocess,
-    EnforcerIsolatedWorker,
-    EnforcerInProcess,
-    ExternalServer,
-    Unmanaged,
-}
-
-impl RuntimeOwnershipMode {
-    pub fn is_enforcer_owned(self) -> bool {
-        matches!(
-            self,
-            Self::EnforcerSubprocess | Self::EnforcerIsolatedWorker | Self::EnforcerInProcess
-        )
-    }
-}
-
-/// Process/isolation boundary used by the local runtime backend.
-///
-/// This is separate from ownership so proof artifacts can distinguish
-/// "Enforcer owns it" from "how Enforcer owns it".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeExecutionIsolation {
-    EnforcerManagedChildProcess,
-    EnforcerIsolatedWorkerProcess,
-    EnforcerInProcessLibrary,
-    ExternalServerProcess,
-    UnmanagedProcess,
-}
-
-/// Request protocol owned by Enforcer for a local runtime worker.
-///
-/// ORT runs behind an isolated worker protocol, not a model-provider
-/// server. This keeps request shaping, history/context policy, and
-/// cancellation semantics in Enforcer-owned code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeRequestProtocol {
-    EnforcerWorkerEnv,
-    EnforcerStdio,
-    ExternalHttp,
-    None,
-}
-
-/// Product responsibilities that must stay in Enforcer even when the
-/// low-level backend is llama.cpp or ORT.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RuntimeManagedCapability {
-    LoadUnload,
-    PauseResumeCancel,
-    TimeoutKill,
-    ProviderSelection,
-    CachePolicy,
-    ChatHistoryPolicy,
-    WorkloadAdmission,
-}
-
-/// ORT workload executed by Enforcer's isolated worker subprocess.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OrtWorkerTask {
-    Embedding,
-    Reranker,
-}
-
-impl OrtWorkerTask {
-    pub const fn env_value(self) -> &'static str {
-        match self {
-            Self::Embedding => "embedding",
-            Self::Reranker => "reranker",
-        }
+/// Extract the canonical admission decision from the runtime arbitration
+/// wire shape. Activity/workload/reason are control-plane context, while
+/// admission is the domain value consumed by policy callers.
+impl From<RuntimeArbitrationDecisionDto> for RuntimeAdmission {
+    fn from(value: RuntimeArbitrationDecisionDto) -> Self {
+        value.admission
     }
 }
 
@@ -196,11 +58,11 @@ impl OrtWorkerTask {
 /// inspect this plan without loading ORT or touching local hardware.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OrtWorkerExecutionPlan {
+pub struct OrtWorkerExecutionPlanDto {
     pub executable_path: PathBuf,
     pub task: OrtWorkerTask,
     pub provider: ProviderKind,
-    pub provider_resolution: OrtProviderResolution,
+    pub provider_resolution: OrtProviderResolutionDto,
     pub timeout_ms: u64,
     pub ownership: RuntimeOwnershipMode,
     pub request_protocol: RuntimeRequestProtocol,
@@ -212,7 +74,7 @@ pub struct OrtWorkerExecutionPlan {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OrtProviderResolution {
+pub struct OrtProviderResolutionDto {
     pub requested_provider: ProviderKind,
     pub resolved_provider: ProviderKind,
     pub available_providers: Vec<ProviderKind>,
@@ -222,14 +84,14 @@ pub struct OrtProviderResolution {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeBackendContract {
-    pub llama_cpp: RuntimeBackendContractEntry,
-    pub ort: RuntimeBackendContractEntry,
+pub struct RuntimeBackendContractDto {
+    pub llama_cpp: RuntimeBackendContractEntryDto,
+    pub ort: RuntimeBackendContractEntryDto,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeBackendContractEntry {
+pub struct RuntimeBackendContractEntryDto {
     pub backend: &'static str,
     pub ownership: RuntimeOwnershipMode,
     pub execution_isolation: RuntimeExecutionIsolation,
@@ -247,40 +109,10 @@ pub struct RuntimeBackendContractEntry {
 /// This is a control-plane state machine. It does not claim inference
 /// parity; it proves Enforcer owns the lifecycle transitions that will
 /// later wrap the real ORT worker process.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OrtWorkerLifecycleState {
-    Idle,
-    Loading,
-    Ready,
-    EmbeddingActive,
-    RerankingActive,
-    PausedEmbedding,
-    PausedReranking,
-    Cancelled,
-    TimedOut,
-    Unloaded,
-}
-
-/// Lifecycle actions Enforcer may apply to an owned ORT worker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OrtWorkerLifecycleAction {
-    Load,
-    MarkReady,
-    StartEmbedding,
-    StartReranker,
-    Pause,
-    Resume,
-    Cancel,
-    TimeoutKill,
-    Unload,
-}
-
 /// Auditable result of one ORT lifecycle transition.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OrtWorkerLifecycleTransition {
+pub struct OrtWorkerLifecycleTransitionDto {
     pub before: OrtWorkerLifecycleState,
     pub action: OrtWorkerLifecycleAction,
     pub after: OrtWorkerLifecycleState,
@@ -304,7 +136,7 @@ pub const REQUIRED_MANAGED_CAPABILITIES: &[RuntimeManagedCapability] = &[
 /// One cached artifact participating in a local runtime candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LocalRuntimeArtifact {
+pub struct LocalRuntimeArtifactDto {
     pub kind: LocalRuntimeArtifactKind,
     pub path: PathBuf,
     pub sha256: Option<String>,
@@ -314,13 +146,13 @@ pub struct LocalRuntimeArtifact {
 /// Candidate local runtime assembled from a cache manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LocalRuntimeCandidate {
-    pub backend: LocalRuntimeBackend,
+pub struct LocalRuntimeCandidateDto {
+    pub backend: LocalRuntimeKind,
     pub task: ModelTask,
     pub model_id: String,
     pub acceleration: LocalRuntimeAcceleration,
     pub source_policy: SourcePolicy,
-    pub artifacts: Vec<LocalRuntimeArtifact>,
+    pub artifacts: Vec<LocalRuntimeArtifactDto>,
 }
 
 /// Minimal readiness signal for a backend that depends on a local
@@ -366,7 +198,7 @@ pub struct LocalRuntimeSelectionReport {
 /// Lifecycle/control contract for a selected runtime backend.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LocalRuntimeControlPlane {
+pub struct LocalRuntimeControlPlaneDto {
     pub backend: LocalRuntimeKind,
     pub ownership: RuntimeOwnershipMode,
     pub spawn_controlled: bool,
@@ -377,7 +209,7 @@ pub struct LocalRuntimeControlPlane {
     pub managed_capabilities: Vec<RuntimeManagedCapability>,
 }
 
-impl OrtWorkerExecutionPlan {
+impl OrtWorkerExecutionPlanDto {
     pub fn env_value(&self, key: &str) -> Option<&str> {
         self.env
             .iter()
@@ -386,21 +218,7 @@ impl OrtWorkerExecutionPlan {
     }
 }
 
-impl OrtWorkerLifecycleState {
-    pub const fn activity(self) -> RuntimeActivityState {
-        match self {
-            Self::Idle | Self::Ready | Self::Cancelled | Self::TimedOut | Self::Unloaded => {
-                RuntimeActivityState::Idle
-            }
-            Self::Loading => RuntimeActivityState::Loading,
-            Self::EmbeddingActive => RuntimeActivityState::EmbeddingActive,
-            Self::RerankingActive => RuntimeActivityState::RerankingActive,
-            Self::PausedEmbedding | Self::PausedReranking => RuntimeActivityState::Paused,
-        }
-    }
-}
-
-impl LocalRuntimeControlPlane {
+impl LocalRuntimeControlPlaneDto {
     pub fn llama_cpp_managed() -> Self {
         Self {
             backend: LocalRuntimeKind::LlamaCpp,
@@ -457,8 +275,8 @@ impl LocalRuntimeSelectionReport {
 
 fn model_runtime_error(operation: &'static str, reason: impl Into<String>) -> MemoryError {
     MemoryError::ModelRuntime {
-        operation,
-        reason: reason.into(),
+        operation: operation.into(),
+        reason: reason.into().into(),
     }
 }
 
@@ -583,10 +401,10 @@ pub fn validate_fixture(
 pub fn ort_worker_execution_plan(
     executable_path: impl Into<PathBuf>,
     task: OrtWorkerTask,
-    spec: &ModelSpec,
+    spec: &ModelSpecDto,
     provider: ProviderKind,
     timeout_ms: u64,
-) -> Result<OrtWorkerExecutionPlan> {
+) -> Result<OrtWorkerExecutionPlanDto> {
     let provider_resolution = resolve_ort_provider(provider, &[provider]);
     ort_worker_execution_plan_with_provider_resolution(
         executable_path,
@@ -600,11 +418,11 @@ pub fn ort_worker_execution_plan(
 pub fn ort_worker_execution_plan_with_provider_resolution(
     executable_path: impl Into<PathBuf>,
     task: OrtWorkerTask,
-    spec: &ModelSpec,
-    provider_resolution: OrtProviderResolution,
+    spec: &ModelSpecDto,
+    provider_resolution: OrtProviderResolutionDto,
     timeout_ms: u64,
-) -> Result<OrtWorkerExecutionPlan> {
-    let control = LocalRuntimeControlPlane::onnx_ort_managed();
+) -> Result<OrtWorkerExecutionPlanDto> {
+    let control = LocalRuntimeControlPlaneDto::onnx_ort_managed();
     validate_control_plane(&control)?;
     if timeout_ms == 0 {
         return Err(model_runtime_error(
@@ -676,7 +494,7 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
             timeout_ms.to_string(),
         ),
     ];
-    let plan = OrtWorkerExecutionPlan {
+    let plan = OrtWorkerExecutionPlanDto {
         executable_path: executable_path.into(),
         task,
         provider: provider_resolution.resolved_provider,
@@ -693,7 +511,7 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
     Ok(plan)
 }
 
-pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Result<()> {
+pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlanDto) -> Result<()> {
     if plan.ownership != RuntimeOwnershipMode::EnforcerIsolatedWorker || !plan.kill_on_timeout {
         return Err(model_runtime_error(
             "validate-ort-worker-execution-plan",
@@ -784,7 +602,7 @@ fn path_value_is_absolute(value: &str) -> bool {
 pub fn resolve_ort_provider(
     requested_provider: ProviderKind,
     available_providers: &[ProviderKind],
-) -> OrtProviderResolution {
+) -> OrtProviderResolutionDto {
     let mut available = Vec::new();
     for provider in available_providers {
         if !available.contains(provider) {
@@ -796,7 +614,7 @@ pub fn resolve_ort_provider(
     }
     let provider_probe_passed = !available_providers.is_empty();
     if requested_provider == ProviderKind::Cpu || available.contains(&requested_provider) {
-        return OrtProviderResolution {
+        return OrtProviderResolutionDto {
             requested_provider,
             resolved_provider: requested_provider,
             available_providers: available,
@@ -804,7 +622,7 @@ pub fn resolve_ort_provider(
             downgrade_reason: None,
         };
     }
-    OrtProviderResolution {
+    OrtProviderResolutionDto {
         requested_provider,
         resolved_provider: ProviderKind::Cpu,
         available_providers: available,
@@ -816,7 +634,7 @@ pub fn resolve_ort_provider(
     }
 }
 
-pub fn ort_worker_command(plan: &OrtWorkerExecutionPlan) -> Result<Command> {
+pub fn ort_worker_command(plan: &OrtWorkerExecutionPlanDto) -> Result<Command> {
     validate_ort_worker_execution_plan(plan)?;
     let mut command = Command::new(&plan.executable_path);
     command
@@ -832,9 +650,9 @@ pub fn ort_worker_command(plan: &OrtWorkerExecutionPlan) -> Result<Command> {
     Ok(command)
 }
 
-pub fn runtime_backend_contract() -> RuntimeBackendContract {
-    RuntimeBackendContract {
-        llama_cpp: RuntimeBackendContractEntry {
+pub fn runtime_backend_contract() -> RuntimeBackendContractDto {
+    RuntimeBackendContractDto {
+        llama_cpp: RuntimeBackendContractEntryDto {
             backend: "gguf",
             ownership: RuntimeOwnershipMode::EnforcerSubprocess,
             execution_isolation: RuntimeExecutionIsolation::EnforcerManagedChildProcess,
@@ -850,7 +668,7 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
                 "model-load-is-exclusive",
             ],
         },
-        ort: RuntimeBackendContractEntry {
+        ort: RuntimeBackendContractEntryDto {
             backend: "onnx",
             ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
             execution_isolation: RuntimeExecutionIsolation::EnforcerIsolatedWorkerProcess,
@@ -870,10 +688,10 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
 }
 
 pub fn transition_ort_worker_lifecycle(
-    plan: &OrtWorkerExecutionPlan,
+    plan: &OrtWorkerExecutionPlanDto,
     before: OrtWorkerLifecycleState,
     action: OrtWorkerLifecycleAction,
-) -> Result<OrtWorkerLifecycleTransition> {
+) -> Result<OrtWorkerLifecycleTransitionDto> {
     validate_ort_worker_execution_plan(plan)?;
     let (after, reason) = match (before, action) {
         (
@@ -954,7 +772,7 @@ pub fn transition_ort_worker_lifecycle(
         }
     };
 
-    Ok(OrtWorkerLifecycleTransition {
+    Ok(OrtWorkerLifecycleTransitionDto {
         before,
         action,
         after,
@@ -994,7 +812,7 @@ pub fn provider_from_env_value(value: &str) -> Option<ProviderKind> {
 pub fn arbitrate_runtime_workload(
     active: RuntimeActivityState,
     requested: RuntimeWorkload,
-) -> RuntimeArbitrationDecision {
+) -> RuntimeArbitrationDecisionDto {
     let (admission, reason) = match (active, requested) {
         (RuntimeActivityState::Idle | RuntimeActivityState::Paused, _) => (
             RuntimeAdmission::Admit,
@@ -1027,7 +845,7 @@ pub fn arbitrate_runtime_workload(
             "background retrieval work is already active; queue requested workload",
         ),
     };
-    RuntimeArbitrationDecision {
+    RuntimeArbitrationDecisionDto {
         active,
         requested,
         admission,
@@ -1036,7 +854,7 @@ pub fn arbitrate_runtime_workload(
 }
 
 /// Validate that a runtime backend is acceptable for X06 product parity.
-pub fn validate_control_plane(control: &LocalRuntimeControlPlane) -> Result<()> {
+pub fn validate_control_plane(control: &LocalRuntimeControlPlaneDto) -> Result<()> {
     if !control.ownership.is_enforcer_owned() {
         return Err(model_runtime_error(
             "validate-local-runtime-control-plane",

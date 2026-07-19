@@ -82,7 +82,10 @@ fn extracts_import_statement() -> TestResult {
 fn extracts_branch_heavy_function_without_panicking() {
     let src = "component {\n    function getUser(string id) {\n        if (id) {\n            return id;\n        } else {\n            return \"\";\n        }\n    }\n}\n";
     let parsed = parse_cfscript(src);
-    assert!(symbol_kind(&parsed.symbols, "getUser").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "getUser"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

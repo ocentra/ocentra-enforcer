@@ -11,147 +11,16 @@ pub mod singletons;
 
 use std::collections::BTreeSet;
 
-use crate::error::{CoordinationError, Result};
+use enforcer_domain::coordination_types::{
+    ClaimComparisonKey, ClaimContextPresence, ClaimEventId, ClaimGroup, ClaimLane, ClaimPath,
+    ClaimReason, ClaimWriter, ConflictType, CoordinationBranch, CoordinationMatch,
+    CoordinationOwnerIdentity, CoordinationProjectId, CoordinationRepository, CoordinationWorktree,
+    LockKind, Operation, ProtectedSingletonStatus,
+};
+
 use singletons::{normalize_coordination_path, protected_singleton_group};
 
-/// Stable owner identity carried by a lock claim.
-///
-/// This remains a transparent wire value so existing claim/release events
-/// retain their JSON string representation while lock logic distinguishes an
-/// owner from unrelated free-form strings.
-/// BRAND-INVARIANT: the event boundary preserves the recorded owner token
-/// exactly; lock decisions may compare it, but never reinterpret it as a path
-/// or a generic display string.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimWriter(pub(crate) String);
-
-impl std::fmt::Display for ClaimWriter {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-/// Stable lane identity carried by a lock claim. It stays transparent at the
-/// event boundary so existing ledgers replay without a migration.
-/// BRAND-INVARIANT: the event boundary preserves the recorded lane token
-/// exactly; lock decisions only use it as durable lane identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimLane(pub(crate) String);
-
-impl std::fmt::Display for ClaimLane {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-/// Event-stream identity of a lock claim. It prevents event ids from being
-/// mixed with paths or arbitrary diagnostic strings inside lock decisions.
-/// BRAND-INVARIANT: the event boundary preserves the recorded event id
-/// exactly; lock decisions retain it solely to identify the conflicting claim.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimEventId(pub(crate) String);
-
-impl std::fmt::Display for ClaimEventId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-/// The 4 lock kinds. Ported from `lock-policy.js#LOCK_KIND_VALUES`.
-/// Domain lock classification. The API boundary accepts the corresponding
-/// wire string and calls [`LockKind::parse`] before the value enters the
-/// conflict engine; this type deliberately has no serde transport contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LockKind {
-    WriteLock,
-    GlobalWriteLock,
-    BranchLease,
-    WorkReservation,
-}
-
-impl LockKind {
-    pub fn parse(raw: &str) -> Result<Self> {
-        match raw {
-            "writeLock" => Ok(Self::WriteLock),
-            "globalWriteLock" => Ok(Self::GlobalWriteLock),
-            "branchLease" => Ok(Self::BranchLease),
-            "workReservation" => Ok(Self::WorkReservation),
-            other => Err(CoordinationError::invalid("lockKind", other)),
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::WriteLock => "writeLock",
-            Self::GlobalWriteLock => "globalWriteLock",
-            Self::BranchLease => "branchLease",
-            Self::WorkReservation => "workReservation",
-        }
-    }
-}
-
-/// The coordination operation an actor is performing. Ported from
-/// `lock-policy.js#OPERATION_VALUES`.
-/// Domain operation classification. Request decoding is kept at the API
-/// boundary and converts its wire string with [`Operation::parse`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Operation {
-    Inspect,
-    #[default]
-    Edit,
-    Commit,
-    Push,
-    Rebase,
-    Merge,
-    PrReady,
-}
-
-impl Operation {
-    pub fn parse(raw: &str) -> Result<Self> {
-        match raw {
-            "inspect" => Ok(Self::Inspect),
-            "edit" => Ok(Self::Edit),
-            "commit" => Ok(Self::Commit),
-            "push" => Ok(Self::Push),
-            "rebase" => Ok(Self::Rebase),
-            "merge" => Ok(Self::Merge),
-            "pr_ready" => Ok(Self::PrReady),
-            other => Err(CoordinationError::invalid("operation", other)),
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Inspect => "inspect",
-            Self::Edit => "edit",
-            Self::Commit => "commit",
-            Self::Push => "push",
-            Self::Rebase => "rebase",
-            Self::Merge => "merge",
-            Self::PrReady => "pr_ready",
-        }
-    }
-}
-
-/// `onConflict` mode for a claim request. Ported from
-/// `lock-policy.js#ON_CONFLICT_VALUES`.
-/// Domain conflict policy. The boundary converts the external string with
-/// [`OnConflict::parse`] before lock lifecycle evaluation begins.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OnConflict {
-    Fail,
-    Intent,
-}
-
-impl OnConflict {
-    pub fn parse(raw: &str) -> Result<Self> {
-        match raw {
-            "fail" => Ok(Self::Fail),
-            "intent" => Ok(Self::Intent),
-            other => Err(CoordinationError::invalid("onConflict", other)),
-        }
-    }
-}
+use crate::error::Result;
 
 /// Caller-supplied identity/environment context attached to a claim.
 ///
@@ -159,23 +28,23 @@ impl OnConflict {
 /// worktree/branch/commit resolution, never the coordination server's own
 /// `cwd`. The API boundary (arc-16 `api.rs`) requires `project_id`,
 /// `worktree_root`, and `branch` as explicit caller-supplied params for this
-/// reason — this struct has no "resolve from server cwd" fallback baked in.
+/// reason â€” this struct has no "resolve from server cwd" fallback baked in.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClaimContext {
-    pub project_id: Option<String>,
-    pub git_remote: Option<String>,
-    pub repo_root: Option<String>,
-    pub worktree_root: Option<String>,
-    pub branch: Option<String>,
-    pub codex_thread_id: Option<String>,
-    pub codex_session_id: Option<String>,
+    pub project_id: Option<CoordinationProjectId>,
+    pub git_remote: Option<CoordinationRepository>,
+    pub repo_root: Option<CoordinationRepository>,
+    pub worktree_root: Option<CoordinationWorktree>,
+    pub branch: Option<CoordinationBranch>,
+    pub codex_thread_id: Option<CoordinationOwnerIdentity>,
+    pub codex_session_id: Option<CoordinationOwnerIdentity>,
     /// Present only on a request (not an active claim) to force
-    /// "explicit owner" comparisons — mirrors `requestHasExplicitOwner`.
-    pub explicit_codex_thread_id: Option<String>,
-    pub explicit_codex_session_id: Option<String>,
-    pub claim_group: Option<String>,
-    pub lock_kind: Option<String>,
-    pub operation: Option<String>,
+    /// "explicit owner" comparisons â€” mirrors `requestHasExplicitOwner`.
+    pub explicit_codex_thread_id: Option<CoordinationOwnerIdentity>,
+    pub explicit_codex_session_id: Option<CoordinationOwnerIdentity>,
+    pub claim_group: Option<ClaimGroup>,
+    pub lock_kind: Option<LockKind>,
+    pub operation: Option<Operation>,
 }
 
 /// A raw claim as recorded on an event, before enrichment.
@@ -183,9 +52,9 @@ pub struct ClaimContext {
 pub struct RawClaim {
     pub writer: ClaimWriter,
     pub lane: ClaimLane,
-    pub paths: Vec<String>,
+    pub paths: Vec<ClaimPath>,
     pub event_id: ClaimEventId,
-    pub reason: Option<String>,
+    pub reason: Option<ClaimReason>,
     pub context: ClaimContext,
 }
 
@@ -195,94 +64,77 @@ pub struct RawClaim {
 pub struct EnrichedClaim {
     pub writer: ClaimWriter,
     pub lane: ClaimLane,
-    pub paths: Vec<String>,
+    pub paths: Vec<ClaimPath>,
     pub event_id: ClaimEventId,
-    pub reason: Option<String>,
+    pub reason: Option<ClaimReason>,
     pub context: ClaimContext,
     pub lock_kind: LockKind,
     pub operation: Operation,
-    pub claim_group: Option<String>,
-    pub project_key: String,
-    pub repo_root_key: Option<String>,
-    pub git_remote_key: Option<String>,
-    pub worktree_key: String,
-    pub branch_key: String,
-    pub owner_key: String,
-    pub path_keys: Vec<String>,
-    pub global_keys: Vec<String>,
-    pub physical_keys: Vec<String>,
-    pub branch_keys: Vec<String>,
-    pub protected_singleton: bool,
+    pub claim_group: Option<ClaimGroup>,
+    pub project_key: ClaimComparisonKey,
+    pub repo_root_key: Option<ClaimComparisonKey>,
+    pub git_remote_key: Option<ClaimComparisonKey>,
+    pub worktree_key: ClaimComparisonKey,
+    pub branch_key: ClaimComparisonKey,
+    pub owner_key: ClaimComparisonKey,
+    pub path_keys: Vec<ClaimComparisonKey>,
+    pub global_keys: Vec<ClaimComparisonKey>,
+    pub physical_keys: Vec<ClaimComparisonKey>,
+    pub branch_keys: Vec<ClaimComparisonKey>,
+    pub protected_singleton: ProtectedSingletonStatus,
 }
 
-fn normalize_key(value: &str) -> String {
-    normalize_coordination_path(value)
+fn normalize_key<T: std::fmt::Display + ?Sized>(value: &T) -> Result<ClaimComparisonKey> {
+    let path = ClaimPath::from_display(&value)?;
+    let normalized = normalize_coordination_path(&path)?;
+    ClaimComparisonKey::from_display(&normalized).map_err(Into::into)
 }
 
-fn optional_key(value: Option<&str>) -> Option<String> {
-    value.map(normalize_key).filter(|k| !k.is_empty())
-}
-
-fn meaningful_owner_part(value: Option<&str>) -> Option<String> {
-    let trimmed = value.map(str::trim).unwrap_or("");
-    if trimmed.is_empty() || trimmed == "unknown" {
+fn meaningful_owner_part(
+    value: Option<&CoordinationOwnerIdentity>,
+) -> Option<&CoordinationOwnerIdentity> {
+    if value.is_none_or(|identity| identity.as_str().trim() == "unknown") {
         None
     } else {
-        // ALLOC-JUSTIFICATION: owner identity outlives the request text
-        // and becomes part of the durable conflict-comparison key.
-        Some(trimmed.to_owned())
+        value
     }
 }
 
-fn logical_owner_key(writer: &ClaimWriter, context: &ClaimContext) -> String {
-    let thread = meaningful_owner_part(context.codex_thread_id.as_deref());
-    let session = meaningful_owner_part(context.codex_session_id.as_deref());
-    // ALLOC-JUSTIFICATION: the writer fallback is incorporated into the
-    // owned, normalized owner key retained on every enriched claim.
-    let suffix = thread
-        .or(session)
-        .unwrap_or_else(|| writer.as_str().to_owned());
+fn logical_owner_key(writer: &ClaimWriter, context: &ClaimContext) -> Result<ClaimComparisonKey> {
+    let suffix = meaningful_owner_part(context.codex_thread_id.as_ref())
+        .or_else(|| meaningful_owner_part(context.codex_session_id.as_ref()))
+        .map_or_else(|| writer.as_str(), CoordinationOwnerIdentity::as_str);
     normalize_key(&format!("{}:{suffix}", writer.as_str()))
 }
 
-fn unique(values: Vec<String>) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-    let mut out = Vec::new();
-    for v in values {
-        // CLONE-JUSTIFICATION: the set retains its own membership key while
-        // `out` must preserve the original value and caller ordering.
-        if !v.is_empty() && seen.insert(v.clone()) {
-            out.push(v);
-        }
-    }
-    out
+fn unique<T: Ord>(values: Vec<T>) -> Vec<T> {
+    BTreeSet::from_iter(values).into_iter().collect()
 }
 
 /// Enrich a raw claim with all derived comparison keys. Ported from
 /// `lock-policy.js#enrichClaim`. `has_explicit_context` mirrors the JS
 /// `hasContext = claim.context !== undefined` distinction, which changes the
 /// default lock-kind fallback (`writeLock` vs `globalWriteLock`).
-pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedClaim {
-    let paths: Vec<String> = claim
+pub fn enrich_claim(
+    claim: &RawClaim,
+    context_presence: ClaimContextPresence,
+) -> Result<EnrichedClaim> {
+    let paths: Vec<ClaimPath> = claim
         .paths
         .iter()
-        .map(|p| normalize_coordination_path(p))
-        .filter(|p| !p.is_empty())
-        .collect();
-    let declared_lock_kind = match claim.context.lock_kind.as_deref() {
-        Some(raw) => match LockKind::parse(raw) {
-            Ok(kind) => kind,
-            // A malformed persisted lock declaration must never weaken a
-            // claim into a narrower lock. Treat it as a global write lock
-            // until the record is repaired.
-            Err(_) => LockKind::GlobalWriteLock,
-        },
-        None if has_explicit_context => LockKind::WriteLock,
+        .map(normalize_coordination_path)
+        .collect::<Result<_>>()?;
+    let declared_lock_kind = match claim.context.lock_kind {
+        Some(kind) => kind,
+        None if context_presence == ClaimContextPresence::Explicit => LockKind::WriteLock,
         None => LockKind::GlobalWriteLock,
     };
-    let singleton_groups: Vec<String> = paths
+    let singleton_groups: Vec<ClaimGroup> = paths
         .iter()
-        .filter_map(|p| protected_singleton_group(p))
+        .map(protected_singleton_group)
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
         .collect();
     let lock_kind =
         if declared_lock_kind == LockKind::GlobalWriteLock || !singleton_groups.is_empty() {
@@ -290,59 +142,84 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         } else {
             declared_lock_kind
         };
-    let operation = match claim.context.operation.as_deref() {
-        Some(raw) => match Operation::parse(raw) {
-            Ok(operation) => operation,
-            // Legacy or malformed wire values retain the existing
-            // conservative edit behavior rather than becoming inspection.
-            Err(_) => Operation::Edit,
-        },
-        None => Operation::Edit,
-    };
+    let operation = claim.context.operation.unwrap_or(Operation::Edit);
     // CLONE-JUSTIFICATION: enriched claims are durable comparison snapshots;
     // they must not borrow the event projection that produced them.
     let claim_group = claim.context.claim_group.clone();
-    let project_key = normalize_key(
+    let project_source = claim
+        .context
+        .project_id
+        .as_ref()
+        .map(CoordinationProjectId::as_str)
+        .or_else(|| {
+            claim
+                .context
+                .git_remote
+                .as_ref()
+                .map(CoordinationRepository::as_str)
+        })
+        .or_else(|| {
+            claim
+                .context
+                .repo_root
+                .as_ref()
+                .map(CoordinationRepository::as_str)
+        })
+        .unwrap_or("legacy-unknown-project");
+    let project_key = normalize_key(project_source)?;
+    let repo_root_key = claim
+        .context
+        .repo_root
+        .as_ref()
+        .map(normalize_key)
+        .transpose()?;
+    let git_remote_key = claim
+        .context
+        .git_remote
+        .as_ref()
+        .map(normalize_key)
+        .transpose()?;
+    let worktree_source = claim
+        .context
+        .worktree_root
+        .as_ref()
+        .map(CoordinationWorktree::as_str)
+        .or_else(|| {
+            claim
+                .context
+                .repo_root
+                .as_ref()
+                .map(CoordinationRepository::as_str)
+        })
+        .unwrap_or("legacy-unknown-worktree");
+    let worktree_key = normalize_key(worktree_source)?;
+    let branch_key = normalize_key(
         claim
             .context
-            .project_id
-            .as_deref()
-            .or(claim.context.git_remote.as_deref())
-            .or(claim.context.repo_root.as_deref())
-            .unwrap_or("legacy-unknown-project"),
-    );
-    let repo_root_key = optional_key(claim.context.repo_root.as_deref());
-    let git_remote_key = optional_key(claim.context.git_remote.as_deref());
-    let worktree_key = normalize_key(
-        claim
-            .context
-            .worktree_root
-            .as_deref()
-            .or(claim.context.repo_root.as_deref())
-            .unwrap_or("legacy-unknown-worktree"),
-    );
-    let branch_key = normalize_key(claim.context.branch.as_deref().unwrap_or("unknown-branch"));
-    let owner_key = logical_owner_key(&claim.writer, &claim.context);
-    let path_keys: Vec<String> = match &claim_group {
-        Some(group) => vec![normalize_key(group)],
-        // CLONE-JUSTIFICATION: path keys are an independently-normalized
-        // lookup index retained alongside the original normalized paths.
-        None => paths.clone(),
+            .branch
+            .as_ref()
+            .map(CoordinationBranch::as_str)
+            .unwrap_or("unknown-branch"),
+    )?;
+    let owner_key = logical_owner_key(&claim.writer, &claim.context)?;
+    let path_keys: Vec<ClaimComparisonKey> = match &claim_group {
+        Some(group) => vec![normalize_key(group)?],
+        None => paths.iter().map(normalize_key).collect::<Result<_>>()?,
     };
     let global_keys = if lock_kind == LockKind::GlobalWriteLock {
         if !singleton_groups.is_empty() {
             unique(
                 singleton_groups
                     .iter()
-                    .map(|g| format!("{project_key}:{g}"))
-                    .collect(),
+                    .map(|group| normalize_key(&format!("{project_key}:{group}")))
+                    .collect::<Result<_>>()?,
             )
         } else {
             unique(
                 path_keys
                     .iter()
-                    .map(|p| format!("{project_key}:{p}"))
-                    .collect(),
+                    .map(|path| normalize_key(&format!("{project_key}:{path}")))
+                    .collect::<Result<_>>()?,
             )
         }
     } else {
@@ -351,22 +228,22 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
     let physical_keys = if lock_kind == LockKind::WriteLock {
         path_keys
             .iter()
-            .map(|p| format!("{project_key}:{worktree_key}:{p}"))
-            .collect()
+            .map(|path| normalize_key(&format!("{project_key}:{worktree_key}:{path}")))
+            .collect::<Result<_>>()?
     } else {
         Vec::new()
     };
     let branch_keys = if lock_kind == LockKind::BranchLease {
-        vec![format!("{project_key}:{branch_key}")]
+        vec![normalize_key(&format!("{project_key}:{branch_key}"))?]
     } else {
         path_keys
             .iter()
-            .map(|p| format!("{project_key}:{branch_key}:{p}"))
-            .collect()
+            .map(|path| normalize_key(&format!("{project_key}:{branch_key}:{path}")))
+            .collect::<Result<_>>()?
     };
     // CLONE-JUSTIFICATION: this value is a self-contained ledger snapshot;
     // callers retain the raw claim while comparisons retain this projection.
-    EnrichedClaim {
+    Ok(EnrichedClaim {
         writer: claim.writer.clone(),
         lane: claim.lane.clone(),
         paths,
@@ -388,45 +265,12 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         global_keys,
         physical_keys,
         branch_keys,
-        protected_singleton: !singleton_groups.is_empty(),
-    }
-}
-
-/// One of the 6 conflict classes.
-/// Domain conflict classification. Event and API rendering use
-/// [`ConflictType::as_str`] at their transport boundary rather than deriving
-/// a serialization contract on the conflict engine itself.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConflictType {
-    WriteLockConflict,
-    BranchWriteConflict,
-    GlobalWriteConflict,
-    BranchLeaseConflict,
-    MergeRisk,
-    WorkReservationOverlap,
-}
-
-impl ConflictType {
-    pub fn is_hard(self) -> bool {
-        matches!(
-            self,
-            Self::WriteLockConflict
-                | Self::BranchWriteConflict
-                | Self::GlobalWriteConflict
-                | Self::BranchLeaseConflict
-        )
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::WriteLockConflict => "write-lock-conflict",
-            Self::BranchWriteConflict => "branch-write-conflict",
-            Self::GlobalWriteConflict => "global-write-conflict",
-            Self::BranchLeaseConflict => "branch-lease-conflict",
-            Self::MergeRisk => "merge-risk",
-            Self::WorkReservationOverlap => "work-reservation-overlap",
-        }
-    }
+        protected_singleton: if singleton_groups.is_empty() {
+            ProtectedSingletonStatus::Ordinary
+        } else {
+            ProtectedSingletonStatus::Protected
+        },
+    })
 }
 
 /// A classified conflict between two claims. Ported from
@@ -434,14 +278,17 @@ impl ConflictType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conflict {
     pub kind: ConflictType,
-    pub paths: Vec<String>,
+    pub paths: Vec<ClaimPath>,
     pub lanes: [ClaimLane; 2],
     pub writers: [ClaimWriter; 2],
     pub event_ids: [ClaimEventId; 2],
 }
 
-fn overlapping(left: &[String], right: &[String]) -> Vec<String> {
-    let right_set: BTreeSet<&String> = right.iter().collect();
+fn overlapping(
+    left: &[ClaimComparisonKey],
+    right: &[ClaimComparisonKey],
+) -> Vec<ClaimComparisonKey> {
+    let right_set: BTreeSet<&ClaimComparisonKey> = right.iter().collect();
     unique(
         left.iter()
             .filter(|v| right_set.contains(v))
@@ -453,10 +300,10 @@ fn overlapping(left: &[String], right: &[String]) -> Vec<String> {
 fn paths_for_conflict(
     left: &EnrichedClaim,
     right: &EnrichedClaim,
-    path_keys: &[String],
-) -> Vec<String> {
-    let normalized: BTreeSet<&String> = path_keys.iter().collect();
-    let combined: Vec<String> = left
+    path_keys: &[ClaimComparisonKey],
+) -> Vec<ClaimPath> {
+    let normalized: BTreeSet<&str> = path_keys.iter().map(ClaimComparisonKey::as_str).collect();
+    let combined: Vec<ClaimPath> = left
         .paths
         .iter()
         .chain(right.paths.iter())
@@ -464,7 +311,7 @@ fn paths_for_conflict(
             if left.claim_group.is_some() || right.claim_group.is_some() {
                 true
             } else {
-                normalized.contains(entry)
+                normalized.contains(entry.as_str())
             }
         })
         .cloned()
@@ -482,41 +329,57 @@ fn paths_for_conflict(
     }
 }
 
-fn same_project(left: &EnrichedClaim, right: &EnrichedClaim) -> bool {
+fn same_project(left: &EnrichedClaim, right: &EnrichedClaim) -> CoordinationMatch {
     if left.project_key == right.project_key {
-        return true;
+        return CoordinationMatch::Matches;
     }
     if let (Some(l), Some(r)) = (&left.git_remote_key, &right.git_remote_key) {
         if l == r {
-            return true;
+            return CoordinationMatch::Matches;
         }
     }
-    matches!((&left.repo_root_key, &right.repo_root_key), (Some(l), Some(r)) if l == r)
+    if matches!((&left.repo_root_key, &right.repo_root_key), (Some(l), Some(r)) if l == r) {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
-fn same_worktree(left: &EnrichedClaim, right: &EnrichedClaim) -> bool {
-    left.worktree_key == right.worktree_key
+fn same_worktree(left: &EnrichedClaim, right: &EnrichedClaim) -> CoordinationMatch {
+    if left.worktree_key == right.worktree_key {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
-fn same_branch(left: &EnrichedClaim, right: &EnrichedClaim) -> bool {
-    left.branch_key == right.branch_key
+fn same_branch(left: &EnrichedClaim, right: &EnrichedClaim) -> CoordinationMatch {
+    if left.branch_key == right.branch_key {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
 /// Two claims share a logical owner (same codex thread/session within the
-/// same lane, or same derived owner key) — such pairs never conflict with
+/// same lane, or same derived owner key) â€” such pairs never conflict with
 /// each other. Ported from `lock-policy.js#sameLogicalOwner`.
-pub fn same_logical_owner(left: &EnrichedClaim, right: &EnrichedClaim) -> bool {
-    let left_thread = meaningful_owner_part(left.context.codex_thread_id.as_deref());
-    let right_thread = meaningful_owner_part(right.context.codex_thread_id.as_deref());
+pub fn same_logical_owner(left: &EnrichedClaim, right: &EnrichedClaim) -> CoordinationMatch {
+    let left_thread = meaningful_owner_part(left.context.codex_thread_id.as_ref());
+    let right_thread = meaningful_owner_part(right.context.codex_thread_id.as_ref());
     if left_thread.is_some() && left_thread == right_thread && left.lane == right.lane {
-        return true;
+        return CoordinationMatch::Matches;
     }
-    let left_session = meaningful_owner_part(left.context.codex_session_id.as_deref());
-    let right_session = meaningful_owner_part(right.context.codex_session_id.as_deref());
+    let left_session = meaningful_owner_part(left.context.codex_session_id.as_ref());
+    let right_session = meaningful_owner_part(right.context.codex_session_id.as_ref());
     if left_session.is_some() && left_session == right_session && left.lane == right.lane {
-        return true;
+        return CoordinationMatch::Matches;
     }
-    left.owner_key == right.owner_key
+    if left.owner_key == right.owner_key {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
 /// The classification result for a pair of claims. Ported from
@@ -535,7 +398,7 @@ fn make_conflict(
     kind: ConflictType,
     left: &EnrichedClaim,
     right: &EnrichedClaim,
-    paths: Vec<String>,
+    paths: Vec<ClaimPath>,
 ) -> Conflict {
     // CLONE-JUSTIFICATION: conflicts outlive the borrowed pair and expose
     // both actor identities in the durable coordination decision.
@@ -551,7 +414,7 @@ fn make_conflict(
 }
 
 /// Classify one pair of enriched claims into the 6 conflict classes. Ported
-/// from `lock-policy.js#classifyClaimPair` — control flow and precedence
+/// from `lock-policy.js#classifyClaimPair` â€” control flow and precedence
 /// order preserved exactly (global > same-path-same-worktree write >
 /// physical write > branch-lease > branch-write > merge-risk >
 /// work-reservation advisory).
@@ -578,7 +441,10 @@ pub fn classify_claim_pair(left: &EnrichedClaim, right: &EnrichedClaim) -> PairC
         ));
         return result;
     }
-    if !same_path.is_empty() && same_project(left, right) && same_worktree(left, right) {
+    if !same_path.is_empty()
+        && matches!(same_project(left, right), CoordinationMatch::Matches)
+        && matches!(same_worktree(left, right), CoordinationMatch::Matches)
+    {
         result.write_conflicts.push(make_conflict(
             ConflictType::WriteLockConflict,
             left,
@@ -605,10 +471,12 @@ pub fn classify_claim_pair(left: &EnrichedClaim, right: &EnrichedClaim) -> PairC
         ));
         return result;
     }
-    if same_path.is_empty() || !same_project(left, right) {
+    if same_path.is_empty() || !matches!(same_project(left, right), CoordinationMatch::Matches) {
         return result;
     }
-    if same_branch(left, right) && !same_worktree(left, right) {
+    if matches!(same_branch(left, right), CoordinationMatch::Matches)
+        && !matches!(same_worktree(left, right), CoordinationMatch::Matches)
+    {
         result.branch_write_conflicts.push(make_conflict(
             ConflictType::BranchWriteConflict,
             left,
@@ -617,7 +485,7 @@ pub fn classify_claim_pair(left: &EnrichedClaim, right: &EnrichedClaim) -> PairC
         ));
         return result;
     }
-    if !same_branch(left, right) {
+    if !matches!(same_branch(left, right), CoordinationMatch::Matches) {
         result.merge_risks.push(make_conflict(
             ConflictType::MergeRisk,
             left,
@@ -648,9 +516,14 @@ pub struct RequestDecision {
     pub blockers: Vec<Conflict>,
 }
 
-fn request_has_explicit_owner(context: &ClaimContext) -> bool {
-    meaningful_owner_part(context.explicit_codex_thread_id.as_deref()).is_some()
-        || meaningful_owner_part(context.explicit_codex_session_id.as_deref()).is_some()
+fn request_has_explicit_owner(context: &ClaimContext) -> CoordinationMatch {
+    if meaningful_owner_part(context.explicit_codex_thread_id.as_ref()).is_some()
+        || meaningful_owner_part(context.explicit_codex_session_id.as_ref()).is_some()
+    {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
 /// Compute the blockers for a claim request against the set of currently
@@ -666,10 +539,17 @@ pub fn blockers_for_request(
     let mut advisories = Vec::new();
 
     for active in active_claims {
-        if same_logical_owner(active, request) {
+        if matches!(
+            same_logical_owner(active, request),
+            CoordinationMatch::Matches
+        ) {
             continue;
         }
-        if !request_has_explicit_owner(&request.context) && active.lane == request.lane {
+        if !matches!(
+            request_has_explicit_owner(&request.context),
+            CoordinationMatch::Matches
+        ) && active.lane == request.lane
+        {
             continue;
         }
         let conflicts = classify_claim_pair(active, request);
@@ -711,280 +591,38 @@ pub fn blockers_for_request(
 
 /// Two normalized paths "overlap" if equal or one is a directory-prefix of
 /// the other. Ported from `lock-policy.js#pathOverlaps`.
-pub fn path_overlaps(left: &str, right: &str) -> bool {
-    left == right
-        || left.starts_with(&format!("{right}/"))
-        || right.starts_with(&format!("{left}/"))
+pub fn path_overlaps(left: &ClaimPath, right: &ClaimPath) -> CoordinationMatch {
+    if left == right
+        || left.as_str().starts_with(&format!("{right}/"))
+        || right.as_str().starts_with(&format!("{left}/"))
+    {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
 /// Does a conflict touch any of the given changed paths? Ported from
 /// `lock-policy.js#conflictTouchesPaths`.
-pub fn conflict_touches_paths(conflict: &Conflict, changed_paths: &[String]) -> bool {
-    let normalized: Vec<String> = changed_paths
+pub fn conflict_touches_paths(
+    conflict: &Conflict,
+    changed_paths: &[ClaimPath],
+) -> Result<CoordinationMatch> {
+    let normalized: Vec<ClaimPath> = changed_paths
         .iter()
-        .map(|p| normalize_coordination_path(p))
-        .filter(|p| !p.is_empty())
-        .collect();
-    conflict.paths.iter().any(|conflict_path| {
-        let cp = normalize_coordination_path(conflict_path);
-        normalized.iter().any(|changed| path_overlaps(changed, &cp))
+        .map(normalize_coordination_path)
+        .collect::<Result<_>>()?;
+    let touches = conflict.paths.iter().any(|conflict_path| {
+        normalized.iter().any(|changed| {
+            matches!(
+                path_overlaps(changed, conflict_path),
+                CoordinationMatch::Matches
+            )
+        })
+    });
+    Ok(if touches {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        blockers_for_request, classify_claim_pair, enrich_claim, same_logical_owner, ClaimContext,
-        ConflictType, LockKind, Operation, RawClaim,
-    };
-
-    fn ctx(project: &str, worktree: &str, branch: &str) -> ClaimContext {
-        ClaimContext {
-            project_id: Some(project.to_owned()),
-            worktree_root: Some(worktree.to_owned()),
-            branch: Some(branch.to_owned()),
-            ..Default::default()
-        }
-    }
-
-    fn claim(writer: &str, lane: &str, paths: &[&str], context: ClaimContext) -> RawClaim {
-        RawClaim {
-            writer: writer.to_owned().into(),
-            lane: lane.to_owned().into(),
-            paths: paths.iter().map(|p| p.to_string()).collect(),
-            event_id: format!("evt_{writer}").into(),
-            reason: None,
-            context,
-        }
-    }
-
-    #[test]
-    fn same_path_same_worktree_different_owners_is_write_lock_conflict() {
-        let a = enrich_claim(
-            &claim(
-                "node1.laneA",
-                "laneA",
-                &["src/lib.rs"],
-                ctx("proj", "wt1", "main"),
-            ),
-            true,
-        );
-        let b = enrich_claim(
-            &claim(
-                "node2.laneB",
-                "laneB",
-                &["src/lib.rs"],
-                ctx("proj", "wt1", "main"),
-            ),
-            true,
-        );
-        let conflicts = classify_claim_pair(&a, &b);
-        assert_eq!(conflicts.write_conflicts.len(), 1);
-        assert_eq!(
-            conflicts.write_conflicts[0].kind,
-            ConflictType::WriteLockConflict
-        );
-        assert!(conflicts.merge_risks.is_empty());
-    }
-
-    #[test]
-    fn different_worktrees_different_branches_is_only_merge_risk() {
-        let a = enrich_claim(
-            &claim(
-                "node1.laneA",
-                "laneA",
-                &["src/lib.rs"],
-                ctx("proj", "wt1", "feature-a"),
-            ),
-            true,
-        );
-        let b = enrich_claim(
-            &claim(
-                "node2.laneB",
-                "laneB",
-                &["src/lib.rs"],
-                ctx("proj", "wt2", "feature-b"),
-            ),
-            true,
-        );
-        let conflicts = classify_claim_pair(&a, &b);
-        assert!(conflicts.write_conflicts.is_empty());
-        assert!(conflicts.global_write_conflicts.is_empty());
-        assert!(conflicts.branch_write_conflicts.is_empty());
-        assert_eq!(conflicts.merge_risks.len(), 1);
-        assert_eq!(conflicts.merge_risks[0].kind, ConflictType::MergeRisk);
-    }
-
-    #[test]
-    fn work_reservation_tail_branch_is_unreachable_given_same_worktree_write_lock_precedence() {
-        // DEVIATION NOTE (flagged, not silently "fixed"): the arc-16
-        // workpack's own acceptance row says "two `workReservation` claims
-        // on the same-branch overlapping path -> `work-reservation-overlap`
-        // advisory only (never a blocker)". Reading `lock-policy.js`
-        // line-by-line (`classifyClaimPair`, lines 280-330) shows this is
-        // NOT reachable as written in the vendored source: line 302
-        // (`samePath && sameProject && sameWorktree` -> write-lock-conflict)
-        // fires unconditionally on lock kind whenever two claims share both
-        // path and worktree, and line 317
-        // (`sameBranch && !sameWorktree` -> branch-write-conflict) fires
-        // whenever they share a branch but NOT a worktree. There is no
-        // remaining `(samePath, sameProject, sameBranch, sameWorktree)`
-        // combination left over for line 327's work-reservation tail to
-        // execute for same-path claims — the vendored JS itself cannot
-        // produce a `work-reservation-overlap` for two exact-file claims
-        // that share a path, only for `claimGroup`-based claims where
-        // `pathKeys` overlaps but `paths` differ in a way that also evades
-        // the branch-write-conflict guard (a narrower case than the
-        // workpack fixture describes). This Rust port reproduces the
-        // vendored precedence EXACTLY (byte-for-byte control flow), so it
-        // inherits the same reachability gap rather than silently
-        // "fixing" behavior the workpack didn't ask this pass to change.
-        // Recorded as a deviation for primary review, not resolved here.
-        let mut context_a = ctx("proj", "wt1", "main");
-        context_a.lock_kind = Some("workReservation".to_owned());
-        let mut context_b = ctx("proj", "wt1", "main");
-        context_b.lock_kind = Some("workReservation".to_owned());
-        let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_a),
-            true,
-        );
-        let b = enrich_claim(
-            &claim("node2.laneB", "laneB", &["src/lib.rs"], context_b),
-            true,
-        );
-        let conflicts = classify_claim_pair(&a, &b);
-        assert_eq!(
-            conflicts.write_conflicts.len(),
-            1,
-            "matches vendored precedence: same-path-same-worktree is write-lock-conflict regardless of lock kind"
-        );
-        assert!(conflicts.advisories.is_empty());
-    }
-
-    #[test]
-    fn protected_singleton_escalates_across_worktrees_to_global_conflict() {
-        let a = enrich_claim(
-            &claim(
-                "node1.laneA",
-                "laneA",
-                &["Cargo.lock"],
-                ctx("proj", "wt1", "feature-a"),
-            ),
-            true,
-        );
-        let b = enrich_claim(
-            &claim(
-                "node2.laneB",
-                "laneB",
-                &["Cargo.lock"],
-                ctx("proj", "wt2", "feature-b"),
-            ),
-            true,
-        );
-        assert!(a.protected_singleton);
-        assert_eq!(a.lock_kind, LockKind::GlobalWriteLock);
-        let conflicts = classify_claim_pair(&a, &b);
-        assert_eq!(conflicts.global_write_conflicts.len(), 1);
-        assert_eq!(
-            conflicts.global_write_conflicts[0].kind,
-            ConflictType::GlobalWriteConflict
-        );
-    }
-
-    #[test]
-    fn distinct_ordinary_files_on_different_branches_do_not_conflict_at_all() {
-        // Different (non-overlapping) paths never share a `pathKeys` entry,
-        // so `samePath` is empty and classifyClaimPair returns an empty
-        // result (no merge-risk either — merge-risk requires the SAME path
-        // on different branches). This also proves protected-singleton
-        // escalation is genuinely path-triggered, not project-wide: two
-        // ordinary (non-singleton) files from the same two claimants
-        // produce nothing.
-        let a = enrich_claim(
-            &claim(
-                "node1.laneA",
-                "laneA",
-                &["src/a.rs"],
-                ctx("proj", "wt1", "feature-a"),
-            ),
-            true,
-        );
-        let b = enrich_claim(
-            &claim(
-                "node2.laneB",
-                "laneB",
-                &["src/b.rs"],
-                ctx("proj", "wt2", "feature-b"),
-            ),
-            true,
-        );
-        let conflicts = classify_claim_pair(&a, &b);
-        assert!(conflicts.global_write_conflicts.is_empty());
-        assert!(conflicts.write_conflicts.is_empty());
-        assert!(conflicts.merge_risks.is_empty());
-        assert!(conflicts.advisories.is_empty());
-    }
-
-    #[test]
-    fn pr_ready_operation_blocks_on_merge_risk_unless_allowed() {
-        let active = enrich_claim(
-            &claim(
-                "node1.laneA",
-                "laneA",
-                &["src/lib.rs"],
-                ctx("proj", "wt1", "feature-a"),
-            ),
-            true,
-        );
-        let request = enrich_claim(
-            &claim(
-                "node2.laneB",
-                "laneB",
-                &["src/lib.rs"],
-                ctx("proj", "wt2", "feature-b"),
-            ),
-            true,
-        );
-        let decision = blockers_for_request(&[active], &request, Operation::PrReady);
-        assert_eq!(decision.blockers.len(), 1);
-        assert_eq!(decision.blockers[0].kind, ConflictType::MergeRisk);
-    }
-
-    #[test]
-    fn push_operation_only_blocks_on_branch_lease_conflicts() {
-        let mut lease_ctx = ctx("proj", "wt1", "main");
-        lease_ctx.lock_kind = Some("branchLease".to_owned());
-        let active = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], lease_ctx),
-            true,
-        );
-        let mut request_ctx = ctx("proj", "wt2", "main");
-        request_ctx.lock_kind = Some("branchLease".to_owned());
-        let request = enrich_claim(
-            &claim("node2.laneB", "laneB", &["other.rs"], request_ctx),
-            true,
-        );
-        let decision = blockers_for_request(&[active], &request, Operation::Push);
-        assert_eq!(decision.blockers.len(), 1);
-        assert_eq!(decision.blockers[0].kind, ConflictType::BranchLeaseConflict);
-    }
-
-    #[test]
-    fn same_logical_owner_never_conflicts() {
-        let mut context_a = ctx("proj", "wt1", "main");
-        context_a.codex_thread_id = Some("thread-1".to_owned());
-        let mut context_b = ctx("proj", "wt1", "main");
-        context_b.codex_thread_id = Some("thread-1".to_owned());
-        let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_a),
-            true,
-        );
-        let b = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_b),
-            true,
-        );
-        assert!(same_logical_owner(&a, &b));
-        let decision = blockers_for_request(&[a], &b, Operation::Edit);
-        assert!(decision.blockers.is_empty());
-    }
 }

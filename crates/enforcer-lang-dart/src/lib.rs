@@ -95,6 +95,8 @@ mod registry_smoke {
 
     use std::collections::BTreeSet;
 
+    use enforcer_domain::ids::BuiltInDartRule;
+
     use crate::all_validators;
 
     #[test]
@@ -118,6 +120,14 @@ mod registry_smoke {
                 "duplicate rule id `{rule_id}` registered twice"
             );
         }
+        let expected = BuiltInDartRule::ALL
+            .into_iter()
+            .map(|rule| rule.id().to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            seen, expected,
+            "the Dart validator registry must exactly match the canonical domain catalogue"
+        );
         Ok(())
     }
 }

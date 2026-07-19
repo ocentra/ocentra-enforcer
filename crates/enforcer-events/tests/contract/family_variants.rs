@@ -1,16 +1,16 @@
 use super::support::TestText;
+use enforcer_domain::events_types::{
+    AggregateKey, CorrelationId, EventCustody, EventErrorReason, EventType, IdempotencyKey,
+    RecordedAt, RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService,
+    SubscriberId, TargetHandler,
+};
 use enforcer_events::bus::subscriber::EventSubscriber;
 use enforcer_events::bus::EventBus;
 use enforcer_events::contract_registry::EventContractRegistry;
 use enforcer_events::envelope::{
-    DomainEvent, EventContract, EventEnvelope, EventMetadata, EventSource,
+    DomainEvent, EventContract, EventFrame, EventMetadata, EventSource,
 };
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
-    AggregateKey, CorrelationId, EventCustody, EventType, IdempotencyKey, RecordedAt,
-    RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService, SubscriberId,
-    TargetHandler,
-};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
@@ -36,8 +36,8 @@ const REJECTED_SUBSCRIBER: &str = "family-rejected-subscriber";
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct DecisionPayload {
     label: String,
-    aggregate_key: AggregateKey,
-    idempotency_key: IdempotencyKey,
+    aggregate_key: String,
+    idempotency_key: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,16 +55,18 @@ impl DomainEvent for DecisionFamilyEvent {
         };
         Ok(EventContract::new(
             EventType::parse(event_type)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        Ok(decision_payload(self).aggregate_key.clone())
+        Ok(AggregateKey::parse(&decision_payload(self).aggregate_key)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        Ok(decision_payload(self).idempotency_key.clone())
+        Ok(IdempotencyKey::parse(
+            &decision_payload(self).idempotency_key,
+        )?)
     }
 }
 
@@ -85,8 +87,12 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
             async move {
                 let DecisionFamilyEvent::Approved(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
-                        field: "family_variant",
-                        value: String::from("approved subscriber received a non-approved variant"),
+                        field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                            "family_variant",
+                        ),
+                        value: EventErrorReason::parse(
+                            "approved subscriber received a non-approved variant",
+                        )?,
                     });
                 };
                 record_payload(&approved_seen, payload)
@@ -106,8 +112,12 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
             async move {
                 let DecisionFamilyEvent::Rejected(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
-                        field: "family_variant",
-                        value: String::from("rejected subscriber received a non-rejected variant"),
+                        field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                            "family_variant",
+                        ),
+                        value: EventErrorReason::parse(
+                            "rejected subscriber received a non-rejected variant",
+                        )?,
                     });
                 };
                 record_payload(&rejected_seen, payload)
@@ -135,11 +145,11 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
 #[test]
 fn family_variant_stored_decode_rejects_contract_variant_mismatch(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let envelope = EventEnvelope::from_event(approved_event()?, family_metadata()?)?;
+    let envelope = EventFrame::from_event(approved_event()?, family_metadata()?)?;
     let mut stored = envelope.store()?;
     stored.contract = EventContract::new(
         EventType::parse(REJECTED_EVENT_TYPE)?,
-        SchemaVersion::new(1)?,
+        SchemaVersion::try_new(std::num::NonZeroU16::MIN),
     );
 
     assert!(matches!(
@@ -173,16 +183,16 @@ fn family_variants_register_as_distinct_contract_descriptors(
 fn approved_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(DecisionFamilyEvent::Approved(DecisionPayload {
         label: APPROVED_LABEL.to_string(),
-        aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
-        idempotency_key: IdempotencyKey::parse(APPROVED_IDEMPOTENCY)?,
+        aggregate_key: FAMILY_AGGREGATE.to_owned(),
+        idempotency_key: APPROVED_IDEMPOTENCY.to_owned(),
     }))
 }
 
 fn rejected_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(DecisionFamilyEvent::Rejected(DecisionPayload {
         label: REJECTED_LABEL.to_string(),
-        aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
-        idempotency_key: IdempotencyKey::parse(REJECTED_IDEMPOTENCY)?,
+        aggregate_key: FAMILY_AGGREGATE.to_owned(),
+        idempotency_key: REJECTED_IDEMPOTENCY.to_owned(),
     }))
 }
 
@@ -198,8 +208,8 @@ fn record_payload(
 ) -> Result<(), EventingError> {
     let Ok(mut guard) = received.lock() else {
         return Err(EventingError::InvalidValue {
-            field: "received",
-            value: String::from("mutex poisoned"),
+            field: enforcer_domain::events_types::EventErrorField::from_diagnostic("received"),
+            value: EventErrorReason::parse("mutex poisoned")?,
         });
     };
     guard.push(TestText(payload.label.clone()));
@@ -208,7 +218,7 @@ fn record_payload(
 
 fn family_metadata() -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
-        enforcer_events::ids::EventId::parse(FAMILY_EVENT_ID)?,
+        enforcer_domain::events_types::EventId::parse(FAMILY_EVENT_ID)?,
         CorrelationId::parse(FAMILY_CORRELATION)?,
         EventSource::new(
             EventCustody::parse(FAMILY_CUSTODY)?,
@@ -227,8 +237,8 @@ fn family_subscriber(
     event_type: TestText,
 ) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSubscriber::new(
-        SubscriberId::parse(id.0)?,
-        EventType::parse(event_type.0)?,
+        SubscriberId::parse(&{ id.0 })?,
+        EventType::parse(&{ event_type.0 })?,
         TargetHandler::parse(FAMILY_TARGET)?,
     ))
 }

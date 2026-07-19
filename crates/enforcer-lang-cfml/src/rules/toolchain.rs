@@ -9,11 +9,12 @@
 //! `enforcer-lang-dart::rules::toolchain`'s posture for `pubspec.yaml`/CI.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInCfmlRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::support::{finding, FindingSpec};
+use super::boundary::decode_json;
+use super::support::FindingSpec;
 
 const HARD_GATE_CODES: &[&str] = &["MISSING_VAR", "QUERYPARAM_REQ"];
 
@@ -21,14 +22,16 @@ const HARD_GATE_CODES: &[&str] = &["MISSING_VAR", "QUERYPARAM_REQ"];
 /// hard-gate CFLint code set to `ERROR` severity. Fires on a `.cflintrc`
 /// file where a tracked hard-gate code is present but NOT set to `ERROR`
 /// (e.g. left at the CFLint default `WARNING`).
+#[derive(Debug)]
 pub struct CflintrcHardGateValidator {
     rule_id: RuleId,
 }
 
 impl CflintrcHardGateValidator {
+    /// Construct the CFLint configuration validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CF-TOOL-1.1".parse()?,
+            rule_id: BuiltInCfmlRule::CflintrcHardGate.id(),
         })
     }
 }
@@ -42,17 +45,16 @@ impl Validator for CflintrcHardGateValidator {
         if !input.file.as_str().ends_with(".cflintrc") {
             return Vec::new();
         }
-        let parsed: Result<serde_json::Value, _> = serde_json::from_str(input.source);
+        let parsed = decode_json(input.source);
         let Ok(value) = parsed else {
-            return vec![finding(
+            return vec![finding!(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Error,
-                    title: ".cflintrc is not valid JSON",
+                    rule: BuiltInCfmlRule::CflintrcHardGate,
                 },
                 "`.cflintrc` could not be parsed as JSON -- it must be valid JSON declaring \
-                 rule severities."
-                    .to_owned(),
+                 rule severities.",
                 &input,
                 1,
             )];
@@ -68,11 +70,11 @@ impl Validator for CflintrcHardGateValidator {
                 .and_then(|entry| entry.get("severity"))
                 .and_then(|s| s.as_str());
             if severity != Some("ERROR") {
-                return vec![finding(
+                return vec![finding!(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
-                        title: ".cflintrc hard-gate code not set to ERROR",
+                        rule: BuiltInCfmlRule::CflintrcHardGate,
                     },
                     format!(
                         "`.cflintrc` must set the hard-gate CFLint code `{code}` to `ERROR` \
@@ -89,14 +91,16 @@ impl Validator for CflintrcHardGateValidator {
 
 /// `CF-DEP-1.1` -- pinned deps in `box.json`: no `"*"`/`"^"` wildcard
 /// version range.
+#[derive(Debug)]
 pub struct PinnedDependencyValidator {
     rule_id: RuleId,
 }
 
 impl PinnedDependencyValidator {
+    /// Construct the pinned-dependency validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CF-DEP-1.1".parse()?,
+            rule_id: BuiltInCfmlRule::PinnedDependency.id(),
         })
     }
 }
@@ -110,7 +114,7 @@ impl Validator for PinnedDependencyValidator {
         if !input.file.as_str().ends_with("box.json") {
             return Vec::new();
         }
-        let parsed: Result<serde_json::Value, _> = serde_json::from_str(input.source);
+        let parsed = decode_json(input.source);
         let Ok(value) = parsed else {
             return Vec::new();
         };
@@ -122,11 +126,11 @@ impl Validator for PinnedDependencyValidator {
                 continue;
             };
             if version_str.contains('*') || version_str.starts_with('^') {
-                return vec![finding(
+                return vec![finding!(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
-                        title: "box.json dependency uses a wildcard/range version",
+                        rule: BuiltInCfmlRule::PinnedDependency,
                     },
                     format!(
                         "`box.json` dependency `{name}` is pinned to `{version_str}`, a \
@@ -145,14 +149,16 @@ impl Validator for PinnedDependencyValidator {
 /// `testbox.system.BaseSpec`. This validator's scope is the SPEC file
 /// itself: a `*Test.cfc`/`*Spec.cfc` file that does not `extends=` a
 /// `BaseSpec` is a violation.
+#[derive(Debug)]
 pub struct TestboxBaseSpecValidator {
     rule_id: RuleId,
 }
 
 impl TestboxBaseSpecValidator {
+    /// Construct the TestBox base-spec validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CF-TEST-1.1".parse()?,
+            rule_id: BuiltInCfmlRule::TestboxBaseSpec.id(),
         })
     }
 }
@@ -168,16 +174,19 @@ impl Validator for TestboxBaseSpecValidator {
         if !is_spec_file {
             return Vec::new();
         }
-        if input.source.contains("extends=\"testbox.system.BaseSpec\"")
-            || input.source.contains("extends=\"BaseSpec\"")
+        if input
+            .source
+            .as_str()
+            .contains("extends=\"testbox.system.BaseSpec\"")
+            || input.source.as_str().contains("extends=\"BaseSpec\"")
         {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "TestBox spec does not extend BaseSpec",
+                rule: BuiltInCfmlRule::TestboxBaseSpec,
             },
             format!(
                 "`{path}` is a TestBox spec but does not `extends=\"testbox.system.BaseSpec\"` \
@@ -190,14 +199,16 @@ impl Validator for TestboxBaseSpecValidator {
 }
 
 /// `CF-TOOL-2.1` (scored) -- cfformat `format:check` step present in CI.
+#[derive(Debug)]
 pub struct CfformatCiStepValidator {
     rule_id: RuleId,
 }
 
 impl CfformatCiStepValidator {
+    /// Construct the CFFormat CI-step validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CF-TOOL-2.1".parse()?,
+            rule_id: BuiltInCfmlRule::CfformatCiStep.id(),
         })
     }
 }
@@ -213,18 +224,17 @@ impl Validator for CfformatCiStepValidator {
         if !is_ci_file {
             return Vec::new();
         }
-        if input.source.contains("format:check") {
+        if input.source.as_str().contains("format:check") {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "CI has no cfformat format:check step (scored)",
+                rule: BuiltInCfmlRule::CfformatCiStep,
             },
             "This CI workflow has no `format:check` (cfformat) step -- add one so formatting \
-             drift is caught in CI."
-                .to_owned(),
+             drift is caught in CI.",
             &input,
             1,
         )]
@@ -233,14 +243,16 @@ impl Validator for CfformatCiStepValidator {
 
 /// `CF-CI-2.1` (scored) -- TestBox coverage floor >= 70% wired as a
 /// failing threshold.
+#[derive(Debug)]
 pub struct CoverageFloorValidator {
     rule_id: RuleId,
 }
 
 impl CoverageFloorValidator {
+    /// Construct the coverage-floor validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CF-CI-2.1".parse()?,
+            rule_id: BuiltInCfmlRule::CoverageFloor.id(),
         })
     }
 }
@@ -256,7 +268,7 @@ impl Validator for CoverageFloorValidator {
         if !is_coverage_config {
             return Vec::new();
         }
-        let parsed: Result<serde_json::Value, _> = serde_json::from_str(input.source);
+        let parsed = decode_json(input.source);
         let Ok(value) = parsed else {
             return Vec::new();
         };
@@ -269,15 +281,14 @@ impl Validator for CoverageFloorValidator {
         if has_fail_floor {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "TestBox coverage has no >=70% failing floor (scored)",
+                rule: BuiltInCfmlRule::CoverageFloor,
             },
             "This TestBox coverage config has no `coverage.failFloor` at/above 70 -- wire a \
-             failing coverage floor plus pre-commit/pre-push hooks."
-                .to_owned(),
+             failing coverage floor plus pre-commit/pre-push hooks.",
             &input,
             1,
         )]

@@ -8,6 +8,11 @@ use std::collections::{BTreeSet, HashMap};
 use sha2::{Digest, Sha256};
 
 use crate::parsers;
+use enforcer_domain::memory_types::{
+    ComplexitySourceBytes, GraphSourceLine, MemoryFingerprintBodyGram, MemoryFingerprintHashCount,
+    MemoryFingerprintLexeme, MemoryFingerprintLexemes, MemoryFingerprintSourceHash,
+    MemoryFingerprintValue, ParsedSymbolName, ParserSourceText, SnippetByteOffset,
+};
 
 const MINHASH_K: usize = 64;
 const MINHASH_MIN_TOKENS: usize = 30;
@@ -16,16 +21,16 @@ const MINHASH_HEX_LEN: usize = MINHASH_K * 8;
 /// Persisted source/body evidence for callable similarity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceBodyFingerprint {
-    pub source_hash: String,
-    pub fp: Option<String>,
-    pub k: Option<usize>,
-    pub body_grams: BTreeSet<String>,
+    pub source_hash: MemoryFingerprintSourceHash,
+    pub fp: Option<MemoryFingerprintValue>,
+    pub k: Option<MemoryFingerprintHashCount>,
+    pub body_grams: BTreeSet<MemoryFingerprintBodyGram>,
 }
 
 pub(crate) fn source_body_fingerprints_for_symbols(
-    text: &str,
+    text: ParserSourceText<'_>,
     symbols: &[parsers::SymbolRef],
-) -> HashMap<(String, usize), SourceBodyFingerprint> {
+) -> HashMap<(ParsedSymbolName, GraphSourceLine), SourceBodyFingerprint> {
     let mut ordered: Vec<&parsers::SymbolRef> = symbols
         .iter()
         .filter(|symbol| {
@@ -47,47 +52,54 @@ pub(crate) fn source_body_fingerprints_for_symbols(
         if let Some(fingerprint) =
             source_body_fingerprint(text, &line_offsets, symbol.line, next_line)
         {
+            // CLONE-JUSTIFICATION: the ordered parser view is borrowed from the
+            // source document; the fingerprint map must own each key after this
+            // loop returns.
             fingerprints.insert((symbol.name.clone(), symbol.line), fingerprint);
         }
     }
     fingerprints
 }
 
-pub(crate) fn hash_bytes(bytes: &[u8]) -> String {
+pub(crate) fn hash_bytes(bytes: ComplexitySourceBytes<'_>) -> MemoryFingerprintSourceHash {
     let mut hasher = Sha256::new();
-    hasher.update(bytes);
+    hasher.update(bytes.as_bytes());
     let digest = hasher.finalize();
     let mut encoded = String::with_capacity(digest.len() * 2);
     for byte in digest {
         encoded.push_str(&format!("{byte:02x}"));
     }
-    encoded
+    encoded.into()
 }
 
-fn line_start_offsets(text: &str) -> Vec<usize> {
-    let mut offsets = vec![0];
-    for (index, byte) in text.bytes().enumerate() {
+fn line_start_offsets(text: ParserSourceText<'_>) -> Vec<SnippetByteOffset> {
+    let mut offsets = vec![0usize.into()];
+    for (index, byte) in text.as_str().bytes().enumerate() {
         if byte == b'\n' {
-            offsets.push(index + 1);
+            offsets.push((index + 1).into());
         }
     }
     offsets
 }
 
 fn source_body_fingerprint(
-    text: &str,
-    line_offsets: &[usize],
-    start_line: usize,
-    next_line: Option<usize>,
+    text: ParserSourceText<'_>,
+    line_offsets: &[SnippetByteOffset],
+    start_line: GraphSourceLine,
+    next_line: Option<GraphSourceLine>,
 ) -> Option<SourceBodyFingerprint> {
-    let start = line_offsets.get(start_line.saturating_sub(1)).copied()?;
+    let start = line_offsets
+        .get(start_line.get().saturating_sub(1))
+        .copied()?
+        .get();
     let end = next_line
-        .and_then(|line| line_offsets.get(line.saturating_sub(1)).copied())
-        .unwrap_or(text.len());
-    if start >= end || end > text.len() {
+        .and_then(|line| line_offsets.get(line.get().saturating_sub(1)).copied())
+        .map(SnippetByteOffset::get)
+        .unwrap_or(text.as_str().len());
+    if start >= end || end > text.as_str().len() {
         return None;
     }
-    let window = text.get(start..end)?;
+    let window = text.as_str().get(start..end).map(ParserSourceText::from)?;
     let body = braced_body(window).unwrap_or(window);
     let tokens = normalize_source_tokens(body);
     if tokens.is_empty() {
@@ -104,14 +116,15 @@ fn source_body_fingerprint(
         .map(|trigrams| minhash_hex(&trigrams));
     let fingerprint_k = fingerprint.as_ref().map(|_| MINHASH_K);
     Some(SourceBodyFingerprint {
-        source_hash: hash_bytes(normalized.as_bytes()),
-        fp: fingerprint,
-        k: fingerprint_k,
-        body_grams,
+        source_hash: hash_bytes(ComplexitySourceBytes::from(normalized.as_bytes())),
+        fp: fingerprint.map(Into::into),
+        k: fingerprint_k.map(Into::into),
+        body_grams: body_grams.into_iter().map(Into::into).collect(),
     })
 }
 
-fn braced_body(window: &str) -> Option<&str> {
+fn braced_body(window: ParserSourceText<'_>) -> Option<ParserSourceText<'_>> {
+    let window = window.as_str();
     let open = window.find('{')?;
     let mut depth = 0usize;
     for (offset, character) in window.get(open..)?.char_indices() {
@@ -120,7 +133,9 @@ fn braced_body(window: &str) -> Option<&str> {
             '}' => {
                 depth = depth.saturating_sub(1);
                 if depth == 0 {
-                    return window.get(open + 1..open + offset);
+                    return window
+                        .get(open + 1..open + offset)
+                        .map(ParserSourceText::from);
                 }
             }
             _ => {}
@@ -129,23 +144,23 @@ fn braced_body(window: &str) -> Option<&str> {
     None
 }
 
-fn normalize_source_tokens(body: &str) -> Vec<String> {
+fn normalize_source_tokens(body: ParserSourceText<'_>) -> MemoryFingerprintLexemes {
     let mut tokens = Vec::new();
     let mut current = String::new();
-    for character in body.chars() {
+    for character in body.as_str().chars() {
         if character.is_ascii_alphanumeric() || character == '_' {
             current.push(character.to_ascii_lowercase());
         } else if !current.is_empty() {
-            tokens.push(std::mem::take(&mut current));
+            tokens.push(MemoryFingerprintLexeme::from(std::mem::take(&mut current)));
         }
     }
     if !current.is_empty() {
-        tokens.push(current);
+        tokens.push(MemoryFingerprintLexeme::from(current));
     }
-    tokens
+    tokens.into()
 }
 
-fn structural_trigrams(tokens: &[String]) -> Vec<String> {
+fn structural_trigrams(tokens: &[MemoryFingerprintLexeme]) -> Vec<String> {
     tokens
         .windows(3)
         .map(|window| format!("{}|{}|{}", window[0], window[1], window[2]))

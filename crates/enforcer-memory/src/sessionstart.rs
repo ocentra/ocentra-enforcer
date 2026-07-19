@@ -21,12 +21,17 @@
 
 use crate::graph::MemoryGraph;
 use crate::learning::active_lessons;
+use crate::owned_boundary::RetainedDisplay;
+use enforcer_domain::memory_types::{
+    MemorySessionActiveLessonCount, MemorySessionIncidentCount, MemorySessionLessonId,
+    MemorySessionRecallLimit, MemorySessionRecallText,
+};
 
 /// One line of the recall pack's active-lesson digest.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActiveLessonSummary {
-    pub lesson_id: String,
-    pub incident_count: usize,
+    pub lesson_id: MemorySessionLessonId,
+    pub incident_count: MemorySessionIncidentCount,
 }
 
 /// The bounded, deterministic memory payload a SessionStart hook would
@@ -38,7 +43,7 @@ pub struct RecallPack {
     pub active_lessons: Vec<ActiveLessonSummary>,
     /// How many active lessons exist in total (before the `limit` cap),
     /// so a caller rendering only the top N can still say "+N more".
-    pub total_active_lessons: usize,
+    pub total_active_lessons: MemorySessionActiveLessonCount,
 }
 
 impl RecallPack {
@@ -47,11 +52,11 @@ impl RecallPack {
     /// here (not in `enforcer-install`) because it is a pure function of
     /// the pack's own data -- the hook-wiring crate only needs to embed
     /// this string, not reimplement its formatting.
-    pub fn render(&self) -> String {
+    pub fn render(&self) -> MemorySessionRecallText {
         if self.active_lessons.is_empty() {
-            return "enforcer-memory: no active (landed) lessons recorded yet.".to_string();
+            return "enforcer-memory: no active (landed) lessons recorded yet.".into();
         }
-        let mut lines = vec!["enforcer-memory active lessons:".to_string()];
+        let mut lines = vec!["enforcer-memory active lessons:".retained_display()];
         for summary in &self.active_lessons {
             lines.push(format!(
                 "- {} ({} incident{} observed)",
@@ -62,17 +67,14 @@ impl RecallPack {
         }
         let shown = self.active_lessons.len();
         if self.total_active_lessons > shown {
+            let hidden = self.total_active_lessons.get() - shown;
             lines.push(format!(
                 "- (+{} more active lesson{})",
-                self.total_active_lessons - shown,
-                if self.total_active_lessons - shown == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                hidden,
+                if hidden == 1 { "" } else { "s" }
             ));
         }
-        lines.join("\n")
+        lines.join("\n").into()
     }
 }
 
@@ -81,7 +83,8 @@ impl RecallPack {
 /// empty digest with an accurate `total_active_lessons` count -- never
 /// an error, since "how many lessons are active" is still meaningful
 /// even with a zero-size digest.
-pub fn recall_pack(graph: &MemoryGraph, limit: usize) -> RecallPack {
+pub fn recall_pack(graph: &MemoryGraph, limit: impl Into<MemorySessionRecallLimit>) -> RecallPack {
+    let limit = limit.into().get();
     let mut ids = active_lessons(graph);
     // Most-recently-landed first: `active_lessons` returns graph
     // insertion order (oldest first), so reverse for a "what's newest"
@@ -92,12 +95,12 @@ pub fn recall_pack(graph: &MemoryGraph, limit: usize) -> RecallPack {
         .into_iter()
         .take(limit)
         .map(|id| ActiveLessonSummary {
-            lesson_id: id.to_string(),
-            incident_count: graph.incidents_for_lesson(id).len(),
+            incident_count: graph.incidents_for_lesson(&id).len().into(),
+            lesson_id: id.as_str().into(),
         })
         .collect();
     RecallPack {
         active_lessons,
-        total_active_lessons,
+        total_active_lessons: total_active_lessons.into(),
     }
 }

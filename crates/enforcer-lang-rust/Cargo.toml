@@ -10,8 +10,7 @@ publish = false
 
 [dependencies]
 # DEPENDENCY-JUSTIFICATION: Rust validators emit shared finding/error contracts
-# and implement the canonical validator trait.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# directly from the canonical domain crate and implement the validator trait.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: The Rust-family rules parse first-party Rust source

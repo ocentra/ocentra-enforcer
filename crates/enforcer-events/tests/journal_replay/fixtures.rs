@@ -1,11 +1,11 @@
-use enforcer_events::bus::subscriber::EventSubscriber;
-use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
-use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
+use enforcer_domain::events_types::{
     AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
     RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService, SubscriberId,
     TargetHandler,
 };
+use enforcer_events::bus::subscriber::EventSubscriber;
+use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
+use enforcer_events::error::EventingError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -30,25 +30,25 @@ pub(super) const TEST_LABEL: &str = "typed envelope proof";
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct TestEvent {
     pub(super) label: String,
-    aggregate_key: AggregateKey,
-    idempotency_key: IdempotencyKey,
-    event_type: EventType,
+    aggregate_key: String,
+    idempotency_key: String,
+    event_type: String,
 }
 
 impl DomainEvent for TestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
-            self.event_type.clone(),
-            SchemaVersion::new(1)?,
+            EventType::parse(&self.event_type)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        Ok(self.aggregate_key.clone())
+        Ok(AggregateKey::parse(&self.aggregate_key)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        Ok(self.idempotency_key.clone())
+        Ok(IdempotencyKey::parse(&self.idempotency_key)?)
     }
 }
 
@@ -87,9 +87,9 @@ fn test_event_for_type_with_idempotency(
 ) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestEvent {
         label: label.0,
-        aggregate_key: AggregateKey::parse(TEST_AGGREGATE)?,
-        idempotency_key: IdempotencyKey::parse(idempotency_key.0)?,
-        event_type: EventType::parse(event_type.0)?,
+        aggregate_key: TEST_AGGREGATE.to_owned(),
+        idempotency_key: idempotency_key.0,
+        event_type: event_type.0,
     })
 }
 
@@ -101,7 +101,7 @@ pub(super) fn metadata(
         CorrelationId::parse(TEST_CORRELATION_ID)?,
         source()?,
         RecordedAt::parse(TEST_OBSERVED_AT)?,
-        Some(TargetHandler::parse(target.0)?),
+        Some(TargetHandler::parse(&{ target.0 })?),
     ))
 }
 
@@ -120,8 +120,8 @@ pub(super) fn subscriber(
     target: TestText,
 ) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSubscriber::new(
-        SubscriberId::parse(id.0)?,
+        SubscriberId::parse(&{ id.0 })?,
         EventType::parse(TEST_EVENT_TYPE)?,
-        TargetHandler::parse(target.0)?,
+        TargetHandler::parse(&{ target.0 })?,
     ))
 }

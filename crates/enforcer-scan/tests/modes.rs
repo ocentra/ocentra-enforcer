@@ -11,9 +11,11 @@
 
 use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::scan_types::ScopeRequest;
+use enforcer_domain::scan_types::{ScanMode, ScanModeError, TierFilter, TierFilterDecision};
 use enforcer_domain::severity::Tier;
+use enforcer_scan::boundary::modes::ScanRequest;
 use enforcer_scan::engine::{build_family_validators, run};
-use enforcer_scan::modes::{ScanMode, ScanModeError, ScanRequest, TierFilter};
+use enforcer_scan::modes::tier_filter_allows;
 use enforcer_scan::scope::resolve;
 use enforcer_scan::walk::{walk, IgnoreRules};
 
@@ -55,7 +57,9 @@ fn scan_with_mode(
         .violations
         .iter()
         .map(|v| v.finding().rule_id.as_str().to_owned())
-        .filter(|rule_id| tier_filter.allows(classify_tier(rule_id)))
+        .filter(|rule_id| {
+            tier_filter_allows(tier_filter, classify_tier(rule_id)) == TierFilterDecision::Allowed
+        })
         .collect();
     Ok(rule_ids)
 }

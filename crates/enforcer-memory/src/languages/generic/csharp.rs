@@ -2,7 +2,10 @@
 //!
 //! This module owns C# declarations, attributes, routes, imports, calls, and test classification.
 
-use super::*;
+use super::{
+    child_text, parse_with_spec, walk, Ctx, DefinesRef, FnScope, ImplementsRef, ImportRef,
+    InheritsRef, LangSpec, Node, ParsedFile, Quirks, RouteRef, SymbolKind, SymbolRef,
+};
 
 /// HTTP methods recognized in `[Http*]` attributes and `Map*`
 /// minimal-API calls -- same list `languages/csharp.rs`'s
@@ -49,22 +52,22 @@ fn csharp_emit_base_list_edges(
     };
     if csharp_looks_like_interface_name(&first) {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: first,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (first).into(),
+            line: line.into(),
         });
     } else {
         out.inherits.push(InheritsRef {
-            sub_name: type_name.to_string(),
-            super_name: first,
-            line,
+            sub_name: (type_name.to_string()).into(),
+            super_name: (first).into(),
+            line: line.into(),
         });
     }
     for remaining in iter {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: remaining,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (remaining).into(),
+            line: line.into(),
         });
     }
 }
@@ -140,7 +143,11 @@ fn csharp_route_from_attribute(attr: Node<'_>, src: &[u8], line: usize) -> Optio
         return None;
     };
     let path = csharp_attribute_first_string_arg(attr, src).unwrap_or_default();
-    Some(RouteRef { method, path, line })
+    Some(RouteRef {
+        method: method.into(),
+        path: path.into(),
+        line: line.into(),
+    })
 }
 
 /// Mirrors `languages/csharp.rs`'s `attribute_first_string_arg`
@@ -191,9 +198,9 @@ fn csharp_route_from_map_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> 
     }
     let path = raw.trim_matches('"').to_string();
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: call_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -324,23 +331,23 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                     SymbolKind::Class
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 csharp_emit_base_list_edges(node, src, &name, line, out);
                 for decorator_name in csharp_attribute_names(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 csharp_walk_scoped(node, src, Some(name.as_str()), out);
@@ -356,22 +363,22 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for base_name in csharp_base_list_names(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base_name,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (base_name).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -382,15 +389,15 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Enum,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -400,9 +407,9 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
         "namespace_declaration" | "file_scoped_namespace_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // `enclosing` unchanged (not re-scoped to the namespace's
@@ -416,15 +423,15 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
             for name in csharp_field_declarator_names(node, src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Constant,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -433,9 +440,9 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
         "local_function_statement" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Lambda,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -443,8 +450,8 @@ fn csharp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
         "using_directive" => {
             if let Some(path) = csharp_using_directive_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -501,16 +508,16 @@ fn csharp_on_method_defined(
     }
     for type_ref in csharp_signature_type_refs(node, src) {
         out.type_refs.push(crate::parsers::TypeRefRef {
-            from_name: name.to_string(),
-            type_name: type_ref,
-            line,
+            from_name: (name.to_string()).into(),
+            type_name: (type_ref).into(),
+            line: line.into(),
         });
     }
     for decorator_name in &attributes {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name: decorator_name.clone(),
-            line,
+            target_name: (name.to_string()).into(),
+            decorator_name: (decorator_name.clone()).into(),
+            line: line.into(),
         });
     }
     for route in csharp_routes_from_attributes(node, src, line) {
@@ -528,8 +535,12 @@ pub fn csharp_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(csharp_quirk)),
         is_test_name: |_| false,
-        route_from_call: Some(Box::new(csharp_route_from_map_call)),
-        on_method_defined: Some(Box::new(csharp_on_method_defined)),
+        route_from_call: Some(Box::new(|ctx| {
+            csharp_route_from_map_call(ctx.callee, ctx.call_node, ctx.source)
+        })),
+        on_method_defined: Some(Box::new(|ctx| {
+            csharp_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }

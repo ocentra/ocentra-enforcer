@@ -31,20 +31,16 @@
 //! blindly") rather than re-walking the whole repository on every event.
 
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
+use crate::boundary::watch::ReindexRequest;
+use enforcer_domain::memory_types::{
+    MemoryWatchDeadline, MemoryWatchDebounceWindow, MemoryWatchEventRelevant, MemoryWatchFileCount,
+    MemoryWatchGitHead, MemoryWatchGitHeadChanged, MemoryWatchPollInterval, MemoryWatchRoot,
+};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher as NotifyWatcherTrait};
-
-/// One debounced batch of changed repo-relative-or-absolute paths (as
-/// reported by the underlying OS watcher -- callers normalize to
-/// repo-relative themselves, matching [`crate::code_graph`]'s own
-/// caller-normalizes convention).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReindexRequest {
-    pub paths: Vec<PathBuf>,
-}
 
 /// Errors constructing or running a [`Watcher`].
 #[derive(Debug, thiserror::Error)]
@@ -62,34 +58,52 @@ pub enum WatchError {
 /// [`Watcher::next_reindex_request`].
 pub struct Watcher {
     _inner: RecommendedWatcher,
+    // BRAND-INVARIANT: this receiver carries only paths emitted by the validated notify callback.
     raw_events: Receiver<PathBuf>,
-    debounce_window: Duration,
+    debounce_window: MemoryWatchDebounceWindow,
+}
+
+impl std::fmt::Debug for Watcher {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Watcher")
+            .field("inner", &"RecommendedWatcher")
+            .field("raw_events", &"Receiver<MemoryWatchPath>")
+            .field("debounce_window", &self.debounce_window)
+            .finish()
+    }
 }
 
 impl Watcher {
     /// Start watching `root` recursively. `debounce_window` is how long to
     /// wait after the last event in a burst before emitting one
     /// [`ReindexRequest`] for everything collapsed into that burst.
-    pub fn start(root: &Path, debounce_window: Duration) -> Result<Self, WatchError> {
+    pub fn start(
+        root: impl Into<MemoryWatchRoot>,
+        debounce_window: impl Into<MemoryWatchDebounceWindow>,
+    ) -> Result<Self, WatchError> {
+        let root = root.into();
         let (tx, rx): (Sender<PathBuf>, Receiver<PathBuf>) = mpsc::channel();
         let mut inner = notify::recommended_watcher(move |event: notify::Result<Event>| {
             let Ok(event) = event else {
                 return;
             };
-            if !is_relevant_event(&event.kind) {
+            if !bool::from(is_relevant_event(&event.kind)) {
                 return;
             }
             for path in event.paths {
                 // A closed receiver (watcher outliving its consumer, e.g.
                 // during shutdown) is not a panic -- best-effort delivery.
-                let _ = tx.send(path);
+                if tx.send(path).is_err() {
+                    break;
+                }
             }
         })?;
-        inner.watch(root, RecursiveMode::Recursive)?;
+        inner.watch(root.as_path(), RecursiveMode::Recursive)?;
         Ok(Self {
             _inner: inner,
             raw_events: rx,
-            debounce_window,
+            debounce_window: debounce_window.into(),
         })
     }
 
@@ -103,9 +117,9 @@ impl Watcher {
     /// events + timeout-as-deadlock-guard only").
     pub fn next_reindex_request(
         &self,
-        deadline: Duration,
+        deadline: impl Into<MemoryWatchDeadline>,
     ) -> Result<Option<ReindexRequest>, WatchError> {
-        let deadline_at = Instant::now() + deadline;
+        let deadline_at = WatchDeadlineAt(Instant::now() + deadline.into().get());
         let mut collected: HashSet<PathBuf> = HashSet::new();
 
         // Wait for the FIRST event in a new burst, honoring the overall
@@ -123,7 +137,7 @@ impl Watcher {
         // request regardless of how long the burst itself runs, while
         // still being bounded overall by `deadline_at` as a safety cap.
         loop {
-            let wait_for = self.debounce_window.min(remaining(deadline_at));
+            let wait_for = self.debounce_window.get().min(remaining(deadline_at));
             if wait_for.is_zero() {
                 break;
             }
@@ -138,12 +152,17 @@ impl Watcher {
 
         let mut paths: Vec<PathBuf> = collected.into_iter().collect();
         paths.sort();
-        Ok(Some(ReindexRequest { paths }))
+        Ok(Some(ReindexRequest {
+            paths: paths.into_iter().map(Into::into).collect(),
+        }))
     }
 }
 
-fn remaining(deadline_at: Instant) -> Duration {
-    deadline_at.saturating_duration_since(Instant::now())
+#[derive(Debug, Clone, Copy)]
+struct WatchDeadlineAt(Instant);
+
+fn remaining(deadline_at: WatchDeadlineAt) -> Duration {
+    deadline_at.0.saturating_duration_since(Instant::now())
 }
 
 /// Filter native OS events down to the ones that matter for reindexing:
@@ -151,11 +170,12 @@ fn remaining(deadline_at: Instant) -> Duration {
 /// "access" events (read, permission-check) are noise for a code-graph
 /// watcher and are dropped here rather than triggering a spurious
 /// reindex.
-pub fn is_relevant_event(kind: &EventKind) -> bool {
+pub fn is_relevant_event(kind: &EventKind) -> MemoryWatchEventRelevant {
     matches!(
         kind,
         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
     )
+    .into()
 }
 
 /// The baseline-style adaptive polling fallback (D-12 revisit-trigger
@@ -164,13 +184,17 @@ pub fn is_relevant_event(kind: &EventKind) -> bool {
 /// 1s/500 files, cap 60s") so a caller that must fall back to polling
 /// (native watcher unavailable, or CI flakiness observed) gets the same
 /// interval discipline rather than inventing a new one.
-pub fn adaptive_poll_interval(file_count: usize) -> Duration {
+pub fn adaptive_poll_interval(
+    file_count: impl Into<MemoryWatchFileCount>,
+) -> MemoryWatchPollInterval {
+    let file_count = file_count.into().get();
     const BASE: Duration = Duration::from_secs(5);
     const PER_FILES: usize = 500;
     const STEP: Duration = Duration::from_secs(1);
     const CAP: Duration = Duration::from_secs(60);
-    let extra = STEP.saturating_mul((file_count / PER_FILES) as u32);
-    BASE.saturating_add(extra).min(CAP)
+    let file_steps = u32::try_from(file_count / PER_FILES).unwrap_or(u32::MAX);
+    let extra = STEP.saturating_mul(file_steps);
+    BASE.saturating_add(extra).min(CAP).into()
 }
 
 /// Poll a git repository's current HEAD commit, returning `true` if it
@@ -179,9 +203,13 @@ pub fn adaptive_poll_interval(file_count: usize) -> Duration {
 /// changes a watcher might miss across a process restart (e.g. `git
 /// checkout` while the watcher was not running) using the same read-only
 /// [`crate::git::GitMetadata`] this crate's indexer already depends on.
-pub fn git_head_changed(root: &Path, previous_head: Option<&str>) -> bool {
-    let Ok(Some(metadata)) = crate::git::GitMetadata::open(root) else {
-        return false;
+pub fn git_head_changed(
+    root: impl Into<MemoryWatchRoot>,
+    previous_head: Option<&MemoryWatchGitHead>,
+) -> MemoryWatchGitHeadChanged {
+    let root = root.into();
+    let Ok(Some(metadata)) = crate::git::GitMetadata::open(root.as_path()) else {
+        return false.into();
     };
-    metadata.head_commit().as_deref() != previous_head
+    (metadata.head_commit().as_deref() != previous_head.map(|head| head.as_str())).into()
 }

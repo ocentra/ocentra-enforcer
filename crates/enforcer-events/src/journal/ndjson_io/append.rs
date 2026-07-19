@@ -1,8 +1,12 @@
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use enforcer_domain::events_types::{
+    JournalDispatchPhase, JournalHash, JournalRecoveryState, JournalSequence,
+};
 use std::sync::{Arc, PoisonError};
 
 use crate::journal::ndjson::{JournalHashChain, NdjsonEventJournal, NdjsonJournalOptions};
 use crate::journal::{hash_chain::hash_entry, EventJournal, JournalAppendFuture};
-use crate::{EventingError, JournalAppend, JournalDispatchPhase, JournalHash, StoredEventEnvelope};
+use crate::{error::EventingError, journal::JournalAppend};
 
 impl NdjsonEventJournal {
     async fn append_entry(
@@ -20,17 +24,14 @@ impl NdjsonEventJournal {
         self.recover_state().await?;
         let append = {
             let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            let next_sequence = state.next_sequence.saturating_add(1);
+            let sequence = state
+                .last_sequence
+                .map_or_else(JournalSequence::first, JournalSequence::saturating_next);
             let previous_hash = previous_hash(&self.options, &state);
-            let current_hash = current_hash(
-                &self.options,
-                next_sequence,
-                &previous_hash,
-                envelope,
-                phase,
-            )?;
+            let current_hash =
+                current_hash(&self.options, sequence, &previous_hash, envelope, phase)?;
             JournalAppend {
-                sequence: next_sequence,
+                sequence,
                 previous_hash,
                 current_hash,
             }
@@ -38,9 +39,10 @@ impl NdjsonEventJournal {
         self.write_entry(&append, envelope, phase).await?;
         {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            state.next_sequence = append.sequence;
+            state.last_sequence = Some(append.sequence);
+            // CLONE-JUSTIFICATION: journal state retains the rolling hash while the append result returns it to the caller.
             state.previous_hash = append.current_hash.clone();
-            state.recovered = true;
+            state.recovery = JournalRecoveryState::Recovered;
         }
         Ok(append)
     }
@@ -69,21 +71,22 @@ fn previous_hash(
 ) -> Option<JournalHash> {
     match options.hash_chain {
         JournalHashChain::Disabled => None,
+        // CLONE-JUSTIFICATION: hash calculation owns an input snapshot while synchronized state retains its cursor.
         JournalHashChain::Enabled => state.previous_hash.clone(),
     }
 }
 
 fn current_hash(
     options: &NdjsonJournalOptions,
-    sequence: u64,
+    sequence: JournalSequence,
     previous_hash: &Option<JournalHash>,
     envelope: &StoredEventEnvelope,
     phase: JournalDispatchPhase,
 ) -> Result<Option<JournalHash>, EventingError> {
     match options.hash_chain {
         JournalHashChain::Disabled => Ok(None),
-        JournalHashChain::Enabled => {
-            hash_entry(sequence, previous_hash.as_ref(), envelope, phase).map(Some)
-        }
+        JournalHashChain::Enabled => hash_entry(sequence, previous_hash.as_ref(), envelope, phase)
+            .map(Some)
+            .map_err(|reason| EventingError::JournalEncode { reason }),
     }
 }

@@ -1,14 +1,7 @@
 [advisories]
-unmaintained = "deny"
+unmaintained = "all"
 yanked = "deny"
-ignore = [
-  # D-15 tokenizer policy: Hugging Face tokenizers 0.23.1 is the current
-  # maintained tokenizer backend required by the opt-in ORT model path.
-  # Its latest release still depends on paste; this narrow exception must
-  # be removed when tokenizers publishes a paste-free release or when this
-  # crate replaces tokenizers with an equivalent maintained backend.
-  "RUSTSEC-2024-0436",
-]
+ignore = []
 
 [licenses]
 allow = [
@@ -19,7 +12,21 @@ allow = [
   "ISC",
   "Unicode-3.0"
 ]
+# These crates ship CC0 license texts. Keep the exception package-scoped so
+# CC0 does not become a workspace-wide license allowance.
+exceptions = [
+  { allow = ["CC0-1.0"], crate = "notify@6.1.1" },
+  { allow = ["CC0-1.0"], crate = "tree-sitter-fennel-local@0.1.0" },
+  { allow = ["CC0-1.0"], crate = "tree-sitter-sshclientconfig-local@0.1.0" },
+]
 confidence-threshold = 0.8
+
+[[licenses.clarify]]
+crate = "tree-sitter-graphql@0.1.0"
+expression = "MIT"
+license-files = [
+  { path = "LICENSE", hash = 0xda88ff2a },
+]
 
 [bans]
 multiple-versions = "warn"

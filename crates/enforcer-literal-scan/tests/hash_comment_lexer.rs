@@ -20,9 +20,9 @@ fn hash_comment_lexer_ignores_comments_and_keeps_closed_triple_literals(
         "# \"comment-only-literal\"\nvalue = \"\"\"triple-live-value\"\"\"\nlabel = \"normal-live-value\"\n",
     )?;
     let opts = CliOptions {
-        root: root.clone(),
-        include_low: true,
-        min_score: 0,
+        root: root.clone().into(),
+        include_low: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
         ..CliOptions::default()
     };
 

@@ -1,32 +1,124 @@
+use enforcer_domain::memory_types::LocalRuntimeAcceleration;
+use enforcer_domain::memory_types::ModelCacheRootMode;
+use enforcer_domain::memory_types::{HfFilePath, HfModelId, HfRepositoryId, HfRevision};
+use enforcer_domain::memory_types::{
+    LlamaCppBackendHint, LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeKind,
+    RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability, RuntimeOwnershipMode,
+    RuntimeWorkload,
+};
+use enforcer_memory::boundary::huggingface::{HfRepoFileDto, HfRepoMetadataDto};
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::hf_cache::{
     expand_onnx_spec_from_metadata, model_cache_dir, resolve_cached_hf_model,
     resolve_cached_hf_model_from_manifest, resolve_onnx_external_data_files,
     select_x06_chat_model_for_hardware, validate_hf_file_path, validate_hf_repo_id, HfModelSpec,
-    HfRepoFile, HfRepoMetadata, HfSingleFileSpecInput, X06ModelLineup,
+    HfSingleFileSpecInput, X06ModelLineup,
 };
 use enforcer_memory::llama_cpp::{
     llama_cpp_command_plan, parse_llama_cpp_devices, resolve_llama_cpp_execution,
-    transition_llama_cpp_lifecycle, validate_executable, validate_model, LlamaCppBackendHint,
-    LlamaCppDevice, LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeConfig,
-    LlamaCppProbeKind,
+    transition_llama_cpp_lifecycle, validate_executable, validate_model, LlamaCppDeviceDto,
+    LlamaCppExecutionResolutionDto, LlamaCppProbeConfigDto,
 };
-use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
-use enforcer_memory::local_runtime::{
-    arbitrate_runtime_workload, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
-    RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
-};
+use enforcer_memory::local_runtime::{arbitrate_runtime_workload, REQUIRED_MANAGED_CAPABILITIES};
 use enforcer_memory::model_runtime::{
     dev_model_cache_root, evaluate_chat_usability, loaded_non_chat_usability,
-    resolve_model_cache_root, ChatThroughputPolicy, ModelCacheRootMode, ModelRuntimeServiceConfig,
-    DEFAULT_EMBEDDING_GGUF_FILE, DEFAULT_EMBEDDING_GGUF_REPO, DEFAULT_EMBEDDING_ONNX_FILE,
-    DEFAULT_EMBEDDING_ONNX_REPO, DEFAULT_MIN_CHAT_TOKENS_PER_SECOND, DEFAULT_MODEL_CACHE_DIR_NAME,
-    DEFAULT_ORNITH_GGUF_FILE, DEFAULT_ORNITH_GGUF_REPO, DEFAULT_RERANKER_ONNX_FILE,
-    DEFAULT_RERANKER_ONNX_REPO, TARGET_CHAT_TOKENS_PER_SECOND_HIGH,
+    resolve_model_cache_root, ChatThroughputPolicyDto, ModelCacheRootPolicyDto,
+    ModelRuntimeServiceConfigDto, DEFAULT_EMBEDDING_GGUF_FILE, DEFAULT_EMBEDDING_GGUF_REPO,
+    DEFAULT_EMBEDDING_ONNX_FILE, DEFAULT_EMBEDDING_ONNX_REPO, DEFAULT_MIN_CHAT_TOKENS_PER_SECOND,
+    DEFAULT_MODEL_CACHE_DIR_NAME, DEFAULT_ORNITH_GGUF_FILE, DEFAULT_ORNITH_GGUF_REPO,
+    DEFAULT_RERANKER_ONNX_FILE, DEFAULT_RERANKER_ONNX_REPO, TARGET_CHAT_TOKENS_PER_SECOND_HIGH,
     TARGET_CHAT_TOKENS_PER_SECOND_LOW,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn huggingface_repo_metadata_wire_shape_decodes_and_roundtrips() -> TestResult {
+    let wire = r#"{
+        "modelId": "org/example-model",
+        "siblings": [
+            { "rfilename": "weights/model.onnx", "size": 42 },
+            { "rfilename": "README.md" }
+        ]
+    }"#;
+
+    let decoded: HfRepoMetadataDto = serde_json::from_str(wire)?;
+    assert_eq!(decoded.model_id.as_deref(), Some("org/example-model"));
+    assert_eq!(decoded.siblings.len(), 2);
+    assert_eq!(decoded.siblings[0].path, "weights/model.onnx");
+    assert_eq!(decoded.siblings[0].size, Some(42));
+    assert_eq!(decoded.siblings[1].path, "README.md");
+    assert_eq!(decoded.siblings[1].size, None);
+
+    let encoded = serde_json::to_vec(&decoded)?;
+    let restored: HfRepoMetadataDto = serde_json::from_slice(&encoded)?;
+    assert_eq!(restored, decoded);
+
+    let encoded_file = serde_json::to_vec(&decoded.siblings[0])?;
+    let restored_file: HfRepoFileDto = serde_json::from_slice(&encoded_file)?;
+    assert_eq!(restored_file, decoded.siblings[0]);
+
+    Ok(())
+}
+
+#[test]
+fn runtime_dto_domain_boundary_conversions_round_trip() -> TestResult {
+    let cache_policy = ModelCacheRootPolicyDto {
+        mode: ModelCacheRootMode::DevRepoLocal,
+        root: std::path::PathBuf::from("repo-root/.cache/model"),
+        reason: "development repository policy".to_owned(),
+    };
+    let cache_wire = serde_json::to_vec(&cache_policy)?;
+    let cache_restored: ModelCacheRootPolicyDto = serde_json::from_slice(&cache_wire)?;
+    assert_eq!(
+        ModelCacheRootMode::try_from(cache_restored)?,
+        ModelCacheRootMode::DevRepoLocal
+    );
+    assert!(ModelCacheRootMode::try_from(ModelCacheRootPolicyDto {
+        mode: ModelCacheRootMode::AppData,
+        root: std::path::PathBuf::new(),
+        reason: "invalid empty root".to_owned(),
+    })
+    .is_err());
+
+    let resolution = LlamaCppExecutionResolutionDto {
+        requested_backend_hint: LlamaCppBackendHint::Auto,
+        requested_acceleration: LocalRuntimeAcceleration::Auto,
+        backend_hint: LlamaCppBackendHint::Vulkan,
+        resolved_acceleration: LocalRuntimeAcceleration::Gpu,
+        provider_probe_passed: true,
+        selected_device_id: Some("gpu-0".to_owned()),
+        selected_main_gpu: Some(0),
+        detected_free_vram_mib: Some(4096),
+        downgrade_reason: None,
+    };
+    let resolution_wire = serde_json::to_vec(&resolution)?;
+    let resolution_restored: LlamaCppExecutionResolutionDto =
+        serde_json::from_slice(&resolution_wire)?;
+    assert_eq!(
+        LocalRuntimeAcceleration::from(resolution_restored),
+        LocalRuntimeAcceleration::Gpu
+    );
+    Ok(())
+}
+
+fn hf_repository(value: &str) -> TestResultValue<HfRepositoryId> {
+    HfRepositoryId::try_new(value.to_owned()).ok_or_else(|| "invalid HF repository fixture".into())
+}
+
+fn hf_revision(value: &str) -> TestResultValue<HfRevision> {
+    HfRevision::try_new(value.to_owned()).ok_or_else(|| "invalid HF revision fixture".into())
+}
+
+fn hf_model(value: &str) -> TestResultValue<HfModelId> {
+    HfModelId::try_new(value.to_owned()).ok_or_else(|| "invalid HF model fixture".into())
+}
+
+fn hf_file(value: &str) -> TestResultValue<HfFilePath> {
+    HfFilePath::try_new(value.to_owned()).ok_or_else(|| "invalid HF file fixture".into())
+}
+
+type TestResultValue<T> = Result<T, Box<dyn std::error::Error>>;
 
 fn llama_binary_name(base_name: &str) -> String {
     format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
@@ -140,64 +232,55 @@ fn collect_machine_absolute_path_leaks(
 
 #[test]
 fn hf_specs_pin_enforcer_model_lineup() -> TestResult {
-    let lineup = X06ModelLineup::defaults();
+    let lineup = X06ModelLineup::defaults()?;
     lineup.validate()?;
 
     let ornith = lineup.chat_generation;
-    assert_eq!(ornith.repo_id, DEFAULT_ORNITH_GGUF_REPO);
-    assert_eq!(ornith.files[0].path, DEFAULT_ORNITH_GGUF_FILE);
+    assert_eq!(ornith.repo_id.as_str(), DEFAULT_ORNITH_GGUF_REPO);
+    assert_eq!(ornith.files[0].path.as_str(), DEFAULT_ORNITH_GGUF_FILE);
 
     let embedding_gguf = lineup.embedding_gguf;
-    assert_eq!(embedding_gguf.repo_id, DEFAULT_EMBEDDING_GGUF_REPO);
-    assert_eq!(embedding_gguf.files[0].path, DEFAULT_EMBEDDING_GGUF_FILE);
+    assert_eq!(embedding_gguf.repo_id.as_str(), DEFAULT_EMBEDDING_GGUF_REPO);
+    assert_eq!(
+        embedding_gguf.files[0].path.as_str(),
+        DEFAULT_EMBEDDING_GGUF_FILE
+    );
 
     let embedding_onnx = lineup.embedding_onnx;
-    assert_eq!(embedding_onnx.repo_id, DEFAULT_EMBEDDING_ONNX_REPO);
+    assert_eq!(embedding_onnx.repo_id.as_str(), DEFAULT_EMBEDDING_ONNX_REPO);
     assert!(embedding_onnx
         .files
         .iter()
-        .any(|file| file.path == DEFAULT_EMBEDDING_ONNX_FILE));
+        .any(|file| file.path.as_str() == DEFAULT_EMBEDDING_ONNX_FILE));
     assert!(embedding_onnx
         .files
         .iter()
-        .any(|file| file.path == "tokenizer.json"));
+        .any(|file| file.path.as_str() == "tokenizer.json"));
 
     let reranker_onnx = lineup.reranker_onnx;
-    assert_eq!(reranker_onnx.repo_id, DEFAULT_RERANKER_ONNX_REPO);
+    assert_eq!(reranker_onnx.repo_id.as_str(), DEFAULT_RERANKER_ONNX_REPO);
     assert!(reranker_onnx
         .files
         .iter()
-        .any(|file| file.path == DEFAULT_RERANKER_ONNX_FILE));
+        .any(|file| file.path.as_str() == DEFAULT_RERANKER_ONNX_FILE));
     Ok(())
 }
 
 #[test]
 fn user_model_override_specs_validate_before_download() -> TestResult {
     let spec = HfModelSpec::with_single_model_file(HfSingleFileSpecInput {
-        repo_id: "custom-org/custom-chat-gguf".to_owned(),
-        revision: "main".to_owned(),
-        backend: enforcer_memory::local_runtime::LocalRuntimeBackend::LlamaCpp,
-        task: enforcer_memory::model_runtime::ModelTask::Summarization,
-        model_id: "custom-org/custom-chat-gguf".to_owned(),
-        acceleration: enforcer_memory::local_runtime::LocalRuntimeAcceleration::Auto,
-        file_path: "custom-chat-Q4_K_M.gguf".to_owned(),
-    });
+        repo_id: hf_repository("custom-org/custom-chat-gguf")?,
+        revision: hf_revision("main")?,
+        backend: enforcer_domain::memory_types::LocalRuntimeKind::LlamaCpp,
+        task: enforcer_domain::memory_types::ModelTask::Summarization,
+        model_id: hf_model("custom-org/custom-chat-gguf")?,
+        acceleration: enforcer_domain::memory_types::LocalRuntimeAcceleration::Auto,
+        file_path: hf_file("custom-chat-Q4_K_M.gguf")?,
+    })?;
     spec.validate()?;
 
-    let bad = HfModelSpec::with_single_model_file(HfSingleFileSpecInput {
-        repo_id: "../bad/repo".to_owned(),
-        revision: "main".to_owned(),
-        backend: enforcer_memory::local_runtime::LocalRuntimeBackend::LlamaCpp,
-        task: enforcer_memory::model_runtime::ModelTask::Summarization,
-        model_id: "../bad/repo".to_owned(),
-        acceleration: enforcer_memory::local_runtime::LocalRuntimeAcceleration::Auto,
-        file_path: "../secret.gguf".to_owned(),
-    });
-    assert_model_runtime_error(
-        bad.validate(),
-        "validate-hf-repo-id",
-        "invalid Hugging Face repo id: \"../bad/repo\"",
-    )?;
+    assert!(HfRepositoryId::try_new("../bad/repo".to_owned()).is_none());
+    assert!(HfFilePath::try_new("../secret.gguf".to_owned()).is_none());
     Ok(())
 }
 
@@ -214,23 +297,27 @@ fn llama_cpp_device_parser_reads_vram_from_backend_output() {
 }
 
 #[test]
-fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() {
-    let selection = select_x06_chat_model_for_hardware(Some(7_484));
+fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() -> TestResult {
+    let selection = select_x06_chat_model_for_hardware(Some(7_484))?;
 
-    assert_eq!(selection.selected.model_id, "Qwen/Qwen3-4B-GGUF:Q4_K_M");
+    assert_eq!(
+        selection.selected.model_id.as_str(),
+        "Qwen/Qwen3-4B-GGUF:Q4_K_M"
+    );
     assert_eq!(selection.selected_quantization, "Q4_K_M");
     assert_eq!(
         selection.reason,
         "selected Qwen/Qwen3-4B-GGUF:Q4_K_M because detected free VRAM is 7484 MiB and required free VRAM is 4096 MiB"
     );
+    Ok(())
 }
 
 #[test]
-fn chat_model_selector_uses_smallest_q4_fallback_without_gpu_memory_report() {
-    let selection = select_x06_chat_model_for_hardware(None);
+fn chat_model_selector_uses_smallest_q4_fallback_without_gpu_memory_report() -> TestResult {
+    let selection = select_x06_chat_model_for_hardware(None)?;
 
     assert_eq!(
-        selection.selected.model_id,
+        selection.selected.model_id.as_str(),
         "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
     );
     assert_eq!(selection.selected_quantization, "Q4_K_M");
@@ -239,14 +326,15 @@ fn chat_model_selector_uses_smallest_q4_fallback_without_gpu_memory_report() {
         selection.reason,
         "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because no llama.cpp GPU memory report was available"
     );
+    Ok(())
 }
 
 #[test]
-fn chat_model_selector_falls_back_to_smallest_q4_when_reported_vram_is_below_floor() {
-    let selection = select_x06_chat_model_for_hardware(Some(512));
+fn chat_model_selector_falls_back_to_smallest_q4_when_reported_vram_is_below_floor() -> TestResult {
+    let selection = select_x06_chat_model_for_hardware(Some(512))?;
 
     assert_eq!(
-        selection.selected.model_id,
+        selection.selected.model_id.as_str(),
         "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
     );
     assert_eq!(selection.selected_quantization, "Q4_K_M");
@@ -255,43 +343,49 @@ fn chat_model_selector_falls_back_to_smallest_q4_when_reported_vram_is_below_flo
         selection.reason,
         "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because detected free VRAM is only 512 MiB"
     );
+    Ok(())
 }
 
 #[test]
-fn chat_model_selector_prefers_moe_when_vram_can_fit_it() {
-    let selection = select_x06_chat_model_for_hardware(Some(24_000));
+fn chat_model_selector_prefers_moe_when_vram_can_fit_it() -> TestResult {
+    let selection = select_x06_chat_model_for_hardware(Some(24_000))?;
 
-    assert_eq!(selection.selected.repo_id, "Qwen/Qwen3-30B-A3B-GGUF");
     assert_eq!(
-        selection.selected.files[0].path,
+        selection.selected.repo_id.as_str(),
+        "Qwen/Qwen3-30B-A3B-GGUF"
+    );
+    assert_eq!(
+        selection.selected.files[0].path.as_str(),
         "Qwen3-30B-A3B-Q4_K_M.gguf"
     );
     assert!(selection
         .candidates
         .iter()
         .any(|candidate| candidate.active_parameter_count_millions == Some(3_000)));
+    Ok(())
 }
 
 #[test]
-fn chat_model_selector_retains_ornith_as_dense_fallback_candidate() {
-    let selection = select_x06_chat_model_for_hardware(Some(24_000));
+fn chat_model_selector_retains_ornith_as_dense_fallback_candidate() -> TestResult {
+    let selection = select_x06_chat_model_for_hardware(Some(24_000))?;
 
     assert!(selection
         .candidates
         .iter()
-        .any(|candidate| candidate.spec.repo_id == DEFAULT_ORNITH_GGUF_REPO));
+        .any(|candidate| candidate.spec.repo_id.as_str() == DEFAULT_ORNITH_GGUF_REPO));
+    Ok(())
 }
 
 #[test]
 fn auto_llama_execution_prefers_best_gpu_and_backend_from_device_probe() {
     let devices = vec![
-        LlamaCppDevice {
+        LlamaCppDeviceDto {
             id: "Vulkan0".to_owned(),
             name: "GeForce RTX 2070 SUPER".to_owned(),
             total_memory_mib: 8_257,
             free_memory_mib: 7_484,
         },
-        LlamaCppDevice {
+        LlamaCppDeviceDto {
             id: "Vulkan1".to_owned(),
             name: "GeForce GTX 760".to_owned(),
             total_memory_mib: 2_007,
@@ -343,7 +437,7 @@ fn requested_gpu_without_provider_probe_downgrades_to_cpu() -> TestResult {
 
 #[test]
 fn requested_npu_prefers_openvino_when_npu_device_is_reported() {
-    let devices = vec![LlamaCppDevice {
+    let devices = vec![LlamaCppDeviceDto {
         id: "NPU0".to_owned(),
         name: "Intel NPU".to_owned(),
         total_memory_mib: 1_024,
@@ -368,7 +462,7 @@ fn requested_npu_prefers_openvino_when_npu_device_is_reported() {
 
 #[test]
 fn chat_usability_requires_ten_tokens_per_second_and_records_target_band() {
-    let policy = ChatThroughputPolicy::default();
+    let policy = ChatThroughputPolicyDto::default();
 
     assert_eq!(
         policy.min_tokens_per_second,
@@ -412,7 +506,7 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
 
     let cache_root = dev_model_cache_root(repo);
     let policy = resolve_model_cache_root(repo, ModelCacheRootMode::DevRepoLocal, None);
-    let service = ModelRuntimeServiceConfig::dev(repo);
+    let service = ModelRuntimeServiceConfigDto::dev(repo);
 
     assert_eq!(cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(policy.root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
@@ -1527,10 +1621,13 @@ fn ort_runtime_uses_qwen_causal_lm_reranker_scoring_contract() {
         runtime,
         &[
             "Tensor::<f32>::new(",
-            "Shape::new([1, QWEN3_KV_HEAD_COUNT as i64, 0, QWEN3_HEAD_DIM as i64])",
+            "i64::try_from(QWEN3_KV_HEAD_COUNT)",
+            "i64::try_from(QWEN3_HEAD_DIM)",
             "answer can only be \\\"yes\\\" or \\\"no\\\"",
-            "token_to_id(\"yes\")",
-            "token_to_id(\"no\")",
+            ".token_id(\"yes\",",
+            "\"resolve-ort-rerank-yes-token\"",
+            ".token_id(\"no\",",
+            "\"resolve-ort-rerank-no-token\"",
             "let last_token_offset = (active_seq_len - 1) * vocab_size;",
             "let yes_exp = (yes_logit - max_logit).exp();",
         ],
@@ -1726,48 +1823,54 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
 }
 
 #[test]
-fn onnx_metadata_expansion_includes_external_data_files() {
+fn onnx_metadata_expansion_includes_external_data_files() -> TestResult {
     let files = vec![
-        HfRepoFile {
+        HfRepoFileDto {
             path: "onnx/model.onnx".to_owned(),
             size: Some(10),
         },
-        HfRepoFile {
+        HfRepoFileDto {
             path: "onnx/model.onnx_data".to_owned(),
             size: Some(20),
         },
-        HfRepoFile {
+        HfRepoFileDto {
             path: "onnx/other.onnx.data".to_owned(),
             size: Some(30),
         },
     ];
 
-    let resolved = resolve_onnx_external_data_files("onnx/model.onnx", &files);
+    let selected = hf_file("onnx/model.onnx")?;
+    let resolved = resolve_onnx_external_data_files(&selected, &files)?;
 
-    assert!(resolved.iter().any(|file| file.path == "onnx/model.onnx"));
     assert!(resolved
         .iter()
-        .any(|file| file.path == "onnx/model.onnx_data"));
+        .any(|file| file.path.as_str() == "onnx/model.onnx"));
+    assert!(resolved
+        .iter()
+        .any(|file| file.path.as_str() == "onnx/model.onnx_data"));
     assert!(!resolved
         .iter()
-        .any(|file| file.path == "onnx/other.onnx.data"));
-    assert!(!resolved.iter().any(|file| file.path == "tokenizer.json"));
+        .any(|file| file.path.as_str() == "onnx/other.onnx.data"));
+    assert!(!resolved
+        .iter()
+        .any(|file| file.path.as_str() == "tokenizer.json"));
+    Ok(())
 }
 
 #[test]
 fn onnx_metadata_expansion_includes_dot_external_data_files() -> TestResult {
-    let metadata = HfRepoMetadata {
+    let metadata = HfRepoMetadataDto {
         model_id: Some("test/split-onnx".to_owned()),
         siblings: vec![
-            HfRepoFile {
+            HfRepoFileDto {
                 path: "onnx/model_fp16.onnx".to_owned(),
                 size: Some(10),
             },
-            HfRepoFile {
+            HfRepoFileDto {
                 path: "onnx/model_fp16.onnx.data".to_owned(),
                 size: Some(20),
             },
-            HfRepoFile {
+            HfRepoFileDto {
                 path: "tokenizer.json".to_owned(),
                 size: Some(1),
             },
@@ -1776,17 +1879,17 @@ fn onnx_metadata_expansion_includes_dot_external_data_files() -> TestResult {
     let spec = HfModelSpec::with_onnx_model_file(
         "test/split-onnx",
         "main",
-        enforcer_memory::model_runtime::ModelTask::Embedding,
+        enforcer_domain::memory_types::ModelTask::Embedding,
         "test/split-onnx",
         "onnx/model_fp16.onnx",
-    );
+    )?;
 
     let expanded = expand_onnx_spec_from_metadata(spec, &metadata)?;
 
     assert!(expanded
         .files
         .iter()
-        .any(|file| file.path == "onnx/model_fp16.onnx.data"));
+        .any(|file| file.path.as_str() == "onnx/model_fp16.onnx.data"));
     Ok(())
 }
 
@@ -1812,8 +1915,8 @@ fn hf_cache_paths_are_stable_and_safe() -> TestResult {
 
     let cache = model_cache_dir(
         std::path::Path::new("target/cache"),
-        "Qwen/Qwen3-Embedding-0.6B-GGUF",
-        "main",
+        &hf_repository("Qwen/Qwen3-Embedding-0.6B-GGUF")?,
+        &hf_revision("main")?,
     );
     assert!(cache.ends_with(std::path::Path::new(
         "hf/Qwen--Qwen3-Embedding-0.6B-GGUF/main"
@@ -1938,7 +2041,7 @@ fn llama_cpp_lifecycle_load_chat_pause_resume_cancel_and_unload_are_owned() -> T
     );
     assert_eq!(
         toolchain.request_protocol,
-        enforcer_memory::local_runtime::RuntimeRequestProtocol::EnforcerStdio
+        enforcer_domain::memory_types::RuntimeRequestProtocol::EnforcerStdio
     );
     assert!(!toolchain.external_server_allowed);
     assert!(!toolchain.port_binding_allowed);
@@ -1951,7 +2054,7 @@ fn llama_cpp_lifecycle_load_chat_pause_resume_cancel_and_unload_are_owned() -> T
     assert_eq!(loading.after, LlamaCppLifecycleState::ModelLoading);
     assert_eq!(
         loading.activity,
-        enforcer_memory::local_runtime::RuntimeActivityState::Loading
+        enforcer_domain::memory_types::RuntimeActivityState::Loading
     );
 
     let ready =
@@ -2001,9 +2104,9 @@ fn llama_cpp_lifecycle_embedding_rejects_llama_server_route() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-llama-cpp-lifecycle-config",
+            operation,
             ..
-        }
+        } if operation == "validate-llama-cpp-lifecycle-config"
     ));
     Ok(())
 }
@@ -2038,9 +2141,9 @@ fn llama_cpp_lifecycle_timeout_kill_requires_nonzero_timeout() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-llama-cpp-lifecycle-config",
+            operation,
             ..
-        }
+        } if operation == "validate-llama-cpp-lifecycle-config"
     ));
     Ok(())
 }
@@ -2061,9 +2164,9 @@ fn llama_cpp_lifecycle_rejects_invalid_transition() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "transition-llama-cpp-lifecycle",
+            operation,
             ..
-        }
+        } if operation == "transition-llama-cpp-lifecycle"
     ));
     Ok(())
 }
@@ -2072,14 +2175,14 @@ fn llama_cpp_lifecycle_rejects_invalid_transition() -> TestResult {
 fn preseeded_hf_cache_resolves_without_network() -> TestResult {
     let temp = tempfile::TempDir::new()?;
     let spec = HfModelSpec::with_single_model_file(HfSingleFileSpecInput {
-        repo_id: "custom-org/custom-chat-gguf".to_owned(),
-        revision: "main".to_owned(),
-        backend: enforcer_memory::local_runtime::LocalRuntimeBackend::LlamaCpp,
-        task: enforcer_memory::model_runtime::ModelTask::Summarization,
-        model_id: "custom-org/custom-chat-gguf".to_owned(),
-        acceleration: enforcer_memory::local_runtime::LocalRuntimeAcceleration::Auto,
-        file_path: "custom-chat-Q4_K_M.gguf".to_owned(),
-    });
+        repo_id: hf_repository("custom-org/custom-chat-gguf")?,
+        revision: hf_revision("main")?,
+        backend: enforcer_domain::memory_types::LocalRuntimeKind::LlamaCpp,
+        task: enforcer_domain::memory_types::ModelTask::Summarization,
+        model_id: hf_model("custom-org/custom-chat-gguf")?,
+        acceleration: enforcer_domain::memory_types::LocalRuntimeAcceleration::Auto,
+        file_path: hf_file("custom-chat-Q4_K_M.gguf")?,
+    })?;
     let cache = model_cache_dir(temp.path(), &spec.repo_id, &spec.revision);
     std::fs::create_dir_all(&cache)?;
     std::fs::write(cache.join("custom-chat-Q4_K_M.gguf"), b"gguf bytes")?;
@@ -2111,8 +2214,8 @@ fn preseeded_hf_cache_resolves_without_network() -> TestResult {
 fn llama_plan_fixture(
     acceleration: LocalRuntimeAcceleration,
     backend_hint: LlamaCppBackendHint,
-) -> LlamaCppProbeConfig {
-    LlamaCppProbeConfig {
+) -> LlamaCppProbeConfigDto {
+    LlamaCppProbeConfigDto {
         binary_path: llama_binary_name("llama-cli").into(),
         model_path: "model.gguf".into(),
         model_sha256: None,

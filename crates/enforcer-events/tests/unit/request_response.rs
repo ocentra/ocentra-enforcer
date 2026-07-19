@@ -1,6 +1,8 @@
 use std::{future, sync::Arc, time::Duration};
 
-use tokio::sync::Mutex;
+// CANCELLATION-TEST: request timeout paths abort or release every retained publish/completion task and verify registry cleanup.
+
+use tokio::sync::{Mutex, Notify};
 
 use super::{
     fixtures::{metadata, metadata_with_event_id, subscriber_for_event, TestText, TEST_TARGET},
@@ -10,9 +12,19 @@ use super::{
         RESULT_EVENT_TYPE,
     },
 };
-use crate::{EventPublisher, EventingError, RequestCompletionOutcome, RequestId, RequestOptions};
+use crate::{EventPublisher, EventingError, RequestId, RequestOptions};
+use enforcer_domain::events_types::RequestCompletionOutcome;
 
 const REQUEST_TERMINAL_RETENTION_PROBE_COUNT: usize = 4097;
+
+#[test]
+fn request_options_reject_zero_event_duration() {
+    let result = RequestOptions::with_timeout(enforcer_domain::events_types::EventDuration::ZERO);
+    assert!(matches!(
+        result,
+        Err(EventingError::InvalidRequestOptions { .. })
+    ));
+}
 
 #[tokio::test]
 async fn publish_request_resolves_associated_response_type(
@@ -35,13 +47,16 @@ async fn publish_request_resolves_associated_response_type(
         .publish_request(
             test_request(RequestText("resolve-associated-response".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await?;
 
     assert_eq!(report.request_id.as_str(), REQUEST_ID);
     assert_eq!(report.response.decision, "approved");
-    assert_eq!(report.publish_report.handled_count, 1);
+    assert_eq!(
+        crate::event_count_value(report.publish_report.handled_count),
+        1
+    );
     Ok(())
 }
 
@@ -110,10 +125,12 @@ async fn request_terminal_retention_uses_completion_order_not_request_id_sort_or
         RequestCompletionOutcome::Duplicate
     );
     assert_eq!(
-        bus.metrics_snapshot()
-            .await
-            .requests
-            .completed_request_count,
+        crate::event_count_value(
+            bus.metrics_snapshot()
+                .await
+                .requests
+                .completed_request_count
+        ),
         4096
     );
     Ok(())
@@ -136,7 +153,7 @@ async fn publish_retention_probe_request(
         TestText(TEST_TARGET.to_owned()),
         TestText(event_id.to_owned()),
     )?;
-    let request_timeout = RequestOptions::with_timeout(Duration::from_millis(50))?;
+    let request_timeout = RequestOptions::with_timeout(Duration::from_millis(50).into())?;
     bus.publish_request(request_event, request_metadata, request_timeout)
         .await?;
     Ok(())
@@ -170,7 +187,7 @@ async fn invalid_response_validation_does_not_settle_request(
         .publish_request(
             test_request(RequestText("validate-before-settle".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await?;
 
@@ -185,6 +202,10 @@ async fn request_timeout_reports_late_response_without_mutating_result(
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);
+    let release_late_response = Arc::new(Notify::new());
+    let release_late_response_for_handler = Arc::clone(&release_late_response);
+    let late_task = Arc::new(Mutex::new(None));
+    let late_task_for_handler = Arc::clone(&late_task);
     bus.subscribe::<TestRequestEvent, _, _>(
         subscriber_for_event(
             TestText("request-subscriber".to_owned()),
@@ -193,13 +214,16 @@ async fn request_timeout_reports_late_response_without_mutating_result(
         )?,
         move |context| {
             let outcomes = Arc::clone(&outcomes_clone);
+            let release_late_response = Arc::clone(&release_late_response_for_handler);
+            let late_task = Arc::clone(&late_task_for_handler);
             async move {
-                tokio::spawn(async move {
-                    tokio::time::sleep(Duration::from_millis(20)).await;
+                let handle = tokio::spawn(async move {
+                    release_late_response.notified().await;
                     let report = context.complete_request(TestResponse::approved()).await?;
                     outcomes.lock().await.push(report.outcome);
                     Ok::<(), EventingError>(())
                 });
+                *late_task.lock().await = Some(handle);
                 Ok(())
             }
         },
@@ -210,10 +234,14 @@ async fn request_timeout_reports_late_response_without_mutating_result(
         .publish_request(
             test_request(RequestText("timeout".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(5))?,
+            RequestOptions::with_timeout(Duration::from_millis(5).into())?,
         )
         .await;
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    release_late_response.notify_waiters();
+    let Some(late_task) = late_task.lock().await.take() else {
+        return Err("late response task was not recorded".into());
+    };
+    late_task.await??;
 
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
     assert_eq!(
@@ -238,7 +266,7 @@ async fn request_timeout_covers_slow_handler_dispatch(
         move |context| {
             let outcomes = Arc::clone(&outcomes_clone);
             async move {
-                tokio::time::sleep(Duration::from_millis(50)).await;
+                std::future::pending::<()>().await;
                 let report = context.complete_request(TestResponse::approved()).await?;
                 outcomes.lock().await.push(report.outcome);
                 Ok(())
@@ -251,17 +279,25 @@ async fn request_timeout_covers_slow_handler_dispatch(
         .publish_request(
             test_request(RequestText("slow-handler-timeout".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(5))?,
+            RequestOptions::with_timeout(Duration::from_millis(5).into())?,
         )
         .await;
-    tokio::time::sleep(Duration::from_millis(75)).await;
 
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
     assert!(outcomes.lock().await.is_empty());
     let metrics = bus.metrics_snapshot().await;
-    assert_eq!(metrics.queue.in_flight_event_id_count, 0);
-    assert_eq!(metrics.queue.in_flight_idempotency_key_count, 0);
-    assert_eq!(metrics.requests.timed_out_request_count, 1);
+    assert_eq!(
+        crate::event_count_value(metrics.queue.in_flight_event_id_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(metrics.queue.in_flight_idempotency_key_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(metrics.requests.timed_out_request_count),
+        1
+    );
     Ok(())
 }
 
@@ -286,15 +322,24 @@ async fn request_timeout_aborts_never_completing_publish_and_releases_in_flight(
                 TestText(TEST_TARGET.to_owned()),
                 TestText("request-never-completing-event".to_owned()),
             )?,
-            RequestOptions::with_timeout(Duration::from_millis(5))?,
+            RequestOptions::with_timeout(Duration::from_millis(5).into())?,
         )
         .await;
 
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
     let metrics = bus.metrics_snapshot().await;
-    assert_eq!(metrics.queue.in_flight_event_id_count, 0);
-    assert_eq!(metrics.queue.in_flight_idempotency_key_count, 0);
-    assert_eq!(metrics.requests.timed_out_request_count, 1);
+    assert_eq!(
+        crate::event_count_value(metrics.queue.in_flight_event_id_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(metrics.queue.in_flight_idempotency_key_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(metrics.requests.timed_out_request_count),
+        1
+    );
     Ok(())
 }
 
@@ -306,10 +351,10 @@ async fn publish_request_cancels_registry_entry_when_publish_fails(
         .publish_request(
             InvalidContractRequestEvent::new()?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await;
-    assert!(matches!(failed, Err(EventingError::InvalidVersion)));
+    assert_eq!(failed, Err(EventingError::InvalidVersion));
 
     bus.subscribe::<TestRequestEvent, _, _>(
         subscriber_for_event(
@@ -327,7 +372,7 @@ async fn publish_request_cancels_registry_entry_when_publish_fails(
         .publish_request(
             test_request(RequestText("retry-after-publish-failure".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await?;
 
@@ -366,7 +411,7 @@ async fn double_completion_is_ignored_and_reported(
         .publish_request(
             test_request(RequestText("double-completion".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await?;
 
@@ -401,8 +446,12 @@ async fn durable_result_event_pattern_remains_separate_from_local_completion(
                         TestText("request-result-event-1".to_owned()),
                     )
                     .map_err(|e| EventingError::InvalidValue {
-                        field: "request_result_metadata",
-                        value: e.to_string(),
+                        field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                            "request_result_metadata",
+                        ),
+                        value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
+                            e.to_string(),
+                        ),
                     })?,
                 )
                 .await?;
@@ -416,7 +465,7 @@ async fn durable_result_event_pattern_remains_separate_from_local_completion(
         .publish_request(
             test_request(RequestText("durable-result-event".to_owned()))?,
             metadata(TestText(TEST_TARGET.to_owned()))?,
-            RequestOptions::with_timeout(Duration::from_millis(50))?,
+            RequestOptions::with_timeout(Duration::from_millis(50).into())?,
         )
         .await?;
     let journal = bus.journal().await;

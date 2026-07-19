@@ -14,6 +14,10 @@
 //! 6. route-choice trace with confidence
 //! 7. improvement curve (per-domain learning curve) emission
 
+use enforcer_domain::memory_types::{
+    LessonStatus, MemoryEvidenceLandedAt, MemoryEvidenceProofRef, MemoryLessonId,
+    ProceduralOutcome, RecordDomain,
+};
 use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::evidence::{
     evidence_chain, recurrence_curve, EvidenceReport, NoProofRefs, ProofRefLookup,
@@ -24,13 +28,11 @@ use enforcer_memory::ingest::{
 };
 use enforcer_memory::learning::{
     active_lessons, learning_curve, lesson_status, project_learning_from_store, superseded_by,
-    LessonStatus,
 };
 use enforcer_memory::observations::{
     procedural_success_rate, record_procedural, record_procedural_in_store, record_route_choice,
-    record_route_choice_in_store, ProceduralOutcome, ProceduralStoreInput, RouteChoiceStoreInput,
+    record_route_choice_in_store, ProceduralStoreInput, RouteChoiceStoreInput,
 };
-use enforcer_memory::record::RecordDomain;
 use enforcer_memory::sessionstart::recall_pack;
 use enforcer_memory::store::Store;
 use std::collections::HashMap;
@@ -55,13 +57,13 @@ fn observation_recorded_per_operation_type() -> Result<(), Box<dyn std::error::E
         let id = ingest_observation(
             &mut graph,
             Observation {
-                lesson_id: "mem-cl-0001".to_string(),
-                rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-                fault_class: Some("unknown_rule_id".to_string()),
-                repo_context: "crates/enforcer-scan".to_string(),
-                clean: false,
-                source_surface: surface.to_string(),
-                ts: "2026-07-05T10:00:00Z".to_string(),
+                lesson_id: ("mem-cl-0001".to_string()).into(),
+                rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+                fault_class: Some("unknown_rule_id".to_string().into()),
+                repo_context: ("crates/enforcer-scan".to_string()).into(),
+                clean: (false).into(),
+                source_surface: (surface.to_string()).into(),
+                ts: ("2026-07-05T10:00:00Z".to_string()).into(),
             },
         );
         assert!(
@@ -71,7 +73,7 @@ fn observation_recorded_per_operation_type() -> Result<(), Box<dyn std::error::E
         ids.push(id);
     }
     assert_eq!(ids.len(), 5, "one observation per operation type");
-    let incidents = graph.incidents_for_lesson("mem-cl-0001");
+    let incidents = graph.incidents_for_lesson(&"mem-cl-0001".into());
     assert_eq!(
         incidents.len(),
         5,
@@ -95,24 +97,24 @@ fn clean_scan_writes_negative_evidence() -> Result<(), Box<dyn std::error::Error
     let id = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0003".to_string(),
+            lesson_id: ("mem-cl-0003".to_string()).into(),
             rule_id: None,
             fault_class: None,
-            repo_context: "crates/enforcer-check".to_string(),
-            clean: true,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:01:00Z".to_string(),
+            repo_context: ("crates/enforcer-check".to_string()).into(),
+            clean: (true).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:01:00Z".to_string()).into(),
         },
     );
     assert_eq!(
-        graph.len(),
-        before + 1,
+        graph.len().get(),
+        before.get() + 1,
         "a clean run must still append an observation, not be skipped"
     );
-    let incidents = graph.incidents_for_lesson("mem-cl-0003");
+    let incidents = graph.incidents_for_lesson(&"mem-cl-0003".into());
     match incidents.iter().find(|inc| inc.id == id) {
         Some(clean_incident) => assert!(
-            clean_incident.clean,
+            clean_incident.clean.is_clean(),
             "the observation must be recorded as clean = true (negative evidence)"
         ),
         None => {
@@ -124,7 +126,11 @@ fn clean_scan_writes_negative_evidence() -> Result<(), Box<dyn std::error::Error
 
     // Negative evidence must be visible through the same evidence chain
     // as any other observation -- it is not a second-class record.
-    match evidence_chain(&graph, "mem-cl-0003", &NoProofRefs) {
+    match evidence_chain(
+        &graph,
+        &MemoryLessonId::try_from("mem-cl-0003".to_owned())?,
+        &NoProofRefs,
+    ) {
         EvidenceReport::Chain { observed, .. } => {
             assert!(
                 observed.iter().any(|o| o.incident.id == id),
@@ -148,31 +154,31 @@ fn recurrence_curve_updates_after_landing() -> Result<(), Box<dyn std::error::Er
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:02:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:02:00Z".to_string()).into(),
         },
     );
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:03:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:03:00Z".to_string()).into(),
         },
     );
-    let curve = recurrence_curve(&graph, "mem-cl-0001");
+    let curve = recurrence_curve(&graph, &MemoryLessonId::try_from("mem-cl-0001".to_owned())?);
     assert_eq!(curve.len(), 2, "two incidents recorded after landing");
-    assert!(curve[0].since_landing);
-    assert!(curve[1].since_landing);
+    assert!(curve[0].since_landing.is_since_landing());
+    assert!(curve[1].since_landing.is_since_landing());
     assert_eq!(curve[0].running_recurrence_count, 1);
     assert_eq!(
         curve[1].running_recurrence_count, 2,
@@ -184,19 +190,20 @@ fn recurrence_curve_updates_after_landing() -> Result<(), Box<dyn std::error::Er
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0004".to_string(),
+            lesson_id: ("mem-cl-0004".to_string()).into(),
             rule_id: None,
-            fault_class: Some("x".to_string()),
-            repo_context: "crates/enforcer-memory".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:04:00Z".to_string(),
+            fault_class: Some("x".to_string().into()),
+            repo_context: ("crates/enforcer-memory".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:04:00Z".to_string()).into(),
         },
     );
-    let unlanded_curve = recurrence_curve(&graph, "mem-cl-0004");
+    let unlanded_curve =
+        recurrence_curve(&graph, &MemoryLessonId::try_from("mem-cl-0004".to_owned())?);
     assert_eq!(unlanded_curve.len(), 1);
     assert!(
-        !unlanded_curve[0].since_landing,
+        !unlanded_curve[0].since_landing.is_since_landing(),
         "no landing exists yet for mem-cl-0004 -- must not be counted as recurrence"
     );
     Ok(())
@@ -211,17 +218,17 @@ fn lesson_activation_rules() -> Result<(), Box<dyn std::error::Error>> {
     let graph = load_fixture_graph()?;
 
     assert_eq!(
-        lesson_status(&graph, "mem-cl-0001"),
+        lesson_status(&graph, &"mem-cl-0001".into()),
         Some(LessonStatus::Active),
         "landed lesson must be active"
     );
     assert_eq!(
-        lesson_status(&graph, "mem-cl-0004"),
+        lesson_status(&graph, &"mem-cl-0004".into()),
         Some(LessonStatus::Inactive),
         "unlanded/imported lesson must be inactive, not unknown"
     );
     assert_eq!(
-        lesson_status(&graph, "mem-cl-does-not-exist"),
+        lesson_status(&graph, &"mem-cl-does-not-exist".into()),
         None,
         "an id with no matching node must be Unknown, distinct from Inactive"
     );
@@ -229,9 +236,9 @@ fn lesson_activation_rules() -> Result<(), Box<dyn std::error::Error>> {
     // Inactive lessons stay searchable: recall never filters by
     // activation status.
     let hits = enforcer_memory::recall::recall(&graph, "imported");
-    let ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
+    let ids: Vec<String> = hits.iter().map(|hit| hit.node.id().to_string()).collect();
     assert!(
-        ids.contains(&"mem-cl-0004"),
+        ids.iter().any(|id| id == "mem-cl-0004"),
         "an inactive lesson must remain recall-searchable, got {ids:?}"
     );
     Ok(())
@@ -249,27 +256,27 @@ fn supersede_handling() -> Result<(), Box<dyn std::error::Error>> {
     // (landedAt = ["commit cl-0002-partial-fix"]) but is superseded by
     // mem-cl-0003.
     assert_eq!(
-        lesson_status(&graph, "mem-cl-0002"),
+        lesson_status(&graph, &"mem-cl-0002".into()),
         Some(LessonStatus::Active),
         "mem-cl-0002's own landing evidence still makes lesson_status Active in isolation"
     );
 
     let active = active_lessons(&graph);
     assert!(
-        !active.contains(&"mem-cl-0002"),
+        !active.contains(&"mem-cl-0002".into()),
         "active_lessons must exclude a superseded lesson even if independently landed"
     );
     assert!(
-        active.contains(&"mem-cl-0003"),
+        active.contains(&"mem-cl-0003".into()),
         "the superseding lesson must itself be active"
     );
     assert_eq!(
-        superseded_by(&graph, "mem-cl-0002"),
-        Some("mem-cl-0003"),
+        superseded_by(&graph, &"mem-cl-0002".into()),
+        Some("mem-cl-0003".into()),
         "audit trail: superseded_by must answer what replaced mem-cl-0002"
     );
     assert_eq!(
-        superseded_by(&graph, "mem-cl-0003"),
+        superseded_by(&graph, &"mem-cl-0003".into()),
         None,
         "mem-cl-0003 has not itself been superseded"
     );
@@ -348,7 +355,7 @@ fn route_choice_trace_with_confidence() -> Result<(), Box<dyn std::error::Error>
     );
     assert_eq!(graph.procedural_records().len(), 2);
     assert_eq!(
-        procedural_success_rate(&graph, "mem-cl-0003"),
+        procedural_success_rate(&graph, "mem-cl-0003").map(|rate| rate.get()),
         Some(0.5),
         "one success and one failure must average to a 0.5 success rate"
     );
@@ -373,25 +380,25 @@ fn improvement_curve_emission() -> Result<(), Box<dyn std::error::Error>> {
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:10:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:10:00Z".to_string()).into(),
         },
     );
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0003".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-check".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:11:00Z".to_string(),
+            lesson_id: ("mem-cl-0003".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-check".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:11:00Z".to_string()).into(),
         },
     );
 
@@ -440,13 +447,13 @@ fn store_backed_learning_projection_replays_t0_t1_t2() -> Result<(), Box<dyn std
         &mut store,
         &mut write_projection,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-STORE".to_string()),
-            fault_class: Some("store-backed-recurrence".to_string()),
-            repo_context: "crates/enforcer-memory/src/learning.rs".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-07T00:01:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-STORE".to_string().into()),
+            fault_class: Some("store-backed-recurrence".to_string().into()),
+            repo_context: ("crates/enforcer-memory/src/learning.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-07T00:01:00Z".to_string()).into(),
         },
     )?;
     record_procedural_in_store(
@@ -471,7 +478,9 @@ fn store_backed_learning_projection_replays_t0_t1_t2() -> Result<(), Box<dyn std
     )?;
 
     assert!(
-        seed_graph.incidents_for_lesson("mem-cl-0001").is_empty(),
+        seed_graph
+            .incidents_for_lesson(&"mem-cl-0001".into())
+            .is_empty(),
         "fixture seed graph carries lessons only; Store replay supplies t0 observations"
     );
 
@@ -485,7 +494,7 @@ fn store_backed_learning_projection_replays_t0_t1_t2() -> Result<(), Box<dyn std
         return Err("landed lesson plus Store observation must emit a recurrence curve".into());
     };
     assert_eq!(recurrence.len(), 1);
-    assert!(recurrence[0].since_landing);
+    assert!(recurrence[0].since_landing.is_since_landing());
     assert_eq!(recurrence[0].running_recurrence_count, 1);
 
     let Some(harness) = projection.learning_curves.get(&RecordDomain::Harness) else {
@@ -512,20 +521,26 @@ fn evidence_chain_and_recall_pack_are_consistent_over_the_fixture(
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:12:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:12:00Z".to_string()).into(),
         },
     );
 
     struct FixedLookup(HashMap<String, Vec<String>>);
     impl ProofRefLookup for FixedLookup {
-        fn lookup(&self, landed_at_ref: &str) -> Vec<String> {
-            self.0.get(landed_at_ref).cloned().unwrap_or_default()
+        fn lookup(&self, landed_at_ref: &MemoryEvidenceLandedAt) -> Vec<MemoryEvidenceProofRef> {
+            self.0
+                .get(landed_at_ref.as_str())
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect()
         }
     }
     let mut refs = HashMap::new();
@@ -535,17 +550,28 @@ fn evidence_chain_and_recall_pack_are_consistent_over_the_fixture(
     );
     let lookup = FixedLookup(refs);
 
-    match evidence_chain(&graph, "mem-cl-0001", &lookup) {
+    match evidence_chain(
+        &graph,
+        &MemoryLessonId::try_from("mem-cl-0001".to_owned())?,
+        &lookup,
+    ) {
         EvidenceReport::Chain {
             landed,
             has_t0_provenance,
             ..
         } => {
-            assert!(has_t0_provenance, "mem-cl-0001 has an observed incident");
+            assert!(
+                has_t0_provenance.has_t0_provenance(),
+                "mem-cl-0001 has an observed incident"
+            );
             assert_eq!(landed.len(), 1);
             assert_eq!(
-                landed[0].proof_refs,
-                vec!["proof/journal/x06-cl-0001".to_string()],
+                landed[0]
+                    .proof_refs
+                    .iter()
+                    .map(|proof_ref| proof_ref.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["proof/journal/x06-cl-0001"],
                 "landed step must carry the enforcer-proof journal ref the caller's lookup found"
             );
         }
@@ -557,7 +583,11 @@ fn evidence_chain_and_recall_pack_are_consistent_over_the_fixture(
     // An id with no node at all is fail-closed Unknown, never a
     // fabricated chain.
     assert!(matches!(
-        evidence_chain(&graph, "mem-cl-does-not-exist", &NoProofRefs),
+        evidence_chain(
+            &graph,
+            &MemoryLessonId::try_from("mem-cl-does-not-exist".to_owned())?,
+            &NoProofRefs,
+        ),
         EvidenceReport::Unknown { .. }
     ));
 

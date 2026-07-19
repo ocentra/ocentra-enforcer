@@ -3,11 +3,13 @@
 //! verification, bare `print` diagnostics, and unguarded debug output.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::boundary::validation::ValidationMarker;
+use enforcer_domain::ids::{BuiltInDartRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
+use std::fmt;
 
-use super::support::{finding, first_line_containing, first_line_containing_any, FindingSpec};
+use super::support::{first_line_containing, first_line_containing_any, FindingSpec};
 
 /// `DART-SEC-1.1` — no hardcoded API key/token literal
 /// (`const apiKey = 'sk-...'`-shaped assignment).
@@ -15,10 +17,16 @@ pub struct HardcodedSecretValidator {
     rule_id: RuleId,
 }
 
+impl fmt::Debug for HardcodedSecretValidator {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("HardcodedSecretValidator(REDACTED)")
+    }
+}
+
 impl HardcodedSecretValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.1".parse()?,
+            rule_id: BuiltInDartRule::EmbeddedSensitiveLiteral.id(),
         })
     }
 }
@@ -29,19 +37,23 @@ impl Validator for HardcodedSecretValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing_any(input.source, &["apiKey = '", "apiKey = \""])
-        else {
+        let Some(line) = first_line_containing_any(
+            input.source,
+            &[
+                ValidationMarker::from_static("apiKey = '"),
+                ValidationMarker::from_static("apiKey = \""),
+            ],
+        ) else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "hardcoded API key/token literal",
+                rule: BuiltInDartRule::EmbeddedSensitiveLiteral,
             },
             "an API key/token is hardcoded as a string literal — load it from \
-             `String.fromEnvironment`/a build-time secret, never commit it to source."
-                .to_owned(),
+             `String.fromEnvironment`/a build-time secret, never commit it to source.",
             &input,
             line,
         )]
@@ -50,6 +62,7 @@ impl Validator for HardcodedSecretValidator {
 
 /// `DART-SEC-1.2` — tokens/PII must go to `flutter_secure_storage`, not
 /// `SharedPreferences`.
+#[derive(Debug)]
 pub struct InsecureStorageValidator {
     rule_id: RuleId,
 }
@@ -57,7 +70,7 @@ pub struct InsecureStorageValidator {
 impl InsecureStorageValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.2".parse()?,
+            rule_id: BuiltInDartRule::InsecureStorage.id(),
         })
     }
 }
@@ -71,22 +84,21 @@ impl Validator for InsecureStorageValidator {
         let Some(line) = first_line_containing_any(
             input.source,
             &[
-                "prefs.setString('auth_token'",
-                "prefs.setString(\"auth_token\"",
+                ValidationMarker::from_static("prefs.setString('auth_token'"),
+                ValidationMarker::from_static("prefs.setString(\"auth_token\""),
             ],
         ) else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "token/PII written to SharedPreferences",
+                rule: BuiltInDartRule::InsecureStorage,
             },
             "a token/PII value is written to `SharedPreferences` — use \
              `flutter_secure_storage`'s `FlutterSecureStorage().write(...)` for anything \
-             sensitive."
-                .to_owned(),
+             sensitive.",
             &input,
             line,
         )]
@@ -95,6 +107,7 @@ impl Validator for InsecureStorageValidator {
 
 /// `DART-SEC-1.3` — HTTPS only: a bare `http://` URI (excluding
 /// `localhost`/`127.0.0.1` for local dev) is flagged.
+#[derive(Debug)]
 pub struct PlaintextHttpValidator {
     rule_id: RuleId,
 }
@@ -102,7 +115,7 @@ pub struct PlaintextHttpValidator {
 impl PlaintextHttpValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.3".parse()?,
+            rule_id: BuiltInDartRule::PlaintextHttp.id(),
         })
     }
 }
@@ -113,22 +126,21 @@ impl Validator for PlaintextHttpValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             if line.contains("http://")
                 && !line.contains("localhost")
                 && !line.contains("127.0.0.1")
             {
-                return vec![finding(
+                return vec![finding!(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
-                        title: "plaintext HTTP URI",
+                        rule: BuiltInDartRule::PlaintextHttp,
                     },
                     "a network call targets a plaintext `http://` URI — use `https://` for any \
-                     non-local endpoint."
-                        .to_owned(),
+                     non-local endpoint.",
                     &input,
-                    (idx as u32).saturating_add(1),
+                    idx.saturating_add(1),
                 )];
             }
         }
@@ -138,6 +150,7 @@ impl Validator for PlaintextHttpValidator {
 
 /// `DART-SEC-1.4` — never disable SSL/TLS certificate verification
 /// (`badCertificateCallback = (...) => true`).
+#[derive(Debug)]
 pub struct DisabledTlsValidator {
     rule_id: RuleId,
 }
@@ -145,7 +158,7 @@ pub struct DisabledTlsValidator {
 impl DisabledTlsValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.4".parse()?,
+            rule_id: BuiltInDartRule::DisabledTls.id(),
         })
     }
 }
@@ -156,21 +169,23 @@ impl Validator for DisabledTlsValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "badCertificateCallback") else {
+        let Some(line) = first_line_containing(
+            input.source,
+            ValidationMarker::from_static("badCertificateCallback"),
+        ) else {
             return Vec::new();
         };
-        if !input.source.contains("=> true") {
+        if !input.source.as_str().contains("=> true") {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "SSL certificate verification disabled",
+                rule: BuiltInDartRule::DisabledTls,
             },
             "`badCertificateCallback` unconditionally returns `true`, disabling TLS certificate \
-             verification — never override this to accept all certificates."
-                .to_owned(),
+             verification — never override this to accept all certificates.",
             &input,
             line,
         )]
@@ -179,6 +194,7 @@ impl Validator for DisabledTlsValidator {
 
 /// `DART-SEC-1.5` (scored) — bare `print(...)` used for diagnostics
 /// instead of a monitoring logger.
+#[derive(Debug)]
 pub struct BarePrintValidator {
     rule_id: RuleId,
 }
@@ -186,7 +202,7 @@ pub struct BarePrintValidator {
 impl BarePrintValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.5".parse()?,
+            rule_id: BuiltInDartRule::BarePrint.id(),
         })
     }
 }
@@ -197,18 +213,19 @@ impl Validator for BarePrintValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "print(") else {
+        let Some(line) =
+            first_line_containing(input.source, ValidationMarker::from_static("print("))
+        else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "bare print() for diagnostics (scored)",
+                rule: BuiltInDartRule::BarePrint,
             },
             "bare `print(...)` is used for diagnostics — route through a monitoring logger \
-             instead so output is structured and filterable in production."
-                .to_owned(),
+             instead so output is structured and filterable in production.",
             &input,
             line,
         )]
@@ -217,6 +234,7 @@ impl Validator for BarePrintValidator {
 
 /// `DART-SEC-1.6` (scored) — a debug-output block with no `kDebugMode`
 /// guard.
+#[derive(Debug)]
 pub struct UnguardedDebugOutputValidator {
     rule_id: RuleId,
 }
@@ -224,7 +242,7 @@ pub struct UnguardedDebugOutputValidator {
 impl UnguardedDebugOutputValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-SEC-1.6".parse()?,
+            rule_id: BuiltInDartRule::UnguardedDebugOutput.id(),
         })
     }
 }
@@ -235,21 +253,22 @@ impl Validator for UnguardedDebugOutputValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "debugPrint(") else {
+        let Some(line) =
+            first_line_containing(input.source, ValidationMarker::from_static("debugPrint("))
+        else {
             return Vec::new();
         };
-        if input.source.contains("kDebugMode") {
+        if input.source.as_str().contains("kDebugMode") {
             return Vec::new();
         }
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "unguarded debug output (scored)",
+                rule: BuiltInDartRule::UnguardedDebugOutput,
             },
             "a `debugPrint(...)` call has no `kDebugMode` guard anywhere in the file — wrap \
-             debug-only output in `if (kDebugMode) { ... }`."
-                .to_owned(),
+             debug-only output in `if (kDebugMode) { ... }`.",
             &input,
             line,
         )]

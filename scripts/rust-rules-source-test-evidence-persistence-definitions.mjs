@@ -7,8 +7,8 @@ export function referencesVariable(source, variableName) {
 }
 
 /** Parses named function definitions from source text. */
-export function functionDefinitions(source) {
-  const masked = maskRustCode(source);
+export function functionDefinitions(source, maskedSource = null) {
+  const masked = typeof maskedSource === "string" ? maskedSource : maskRustCode(source);
   const definitions = [];
   const declaration = /\bfn\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{}]*>)?\s*\((?<params>[^)]*)\)(?<tail>[^{;]*)\{/gu;
   for (const match of masked.matchAll(declaration)) {

@@ -5,3 +5,10 @@
 
 [term]
 progress.when = "auto"
+
+# `libgit2-sys` omits advapi32 even though its bundled libgit2 uses Windows
+# SID, registry, and cryptographic context APIs from that system library.
+# Centralizing the deterministic target link here avoids unsafe Rust and a
+# crate-local build script.
+[target.'cfg(windows)']
+rustflags = ["-l", "advapi32"]

@@ -31,57 +31,18 @@
 //! what a single Terraform resource block can tell you — and are tracked as
 //! follow-ups.
 
+use crate::boundary::terraform::{
+    allows_public_cidr, bool_attr, grants_public_access, list_attr_contains, resource_blocks,
+};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
-
-use super::iac_terraform::{allows_public_cidr, resource_blocks, string_attr_eq};
-
-/// Extract an unquoted HCL boolean attribute (`name = true` / `false`).
-fn bool_attr(body: &str, name: &str) -> Option<bool> {
-    let pattern = match Regex::new(&format!(r"(?i)\b{name}\s*=\s*(true|false)\b")) {
-        Ok(pattern) => pattern,
-        Err(_) => return None,
-    };
-    let value = pattern.captures(body)?.get(1)?.as_str();
-    Some(value.eq_ignore_ascii_case("true"))
-}
-
-/// True when `body` declares a list-valued HCL attribute `name = [ ... ]`
-/// whose entries include the quoted string `"value"` (e.g.
-/// `members = ["allUsers"]` / `source_ranges = ["0.0.0.0/0"]`). The match is
-/// on the QUOTED substring (`"value"`, not bare `value`) so a longer quoted
-/// entry that merely contains `value` as a substring (e.g.
-/// `"domain:allUsers.example.com"`) is not mistaken for the exact list
-/// member `"allUsers"`.
-fn list_attr_contains(body: &str, name: &str, value: &str) -> bool {
-    let Ok(pattern) = Regex::new(&format!(r"(?is)\b{name}\s*=\s*\[([^]]*)]")) else {
-        return false;
-    };
-    let quoted = format!("\"{value}\"");
-    pattern
-        .captures(body)
-        .and_then(|c| c.get(1))
-        .is_some_and(|m| m.as_str().contains(quoted.as_str()))
-}
-
-/// True when an IAM member/binding resource body grants access to the
-/// special `allUsers` or `allAuthenticatedUsers` identities, whether via the
-/// singular `member = "..."` attribute (`_iam_member` resources) or the
-/// plural `members = [...]` list (`_iam_binding` resources).
-fn grants_public_access(body: &str) -> bool {
-    string_attr_eq(body, "member", "allUsers")
-        || string_attr_eq(body, "member", "allAuthenticatedUsers")
-        || list_attr_contains(body, "members", "allUsers")
-        || list_attr_contains(body, "members", "allAuthenticatedUsers")
-}
 
 /// `CYBER-GCP.1` — GCP Terraform resource hardening gate.
-#[derive(Debug)]
 /// Validator for the `CYBER-GCP.1` Terraform resource hardening rule.
+#[derive(Debug)]
 pub struct GcpResourceHardeningValidator {
     rule_id: RuleId,
 }
@@ -90,23 +51,8 @@ impl GcpResourceHardeningValidator {
     /// Builds the validator with its canonical, validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-GCP.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberGcp.id(),
         })
-    }
-
-    fn finding(&self, input: &ValidationInput<'_>, line: u32, detail: String) -> Finding {
-        Finding {
-            // CLONE-JUSTIFICATION: each emitted report owns the validator identity after validation returns.
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            // ALLOC-JUSTIFICATION: durable report records own their static presentation title.
-            title: "GCP resource violates a hardening check".to_owned(),
-            detail,
-            // CLONE-JUSTIFICATION: each emitted report owns its source path after the borrowed input expires.
-            file: input.file.clone(),
-            line,
-            snippet: None,
-        }
     }
 }
 
@@ -117,7 +63,7 @@ impl Validator for GcpResourceHardeningValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for block in resource_blocks(input.source) {
+        for block in resource_blocks(input.source.as_str()) {
             match block.resource_type {
                 "google_storage_bucket_iam_member"
                 | "google_storage_bucket_iam_binding"
@@ -127,9 +73,9 @@ impl Validator for GcpResourceHardeningValidator {
                 | "google_project_iam_policy"
                     if grants_public_access(block.body) =>
                 {
-                    findings.push(self.finding(
-                        &input,
-                        block.line,
+                    findings.extend(crate::boundary::finding::from_validation(
+                        (&self.rule_id, Severity::Error),
+                        "GCP resource violates a hardening check",
                         format!(
                             "IAM binding '{}' grants access to `allUsers` or \
                              `allAuthenticatedUsers`, making the resource publicly accessible \
@@ -138,15 +84,17 @@ impl Validator for GcpResourceHardeningValidator {
                              group, or service account instead.",
                             block.name
                         ),
+                        &input,
+                        block.line,
                     ));
                 }
                 "google_sql_database_instance"
                     if bool_attr(block.body, "ipv4_enabled") == Some(true)
                         || allows_public_cidr(block.body) =>
                 {
-                    findings.push(self.finding(
-                        &input,
-                        block.line,
+                    findings.extend(crate::boundary::finding::from_validation(
+                        (&self.rule_id, Severity::Error),
+                        "GCP resource violates a hardening check",
                         format!(
                             "Cloud SQL instance '{}' is reachable from the public internet \
                              (`ipv4_enabled = true` and/or an `authorized_networks` entry of \
@@ -155,14 +103,16 @@ impl Validator for GcpResourceHardeningValidator {
                              Auth Proxy, or scope `authorized_networks` to known ranges.",
                             block.name
                         ),
+                        &input,
+                        block.line,
                     ));
                 }
                 "google_compute_firewall"
                     if list_attr_contains(block.body, "source_ranges", "0.0.0.0/0") =>
                 {
-                    findings.push(self.finding(
-                        &input,
-                        block.line,
+                    findings.extend(crate::boundary::finding::from_validation(
+                        (&self.rule_id, Severity::Error),
+                        "GCP resource violates a hardening check",
                         format!(
                             "Firewall rule '{}' allows traffic from `0.0.0.0/0` in \
                              `source_ranges`, exposing the targeted instances to the entire \
@@ -170,6 +120,8 @@ impl Validator for GcpResourceHardeningValidator {
                              target specific service accounts/tags instead of a public source.",
                             block.name
                         ),
+                        &input,
+                        block.line,
                     ));
                 }
                 _ => {}

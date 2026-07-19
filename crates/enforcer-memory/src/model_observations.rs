@@ -9,60 +9,29 @@
 //! model-observation log and bridge it into the generic observation log
 //! so learning projections can replay durable evidence without a manual
 //! capture step.
+//!
+//! ROUNDTRIP-TEST: tests/model_observations.rs::observation_dto_domain_boundary_conversions_round_trip
 
+use enforcer_domain::memory_types::ModelRuntimeObservationKind;
+use enforcer_domain::memory_types::RecurrenceNegativeKind;
 use serde::{Deserialize, Serialize};
 
+use crate::boundary::log_schema::ObservationLogEntryDto;
 use crate::error::Result;
 use crate::graph::MemoryGraph;
 use crate::ingest::{ingest_observation_payload_into_store, Observation};
-use crate::model_runtime::{ModelTask, ProviderKind};
-use crate::schema::ObservationLogEntry;
+use crate::owned_boundary::Retained;
 use crate::store::Store;
+use enforcer_domain::memory_types::IngestIncidentId;
+use enforcer_domain::memory_types::{ModelTask, ProviderKind};
 
 pub const MODEL_RUNTIME_OBSERVATION_SCHEMA_VERSION: u32 = 1;
-
-/// High-level candidate kinds surfaced by model runtime outcome observation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ModelRuntimeObservationKind {
-    ModelLoadFailure,
-    ProviderDowngrade,
-    ArtifactHashMismatch,
-    TokenizerHashMismatch,
-    DegradedFallback,
-    SuccessfulLocalLoad,
-    RetrievalQualityProof,
-    RerankerLiftProof,
-    TokenReductionProof,
-    RouteChoiceImprovement,
-    RecurrenceOrNegativeEvidence,
-}
-
-impl ModelRuntimeObservationKind {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ModelRuntimeObservationKind::ModelLoadFailure => "model-load-failure",
-            ModelRuntimeObservationKind::ProviderDowngrade => "provider-downgrade",
-            ModelRuntimeObservationKind::ArtifactHashMismatch => "artifact-hash-mismatch",
-            ModelRuntimeObservationKind::TokenizerHashMismatch => "tokenizer-hash-mismatch",
-            ModelRuntimeObservationKind::DegradedFallback => "degraded-fallback",
-            ModelRuntimeObservationKind::SuccessfulLocalLoad => "successful-local-load",
-            ModelRuntimeObservationKind::RetrievalQualityProof => "retrieval-quality-proof",
-            ModelRuntimeObservationKind::RerankerLiftProof => "reranker-lift-proof",
-            ModelRuntimeObservationKind::TokenReductionProof => "token-reduction-proof",
-            ModelRuntimeObservationKind::RouteChoiceImprovement => "route-choice-improvement",
-            ModelRuntimeObservationKind::RecurrenceOrNegativeEvidence => {
-                "recurrence-or-negative-evidence"
-            }
-        }
-    }
-}
 
 /// Durable model-runtime observation envelope stored in the native
 /// model-observation log and mirrored into the generic observation log.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelRuntimeObservationRecord {
+pub struct ModelRuntimeObservationRecordDto {
     pub schema_version: u32,
     pub observed_at: String,
     pub source: String,
@@ -70,7 +39,7 @@ pub struct ModelRuntimeObservationRecord {
     pub candidate: ModelRuntimeObservationCandidate,
 }
 
-impl ModelRuntimeObservationRecord {
+impl ModelRuntimeObservationRecordDto {
     pub fn new(
         observed_at: impl Into<String>,
         source: impl Into<String>,
@@ -91,26 +60,34 @@ impl ModelRuntimeObservationRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "observationKind", rename_all = "kebab-case")]
 pub enum ModelRuntimeObservationCandidate {
-    ModelLoadFailure(ModelLoadFailure),
-    ProviderDowngrade(ProviderDowngrade),
-    ArtifactHashMismatch(HashMismatch),
-    TokenizerHashMismatch(HashMismatch),
-    DegradedFallback(DegradedFallback),
-    SuccessfulLocalLoad(LocalLoadSucceeded),
-    RetrievalQualityProof(RetrievalQualityProof),
-    RerankerLiftProof(RerankerLiftProof),
-    TokenReductionProof(TokenReductionProof),
-    RouteChoiceImprovement(RouteChoiceImprovement),
-    RecurrenceOrNegativeEvidence(RecurrenceOrNegativeEvidence),
+    #[serde(rename = "model-load-failure")]
+    ModelLoadFailureDto(ModelLoadFailureDto),
+    #[serde(rename = "provider-downgrade")]
+    ProviderDowngradeDto(ProviderDowngradeDto),
+    ArtifactHashMismatch(HashMismatchDto),
+    TokenizerHashMismatch(HashMismatchDto),
+    #[serde(rename = "degraded-fallback")]
+    DegradedFallbackDto(DegradedFallbackDto),
+    SuccessfulLocalLoad(LocalLoadSucceededDto),
+    #[serde(rename = "retrieval-quality-proof")]
+    RetrievalQualityProofDto(RetrievalQualityProofDto),
+    #[serde(rename = "reranker-lift-proof")]
+    RerankerLiftProofDto(RerankerLiftProofDto),
+    #[serde(rename = "token-reduction-proof")]
+    TokenReductionProofDto(TokenReductionProofDto),
+    #[serde(rename = "route-choice-improvement")]
+    RouteChoiceImprovementDto(RouteChoiceImprovementDto),
+    #[serde(rename = "recurrence-or-negative-evidence")]
+    RecurrenceOrNegativeEvidenceDto(RecurrenceOrNegativeEvidenceDto),
 }
 
 impl ModelRuntimeObservationCandidate {
     pub fn kind(&self) -> ModelRuntimeObservationKind {
         match self {
-            ModelRuntimeObservationCandidate::ModelLoadFailure(_) => {
+            ModelRuntimeObservationCandidate::ModelLoadFailureDto(_) => {
                 ModelRuntimeObservationKind::ModelLoadFailure
             }
-            ModelRuntimeObservationCandidate::ProviderDowngrade(_) => {
+            ModelRuntimeObservationCandidate::ProviderDowngradeDto(_) => {
                 ModelRuntimeObservationKind::ProviderDowngrade
             }
             ModelRuntimeObservationCandidate::ArtifactHashMismatch(_) => {
@@ -119,25 +96,25 @@ impl ModelRuntimeObservationCandidate {
             ModelRuntimeObservationCandidate::TokenizerHashMismatch(_) => {
                 ModelRuntimeObservationKind::TokenizerHashMismatch
             }
-            ModelRuntimeObservationCandidate::DegradedFallback(_) => {
+            ModelRuntimeObservationCandidate::DegradedFallbackDto(_) => {
                 ModelRuntimeObservationKind::DegradedFallback
             }
             ModelRuntimeObservationCandidate::SuccessfulLocalLoad(_) => {
                 ModelRuntimeObservationKind::SuccessfulLocalLoad
             }
-            ModelRuntimeObservationCandidate::RetrievalQualityProof(_) => {
+            ModelRuntimeObservationCandidate::RetrievalQualityProofDto(_) => {
                 ModelRuntimeObservationKind::RetrievalQualityProof
             }
-            ModelRuntimeObservationCandidate::RerankerLiftProof(_) => {
+            ModelRuntimeObservationCandidate::RerankerLiftProofDto(_) => {
                 ModelRuntimeObservationKind::RerankerLiftProof
             }
-            ModelRuntimeObservationCandidate::TokenReductionProof(_) => {
+            ModelRuntimeObservationCandidate::TokenReductionProofDto(_) => {
                 ModelRuntimeObservationKind::TokenReductionProof
             }
-            ModelRuntimeObservationCandidate::RouteChoiceImprovement(_) => {
+            ModelRuntimeObservationCandidate::RouteChoiceImprovementDto(_) => {
                 ModelRuntimeObservationKind::RouteChoiceImprovement
             }
-            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(_) => {
+            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(_) => {
                 ModelRuntimeObservationKind::RecurrenceOrNegativeEvidence
             }
         }
@@ -145,20 +122,34 @@ impl ModelRuntimeObservationCandidate {
 
     pub fn model_or_query_context(&self) -> String {
         match self {
-            ModelRuntimeObservationCandidate::ModelLoadFailure(event) => event.model_id.clone(),
-            ModelRuntimeObservationCandidate::ProviderDowngrade(event) => event.model_id.clone(),
+            ModelRuntimeObservationCandidate::ModelLoadFailureDto(event) => {
+                event.model_id.retained()
+            }
+            ModelRuntimeObservationCandidate::ProviderDowngradeDto(event) => {
+                event.model_id.retained()
+            }
             ModelRuntimeObservationCandidate::ArtifactHashMismatch(event)
             | ModelRuntimeObservationCandidate::TokenizerHashMismatch(event) => {
-                event.model_id.clone()
+                event.model_id.retained()
             }
-            ModelRuntimeObservationCandidate::DegradedFallback(event) => event.model_id.clone(),
-            ModelRuntimeObservationCandidate::SuccessfulLocalLoad(event) => event.model_id.clone(),
-            ModelRuntimeObservationCandidate::RetrievalQualityProof(event) => event.query.clone(),
-            ModelRuntimeObservationCandidate::RerankerLiftProof(event) => event.query.clone(),
-            ModelRuntimeObservationCandidate::TokenReductionProof(event) => event.query.clone(),
-            ModelRuntimeObservationCandidate::RouteChoiceImprovement(event) => event.query.clone(),
-            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(event) => {
-                event.lesson_id.clone()
+            ModelRuntimeObservationCandidate::DegradedFallbackDto(event) => {
+                event.model_id.retained()
+            }
+            ModelRuntimeObservationCandidate::SuccessfulLocalLoad(event) => {
+                event.model_id.retained()
+            }
+            ModelRuntimeObservationCandidate::RetrievalQualityProofDto(event) => {
+                event.query.retained()
+            }
+            ModelRuntimeObservationCandidate::RerankerLiftProofDto(event) => event.query.retained(),
+            ModelRuntimeObservationCandidate::TokenReductionProofDto(event) => {
+                event.query.retained()
+            }
+            ModelRuntimeObservationCandidate::RouteChoiceImprovementDto(event) => {
+                event.query.retained()
+            }
+            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(event) => {
+                event.lesson_id.retained()
             }
         }
     }
@@ -167,12 +158,12 @@ impl ModelRuntimeObservationCandidate {
         matches!(
             self,
             ModelRuntimeObservationCandidate::SuccessfulLocalLoad(_)
-                | ModelRuntimeObservationCandidate::RetrievalQualityProof(_)
-                | ModelRuntimeObservationCandidate::RerankerLiftProof(_)
-                | ModelRuntimeObservationCandidate::TokenReductionProof(_)
-                | ModelRuntimeObservationCandidate::RouteChoiceImprovement(_)
-                | ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(
-                    RecurrenceOrNegativeEvidence {
+                | ModelRuntimeObservationCandidate::RetrievalQualityProofDto(_)
+                | ModelRuntimeObservationCandidate::RerankerLiftProofDto(_)
+                | ModelRuntimeObservationCandidate::TokenReductionProofDto(_)
+                | ModelRuntimeObservationCandidate::RouteChoiceImprovementDto(_)
+                | ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(
+                    RecurrenceOrNegativeEvidenceDto {
                         clean_evidence: true,
                         ..
                     }
@@ -184,30 +175,31 @@ impl ModelRuntimeObservationCandidate {
 pub fn ingest_model_runtime_observation(
     store: &mut Store,
     graph: &mut MemoryGraph,
-    record: ModelRuntimeObservationRecord,
-) -> Result<String> {
-    store.append_model_observation(record.clone())?;
+    record: &ModelRuntimeObservationRecordDto,
+) -> Result<IngestIncidentId> {
+    store.append_model_observation(record.retained())?;
     let kind = record.candidate.kind();
     let observation = Observation {
-        lesson_id: match &record.candidate {
-            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(event) => {
-                event.lesson_id.clone()
+        lesson_id: (match &record.candidate {
+            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(event) => {
+                event.lesson_id.retained()
             }
             _ => String::new(),
-        },
+        })
+        .into(),
         rule_id: None,
-        fault_class: Some(kind.as_str().to_owned()),
-        repo_context: record.candidate.model_or_query_context(),
-        clean: record.candidate.is_clean_evidence(),
-        source_surface: record.source.clone(),
-        ts: record.observed_at.clone(),
+        fault_class: Some(kind.as_str().retained().into()),
+        repo_context: record.candidate.model_or_query_context().into(),
+        clean: record.candidate.is_clean_evidence().into(),
+        source_surface: record.source.retained().into(),
+        ts: record.observed_at.retained().into(),
     };
     ingest_observation_payload_into_store(
         store,
         graph,
         observation,
-        Some(format!("model-runtime:{}", kind.as_str())),
-        Some(serde_json::to_value(record)?),
+        Some(format!("model-runtime:{}", kind.as_str()).into()),
+        Some(serde_json::to_string(&record)?.into()),
     )
 }
 
@@ -215,41 +207,42 @@ pub fn ingest_model_runtime_observation(
 /// mutating the in-memory projection.
 pub fn record_model_runtime_observation_in_store(
     store: &mut Store,
-    record: &ModelRuntimeObservationRecord,
+    record: &ModelRuntimeObservationRecordDto,
 ) -> Result<String> {
-    store.append_model_observation(record.clone())?;
+    store.append_model_observation(record.retained())?;
     let kind = record.candidate.kind();
     let payload = serde_json::to_value(record)?;
     let payload_kind = format!("model-runtime:{}", kind.as_str());
     let observation = Observation {
-        lesson_id: match &record.candidate {
-            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(event) => {
-                event.lesson_id.clone()
+        lesson_id: (match &record.candidate {
+            ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(event) => {
+                event.lesson_id.retained()
             }
             _ => String::new(),
-        },
+        })
+        .into(),
         rule_id: None,
-        fault_class: Some(kind.as_str().to_owned()),
-        repo_context: record.candidate.model_or_query_context(),
-        clean: record.candidate.is_clean_evidence(),
-        source_surface: record.source.clone(),
-        ts: record.observed_at.clone(),
+        fault_class: Some(kind.as_str().retained().into()),
+        repo_context: record.candidate.model_or_query_context().into(),
+        clean: record.candidate.is_clean_evidence().into(),
+        source_surface: record.source.retained().into(),
+        ts: record.observed_at.retained().into(),
     };
     let mut assigned_id = String::new();
     store.append_observation_entry(|seq| {
         let id = format!("obs-{seq:04}");
-        assigned_id = id.clone();
-        ObservationLogEntry {
-            schema_version: crate::schema::SCHEMA_VERSION,
-            seq,
+        assigned_id = id.retained();
+        ObservationLogEntryDto {
+            schema_version: crate::boundary::log_schema::SCHEMA_VERSION,
+            seq: seq.into(),
             id,
-            lesson_id: observation.lesson_id.clone(),
-            rule_id: observation.rule_id.clone(),
-            fault_class: observation.fault_class.clone(),
-            repo_context: observation.repo_context.clone(),
-            clean: observation.clean,
-            source_surface: observation.source_surface.clone(),
-            ts: observation.ts.clone(),
+            lesson_id: observation.lesson_id.retained().into(),
+            rule_id: observation.rule_id.retained().map(Into::into),
+            fault_class: observation.fault_class.retained().map(Into::into),
+            repo_context: observation.repo_context.retained().into(),
+            clean: observation.clean.is_clean(),
+            source_surface: observation.source_surface.retained().into(),
+            ts: observation.ts.retained().into(),
             supersedes_seq: None,
             payload_kind: Some(payload_kind),
             payload: Some(payload),
@@ -262,13 +255,13 @@ pub fn record_model_runtime_observation_in_store(
 /// observations from the canonical store log.
 pub fn project_model_runtime_observations_from_store(
     store: &Store,
-) -> Result<Vec<ModelRuntimeObservationRecord>> {
+) -> Result<Vec<ModelRuntimeObservationRecordDto>> {
     let native = store.read_model_observation_entries()?;
     if !native.entries.is_empty() {
         return Ok(native
             .entries
             .into_iter()
-            .map(|entry| ModelRuntimeObservationRecord {
+            .map(|entry| ModelRuntimeObservationRecordDto {
                 schema_version: entry.schema_version,
                 observed_at: entry.observed_at,
                 source: entry.source,
@@ -282,7 +275,7 @@ pub fn project_model_runtime_observations_from_store(
 
 fn project_model_runtime_observations_from_legacy_observation_log(
     store: &Store,
-) -> Result<Vec<ModelRuntimeObservationRecord>> {
+) -> Result<Vec<ModelRuntimeObservationRecordDto>> {
     let outcome = store.read_observation_entries()?;
     let mut records = Vec::new();
     for entry in outcome.entries {
@@ -301,7 +294,7 @@ fn project_model_runtime_observations_from_legacy_observation_log(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelLoadFailure {
+pub struct ModelLoadFailureDto {
     pub model_id: String,
     pub task: ModelTask,
     pub requested_provider: Option<ProviderKind>,
@@ -310,7 +303,7 @@ pub struct ModelLoadFailure {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderDowngrade {
+pub struct ProviderDowngradeDto {
     pub model_id: String,
     pub task: ModelTask,
     pub requested_provider: ProviderKind,
@@ -318,9 +311,17 @@ pub struct ProviderDowngrade {
     pub reason: String,
 }
 
+/// The fallback provider is the canonical domain decision represented by the
+/// provider-downgrade wire event; model id and reason remain observation data.
+impl From<ProviderDowngradeDto> for ProviderKind {
+    fn from(value: ProviderDowngradeDto) -> Self {
+        value.fallback_provider
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HashMismatch {
+pub struct HashMismatchDto {
     pub model_id: String,
     pub path: String,
     pub expected_sha256: String,
@@ -329,7 +330,7 @@ pub struct HashMismatch {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DegradedFallback {
+pub struct DegradedFallbackDto {
     pub model_id: String,
     pub task: ModelTask,
     pub fallback_reason: String,
@@ -337,7 +338,7 @@ pub struct DegradedFallback {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LocalLoadSucceeded {
+pub struct LocalLoadSucceededDto {
     pub model_id: String,
     pub task: ModelTask,
     pub provider: ProviderKind,
@@ -346,7 +347,7 @@ pub struct LocalLoadSucceeded {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RetrievalQualityProof {
+pub struct RetrievalQualityProofDto {
     pub query_id: String,
     pub query: String,
     pub route: String,
@@ -359,7 +360,7 @@ pub struct RetrievalQualityProof {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RerankerLiftProof {
+pub struct RerankerLiftProofDto {
     pub query_id: String,
     pub query: String,
     pub pre_rerank_top_k: Vec<String>,
@@ -368,28 +369,41 @@ pub struct RerankerLiftProof {
     pub improved: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TokenReductionProof {
+pub struct TokenReductionProofDto {
     pub query_id: String,
     pub query: String,
     pub naive_tokens: usize,
     pub context_tokens: usize,
 }
 
-impl TokenReductionProof {
+impl std::fmt::Debug for TokenReductionProofDto {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TokenReductionProofDto")
+            .field("query_id", &"[REDACTED]")
+            .field("query", &"[REDACTED]")
+            .field("naive_tokens", &self.naive_tokens)
+            .field("context_tokens", &self.context_tokens)
+            .finish()
+    }
+}
+
+impl TokenReductionProofDto {
     pub fn reduction_ratio(&self) -> f64 {
         if self.context_tokens == 0 {
             0.0
         } else {
-            self.naive_tokens as f64 / self.context_tokens as f64
+            crate::owned_boundary::usize_to_f64(self.naive_tokens)
+                / crate::owned_boundary::usize_to_f64(self.context_tokens)
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RouteChoiceImprovement {
+pub struct RouteChoiceImprovementDto {
     pub query_id: String,
     pub query: String,
     pub chosen_route: String,
@@ -401,27 +415,10 @@ pub struct RouteChoiceImprovement {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RecurrenceOrNegativeEvidence {
+pub struct RecurrenceOrNegativeEvidenceDto {
     pub lesson_id: String,
     pub query_id: Option<String>,
+    #[serde(with = "crate::boundary::model_observation::recurrence_kind_wire")]
     pub evidence_kind: RecurrenceNegativeKind,
     pub clean_evidence: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RecurrenceNegativeKind {
-    /// Recurrence count observed after a lesson has landed.
-    RecurrenceCount {
-        /// Incident count that is now considered recurrence since the
-        /// lesson's first landing evidence.
-        recurrence_count: usize,
-        /// Optional previous count, if a delta was observed.
-        previous_count: Option<usize>,
-    },
-    /// Explicit clean run that produced `no finding`.
-    NegativeEvidence {
-        /// Why this was considered negative evidence for the lesson.
-        reason: String,
-    },
 }

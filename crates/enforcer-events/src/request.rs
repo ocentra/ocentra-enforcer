@@ -1,19 +1,24 @@
+use enforcer_domain::events_types::EventErrorReason;
 use std::{
     collections::{BTreeMap, VecDeque},
     sync::{Arc, Mutex, PoisonError},
-    time::Duration,
 };
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use enforcer_domain::events_types::{
+    EventCount, EventDuration, RequestCompletionOutcome, RequestId,
+};
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::sync::oneshot;
 
+use crate::boundary::request_persistence::RequestPayload;
 use crate::bus::reports::EventRequestMetrics;
-use crate::{DomainEvent, EventingError, PublishReport, RequestId};
+use crate::{bus::reports::handler::PublishReport, envelope::DomainEvent, error::EventingError};
 
 mod request_helpers;
 
 const TERMINAL_REQUEST_RETENTION_LIMIT: usize = 4096;
 
+/// Contract implemented by event response contract.
 pub trait EventResponseContract:
     Clone + Send + Sync + Serialize + DeserializeOwned + 'static
 {
@@ -22,47 +27,46 @@ pub trait EventResponseContract:
     }
 }
 
+/// Contract implemented by request event.
 pub trait RequestEvent: DomainEvent {
     type Response: EventResponseContract;
 
     fn request_id(&self) -> Result<RequestId, EventingError>;
 }
 
+/// Event-runtime data for request options.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RequestOptions {
-    timeout: Duration,
+    timeout: EventDuration,
 }
 
 impl RequestOptions {
-    pub fn with_timeout(timeout: Duration) -> Result<Self, EventingError> {
-        if timeout.is_zero() {
+    /// Executes the with timeout event-runtime operation.
+    pub fn with_timeout(timeout: EventDuration) -> Result<Self, EventingError> {
+        if timeout.value().is_zero() {
             return Err(EventingError::InvalidRequestOptions {
-                reason: String::from("request timeout must be greater than zero"),
+                reason: EventErrorReason::from_diagnostic(
+                    "request timeout must be greater than zero",
+                ),
             });
         }
         Ok(Self { timeout })
     }
 
-    pub fn timeout(self) -> Duration {
+    /// Executes the timeout event-runtime operation.
+    pub fn timeout(self) -> EventDuration {
         self.timeout
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RequestCompletionOutcome {
-    Completed,
-    Duplicate,
-    Late,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Event-runtime data for request completion report.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestCompletionReport {
     pub request_id: RequestId,
     pub outcome: RequestCompletionOutcome,
 }
 
+/// Event-runtime data for request report.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RequestReport<R>
 where
@@ -137,7 +141,7 @@ impl RequestRegistry {
         request_helpers::trim_terminal_requests(&mut state);
     }
 
-    pub(crate) fn cancel(&self, request_id: &RequestId) -> bool {
+    pub(crate) fn cancel(&self, request_id: &RequestId) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         let removed = state.entries.remove(request_id).is_some();
         if removed {
@@ -145,27 +149,32 @@ impl RequestRegistry {
                 .terminal_order
                 .retain(|terminal_id| terminal_id != request_id);
         }
-        removed
     }
 
     pub(crate) fn metrics(&self) -> EventRequestMetrics {
         let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         EventRequestMetrics {
-            pending_request_count: state
-                .entries
-                .values()
-                .filter(|entry| entry.state == RequestState::Pending)
-                .count(),
-            completed_request_count: state
-                .entries
-                .values()
-                .filter(|entry| entry.state == RequestState::Completed)
-                .count(),
-            timed_out_request_count: state
-                .entries
-                .values()
-                .filter(|entry| entry.state == RequestState::TimedOut)
-                .count(),
+            pending_request_count: crate::boundary::event_values::event_count(
+                state
+                    .entries
+                    .values()
+                    .filter(|entry| entry.state == RequestState::Pending)
+                    .count(),
+            ),
+            completed_request_count: crate::boundary::event_values::event_count(
+                state
+                    .entries
+                    .values()
+                    .filter(|entry| entry.state == RequestState::Completed)
+                    .count(),
+            ),
+            timed_out_request_count: crate::boundary::event_values::event_count(
+                state
+                    .entries
+                    .values()
+                    .filter(|entry| entry.state == RequestState::TimedOut)
+                    .count(),
+            ),
         }
     }
 
@@ -193,9 +202,9 @@ struct RequestRegistryState {
 }
 
 pub(crate) struct RequestRegistryClearReport {
-    pub(crate) pending_request_count: usize,
-    pub(crate) completed_request_count: usize,
-    pub(crate) timed_out_request_count: usize,
+    pub(crate) pending_request_count: EventCount,
+    pub(crate) completed_request_count: EventCount,
+    pub(crate) timed_out_request_count: EventCount,
 }
 
 struct RequestEntry {
@@ -217,40 +226,6 @@ enum RequestState {
     Pending,
     Completed,
     TimedOut,
-}
-
-pub(crate) struct RequestPayload {
-    value: serde_json::Value,
-}
-
-impl RequestPayload {
-    fn from_response<R>(request_id: &RequestId, response: R) -> Result<Self, EventingError>
-    where
-        R: EventResponseContract,
-    {
-        response.validate()?;
-        let value = serde_json::to_value(response).map_err(|error| {
-            EventingError::RequestResponseEncode {
-                request_id: request_id.clone(),
-                reason: error.to_string(),
-            }
-        })?;
-        Ok(Self { value })
-    }
-
-    pub(crate) fn decode<R>(self, request_id: &RequestId) -> Result<R, EventingError>
-    where
-        R: EventResponseContract,
-    {
-        let response: R = serde_json::from_value(self.value).map_err(|error| {
-            EventingError::RequestResponseDecode {
-                request_id: request_id.clone(),
-                reason: error.to_string(),
-            }
-        })?;
-        response.validate()?;
-        Ok(response)
-    }
 }
 
 pub(super) fn completion_report(

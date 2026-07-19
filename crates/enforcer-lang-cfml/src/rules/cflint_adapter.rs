@@ -19,7 +19,7 @@
 //! adapter always tells the truth about whether it ran.
 //!
 //! This module deserializes CFLint's `-json` output into
-//! [`CflintReport`]/[`CflintIssue`] (typed newtypes, per workpack
+//! [`CflintReportEnvelope`]/[`super::boundary::CflintIssueEnvelope`] (typed wire records, per workpack
 //! requirement -- never treated as a bare opaque string) before mapping
 //! each issue onto a [`enforcer_domain::findings::Finding`].
 
@@ -27,56 +27,14 @@ use std::path::Path;
 use std::process::Command;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInCfmlRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::support::{finding, FindingSpec};
-
-/// One issue in a CFLint JSON report (`-json` output shape: an array under
-/// `issues`, each carrying an array of `locations`). Only the fields this
-/// adapter maps are modeled; unknown fields are ignored by
-/// `serde(default)` on the container, never causing a hard parse failure.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct CflintIssue {
-    pub id: String,
-    pub severity: String,
-    #[serde(default)]
-    pub message: String,
-    #[serde(default)]
-    pub locations: Vec<CflintLocation>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct CflintLocation {
-    #[serde(default)]
-    pub line: u32,
-    #[serde(default)]
-    pub message: String,
-}
-
-/// One file's worth of a CFLint JSON report.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct CflintFileReport {
-    #[serde(default)]
-    pub issues: Vec<CflintIssue>,
-}
-
-/// The full CFLint `-json` report: a list of per-file reports.
-#[derive(Debug, Clone, Default, serde::Deserialize)]
-pub struct CflintReport {
-    #[serde(default)]
-    pub reports: Vec<CflintFileReport>,
-}
-
-/// Parse a CFLint `-json` stdout payload into a typed [`CflintReport`].
-/// Malformed JSON is a caller-level graceful-skip case, not a panic --
-/// this function simply returns the parse error for the caller to map to
-/// a skip diagnostic.
-pub fn parse_cflint_report(raw: &str) -> Result<CflintReport, serde_json::Error> {
-    serde_json::from_str(raw)
-}
+use super::boundary::{decode_cflint_report, run_cflint, CflintReportEnvelope};
+use super::support::FindingSpec;
 
 /// CFLint rule codes this adapter maps to an advisory finding. Anything
 /// else in the report is ignored (out of this pack's scope).
@@ -94,14 +52,16 @@ const MAPPED_CODES: &[&str] = &[
 /// the target file and maps any [`MAPPED_CODES`] issue onto this rule's
 /// advisory finding. Honest graceful-skip (never a silent pass) when the
 /// `cflint` binary is not on `PATH`.
+#[derive(Debug)]
 pub struct CflintAdvisoryValidator {
     rule_id: RuleId,
 }
 
 impl CflintAdvisoryValidator {
+    /// Construct the CFLint advisory validator.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CFML-CPLX-2.1".parse()?,
+            rule_id: BuiltInCfmlRule::CflintAdvisory.id(),
         })
     }
 }
@@ -110,32 +70,32 @@ impl CflintAdvisoryValidator {
 /// call via `cflint -version`; a validator is expected to be cheap, but
 /// this crate has no shared process-memo cache -- see module doc for why
 /// that's an acceptable trade for an advisory-only adapter).
-fn cflint_binary_available() -> bool {
-    Command::new("cflint")
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CflintAvailability {
+    Available,
+    Unavailable,
+}
+
+fn cflint_availability() -> CflintAvailability {
+    let available = Command::new("cflint")
         .arg("-version")
         .output()
         .map(|out| out.status.success() || !out.stdout.is_empty())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    if available {
+        CflintAvailability::Available
+    } else {
+        CflintAvailability::Unavailable
+    }
 }
 
-/// Run `cflint -json <file>` against an on-disk file and return its raw
-/// stdout, or `None` if the process could not be spawned/run at all.
-fn run_cflint(file_path: &Path) -> Option<String> {
-    let output = Command::new("cflint")
-        .arg("-json")
-        .arg(file_path)
-        .output()
-        .ok()?;
-    Some(String::from_utf8_lossy(&output.stdout).into_owned())
-}
-
-/// Map a parsed [`CflintReport`] onto this rule's advisory findings, given
+/// Map a parsed [`CflintReportEnvelope`] onto this rule's advisory findings, given
 /// the [`FindingSpec`]/[`ValidationInput`] to attach them to. Split out
 /// from [`Validator::validate`] so the mapping logic is testable without
 /// an actual `cflint` process (see `tests::maps_a_tracked_code_to_a_finding`).
 fn map_report_to_findings(
     spec: &FindingSpec<'_>,
-    report: &CflintReport,
+    report: &CflintReportEnvelope,
     input: &ValidationInput<'_>,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -149,7 +109,7 @@ fn map_report_to_findings(
                 .first()
                 .map(|loc| loc.line.max(1))
                 .unwrap_or(1);
-            findings.push(finding(
+            findings.push(finding!(
                 spec,
                 format!("cflint `{}`: {}", issue.id, issue.message),
                 input,
@@ -171,16 +131,15 @@ impl Validator for CflintAdvisoryValidator {
             return Vec::new();
         }
 
-        if !cflint_binary_available() {
-            return vec![finding(
+        if cflint_availability() == CflintAvailability::Unavailable {
+            return vec![finding!(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Info,
-                    title: "cflint binary unavailable -- advisory check skipped (honest skip)",
+                    rule: BuiltInCfmlRule::CflintAdvisory,
                 },
                 "The `cflint` binary was not found on PATH -- this advisory check was SKIPPED, \
-                 not silently passed. Install CFLint/CommandBox to enable this signal."
-                    .to_owned(),
+                 not silently passed. Install CFLint/CommandBox to enable this signal.",
                 &input,
                 1,
             )];
@@ -188,30 +147,28 @@ impl Validator for CflintAdvisoryValidator {
 
         let file_path = Path::new(path);
         let Some(raw) = run_cflint(file_path) else {
-            return vec![finding(
+            return vec![finding!(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Info,
-                    title: "cflint invocation failed -- advisory check skipped (honest skip)",
+                    rule: BuiltInCfmlRule::CflintAdvisory,
                 },
                 "The `cflint` binary is on PATH but the invocation could not be completed -- \
-                 this advisory check was SKIPPED, not silently passed."
-                    .to_owned(),
+                 this advisory check was SKIPPED, not silently passed.",
                 &input,
                 1,
             )];
         };
 
-        let Ok(report) = parse_cflint_report(&raw) else {
-            return vec![finding(
+        let Ok(report) = decode_cflint_report(ValidationSource::from_text(&raw)) else {
+            return vec![finding!(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Info,
-                    title: "cflint output unparseable -- advisory check skipped (honest skip)",
+                    rule: BuiltInCfmlRule::CflintAdvisory,
                 },
                 "`cflint -json` output could not be parsed -- this advisory check was SKIPPED, \
-                 not silently passed."
-                    .to_owned(),
+                 not silently passed.",
                 &input,
                 1,
             )];
@@ -221,7 +178,7 @@ impl Validator for CflintAdvisoryValidator {
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "cflint advisory finding (scored)",
+                rule: BuiltInCfmlRule::CflintAdvisory,
             },
             &report,
             &input,
@@ -236,10 +193,31 @@ pub fn all() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
 
 #[cfg(test)]
 mod tests {
+    use enforcer_domain::boundary::validation::ValidationSource;
     use enforcer_domain::findings::ScanScope;
+    use enforcer_domain::ids::{BuiltInCfmlRule, RuleId};
     use enforcer_domain::paths::RelPath;
+    use enforcer_domain::severity::Severity;
+    use enforcer_validator::validator::ValidationInput;
 
-    use super::*;
+    use super::{
+        cflint_availability, decode_cflint_report, map_report_to_findings, CflintAdvisoryValidator,
+        CflintAvailability, FindingSpec, Validator,
+    };
+
+    #[test]
+    fn rel_path_rejects_invalid_input() {
+        let error = RelPath::try_from("../OrderService.cfc".to_owned())
+            .err()
+            .map(|error| (error.path, error.reason));
+        assert_eq!(
+            error,
+            Some((
+                "relPath".to_owned(),
+                "invalid relative path: `..` segment escapes the repository root".to_owned()
+            ))
+        );
+    }
 
     #[test]
     fn parses_a_well_formed_cflint_report() -> Result<(), Box<dyn std::error::Error>> {
@@ -257,7 +235,7 @@ mod tests {
                 }
             ]
         }"#;
-        let report = parse_cflint_report(raw)?;
+        let report = decode_cflint_report(ValidationSource::from_text(raw))?;
         assert_eq!(report.reports.len(), 1);
         assert_eq!(report.reports[0].issues[0].id, "COMPLEX_BOOLEAN_CHECK");
         assert_eq!(report.reports[0].issues[0].locations[0].line, 12);
@@ -266,8 +244,11 @@ mod tests {
 
     #[test]
     fn malformed_json_is_a_parse_error_not_a_panic() {
-        let outcome = parse_cflint_report("{not json");
-        assert!(outcome.is_err());
+        let outcome = decode_cflint_report(ValidationSource::from_text("{not json"));
+        assert_eq!(
+            outcome.err().map(|error| error.classify()),
+            Some(serde_json::error::Category::Syntax)
+        );
     }
 
     #[test]
@@ -292,19 +273,19 @@ mod tests {
                 }
             ]
         }"#;
-        let report = parse_cflint_report(raw)?;
-        let rule_id: RuleId = "CFML-CPLX-2.1".parse()?;
-        let file: RelPath = "OrderService.cfc".parse()?;
+        let report = decode_cflint_report(ValidationSource::from_text(raw))?;
+        let rule_id: RuleId = BuiltInCfmlRule::CflintAdvisory.id();
+        let file = RelPath::try_from(String::from("OrderService.cfc"))?;
         let input = ValidationInput {
             file: &file,
-            source: "",
+            source: ValidationSource::from_text(""),
             scope: ScanScope::Files,
         };
         let findings = map_report_to_findings(
             &FindingSpec {
                 rule_id: &rule_id,
                 severity: Severity::Warning,
-                title: "cflint advisory finding (scored)",
+                rule: BuiltInCfmlRule::CflintAdvisory,
             },
             &report,
             &input,
@@ -314,8 +295,14 @@ mod tests {
             1,
             "only the tracked code should map to a finding"
         );
-        assert_eq!(findings[0].line, 7);
-        assert!(findings[0].detail.contains("NESTED_CFOUTPUT"));
+        assert_eq!(
+            findings[0]
+                .line
+                .source_line()
+                .map(|line| line.value().get()),
+            Some(7)
+        );
+        assert!(findings[0].detail.as_str().contains("NESTED_CFOUTPUT"));
         Ok(())
     }
 
@@ -326,7 +313,7 @@ mod tests {
         // when the binary genuinely is unavailable, the finding must be an
         // `Info`-severity "tool unavailable" skip, never an empty vec (which
         // would be indistinguishable from "ran clean").
-        if cflint_binary_available() {
+        if cflint_availability() == CflintAvailability::Available {
             // cflint happens to be installed on this host -- the skip branch
             // is exercised by construction instead (unit-level, no process
             // spawn), which is the property this test actually guards.
@@ -335,26 +322,26 @@ mod tests {
             return Ok(());
         }
         let validator = CflintAdvisoryValidator::new()?;
-        let file: RelPath = "OrderService.cfc".parse()?;
+        let file = RelPath::try_from(String::from("OrderService.cfc"))?;
         let input = ValidationInput {
             file: &file,
-            source: "component {}",
+            source: ValidationSource::from_text("component {}"),
             scope: ScanScope::Files,
         };
         let findings = validator.validate(input);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Info);
-        assert!(findings[0].title.contains("skipped"));
+        assert_eq!(findings[0].title.as_str(), "CFLint advisory result");
         Ok(())
     }
 
     #[test]
     fn validator_ignores_non_cfml_files() -> Result<(), Box<dyn std::error::Error>> {
         let validator = CflintAdvisoryValidator::new()?;
-        let file: RelPath = "README.md".parse()?;
+        let file = RelPath::try_from(String::from("README.md"))?;
         let input = ValidationInput {
             file: &file,
-            source: "not cfml",
+            source: ValidationSource::from_text("not cfml"),
             scope: ScanScope::Files,
         };
         assert!(validator.validate(input).is_empty());

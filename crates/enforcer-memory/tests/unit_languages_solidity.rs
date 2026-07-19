@@ -11,8 +11,9 @@
 //! `LangSpec::solidity`'s own doc comment for the specifics) -- not
 //! byte-for-byte parity with prior behavior.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_solidity;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -223,7 +224,7 @@ contract C {
 }
 
 #[test]
-fn extracts_branch_heavy_function_without_panicking() {
+fn extracts_branch_heavy_contract_method_without_panicking() {
     let src = r#"
 contract C {
     function f(uint256 amount) public returns (uint256) {
@@ -244,7 +245,7 @@ contract C {
 }
 "#;
     let parsed = parse_solidity(src);
-    assert!(symbol_kind(&parsed.symbols, "f").is_some());
+    assert_eq!(symbol_kind(&parsed.symbols, "f"), Some(&SymbolKind::Method));
 }
 
 #[test]

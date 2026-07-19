@@ -36,15 +36,15 @@ fn recall_returns_expected_record_for_targeted_query() -> Result<(), Box<dyn std
     let graph = load_fixture_graph()?;
 
     let hits = recall(&graph, "idempotent");
-    let ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
+    let ids: Vec<String> = hits.iter().map(|hit| hit.node.id().to_string()).collect();
     // Both the ndjson lesson record and the ledger row L1 discuss
     // idempotent init -- both must come back.
     assert!(
-        ids.contains(&"mem-fixture-0002"),
+        ids.iter().any(|id| id == "mem-fixture-0002"),
         "expected the idempotent-init memory record, got {ids:?}"
     );
     assert!(
-        ids.contains(&"L1"),
+        ids.iter().any(|id| id == "L1"),
         "expected the idempotent-init ledger row, got {ids:?}"
     );
     Ok(())
@@ -54,9 +54,9 @@ fn recall_returns_expected_record_for_targeted_query() -> Result<(), Box<dyn std
 fn recall_targeted_query_excludes_unrelated_records() -> Result<(), Box<dyn std::error::Error>> {
     let graph = load_fixture_graph()?;
     let hits = recall(&graph, "idempotent");
-    let ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
+    let ids: Vec<String> = hits.iter().map(|hit| hit.node.id().to_string()).collect();
     assert!(
-        !ids.contains(&"mem-fixture-0001"),
+        !ids.iter().any(|id| id == "mem-fixture-0001"),
         "recommend-and-proceed record must not match 'idempotent'"
     );
     Ok(())
@@ -82,5 +82,5 @@ fn rejects_malformed_ndjson_line_instead_of_dropping_it() {
         result.is_err(),
         "a corrupt line in an append-only log must be a hard error"
     );
-    assert!(graph.is_empty(), "no partial ingest on error");
+    assert!(graph.is_empty().is_empty(), "no partial ingest on error");
 }

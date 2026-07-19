@@ -1,25 +1,26 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-use crate::{
-    AggregateKey, CausationId, CorrelationId, EventClockInstant, EventCustody, EventId, EventType,
-    EventingError, IdempotencyKey, RecordedAt, RuntimeInstanceId, RuntimeRole, SchemaVersion,
-    SourceComponent, SourceService, TargetHandler,
+use enforcer_domain::events_types::{
+    AggregateKey, CausationId, CorrelationId, EventCustody, EventErrorField, EventErrorReason,
+    EventId, EventPriority, EventType, IdempotencyKey, RecordedAt, RuntimeInstanceId, RuntimeRole,
+    SchemaVersion, SourceComponent, SourceService, TargetHandler,
 };
 
-pub trait DomainEvent: Clone + Send + Sync + Serialize + DeserializeOwned + 'static {
+use crate::{clock::EventClockInstant, error::EventingError};
+
+/// Domain contract implemented by every event payload.
+pub trait DomainEvent: Clone + Send + Sync + 'static {
     fn contract(&self) -> Result<EventContract, EventingError>;
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError>;
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError>;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Typed identity and version of an event contract.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventContract {
     pub event_type: EventType,
     pub schema_version: SchemaVersion,
 }
-
 impl EventContract {
+    /// Executes the new event-runtime operation.
     pub fn new(event_type: EventType, schema_version: SchemaVersion) -> Self {
         Self {
             event_type,
@@ -28,18 +29,8 @@ impl EventContract {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EventPriority {
-    Low,
-    #[default]
-    Normal,
-    High,
-    Critical,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Typed origin metadata for an event.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventSource {
     pub custody: EventCustody,
     pub role: RuntimeRole,
@@ -47,8 +38,8 @@ pub struct EventSource {
     pub component: SourceComponent,
     pub instance_id: RuntimeInstanceId,
 }
-
 impl EventSource {
+    /// Executes the new event-runtime operation.
     pub fn new(
         custody: EventCustody,
         role: RuntimeRole,
@@ -66,36 +57,41 @@ impl EventSource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Typed metadata used to build an event envelope.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventMetadata {
     pub event_id: EventId,
     pub correlation_id: CorrelationId,
-    #[serde(default)]
     pub causation_id: Option<CausationId>,
     pub source: EventSource,
     pub observed_at: RecordedAt,
     pub target_handler: Option<TargetHandler>,
-    #[serde(default)]
     pub priority: EventPriority,
-    #[serde(default)]
     pub deadline: Option<EventClockInstant>,
 }
-
 impl EventMetadata {
-    pub fn new(correlation_id: CorrelationId, source: EventSource) -> Self {
-        Self {
+    /// Executes the new event-runtime operation.
+    pub fn new(correlation_id: CorrelationId, source: EventSource) -> Result<Self, EventingError> {
+        let observed_at = chrono::Utc::now().to_rfc3339();
+        // CLONE-JUSTIFICATION: parsing consumes its candidate while the error retains the rejected timestamp.
+        let observed_at = RecordedAt::try_new(observed_at.clone()).map_err(|_decode_error| {
+            EventingError::invalid_value(
+                EventErrorField::from_diagnostic("recorded_at"),
+                EventErrorReason::from_diagnostic(observed_at),
+            )
+        })?;
+        Ok(Self {
             event_id: EventId::generated(),
             correlation_id,
             causation_id: None,
             source,
-            observed_at: RecordedAt::now_utc(),
+            observed_at,
             target_handler: None,
             priority: EventPriority::Normal,
             deadline: None,
-        }
+        })
     }
-
+    /// Executes the from parts event-runtime operation.
     pub fn from_parts(
         event_id: EventId,
         correlation_id: CorrelationId,
@@ -114,26 +110,26 @@ impl EventMetadata {
             deadline: None,
         }
     }
-
+    /// Executes the with causation id event-runtime operation.
     pub fn with_causation_id(mut self, causation_id: CausationId) -> Self {
         self.causation_id = Some(causation_id);
         self
     }
-
+    /// Executes the with priority event-runtime operation.
     pub fn with_priority(mut self, priority: EventPriority) -> Self {
         self.priority = priority;
         self
     }
-
+    /// Executes the with deadline event-runtime operation.
     pub fn with_deadline(mut self, deadline: EventClockInstant) -> Self {
         self.deadline = Some(deadline);
         self
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EventEnvelope<E> {
+/// Live typed event frame; persistence and JSON live at the boundary.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EventFrame<E> {
     pub contract: EventContract,
     pub event_id: EventId,
     pub correlation_id: CorrelationId,
@@ -144,15 +140,15 @@ pub struct EventEnvelope<E> {
     pub observed_at: RecordedAt,
     pub target_handler: Option<TargetHandler>,
     pub priority: EventPriority,
-    #[serde(default)]
     pub deadline: Option<EventClockInstant>,
     pub payload: E,
 }
 
-impl<E> EventEnvelope<E>
+impl<E> EventFrame<E>
 where
     E: DomainEvent,
 {
+    /// Executes the from event event-runtime operation.
     pub fn from_event(payload: E, metadata: EventMetadata) -> Result<Self, EventingError> {
         Ok(Self {
             contract: payload.contract()?,
@@ -169,127 +165,10 @@ where
             payload,
         })
     }
-
-    pub fn store(&self) -> Result<StoredEventEnvelope, EventingError> {
-        // CLONE-JUSTIFICATION: this borrowed live envelope must produce an independently owned durable transport record.
-        Ok(StoredEventEnvelope {
-            // CLONE-JUSTIFICATION: owned durable record retains contract after borrowed envelope returns.
-            contract: self.contract.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains event id after borrowed envelope returns.
-            event_id: self.event_id.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains correlation id after borrowed envelope returns.
-            correlation_id: self.correlation_id.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains causation id after borrowed envelope returns.
-            causation_id: self.causation_id.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains aggregate key after borrowed envelope returns.
-            aggregate_key: self.aggregate_key.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains idempotency key after borrowed envelope returns.
-            idempotency_key: self.idempotency_key.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains source after borrowed envelope returns.
-            source: self.source.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains timestamp after borrowed envelope returns.
-            observed_at: self.observed_at.clone(),
-            // CLONE-JUSTIFICATION: owned durable record retains target handler after borrowed envelope returns.
-            target_handler: self.target_handler.clone(),
-            priority: self.priority,
-            deadline: self.deadline,
-            payload: StoredEventPayload::from_event(&self.payload)?,
-        })
-    }
 }
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct StoredEventPayload {
-    value: serde_json::Value,
-}
-
-impl StoredEventPayload {
-    fn from_event<E>(payload: &E) -> Result<Self, EventingError>
-    where
-        E: Serialize,
-    {
-        Ok(Self {
-            value: serde_json::to_value(payload)
-                .map_err(|error| EventingError::payload_encode(&error))?,
-        })
-    }
-
-    fn decode<E>(&self) -> Result<E, serde_json::Error>
-    where
-        E: DeserializeOwned,
-    {
-        // CLONE-JUSTIFICATION: serde_json::from_value consumes Value while this borrowed stored payload remains reusable.
-        serde_json::from_value(self.value.clone())
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StoredEventEnvelope {
-    pub contract: EventContract,
-    pub event_id: EventId,
-    pub correlation_id: CorrelationId,
-    #[serde(default)]
-    pub causation_id: Option<CausationId>,
-    pub aggregate_key: AggregateKey,
-    pub idempotency_key: IdempotencyKey,
-    pub source: EventSource,
-    pub observed_at: RecordedAt,
-    pub target_handler: Option<TargetHandler>,
-    #[serde(default)]
-    pub priority: EventPriority,
-    #[serde(default)]
-    pub deadline: Option<EventClockInstant>,
-    pub payload: StoredEventPayload,
-}
-
-impl StoredEventEnvelope {
-    pub fn decode<E>(&self) -> Result<EventEnvelope<E>, EventingError>
-    where
-        E: DomainEvent,
-    {
-        let payload: E = self.payload.decode().map_err(|error| {
-            // CLONE-JUSTIFICATION: the owned decode error outlives this borrowed stored envelope.
-            EventingError::payload_decode(self.contract.event_type.clone(), &error)
-        })?;
-        let expected = payload.contract()?;
-        if expected != self.contract {
-            return Err(EventingError::ContractMismatch {
-                expected: expected.event_type,
-                // CLONE-JUSTIFICATION: the owned mismatch error outlives this borrowed stored envelope.
-                received: self.contract.event_type.clone(),
-                expected_schema_version: expected.schema_version,
-                received_schema_version: self.contract.schema_version,
-            });
-        }
-        // CLONE-JUSTIFICATION: this borrowed durable transport record must reconstruct an independently owned live envelope.
-        Ok(EventEnvelope {
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns contract beyond borrowed record.
-            contract: self.contract.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns event id beyond borrowed record.
-            event_id: self.event_id.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns correlation id beyond borrowed record.
-            correlation_id: self.correlation_id.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns causation id beyond borrowed record.
-            causation_id: self.causation_id.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns aggregate key beyond borrowed record.
-            aggregate_key: self.aggregate_key.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns idempotency key beyond borrowed record.
-            idempotency_key: self.idempotency_key.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns source beyond borrowed record.
-            source: self.source.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns timestamp beyond borrowed record.
-            observed_at: self.observed_at.clone(),
-            // CLONE-JUSTIFICATION: reconstructed live envelope owns target handler beyond borrowed record.
-            target_handler: self.target_handler.clone(),
-            priority: self.priority,
-            deadline: self.deadline,
-            payload,
-        })
-    }
-
-    pub fn is_deadline_expired(&self, now: EventClockInstant) -> bool {
-        self.deadline.is_some_and(|deadline| now >= deadline)
-    }
-}
+// INVALID-INPUT-TEST: envelope boundary tests reject malformed metadata, zero
+// schema versions, and stored/live contract mismatches.
+// ROUNDTRIP-TEST: `tests/unit/envelope.rs` proves live and stored envelope
+// metadata survives canonical persistence conversion.
+// `EventFrame` is the live typed domain frame, not a transport DTO; its
+// explicit `store` boundary conversion is implemented in envelope_persistence.

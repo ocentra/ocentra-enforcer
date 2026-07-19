@@ -48,6 +48,7 @@ use regex::Regex;
 /// that are vulnerable to type-juggling bypass: request input compared
 /// loosely, `strcmp()` NULL-return bypass, non-strict `in_array()` on
 /// request input, and magic-hash (`"0e..."`) loose hash comparison.
+#[derive(Debug)]
 pub struct TypeJugglingValidator {
     rule_id: RuleId,
     /// A PHP request-input superglobal array access:
@@ -78,7 +79,7 @@ impl TypeJugglingValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let request_input =
             Regex::new(r"\$_(?:GET|POST|REQUEST|COOKIE)\s*\[[^\]]*\]").map_err(|err| {
-                DecodeError::new("cyberskillsTypeJuggleRequestInput", err.to_string())
+                crate::boundary::regex::decode("cyberskillsTypeJuggleRequestInput", err)
             })?;
         // No lookaround is available, so a standalone `==` is matched by
         // requiring the character immediately before it to be neither `=`
@@ -87,26 +88,30 @@ impl TypeJugglingValidator {
         // (ruling out the first `=` of `===`). `^`/`$` cover the case where
         // the operator sits at a line boundary.
         let loose_eq = Regex::new(r"(?:^|[^=!])==(?:[^=]|$)")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleLooseEq", err.to_string()))?;
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsTypeJuggleLooseEq", err))?;
         // A standalone `!=` is matched by requiring the character right
         // after it to not be `=` (ruling out `!==`).
         let loose_ne = Regex::new(r"!=(?:[^=]|$)")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleLooseNe", err.to_string()))?;
-        let strcmp_call = Regex::new(r"strcmp\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleStrcmpCall", err.to_string()))?;
-        let bang_strcmp = Regex::new(r"!\s*strcmp\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleBangStrcmp", err.to_string()))?;
-        let in_array_call = Regex::new(r"in_array\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleInArrayCall", err.to_string()))?;
-        let in_array_strict = Regex::new(r"in_array\s*\([^)]*,\s*true\s*\)").map_err(|err| {
-            DecodeError::new("cyberskillsTypeJuggleInArrayStrict", err.to_string())
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsTypeJuggleLooseNe", err))?;
+        let strcmp_call = Regex::new(r"strcmp\s*\(").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsTypeJuggleStrcmpCall", err)
         })?;
-        let md5_sha1_call = Regex::new(r"\b(?:md5|sha1)\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleMd5Sha1Call", err.to_string()))?;
+        let bang_strcmp = Regex::new(r"!\s*strcmp\s*\(").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsTypeJuggleBangStrcmp", err)
+        })?;
+        let in_array_call = Regex::new(r"in_array\s*\(").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsTypeJuggleInArrayCall", err)
+        })?;
+        let in_array_strict = Regex::new(r"in_array\s*\([^)]*,\s*true\s*\)").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsTypeJuggleInArrayStrict", err)
+        })?;
+        let md5_sha1_call = Regex::new(r"\b(?:md5|sha1)\s*\(").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsTypeJuggleMd5Sha1Call", err)
+        })?;
         let hash_var = Regex::new(r"(?i)\$\w*hash\w*")
-            .map_err(|err| DecodeError::new("cyberskillsTypeJuggleHashVar", err.to_string()))?;
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsTypeJuggleHashVar", err))?;
         Ok(Self {
-            rule_id: "CYBER-TYPE-JUGGLE.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberTypeJuggle.id(),
             request_input,
             loose_eq,
             loose_ne,
@@ -127,7 +132,7 @@ impl Validator for TypeJugglingValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let mut matched_labels: Vec<&str> = Vec::new();
 
@@ -170,20 +175,18 @@ impl Validator for TypeJugglingValidator {
             }
 
             if !matched_labels.is_empty() {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "PHP type-juggling vulnerable comparison".to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "PHP type-juggling vulnerable comparison",
+                    format!(
                         "Line uses a type-juggling-vulnerable comparison: {}. Fix: use strict \
                          ===/!== comparison, hash_equals() for hash/token comparison, and the \
                          strict third argument on in_array().",
                         matched_labels.join(", ")
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -192,22 +195,15 @@ impl Validator for TypeJugglingValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::TypeJugglingValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_type_juggle() -> Result<(), Box<dyn std::error::Error>> {
         let v = TypeJugglingValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &v,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.type-juggling/bad/vuln.php",
             "tests/fixtures/cyberskills/web.type-juggling/good/safe.php",
         )?;

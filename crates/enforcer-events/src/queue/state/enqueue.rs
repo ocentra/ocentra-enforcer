@@ -1,8 +1,14 @@
+use enforcer_domain::events_types::EventErrorReason;
 use std::sync::PoisonError;
 
-use crate::bus::reports::dead_letter::DeadLetterReason;
-use crate::queue::policy::{QueueDisposition, QueueOverflowPolicy, QueueReport};
-use crate::{EventClockInstant, EventingError, StoredEventEnvelope};
+use enforcer_domain::events_types::{
+    DeadLetterReason, EventId, EventType, IdempotencyKey, QueueDisposition, QueueIdempotencyState,
+    QueueOverflowPolicy,
+};
+
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use crate::queue::policy::QueueReport;
+use crate::{clock::EventClockInstant, error::EventingError};
 
 use super::{EventQueue, EventQueueState, NoSubscriberQueueDecision, QueuedEnvelope};
 
@@ -14,7 +20,7 @@ impl EventQueue {
     ) -> Result<NoSubscriberQueueDecision, EventingError> {
         let Some(capacity) = self.policy.capacity() else {
             return Err(EventingError::InvalidQueuePolicy {
-                reason: String::from("queue capacity is not configured"),
+                reason: EventErrorReason::from_diagnostic("queue capacity is not configured"),
             });
         };
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
@@ -23,12 +29,12 @@ impl EventQueue {
         ensure_event_id_available(&state, &event_id)?;
         // CLONE-JUSTIFICATION: The queued envelope retains its idempotency key while duplicate detection borrows a stable key.
         let key = stored.idempotency_key.clone();
-        ensure_idempotency_available(self.policy.idempotency_registry_enabled(), &state, &key)?;
-        if state.queued.len() >= capacity {
+        ensure_idempotency_available(self.policy.idempotency_registry(), &state, &key)?;
+        if state.queued.len() >= crate::boundary::event_values::event_count_value(capacity) {
             return self.overflow_decision(stored, &mut state, capacity, now);
         }
         enqueue_queued_event(
-            self.policy.idempotency_registry_enabled(),
+            self.policy.idempotency_registry(),
             &mut state,
             stored,
             now,
@@ -36,7 +42,7 @@ impl EventQueue {
         );
         Ok(NoSubscriberQueueDecision::Queued(QueueReport {
             disposition: QueueDisposition::QueuedNoSubscriber,
-            queued_count: state.queued.len(),
+            queued_count: crate::boundary::event_values::event_count(state.queued.len()),
             capacity: self.policy.capacity(),
         }))
     }
@@ -45,7 +51,7 @@ impl EventQueue {
         &self,
         stored: StoredEventEnvelope,
         state: &mut EventQueueState,
-        capacity: usize,
+        capacity: enforcer_domain::events_types::EventCount,
         now: EventClockInstant,
     ) -> Result<NoSubscriberQueueDecision, EventingError> {
         // CLONE-JUSTIFICATION: `stored` is moved into the selected queue outcome, so an owned event type must survive for reject/dead-letter errors.
@@ -66,8 +72,8 @@ impl EventQueue {
 }
 
 fn reject_overflow(
-    event_type: crate::EventType,
-    capacity: usize,
+    event_type: EventType,
+    capacity: enforcer_domain::events_types::EventCount,
 ) -> Result<NoSubscriberQueueDecision, EventingError> {
     Err(EventingError::QueueCapacityExceeded {
         event_type,
@@ -77,14 +83,14 @@ fn reject_overflow(
 
 fn dead_letter_overflow(
     state: &EventQueueState,
-    event_type: crate::EventType,
-    capacity: usize,
-    policy_capacity: Option<usize>,
+    event_type: EventType,
+    capacity: enforcer_domain::events_types::EventCount,
+    policy_capacity: Option<enforcer_domain::events_types::EventCount>,
 ) -> NoSubscriberQueueDecision {
     NoSubscriberQueueDecision::DeadLetter(
         QueueReport {
             disposition: QueueDisposition::DeadLetteredQueueOverflow,
-            queued_count: state.queued.len(),
+            queued_count: crate::boundary::event_values::event_count(state.queued.len()),
             capacity: policy_capacity,
         },
         DeadLetterReason::QueueOverflow,
@@ -99,19 +105,21 @@ fn drop_oldest_and_dead_letter(
     queue: &EventQueue,
     stored: StoredEventEnvelope,
     state: &mut EventQueueState,
-    capacity: usize,
+    capacity: enforcer_domain::events_types::EventCount,
     now: EventClockInstant,
 ) -> Result<NoSubscriberQueueDecision, EventingError> {
     let Some(dropped) = state.queued.pop_front() else {
         return Err(EventingError::InvalidQueuePolicy {
-            reason: String::from("drop-oldest overflow requires a queued event"),
+            reason: EventErrorReason::from_diagnostic(
+                "drop-oldest overflow requires a queued event",
+            ),
         });
     };
     state.queued_event_ids.remove(&dropped.stored.event_id);
     state.queued_keys.remove(&dropped.stored.idempotency_key);
     // CLONE-JUSTIFICATION: The replacement envelope remains owned by the queue after its event-id lookup key is inserted.
     state.queued_event_ids.insert(stored.event_id.clone());
-    if queue.policy.idempotency_registry_enabled() {
+    if queue.policy.idempotency_registry() == QueueIdempotencyState::Enabled {
         // CLONE-JUSTIFICATION: The replacement envelope remains owned by the queue after its idempotency lookup key is inserted.
         state.queued_keys.insert(stored.idempotency_key.clone());
     }
@@ -124,7 +132,7 @@ fn drop_oldest_and_dead_letter(
     Ok(NoSubscriberQueueDecision::QueuedWithDeadLetter(
         QueueReport {
             disposition: QueueDisposition::DeadLetteredQueueOverflow,
-            queued_count: state.queued.len(),
+            queued_count: crate::boundary::event_values::event_count(state.queued.len()),
             capacity: queue.policy.capacity(),
         },
         Box::new(dropped.stored),
@@ -138,7 +146,7 @@ fn drop_oldest_and_dead_letter(
 
 fn ensure_event_id_available(
     state: &super::EventQueueState,
-    event_id: &crate::EventId,
+    event_id: &EventId,
 ) -> Result<(), EventingError> {
     if state.queued_event_ids.contains(event_id) || state.in_flight_event_ids.contains(event_id) {
         // CLONE-JUSTIFICATION: The duplicate-id error owns the id, while the caller retains the borrowed id for its queue operation.
@@ -150,11 +158,11 @@ fn ensure_event_id_available(
 }
 
 fn ensure_idempotency_available(
-    enabled: bool,
+    state_setting: QueueIdempotencyState,
     state: &super::EventQueueState,
-    key: &crate::IdempotencyKey,
+    key: &IdempotencyKey,
 ) -> Result<(), EventingError> {
-    if enabled
+    if state_setting == QueueIdempotencyState::Enabled
         && (state.completed_keys.contains(key)
             || state.queued_keys.contains(key)
             || state.in_flight_keys.contains(key))
@@ -168,15 +176,15 @@ fn ensure_idempotency_available(
 }
 
 fn enqueue_queued_event(
-    enabled: bool,
+    state_setting: QueueIdempotencyState,
     state: &mut super::EventQueueState,
     stored: StoredEventEnvelope,
     now: EventClockInstant,
-    key: crate::IdempotencyKey,
+    key: IdempotencyKey,
 ) {
     // CLONE-JUSTIFICATION: The queued envelope retains its event id while the queue index owns a separate lookup key.
     state.queued_event_ids.insert(stored.event_id.clone());
-    if enabled {
+    if state_setting == QueueIdempotencyState::Enabled {
         state.queued_keys.insert(key);
     }
     state.queued.push_back(QueuedEnvelope {

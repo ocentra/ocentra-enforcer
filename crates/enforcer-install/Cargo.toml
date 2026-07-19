@@ -16,7 +16,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml_edit = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: shared installation orchestration and diagnostics.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: typed installation and distribution values.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # c07 deviation (owns: is Cargo.toml-silent, but the workpack binds the

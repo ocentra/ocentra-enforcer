@@ -137,7 +137,7 @@ fn distinct_deduplicates_rows() -> TestResult<()> {
 #[test]
 fn count_aggregate_is_recognized() -> TestResult<()> {
     let parsed = parse("MATCH (n:Function) RETURN COUNT(n)")?;
-    assert!(parsed.count);
+    assert!(parsed.count.is_count());
     assert_eq!(parsed.return_vars, vec![ColumnRef::bare("n".to_string())]);
     Ok(())
 }
@@ -176,8 +176,8 @@ fn return_dotted_property_column_is_parsed() -> TestResult<()> {
     assert_eq!(
         parsed.return_vars,
         vec![ColumnRef {
-            var: "n".to_string(),
-            property: Some("name".to_string()),
+            var: "n".to_string().into(),
+            property: Some("name".to_string().into()),
         }]
     );
     Ok(())
@@ -191,8 +191,8 @@ fn return_multiple_dotted_and_bare_columns_are_parsed() -> TestResult<()> {
         vec![
             ColumnRef::bare("n".to_string()),
             ColumnRef {
-                var: "n".to_string(),
-                property: Some("rel_path".to_string()),
+                var: "n".to_string().into(),
+                property: Some("rel_path".to_string().into()),
             },
         ]
     );

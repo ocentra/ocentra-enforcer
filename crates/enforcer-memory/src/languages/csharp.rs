@@ -30,9 +30,10 @@
 //! `app.MapPost(...)`, etc).
 
 use crate::parsers::{
-    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
-    ReceiverHint, RouteRef, SymbolKind, SymbolRef, TypeRefRef,
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
+    SymbolKind, SymbolRef, TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost method a call expression is lexically inside of, if
@@ -93,23 +94,23 @@ fn walk(
                     SymbolKind::Class
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 emit_base_list_edges(node, src, &name, line, out);
                 for decorator_name in attribute_names(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -120,9 +121,9 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 // An interface's `base_list` entries are all supertype
                 // interfaces (C# interfaces cannot extend a class) --
@@ -130,16 +131,16 @@ fn walk(
                 // `interface Sub extends Base1, Base2` treatment.
                 for base_name in base_list_names(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base_name,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (base_name).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -148,15 +149,15 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Enum,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -164,9 +165,9 @@ fn walk(
         "namespace_declaration" | "file_scoped_namespace_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -183,21 +184,21 @@ fn walk(
                 };
                 out.symbols.push(SymbolRef {
                     kind,
-                    name: name.clone(),
-                    line,
+                    name: (name.clone()).into(),
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in &attributes {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator_name.clone(),
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator_name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 for route in routes_from_attributes(node, src, line) {
@@ -205,9 +206,9 @@ fn walk(
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 let method_scope = FnScope {
@@ -229,15 +230,15 @@ fn walk(
             for name in field_declarator_names(node, src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Constant,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name,
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -245,17 +246,17 @@ fn walk(
         "local_function_statement" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Lambda,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "using_directive" => {
             if let Some(path) = using_directive_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -264,13 +265,16 @@ fn walk(
                 let callee = function.utf8_text(src).unwrap_or("").to_string();
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee: callee.clone(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (callee.clone()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(route) = route_from_map_call(&callee, node, src) {
                     out.routes.push(route);
@@ -395,22 +399,22 @@ fn emit_base_list_edges(
     };
     if looks_like_interface_name(&first) {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: first,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (first).into(),
+            line: line.into(),
         });
     } else {
         out.inherits.push(InheritsRef {
-            sub_name: type_name.to_string(),
-            super_name: first,
-            line,
+            sub_name: (type_name.to_string()).into(),
+            super_name: (first).into(),
+            line: line.into(),
         });
     }
     for remaining in iter {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: remaining,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (remaining).into(),
+            line: line.into(),
         });
     }
 }
@@ -493,7 +497,11 @@ fn route_from_attribute(attr: Node<'_>, src: &[u8], line: usize) -> Option<Route
         return None;
     };
     let path = attribute_first_string_arg(attr, src).unwrap_or_default();
-    Some(RouteRef { method, path, line })
+    Some(RouteRef {
+        method: method.into(),
+        path: path.into(),
+        line: line.into(),
+    })
 }
 
 /// `attribute`'s argument list is an `attribute_argument_list` node
@@ -548,9 +556,9 @@ fn route_from_map_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<
     }
     let path = raw.trim_matches('"').to_string();
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: call_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 

@@ -1,60 +1,67 @@
-//! Shared, non-public helpers every CFML rule module in this crate builds
-//! its [`enforcer_validator::validator::Validator`] impls on: a
-//! [`Finding`] builder and small line-oriented text helpers, mirroring
-//! `enforcer-lang-dart::rules::support`'s shape.
-//!
-//! Not `pub` at the crate root (workspace doctrine: no `pub use`
-//! barrels) -- sibling rule modules reach these via
-//! `crate::rules::support::*`.
+//! Typed, crate-private helpers shared by CFML validators.
 
-use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::boundary::validation::ValidationSource;
+use enforcer_domain::ids::{BuiltInCfmlRule, RuleId};
 use enforcer_domain::severity::Severity;
-use enforcer_validator::validator::ValidationInput;
+use enforcer_domain::telemetry_types::SourceLine;
 
-/// The fixed parts of one rule's finding: id, severity, and title.
-/// Bundled so the per-call-site `finding()` helper stays under clippy's
-/// `too_many_arguments` limit.
-pub struct FindingSpec<'a> {
-    pub rule_id: &'a RuleId,
-    pub severity: Severity,
-    pub title: &'a str,
+/// Fixed canonical identity and severity for one CFML finding.
+pub(crate) struct FindingSpec<'a> {
+    pub(crate) rule_id: &'a RuleId,
+    pub(crate) rule: BuiltInCfmlRule,
+    pub(crate) severity: Severity,
 }
 
-/// Build a [`Finding`] for one of this crate's validators.
-pub fn finding(
-    spec: &FindingSpec<'_>,
-    detail: String,
-    input: &ValidationInput<'_>,
-    line: u32,
-) -> Finding {
-    Finding {
-        rule_id: spec.rule_id.clone(),
-        severity: spec.severity,
-        title: spec.title.to_owned(),
-        detail,
-        file: input.file.clone(),
-        line,
-        snippet: None,
+/// Convert supported line representations into the canonical source-line brand.
+pub(crate) trait IntoSourceLine {
+    fn into_source_line(self) -> Option<SourceLine>;
+}
+
+impl IntoSourceLine for u32 {
+    fn into_source_line(self) -> Option<SourceLine> {
+        std::num::NonZeroU32::new(self).map(SourceLine::try_new)
     }
 }
 
-/// Find the 1-based line number of the first line containing `marker`, or
-/// `None` if absent.
-pub fn first_line_containing(source: &str, marker: &str) -> Option<u32> {
-    source
-        .lines()
-        .enumerate()
-        .find(|(_, line)| line.contains(marker))
-        .map(|(idx, _)| (idx as u32).saturating_add(1))
+impl IntoSourceLine for SourceLine {
+    fn into_source_line(self) -> Option<SourceLine> {
+        Some(self)
+    }
 }
 
-/// Find the 1-based line number of the first line containing any of
-/// `markers`, or `None` if none is present.
-pub fn first_line_containing_any(source: &str, markers: &[&str]) -> Option<u32> {
+impl IntoSourceLine for Option<SourceLine> {
+    fn into_source_line(self) -> Option<SourceLine> {
+        self
+    }
+}
+
+/// Convert a supported line representation into a canonical source line.
+pub(crate) fn into_source_line(line: impl IntoSourceLine) -> Option<SourceLine> {
+    line.into_source_line()
+}
+
+/// Find the one-based source line of the first matching CFML source marker.
+pub(crate) fn first_line_containing(
+    source: ValidationSource<'_>,
+    marker: ValidationSource<'_>,
+) -> Option<SourceLine> {
     source
+        .as_str()
         .lines()
-        .enumerate()
-        .find(|(_, line)| markers.iter().any(|marker| line.contains(marker)))
-        .map(|(idx, _)| (idx as u32).saturating_add(1))
+        .zip(1u32..)
+        .find(|(line, _)| line.contains(marker.as_str()))
+        .and_then(|(_, line)| std::num::NonZeroU32::new(line).map(SourceLine::try_new))
+}
+
+/// Find the one-based source line of the first matching marker.
+pub(crate) fn first_line_containing_any(
+    source: ValidationSource<'_>,
+    markers: &[ValidationSource<'static>],
+) -> Option<SourceLine> {
+    source
+        .as_str()
+        .lines()
+        .zip(1u32..)
+        .find(|(line, _)| markers.iter().any(|marker| line.contains(marker.as_str())))
+        .and_then(|(_, line)| std::num::NonZeroU32::new(line).map(SourceLine::try_new))
 }

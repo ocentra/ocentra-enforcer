@@ -125,21 +125,15 @@ macro_rules! rule_validator {
 /// transfers live here exactly once.
 macro_rules! family_finding {
     ($rule_id:expr, $input:expr, $line:expr, $severity:expr, $title:literal, $detail:expr) => {
-        Finding {
-            // CLONE-JUSTIFICATION: every Finding owns its RuleId; the
-            // validator keeps its own parsed id for the next file.
-            rule_id: $rule_id.clone(),
-            severity: $severity,
-            // ALLOC-JUSTIFICATION: Finding::title is an owned String on the
-            // findings wire shape; one owned copy per emitted finding.
-            title: $title.to_owned(),
-            detail: $detail,
-            // CLONE-JUSTIFICATION: Finding::file owns its RelPath; the
-            // input's borrowed path outlives only this call.
-            file: $input.file.clone(),
-            line: $line,
-            snippet: None,
-        }
+        crate::boundary::finding::from_source(
+            ($rule_id, $severity),
+            $title,
+            $detail,
+            $input.file,
+            ($line, None),
+        )
+        .into_iter()
+        .collect::<Vec<Finding>>()
     };
 }
 
@@ -193,24 +187,24 @@ rule_validator!(
 fn check_asserts_rejection(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
     let opens_test_case = TEST_CASE_OPENERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if !opens_test_case {
         return Vec::new();
     }
     let Some(marker) = SUCCESS_ONLY_MARKERS
         .iter()
-        .find(|marker| input.source.contains(**marker))
+        .find(|marker| input.source.as_str().contains(**marker))
     else {
         return Vec::new();
     };
     let asserts_rejection = REJECTION_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if asserts_rejection {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, marker);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), marker);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -223,7 +217,7 @@ fn check_asserts_rejection(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec
              about the protection it claims to cover. Fix: add a test asserting the operation \
              is refused under the adversarial or invalid input this unit guards against."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -273,7 +267,7 @@ rule_validator!(
 
 /// The `SEC-TEST-MOCKS-MONEY-LOGIC.1` detection body.
 fn check_money_logic_test_double(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
-    for (index, candidate) in input.source.lines().enumerate() {
+    for (index, candidate) in input.source.as_str().lines().enumerate() {
         let Some(call_marker) = TEST_DOUBLE_CALL_MARKERS
             .iter()
             .find(|marker| candidate.contains(**marker))
@@ -282,6 +276,7 @@ fn check_money_logic_test_double(rule_id: &RuleId, input: &ValidationInput<'_>) 
         };
         let names_money_target = input
             .source
+            .as_str()
             .lines()
             .skip(index)
             .take(TEST_DOUBLE_TARGET_WINDOW)
@@ -295,7 +290,7 @@ fn check_money_logic_test_double(rule_id: &RuleId, input: &ValidationInput<'_>) 
             continue;
         }
         let line = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
-        return vec![family_finding!(
+        return family_finding!(
             rule_id,
             input,
             line,
@@ -309,7 +304,7 @@ fn check_money_logic_test_double(rule_id: &RuleId, input: &ValidationInput<'_>) 
                  exercise the real money logic and assert on its actual outcome instead of \
                  doubling it."
             )
-        )];
+        );
     }
     Vec::new()
 }
@@ -353,18 +348,18 @@ rule_validator!(
 fn check_reproducible_seed(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
     let Some(marker) = FUZZ_MARKERS
         .iter()
-        .find(|marker| input.source.contains(**marker))
+        .find(|marker| input.source.as_str().contains(**marker))
     else {
         return Vec::new();
     };
     let logs_seed = SEED_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if logs_seed {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, marker);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), marker);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -376,7 +371,7 @@ fn check_reproducible_seed(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec
              replayed or debugged. Fix: log/thread the seed (e.g. `{{ seed }}` passed to \
              `fc.assert`) so a failing run is reproducible."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -411,18 +406,18 @@ rule_validator!(
 fn check_shared_state_reset(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
     let Some(marker) = GLOBAL_MUTATION_MARKERS
         .iter()
-        .find(|marker| input.source.contains(**marker))
+        .find(|marker| input.source.as_str().contains(**marker))
     else {
         return Vec::new();
     };
     let resets_shared_state = RESET_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if resets_shared_state {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, marker);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), marker);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -436,7 +431,7 @@ fn check_shared_state_reset(rule_id: &RuleId, input: &ValidationInput<'_>) -> Ve
              another. Fix: reset the shared value in `beforeEach`, or scope it per-test instead \
              of at module level."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -469,18 +464,18 @@ rule_validator!(
 fn check_trivial_pass_if_deleted(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
     let Some(marker) = TRIVIAL_MARKERS
         .iter()
-        .find(|marker| input.source.contains(**marker))
+        .find(|marker| input.source.as_str().contains(**marker))
     else {
         return Vec::new();
     };
     let asserts_real_outcome = REAL_OUTCOME_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if asserts_real_outcome {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, marker);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), marker);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -493,7 +488,7 @@ fn check_trivial_pass_if_deleted(rule_id: &RuleId, input: &ValidationInput<'_>) 
              pass if the logic under test were deleted entirely. Fix: assert on the actual \
              result/rejection the protected unit produces."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -520,17 +515,17 @@ rule_validator!(
 
 /// The `SEC-TEST-NO-CRASH-ONLY.1` detection body.
 fn check_no_crash_only(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
-    if !input.source.contains(NO_CRASH_MARKER) {
+    if !input.source.as_str().contains(NO_CRASH_MARKER) {
         return Vec::new();
     }
     let asserts_specific_outcome = SPECIFIC_ASSERTION_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if asserts_specific_outcome {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, NO_CRASH_MARKER);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), NO_CRASH_MARKER);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -543,7 +538,7 @@ fn check_no_crash_only(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Fin
              specific outcome (a returned value, or a specific error type) the protected unit \
              must produce."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -574,17 +569,17 @@ rule_validator!(
 
 /// The `SEC-TEST-SNAPSHOT-ONLY.1` detection body.
 fn check_snapshot_only(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
-    if !input.source.contains(SNAPSHOT_MARKER) {
+    if !input.source.as_str().contains(SNAPSHOT_MARKER) {
         return Vec::new();
     }
     let asserts_explicitly = EXPLICIT_ASSERTION_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if asserts_explicitly {
         return Vec::new();
     }
-    let line = first_line_containing!(input.source, SNAPSHOT_MARKER);
-    vec![family_finding!(
+    let line = first_line_containing!(input.source.as_str(), SNAPSHOT_MARKER);
+    family_finding!(
         rule_id,
         input,
         line,
@@ -597,7 +592,7 @@ fn check_snapshot_only(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Fin
              explicit assertion on the specific value/behavior this unit must protect, in \
              addition to (or instead of) the snapshot."
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -647,7 +642,7 @@ rule_validator!(
 fn check_threat_quality_score(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
     let opens_test_case = TEST_CASE_OPENERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if !opens_test_case {
         return Vec::new();
     }
@@ -656,22 +651,22 @@ fn check_threat_quality_score(rule_id: &RuleId, input: &ValidationInput<'_>) -> 
 
     let tags_threat = THREAT_TAG_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if !tags_threat {
         score = score.saturating_add(NO_THREAT_MAPPING_WEIGHT);
         missing_signals.push("no-threat-mapping");
     }
     let asserts_invariant = INVARIANT_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if !asserts_invariant {
         score = score.saturating_add(NO_INVARIANT_ASSERTION_WEIGHT);
         missing_signals.push("no-invariant-assertion");
     }
-    let throws_generically = input.source.contains(GENERIC_THROW_MARKER);
+    let throws_generically = input.source.as_str().contains(GENERIC_THROW_MARKER);
     let asserts_exact_failure_mode = SPECIFIC_FAILURE_MODE_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if throws_generically && !asserts_exact_failure_mode {
         score = score.saturating_add(GENERIC_FAILURE_MODE_WEIGHT);
         missing_signals.push("exact-failure-mode");
@@ -681,7 +676,7 @@ fn check_threat_quality_score(rule_id: &RuleId, input: &ValidationInput<'_>) -> 
         return Vec::new();
     }
 
-    vec![family_finding!(
+    family_finding!(
         rule_id,
         input,
         1,
@@ -696,7 +691,7 @@ fn check_threat_quality_score(rule_id: &RuleId, input: &ValidationInput<'_>) -> 
              `toThrow(/<SpecificError>/)` instead of a bare `toThrow()`.",
             missing_signals.join(", ")
         )
-    )]
+    )
 }
 
 // ---------------------------------------------------------------------
@@ -742,17 +737,17 @@ fn check_protection_removed_evidence(
 ) -> Vec<Finding> {
     let is_protection_relevant = REJECTION_ASSERTION_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if !is_protection_relevant {
         return Vec::new();
     }
     let carries_evidence = PROTECTION_EVIDENCE_MARKERS
         .iter()
-        .any(|marker| input.source.contains(marker));
+        .any(|marker| input.source.as_str().contains(marker));
     if carries_evidence {
         return Vec::new();
     }
-    vec![family_finding!(
+    family_finding!(
         rule_id,
         input,
         1,
@@ -766,7 +761,7 @@ fn check_protection_removed_evidence(
              removed. Fix: run a mutation check against this test and annotate it \
              `// mutation-tested: <evidence>` once verified."
         )
-    )]
+    )
 }
 
 /// Build every `security_test_quality` family validator this module owns

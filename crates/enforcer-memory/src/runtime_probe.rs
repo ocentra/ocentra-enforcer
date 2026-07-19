@@ -6,10 +6,12 @@
 //! the same env-driven harness logic directly.
 
 #[path = "runtime_probe_error.rs"]
-mod runtime_probe_error;
+pub mod runtime_probe_error;
 
 /// Typed failure surface returned when a runtime probe cannot emit its proof.
-pub use runtime_probe_error::RuntimeProbeError;
+#[cfg(feature = "real-models")]
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use runtime_probe_error::RuntimeProbeError;
 
 #[cfg(not(feature = "real-models"))]
 pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
@@ -35,27 +37,32 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     };
     use crate::llama_cpp::{
         list_llama_cpp_devices, resolve_llama_cpp_execution, run_llama_cpp_probe,
-        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
+        LlamaCppExecutionResolutionDto, LlamaCppProbeConfigDto,
     };
     use crate::local_runtime::{
         ort_worker_command, ort_worker_execution_plan_with_provider_resolution,
         provider_from_env_value, resolve_ort_provider, runtime_backend_contract,
-        LocalRuntimeAcceleration, OrtProviderResolution, OrtWorkerExecutionPlan, OrtWorkerTask,
+        OrtProviderResolutionDto, OrtWorkerExecutionPlanDto,
     };
     use crate::model_observations::{
-        LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
-        ModelRuntimeObservationRecord, ProviderDowngrade,
+        LocalLoadSucceededDto, ModelLoadFailureDto, ModelRuntimeObservationCandidate,
+        ModelRuntimeObservationRecordDto, ProviderDowngradeDto,
     };
     use crate::model_runtime::{
         default_model_runtime_probe_plan, evaluate_chat_usability, loaded_non_chat_usability,
-        resolve_model_cache_root, sha256_file, ChatThroughputPolicy, ModelCacheRootMode,
-        ModelRuntimeServiceConfig, ModelSpec, ModelTask, ModelUsabilityReport, ProviderKind,
+        resolve_model_cache_root, sha256_file, ChatThroughputPolicyDto,
+        ModelRuntimeServiceConfigDto, ModelSpecDto, ModelUsabilityReportDto,
         DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_MIN_CHAT_TOKENS_PER_SECOND, DEFAULT_RERANKER_MODEL_ID,
         TARGET_CHAT_TOKENS_PER_SECOND_HIGH, TARGET_CHAT_TOKENS_PER_SECOND_LOW,
     };
-    use crate::ort_runtime::{OrtEmbedder, OrtReranker};
+    use crate::ort_runtime::real::{OrtEmbedder, OrtReranker};
     use crate::ranking::RankedHit;
-    use crate::search::document::DocumentKind;
+    use enforcer_domain::memory_types::DocumentKind;
+    use enforcer_domain::memory_types::{HfFilePath, HfRepositoryId, HfRevision};
+    use enforcer_domain::memory_types::{
+        LlamaCppBackendHint, LlamaCppProbeKind, LocalRuntimeAcceleration, OrtWorkerTask,
+    };
+    use enforcer_domain::memory_types::{ModelCacheRootMode, ModelTask, ProviderKind};
     use serde::Serialize;
 
     #[derive(Debug, Serialize)]
@@ -70,13 +77,13 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         cache_root_policy: serde_json::Value,
         service_config: serde_json::Value,
         runtime_backend_contract: serde_json::Value,
-        chat_throughput_policy: ChatThroughputPolicy,
+        chat_throughput_policy: ChatThroughputPolicyDto,
         chat_model_selection: serde_json::Value,
         chat_generation_gguf: serde_json::Value,
         qwen_embedding_gguf: serde_json::Value,
         qwen_embedding_onnx: serde_json::Value,
         qwen_reranker_onnx: serde_json::Value,
-        observations: Vec<ModelRuntimeObservationRecord>,
+        observations: Vec<ModelRuntimeObservationRecordDto>,
     }
 
     const EXPECTED_QWEN_EMBEDDING_DIMENSIONS: usize = 1024;
@@ -92,9 +99,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     struct ChatSelectionContext<'a> {
         repo_root: &'a Path,
         requested_backend_hint: LlamaCppBackendHint,
-        execution: &'a LlamaCppExecutionResolution,
+        execution: &'a LlamaCppExecutionResolutionDto,
         chat_probe_selected: bool,
-        device_report: Option<&'a crate::llama_cpp::LlamaCppDeviceReport>,
+        device_report: Option<&'a crate::llama_cpp::LlamaCppDeviceReportDto>,
     }
 
     #[derive(Debug, Clone)]
@@ -111,7 +118,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     struct LlamaResultInput<'a> {
         operation: &'a str,
-        result: crate::error::Result<crate::llama_cpp::LlamaCppProbeReport>,
+        result: crate::error::Result<crate::llama_cpp::LlamaCppProbeReportDto>,
         model_id: String,
         task: ModelTask,
         provider: ProviderKind,
@@ -139,8 +146,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .ok()
             .map(PathBuf::from),
     );
-    let cache_root = cache_root_policy.root.clone();
-    let service_config = ModelRuntimeServiceConfig::dev(&repo_root);
+    let cache_root = cache_root_policy.root.retained();
+    let service_config = ModelRuntimeServiceConfigDto::dev(&repo_root);
     let proof_out = std::env::var("ENFORCER_X06_PROOF_OUT")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
@@ -149,9 +156,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 .join("x06-models.json")
         });
     let run_id = std::env::var("ENFORCER_X06_RUN_ID")
-        .unwrap_or_else(|_| "x06-model-runtime-probe".to_owned());
+        .unwrap_or_else(|_| "x06-model-runtime-probe".retained());
     let observed_at = std::env::var("ENFORCER_X06_OBSERVED_AT")
-        .unwrap_or_else(|_| "manual-runtime-probe".to_owned());
+        .unwrap_or_else(|_| "manual-runtime-probe".retained());
     let runtime_mode = runtime_mode_from_env();
     if let Ok(child_task) = std::env::var("ENFORCER_X06_ORT_CHILD_TASK") {
         let proof_text = format!("{}\n", serde_json::to_string(&run_ort_child(&child_task))?);
@@ -188,7 +195,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         repo_root: &repo_root,
         backend_hint: llama_execution.backend_hint,
         acceleration: llama_execution.resolved_acceleration,
-        selected_device_id: llama_execution.selected_device_id.clone(),
+        selected_device_id: llama_execution.selected_device_id.retained(),
         selected_main_gpu: llama_execution.selected_main_gpu,
         default_split_mode: default_split_mode_for_execution(&llama_execution),
         observed_at: &observed_at,
@@ -197,7 +204,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     let mut observations = Vec::new();
     if let Some(observation) = provider_downgrade_observation(
         &llama_execution,
-        &lineup.chat_generation.model_id,
+        lineup.chat_generation.model_id.as_str(),
         ModelTask::Summarization,
         &observed_at,
         &run_id,
@@ -251,7 +258,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         };
         let proof = RuntimeProbeProof {
             schema_version: 1,
-            runtime_mode: runtime_mode.clone(),
+            runtime_mode: runtime_mode.retained(),
             proof_scope: proof_scope(&runtime_mode),
             allow_network: allow_network && !cache_only,
             probe_execution_policy,
@@ -298,10 +305,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     observations.push(load_failure_observation(LoadFailureInput {
                         observed_at: &observed_at,
                         run_id: &run_id,
-                        model_id: lineup.chat_generation.model_id.clone(),
+                        model_id: lineup.chat_generation.model_id.as_str().retained(),
                         task: lineup.chat_generation.task,
                         requested_provider: None,
-                        failure_reason: error.clone(),
+                        failure_reason: error.retained(),
                     }));
                     proof_error("chat-generation-cache", error)
                 }
@@ -318,10 +325,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 observations.push(load_failure_observation(LoadFailureInput {
                     observed_at: &observed_at,
                     run_id: &run_id,
-                    model_id: lineup.embedding_gguf.model_id.clone(),
+                    model_id: lineup.embedding_gguf.model_id.as_str().retained(),
                     task: lineup.embedding_gguf.task,
                     requested_provider: None,
-                    failure_reason: error.clone(),
+                    failure_reason: error.retained(),
                 }));
                 proof_error("qwen-embedding-gguf-cache", error)
             }
@@ -337,10 +344,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 observations.push(load_failure_observation(LoadFailureInput {
                     observed_at: &observed_at,
                     run_id: &run_id,
-                    model_id: lineup.embedding_onnx.model_id.clone(),
+                    model_id: lineup.embedding_onnx.model_id.as_str().retained(),
                     task: lineup.embedding_onnx.task,
                     requested_provider: Some(ProviderKind::Cpu),
-                    failure_reason: error.clone(),
+                    failure_reason: error.retained(),
                 }));
                 proof_error("qwen-embedding-onnx-cache", error)
             }
@@ -356,10 +363,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 observations.push(load_failure_observation(LoadFailureInput {
                     observed_at: &observed_at,
                     run_id: &run_id,
-                    model_id: lineup.reranker_onnx.model_id.clone(),
+                    model_id: lineup.reranker_onnx.model_id.as_str().retained(),
                     task: lineup.reranker_onnx.task,
                     requested_provider: Some(ProviderKind::Cpu),
-                    failure_reason: error.clone(),
+                    failure_reason: error.retained(),
                 }));
                 proof_error("qwen-reranker-onnx-cache", error)
             }
@@ -429,7 +436,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .enumerate()
             .map(|(index, line)| {
                 if index == 0 {
-                    line.to_owned()
+                    line.retained()
                 } else {
                     format!("  {line}")
                 }
@@ -440,12 +447,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn service_config_proof(
         repo_root: &Path,
-        service_config: &ModelRuntimeServiceConfig,
+        service_config: &ModelRuntimeServiceConfigDto,
     ) -> Result<serde_json::Value, serde_json::Error> {
         let mut value = serde_json::to_value(service_config)?;
         if let Some(object) = value.as_object_mut() {
             object.insert(
-                "cacheRoot".to_owned(),
+                "cacheRoot".retained(),
                 serde_json::json!(repo_relative_display(repo_root, &service_config.cache_root)),
             );
         }
@@ -454,12 +461,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn cache_root_policy_proof(
         repo_root: &Path,
-        cache_root_policy: &crate::model_runtime::ModelCacheRootPolicy,
+        cache_root_policy: &crate::model_runtime::ModelCacheRootPolicyDto,
     ) -> Result<serde_json::Value, serde_json::Error> {
         let mut value = serde_json::to_value(cache_root_policy)?;
         if let Some(object) = value.as_object_mut() {
             object.insert(
-                "root".to_owned(),
+                "root".retained(),
                 serde_json::json!(repo_relative_display(repo_root, &cache_root_policy.root)),
             );
         }
@@ -476,14 +483,14 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .unwrap_or_else(|_| {
                 let file_name = path
                     .file_name()
-                    .map(|name| name.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "path-redacted".to_owned());
+                    .map(|name| name.to_string_lossy().retained_display())
+                    .unwrap_or_else(|| "path-redacted".retained());
                 format!("<external>/{file_name}")
             })
     }
 
     fn normalize_display_path(path: &Path) -> String {
-        path.display().to_string().replace('\\', "/")
+        path.display().retained_display().replace('\\', "/")
     }
 
     fn cache_only_probe(
@@ -534,8 +541,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             "downloadEnabled": mode.download_enabled,
             "networkMayBeAttempted": mode.network_may_be_attempted,
             "strictCacheHash": env_truthy("ENFORCER_X06_STRICT_CACHE_HASH"),
-            "repoId": report.repo_id,
-            "revision": report.revision,
+            "repoId": report.repo_id.as_str(),
+            "revision": report.revision.as_str(),
             "manifestPath": repo_relative_display(repo_root, &report.manifest_path),
             "cacheDir": repo_relative_display(repo_root, &report.cache_dir),
             "downloadedFiles": hf_downloaded_files_proof(repo_root, &report.downloaded_files)
@@ -555,7 +562,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             "downloadEnabled": mode.download_enabled,
             "networkMayBeAttempted": mode.network_may_be_attempted,
             "strictCacheHash": env_truthy("ENFORCER_X06_STRICT_CACHE_HASH"),
-            "reason": repo_path_redacted_text(repo_root, &error.to_string())
+            "reason": repo_path_redacted_text(repo_root, &error.retained_display())
         })
     }
 
@@ -567,7 +574,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .iter()
             .map(|file| {
                 serde_json::json!({
-                    "sourcePath": file.source_path,
+                    "sourcePath": file.source_path.as_str(),
                     "localPath": repo_relative_display(repo_root, &file.local_path),
                     "sha256": file.sha256,
                     "sizeBytes": file.size_bytes,
@@ -594,11 +601,11 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             Err(_) => {}
         }
         if allow_network {
-            download_hf_model(spec, cache_root, None).map_err(|error| error.to_string())
+            download_hf_model(spec, cache_root, None).map_err(|error| error.retained_display())
         } else {
             Err(
                 "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled"
-                    .to_owned(),
+                    .retained(),
             )
         }
     }
@@ -612,7 +619,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         } else {
             resolve_cached_hf_model_from_manifest(spec, cache_root)
         };
-        cached.map_err(|error| error.to_string())
+        cached.map_err(|error| error.retained_display())
     }
 
     fn maybe_direct_chat_model_report(cache_root: &Path) -> Option<HfDownloadReport> {
@@ -620,25 +627,25 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .ok()
             .map(PathBuf::from)
             .filter(|path| path.is_file())?;
-        let file_name = model_path.file_name()?.to_string_lossy().to_string();
+        let file_name = model_path.file_name()?.to_string_lossy().retained_display();
         let metadata = std::fs::metadata(&model_path).ok()?;
         let sha256 = sha256_file(&model_path).ok()?;
         let model_id = std::env::var("ENFORCER_X06_CHAT_MODEL_ID")
             .ok()
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| "local/direct-chat-gguf".to_owned());
+            .unwrap_or_else(|| "local/direct-chat-gguf".retained());
         let revision = std::env::var("ENFORCER_X06_CHAT_MODEL_REVISION")
             .ok()
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| "local".to_owned());
+            .unwrap_or_else(|| "local".retained());
         let cache_dir = cache_root.join("local").join("chat");
         Some(HfDownloadReport {
-            repo_id: model_id,
-            revision,
-            cache_dir: cache_dir.clone(),
+            repo_id: HfRepositoryId::try_new(model_id)?,
+            revision: HfRevision::try_new(revision)?,
+            cache_dir: cache_dir.retained(),
             manifest_path: cache_dir.join("direct-chat-model.manifest.json"),
             downloaded_files: vec![HfDownloadedFile {
-                source_path: file_name,
+                source_path: HfFilePath::try_new(file_name)?,
                 local_path: model_path,
                 sha256,
                 size_bytes: metadata.len(),
@@ -649,7 +656,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn maybe_llama_device_report(
         allow_device_probe: bool,
-    ) -> Option<crate::llama_cpp::LlamaCppDeviceReport> {
+    ) -> Option<crate::llama_cpp::LlamaCppDeviceReportDto> {
         if !allow_device_probe {
             return None;
         }
@@ -670,28 +677,40 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             return serde_json::json!({
                 "enabled": false,
                 "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
-                "selected": lineup.chat_generation
+                "selected": crate::boundary::huggingface::model_spec_value(&lineup.chat_generation)
             });
         }
         if !env_default_truthy("ENFORCER_X06_AUTO_CHAT_MODEL", true) {
             return serde_json::json!({
                 "enabled": false,
                 "reason": "ENFORCER_X06_AUTO_CHAT_MODEL disabled",
-                "selected": lineup.chat_generation
+                "selected": crate::boundary::huggingface::model_spec_value(&lineup.chat_generation)
             });
         }
         if chat_model_override_present() {
             return serde_json::json!({
                 "enabled": false,
                 "reason": "explicit ENFORCER_X06_CHAT_MODEL_* override present",
-                "selected": lineup.chat_generation
+                "selected": crate::boundary::huggingface::model_spec_value(&lineup.chat_generation)
             });
         }
 
         let provider_probe_passed = context.execution.provider_probe_passed;
         let detected_free_vram_mib = context.execution.detected_free_vram_mib;
-        let selection = select_x06_chat_model_for_hardware(detected_free_vram_mib);
-        lineup.chat_generation = selection.selected.clone();
+        let selection = match select_x06_chat_model_for_hardware(detected_free_vram_mib) {
+            Ok(selection) => selection,
+            Err(error) => {
+                return serde_json::json!({
+                    "enabled": false,
+                    "reason": "automatic chat-model selection failed",
+                    "error": error.retained_display(),
+                    "selected": crate::boundary::huggingface::model_spec_value(
+                        &lineup.chat_generation
+                    )
+                });
+            }
+        };
+        lineup.chat_generation = selection.selected.retained();
         serde_json::json!({
             "enabled": true,
             "requestedBackendHint": context.requested_backend_hint,
@@ -699,34 +718,34 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             "requestedAcceleration": context.execution.requested_acceleration,
             "resolvedAcceleration": context.execution.resolved_acceleration,
             "providerProbePassed": provider_probe_passed,
-            "selectedDeviceId": context.execution.selected_device_id.clone(),
+            "selectedDeviceId": context.execution.selected_device_id.retained(),
             "selectedMainGpu": context.execution.selected_main_gpu,
-            "downgradeReason": context.execution.downgrade_reason.clone(),
+            "downgradeReason": context.execution.downgrade_reason.retained(),
             "providerProbeTimeoutMs": env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS")
                 .unwrap_or_else(|| default_model_runtime_probe_plan().provider_probe_timeout_ms),
             "deviceReport": context.device_report.map(|report| {
                 llama_device_report_proof(context.repo_root, report)
             }),
-            "selection": selection
+            "selection": crate::boundary::huggingface::chat_selection_value(&selection)
         })
     }
 
     fn llama_device_report_proof(
         repo_root: &Path,
-        report: &crate::llama_cpp::LlamaCppDeviceReport,
+        report: &crate::llama_cpp::LlamaCppDeviceReportDto,
     ) -> serde_json::Value {
         let mut value = serde_json::to_value(report).unwrap_or_else(|error| {
             serde_json::json!({
-                "serializationError": error.to_string()
+                "serializationError": error.retained_display()
             })
         });
         if let Some(object) = value.as_object_mut() {
             object.insert(
-                "binaryPath".to_owned(),
+                "binaryPath".retained(),
                 serde_json::json!(repo_relative_display(repo_root, &report.binary_path)),
             );
             object.insert(
-                "stderrExcerpt".to_owned(),
+                "stderrExcerpt".retained(),
                 serde_json::json!(repo_path_redacted_text(repo_root, &report.stderr_excerpt)),
             );
         }
@@ -736,7 +755,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     fn run_llama_generation(
         report: &HfDownloadReport,
         context: &LlamaRunContext<'_>,
-        observations: &mut Vec<ModelRuntimeObservationRecord>,
+        observations: &mut Vec<ModelRuntimeObservationRecordDto>,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
             return proof_error("chat-generation-model", "no GGUF model file in report");
@@ -748,22 +767,22 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 "llama-cli executable not configured/found",
             );
         };
-        let result = run_llama_cpp_probe(&LlamaCppProbeConfig {
+        let result = run_llama_cpp_probe(&LlamaCppProbeConfigDto {
             binary_path: binary,
-            model_path: model.local_path.clone(),
+            model_path: model.local_path.retained(),
             model_sha256: strict_model_hash(&model.sha256),
-            prompt: "Say hello from the local chat model in one short sentence.".to_owned(),
+            prompt: "Say hello from the local chat model in one short sentence.".retained(),
             kind: LlamaCppProbeKind::Generate,
             backend_hint: context.backend_hint,
             acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
             device: std::env::var("ENFORCER_X06_LLAMA_DEVICE")
                 .ok()
-                .or_else(|| context.selected_device_id.clone()),
+                .or_else(|| context.selected_device_id.retained()),
             main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU").or(context.selected_main_gpu),
             split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE")
                 .ok()
-                .or_else(|| context.default_split_mode.clone()),
+                .or_else(|| context.default_split_mode.retained()),
             tensor_split: std::env::var("ENFORCER_X06_LLAMA_TENSOR_SPLIT").ok(),
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
@@ -775,7 +794,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             LlamaResultInput {
                 operation: "chat-generation-gguf",
                 result,
-                model_id: report.repo_id.clone(),
+                model_id: report.repo_id.as_str().retained(),
                 task: ModelTask::Summarization,
                 provider: provider_kind_for_llama(context.backend_hint, context.acceleration),
                 observed_at: context.observed_at,
@@ -789,29 +808,29 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     fn run_llama_embedding(
         report: &HfDownloadReport,
         context: &LlamaRunContext<'_>,
-        observations: &mut Vec<ModelRuntimeObservationRecord>,
+        observations: &mut Vec<ModelRuntimeObservationRecordDto>,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
             return proof_error("qwen-embedding-gguf-model", "no GGUF model file in report");
         };
-        let config = LlamaCppProbeConfig {
+        let config = LlamaCppProbeConfigDto {
             binary_path: env_path("ENFORCER_X06_LLAMA_EMBEDDING")
                 .or_else(default_llama_embedding)
                 .unwrap_or_else(|| PathBuf::from(llama_binary_name("llama-embedding"))),
-            model_path: model.local_path.clone(),
+            model_path: model.local_path.retained(),
             model_sha256: strict_model_hash(&model.sha256),
-            prompt: "embedding hello world for x06 memory retrieval".to_owned(),
+            prompt: "embedding hello world for x06 memory retrieval".retained(),
             kind: LlamaCppProbeKind::Embedding,
             backend_hint: context.backend_hint,
             acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
             device: std::env::var("ENFORCER_X06_LLAMA_DEVICE")
                 .ok()
-                .or_else(|| context.selected_device_id.clone()),
+                .or_else(|| context.selected_device_id.retained()),
             main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU").or(context.selected_main_gpu),
             split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE")
                 .ok()
-                .or_else(|| context.default_split_mode.clone()),
+                .or_else(|| context.default_split_mode.retained()),
             tensor_split: std::env::var("ENFORCER_X06_LLAMA_TENSOR_SPLIT").ok(),
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
@@ -823,18 +842,18 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             run_llama_cpp_probe(&config)
         } else {
             Err(crate::error::MemoryError::ModelRuntime {
-                operation: "qwen-embedding-gguf-llama-embedding",
+                operation: "qwen-embedding-gguf-llama-embedding".into(),
                 reason: format!(
                     "llama-embedding executable not configured/found at {}; Enforcer does not fall back to llama-server for X06 GGUF embedding proof",
                     config.binary_path.display()
-                ),
+                ).into(),
             })
         };
         llama_result_json(
             LlamaResultInput {
                 operation: "qwen-embedding-gguf",
                 result,
-                model_id: report.repo_id.clone(),
+                model_id: report.repo_id.as_str().retained(),
                 task: ModelTask::Embedding,
                 provider: provider_kind_for_llama(context.backend_hint, context.acceleration),
                 observed_at: context.observed_at,
@@ -847,7 +866,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn llama_result_json(
         input: LlamaResultInput<'_>,
-        observations: &mut Vec<ModelRuntimeObservationRecord>,
+        observations: &mut Vec<ModelRuntimeObservationRecordDto>,
     ) -> serde_json::Value {
         match input.result {
             Ok(report) => {
@@ -867,7 +886,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                         model_id: input.model_id,
                         task: input.task,
                         requested_provider: Some(input.provider),
-                        failure_reason: usability.reason.clone(),
+                        failure_reason: usability.reason.retained(),
                     }));
                 }
                 serde_json::json!({
@@ -885,7 +904,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     model_id: input.model_id,
                     task: input.task,
                     requested_provider: Some(input.provider),
-                    failure_reason: error.to_string(),
+                    failure_reason: error.retained_display(),
                 }));
                 proof_error(input.operation, error)
             }
@@ -937,35 +956,35 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn llama_report_proof(
         repo_root: &Path,
-        report: &crate::llama_cpp::LlamaCppProbeReport,
+        report: &crate::llama_cpp::LlamaCppProbeReportDto,
     ) -> serde_json::Value {
         let mut value = serde_json::to_value(report).unwrap_or_else(|error| {
             serde_json::json!({
-                "serializationError": error.to_string()
+                "serializationError": error.retained_display()
             })
         });
         if let Some(object) = value.as_object_mut() {
             object.insert(
-                "binaryPath".to_owned(),
+                "binaryPath".retained(),
                 serde_json::json!(repo_relative_display(repo_root, &report.binary_path)),
             );
             object.insert(
-                "modelPath".to_owned(),
+                "modelPath".retained(),
                 serde_json::json!(repo_relative_display(repo_root, &report.model_path)),
             );
             object.insert(
-                "fallbackFromBinaryPath".to_owned(),
+                "fallbackFromBinaryPath".retained(),
                 match report.fallback_from_binary_path.as_ref() {
                     Some(path) => serde_json::json!(repo_relative_display(repo_root, path)),
                     None => serde_json::Value::Null,
                 },
             );
             object.insert(
-                "stdoutExcerpt".to_owned(),
+                "stdoutExcerpt".retained(),
                 serde_json::json!(repo_path_redacted_text(repo_root, &report.stdout_excerpt)),
             );
             object.insert(
-                "stderrExcerpt".to_owned(),
+                "stderrExcerpt".retained(),
                 serde_json::json!(repo_path_redacted_text(repo_root, &report.stderr_excerpt)),
             );
         }
@@ -973,7 +992,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     }
 
     fn repo_path_redacted_text(repo_root: &Path, text: &str) -> String {
-        let native = repo_root.display().to_string();
+        let native = repo_root.display().retained_display();
         let slash = native.replace('\\', "/");
         let doubled_slash = slash.replace('/', "//");
         text.replace(&doubled_slash, "<repo>")
@@ -985,8 +1004,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn model_usability(
         task: ModelTask,
-        report: &crate::llama_cpp::LlamaCppProbeReport,
-    ) -> ModelUsabilityReport {
+        report: &crate::llama_cpp::LlamaCppProbeReportDto,
+    ) -> ModelUsabilityReportDto {
         if task == ModelTask::Embedding {
             return embedding_usability(report, EXPECTED_QWEN_EMBEDDING_DIMENSIONS);
         }
@@ -994,33 +1013,33 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             return loaded_non_chat_usability(
                 report.loaded(),
                 report.measured_tokens_per_second,
-                report.stderr_excerpt.clone(),
+                report.stderr_excerpt.retained(),
             );
         }
-        let policy = ChatThroughputPolicy {
+        let policy = ChatThroughputPolicyDto {
             ..chat_throughput_policy_from_env()
         };
         evaluate_chat_usability(
             report.loaded(),
             report.measured_tokens_per_second,
-            report.stderr_excerpt.clone(),
+            report.stderr_excerpt.retained(),
             policy,
         )
     }
 
     fn embedding_usability(
-        report: &crate::llama_cpp::LlamaCppProbeReport,
+        report: &crate::llama_cpp::LlamaCppProbeReportDto,
         expected_dimensions: usize,
-    ) -> ModelUsabilityReport {
+    ) -> ModelUsabilityReportDto {
         if !report.loaded() {
             return loaded_non_chat_usability(
                 false,
                 report.measured_tokens_per_second,
-                report.stderr_excerpt.clone(),
+                report.stderr_excerpt.retained(),
             );
         }
         match report.output_dimensions {
-            Some(actual) if actual == expected_dimensions => ModelUsabilityReport {
+            Some(actual) if actual == expected_dimensions => ModelUsabilityReportDto {
                 ok: true,
                 reason: format!(
                     "embedding usable: dimensions {actual} matched expected {expected_dimensions}"
@@ -1030,7 +1049,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 target_chat_tokens_per_second_high: None,
                 measured_tokens_per_second: report.measured_tokens_per_second,
             },
-            Some(actual) => ModelUsabilityReport {
+            Some(actual) => ModelUsabilityReportDto {
                 ok: false,
                 reason: format!(
                     "embedding dimensions mismatch: expected {expected_dimensions}, got {actual}"
@@ -1040,7 +1059,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 target_chat_tokens_per_second_high: None,
                 measured_tokens_per_second: report.measured_tokens_per_second,
             },
-            None => ModelUsabilityReport {
+            None => ModelUsabilityReportDto {
                 ok: false,
                 reason: format!("embedding dimensions missing; expected {expected_dimensions}"),
                 min_chat_tokens_per_second: None,
@@ -1053,7 +1072,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn run_ort_embedding(
         report: &HfDownloadReport,
-        observations: &mut Vec<ModelRuntimeObservationRecord>,
+        observations: &mut Vec<ModelRuntimeObservationRecordDto>,
         observed_at: &str,
         run_id: &str,
     ) -> serde_json::Value {
@@ -1086,7 +1105,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     model_id: spec.model_id,
                     task: ModelTask::Embedding,
                     requested_provider: Some(provider_resolution.requested_provider),
-                    failure_reason: proof.to_string(),
+                    failure_reason: proof.retained_display(),
                 }));
                 attach_ort_provider_resolution(proof, &provider_resolution)
             }
@@ -1097,7 +1116,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     model_id: spec.model_id,
                     task: ModelTask::Embedding,
                     requested_provider: Some(provider_resolution.requested_provider),
-                    failure_reason: error.to_string(),
+                    failure_reason: error.retained_display(),
                 }));
                 proof_error("qwen-embedding-onnx", error)
             }
@@ -1106,7 +1125,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn run_ort_reranker(
         report: &HfDownloadReport,
-        observations: &mut Vec<ModelRuntimeObservationRecord>,
+        observations: &mut Vec<ModelRuntimeObservationRecordDto>,
         observed_at: &str,
         run_id: &str,
     ) -> serde_json::Value {
@@ -1134,7 +1153,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     model_id: spec.model_id,
                     task: ModelTask::Reranking,
                     requested_provider: Some(provider_resolution.requested_provider),
-                    failure_reason: proof.to_string(),
+                    failure_reason: proof.retained_display(),
                 }));
                 attach_ort_provider_resolution(proof, &provider_resolution)
             }
@@ -1145,7 +1164,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     model_id: spec.model_id,
                     task: ModelTask::Reranking,
                     requested_provider: Some(provider_resolution.requested_provider),
-                    failure_reason: error.to_string(),
+                    failure_reason: error.retained_display(),
                 }));
                 proof_error("qwen-reranker-onnx", error)
             }
@@ -1154,8 +1173,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn run_ort_child_probe(
         child_task: &str,
-        spec: &ModelSpec,
-        provider_resolution: &OrtProviderResolution,
+        spec: &ModelSpecDto,
+        provider_resolution: &OrtProviderResolutionDto,
         timeout_ms: u64,
     ) -> Result<serde_json::Value, String> {
         let started = Instant::now();
@@ -1165,21 +1184,21 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             other => return Err(format!("unknown ORT child task: {other}")),
         };
         let plan = ort_worker_execution_plan_with_provider_resolution(
-            std::env::current_exe().map_err(|error| error.to_string())?,
+            std::env::current_exe().map_err(|error| error.retained_display())?,
             worker_task,
             spec,
-            provider_resolution.clone(),
+            provider_resolution.retained(),
             timeout_ms,
         )
-        .map_err(|error| error.to_string())?;
-        let mut command = ort_worker_command(&plan).map_err(|error| error.to_string())?;
-        let mut child = command.spawn().map_err(|error| error.to_string())?;
+        .map_err(|error| error.retained_display())?;
+        let mut command = ort_worker_command(&plan).map_err(|error| error.retained_display())?;
+        let mut child = command.spawn().map_err(|error| error.retained_display())?;
         let timeout = Duration::from_millis(timeout_ms);
         let mut timed_out = false;
         loop {
             if child
                 .try_wait()
-                .map_err(|error| error.to_string())?
+                .map_err(|error| error.retained_display())?
                 .is_some()
             {
                 break;
@@ -1193,7 +1212,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         }
         let output = child
             .wait_with_output()
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| error.retained_display())?;
         if timed_out {
             let mut proof = serde_json::json!({
                 "operation": format!("qwen-{child_task}-onnx"),
@@ -1236,63 +1255,63 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn attach_ort_provider_resolution(
         mut proof: serde_json::Value,
-        resolution: &OrtProviderResolution,
+        resolution: &OrtProviderResolutionDto,
     ) -> serde_json::Value {
         if let Some(object) = proof.as_object_mut() {
             object.insert(
-                "requestedProvider".to_owned(),
+                "requestedProvider".retained(),
                 serde_json::json!(resolution.requested_provider),
             );
             object.insert(
-                "resolvedProvider".to_owned(),
+                "resolvedProvider".retained(),
                 serde_json::json!(resolution.resolved_provider),
             );
             object.insert(
-                "availableProviders".to_owned(),
+                "availableProviders".retained(),
                 serde_json::json!(resolution.available_providers),
             );
             object.insert(
-                "providerProbePassed".to_owned(),
+                "providerProbePassed".retained(),
                 serde_json::json!(resolution.provider_probe_passed),
             );
             object.insert(
-                "providerDowngradeReason".to_owned(),
+                "providerDowngradeReason".retained(),
                 serde_json::json!(resolution.downgrade_reason),
             );
         }
         proof
     }
 
-    fn attach_ort_worker_contract(proof: &mut serde_json::Value, plan: &OrtWorkerExecutionPlan) {
+    fn attach_ort_worker_contract(proof: &mut serde_json::Value, plan: &OrtWorkerExecutionPlanDto) {
         if let Some(object) = proof.as_object_mut() {
-            object.insert("workerTask".to_owned(), serde_json::json!(plan.task));
-            object.insert("provider".to_owned(), serde_json::json!(plan.provider));
-            object.insert("ownership".to_owned(), serde_json::json!(plan.ownership));
+            object.insert("workerTask".retained(), serde_json::json!(plan.task));
+            object.insert("provider".retained(), serde_json::json!(plan.provider));
+            object.insert("ownership".retained(), serde_json::json!(plan.ownership));
             object.insert(
-                "requestProtocol".to_owned(),
+                "requestProtocol".retained(),
                 serde_json::json!(plan.request_protocol),
             );
             object.insert(
-                "externalServerAllowed".to_owned(),
+                "externalServerAllowed".retained(),
                 serde_json::json!(plan.external_server_allowed),
             );
             object.insert(
-                "portBindingAllowed".to_owned(),
+                "portBindingAllowed".retained(),
                 serde_json::json!(plan.port_binding_allowed),
             );
             object.insert(
-                "killOnTimeout".to_owned(),
+                "killOnTimeout".retained(),
                 serde_json::json!(plan.kill_on_timeout),
             );
-            object.insert("timeoutMs".to_owned(), serde_json::json!(plan.timeout_ms));
+            object.insert("timeoutMs".retained(), serde_json::json!(plan.timeout_ms));
             object.insert(
-                "providerResolution".to_owned(),
+                "providerResolution".retained(),
                 serde_json::json!(plan.provider_resolution),
             );
         }
     }
 
-    fn ort_provider_resolution_from_env() -> OrtProviderResolution {
+    fn ort_provider_resolution_from_env() -> OrtProviderResolutionDto {
         let requested = std::env::var("ENFORCER_X06_ORT_PROVIDER")
             .ok()
             .as_deref()
@@ -1345,24 +1364,26 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                 Err(error) => serde_json::json!({
                     "operation": "qwen-embedding-onnx",
                     "ok": false,
-                    "error": error.to_string()
+                    "error": error.retained_display()
                 }),
             },
             "reranker" => {
                 let candidates = vec![
                     RankedHit {
-                        doc_id: "irrelevant".to_owned(),
+                        doc_id: "irrelevant".retained().into(),
                         kind: DocumentKind::Function,
-                        snippet: "unrelated socket timeout retry".to_owned(),
+                        snippet: "unrelated socket timeout retry".retained().into(),
                         source_path: None,
-                        score: 0.0,
+                        score: 0.0.into(),
                     },
                     RankedHit {
-                        doc_id: "relevant".to_owned(),
+                        doc_id: "relevant".retained().into(),
                         kind: DocumentKind::Function,
-                        snippet: "model runtime cache loads qwen embeddings".to_owned(),
+                        snippet: "model runtime cache loads qwen embeddings"
+                            .retained()
+                            .into(),
                         source_path: None,
-                        score: 0.0,
+                        score: 0.0.into(),
                     },
                 ];
                 match OrtReranker::load(&spec, provider).and_then(|reranker| {
@@ -1379,7 +1400,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
                     Err(error) => serde_json::json!({
                         "operation": "qwen-reranker-onnx",
                         "ok": false,
-                        "error": error.to_string()
+                        "error": error.retained_display()
                     }),
                 }
             }
@@ -1392,12 +1413,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     }
 
     fn child_provider() -> Result<ProviderKind, String> {
-        let raw = std::env::var("ENFORCER_X06_CHILD_PROVIDER").unwrap_or_else(|_| "cpu".to_owned());
+        let raw = std::env::var("ENFORCER_X06_CHILD_PROVIDER").unwrap_or_else(|_| "cpu".retained());
         provider_from_env_value(&raw).ok_or_else(|| format!("unknown ORT child provider: {raw}"))
     }
 
-    fn child_model_spec() -> Result<ModelSpec, String> {
-        Ok(ModelSpec {
+    fn child_model_spec() -> Result<ModelSpecDto, String> {
+        Ok(ModelSpecDto {
             model_id: required_env("ENFORCER_X06_CHILD_MODEL_ID")?,
             revision: required_env("ENFORCER_X06_CHILD_REVISION")?,
             artifact_path: PathBuf::from(required_env("ENFORCER_X06_CHILD_ARTIFACT_PATH")?),
@@ -1407,7 +1428,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             dtype: required_env("ENFORCER_X06_CHILD_DTYPE")?,
             dimension: required_env("ENFORCER_X06_CHILD_DIMENSION")?
                 .parse::<usize>()
-                .map_err(|error| error.to_string())?,
+                .map_err(|error| error.retained_display())?,
             task: match required_env("ENFORCER_X06_CHILD_TASK")?.as_str() {
                 "Embedding" => ModelTask::Embedding,
                 "Reranking" => ModelTask::Reranking,
@@ -1426,35 +1447,35 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         model_id: &str,
         task: ModelTask,
         dimension: usize,
-    ) -> Result<ModelSpec, String> {
+    ) -> Result<ModelSpecDto, String> {
         let model = report
             .downloaded_files
             .iter()
-            .find(|file| file.source_path.ends_with(".onnx"))
-            .ok_or_else(|| "missing ONNX model file".to_owned())?;
+            .find(|file| file.source_path.as_str().ends_with(".onnx"))
+            .ok_or_else(|| "missing ONNX model file".retained())?;
         let tokenizer = report
             .downloaded_files
             .iter()
-            .find(|file| file.source_path == "tokenizer.json")
-            .ok_or_else(|| "missing tokenizer.json".to_owned())?;
+            .find(|file| file.source_path.as_str() == "tokenizer.json")
+            .ok_or_else(|| "missing tokenizer.json".retained())?;
         let mut spec = match task {
-            ModelTask::Embedding => ModelSpec::qwen3_embedding(
+            ModelTask::Embedding => ModelSpecDto::qwen3_embedding(
                 &model.local_path,
                 &model.sha256,
                 &tokenizer.local_path,
                 &tokenizer.sha256,
             ),
-            ModelTask::Reranking => ModelSpec::qwen3_reranker(
+            ModelTask::Reranking => ModelSpecDto::qwen3_reranker(
                 &model.local_path,
                 &model.sha256,
                 &tokenizer.local_path,
                 &tokenizer.sha256,
             ),
             ModelTask::Summarization => {
-                return Err("ONNX spec does not support summarization".to_owned());
+                return Err("ONNX spec does not support summarization".retained());
             }
         };
-        spec.model_id = model_id.to_owned();
+        spec.model_id = model_id.retained();
         spec.dimension = dimension;
         Ok(spec)
     }
@@ -1463,7 +1484,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         report
             .downloaded_files
             .iter()
-            .find(|file| file.source_path.ends_with(".gguf"))
+            .find(|file| file.source_path.as_str().ends_with(".gguf"))
     }
 
     fn env_truthy(name: &str) -> bool {
@@ -1474,20 +1495,20 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn runtime_mode_from_env() -> String {
         match std::env::var("ENFORCER_X06_RUNTIME_MODE")
-            .unwrap_or_else(|_| "probe".to_owned())
+            .unwrap_or_else(|_| "probe".retained())
             .to_ascii_lowercase()
             .as_str()
         {
-            "plan" => "plan".to_owned(),
-            "download" => "download".to_owned(),
-            "cache-only" | "cache_only" | "cacheonly" => "cache-only".to_owned(),
-            _ => "probe".to_owned(),
+            "plan" => "plan".retained(),
+            "download" => "download".retained(),
+            "cache-only" | "cache_only" | "cacheonly" => "cache-only".retained(),
+            _ => "probe".retained(),
         }
     }
 
     fn cache_root_mode_from_env() -> ModelCacheRootMode {
         match std::env::var("ENFORCER_X06_MODEL_CACHE_MODE")
-            .unwrap_or_else(|_| "dev".to_owned())
+            .unwrap_or_else(|_| "dev".retained())
             .to_ascii_lowercase()
             .as_str()
         {
@@ -1524,7 +1545,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn llama_acceleration_from_env() -> LocalRuntimeAcceleration {
         match std::env::var("ENFORCER_X06_LLAMA_ACCELERATION")
-            .unwrap_or_else(|_| "cpu".to_owned())
+            .unwrap_or_else(|_| "cpu".retained())
             .to_ascii_lowercase()
             .as_str()
         {
@@ -1537,7 +1558,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn llama_backend_hint_from_env() -> LlamaCppBackendHint {
         match std::env::var("ENFORCER_X06_LLAMA_BACKEND")
-            .unwrap_or_else(|_| "auto".to_owned())
+            .unwrap_or_else(|_| "auto".retained())
             .to_ascii_lowercase()
             .as_str()
         {
@@ -1548,8 +1569,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         }
     }
 
-    fn chat_throughput_policy_from_env() -> ChatThroughputPolicy {
-        ChatThroughputPolicy {
+    fn chat_throughput_policy_from_env() -> ChatThroughputPolicyDto {
+        ChatThroughputPolicyDto {
             min_tokens_per_second: env_f64("ENFORCER_X06_MIN_CHAT_TOKENS_PER_SECOND")
                 .unwrap_or(DEFAULT_MIN_CHAT_TOKENS_PER_SECOND),
             target_tokens_per_second_low: env_f64("ENFORCER_X06_TARGET_CHAT_TOKENS_PER_SECOND_LOW")
@@ -1580,7 +1601,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     }
 
     fn strict_model_hash(sha256: &str) -> Option<String> {
-        env_truthy("ENFORCER_X06_STRICT_CACHE_HASH").then(|| sha256.to_owned())
+        env_truthy("ENFORCER_X06_STRICT_CACHE_HASH").then(|| sha256.retained())
     }
 
     fn provider_kind_for_llama(
@@ -1601,31 +1622,33 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         }
     }
 
-    fn default_split_mode_for_execution(execution: &LlamaCppExecutionResolution) -> Option<String> {
+    fn default_split_mode_for_execution(
+        execution: &LlamaCppExecutionResolutionDto,
+    ) -> Option<String> {
         (execution.resolved_acceleration == LocalRuntimeAcceleration::Gpu)
-            .then(|| "layer".to_owned())
+            .then(|| "layer".retained())
     }
 
     fn provider_downgrade_observation(
-        execution: &LlamaCppExecutionResolution,
+        execution: &LlamaCppExecutionResolutionDto,
         model_id: &str,
         task: ModelTask,
         observed_at: &str,
         run_id: &str,
-    ) -> Option<ModelRuntimeObservationRecord> {
-        let reason = execution.downgrade_reason.clone()?;
+    ) -> Option<ModelRuntimeObservationRecordDto> {
+        let reason = execution.downgrade_reason.retained()?;
         let requested_provider = provider_kind_for_llama(
             execution.requested_backend_hint,
             execution.requested_acceleration,
         );
         let fallback_provider =
             provider_kind_for_llama(execution.backend_hint, execution.resolved_acceleration);
-        Some(ModelRuntimeObservationRecord::new(
+        Some(ModelRuntimeObservationRecordDto::new(
             observed_at,
             "x06-model-runtime-probe",
             run_id,
-            ModelRuntimeObservationCandidate::ProviderDowngrade(ProviderDowngrade {
-                model_id: model_id.to_owned(),
+            ModelRuntimeObservationCandidate::ProviderDowngradeDto(ProviderDowngradeDto {
+                model_id: model_id.retained(),
                 task,
                 requested_provider,
                 fallback_provider,
@@ -1653,7 +1676,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         let raw_filter = std::env::var("ENFORCER_X06_PROBE_FILTER")
             .ok()
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| DEFAULT_PROBE_FILTER.to_owned());
+            .unwrap_or_else(|| DEFAULT_PROBE_FILTER.retained());
         let requested = raw_filter
             .split(',')
             .map(|entry| entry.trim().to_ascii_lowercase())
@@ -1661,7 +1684,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
             .collect::<Vec<_>>();
         let mut expanded = expand_probe_filter(&requested);
         if expanded.is_empty() {
-            expanded = expand_probe_filter(&[DEFAULT_PROBE_FILTER.to_owned()]);
+            expanded = expand_probe_filter(&[DEFAULT_PROBE_FILTER.retained()]);
         }
         if !env_truthy("ENFORCER_X06_ALLOW_MULTI_PROBE") && expanded.len() > 1 {
             expanded.truncate(1);
@@ -1705,7 +1728,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
 
     fn push_unique_probe(probes: &mut Vec<String>, probe: &str) {
         if !probes.iter().any(|existing| existing == probe) {
-            probes.push(probe.to_owned());
+            probes.push(probe.retained());
         }
     }
 
@@ -1717,7 +1740,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         let requested_filter = std::env::var("ENFORCER_X06_PROBE_FILTER")
             .ok()
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| DEFAULT_PROBE_FILTER.to_owned());
+            .unwrap_or_else(|| DEFAULT_PROBE_FILTER.retained());
         let plan = default_model_runtime_probe_plan();
         serde_json::json!({
             "defaultProbeFilter": plan.default_probe_filter,
@@ -1754,7 +1777,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         if cfg!(windows) {
             format!("{stem}.exe")
         } else {
-            stem.to_owned()
+            stem.retained()
         }
     }
 
@@ -1784,7 +1807,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         serde_json::json!({
             "operation": operation,
             "ok": false,
-            "error": error.to_string()
+            "error": error.retained_display()
         })
     }
 
@@ -1804,7 +1827,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     fn excerpt_tail(text: &str, max_chars: usize) -> String {
         let chars: Vec<char> = text.chars().collect();
         let start = chars.len().saturating_sub(max_chars);
-        chars[start..].iter().collect()
+        chars.get(start..).unwrap_or_default().iter().collect()
     }
 
     fn success_observation(
@@ -1813,12 +1836,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         model_id: String,
         task: ModelTask,
         provider: ProviderKind,
-    ) -> ModelRuntimeObservationRecord {
-        ModelRuntimeObservationRecord::new(
+    ) -> ModelRuntimeObservationRecordDto {
+        ModelRuntimeObservationRecordDto::new(
             observed_at,
             "x06-model-runtime-probe",
             run_id,
-            ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceeded {
+            ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceededDto {
                 model_id,
                 task,
                 provider,
@@ -1827,12 +1850,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
         )
     }
 
-    fn load_failure_observation(input: LoadFailureInput<'_>) -> ModelRuntimeObservationRecord {
-        ModelRuntimeObservationRecord::new(
+    fn load_failure_observation(input: LoadFailureInput<'_>) -> ModelRuntimeObservationRecordDto {
+        ModelRuntimeObservationRecordDto::new(
             input.observed_at,
             "x06-model-runtime-probe",
             input.run_id,
-            ModelRuntimeObservationCandidate::ModelLoadFailure(ModelLoadFailure {
+            ModelRuntimeObservationCandidate::ModelLoadFailureDto(ModelLoadFailureDto {
                 model_id: input.model_id,
                 task: input.task,
                 requested_provider: input.requested_provider,

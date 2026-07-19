@@ -1,18 +1,28 @@
-use crate::JournalHash;
+use enforcer_domain::events_types::{JournalHash, JournalRecoveryState, JournalSequence};
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(super) struct NdjsonJournalState {
-    pub(super) next_sequence: u64,
+    pub(super) last_sequence: Option<JournalSequence>,
     pub(super) previous_hash: Option<JournalHash>,
-    pub(super) recovered: bool,
+    pub(super) recovery: JournalRecoveryState,
+}
+
+impl Default for NdjsonJournalState {
+    fn default() -> Self {
+        Self {
+            last_sequence: None,
+            previous_hash: None,
+            recovery: JournalRecoveryState::Unrecovered,
+        }
+    }
 }
 
 impl NdjsonJournalState {
     pub(super) fn recovered_empty() -> Self {
         Self {
-            next_sequence: 0,
+            last_sequence: None,
             previous_hash: None,
-            recovered: true,
+            recovery: JournalRecoveryState::Recovered,
         }
     }
 }

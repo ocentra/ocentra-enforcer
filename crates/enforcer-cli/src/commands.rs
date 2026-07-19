@@ -6,8 +6,10 @@
 
 use std::path::Path;
 
-use enforcer_core::exit_codes::ExitCode;
+use enforcer_domain::core_types::ExitCode;
+use enforcer_domain::findings::ReportOutcome;
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::scan_types::ResolvedScope;
 use enforcer_scan::{engine, walk};
 
 use crate::cli::{ArchitectureAction, ArchitectureCheckArgs, ScopeArgs, VerifyArgs};
@@ -35,7 +37,7 @@ fn current_repo_root() -> Result<RepoRoot, String> {
 /// narrower).
 fn resolve_files(
     root: &RepoRoot,
-    resolved: &enforcer_scan::scope::ResolvedScope,
+    resolved: &ResolvedScope,
 ) -> std::io::Result<Vec<enforcer_domain::paths::RelPath>> {
     let root_path = Path::new(root.as_str());
     let all_files = walk::walk(root_path, &walk::IgnoreRules::default())?;
@@ -106,7 +108,7 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
         config.rust_scan_scope.inline_test_policy,
     );
     output::print_report(&report);
-    if report.ok {
+    if report.ok == ReportOutcome::Clean {
         ExitCode::Success
     } else {
         ExitCode::Violations
@@ -136,14 +138,14 @@ pub fn run_advise_literals() -> ExitCode {
         }
     };
     let opts = enforcer_literal_scan::CliOptions {
-        root: std::path::PathBuf::from(root.as_str()),
+        root: std::path::PathBuf::from(root.as_str()).into(),
         ..enforcer_literal_scan::CliOptions::default()
     };
     match enforcer_literal_scan::run_scan(&opts) {
         Ok(report) => {
             let ok = report.ok;
             output::print_literal_scan_report(&report);
-            if ok {
+            if matches!(ok, enforcer_domain::findings::ReportOutcome::Clean) {
                 ExitCode::Success
             } else {
                 ExitCode::Violations

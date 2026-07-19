@@ -26,7 +26,7 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::security_pipeline::seam::EventLabel;
+use enforcer_domain::harness_types::HarnessEventLabel;
 
 /// Whether an upstream classifier marked the observed path
 /// money-critical.
@@ -69,7 +69,7 @@ pub enum SamplingDisposition {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObservabilityEvent {
     /// The label naming this event.
-    pub label: EventLabel,
+    pub label: HarnessEventLabel,
     /// Money-critical or ordinary (upstream classifier's verdict).
     pub money_class: MoneyPathClass,
     /// Whether a security log line was emitted.
@@ -144,20 +144,19 @@ impl MoneyPathLoggingGate {
                     (false, true) => "carries no correlation id (score=0.5, confidence=medium)",
                 };
                 let title = String::from("money-critical path missing security log/correlation id");
-                Some(Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: each finding owns its rule id
                     // and file so the report outlives this borrowed
                     // gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!("money-critical event `{}` {gap}", event.label.0),
+                    format!("money-critical event `{}` {gap}", event.label),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: file.clone(),
-                    line: 1,
-                    snippet: None,
-                })
+                    file.clone(),
+                    1,
+                )
             })
             .collect()
     }
@@ -173,24 +172,26 @@ impl Validator for MoneyPathLoggingGate {
     /// boundary rejects (malformed or dishonest) is itself a blocking
     /// finding, never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match crate::security_pipeline::adapters::observability_report::parse_recorded(input.source)
-        {
+        match crate::security_pipeline::adapters::observability_report::parse_recorded(
+            input.source.as_str(),
+        ) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
                 let title = String::from("observability adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!("{rejection}"),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

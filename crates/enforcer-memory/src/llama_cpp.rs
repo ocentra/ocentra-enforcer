@@ -1,4 +1,6 @@
 //! `llama.cpp` process runner for GGUF proof.
+//!
+//! ROUNDTRIP-TEST: tests/model_runtime_real_contract.rs::runtime_dto_domain_boundary_conversions_round_trip
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -9,32 +11,18 @@ use std::os::windows::process::CommandExt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::embed::{DegradedState, LoadState};
 use crate::error::{MemoryError, Result};
-use crate::local_runtime::{
+use crate::model_runtime::validate_file_hash;
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{DegradedState, LoadState};
+use enforcer_domain::memory_types::{
+    LlamaCppBackendHint, LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeKind,
     LocalRuntimeAcceleration, RuntimeActivityState, RuntimeOwnershipMode, RuntimeRequestProtocol,
 };
-use crate::model_runtime::validate_file_hash;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LlamaCppProbeKind {
-    Generate,
-    Embedding,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LlamaCppBackendHint {
-    Auto,
-    Native,
-    Vulkan,
-    OpenVino,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppProbeConfig {
+pub struct LlamaCppProbeConfigDto {
     pub binary_path: PathBuf,
     pub model_path: PathBuf,
     pub model_sha256: Option<String>,
@@ -55,7 +43,7 @@ pub struct LlamaCppProbeConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppProbeReport {
+pub struct LlamaCppProbeReportDto {
     pub kind: LlamaCppProbeKind,
     pub backend_hint: LlamaCppBackendHint,
     pub requested_acceleration: LocalRuntimeAcceleration,
@@ -80,40 +68,9 @@ pub struct LlamaCppCommandPlan {
     pub env: Vec<(String, String)>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LlamaCppLifecycleState {
-    Idle,
-    ToolchainReady,
-    ModelLoading,
-    Ready,
-    ChatActive,
-    EmbeddingActive,
-    PausedChat,
-    PausedEmbedding,
-    Cancelled,
-    TimedOut,
-    Unloaded,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum LlamaCppLifecycleAction {
-    ResolveToolchain,
-    LoadModel,
-    MarkReady,
-    StartChat,
-    StartEmbedding,
-    Pause,
-    Resume,
-    Cancel,
-    TimeoutKill,
-    Unload,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppLifecycleTransition {
+pub struct LlamaCppLifecycleTransitionDto {
     pub before: LlamaCppLifecycleState,
     pub action: LlamaCppLifecycleAction,
     pub after: LlamaCppLifecycleState,
@@ -129,7 +86,7 @@ pub struct LlamaCppLifecycleTransition {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppDevice {
+pub struct LlamaCppDeviceDto {
     pub id: String,
     pub name: String,
     pub total_memory_mib: u64,
@@ -138,16 +95,16 @@ pub struct LlamaCppDevice {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppDeviceReport {
+pub struct LlamaCppDeviceReportDto {
     pub binary_path: PathBuf,
-    pub devices: Vec<LlamaCppDevice>,
+    pub devices: Vec<LlamaCppDeviceDto>,
     pub stderr_excerpt: String,
     pub timed_out: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlamaCppExecutionResolution {
+pub struct LlamaCppExecutionResolutionDto {
     pub requested_backend_hint: LlamaCppBackendHint,
     pub requested_acceleration: LocalRuntimeAcceleration,
     pub backend_hint: LlamaCppBackendHint,
@@ -159,7 +116,16 @@ pub struct LlamaCppExecutionResolution {
     pub downgrade_reason: Option<String>,
 }
 
-impl LlamaCppProbeReport {
+/// Extract the resolved canonical acceleration choice from the external
+/// execution-resolution report. Device identifiers and downgrade reasons are
+/// report metadata; policy consumes the typed acceleration enum.
+impl From<LlamaCppExecutionResolutionDto> for LocalRuntimeAcceleration {
+    fn from(value: LlamaCppExecutionResolutionDto) -> Self {
+        value.resolved_acceleration
+    }
+}
+
+impl LlamaCppProbeReportDto {
     pub fn loaded(&self) -> bool {
         self.exit_code == Some(0) && self.load_state == "loaded"
     }
@@ -173,7 +139,10 @@ impl LlamaCppProbeReport {
     }
 }
 
-pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<LlamaCppDeviceReport> {
+pub fn list_llama_cpp_devices(
+    binary_path: &Path,
+    timeout_ms: u64,
+) -> Result<LlamaCppDeviceReportDto> {
     validate_executable(binary_path)?;
     let mut command = Command::new(binary_path);
     command
@@ -184,7 +153,7 @@ pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<Lla
 
     let started = Instant::now();
     let mut child = command.spawn().map_err(|source| MemoryError::Io {
-        path: binary_path.to_path_buf(),
+        path: binary_path.to_path_buf().into(),
         source,
     })?;
     let timeout = Duration::from_millis(timeout_ms);
@@ -193,7 +162,7 @@ pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<Lla
         if child
             .try_wait()
             .map_err(|source| MemoryError::Io {
-                path: binary_path.to_path_buf(),
+                path: binary_path.to_path_buf().into(),
                 source,
             })?
             .is_some()
@@ -203,7 +172,7 @@ pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<Lla
         if started.elapsed() >= timeout {
             timed_out = true;
             child.kill().map_err(|source| MemoryError::Io {
-                path: binary_path.to_path_buf(),
+                path: binary_path.to_path_buf().into(),
                 source,
             })?;
             break;
@@ -212,11 +181,11 @@ pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<Lla
     }
 
     let output = child.wait_with_output().map_err(|source| MemoryError::Io {
-        path: binary_path.to_path_buf(),
+        path: binary_path.to_path_buf().into(),
         source,
     })?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    Ok(LlamaCppDeviceReport {
+    Ok(LlamaCppDeviceReportDto {
         binary_path: binary_path.to_path_buf(),
         devices: parse_llama_cpp_devices(&stdout),
         stderr_excerpt: excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
@@ -224,7 +193,8 @@ pub fn list_llama_cpp_devices(binary_path: &Path, timeout_ms: u64) -> Result<Lla
     })
 }
 
-pub fn parse_llama_cpp_devices(output: &str) -> Vec<LlamaCppDevice> {
+/// PROPERTY-TEST: crates/enforcer-memory/tests/property_parser_contracts.rs::every_registered_parser_is_total
+pub fn parse_llama_cpp_devices(output: &str) -> Vec<LlamaCppDeviceDto> {
     output
         .lines()
         .filter_map(parse_llama_cpp_device_line)
@@ -234,8 +204,8 @@ pub fn parse_llama_cpp_devices(output: &str) -> Vec<LlamaCppDevice> {
 pub fn resolve_llama_cpp_execution(
     requested_backend_hint: LlamaCppBackendHint,
     requested_acceleration: LocalRuntimeAcceleration,
-    devices: &[LlamaCppDevice],
-) -> LlamaCppExecutionResolution {
+    devices: &[LlamaCppDeviceDto],
+) -> LlamaCppExecutionResolutionDto {
     let provider_probe_passed = !devices.is_empty();
     let selected_gpu = devices
         .iter()
@@ -244,7 +214,7 @@ pub fn resolve_llama_cpp_execution(
     let selected_npu = devices.iter().find(|device| device_looks_like_npu(device));
 
     match requested_acceleration {
-        LocalRuntimeAcceleration::Cpu => LlamaCppExecutionResolution {
+        LocalRuntimeAcceleration::Cpu => LlamaCppExecutionResolutionDto {
             requested_backend_hint,
             requested_acceleration,
             backend_hint: resolve_backend_hint(
@@ -261,7 +231,7 @@ pub fn resolve_llama_cpp_execution(
         },
         LocalRuntimeAcceleration::Gpu => {
             if let Some(device) = selected_gpu {
-                return LlamaCppExecutionResolution {
+                return LlamaCppExecutionResolutionDto {
                     requested_backend_hint,
                     requested_acceleration,
                     backend_hint: resolve_backend_hint(
@@ -271,13 +241,13 @@ pub fn resolve_llama_cpp_execution(
                     ),
                     resolved_acceleration: LocalRuntimeAcceleration::Gpu,
                     provider_probe_passed,
-                    selected_device_id: Some(device.id.clone()),
+                    selected_device_id: Some(device.id.retained()),
                     selected_main_gpu: parse_device_index(&device.id),
                     detected_free_vram_mib: Some(device.free_memory_mib),
                     downgrade_reason: None,
                 };
             }
-            LlamaCppExecutionResolution {
+            LlamaCppExecutionResolutionDto {
                 requested_backend_hint,
                 requested_acceleration,
                 backend_hint: LlamaCppBackendHint::Native,
@@ -288,25 +258,25 @@ pub fn resolve_llama_cpp_execution(
                 detected_free_vram_mib: None,
                 downgrade_reason: Some(
                     "requested GPU acceleration but llama.cpp provider probe did not report a usable GPU device"
-                        .to_owned(),
+                        .retained(),
                 ),
             }
         }
         LocalRuntimeAcceleration::Npu => {
             if let Some(device) = selected_npu {
-                return LlamaCppExecutionResolution {
+                return LlamaCppExecutionResolutionDto {
                     requested_backend_hint,
                     requested_acceleration,
                     backend_hint: LlamaCppBackendHint::OpenVino,
                     resolved_acceleration: LocalRuntimeAcceleration::Npu,
                     provider_probe_passed,
-                    selected_device_id: Some(device.id.clone()),
+                    selected_device_id: Some(device.id.retained()),
                     selected_main_gpu: None,
                     detected_free_vram_mib: Some(device.free_memory_mib),
                     downgrade_reason: None,
                 };
             }
-            LlamaCppExecutionResolution {
+            LlamaCppExecutionResolutionDto {
                 requested_backend_hint,
                 requested_acceleration,
                 backend_hint: LlamaCppBackendHint::Native,
@@ -317,13 +287,13 @@ pub fn resolve_llama_cpp_execution(
                 detected_free_vram_mib: None,
                 downgrade_reason: Some(
                     "requested NPU acceleration but llama.cpp provider probe did not report an NPU/OpenVINO device"
-                        .to_owned(),
+                        .retained(),
                 ),
             }
         }
         LocalRuntimeAcceleration::Auto => {
             if let Some(device) = selected_gpu {
-                return LlamaCppExecutionResolution {
+                return LlamaCppExecutionResolutionDto {
                     requested_backend_hint,
                     requested_acceleration,
                     backend_hint: resolve_backend_hint(
@@ -333,26 +303,26 @@ pub fn resolve_llama_cpp_execution(
                     ),
                     resolved_acceleration: LocalRuntimeAcceleration::Gpu,
                     provider_probe_passed,
-                    selected_device_id: Some(device.id.clone()),
+                    selected_device_id: Some(device.id.retained()),
                     selected_main_gpu: parse_device_index(&device.id),
                     detected_free_vram_mib: Some(device.free_memory_mib),
                     downgrade_reason: None,
                 };
             }
             if let Some(device) = selected_npu {
-                return LlamaCppExecutionResolution {
+                return LlamaCppExecutionResolutionDto {
                     requested_backend_hint,
                     requested_acceleration,
                     backend_hint: LlamaCppBackendHint::OpenVino,
                     resolved_acceleration: LocalRuntimeAcceleration::Npu,
                     provider_probe_passed,
-                    selected_device_id: Some(device.id.clone()),
+                    selected_device_id: Some(device.id.retained()),
                     selected_main_gpu: None,
                     detected_free_vram_mib: Some(device.free_memory_mib),
                     downgrade_reason: None,
                 };
             }
-            LlamaCppExecutionResolution {
+            LlamaCppExecutionResolutionDto {
                 requested_backend_hint,
                 requested_acceleration,
                 backend_hint: LlamaCppBackendHint::Native,
@@ -367,7 +337,7 @@ pub fn resolve_llama_cpp_execution(
     }
 }
 
-pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {
+pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppProbeReportDto> {
     validate_executable(&config.binary_path)?;
     validate_model(&config.model_path)?;
     if let Some(expected_hash) = &config.model_sha256 {
@@ -389,7 +359,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
 
     let started = Instant::now();
     let mut child = command.spawn().map_err(|source| MemoryError::Io {
-        path: config.binary_path.clone(),
+        path: config.binary_path.retained().into(),
         source,
     })?;
     let timeout = Duration::from_millis(config.timeout_ms);
@@ -398,7 +368,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         if child
             .try_wait()
             .map_err(|source| MemoryError::Io {
-                path: config.binary_path.clone(),
+                path: config.binary_path.retained().into(),
                 source,
             })?
             .is_some()
@@ -408,7 +378,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         if started.elapsed() >= timeout {
             timed_out = true;
             child.kill().map_err(|source| MemoryError::Io {
-                path: config.binary_path.clone(),
+                path: config.binary_path.retained().into(),
                 source,
             })?;
             break;
@@ -416,7 +386,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         std::thread::sleep(Duration::from_millis(100));
     }
     let output = child.wait_with_output().map_err(|source| MemoryError::Io {
-        path: config.binary_path.clone(),
+        path: config.binary_path.retained().into(),
         source,
     })?;
     let duration_ms = started.elapsed().as_millis();
@@ -435,15 +405,15 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
     } else {
         "degraded-model-load-failed"
     }
-    .to_owned();
+    .retained();
 
-    Ok(LlamaCppProbeReport {
+    Ok(LlamaCppProbeReportDto {
         kind: config.kind,
         backend_hint: config.backend_hint,
         requested_acceleration: config.acceleration,
-        binary_path: config.binary_path.clone(),
+        binary_path: config.binary_path.retained(),
         execution_route: probe_execution_route(&config.binary_path, config.kind),
-        model_path: config.model_path.clone(),
+        model_path: config.model_path.retained(),
         exit_code,
         stdout_excerpt,
         stderr_excerpt,
@@ -461,13 +431,13 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
     })
 }
 
-pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {
+pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppCommandPlan> {
     validate_llama_cpp_command_config(config)?;
     let mut args = vec![
-        "-m".to_owned(),
-        config.model_path.display().to_string(),
-        "-p".to_owned(),
-        config.prompt.clone(),
+        "-m".retained(),
+        config.model_path.display().retained_display(),
+        "-p".retained(),
+        config.prompt.retained(),
     ];
     let mut env = Vec::new();
 
@@ -475,16 +445,16 @@ pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCo
 
     match config.kind {
         LlamaCppProbeKind::Generate => {
-            args.push("-n".to_owned());
-            args.push(config.max_tokens.to_string());
-            args.push("--no-display-prompt".to_owned());
-            args.push("-st".to_owned());
-            args.push("--simple-io".to_owned());
+            args.push("-n".retained());
+            args.push(config.max_tokens.retained_display());
+            args.push("--no-display-prompt".retained());
+            args.push("-st".retained());
+            args.push("--simple-io".retained());
         }
         LlamaCppProbeKind::Embedding => {
-            args.push("--embedding".to_owned());
-            args.push("--embd-output-format".to_owned());
-            args.push("json".to_owned());
+            args.push("--embedding".retained());
+            args.push("--embd-output-format".retained());
+            args.push("json".retained());
         }
     }
 
@@ -492,10 +462,10 @@ pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCo
 }
 
 pub fn transition_llama_cpp_lifecycle(
-    config: &LlamaCppProbeConfig,
+    config: &LlamaCppProbeConfigDto,
     before: LlamaCppLifecycleState,
     action: LlamaCppLifecycleAction,
-) -> Result<LlamaCppLifecycleTransition> {
+) -> Result<LlamaCppLifecycleTransitionDto> {
     validate_llama_cpp_lifecycle_config(config)?;
     let after = match (before, action) {
         (
@@ -560,7 +530,7 @@ pub fn transition_llama_cpp_lifecycle(
         }
     };
 
-    Ok(LlamaCppLifecycleTransition {
+    Ok(LlamaCppLifecycleTransitionDto {
         before,
         action,
         after,
@@ -575,7 +545,7 @@ pub fn transition_llama_cpp_lifecycle(
     })
 }
 
-fn validate_llama_cpp_lifecycle_config(config: &LlamaCppProbeConfig) -> Result<()> {
+fn validate_llama_cpp_lifecycle_config(config: &LlamaCppProbeConfigDto) -> Result<()> {
     if config.timeout_ms == 0 {
         return Err(model_error(
             "validate-llama-cpp-lifecycle-config",
@@ -592,8 +562,8 @@ fn validate_llama_cpp_lifecycle_config(config: &LlamaCppProbeConfig) -> Result<(
     Ok(())
 }
 
-fn validate_llama_cpp_command_config(config: &LlamaCppProbeConfig) -> Result<()> {
-    if path_value_is_absolute(&config.model_path.display().to_string()) {
+fn validate_llama_cpp_command_config(config: &LlamaCppProbeConfigDto) -> Result<()> {
+    if path_value_is_absolute(&config.model_path.display().retained_display()) {
         return Err(model_error(
             "validate-llama-cpp-command-config",
             "llama.cpp GGUF model path must be cache-relative/repo-local, not an absolute or hardcoded machine path",
@@ -655,65 +625,65 @@ fn llama_lifecycle_reason(action: LlamaCppLifecycleAction) -> String {
         }
         LlamaCppLifecycleAction::Unload => "Enforcer unloaded the owned llama.cpp subprocess",
     }
-    .to_owned()
+    .retained()
 }
 
 fn append_acceleration_plan(
-    config: &LlamaCppProbeConfig,
+    config: &LlamaCppProbeConfigDto,
     args: &mut Vec<String>,
     env: &mut Vec<(String, String)>,
 ) {
     match (config.backend_hint, config.acceleration) {
         (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Auto) => {
-            env.push(("GGML_OPENVINO_DEVICE".to_owned(), "CPU".to_owned()));
+            env.push(("GGML_OPENVINO_DEVICE".retained(), "CPU".retained()));
         }
         (_, LocalRuntimeAcceleration::Auto) => {
-            args.push("-ngl".to_owned());
-            args.push("0".to_owned());
+            args.push("-ngl".retained());
+            args.push("0".retained());
         }
         (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Cpu) => {
-            env.push(("GGML_OPENVINO_DEVICE".to_owned(), "CPU".to_owned()));
+            env.push(("GGML_OPENVINO_DEVICE".retained(), "CPU".retained()));
         }
         (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Gpu) => {
-            env.push(("GGML_OPENVINO_DEVICE".to_owned(), "GPU".to_owned()));
+            env.push(("GGML_OPENVINO_DEVICE".retained(), "GPU".retained()));
         }
         (_, LocalRuntimeAcceleration::Cpu) => {
-            args.push("-ngl".to_owned());
-            args.push("0".to_owned());
+            args.push("-ngl".retained());
+            args.push("0".retained());
         }
         (_, LocalRuntimeAcceleration::Gpu) => {
             if let Some(device) = &config.device {
-                args.push("--device".to_owned());
-                args.push(device.clone());
+                args.push("--device".retained());
+                args.push(device.retained());
             }
-            args.push("-ngl".to_owned());
+            args.push("-ngl".retained());
             args.push(
                 config
                     .gpu_layers
-                    .map(|layers| layers.to_string())
-                    .unwrap_or_else(|| "auto".to_owned()),
+                    .map(|layers| layers.retained_display())
+                    .unwrap_or_else(|| "auto".retained()),
             );
             if let Some(main_gpu) = config.main_gpu {
-                args.push("--main-gpu".to_owned());
-                args.push(main_gpu.to_string());
+                args.push("--main-gpu".retained());
+                args.push(main_gpu.retained_display());
             }
             if let Some(split_mode) = &config.split_mode {
-                args.push("--split-mode".to_owned());
-                args.push(split_mode.clone());
+                args.push("--split-mode".retained());
+                args.push(split_mode.retained());
             }
             if let Some(tensor_split) = &config.tensor_split {
-                args.push("--tensor-split".to_owned());
-                args.push(tensor_split.clone());
+                args.push("--tensor-split".retained());
+                args.push(tensor_split.retained());
             }
             if let Some(fit) = config.fit {
-                args.push("--fit".to_owned());
-                args.push(if fit { "on" } else { "off" }.to_owned());
+                args.push("--fit".retained());
+                args.push(if fit { "on" } else { "off" }.retained());
             }
         }
         (_, LocalRuntimeAcceleration::Npu) => {
-            env.push(("GGML_OPENVINO_DEVICE".to_owned(), "NPU".to_owned()));
-            args.push("-c".to_owned());
-            args.push(config.context_size.unwrap_or(512).to_string());
+            env.push(("GGML_OPENVINO_DEVICE".retained(), "NPU".retained()));
+            args.push("-c".retained());
+            args.push(config.context_size.unwrap_or(512).retained_display());
         }
     }
 }
@@ -747,7 +717,7 @@ fn excerpt(text: &str, max_chars: usize) -> String {
 fn excerpt_tail(text: &str, max_chars: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
     let start = chars.len().saturating_sub(max_chars);
-    chars[start..].iter().collect()
+    chars.get(start..).unwrap_or_default().iter().collect()
 }
 
 fn probe_execution_route(binary_path: &Path, kind: LlamaCppProbeKind) -> String {
@@ -757,11 +727,11 @@ fn probe_execution_route(binary_path: &Path, kind: LlamaCppProbeKind) -> String 
         .unwrap_or_default()
         .to_ascii_lowercase();
     if file_name.contains("llama-server") && kind == LlamaCppProbeKind::Embedding {
-        "llama-server-v1-embeddings".to_owned()
+        "llama-server-v1-embeddings".retained()
     } else if file_name.contains("llama-embedding") {
-        "llama-embedding-cli".to_owned()
+        "llama-embedding-cli".retained()
     } else {
-        "llama-cli".to_owned()
+        "llama-cli".retained()
     }
 }
 
@@ -780,7 +750,7 @@ fn parse_embedding_dimensions(text: &str) -> Option<usize> {
     text.lines().find_map(|line| {
         let marker = "embedding dimensions:";
         let index = line.find(marker)?;
-        let suffix = &line[index + marker.len()..];
+        let suffix = line.get(index + marker.len()..)?;
         let digits: String = suffix
             .chars()
             .skip_while(|ch| ch.is_whitespace())
@@ -790,7 +760,7 @@ fn parse_embedding_dimensions(text: &str) -> Option<usize> {
     })
 }
 
-fn parse_llama_cpp_device_line(line: &str) -> Option<LlamaCppDevice> {
+fn parse_llama_cpp_device_line(line: &str) -> Option<LlamaCppDeviceDto> {
     let trimmed = line.trim();
     let (id, rest) = trimmed.split_once(':')?;
     let (name, memory) = rest.rsplit_once('(')?;
@@ -798,15 +768,15 @@ fn parse_llama_cpp_device_line(line: &str) -> Option<LlamaCppDevice> {
     let (total, free) = memory.split_once(',')?;
     let total_memory_mib = parse_mib(total.trim())?;
     let free_memory_mib = parse_mib(free.trim().strip_suffix(" free")?.trim())?;
-    Some(LlamaCppDevice {
-        id: id.trim().to_owned(),
-        name: name.trim().to_owned(),
+    Some(LlamaCppDeviceDto {
+        id: id.trim().retained(),
+        name: name.trim().retained(),
         total_memory_mib,
         free_memory_mib,
     })
 }
 
-fn device_looks_like_npu(device: &LlamaCppDevice) -> bool {
+fn device_looks_like_npu(device: &LlamaCppDeviceDto) -> bool {
     let id = device.id.to_ascii_lowercase();
     let name = device.name.to_ascii_lowercase();
     id.contains("npu") || name.contains("npu") || name.contains("neural")
@@ -814,7 +784,7 @@ fn device_looks_like_npu(device: &LlamaCppDevice) -> bool {
 
 fn resolve_backend_hint(
     requested_backend_hint: LlamaCppBackendHint,
-    device: Option<&LlamaCppDevice>,
+    device: Option<&LlamaCppDeviceDto>,
     acceleration: LocalRuntimeAcceleration,
 ) -> LlamaCppBackendHint {
     if requested_backend_hint != LlamaCppBackendHint::Auto {
@@ -876,7 +846,7 @@ fn configure_platform_child_process(command: &mut Command) {
 fn configure_platform_child_process(_command: &mut Command) {}
 
 fn measured_tokens_per_second(
-    config: &LlamaCppProbeConfig,
+    config: &LlamaCppProbeConfigDto,
     stdout: &str,
     stderr: &str,
     duration_ms: u128,
@@ -886,11 +856,14 @@ fn measured_tokens_per_second(
         .or_else(|| conservative_token_rate(config, duration_ms))
 }
 
-fn conservative_token_rate(config: &LlamaCppProbeConfig, duration_ms: u128) -> Option<f64> {
+fn conservative_token_rate(config: &LlamaCppProbeConfigDto, duration_ms: u128) -> Option<f64> {
     if config.kind != LlamaCppProbeKind::Generate || config.max_tokens == 0 || duration_ms == 0 {
         return None;
     }
-    Some(config.max_tokens as f64 / (duration_ms as f64 / 1_000.0))
+    Some(
+        crate::owned_boundary::usize_to_f64(config.max_tokens)
+            / (crate::owned_boundary::u128_to_f64(duration_ms) / 1_000.0),
+    )
 }
 
 fn parse_token_rate(text: &str) -> Option<f64> {
@@ -929,7 +902,7 @@ pub fn parse_generation_rate(line: &str) -> Option<f64> {
 
 fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryError {
     MemoryError::ModelRuntime {
-        operation,
-        reason: reason.into(),
+        operation: operation.into(),
+        reason: reason.into().into(),
     }
 }

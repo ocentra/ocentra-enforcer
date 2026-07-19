@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::telemetry_types::RecordSchemaVersion;
 use enforcer_scan::onboard::{
     self, ConfigProvisioning, OnboardError, BASELINE_FILE, ENFORCE_DIR, PROJECT_CONFIG_FILE,
     REGISTRATION_FILE, REGISTRATION_VERSION,
@@ -34,7 +35,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RegistrationWire {
-    version: u32,
+    version: RecordSchemaVersion,
     project_id: Sha256,
     repo_root: RepoRoot,
 }
@@ -97,7 +98,7 @@ fn onboard_scaffolds_enforce_with_profile_baseline_and_registration() -> TestRes
 
     let result = onboard::onboard(&root)?;
     assert_eq!(
-        result.baseline.len(),
+        result.baseline.entry_count().get(),
         1,
         "the fixture's one unwrap() must be grandfathered into the baseline"
     );
@@ -118,7 +119,7 @@ fn onboard_scaffolds_enforce_with_profile_baseline_and_registration() -> TestRes
 
     // Baseline round-trips and grandfathers exactly the fixture's violation.
     let loaded_baseline = onboard::require_onboarded(&root)?;
-    assert_eq!(loaded_baseline.len(), 1);
+    assert_eq!(loaded_baseline.entry_count().get(), 1);
     assert_eq!(loaded_baseline, result.baseline);
 
     // Registration round-trips through serde (decode side at THIS test

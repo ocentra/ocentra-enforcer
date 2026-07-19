@@ -35,7 +35,6 @@ use enforcer_domain::scan_types::{ResolvedScope, ScopeRequest};
 /// [`ScopeRequest`]s that mean the same thing (e.g. the same path spelled
 /// with `\` vs `/`) resolve to an equal `ResolvedScope` — this equality is
 /// what the idempotency guard in [`crate::walk`] relies on.
-
 /// Resolve a [`ScopeRequest`] against a repository root into a canonical
 /// [`ResolvedScope`]. Pure and deterministic: the same `(request,
 /// repo_root)` pair always resolves to an equal `ResolvedScope`, which is
@@ -58,6 +57,8 @@ pub fn resolve(request: &ScopeRequest, repo_root: &RepoRoot) -> Result<ResolvedS
             explicit_paths.dedup();
             Ok(ResolvedScope {
                 kind: ScanScope::Files,
+                // CLONE-JUSTIFICATION: the resolved scope owns the root for
+                // use after the caller's request borrow ends.
                 repo_root: repo_root.clone(),
                 explicit_paths,
                 diff_range: None,
@@ -65,12 +66,18 @@ pub fn resolve(request: &ScopeRequest, repo_root: &RepoRoot) -> Result<ResolvedS
         }
         ScopeRequest::Diff { base, head } => Ok(ResolvedScope {
             kind: ScanScope::Diff,
+            // CLONE-JUSTIFICATION: a resolved scope owns its root and commit
+            // range independently of the borrowed request.
             repo_root: repo_root.clone(),
             explicit_paths: Vec::new(),
+            // CLONE-JUSTIFICATION: both branded commit endpoints are stored
+            // in the returned resolved scope.
             diff_range: Some((base.clone(), head.clone())),
         }),
         ScopeRequest::All => Ok(ResolvedScope {
             kind: ScanScope::Workspace,
+            // CLONE-JUSTIFICATION: the resolved scope owns the root beyond
+            // the request call.
             repo_root: repo_root.clone(),
             explicit_paths: Vec::new(),
             diff_range: None,
@@ -100,9 +107,9 @@ fn to_repo_relative(normalized: &str, repo_root: &RepoRoot) -> Result<RelPath, D
 #[cfg(test)]
 mod tests {
     use super::resolve;
-    use enforcer_domain::scan_types::{CommitRef, ScopeRequest};
     use enforcer_domain::findings::ScanScope;
     use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::scan_types::{CommitRef, ScopeRequest};
     use std::path::PathBuf;
 
     fn repo_root() -> Result<RepoRoot, Box<dyn std::error::Error>> {
@@ -182,8 +189,14 @@ mod tests {
 
     #[test]
     fn empty_commit_ref_is_rejected() {
-        assert!("".parse::<CommitRef>().is_err());
-        assert!("   ".parse::<CommitRef>().is_err());
+        for raw in ["", "   "] {
+            assert_eq!(
+                raw.parse::<CommitRef>()
+                    .err()
+                    .map(|error| error.to_string()),
+                Some("decode/validation failed at `scope.commitRef`: must not be empty".to_owned())
+            );
+        }
     }
 
     #[test]

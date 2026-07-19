@@ -1,29 +1,19 @@
-name: Ocentra Enforcer
+name: Enforcer Manual Parity
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  ocentra-enforcer:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  local-parity:
+    name: Exact local parity diagnostic
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: ./.github/actions/setup-enforcer
         with:
-          node-version: 22
-          cache: npm
-      - name: Install Rust toolchain
-        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - name: Install Node dependencies
-        run: npm ci
-      - name: Run local CI parity gate
+          install-policy-tools: 'true'
+      - name: Run the developer gate unchanged
         run: npm run ci:local

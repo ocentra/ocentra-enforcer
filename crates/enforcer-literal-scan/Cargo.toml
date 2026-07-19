@@ -19,7 +19,6 @@ path = "src/main.rs"
 [dependencies]
 # DEPENDENCY-JUSTIFICATION: The literal scanner emits branded domain findings,
 # uses core error contracts, and exposes the validator bridge.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 

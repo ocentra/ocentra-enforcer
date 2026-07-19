@@ -26,3 +26,15 @@ export function summarizeLanguages(languages: readonly string[], limit = 3): str
 export const appData: { projects: Project[] } = {
   projects: [],
 };
+
+/** Rust-owned count scalar rendered by the presentation layer. */
+export type UiCount = number;
+
+/** Rust-owned boolean state rendered by the presentation layer. */
+export type UiFlag = boolean;
+
+/** Rust-owned text collection rendered by the presentation layer. */
+export type UiTextList = ReadonlyArray<string>;
+
+/** Rust-owned nullable transport field rendered by the presentation layer. */
+export type UiMaybe<T> = T | undefined;

@@ -1,12 +1,17 @@
-use crate::{EventMetadata, EventingError, RequestEvent, RequestId, RequestOptions, RequestReport};
+use crate::{
+    envelope::EventMetadata,
+    error::EventingError,
+    request::{RequestEvent, RequestOptions, RequestReport},
+};
+use enforcer_domain::events_types::RequestId;
 
 use super::EventBus;
 
-#[path = "request_steps/helpers.rs"]
-mod helpers;
+#[path = "request_steps/wait_protocol.rs"]
+mod request_wait_protocol;
 
 #[path = "request_steps/runner.rs"]
-mod runner;
+mod request_execution;
 
 pub(super) async fn run<E>(
     bus: &EventBus,
@@ -16,7 +21,7 @@ pub(super) async fn run<E>(
     request_id: RequestId,
 ) -> Result<RequestReport<E::Response>, EventingError>
 where
-    E: RequestEvent,
+    E: RequestEvent + serde::Serialize,
 {
-    runner::run(bus, event, metadata, options, request_id).await
+    request_execution::run(bus, event, metadata, options, request_id).await
 }

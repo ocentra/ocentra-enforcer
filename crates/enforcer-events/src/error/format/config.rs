@@ -7,9 +7,15 @@ pub(super) fn fmt_config_error(
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match error {
-        EventingError::EmptyValue { field } => write!(formatter, "empty eventing value: {field}"),
+        EventingError::EmptyValue { field } => {
+            write!(formatter, "empty eventing value: {}", field.as_str())
+        }
         EventingError::InvalidValue { field, value } => {
-            write!(formatter, "invalid eventing value for {field}: {value}")
+            write!(
+                formatter,
+                "invalid eventing value for {}: {value}",
+                field.as_str()
+            )
         }
         EventingError::InvalidVersion => {
             formatter.write_str("event schema version must be nonzero")

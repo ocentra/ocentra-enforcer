@@ -2,7 +2,7 @@
 //! `findings` JSON — the shape captured from a real engine run, or
 //! hand-authored to represent one) into an [`super::seam::AdapterOutcome`].
 //!
-//! This is the boundary the CI test suite exercises: no live engine binary
+//! This is the boundary the CI test suite exercises: no live engine executable
 //! is ever required to prove the gate logic, only a RECORDED findings JSON
 //! plus its expected verdict (per the workpack's acceptance section). The
 //! live path (spawning the real subprocess) is intentionally out of scope
@@ -13,7 +13,7 @@
 use enforcer_core::error::Result;
 use enforcer_domain::boundary::decode_error::DecodeError;
 
-use super::seam::{AdapterOutcome, EngineFinding};
+use super::seam::{AdapterOutcome, EngineFindingEnvelope};
 
 /// Raw wire shape a recorded fixture (or a live adapter's captured JSON
 /// output) is authored in. Deliberately flatter than [`AdapterOutcome`] —
@@ -22,16 +22,22 @@ use super::seam::{AdapterOutcome, EngineFinding};
 /// rejects it, never silently coercing a dishonest shape into a pass.
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RawRecorded {
+struct RecordedWire {
+    /// Missing presence data means the tool was not observed.
+    // DEFAULT-JUSTIFICATION: legacy recorded fixtures omitted this field to
+    // represent an unavailable tool.
     #[serde(default)]
     tool_present: bool,
     outcome: String,
+    /// Omitted run counts represent zero completed targets.
+    // DEFAULT-JUSTIFICATION: legacy skipped/error fixtures omitted run counts.
     #[serde(default)]
     ran: u32,
-    #[serde(default)]
     error_message: Option<String>,
+    /// Omitted findings represent an empty engine result set.
+    // DEFAULT-JUSTIFICATION: successful engine runs may legitimately be clean.
     #[serde(default)]
-    findings: Vec<EngineFinding>,
+    findings: Vec<EngineFindingEnvelope>,
 }
 
 /// Parse one recorded-fixture JSON document into an [`AdapterOutcome`].
@@ -44,8 +50,11 @@ struct RawRecorded {
 /// `"errored"` or `"ran"`; those two are accepted whether or not
 /// `toolPresent` is set (a present-but-erroring engine still surfaces its
 /// error either way).
+///
+/// PROPERTY-TEST: `tests/parser_properties.rs` feeds arbitrary text through
+/// this boundary twice and asserts deterministic, total acceptance/rejection.
 pub fn parse_recorded(raw: &str) -> Result<AdapterOutcome> {
-    let parsed: RawRecorded = serde_json::from_str(raw)
+    let parsed: RecordedWire = serde_json::from_str(raw)
         .map_err(|err| DecodeError::new("cyberskillsAdapter", err.to_string()))?;
 
     match parsed.outcome.as_str() {
@@ -141,7 +150,7 @@ mod tests {
         let AdapterOutcome::Errored { error_message } = outcome else {
             return Err(format!("expected Errored, got {outcome:?}").into());
         };
-        assert!(error_message.contains("compilation failed"));
+        assert_eq!(error_message, "slither exited 2: compilation failed");
         Ok(())
     }
 
@@ -151,27 +160,39 @@ mod tests {
             r#"{"adapter":"slither","toolPresent":true,"outcome":"pass","ran":0,
                 "errorMessage":"slither exited 2: compilation failed","findings":[]}"#,
         );
-        assert!(
-            result.is_err(),
-            "a present tool that errored must not be reported as a pass"
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: dishonest pass: an `errorMessage` is present but `outcome: pass` was reported — a present-but-erroring tool must surface the error, never a silent pass".to_owned())
         );
     }
 
     #[test]
     fn skipped_outcome_claiming_tool_present_is_rejected() {
         let result = parse_recorded(r#"{"toolPresent":true,"outcome":"skipped","ran":0}"#);
-        assert!(result.is_err());
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: `outcome: skipped` but `toolPresent: true` — a present tool cannot honestly skip".to_owned())
+        );
     }
 
     #[test]
     fn unrecognized_outcome_label_is_rejected() {
         let result = parse_recorded(r#"{"toolPresent":true,"outcome":"maybe","ran":0}"#);
-        assert!(result.is_err());
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: unrecognized outcome `maybe` — expected skipped/errored/ran/pass".to_owned())
+        );
     }
 
     #[test]
     fn malformed_json_is_rejected_not_panicking() {
         let result = parse_recorded("{not json");
-        assert!(result.is_err());
+        assert_eq!(
+            result.map_err(|error| match error {
+                enforcer_core::error::Error::Decode(source) => source.path,
+                other => other.to_string(),
+            }),
+            Err("cyberskillsAdapter".to_owned())
+        );
     }
 }

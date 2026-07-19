@@ -1,5 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
+// CANCELLATION-TEST: concurrent publish tasks are retained, deterministically released, and joined.
+
 use std::{future::Future, pin::Pin, sync::Mutex as StdMutex};
 use tokio::sync::{Mutex, Notify};
 
@@ -11,9 +13,10 @@ use super::fixtures::{
 };
 use crate::{
     DispatchMode, DomainEvent, EventBus, EventJournal, EventQueuePolicy, EventingError,
-    JournalAppend, JournalPolicy, JournalSelector, QueueDisposition, StoredEventEnvelope,
+    JournalAppend, JournalPolicy, JournalSelector, ManualEventClock, QueueDisposition,
 };
-use enforcer_events::bus::reports::dead_letter::DeadLetterReason;
+use enforcer_domain::events_types::{DeadLetterReason, EventErrorPath, EventErrorReason};
+use enforcer_events::boundary::stored_event_persistence::StoredEventEnvelope;
 
 fn failing_journal_result(
     call: usize,
@@ -21,22 +24,32 @@ fn failing_journal_result(
 ) -> Result<JournalAppend, EventingError> {
     if call == fail_once_on {
         return Err(EventingError::JournalIo {
-            path: String::from("failing-journal"),
-            reason: String::from("intentional one-shot append failure"),
+            path: EventErrorPath::from_diagnostic("failing-journal"),
+            reason: EventErrorReason::from_diagnostic("intentional one-shot append failure"),
         });
     }
 
     Ok(JournalAppend {
-        sequence: call as u64,
+        sequence: enforcer_domain::events_types::JournalSequence::try_new(
+            std::num::NonZeroU64::new(call as u64).ok_or_else(|| {
+                EventingError::InvalidHandlerPolicy {
+                    reason: EventErrorReason::from_diagnostic(String::from(
+                        "journal sequence must be positive",
+                    )),
+                }
+            })?,
+        ),
         previous_hash: None,
-        current_hash: Some(crate::JournalHash::parse(format!("journal-hash-{call}"))?),
+        current_hash: Some(crate::JournalHash::parse(&format!("journal-hash-{call}"))?),
     })
 }
 
 #[tokio::test]
 async fn no_subscriber_queue_drains_after_subscriber_registers(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(2),
+    )?);
     let queued_report = bus
         .publish(
             test_event(TestText(TEST_LABEL.to_owned()))?,
@@ -66,14 +79,17 @@ async fn no_subscriber_queue_drains_after_subscriber_registers(
         queued_report.queue_report.disposition,
         QueueDisposition::QueuedNoSubscriber
     );
-    assert_eq!(queued_report.queue_report.queued_count, 1);
-    assert_eq!(queued_report.subscriber_count, 0);
+    assert_eq!(
+        crate::event_count_value(queued_report.queue_report.queued_count),
+        1
+    );
+    assert_eq!(crate::event_count_value(queued_report.subscriber_count), 0);
     assert_eq!(bus.journal().await.len(), 1);
     assert_eq!(
         subscription.event_type.as_str(),
         super::fixtures::TEST_EVENT_TYPE
     );
-    assert_eq!(empty_drain.queued_before, 0);
+    assert_eq!(crate::event_count_value(empty_drain.queued_before), 0);
     assert_eq!(handled.lock().await.as_slice(), &[TEST_LABEL.to_string()]);
     Ok(())
 }
@@ -81,7 +97,9 @@ async fn no_subscriber_queue_drains_after_subscriber_registers(
 #[tokio::test]
 async fn subscriber_auto_drain_only_drains_matching_event_type(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(4)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(4),
+    )?);
     bus.publish(
         test_event_with_idempotency(
             TestText("primary queued".to_owned()),
@@ -127,14 +145,26 @@ async fn subscriber_auto_drain_only_drains_matching_event_type(
         .await?;
     let metrics_after_other = bus.metrics_snapshot().await;
 
-    assert_eq!(other_subscription.drain_report.queued_before, 1);
-    assert_eq!(other_subscription.drain_report.dispatched_count, 1);
-    assert_eq!(other_subscription.drain_report.remaining_count, 0);
+    assert_eq!(
+        crate::event_count_value(other_subscription.drain_report.queued_before),
+        1
+    );
+    assert_eq!(
+        crate::event_count_value(other_subscription.drain_report.dispatched_count),
+        1
+    );
+    assert_eq!(
+        crate::event_count_value(other_subscription.drain_report.remaining_count),
+        0
+    );
     assert_eq!(
         handled_other.lock().await.as_slice(),
         &["other queued".to_string()]
     );
-    assert_eq!(metrics_after_other.queue.queued_event_count, 1);
+    assert_eq!(
+        crate::event_count_value(metrics_after_other.queue.queued_event_count),
+        1
+    );
 
     let handled_primary = Arc::new(Mutex::new(Vec::new()));
     let handled_primary_clone = Arc::clone(&handled_primary);
@@ -157,14 +187,19 @@ async fn subscriber_auto_drain_only_drains_matching_event_type(
         handled_primary.lock().await.as_slice(),
         &["primary queued".to_string()]
     );
-    assert_eq!(bus.metrics_snapshot().await.queue.queued_event_count, 0);
+    assert_eq!(
+        crate::event_count_value(bus.metrics_snapshot().await.queue.queued_event_count),
+        0
+    );
     Ok(())
 }
 
 #[tokio::test]
 async fn bounded_queue_overflow_dead_letters_oldest_event_and_keeps_newest(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(1)?);
+    let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(
+        crate::event_count(1),
+    )?);
     bus.publish(
         test_event_with_idempotency(
             TestText("first".to_owned()),
@@ -196,8 +231,11 @@ async fn bounded_queue_overflow_dead_letters_oldest_event_and_keeps_newest(
         report.queue_report.disposition,
         QueueDisposition::DeadLetteredQueueOverflow
     );
-    assert_eq!(report.dead_letter_count, 1);
-    assert_eq!(report.queue_report.queued_count, 1);
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
+    assert_eq!(
+        crate::event_count_value(report.queue_report.queued_count),
+        1
+    );
     assert_eq!(dead_letters.len(), 1);
     assert_eq!(dead_letters[0].reason, DeadLetterReason::QueueOverflow);
     assert_eq!(
@@ -235,14 +273,16 @@ async fn bounded_queue_overflow_dead_letters_oldest_event_and_keeps_newest(
 #[tokio::test]
 async fn queued_event_expires_before_dispatch_when_ttl_elapsed(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_ttl(Duration::from_millis(5))?;
-    let bus = EventBus::with_queue_policy(policy);
+    let policy = EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?
+        .with_ttl(Duration::from_millis(5).into())?;
+    let clock = ManualEventClock::new();
+    let bus = EventBus::with_queue_policy_and_clock(policy, clock.shared());
     bus.publish(
         test_event(TestText(TEST_LABEL.to_owned()))?,
         metadata(TestText(TEST_TARGET.to_owned()))?,
     )
     .await?;
-    tokio::time::sleep(Duration::from_millis(20)).await;
+    clock.advance(Duration::from_millis(20).into());
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
             TestText(TEST_SUBSCRIBER.to_owned()),
@@ -254,9 +294,9 @@ async fn queued_event_expires_before_dispatch_when_ttl_elapsed(
     let drain = bus.drain_queued(DispatchMode::Sequential).await?;
     let dead_letters = bus.dead_letters().await;
 
-    assert_eq!(drain.queued_before, 0);
-    assert_eq!(drain.dispatched_count, 0);
-    assert_eq!(drain.remaining_count, 0);
+    assert_eq!(crate::event_count_value(drain.queued_before), 0);
+    assert_eq!(crate::event_count_value(drain.dispatched_count), 0);
+    assert_eq!(crate::event_count_value(drain.remaining_count), 0);
     assert_eq!(dead_letters[0].reason, DeadLetterReason::QueueExpired);
     Ok(())
 }
@@ -264,7 +304,8 @@ async fn queued_event_expires_before_dispatch_when_ttl_elapsed(
 #[tokio::test]
 async fn idempotency_registry_rejects_queued_and_completed_duplicates(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_idempotency_registry();
+    let policy =
+        EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?.with_idempotency_registry();
     let bus = EventBus::with_queue_policy(policy);
     bus.publish(
         test_event_with_idempotency(
@@ -329,6 +370,8 @@ async fn in_flight_duplicate_guard_rejects_concurrent_event_id(
     let bus = EventBus::new();
     let started = Arc::new(Notify::new());
     let started_clone = Arc::clone(&started);
+    let release = Arc::new(Notify::new());
+    let release_clone = Arc::clone(&release);
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
             TestText(TEST_SUBSCRIBER.to_owned()),
@@ -336,9 +379,10 @@ async fn in_flight_duplicate_guard_rejects_concurrent_event_id(
         )?,
         move |_| {
             let started = Arc::clone(&started_clone);
+            let release = Arc::clone(&release_clone);
             async move {
                 started.notify_waiters();
-                tokio::time::sleep(Duration::from_millis(50)).await;
+                release.notified().await;
                 Ok(())
             }
         },
@@ -362,20 +406,21 @@ async fn in_flight_duplicate_guard_rejects_concurrent_event_id(
             metadata(TestText(TEST_TARGET.to_owned()))?,
         )
         .await;
+    release.notify_waiters();
     let first_report = first.await??;
 
     assert!(matches!(
         duplicate,
         Err(EventingError::DuplicateEventId { .. })
     ));
-    assert_eq!(first_report.handled_count, 1);
+    assert_eq!(crate::event_count_value(first_report.handled_count), 1);
     Ok(())
 }
 
 #[tokio::test]
 async fn failed_subscribe_drain_preserves_queued_event_for_retry(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?;
+    let policy = EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?;
     let journal = Arc::new(FailingJournal::fail_once_on(1));
     let bus = EventBus::with_journal_and_queue_policy(
         JournalPolicy::before_and_after_dispatch(JournalSelector::All),
@@ -432,7 +477,7 @@ async fn failed_subscribe_drain_preserves_queued_event_for_retry(
 #[tokio::test]
 async fn after_dispatch_journal_failure_does_not_replay_handler_work(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?;
+    let policy = EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?;
     let journal = Arc::new(FailingJournal::fail_once_on(2));
     let bus = EventBus::with_journal_and_queue_policy(
         JournalPolicy::before_and_after_dispatch(JournalSelector::All),
@@ -493,8 +538,14 @@ async fn after_dispatch_journal_failure_does_not_replay_handler_work(
 
     assert_eq!(handled.lock().await.as_slice(), &[TEST_LABEL.to_string()]);
     assert!(retry_handled.lock().await.is_empty());
-    assert_eq!(retry_subscription.drain_report.queued_before, 0);
-    assert_eq!(retry_subscription.drain_report.dispatched_count, 0);
+    assert_eq!(
+        crate::event_count_value(retry_subscription.drain_report.queued_before),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(retry_subscription.drain_report.dispatched_count),
+        0
+    );
     Ok(())
 }
 
@@ -523,8 +574,10 @@ impl EventJournal for FailingJournal {
                     Ok(guard) => guard,
                     Err(_) => {
                         return Err(EventingError::JournalIo {
-                            path: String::from("failing-journal"),
-                            reason: String::from("failing journal lock poisoned"),
+                            path: EventErrorPath::from_diagnostic("failing-journal"),
+                            reason: EventErrorReason::from_diagnostic(
+                                "failing journal lock poisoned",
+                            ),
                         })
                     }
                 };

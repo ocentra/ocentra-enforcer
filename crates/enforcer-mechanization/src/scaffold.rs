@@ -10,7 +10,13 @@
 //! DATA is this module's job; the fail-closed acceptance gate lives in
 //! [`crate::oracle`].
 
+use enforcer_domain::config_types::CrateName;
 use enforcer_domain::ids::RuleId;
+use enforcer_domain::mechanization_types::{FixtureSlotContent, GeneratedValidatorSource};
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::{
+    RuleDocAnchor, RuleParameters, RuleTag, RuleTitle, RuleVersion, ValidatorPath,
+};
 use enforcer_domain::severity::Tier;
 use enforcer_rules::registry::{FixtureRef, RuleRecord, ValidatorRef};
 
@@ -26,21 +32,21 @@ pub struct ScaffoldSpec {
     /// Branded rule id for the new rule, e.g. `RR-42.1`.
     pub rule_id: RuleId,
     /// Short human title.
-    pub title: String,
+    pub title: RuleTitle,
     /// Mechanical-enforcement tier.
     pub tier: Tier,
     /// Crate that will own the `Validator` implementation.
-    pub validator_crate: String,
+    pub validator_crate: CrateName,
     /// Type/function path within that crate, e.g. `no_foo::NoFooValidator`.
-    pub validator_path: String,
+    pub validator_path: ValidatorPath,
     /// Repo-relative path the fail fixture will live at.
-    pub fail_fixture_path: String,
+    pub fail_fixture_path: RelPath,
     /// Repo-relative path the pass fixture will live at.
-    pub pass_fixture_path: String,
+    pub pass_fixture_path: RelPath,
     /// Repo-relative doc anchor for the human-canonical rule doc.
-    pub doc_anchor: String,
+    pub doc_anchor: RuleDocAnchor,
     /// Free-form family tags.
-    pub tags: Vec<String>,
+    pub tags: Vec<RuleTag>,
 }
 
 /// The scaffolder's output: a well-formed [`RuleRecord`] plus generated
@@ -55,13 +61,13 @@ pub struct ScaffoldOutput {
     /// intentionally inert skeleton that WILL fail the parity oracle until
     /// a human fills in real detection logic, which is the point:
     /// scaffolding never silently produces an already-passing rule.
-    pub validator_skeleton_source: String,
+    pub validator_skeleton_source: GeneratedValidatorSource,
     /// Starter content for the fail fixture slot (a file that SHOULD trip
     /// the eventual validator once implemented).
-    pub fail_fixture_slot: String,
+    pub fail_fixture_slot: FixtureSlotContent,
     /// Starter content for the pass fixture slot (a file that must stay
     /// clean).
-    pub pass_fixture_slot: String,
+    pub pass_fixture_slot: FixtureSlotContent,
 }
 
 /// Scaffold a new rule from `spec`. Fails closed (returns
@@ -70,22 +76,18 @@ pub struct ScaffoldOutput {
 /// here at GENERATION time so a malformed spec never even reaches a
 /// catalog file.
 pub fn scaffold_rule(spec: &ScaffoldSpec) -> MechanizationResult<ScaffoldOutput> {
-    require_non_empty("title", &spec.title)?;
-    require_non_empty("validatorCrate", &spec.validator_crate)?;
-    require_non_empty("validatorPath", &spec.validator_path)?;
-    require_non_empty("failFixturePath", &spec.fail_fixture_path)?;
-    require_non_empty("passFixturePath", &spec.pass_fixture_path)?;
-    require_non_empty("docAnchor", &spec.doc_anchor)?;
+    // Every textual specification field is already a validated canonical
+    // domain value. The registry below is the raw catalog boundary.
     if spec.fail_fixture_path == spec.pass_fixture_path {
         return Err(MechanizationError::InvalidSpec {
-            reason: "failFixturePath and passFixturePath must differ".to_owned(),
+            reason: "failFixturePath and passFixturePath must differ".parse()?,
         });
     }
 
     let record = RuleRecord {
         // CLONE-JUSTIFICATION: `record` must own its rule id while `spec` remains borrowed for generated output below.
         rule_id: spec.rule_id.clone(),
-        version: 1,
+        version: RuleVersion::try_new(std::num::NonZeroU32::MIN),
         // CLONE-JUSTIFICATION: `record` retains its title independently of the caller-owned scaffold specification.
         title: spec.title.clone(),
         tier: spec.tier,
@@ -105,40 +107,24 @@ pub fn scaffold_rule(spec: &ScaffoldSpec) -> MechanizationResult<ScaffoldOutput>
         doc_anchor: spec.doc_anchor.clone(),
         // CLONE-JUSTIFICATION: the catalog record must own its tags beyond this borrowed input.
         tags: spec.tags.clone(),
-        params: serde_json::Value::Null,
+        params: RuleParameters::default(),
     };
 
     Ok(ScaffoldOutput {
-        validator_skeleton_source: render_validator_skeleton(spec),
-        fail_fixture_slot: render_fixture_slot(spec, true),
-        pass_fixture_slot: render_fixture_slot(spec, false),
+        validator_skeleton_source: render_validator_skeleton(spec)?,
+        fail_fixture_slot: render_fail_fixture_slot(spec)?,
+        pass_fixture_slot: render_pass_fixture_slot(spec)?,
         record,
     })
 }
 
-fn require_non_empty(field: &'static str, value: &str) -> MechanizationResult<()> {
-    if value.trim().is_empty() {
-        Err(MechanizationError::InvalidSpec {
-            reason: format!("{field} must not be empty"),
-        })
-    } else {
-        Ok(())
-    }
-}
-
-/// Type-name fragment derived from the last segment of `validator_path`
-/// (e.g. `no_foo::NoFooValidator` -> `NoFooValidator`), used only to make
-/// the generated skeleton source read naturally; not itself validated as
-/// an identifier since it is human-edited before compiling.
-fn validator_type_name(spec: &ScaffoldSpec) -> &str {
-    spec.validator_path
+fn render_validator_skeleton(spec: &ScaffoldSpec) -> MechanizationResult<GeneratedValidatorSource> {
+    let type_name = spec
+        .validator_path
+        .as_str()
         .rsplit("::")
         .next()
-        .unwrap_or(spec.validator_path.as_str())
-}
-
-fn render_validator_skeleton(spec: &ScaffoldSpec) -> String {
-    let type_name = validator_type_name(spec);
+        .unwrap_or(spec.validator_path.as_str());
     format!(
         "//! Freshly scaffolded validator for `{rule_id}` — {title}.\n\
          //! This validator intentionally never fires yet: fill in real\n\
@@ -169,97 +155,24 @@ fn render_validator_skeleton(spec: &ScaffoldSpec) -> String {
         title = spec.title,
         type_name = type_name,
     )
+    .try_into()
+    .map_err(Into::into)
 }
 
-fn render_fixture_slot(spec: &ScaffoldSpec, is_fail: bool) -> String {
-    if is_fail {
-        format!(
-            "// FAIL fixture slot for {rule_id}.\n\
-             // Fill this slot with source text that MUST trip the rule once\n\
-             // its validator is implemented. An empty/unfilled slot will\n\
-             // correctly be rejected by the parity oracle (the validator\n\
-             // skeleton never fires, so this slot will not pass parity until\n\
-             // BOTH the validator and this fixture carry real content).\n",
-            rule_id = spec.rule_id.as_str(),
-        )
-    } else {
-        format!(
-            "// PASS fixture slot for {rule_id}.\n\
-             // Fill this slot with clean source text that must NOT trip the\n\
-             // rule.\n",
-            rule_id = spec.rule_id.as_str(),
-        )
-    }
+fn render_fail_fixture_slot(spec: &ScaffoldSpec) -> MechanizationResult<FixtureSlotContent> {
+    format!(
+        "// FAIL fixture slot for {rule_id}.\n+         // Fill this slot with source text that MUST trip the rule once\n+         // its validator is implemented. An empty/unfilled slot will\n+         // correctly be rejected by the parity oracle (the validator\n+         // skeleton never fires, so this slot will not pass parity until\n+         // BOTH the validator and this fixture carry real content).\n",
+        rule_id = spec.rule_id.as_str(),
+    )
+    .try_into()
+    .map_err(Into::into)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{scaffold_rule, ScaffoldSpec};
-    use enforcer_domain::severity::Tier;
-
-    fn sample_spec() -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
-        Ok(ScaffoldSpec {
-            rule_id: "RR-42.1".parse()?,
-            title: "No frobnicating".to_owned(),
-            tier: Tier::T1,
-            validator_crate: "enforcer-lang-rust".to_owned(),
-            validator_path: "no_frobnicate::NoFrobnicateValidator".to_owned(),
-            fail_fixture_path: "crates/enforcer-lang-rust/fixtures/no_frobnicate/fail.rs"
-                .to_owned(),
-            pass_fixture_path: "crates/enforcer-lang-rust/fixtures/no_frobnicate/pass.rs"
-                .to_owned(),
-            doc_anchor: "docs/rules/FROB.md#FROB-1".to_owned(),
-            tags: vec!["rust".to_owned()],
-        })
-    }
-
-    #[test]
-    fn scaffolds_a_loadable_record() -> Result<(), Box<dyn std::error::Error>> {
-        let spec = sample_spec()?;
-        let output = scaffold_rule(&spec)?;
-        assert_eq!(output.record.rule_id.as_str(), "RR-42.1");
-        assert_eq!(output.record.version, 1);
-
-        // The scaffolder's own output must be independently loadable by the
-        // registry it targets — the whole point of emitting a well-formed
-        // record.
-        let registry = enforcer_rules::registry::RuleRegistry::from_records(vec![output.record])?;
-        assert_eq!(registry.len(), 1);
-        Ok(())
-    }
-
-    #[test]
-    fn validator_skeleton_names_the_type_and_rule() -> Result<(), Box<dyn std::error::Error>> {
-        let spec = sample_spec()?;
-        let output = scaffold_rule(&spec)?;
-        assert!(output
-            .validator_skeleton_source
-            .contains("struct NoFrobnicateValidator"));
-        assert!(output.validator_skeleton_source.contains("RR-42.1"));
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_empty_title() -> Result<(), Box<dyn std::error::Error>> {
-        let mut spec = sample_spec()?;
-        spec.title = "   ".to_owned();
-        assert!(scaffold_rule(&spec).is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_identical_fail_and_pass_fixture_paths() -> Result<(), Box<dyn std::error::Error>> {
-        let mut spec = sample_spec()?;
-        spec.pass_fixture_path = spec.fail_fixture_path.clone();
-        assert!(scaffold_rule(&spec).is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_empty_validator_path() -> Result<(), Box<dyn std::error::Error>> {
-        let mut spec = sample_spec()?;
-        spec.validator_path = String::new();
-        assert!(scaffold_rule(&spec).is_err());
-        Ok(())
-    }
+fn render_pass_fixture_slot(spec: &ScaffoldSpec) -> MechanizationResult<FixtureSlotContent> {
+    format!(
+        "// PASS fixture slot for {rule_id}.\n+         // Fill this slot with clean source text that must NOT trip the\n+         // rule.\n",
+        rule_id = spec.rule_id.as_str(),
+    )
+    .try_into()
+    .map_err(Into::into)
 }

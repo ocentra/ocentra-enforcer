@@ -153,6 +153,22 @@ fn initialize_falls_back_to_newest_supported_version_for_an_unknown_request() ->
 // ---------------------------------------------------------------------
 
 #[test]
+fn tool_descriptor_dto_round_trip_through_json() -> TestResult {
+    let descriptor = mcp::tool_descriptors()
+        .into_iter()
+        .next()
+        .ok_or("tool descriptor catalog must not be empty")?;
+    let encoded = serde_json::to_string(&descriptor)?;
+    let decoded: mcp::ToolDescriptorDto = serde_json::from_str(&encoded)?;
+    assert_eq!(decoded.name, descriptor.name);
+    assert_eq!(decoded.title, descriptor.title);
+    assert_eq!(decoded.description, descriptor.description);
+    assert_eq!(decoded.input_schema, descriptor.input_schema);
+    assert_eq!(decoded.output_schema, descriptor.output_schema);
+    Ok(())
+}
+
+#[test]
 fn tools_list_first_page_has_8_tools_and_a_next_cursor() -> TestResult {
     let reply = send_ndjson(&rpc_request(3, "tools/list", &json!({})))?;
     let tools = reply["result"]["tools"]
@@ -910,7 +926,7 @@ fn cli_mirror_produces_the_same_envelope_json_as_the_mcp_tools_call_path() -> Te
     let args = json!({ "repoPath": dir.path().to_string_lossy() });
     let mcp_envelope = mcp::call_tool("get_graph_schema", &args);
 
-    let cli_envelope_str = cli::cli_invoke("get_graph_schema", &args.to_string())
+    let cli_envelope_str = cli::cli_invoke("get_graph_schema", args.to_string())
         .map_err(|e| -> Box<dyn Error> { format!("cli_invoke must succeed: {e}").into() })?;
     let cli_envelope: Value = serde_json::from_str(&cli_envelope_str)?;
 
@@ -995,12 +1011,13 @@ fn watcher_emits_exactly_one_debounced_reindex_request_for_a_burst_of_writes() -
 
 #[test]
 fn diagnostics_never_leak_full_source_text_and_never_touch_stdout() -> TestResult {
-    use enforcer_memory::diagnostics::{Diagnostics, FileSkipRecord, Format, Level, SkipPhase};
+    use enforcer_domain::memory_types::{Format, Level, SkipPhase};
+    use enforcer_memory::diagnostics::{Diagnostics, FileSkipRecord};
 
     let huge_source = "fn leaked_secret_marker() {}\n".repeat(20);
     let record = FileSkipRecord {
-        path: "src/whatever.rs".to_owned(),
-        reason: huge_source.clone(),
+        path: "src/whatever.rs".into(),
+        reason: huge_source.clone().into(),
         phase: SkipPhase::Parse,
     };
     let diagnostics = Diagnostics::new(Level::Debug, Format::Json);

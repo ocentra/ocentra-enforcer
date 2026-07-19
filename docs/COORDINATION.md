@@ -1,4 +1,4 @@
-# Coordination, Hub, Mail, And Ledger
+# Coordination Engine Reference
 
 <!-- ai-dense -->
 ```yaml
@@ -7,9 +7,17 @@ scope: harness/multi-agent coordination concern, NEVER product code
 ledger_home: "resolved relative to the enforcer install (per-machine), never a hardcoded example path -- see Storage Model below for the resolution rule, not a literal path"
 canonical_truth: "append-only NDJSON streams under <ledger-home>/<hub>/streams/<nodeId>.<lane>.ndjson; JSON/SQLite views are disposable, rebuildable from streams"
 lock_model: "writeLock (same worktree+file) | branchWriteConflict (diff worktree, same branch+file) | mergeRisk (diff branch, same file, advisory) | globalWriteLock (singleton paths) | claimGroup (related paths)"
-mcp_tools: "mcp__enforcer__coordination_{health,presence,inbox,mail,claim,release,closeout,guard,report,message,workers,tasks,streams,peer,sync,repair}"
+public_status: "Rust MCP wires coordination status and exact-path claim; native coordination CLI is reserved but not wired"
 ```
 <!-- /ai-dense -->
+
+This is an engine and storage reference. It is not a promise that every
+operation below is available through the current CLI, MCP router, or desktop
+UI. Rust MCP currently wires coordination status and exact-path claim. The
+desktop can read ledger state, send and acknowledge messages, and create
+exact-path claims. The native `coordination` (`ledger`) CLI group is reserved
+but not wired; other registered coordination MCP tools return a structured
+not-wired error.
 
 This document is the detailed model for the enforcer coordination system. The
 short version: coordination is a harness/multi-agent concern, not product
@@ -57,7 +65,7 @@ The enforcer owns generic coordination:
 - presence matrix;
 - peer sync;
 - stream repair and stale-claim repair;
-- MCP and CLI surfaces.
+- boundary contracts intended for future CLI and MCP wiring.
 
 Target repos own only configuration and thin aliases during migration. A product
 repo should not contain the implementation of hub, mail, lane, worktree, or
@@ -65,10 +73,10 @@ exact-file-claim logic.
 
 ## Storage Model
 
-Each machine installs the enforcer once. The default ledger home lives
-alongside that install (resolved by the installer at install time, e.g.
-`<enforcer-install-dir>/.ledger/` — never a hardcoded example path; run
-`enforcer doctor` to print the actual resolved path on your machine).
+Each machine installs the enforcer once. The default ledger home is resolved
+relative to that installation, for example `<enforcer-install-dir>/.ledger/`.
+Do not hardcode the example path. The current native CLI does not expose a
+public command that prints the resolved path.
 
 Each hub lives below the ledger home:
 
@@ -289,7 +297,11 @@ Supported repair surfaces:
 Always dry-run first. The write form should report backup paths or appended
 repair events.
 
-## CLI Shape
+## CLI Status
+
+The commands shown below describe the intended engine contract. The current
+native CLI returns a not-wired error for `enforcer coordination`; do not use
+these examples as current product commands.
 
 Common commands:
 
@@ -311,34 +323,34 @@ enforcer coordination sync --hub project-alpha --peer office --json
 Use `--state-root <exact-hub-root>` only when operating on a specific legacy or
 repair root. Normal commands should rely on the resolved ledger home plus `--hub`.
 
-## MCP Shape
+## MCP Status
 
-Harnesses should prefer MCP tools over raw terminal output:
+The current Rust MCP router wires only
+`ocentra_enforcer_coordination_status` and
+`ocentra_enforcer_coordination_claim`. The broader list below is a registered
+contract inventory; those tools currently return a not-wired error.
 
-- `mcp__enforcer__coordination_health`;
-- `mcp__enforcer__coordination_presence`;
-- `mcp__enforcer__coordination_inbox`;
-- `mcp__enforcer__coordination_mail`;
-- `mcp__enforcer__coordination_claim`;
-- `mcp__enforcer__coordination_release`;
-- `mcp__enforcer__coordination_closeout`;
-- `mcp__enforcer__coordination_guard`;
-- `mcp__enforcer__coordination_report`;
-- `mcp__enforcer__coordination_message`;
-- `mcp__enforcer__coordination_workers`;
-- `mcp__enforcer__coordination_tasks`;
-- `mcp__enforcer__coordination_streams`;
-- `mcp__enforcer__coordination_peer`;
-- `mcp__enforcer__coordination_sync`;
-- `mcp__enforcer__coordination_repair`.
+Registered, currently unwired coordination contracts include:
 
-MCP results should stay compact. Raw streams and large worker dumps are fallback
-debug artifacts, not the normal agent workflow.
+- `ocentra_enforcer_coordination_health`;
+- `ocentra_enforcer_coordination_presence`;
+- `ocentra_enforcer_coordination_inbox`;
+- `ocentra_enforcer_coordination_mail`;
+- `ocentra_enforcer_coordination_claim`;
+- `ocentra_enforcer_coordination_release`;
+- `ocentra_enforcer_coordination_closeout`;
+- `ocentra_enforcer_coordination_guard`;
+- `ocentra_enforcer_coordination_report`;
+- `ocentra_enforcer_coordination_message`;
+- `ocentra_enforcer_coordination_workers`;
+- `ocentra_enforcer_coordination_tasks`;
+- `ocentra_enforcer_coordination_streams`;
+- `ocentra_enforcer_coordination_peer`;
+- `ocentra_enforcer_coordination_sync`;
+- `ocentra_enforcer_coordination_repair`.
 
-Before an agent reports `DONE` or `PR_READY`, it should call closeout for its
-lane/thread scope. A successful closeout means no matching active claims remain.
-If closeout fails, the task is not done; inspect `remainingClaims` and resolve
-the exact owner/path state first.
+These names document intended boundaries only. They are not current completion
+or closeout instructions.
 
 ## Safe Subagent Model
 
@@ -355,9 +367,9 @@ focused guard decisions. Avoid multiple sessions writing under the same lane
 unless there is a single active lease owner or the project has fully moved to
 enforcer claim checks without legacy wrapper lease enforcement.
 
-## Done Criteria For Migration
+## Design Completion Criteria
 
-The coordination system is deletion-ready for a legacy product repo only when:
+The broader coordination design is complete only when:
 
 - The enforcer can init, message, inbox, ack, claim, guard, release, report, and
   show presence without using product repo wrappers.

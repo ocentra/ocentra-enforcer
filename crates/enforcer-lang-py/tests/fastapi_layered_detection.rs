@@ -6,34 +6,45 @@
 
 use std::path::PathBuf;
 
-use enforcer_validator::harness::run_fixture_parity;
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_validator::harness::run_fixture_parity as assert_fixture_parity;
 use enforcer_validator::validator::Validator;
 
 /// Repo root: two levels up from this crate's manifest dir
 /// (`crates/enforcer-lang-py` -> workspace root), matching the fixture
 /// paths recorded in `crates/enforcer-rules/rules/fastapi-layered.json`.
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn repo_root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    RepoRoot::try_from(path.as_path())
 }
 
 fn fixture_dir(name: &str) -> String {
     format!("crates/enforcer-lang-py/tests/fixtures/fastapi_layered/{name}")
 }
 
-/// One (validator, fail-relative, pass-relative) case, mirroring the
-/// catalog's `fixtures.fail`/`fixtures.pass` for the same rule id.
-type Case = (Box<dyn Validator>, String, String);
+/// One validator and its fail/pass fixture paths.
+struct Case {
+    validator: Box<dyn Validator>,
+    fail: String,
+    pass: String,
+}
 
 fn cases() -> Result<Vec<Case>, Box<dyn std::error::Error>> {
-    use enforcer_lang_py::rules::fastapi_layered::*;
+    use enforcer_lang_py::rules::fastapi_layered::{
+        CorsWildcardValidator, DomainPurityValidator, HttpExceptionLocationValidator,
+        ModelsMappedValidator, NoDirectRepoInstantiationValidator, NoOrmModelsInServicesValidator,
+        NoRepoInRoutersValidator, NoReposInWorkflowsValidator, NoSessionInServicesValidator,
+        NoSqlalchemyInRoutersValidator, NoSyncHttpValidator, NoTransactionInServicesValidator,
+        UnsafeAuthenticationStorageValidator, WeakRandomIdentifierGenerationValidator,
+    };
 
     let dir = |name: &str, leaf: &str| format!("{}/{leaf}", fixture_dir(name));
 
-    Ok(vec![
+    let cases: Vec<(Box<dyn Validator>, String, String)> = vec![
         (
             Box::new(NoRepoInRoutersValidator::new()?),
             dir("no-repo-in-routers", "fail/routers/orders.py"),
@@ -108,12 +119,12 @@ fn cases() -> Result<Vec<Case>, Box<dyn std::error::Error>> {
             dir("no-direct-repo-instantiation", "pass/service.py"),
         ),
         (
-            Box::new(PlaintextPasswordValidator::new()?),
+            Box::new(UnsafeAuthenticationStorageValidator::new()?),
             dir("plaintext-password", "fail/auth.py"),
             dir("plaintext-password", "pass/auth.py"),
         ),
         (
-            Box::new(InsecureRandomTokenValidator::new()?),
+            Box::new(WeakRandomIdentifierGenerationValidator::new()?),
             dir("insecure-random-token", "fail/tokens.py"),
             dir("insecure-random-token", "pass/tokens.py"),
         ),
@@ -122,15 +133,30 @@ fn cases() -> Result<Vec<Case>, Box<dyn std::error::Error>> {
             dir("cors-wildcard", "fail/main.py"),
             dir("cors-wildcard", "pass/main.py"),
         ),
-    ])
+    ];
+    Ok(cases
+        .into_iter()
+        .map(|(validator, fail, pass)| Case {
+            validator,
+            fail,
+            pass,
+        })
+        .collect())
 }
 
 #[test]
 fn every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let root = repo_root();
-    for (validator, fail, pass) in cases()? {
-        run_fixture_parity(validator.as_ref(), &root, &fail, &pass).map_err(|source| {
+    let root = repo_root()?;
+    for Case {
+        validator,
+        fail,
+        pass,
+    } in cases()?
+    {
+        let fail: RelPath = fail.parse()?;
+        let pass: RelPath = pass.parse()?;
+        assert_fixture_parity(validator.as_ref(), &root, &fail, &pass).map_err(|source| {
             format!(
                 "fixture parity failed for `{}`: {source}",
                 validator.rule_id()
@@ -148,11 +174,14 @@ fn every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass(
 /// pass fixture.
 #[test]
 fn hardened_rules_catch_realistic_evasions() -> Result<(), Box<dyn std::error::Error>> {
-    use enforcer_lang_py::rules::fastapi_layered::*;
+    use enforcer_lang_py::rules::fastapi_layered::{
+        CorsWildcardValidator, NoOrmModelsInServicesValidator, NoSyncHttpValidator,
+        WeakRandomIdentifierGenerationValidator,
+    };
 
     let dir = |name: &str, leaf: &str| format!("{}/{leaf}", fixture_dir(name));
 
-    let cases: Vec<Case> = vec![
+    let raw_cases: Vec<(Box<dyn Validator>, String, String)> = vec![
         // PYFA-4.1: relative import from a non-`app` `models` package.
         (
             Box::new(NoOrmModelsInServicesValidator::new()?),
@@ -173,7 +202,7 @@ fn hardened_rules_catch_realistic_evasions() -> Result<(), Box<dyn std::error::E
         ),
         // PYFA-12.2: `random.randrange` (a function the old list omitted).
         (
-            Box::new(InsecureRandomTokenValidator::new()?),
+            Box::new(WeakRandomIdentifierGenerationValidator::new()?),
             dir("insecure-random-token", "fail-variant/tokens.py"),
             dir("insecure-random-token", "pass/tokens.py"),
         ),
@@ -184,10 +213,25 @@ fn hardened_rules_catch_realistic_evasions() -> Result<(), Box<dyn std::error::E
             dir("cors-wildcard", "pass/main.py"),
         ),
     ];
+    let cases = raw_cases
+        .into_iter()
+        .map(|(validator, fail, pass)| Case {
+            validator,
+            fail,
+            pass,
+        })
+        .collect::<Vec<_>>();
 
-    let root = repo_root();
-    for (validator, fail, pass) in cases {
-        run_fixture_parity(validator.as_ref(), &root, &fail, &pass).map_err(|source| {
+    let root = repo_root()?;
+    for Case {
+        validator,
+        fail,
+        pass,
+    } in cases
+    {
+        let fail: RelPath = fail.parse()?;
+        let pass: RelPath = pass.parse()?;
+        assert_fixture_parity(validator.as_ref(), &root, &fail, &pass).map_err(|source| {
             format!(
                 "hardened-evasion parity failed for `{}`: {source}",
                 validator.rule_id()

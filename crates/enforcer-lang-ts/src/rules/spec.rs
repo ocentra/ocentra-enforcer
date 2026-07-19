@@ -1,128 +1,220 @@
-//! Data-driven rule spec: one [`RuleSpec`] per `TS-*` rule id, consumed by
-//! the `source_scan` and `generic_scanner` validator families. Keeping the
-//! per-rule detection as DATA (a matcher kind + needle(s)) rather than 73
-//! bespoke functions is what makes the count-parity completeness test
-//! (`tests/completeness.rs`) a mechanical fold instead of hand-maintained
-//! prose.
+//! Decode embedded TypeScript rule rows and execute their lexical matchers.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::findings::Finding;
+use enforcer_domain::boundary::validation::ValidationSource;
+use enforcer_domain::findings::{Finding, FindingTitle};
 use enforcer_domain::ids::RuleId;
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::scan_types::LiteralFileRole;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::text_scan::{find_literal, find_non_null_assertions, find_word, is_comment_only_line};
+use crate::boundary::finding::{from_source, SourceFinding};
+use crate::boundary::rule_spec::{RawRuleSpec, TriggerKind};
+use crate::boundary::source_text::{
+    find_literal, find_non_null_assertions, find_word, source_line_role, SourceLineRole,
+};
 
-/// How a [`RuleSpec`] recognizes its forbidden pattern in one source line.
 #[derive(Debug, Clone, Copy)]
-pub enum TriggerKind {
-    /// Match `needle` as a whole word (identifier boundaries on both
-    /// sides) — for bare-keyword triggers like `any`, `let`.
-    Word,
-    /// Match `needle` as a literal substring — for multi-token/punctuation
-    /// triggers like `as unknown as`, `export * from`.
-    Literal,
-    /// The special-cased `!` non-null-assertion postfix-operator guard.
+enum CommentPolicy {
+    SkipCommentOnly,
+    InspectComments,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Matcher {
+    Word(&'static [&'static str]),
+    Literal(&'static [&'static str]),
     NonNullAssertion,
 }
 
-/// One rule's static detection spec.
-#[derive(Debug, Clone, Copy)]
-pub struct RuleSpec {
-    /// The rule id this spec proves, e.g. `TS-6.1`.
-    pub rule_id: &'static str,
-    /// Human title, mirrored into every [`Finding::title`].
-    pub title: &'static str,
-    /// How to recognize the pattern.
-    pub kind: TriggerKind,
-    /// The needle(s) to look for; multiple needles are OR'd (any hit
-    /// fires). Ignored (empty) for [`TriggerKind::NonNullAssertion`].
-    pub needles: &'static [&'static str],
-    /// When `true`, a comment-only line is skipped before matching (the
-    /// default posture: a mention of a forbidden pattern INSIDE a comment
-    /// is not a live occurrence of it). Set `false` for the rare rule
-    /// whose violation IS itself a comment directive — e.g. TS-2.1's
-    /// suppression comments (`// eslint-disable`, `// @ts-ignore`) are
-    /// comment-only lines BY DEFINITION, so skipping comment-only lines
-    /// would defeat that rule entirely.
-    pub comment_guard: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LineMatch {
+    Hit,
+    Clean,
+}
+
+#[derive(Debug, Clone)]
+struct RuleSpec {
+    rule_id: RuleId,
+    title: FindingTitle,
+    matcher: Matcher,
+    comment_policy: CommentPolicy,
 }
 
 impl RuleSpec {
-    /// Run this spec's matcher against one line, returning the byte
-    /// offsets of every hit (used only to decide fire/no-fire — exact
-    /// column is not part of the [`Finding`] contract here).
-    fn hits_on_line(&self, text: &str) -> bool {
-        match self.kind {
-            TriggerKind::Word => self
-                .needles
+    fn decode(raw: RawRuleSpec) -> Result<Self, DecodeError> {
+        let matcher = match raw.kind {
+            TriggerKind::Word => Matcher::Word(raw.needles),
+            TriggerKind::Literal => Matcher::Literal(raw.needles),
+            TriggerKind::NonNullAssertion => Matcher::NonNullAssertion,
+        };
+        let comment_policy = if raw.comment_guard {
+            CommentPolicy::SkipCommentOnly
+        } else {
+            CommentPolicy::InspectComments
+        };
+        Ok(Self {
+            rule_id: crate::boundary::rule_spec::decode_rule_id(raw.rule_id)?,
+            title: crate::boundary::rule_spec::decode_finding_title(raw.title)?,
+            matcher,
+            comment_policy,
+        })
+    }
+
+    fn match_line(&self, text: ValidationSource<'_>) -> LineMatch {
+        let text = text.as_str();
+        let matched = match self.matcher {
+            Matcher::Word(needles) => needles
                 .iter()
                 .any(|needle| !find_word(text, needle).is_empty()),
-            TriggerKind::Literal => self
-                .needles
+            Matcher::Literal(needles) => needles
                 .iter()
                 .any(|needle| !find_literal(text, needle).is_empty()),
-            TriggerKind::NonNullAssertion => !find_non_null_assertions(text).is_empty(),
+            Matcher::NonNullAssertion => !find_non_null_assertions(text).is_empty(),
+        };
+        if matched {
+            LineMatch::Hit
+        } else {
+            LineMatch::Clean
         }
     }
 
-    /// Validate one file's source against this spec, honoring the
-    /// comment-only-line guard (arc-06's position-not-just-kind lesson: a
-    /// mention of the forbidden pattern inside a `//` comment is not a
-    /// live occurrence of it). `rule_id` is the already-parsed brand for
-    /// `self.rule_id` (parsed once at [`SpecValidator::new`] time, not
-    /// re-parsed per file).
-    fn validate_with_id(&self, input: ValidationInput<'_>, rule_id: &RuleId) -> Vec<Finding> {
+    fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        if self.rule_id.as_str() == "TS-6.19"
+            && matches!(classify_decoder_path(input.file), LiteralFileRole::Boundary)
+        {
+            return Vec::new();
+        }
         let mut findings = Vec::new();
-        for line in super::text_scan::lines(input.source) {
-            if self.comment_guard && is_comment_only_line(line.text) {
+        for line in crate::boundary::source_text::lines(input.source) {
+            if matches!(self.comment_policy, CommentPolicy::SkipCommentOnly)
+                && source_line_role(line.text) == SourceLineRole::CommentOnly
+            {
                 continue;
             }
-            if self.hits_on_line(line.text) {
-                findings.push(Finding {
-                    rule_id: rule_id.clone(),
-                    severity: Severity::Error,
-                    title: self.title.to_owned(),
-                    detail: format!(
-                        "line {} matches forbidden pattern for `{}`",
-                        line.number, self.rule_id
-                    ),
-                    file: input.file.clone(),
-                    line: line.number,
-                    snippet: Some(line.text.trim().to_owned()),
-                });
+            if self.match_line(line.text) == LineMatch::Hit {
+                findings.extend(from_source(
+                    &self.rule_id,
+                    input.file,
+                    SourceFinding {
+                        severity: Severity::Error,
+                        title: self.title.as_str(),
+                        detail: format!(
+                            "line {} matches forbidden pattern for `{}`",
+                            line.number, self.rule_id
+                        ),
+                        line: line.number,
+                        snippet: Some(line.text.as_str().trim()),
+                    },
+                ));
             }
         }
         findings
     }
 }
 
-/// A [`Validator`] wrapper around one [`RuleSpec`] — the adapter every
-/// `source_scan`/`generic_scanner` rule registers as its `Validator` impl.
-pub struct SpecValidator {
+/// TS-6.19 is a boundary rule: JSON decoding is expected in tooling,
+/// integration, schema, and decoder modules. Paths arrive from the Windows
+/// walker with either separator spelling, so normalize before classifying.
+fn classify_decoder_path(path: &RelPath) -> LiteralFileRole {
+    let normalized = path.as_str();
+    if normalized.contains("/integration/") {
+        return LiteralFileRole::Boundary;
+    }
+    if normalized.split('/').any(|segment| {
+        matches!(
+            segment,
+            "schema"
+                | "schemas"
+                | "decoder"
+                | "decoders"
+                | "codec"
+                | "codecs"
+                | "boundary"
+                | "boundaries"
+                | "adapter"
+                | "adapters"
+                | "transport"
+                | "serde"
+        )
+    }) {
+        LiteralFileRole::Boundary
+    } else {
+        LiteralFileRole::Domain
+    }
+}
+
+#[derive(Debug)]
+/// Validator adapter around one decoded embedded rule row.
+pub(crate) struct SpecValidator {
     spec: RuleSpec,
-    rule_id: RuleId,
 }
 
 impl SpecValidator {
-    /// Build a validator for `spec`. Fails closed (returns `Err`) rather
-    /// than panicking when `spec.rule_id` is not a well-formed [`RuleId`]
-    /// literal — every call site in [`super::registry`] propagates this
-    /// with `?`, and `tests/completeness.rs` asserts the whole registry
-    /// constructs cleanly, so a malformed literal fails the build's tests
-    /// instead of surfacing as a runtime panic.
-    pub fn new(spec: RuleSpec) -> Result<Self, DecodeError> {
-        let rule_id: RuleId = spec.rule_id.parse()?;
-        Ok(Self { spec, rule_id })
+    /// Decode one embedded rule row into its validated execution form.
+    pub(crate) fn new(raw: RawRuleSpec) -> Result<Self, DecodeError> {
+        Ok(Self {
+            spec: RuleSpec::decode(raw)?,
+        })
     }
 }
 
 impl Validator for SpecValidator {
     fn rule_id(&self) -> &RuleId {
-        &self.rule_id
+        &self.spec.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        self.spec.validate_with_id(input, &self.rule_id)
+        self.spec.validate(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use enforcer_domain::boundary::decode_error::DecodeError;
+    use enforcer_domain::paths::RelPath;
+    use enforcer_domain::scan_types::LiteralFileRole;
+
+    use super::classify_decoder_path;
+
+    #[test]
+    fn decoder_boundary_paths_accept_windows_and_posix_separators() -> Result<(), DecodeError> {
+        let integration = match RelPath::try_from(String::from(
+            "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+        )) {
+            Ok(path) => path,
+            Err(error) => return Err(error),
+        };
+        let boundary = match RelPath::try_from(String::from(
+            "crates\\enforcer-literal-scan\\src\\boundary\\json_wire.mjs",
+        )) {
+            Ok(path) => path,
+            Err(error) => return Err(error),
+        };
+        assert_eq!(
+            classify_decoder_path(&integration),
+            LiteralFileRole::Boundary
+        );
+        assert_eq!(classify_decoder_path(&boundary), LiteralFileRole::Boundary);
+        Ok(())
+    }
+
+    #[test]
+    fn product_domain_paths_are_not_decoder_boundaries() -> Result<(), DecodeError> {
+        let domain = match RelPath::try_from(String::from(
+            "crates/enforcer-literal-scan/src/domain/literal_policy.mjs",
+        )) {
+            Ok(path) => path,
+            Err(error) => return Err(error),
+        };
+        assert_eq!(classify_decoder_path(&domain), LiteralFileRole::Domain);
+        Ok(())
+    }
+
+    #[test]
+    fn rel_path_try_from_rejects_invalid_input() {
+        assert!(RelPath::try_from(String::new()).is_err());
+        assert!(RelPath::try_from(String::from("../escape.mjs")).is_err());
     }
 }

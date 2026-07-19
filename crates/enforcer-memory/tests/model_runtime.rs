@@ -5,27 +5,110 @@
 //! `ort-models` backend can prove cache, tokenizer, provider, and output
 //! integrity.
 
+use enforcer_domain::memory_types::ModelRuntimeObservationKind;
+use enforcer_domain::memory_types::{
+    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
+    CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheRootMode,
+    ModelTask, ProviderKind, SourcePolicy,
+};
 use enforcer_memory::error::MemoryError;
+use enforcer_memory::model_runtime::evaluate_chat_usability;
 use enforcer_memory::model_runtime::{
     default_model_runtime_probe_plan, default_provider_order, default_zero_network_proof,
     degraded_capability_report, discover_onnx_artifacts, ort_feature_compiled,
-    validate_embedding_output, validate_model_artifacts, validate_reranker_scores,
-    validate_sha256_hex, CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
-    CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheStatus,
-    ModelRuntimeFile, ModelRuntimeObservationKind, ModelSpec, ModelTask, ProviderKind,
-    SourcePolicy,
+    resolve_model_cache_root, validate_embedding_output, validate_model_artifacts,
+    validate_reranker_scores, validate_sha256_hex, ChatThroughputPolicyDto,
+    DiscoveredModelArtifactDto, ModelCacheRootPolicyDto, ModelCacheStatusDto,
+    ModelCapabilityReportDto, ModelRuntimeConfigDto, ModelRuntimeFileDto, ModelRuntimeManifestDto,
+    ModelRuntimeProbePlanDto, ModelRuntimeProofDto, ModelRuntimeServiceConfigDto, ModelSpecDto,
+    ModelUsabilityReportDto,
 };
+use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
 use tempfile::NamedTempFile;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+fn assert_json_round_trip<T>(value: &T) -> Result<(), serde_json::Error>
+where
+    T: Serialize + DeserializeOwned + PartialEq + Debug,
+{
+    let encoded = serde_json::to_vec(value)?;
+    let decoded = serde_json::from_slice::<T>(&encoded)?;
+    assert_eq!(&decoded, value);
+    Ok(())
+}
+
+#[test]
+fn model_runtime_dto_shapes_round_trip_through_json() -> TestResult {
+    let hash = "00".repeat(32);
+    let embedding = ModelSpecDto::qwen3_embedding(
+        "embedding.gguf",
+        hash.clone(),
+        "tokenizer.json",
+        hash.clone(),
+    );
+    let reranker =
+        ModelSpecDto::qwen3_reranker("reranker.onnx", hash.clone(), "tokenizer.json", hash);
+    assert_json_round_trip(&embedding)?;
+    assert_json_round_trip(&ModelRuntimeConfigDto {
+        cache_root: "model-cache".into(),
+        allow_network: false,
+        preferred_providers: vec![ProviderKind::Cpu],
+        embedding: embedding.clone(),
+        reranker,
+    })?;
+    let cache_root_policy: ModelCacheRootPolicyDto = resolve_model_cache_root(
+        ".",
+        ModelCacheRootMode::DevRepoLocal,
+        Some("model-cache".into()),
+    );
+    assert_json_round_trip(&cache_root_policy)?;
+    assert_json_round_trip(&ModelRuntimeServiceConfigDto::dev("."))?;
+
+    let policy = ChatThroughputPolicyDto::default();
+    assert_json_round_trip(&policy)?;
+    let usability: ModelUsabilityReportDto =
+        evaluate_chat_usability(true, Some(20.0), "unused failure", policy);
+    assert_json_round_trip(&usability)?;
+    let probe_plan: ModelRuntimeProbePlanDto = default_model_runtime_probe_plan();
+    assert_json_round_trip(&probe_plan)?;
+
+    let capability: ModelCapabilityReportDto = degraded_capability_report(
+        ModelTask::Embedding,
+        SourcePolicy::LocalCache,
+        "provider unavailable",
+    );
+    assert_json_round_trip(&capability)?;
+    assert_json_round_trip(&ModelRuntimeManifestDto::from_spec(
+        &embedding,
+        "llama.cpp",
+        Some(ProviderKind::Cpu),
+    ))?;
+    assert_json_round_trip(&ModelRuntimeFileDto::new("model.gguf", Some(128)))?;
+    assert_json_round_trip(&DiscoveredModelArtifactDto {
+        onnx_path: "model.onnx".to_owned(),
+        dtype: "f32".to_owned(),
+        files: vec!["model.onnx".to_owned()],
+        has_external_data: false,
+    })?;
+    let proof: ModelRuntimeProofDto = default_zero_network_proof();
+    assert_json_round_trip(&proof)?;
+    assert_json_round_trip(&ModelCacheStatusDto::unavailable(
+        "artifact",
+        "2026-07-17T00:00:00Z",
+        CacheUnavailableReason::ArtifactNotInstalled,
+    ))?;
+    Ok(())
+}
+
 fn write_temp(contents: &[u8]) -> Result<(NamedTempFile, String), Box<dyn std::error::Error>> {
     let file = NamedTempFile::new().map_err(|source| MemoryError::Io {
-        path: std::path::PathBuf::from("<tempfile>"),
+        path: std::path::PathBuf::from("<tempfile>").into(),
         source,
     })?;
     std::fs::write(file.path(), contents).map_err(|source| MemoryError::Io {
-        path: file.path().to_path_buf(),
+        path: file.path().to_path_buf().into(),
         source,
     })?;
     let digest = enforcer_memory::model_runtime::sha256_file(file.path())?;
@@ -102,7 +185,7 @@ fn zero_network_default_proof_records_learning_observation_kinds() {
         .contains(&ModelRuntimeObservationKind::TokenizerHashMismatch));
     assert!(proof
         .learning_observation_kinds
-        .contains(&ModelRuntimeObservationKind::LocalLoadSucceeded));
+        .contains(&ModelRuntimeObservationKind::SuccessfulLocalLoad));
 }
 
 #[test]
@@ -255,10 +338,10 @@ fn parent_policy_cache_and_integrity_states_are_represented() -> TestResult {
     assert_eq!(parent_corruption_reasons.len(), 6);
 
     let artifacts = discover_onnx_artifacts(&[
-        ModelRuntimeFile::new("model_fp16.onnx", Some(10)),
-        ModelRuntimeFile::new("model_fp16.onnx.data", Some(20)),
-        ModelRuntimeFile::new("tokenizer_config.json", Some(4)),
-        ModelRuntimeFile::new("tokenizer.json", Some(5)),
+        ModelRuntimeFileDto::new("model_fp16.onnx", Some(10)),
+        ModelRuntimeFileDto::new("model_fp16.onnx.data", Some(20)),
+        ModelRuntimeFileDto::new("tokenizer_config.json", Some(4)),
+        ModelRuntimeFileDto::new("tokenizer.json", Some(5)),
     ]);
     assert_eq!(artifacts.len(), 1);
     assert_eq!(artifacts[0].dtype, "fp16");
@@ -279,7 +362,7 @@ fn parent_policy_cache_and_integrity_states_are_represented() -> TestResult {
 
 #[test]
 fn parent_style_cache_status_serializes_with_kebab_case_states() -> TestResult {
-    let status = ModelCacheStatus::parent_installed_degraded(
+    let status = ModelCacheStatusDto::parent_installed_degraded(
         "model-ref-local",
         Some("manifest-ref-local".to_string()),
         "2026-05-21T09:18:00Z",
@@ -337,7 +420,7 @@ fn enum_serialization_matches_parent_style_kebab_case() -> TestResult {
     }
     assert_eq!(
         ProviderKind::Vulkan.resource_class(),
-        enforcer_memory::embed::ResourceClass::Gpu
+        enforcer_domain::memory_types::ResourceClass::Gpu
     );
     Ok(())
 }
@@ -392,11 +475,11 @@ fn provider_order_keeps_preference_then_local_fallbacks() {
 #[test]
 fn discovers_onnx_artifact_with_external_data_and_support_files() {
     let files = vec![
-        ModelRuntimeFile::new("onnx/model_q4f16.onnx", Some(10)),
-        ModelRuntimeFile::new("onnx/model_q4f16.onnx_data", Some(20)),
-        ModelRuntimeFile::new("onnx/tokenizer.json", Some(5)),
-        ModelRuntimeFile::new("config.json", Some(1)),
-        ModelRuntimeFile::new("other/readme.md", None),
+        ModelRuntimeFileDto::new("onnx/model_q4f16.onnx", Some(10)),
+        ModelRuntimeFileDto::new("onnx/model_q4f16.onnx_data", Some(20)),
+        ModelRuntimeFileDto::new("onnx/tokenizer.json", Some(5)),
+        ModelRuntimeFileDto::new("config.json", Some(1)),
+        ModelRuntimeFileDto::new("other/readme.md", None),
     ];
 
     let artifacts = discover_onnx_artifacts(&files);
@@ -420,10 +503,10 @@ fn discovers_onnx_artifact_with_external_data_and_support_files() {
 #[test]
 fn artifact_discovery_handles_windows_separators() {
     let files = vec![
-        ModelRuntimeFile::new(r"onnx\model_fp16.onnx", Some(10)),
-        ModelRuntimeFile::new(r"onnx\model_fp16.onnx.data", Some(20)),
-        ModelRuntimeFile::new(r"onnx\tokenizer.json", Some(5)),
-        ModelRuntimeFile::new(r"other\tokenizer.json", Some(5)),
+        ModelRuntimeFileDto::new(r"onnx\model_fp16.onnx", Some(10)),
+        ModelRuntimeFileDto::new(r"onnx\model_fp16.onnx.data", Some(20)),
+        ModelRuntimeFileDto::new(r"onnx\tokenizer.json", Some(5)),
+        ModelRuntimeFileDto::new(r"other\tokenizer.json", Some(5)),
     ];
 
     let artifacts = discover_onnx_artifacts(&files);
@@ -458,7 +541,7 @@ fn default_proof_is_honest_zero_network_degraded() {
 fn artifact_hash_validation_accepts_exact_hash() -> TestResult {
     let (artifact, artifact_hash) = write_temp(b"model")?;
     let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         artifact.path(),
         artifact_hash,
         tokenizer.path(),
@@ -472,7 +555,7 @@ fn artifact_hash_validation_accepts_exact_hash() -> TestResult {
 fn artifact_hash_validation_accepts_uppercase_manifest_hash() -> TestResult {
     let (artifact, artifact_hash) = write_temp(b"model")?;
     let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         artifact.path(),
         artifact_hash.to_uppercase(),
         tokenizer.path(),
@@ -486,7 +569,7 @@ fn artifact_hash_validation_accepts_uppercase_manifest_hash() -> TestResult {
 fn artifact_hash_validation_rejects_mismatch() -> TestResult {
     let (artifact, _artifact_hash) = write_temp(b"model")?;
     let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         artifact.path(),
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tokenizer.path(),
@@ -503,14 +586,14 @@ fn ort_models_feature_compiles_fixture_validation_path() -> TestResult {
     assert!(ort_feature_compiled());
     let (artifact, artifact_hash) = write_temp(b"onnx-bytes")?;
     let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer-json")?;
-    let spec = ModelSpec::qwen3_reranker(
+    let spec = ModelSpecDto::qwen3_reranker(
         artifact.path(),
         artifact_hash,
         tokenizer.path(),
         tokenizer_hash,
     );
     validate_model_artifacts(&spec)?;
-    let manifest = enforcer_memory::model_runtime::ModelRuntimeManifest::from_spec(
+    let manifest = enforcer_memory::model_runtime::ModelRuntimeManifestDto::from_spec(
         &spec,
         "ort",
         Some(ProviderKind::Cpu),

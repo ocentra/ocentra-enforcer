@@ -32,6 +32,7 @@ use regex::Regex;
 
 /// `CYBER-PATH-TRAVERSAL.1` — static line-scan for path traversal / LFI
 /// sinks fed a literal `../` sequence or a request-derived variable.
+#[derive(Debug)]
 pub struct PathTraversalValidator {
     rule_id: RuleId,
     sink_regex: Regex,
@@ -44,18 +45,19 @@ impl PathTraversalValidator {
         // File-op sinks named in the workpack: open(, readFile/read_file(,
         // sendFile/send_file(, fopen(, File( (bare or `new File(`).
         let sink_regex = Regex::new(r"(?i)\b(?:open|read_?file|send_?file|fopen|file)\s*\(")
-            .map_err(|err| DecodeError::new("cyberskillsPathTraversalSink", err.to_string()))?;
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsPathTraversalSink", err))?;
         // `../`, `..\`, or the URL-encoded `..%2f` traversal sequence.
-        let traversal_regex = Regex::new(r"(?i)\.\.(?:[/\\]|%2f)")
-            .map_err(|err| DecodeError::new("cyberskillsPathTraversalLiteral", err.to_string()))?;
+        let traversal_regex = Regex::new(r"(?i)\.\.(?:[/\\]|%2f)").map_err(|err| {
+            crate::boundary::regex::decode("cyberskillsPathTraversalLiteral", err)
+        })?;
         // A word containing one of the request-derived name fragments
         // called out in the workpack.
         let request_var_regex = Regex::new(
             r"(?i)\b\w*(?:request|req|params|query|filename|user)\w*\b",
         )
-        .map_err(|err| DecodeError::new("cyberskillsPathTraversalRequestVar", err.to_string()))?;
+        .map_err(|err| crate::boundary::regex::decode("cyberskillsPathTraversalRequestVar", err))?;
         Ok(Self {
-            rule_id: "CYBER-PATH-TRAVERSAL.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberPathTraversal.id(),
             sink_regex,
             traversal_regex,
             request_var_regex,
@@ -70,51 +72,49 @@ impl Validator for PathTraversalValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let Some(sink_match) = self.sink_regex.find(line) else {
                 continue;
             };
             let sink_name = sink_match.as_str().trim_end_matches('(').trim();
-            let call_tail = &line[sink_match.end()..];
+            let Some(call_tail) = line.get(sink_match.end()..) else {
+                continue;
+            };
 
             match (
                 self.traversal_regex.is_match(line),
                 self.request_var_regex.is_match(call_tail),
             ) {
                 (true, _) => {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "Path traversal literal passed to a file operation".to_owned(),
-                        detail: format!(
+                    findings.extend(crate::boundary::finding::from_source(
+                        (&self.rule_id, Severity::Error),
+                        "Path traversal literal passed to a file operation",
+                        format!(
                             "A `../`/`..%2f` traversal sequence reaches the file-handling call \
                              `{sink_name}(`. Fix: reject any path containing traversal sequences, \
                              canonicalize the resolved path, and verify it stays within the \
                              intended base directory before opening it (see \
                              performing-directory-traversal-testing)."
                         ),
-                        file: input.file.clone(),
-                        line: line_number,
-                        snippet: Some(line.to_owned()),
-                    });
+                        input.file,
+                        (line_number, Some(line)),
+                    ));
                 }
                 (false, true) => {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "Request-derived path passed to a file operation".to_owned(),
-                        detail: format!(
+                    findings.extend(crate::boundary::finding::from_source(
+                        (&self.rule_id, Severity::Error),
+                        "Request-derived path passed to a file operation",
+                        format!(
                             "The file-handling call `{sink_name}(` builds its path from a \
                              request-derived variable (name matches req/request/params/query/\
                              filename/user). Fix: validate the value against an allowlist or \
                              canonicalize it and verify it resolves within the intended base \
                              directory before using it in a file operation."
                         ),
-                        file: input.file.clone(),
-                        line: line_number,
-                        snippet: Some(line.to_owned()),
-                    });
+                        input.file,
+                        (line_number, Some(line)),
+                    ));
                 }
                 (false, false) => {}
             }
@@ -125,18 +125,15 @@ impl Validator for PathTraversalValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::PathTraversalValidator;
 
     #[test]
     fn cyberskills_path_traversal() -> Result<(), Box<dyn std::error::Error>> {
         let validator = PathTraversalValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "tests/fixtures/cyberskills/web.path-traversal/bad/traverse.py",
             "tests/fixtures/cyberskills/web.path-traversal/good/safe.py",
         )?;

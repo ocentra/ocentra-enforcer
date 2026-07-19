@@ -13,6 +13,9 @@
 //! zero-findings bar. Retire this stand-in and wire the real b02
 //! `Validator` in once it lands.
 
+use enforcer_domain::plan_types::{
+    PlanArtifactPath, PlanCurrentState, PlanName, PlanOverwriteMode, PlanStatement,
+};
 use enforcer_plan::error::PlanError;
 use enforcer_plan::scaffolder::{scaffold_plan, self_check, RequirementFact, ScopeFacts};
 
@@ -25,16 +28,34 @@ fn golden_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/scaffolder/golden")
 }
 
-fn demo_facts() -> ScopeFacts {
-    ScopeFacts {
-        where_we_are: "Golden fixture plan: nothing has run yet; this directory pins the \
-                       emitter's exact byte output for regression."
-            .to_owned(),
+fn root_path(path: &std::path::Path) -> Result<PlanArtifactPath, Box<dyn std::error::Error>> {
+    Ok(PlanArtifactPath::try_new(path.to_path_buf())?)
+}
+
+fn plan_name(name: &str) -> Result<PlanName, Box<dyn std::error::Error>> {
+    Ok(PlanName::try_new(name)?)
+}
+
+fn statement(value: &str) -> Result<PlanStatement, Box<dyn std::error::Error>> {
+    Ok(PlanStatement::try_new(value.to_owned())?)
+}
+
+fn demo_facts() -> Result<ScopeFacts, Box<dyn std::error::Error>> {
+    Ok(ScopeFacts {
+        where_we_are: PlanCurrentState::try_new(
+            "Golden fixture plan: nothing has run yet; this directory pins the \
+             emitter's exact byte output for regression."
+                .to_owned(),
+        )?,
         requirements: vec![
-            RequirementFact::new("Fact A specific to this golden plan's own scope."),
-            RequirementFact::new("Fact B specific to this golden plan's own scope."),
+            RequirementFact::new(statement(
+                "Fact A specific to this golden plan's own scope.",
+            )?),
+            RequirementFact::new(statement(
+                "Fact B specific to this golden plan's own scope.",
+            )?),
         ],
-    }
+    })
 }
 
 /// Read every file under `dir` (recursively) into a sorted
@@ -91,8 +112,13 @@ fn copy_dir(
 #[test]
 fn scaffolder_emit_matches_golden_tree() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    scaffold_plan(tmp.path(), "demo-plan", &facts, false)?;
+    let facts = demo_facts()?;
+    scaffold_plan(
+        &root_path(tmp.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
     let emitted_dir = tmp.path().join("docs/plans/demo-plan");
     let emitted = read_tree(&emitted_dir)?;
@@ -122,10 +148,20 @@ fn scaffolder_emit_matches_golden_tree() -> TestResult {
 fn scaffolder_determinism_two_runs_identical() -> TestResult {
     let tmp_a = tempfile::tempdir()?;
     let tmp_b = tempfile::tempdir()?;
-    let facts = demo_facts();
+    let facts = demo_facts()?;
 
-    scaffold_plan(tmp_a.path(), "demo-plan", &facts, false)?;
-    scaffold_plan(tmp_b.path(), "demo-plan", &facts, false)?;
+    scaffold_plan(
+        &root_path(tmp_a.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
+    scaffold_plan(
+        &root_path(tmp_b.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
     let tree_a = read_tree(&tmp_a.path().join("docs/plans/demo-plan"))?;
     let tree_b = read_tree(&tmp_b.path().join("docs/plans/demo-plan"))?;
@@ -138,14 +174,16 @@ fn scaffolder_determinism_two_runs_identical() -> TestResult {
 #[test]
 fn scaffolder_refuses_overwrite_without_force_seeded_violation() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    scaffold_plan(tmp.path(), "demo-plan", &facts, false)?;
+    let facts = demo_facts()?;
+    let root = root_path(tmp.path())?;
+    let name = plan_name("demo-plan")?;
+    scaffold_plan(&root, &name, &facts, PlanOverwriteMode::RefuseExisting)?;
 
-    let outcome = scaffold_plan(tmp.path(), "demo-plan", &facts, false);
+    let outcome = scaffold_plan(&root, &name, &facts, PlanOverwriteMode::RefuseExisting);
     assert!(matches!(outcome, Err(PlanError::PlanAlreadyExists { .. })));
 
     // Force does succeed.
-    scaffold_plan(tmp.path(), "demo-plan", &facts, true)?;
+    scaffold_plan(&root, &name, &facts, PlanOverwriteMode::ReplaceExisting)?;
     Ok(())
 }
 
@@ -154,9 +192,11 @@ fn scaffolder_refuses_overwrite_without_force_seeded_violation() -> TestResult {
 #[test]
 fn scaffolder_rejects_invalid_name_seeded_violation() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    let outcome = scaffold_plan(tmp.path(), "Not A Valid Name", &facts, false);
-    assert!(matches!(outcome, Err(PlanError::InvalidPlanName { .. })));
+    let invalid_name = PlanName::try_new("Not A Valid Name");
+    assert!(matches!(
+        invalid_name,
+        Err(error) if error.path == "planName"
+    ));
     assert!(!tmp.path().join("docs").exists());
     Ok(())
 }
@@ -168,8 +208,13 @@ fn scaffolder_rejects_invalid_name_seeded_violation() -> TestResult {
 #[test]
 fn structural_cross_check_zero_findings() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    let emission = scaffold_plan(tmp.path(), "demo-plan", &facts, false)?;
+    let facts = demo_facts()?;
+    let emission = scaffold_plan(
+        &root_path(tmp.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
     let findings = self_check::structural_findings(&emission.plan_dir);
     assert!(
@@ -185,10 +230,15 @@ fn structural_cross_check_zero_findings() -> TestResult {
 #[test]
 fn structural_cross_check_detects_seeded_corruption() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    let emission = scaffold_plan(tmp.path(), "demo-plan", &facts, false)?;
+    let facts = demo_facts()?;
+    let emission = scaffold_plan(
+        &root_path(tmp.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
-    let state_path = emission.plan_dir.join("PLAN_STATE.md");
+    let state_path = emission.plan_dir.as_path().join("PLAN_STATE.md");
     let corrupted = std::fs::read_to_string(&state_path)?.replace("<!-- agent-capsule -->", "");
     std::fs::write(&state_path, corrupted)?;
 
@@ -197,7 +247,9 @@ fn structural_cross_check_detects_seeded_corruption() -> TestResult {
         !findings.is_empty(),
         "structural check must detect a stripped capsule block"
     );
-    assert!(findings.iter().any(|f| f.file == "PLAN_STATE.md"));
+    assert!(findings
+        .iter()
+        .any(|finding| finding.file.as_str() == "PLAN_STATE.md"));
     Ok(())
 }
 
@@ -207,10 +259,15 @@ fn structural_cross_check_detects_seeded_corruption() -> TestResult {
 #[test]
 fn resume_state_carries_required_sections() -> TestResult {
     let tmp = tempfile::tempdir()?;
-    let facts = demo_facts();
-    let emission = scaffold_plan(tmp.path(), "demo-plan", &facts, false)?;
+    let facts = demo_facts()?;
+    let emission = scaffold_plan(
+        &root_path(tmp.path())?,
+        &plan_name("demo-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
-    let resume = std::fs::read_to_string(emission.plan_dir.join("RESUME_STATE.md"))?;
+    let resume = std::fs::read_to_string(emission.plan_dir.as_path().join("RESUME_STATE.md"))?;
     for section in [
         "Where We Are",
         "CHECKLIST",
@@ -225,7 +282,7 @@ fn resume_state_carries_required_sections() -> TestResult {
         );
     }
     assert!(
-        resume.contains(&facts.where_we_are),
+        resume.contains(facts.where_we_are.as_str()),
         "RESUME_STATE.md should seed the plan's Where We Are text"
     );
     Ok(())
@@ -239,13 +296,34 @@ fn resume_state_carries_required_sections() -> TestResult {
 fn checklist_is_derived_from_scope_facts_not_boilerplate() -> TestResult {
     let tmp = tempfile::tempdir()?;
     let facts = ScopeFacts {
-        where_we_are: "Distinct scope statement for the L24 proof test.".to_owned(),
-        requirements: vec![RequirementFact::new("Exactly one L24 proof requirement.")],
+        where_we_are: PlanCurrentState::try_new(
+            "Distinct scope statement for the L24 proof test.".to_owned(),
+        )?,
+        requirements: vec![RequirementFact::new(statement(
+            "Exactly one L24 proof requirement.",
+        )?)],
     };
-    let emission = scaffold_plan(tmp.path(), "l24-proof-plan", &facts, false)?;
+    let emission = scaffold_plan(
+        &root_path(tmp.path())?,
+        &plan_name("l24-proof-plan")?,
+        &facts,
+        PlanOverwriteMode::RefuseExisting,
+    )?;
 
-    let blueprint = std::fs::read_to_string(emission.plan_dir.join("PLAN_EXECUTION_BLUEPRINT.md"))?;
-    assert!(blueprint.contains("Exactly one L24 proof requirement."));
+    let blueprint = std::fs::read_to_string(
+        emission
+            .plan_dir
+            .as_path()
+            .join("PLAN_EXECUTION_BLUEPRINT.md"),
+    )?;
+    let supplied_items = blueprint
+        .lines()
+        .filter(|line| line.starts_with("- [ ]"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        supplied_items,
+        vec!["- [ ] Exactly one L24 proof requirement."]
+    );
     // Exactly one checklist line: the fixed golden-plan facts' items must
     // NOT leak into an unrelated plan's checklist.
     let checklist_lines = blueprint.lines().filter(|l| l.starts_with("- [ ]")).count();

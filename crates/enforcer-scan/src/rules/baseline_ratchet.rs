@@ -28,19 +28,22 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::boundary::baseline::{BaselineEntryDto, BaselineRecordDto};
 use enforcer_core::error::{Error as CoreError, Result as CoreResult};
-use enforcer_core::hash_chain::link_digest;
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::findings::{Finding, Violation};
+use enforcer_domain::boundary::hash;
+use enforcer_domain::findings::{Finding, FindingLine, ReportOutcome, Violation};
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::scan_types::BaselineEntryCount;
 use enforcer_domain::severity::Severity;
+use enforcer_domain::telemetry_types::RecordSchemaVersion;
 
 /// Schema version of [`BaselineRecordDto`]'s on-disk wire form. Bump on any
 /// breaking change to the record shape so an old baseline file fails to
 /// load loudly instead of silently misinterpreting.
-pub const BASELINE_RECORD_VERSION: u32 = 1;
+pub const BASELINE_RECORD_VERSION: RecordSchemaVersion = RecordSchemaVersion::V1;
 
 /// One baseline entry: the (rule, file, line) triple that identifies a
 /// specific known violation occurrence. Deliberately does not include the
@@ -53,7 +56,7 @@ pub struct BaselineLocation {
     /// The file the violation was recorded against.
     pub file: RelPath,
     /// The line the violation was recorded at.
-    pub line: u32,
+    pub line: FindingLine,
 }
 
 impl BaselineLocation {
@@ -61,16 +64,16 @@ impl BaselineLocation {
     pub fn for_violation(violation: &Violation) -> Self {
         let finding = violation.finding();
         Self {
+            // CLONE-JUSTIFICATION: a baseline key owns an independent stable
+            // identity extracted from the ephemeral finding.
             rule_id: finding.rule_id.clone(),
+            // CLONE-JUSTIFICATION: baseline persistence outlives the report
+            // that produced this key.
             file: finding.file.clone(),
             line: finding.line,
         }
     }
 }
-
-/// Backwards-compatible name for the internal baseline-location value.
-#[deprecated(note = "use BaselineLocation")]
-pub type BaselineKey = BaselineLocation;
 
 /// A recorded baseline: the set of violation occurrences accepted as
 /// "already known" as of the last ratchet. Ordered (`BTreeSet`) so two
@@ -92,8 +95,8 @@ impl Baseline {
     }
 
     /// How many occurrences this baseline currently records.
-    pub fn len(&self) -> usize {
-        self.known.len()
+    pub fn entry_count(&self) -> BaselineEntryCount {
+        BaselineEntryCount::from_count(self.known.len())
     }
 
     /// True if this baseline records no occurrences.
@@ -121,15 +124,19 @@ impl RatchetOutcome {
     /// True if the ratchet found no new (unbaselined) violations — the
     /// scan is clean with respect to the baseline, whether or not the
     /// baseline itself shrank.
-    pub fn passes(&self) -> bool {
-        self.new_violations.is_empty()
+    pub fn passes(&self) -> ReportOutcome {
+        if self.new_violations.is_empty() {
+            ReportOutcome::Clean
+        } else {
+            ReportOutcome::Violations
+        }
     }
 }
 
 /// Ratchet `prior` against a fresh scan's `current_violations`.
 ///
 /// Fails closed: any violation in `current_violations` whose
-/// [`BaselineKey`] is not in `prior` is reported in
+/// [`BaselineLocation`] is not in `prior` is reported in
 /// [`RatchetOutcome::new_violations`] and [`RatchetOutcome::passes`]
 /// returns `false`. Ratchets down: any key in `prior` with no matching
 /// violation in `current_violations` is dropped from
@@ -145,6 +152,8 @@ pub fn ratchet(prior: &Baseline, current_violations: &[Violation]) -> RatchetOut
         if prior.known.contains(&key) {
             still_present.insert(key);
         } else {
+            // CLONE-JUSTIFICATION: the ratchet outcome owns violations after
+            // the caller's borrowed current report is released.
             new_violations.push(violation.clone());
             still_present.insert(key);
         }
@@ -158,45 +167,6 @@ pub fn ratchet(prior: &Baseline, current_violations: &[Violation]) -> RatchetOut
     }
 }
 
-/// One entry in the persisted baseline record's wire form. Mirrors
-/// [`BaselineLocation`] field-for-field, but as an explicit `serde` DTO —
-/// [`BaselineLocation`] itself stays internal/unserialized so the in-memory
-/// core (arc-15's contract) is not coupled to the wire shape.
-/// ROUNDTRIP-TEST: `tests/baseline_ratchet.rs::clean_baseline_write_round_trips_via_persisted_record`
-/// proves the persisted DTO survives a write/load cycle.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BaselineEntryDto {
-    /// The rule that fired.
-    pub rule_id: RuleId,
-    /// The file the violation was recorded against.
-    pub file: RelPath,
-    /// The line the violation was recorded at.
-    pub line: u32,
-}
-
-impl From<&BaselineLocation> for BaselineEntryDto {
-    fn from(key: &BaselineLocation) -> Self {
-        Self {
-            rule_id: key.rule_id.clone(),
-            file: key.file.clone(),
-            line: key.line,
-        }
-    }
-}
-
-/// NEGATIVE-CONVERSION-TEST: `tests/baseline_ratchet.rs::tampered_baseline_file_fails_to_load`
-/// rejects an invalid persisted DTO before it can become a [`BaselineLocation`].
-impl From<BaselineEntryDto> for BaselineLocation {
-    fn from(entry: BaselineEntryDto) -> Self {
-        Self {
-            rule_id: entry.rule_id,
-            file: entry.file,
-            line: entry.line,
-        }
-    }
-}
-
 /// The versioned, integrity-hashed wire form of a [`Baseline`]. This is
 /// what `enforcer check --baseline write` persists to the baseline file
 /// and what a `--baseline` run loads back.
@@ -206,22 +176,6 @@ impl From<BaselineEntryDto> for BaselineLocation {
 /// same idempotency contract [`Baseline`] itself upholds via `BTreeSet`.
 /// ROUNDTRIP-TEST: `tests/baseline_ratchet.rs::clean_baseline_write_round_trips_via_persisted_record`
 /// verifies the full versioned record survives persistence and reload.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BaselineRecordDto {
-    /// Schema version; see [`BASELINE_RECORD_VERSION`].
-    pub version: u32,
-    /// The recorded occurrences, sorted for deterministic serialization.
-    pub entries: Vec<BaselineEntryDto>,
-    /// Integrity digest over `entries`' canonical JSON payload. Computed
-    /// by [`BaselineRecordDto::compute_hash`]; verified on [`load_baseline`].
-    pub integrity: Sha256,
-}
-
-/// Backwards-compatible name for the persisted baseline wire DTO.
-#[deprecated(note = "use BaselineRecordDto")]
-pub type BaselineRecord = BaselineRecordDto;
-
 impl BaselineRecordDto {
     /// Build a record from a [`Baseline`], computing its integrity hash.
     pub fn from_baseline(baseline: &Baseline) -> CoreResult<Self> {
@@ -236,8 +190,8 @@ impl BaselineRecordDto {
     }
 
     /// Recover the in-memory [`Baseline`] this record describes.
-    pub fn to_baseline(&self) -> Baseline {
-        Baseline::from_known(self.entries.iter().cloned().map(BaselineLocation::from))
+    pub fn into_domain(self) -> Baseline {
+        Baseline::from_known(self.entries.into_iter().map(BaselineLocation::from))
     }
 
     /// Verify `integrity` matches a freshly recomputed hash over `entries`.
@@ -260,8 +214,7 @@ impl BaselineRecordDto {
         let mut sorted = entries.to_vec();
         sorted.sort();
         let payload = serde_json::to_vec(&sorted)?;
-        let digest = link_digest(None, &payload);
-        digest.parse::<Sha256>().map_err(CoreError::Decode)
+        Ok(hash::validate(&payload))
     }
 }
 
@@ -288,7 +241,7 @@ pub fn load_baseline(path: &Path) -> CoreResult<Baseline> {
     let payload = std::fs::read(path)?;
     let record: BaselineRecordDto = serde_json::from_slice(&payload)?;
     record.verify()?;
-    Ok(record.to_baseline())
+    Ok(record.into_domain())
 }
 
 /// The outcome of running the baseline-ratchet gate over a fresh scan.
@@ -311,8 +264,12 @@ pub struct BaselineGateOutcome {
 impl BaselineGateOutcome {
     /// True when the gate found no new/grown violations — i.e. every
     /// violation in the fresh scan was already covered by the baseline.
-    pub fn passes(&self) -> bool {
-        self.errors.is_empty()
+    pub fn passes(&self) -> ReportOutcome {
+        if self.errors.is_empty() {
+            ReportOutcome::Clean
+        } else {
+            ReportOutcome::Violations
+        }
     }
 }
 
@@ -346,8 +303,12 @@ impl BaselineRatchetValidator {
         for violation in current_violations {
             let key = BaselineLocation::for_violation(violation);
             if new_locations.contains(&key) {
+                // CLONE-JUSTIFICATION: gate errors own their report entries
+                // independently of the borrowed current scan.
                 errors.push(violation.clone());
             } else {
+                // CLONE-JUSTIFICATION: demotion creates an owned warning
+                // record while preserving the current report unchanged.
                 let mut demoted = violation.finding().clone();
                 demoted.severity = Severity::Warning;
                 warnings.push(demoted);
@@ -365,68 +326,88 @@ impl BaselineRatchetValidator {
 #[cfg(test)]
 mod tests {
     use super::{ratchet, Baseline, BaselineLocation};
-    use enforcer_domain::findings::{Finding, Violation};
+    use enforcer_domain::findings::{Finding, FindingLine, ReportOutcome, Violation};
+    use enforcer_domain::ids::RuleId;
+    use enforcer_domain::paths::RelPath;
     use enforcer_domain::severity::Severity;
+    use enforcer_domain::telemetry_types::SourceLine;
 
     fn violation(
-        rule_id: &str,
-        file: &str,
-        line: u32,
+        rule_id: RuleId,
+        file: RelPath,
+        line: SourceLine,
     ) -> Result<Violation, Box<dyn std::error::Error>> {
         let finding = Finding {
-            rule_id: rule_id.parse()?,
+            rule_id,
             severity: Severity::Error,
-            title: "test".to_owned(),
-            detail: "test detail".to_owned(),
-            file: file.parse()?,
-            line,
+            title: "test".parse()?,
+            detail: "test detail".parse()?,
+            file,
+            line: FindingLine::known(line),
             snippet: None,
         };
         Ok(Violation::try_from(finding)?)
     }
 
     fn key(
-        rule_id: &str,
-        file: &str,
-        line: u32,
+        rule_id: RuleId,
+        file: RelPath,
+        line: SourceLine,
     ) -> Result<BaselineLocation, Box<dyn std::error::Error>> {
         Ok(BaselineLocation {
-            rule_id: rule_id.parse()?,
-            file: file.parse()?,
-            line,
+            rule_id,
+            file,
+            line: FindingLine::known(line),
         })
+    }
+
+    fn fixture_line() -> SourceLine {
+        SourceLine::try_new(std::num::NonZeroU32::MIN)
     }
 
     #[test]
     fn fails_closed_on_a_brand_new_violation() -> Result<(), Box<dyn std::error::Error>> {
         let prior = Baseline::default();
-        let current = vec![violation("RR-6.1", "src/lib.rs", 10)?];
+        let current = vec![violation(
+            "RR-6.1".parse()?,
+            "src/lib.rs".parse()?,
+            fixture_line(),
+        )?];
         let outcome = ratchet(&prior, &current);
-        assert!(!outcome.passes(), "a new violation must fail closed");
+        assert_eq!(outcome.passes(), ReportOutcome::Violations);
         assert_eq!(outcome.new_violations.len(), 1);
-        assert_eq!(outcome.ratcheted_baseline.len(), 1);
+        assert_eq!(outcome.ratcheted_baseline.entry_count().get(), 1);
         Ok(())
     }
 
     #[test]
     fn known_violation_does_not_re_fail() -> Result<(), Box<dyn std::error::Error>> {
-        let prior = Baseline::from_known([key("RR-6.1", "src/lib.rs", 10)?]);
-        let current = vec![violation("RR-6.1", "src/lib.rs", 10)?];
+        let prior = Baseline::from_known([key(
+            "RR-6.1".parse()?,
+            "src/lib.rs".parse()?,
+            fixture_line(),
+        )?]);
+        let current = vec![violation(
+            "RR-6.1".parse()?,
+            "src/lib.rs".parse()?,
+            fixture_line(),
+        )?];
         let outcome = ratchet(&prior, &current);
-        assert!(
-            outcome.passes(),
-            "a known violation must not re-trip the gate"
-        );
+        assert_eq!(outcome.passes(), ReportOutcome::Clean);
         assert!(outcome.new_violations.is_empty());
         Ok(())
     }
 
     #[test]
     fn ratchets_down_when_a_known_violation_is_fixed() -> Result<(), Box<dyn std::error::Error>> {
-        let prior = Baseline::from_known([key("RR-6.1", "src/lib.rs", 10)?]);
+        let prior = Baseline::from_known([key(
+            "RR-6.1".parse()?,
+            "src/lib.rs".parse()?,
+            fixture_line(),
+        )?]);
         let current: Vec<Violation> = Vec::new();
         let outcome = ratchet(&prior, &current);
-        assert!(outcome.passes());
+        assert_eq!(outcome.passes(), ReportOutcome::Clean);
         assert!(
             outcome.ratcheted_baseline.is_empty(),
             "a fixed violation must be dropped from the ratcheted baseline, not carried forward"
@@ -437,16 +418,24 @@ mod tests {
     #[test]
     fn baseline_never_grows_beyond_current_plus_prior_still_present(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let baseline_key = key("RR-6.1", "src/lib.rs", 10)?;
+        let baseline_key = key("RR-6.1".parse()?, "src/lib.rs".parse()?, fixture_line())?;
         let prior = Baseline::from_known([baseline_key.clone()]);
         let current = vec![
-            violation("RR-6.1", "src/lib.rs", 10)?,
-            violation("RR-6.2", "src/other.rs", 5)?,
+            violation("RR-6.1".parse()?, "src/lib.rs".parse()?, fixture_line())?,
+            violation("RR-6.2".parse()?, "src/other.rs".parse()?, fixture_line())?,
         ];
         let outcome = ratchet(&prior, &current);
-        assert!(!outcome.passes(), "RR-6.2 is new and must fail closed");
-        assert_eq!(outcome.ratcheted_baseline.len(), 2);
-        assert!(outcome.ratcheted_baseline.known.contains(&baseline_key));
+        assert_eq!(outcome.passes(), ReportOutcome::Violations);
+        assert_eq!(outcome.ratcheted_baseline.entry_count().get(), 2);
+        assert_eq!(
+            outcome.ratcheted_baseline.known,
+            [
+                baseline_key,
+                key("RR-6.2".parse()?, "src/other.rs".parse()?, fixture_line())?,
+            ]
+            .into_iter()
+            .collect()
+        );
         Ok(())
     }
 }

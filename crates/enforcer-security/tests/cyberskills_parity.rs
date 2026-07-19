@@ -3,9 +3,8 @@
 //! `money_critical_parity.rs`, `fsm_parity.rs`, `size_shape_parity.rs`,
 //! ...), which the cyberskills family was previously missing (only a
 //! hand-rolled linkage test in `enforcer-rules` existed). It loads the
-//! `crates/enforcer-rules/rules/cyberskills.json` catalog (12 records:
-//! the frontmatter linter + the 11 fundamental-logic rules), resolves
-//! every rule id against its real [`Validator`] — the 11 source-pattern
+//! `crates/enforcer-rules/rules/cyberskills.json` catalog and resolves
+//! every rule id against its real [`Validator`] — the source-pattern
 //! validators from `enforcer-lang-security` plus this crate's own
 //! `SkillFrontmatterValidValidator` — and asserts the whole-registry
 //! `enforcer_mechanization::parity::ParityOracle` sweep is clean (each
@@ -30,7 +29,7 @@ fn manifest_dir() -> PathBuf {
 }
 
 /// Resolves a cyberskills rule id to its validator, spanning both crates
-/// the family lives in (the 11 source-pattern rules in
+/// the family lives in (the source-pattern rules in
 /// `enforcer-lang-security` + the frontmatter linter here).
 struct CyberskillsLookup {
     validators: Vec<Box<dyn Validator>>,
@@ -52,9 +51,9 @@ fn cyberskills_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error:
     let catalog_path = manifest_dir().join("../enforcer-rules/rules/cyberskills.json");
     let registry: RuleRegistry = load_registry_from_files(&[catalog_path.as_path()])?;
     assert_eq!(
-        registry.len(),
-        38,
-        "expected the h11 + Wave-1 + Wave-C + Wave-D + Wave-E cyberskills rule records"
+        registry.count(),
+        enforcer_domain::rules_types::RuleRecordCount::from_records(0..41),
+        "expected the complete native cyberskills rule catalog"
     );
 
     let mut validators: Vec<Box<dyn Validator>> = Vec::new();
@@ -64,8 +63,8 @@ fn cyberskills_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error:
     validators.push(Box::new(SkillFrontmatterValidValidator::new()?));
     assert_eq!(
         validators.len(),
-        38,
-        "expected 37 source-pattern validators + 1 frontmatter linter"
+        41,
+        "expected 40 source-pattern validators + 1 frontmatter linter"
     );
 
     let lookup = CyberskillsLookup { validators };
@@ -76,7 +75,11 @@ fn cyberskills_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error:
         .map(std::path::Path::to_path_buf)
         .ok_or("could not resolve repo root from CARGO_MANIFEST_DIR")?;
 
-    let oracle = ParityOracle::new(&registry, &repo_root, BTreeSet::new());
+    let oracle = ParityOracle::new(
+        &registry,
+        enforcer_domain::paths::RepoRoot::try_from(repo_root.as_path())?,
+        BTreeSet::new(),
+    );
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),

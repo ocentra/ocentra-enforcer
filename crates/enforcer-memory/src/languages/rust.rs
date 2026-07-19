@@ -10,8 +10,9 @@
 
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
-    ReceiverHint, SymbolKind, SymbolRef, TypeRefRef,
+    SymbolKind, SymbolRef, TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost function/method a call expression is lexically inside
@@ -85,29 +86,29 @@ fn walk(
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 for decorator in attribute_decorators(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -128,18 +129,18 @@ fn walk(
         "struct_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Struct,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "enum_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -147,15 +148,15 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for supertrait in trait_bounds(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: supertrait,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (supertrait).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -165,36 +166,36 @@ fn walk(
         "mod_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "type_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "const_item" | "static_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "let_declaration" => {
             if let Some(closure_name) = named_closure_binding(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: closure_name,
+                    name: (closure_name).into(),
                     kind: SymbolKind::Lambda,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -209,9 +210,9 @@ fn walk(
                 .map(str::to_string);
             if let (Some(type_name), Some(trait_name)) = (&type_name, &trait_name) {
                 out.implements.push(ImplementsRef {
-                    type_name: type_name.clone(),
-                    trait_name: trait_name.clone(),
-                    line: node.start_position().row + 1,
+                    type_name: (type_name.clone()).into(),
+                    trait_name: (trait_name.clone()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             walk_children(node, src, out, type_name.as_deref(), fn_scope);
@@ -220,8 +221,8 @@ fn walk(
         "use_declaration" => {
             for path in use_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -229,13 +230,16 @@ fn walk(
             if let Some(function) = node.child_by_field_name("function") {
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee: call_callee_text(function, src),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (call_callee_text(function, src)).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
             }
         }

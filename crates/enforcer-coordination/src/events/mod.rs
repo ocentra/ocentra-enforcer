@@ -6,107 +6,28 @@
 //! `.mjs`-produced ledger fail hash checks and breaks cross-impl sync
 //! (arc-16 workpack, "Wire-hash vs extension-hash canonicalization" row).
 
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::error::{CoordinationError, Result};
-use crate::lock::{ClaimEventId, ClaimLane, ClaimWriter};
+use enforcer_domain::coordination_types::{ClaimEventId, CoordinationRejection};
 
-// Claim identity values cross the raw event-wire boundary only here. The lock
-// engine receives branded values and never owns raw event strings directly.
-impl ClaimWriter {
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
-    }
-}
+pub mod boundary;
 
-impl From<String> for ClaimWriter {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
+use boundary::HubEventResponse;
 
-impl ClaimLane {
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ClaimLane {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<String> for ClaimEventId {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-/// The coordination event envelope. Fields mirror `HubEventSchema` in
-/// `domain.js`. Unlike the JS schema (branded strings validated by `effect`),
-/// field values here are stored as plain `String`/`Value` — this crate does
-/// the domain-shape brand-checking at the API boundary (arc-16 `api.rs`),
-/// not inside every event read, matching the workpack's own note that
-/// context is opaque/`Schema.Unknown` in the JS source.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HubEvent {
-    pub id: String,
-    pub schema: u32,
-    pub hub: String,
-    pub node_id: String,
-    pub node_name: String,
-    pub lane: String,
-    pub writer: String,
-    #[serde(rename = "type")]
-    pub kind: String,
-    pub ts: String,
-    pub seq: u64,
-    pub prev_event_id: Option<String>,
-    pub prev_hash: Option<String>,
-    pub hash: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub to: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub paths: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub owners: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pr_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub summary: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ttl_seconds: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-    /// Caller/environment context (`machine`, `worktreeRoot`, `branch`,
-    /// `commit`, `codexThreadId`, ...). EXCLUDED from the wire hash — see
-    /// `wire_hash_event`. L2 finding: the api layer must populate this from
-    /// CALLER-supplied identity params, never the server's own cwd.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub context: Option<Value>,
-}
+// The coordination event envelope moved to `events::boundary`.
+// The prior raw DTO documentation remains represented by that boundary type.
+// Field values here are stored as plain `String`/`Value`; the boundary owns them.
+// the domain-shape brand-checking at the API boundary (arc-16 `api.rs`),
+// not inside every event read, matching the workpack's own note that
+// context is opaque/`Schema.Unknown` in the JS source.
+/* event DTO moved to events::boundary
+/// Caller/environment context (`machine`, `worktreeRoot`, `branch`,
+/// `commit`, `codexThreadId`, ...). EXCLUDED from the wire hash — see
+/// `wire_hash_event`. L2 finding: the api layer must populate this from
+/// CALLER-supplied identity params, never the server's own cwd.
+*/
 
 /// The exact set of fields that participate in the wire hash. Copied
 /// verbatim from `events.js#WIRE_HASH_FIELDS` (`context` is deliberately
@@ -194,6 +115,7 @@ pub fn hash_for_event_with_extensions_value(event: &Value) -> String {
 /// Result of `coordination_hash_compatibility` — mirrors
 /// `events.js#coordinationHashCompatibility`.
 #[derive(Debug, Clone, PartialEq)]
+/// Result of comparing Rust event hashing with the frozen compatibility sentinel.
 pub struct HashCompatibility {
     pub ok: bool,
     pub expected_wire_hash: String,
@@ -225,16 +147,17 @@ pub fn assert_coordination_hash_compatibility() -> Result<()> {
     if result.ok {
         Ok(())
     } else {
-        Err(CoordinationError::rejected(format!(
+        let reason = CoordinationRejection::parse(&format!(
             "coordination hash compatibility check failed: expected {}, got {}",
             result.expected_wire_hash, result.actual_wire_hash
-        )))
+        ))?;
+        Err(CoordinationError::rejected(reason))
     }
 }
 
 /// Compute the wire hash of a real `HubEvent` (excluding its own `hash`
 /// field, matching `events.js#hashForEvent(withoutHash(event))`).
-pub fn hash_for_event(event: &HubEvent) -> Result<String> {
+pub fn hash_for_event(event: &HubEventResponse) -> Result<String> {
     let mut value = serde_json::to_value(event)?;
     if let Value::Object(map) = &mut value {
         map.remove("hash");
@@ -244,13 +167,13 @@ pub fn hash_for_event(event: &HubEvent) -> Result<String> {
 
 /// Verify a stored event's `hash` field matches its recomputed wire hash.
 /// Mirrors `events.js#assertEventHash`.
-pub fn assert_event_hash(event: &HubEvent) -> Result<()> {
+pub fn assert_event_hash(event: &HubEventResponse) -> Result<()> {
     let expected = hash_for_event(event)?;
     if event.hash == expected {
         Ok(())
     } else {
         Err(CoordinationError::HashMismatch {
-            event_id: event.id.clone(),
+            event_id: ClaimEventId::try_from(event.id.clone())?,
         })
     }
 }
@@ -297,9 +220,15 @@ fn canonicalize(value: &Value) -> Value {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
 mod tests {
-    use super::*;
+    use super::boundary::HubEventResponse;
+    use super::{
+        assert_event_hash, coordination_hash_compatibility, hash_compatibility_sample_event,
+        hash_for_event, hash_for_event_value, hash_for_event_with_extensions_value,
+        EXPECTED_HASH_COMPATIBILITY_WIRE_HASH,
+    };
+    use crate::error::CoordinationError;
+    use serde_json::Value;
 
     #[test]
     fn golden_sentinel_matches_expected_wire_hash() {
@@ -344,8 +273,9 @@ mod tests {
     }
 
     #[test]
-    fn assert_event_hash_detects_tampering() {
-        let event = HubEvent {
+    fn assert_event_hash_detects_tampering() -> std::result::Result<(), Box<dyn std::error::Error>>
+    {
+        let event = HubEventResponse {
             id: "evt_test".into(),
             schema: 1,
             hub: "hub".into(),
@@ -378,12 +308,23 @@ mod tests {
             context: None,
         };
         let mut completed = event.clone();
-        completed.hash = hash_for_event(&event).expect("hash computable");
-        assert!(assert_event_hash(&completed).is_ok());
+        completed.hash = hash_for_event(&event)?;
+        assert_event_hash(&completed)?;
 
+        let expected_event_id = completed.id.clone();
         let mut tampered = completed;
         tampered.reason = Some("tampered".into());
-        assert!(assert_event_hash(&tampered).is_err());
+        match assert_event_hash(&tampered) {
+            Err(CoordinationError::HashMismatch { event_id }) => {
+                assert_eq!(event_id.as_str(), expected_event_id);
+            }
+            other => {
+                return Err(
+                    format!("expected hash mismatch for tampered event, got {other:?}").into(),
+                )
+            }
+        }
+        Ok(())
     }
 
     #[test]
@@ -411,7 +352,7 @@ mod tests {
             }
         });
 
-        let event: HubEvent = serde_json::from_value(raw)?;
+        let event: HubEventResponse = serde_json::from_value(raw)?;
         let rendered = serde_json::to_value(&event)?;
 
         assert_eq!(

@@ -667,6 +667,8 @@ function parseCloseoutArgs(args) {
     threadId: optionValue(args, "--thread") ?? optionValue(args, "--thread-id") ?? undefined,
     releaseOwned: args.includes("--no-release") ? false : true,
     repairStale: args.includes("--no-repair-stale") ? false : true,
+    // Compatibility spelling for "release every owned claim in this closeout
+    // scope". It must never imply the separately named cross-lane scope.
     allOwned: args.includes("--all-owned"),
     allLanes: args.includes("--all-lanes"),
     allowOtherNode: args.includes("--allow-other-node"),

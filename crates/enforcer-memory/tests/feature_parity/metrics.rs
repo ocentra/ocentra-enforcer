@@ -131,7 +131,9 @@ pub fn token_reduction_ratio(naive_tokens: usize, context_tokens: usize) -> f64 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        mrr_at_k, ndcg_at_k, precision_at_k, recall_at_k, reranker_lift, token_reduction_ratio,
+    };
 
     fn ids(values: &[&str]) -> Vec<String> {
         values.iter().map(|s| s.to_string()).collect()
@@ -303,12 +305,12 @@ mod tests {
         // change to that library type would need a matching change
         // here to stay green.
         let estimate = enforcer_memory::search::TokenReductionEstimate {
-            naive_tokens: 8000,
-            context_tokens: 400,
+            naive_tokens: 8000.into(),
+            context_tokens: 400.into(),
         };
         assert_eq!(
-            token_reduction_ratio(estimate.naive_tokens, estimate.context_tokens),
-            estimate.ratio()
+            token_reduction_ratio(estimate.naive_tokens.get(), estimate.context_tokens.get(),),
+            estimate.ratio().get()
         );
     }
 }

@@ -1,9 +1,14 @@
 ---
 name: ocentra-enforcer
-description: Reusable Ocentra Enforcer workflow for Codex. Use when validating Rust, TypeScript, JavaScript, Python, security, dependency, generated-artifact, no-reexport, architecture, proof claims, harness diagnostics, or file/crate/package/diff/workspace checks.
+description: Compatibility workflow for the frozen Node-based Ocentra Enforcer service. Do not use its commands as the native Rust CLI contract.
 ---
 
 # Ocentra Enforcer
+
+> Compatibility scope: this skill documents the frozen Node/MJS Enforcer pack
+> and its existing MCP service. It does not describe the native Rust binary.
+> Keep the two command and MCP surfaces separate; successful Node tools do not
+> prove that the corresponding Rust delegates are wired.
 
 Use this skill to run the standalone `ocentra-enforcer` pack instead of recreating project-local guard logic. The model is not trusted to remember rules; the harness must fail hard on violations.
 

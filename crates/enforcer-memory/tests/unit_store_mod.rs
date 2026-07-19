@@ -1,6 +1,6 @@
+use enforcer_domain::memory_types::ProjectId;
 use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::error::{MemoryError, Result};
-use enforcer_memory::ids::ProjectId;
 use enforcer_memory::store::Store;
 use std::path::PathBuf;
 
@@ -23,7 +23,7 @@ fn opening_an_unknown_project_errors_and_creates_nothing() -> Result<()> {
         "C:/Projects/never-initialized"
             .parse()
             .map_err(|source| MemoryError::InvalidPath {
-                path: "C:/Projects/never-initialized".to_owned(),
+                path: "C:/Projects/never-initialized".to_owned().into(),
                 source,
             })?;
     let outcome = Store::open(&stores_dir, &root);
@@ -42,12 +42,15 @@ fn init_then_open_round_trips_the_same_project() -> Result<()> {
         "C:/Projects/roundtrip-demo"
             .parse()
             .map_err(|source| MemoryError::InvalidPath {
-                path: "C:/Projects/roundtrip-demo".to_owned(),
+                path: "C:/Projects/roundtrip-demo".to_owned().into(),
                 source,
             })?;
     {
         let mut store = Store::init(&stores_dir, &root, "2026-07-04T00:00:00Z")?;
-        assert_eq!(store.observation_log_mut().high_watermark(), 0);
+        assert_eq!(
+            store.observation_log_mut().high_watermark(),
+            enforcer_domain::memory_types::Seq::GENESIS
+        );
     }
     let store = Store::open(&stores_dir, &root)?;
     assert_eq!(
@@ -55,7 +58,7 @@ fn init_then_open_round_trips_the_same_project() -> Result<()> {
         ProjectId::from_repo_root(&root).as_str()
     );
     std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
-        path: stores_dir,
+        path: stores_dir.into(),
         source,
     })?;
     Ok(())
@@ -68,16 +71,19 @@ fn init_is_idempotent() -> Result<()> {
         "C:/Projects/idempotent-demo"
             .parse()
             .map_err(|source| MemoryError::InvalidPath {
-                path: "C:/Projects/idempotent-demo".to_owned(),
+                path: "C:/Projects/idempotent-demo".to_owned().into(),
                 source,
             })?;
     Store::init(&stores_dir, &root, "2026-07-04T00:00:00Z")?;
     // Second init on the same project must not error and must not
     // reset anything.
     let mut store = Store::init(&stores_dir, &root, "2026-07-04T01:00:00Z")?;
-    assert_eq!(store.observation_log_mut().high_watermark(), 0);
+    assert_eq!(
+        store.observation_log_mut().high_watermark(),
+        enforcer_domain::memory_types::Seq::GENESIS
+    );
     std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
-        path: stores_dir,
+        path: stores_dir.into(),
         source,
     })?;
     Ok(())
@@ -89,7 +95,7 @@ fn windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store() -> Re
     let backslash: RepoRoot = r"C:\Projects\path-normalize-demo"
         .parse()
         .map_err(|source| MemoryError::InvalidPath {
-            path: r"C:\Projects\path-normalize-demo".to_owned(),
+            path: r"C:\Projects\path-normalize-demo".to_owned().into(),
             source,
         })?;
     Store::init(&stores_dir, &backslash, "2026-07-04T00:00:00Z")?;
@@ -97,7 +103,7 @@ fn windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store() -> Re
     let forward_slash: RepoRoot = "C:/Projects/path-normalize-demo"
         .parse()
         .map_err(|source| MemoryError::InvalidPath {
-            path: "C:/Projects/path-normalize-demo".to_owned(),
+            path: "C:/Projects/path-normalize-demo".to_owned().into(),
             source,
         })?;
     // Opening with the forward-slash spelling of the SAME root must
@@ -109,7 +115,7 @@ fn windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store() -> Re
         ProjectId::from_repo_root(&backslash).as_str()
     );
     std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
-        path: stores_dir,
+        path: stores_dir.into(),
         source,
     })?;
     Ok(())

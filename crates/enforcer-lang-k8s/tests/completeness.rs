@@ -1,61 +1,51 @@
-//! Count-parity completeness test: every rule id in
-//! [`enforcer_lang_k8s::rules::spec::SPECS`] must have exactly one
-//! registered [`enforcer_lang_k8s::rules::registry`] row (no orphan spec,
-//! no duplicate registry row), and the registry total must equal
-//! `SPECS.len()` (10, the arc-12 K8S-family rule count). This is the same
-//! shape the sibling lang crates' completeness tests take against
-//! `rules/rules.json`, scoped here to this crate's own spec table since
-//! `rules/rules.json` carries no `language == "k8s"` rows yet.
+//! Canonical Kubernetes-rule-to-registry completeness proof.
 
 use std::collections::BTreeSet;
 
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInK8sRule, RuleId};
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_lang_k8s::rules::registry::build_all;
-use enforcer_lang_k8s::rules::spec::SPECS;
+use enforcer_validator::harness::run_fixture_parity;
 
 #[test]
-fn registry_covers_every_k8s_spec_with_no_orphans_and_no_duplicates(
+fn registry_covers_every_canonical_k8s_rule_without_duplicates(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let spec_ids: BTreeSet<RuleId> = SPECS
-        .iter()
-        .map(|spec| spec.rule_id())
-        .collect::<Result<_, _>>()?;
-    assert_eq!(
-        spec_ids.len(),
-        10,
-        "K8S-family spec count drifted from the workpack's authoritative 10"
-    );
+    let canonical_ids: BTreeSet<RuleId> = BuiltInK8sRule::ALL
+        .into_iter()
+        .map(BuiltInK8sRule::id)
+        .collect();
+    assert_eq!(canonical_ids.len(), BuiltInK8sRule::ALL.len());
 
     let rows = build_all()?;
-
-    let mut seen = BTreeSet::new();
-    for row in &rows {
+    let registry_ids: BTreeSet<&RuleId> = rows.iter().map(|row| row.validator.rule_id()).collect();
+    assert_eq!(
+        rows.len(),
+        registry_ids.len(),
+        "registry ids must be unique"
+    );
+    for canonical_id in &canonical_ids {
         assert!(
-            seen.insert(row.rule_id.clone()),
-            "duplicate registry row for rule id `{}`",
-            row.rule_id
+            registry_ids
+                .iter()
+                .any(|registered_id| *registered_id == canonical_id),
+            "canonical rule `{canonical_id}` is missing from the registry"
         );
     }
+    Ok(())
+}
 
-    let registry_ids: BTreeSet<RuleId> = rows.iter().map(|row| row.rule_id.clone()).collect();
+#[test]
+fn every_canonical_k8s_rule_passes_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
+    let root = RepoRoot::try_from(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))?;
+    let rows = build_all()?;
+    assert_eq!(rows.len(), BuiltInK8sRule::ALL.len());
 
-    let orphan_spec_ids: Vec<_> = spec_ids.difference(&registry_ids).collect();
-    assert!(
-        orphan_spec_ids.is_empty(),
-        "spec rule id(s) with no registered validator: {orphan_spec_ids:?}"
-    );
-
-    let unknown_registry_ids: Vec<_> = registry_ids.difference(&spec_ids).collect();
-    assert!(
-        unknown_registry_ids.is_empty(),
-        "registry rule id(s) not present in the spec table: {unknown_registry_ids:?}"
-    );
-
-    assert_eq!(
-        registry_ids.len(),
-        10,
-        "registry total must equal the workpack's authoritative K8S count (10)"
-    );
-
+    for (row, rule) in rows.iter().zip(BuiltInK8sRule::ALL) {
+        assert_eq!(row.validator.rule_id(), &rule.id());
+        let slug = rule.id().as_str().to_ascii_lowercase().replace('.', "-");
+        let fail: RelPath = format!("fixtures/generic-scanner/{slug}/fail.yaml").parse()?;
+        let pass: RelPath = format!("fixtures/generic-scanner/{slug}/pass.yaml").parse()?;
+        run_fixture_parity(row.validator.as_ref(), &root, &fail, &pass)?;
+    }
     Ok(())
 }

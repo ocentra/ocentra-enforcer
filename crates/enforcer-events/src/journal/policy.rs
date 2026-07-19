@@ -1,53 +1,9 @@
-use crate::{EventNamespace, EventType, StoredEventEnvelope};
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use enforcer_domain::events_types::{
+    JournalAppendDecision, JournalDispatchPhase, JournalMode, JournalSelector,
+};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum JournalMode {
-    Disabled,
-    BeforeDispatch,
-    AfterDispatch,
-    BeforeAndAfterDispatch,
-}
-
-impl JournalMode {
-    pub(crate) fn includes(self, phase: JournalDispatchPhase) -> bool {
-        matches!(
-            (self, phase),
-            (Self::BeforeDispatch, JournalDispatchPhase::BeforeDispatch)
-                | (Self::AfterDispatch, JournalDispatchPhase::AfterDispatch)
-                | (Self::BeforeAndAfterDispatch, _)
-        )
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum JournalDispatchPhase {
-    BeforeDispatch,
-    AfterDispatch,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum JournalSelector {
-    All,
-    EventTypes(Vec<EventType>),
-    Namespaces(Vec<EventNamespace>),
-    ContractAllowlist(Vec<EventType>),
-}
-
-impl JournalSelector {
-    pub fn matches(&self, envelope: &StoredEventEnvelope) -> bool {
-        match self {
-            Self::All => true,
-            Self::EventTypes(event_types) | Self::ContractAllowlist(event_types) => event_types
-                .iter()
-                .any(|event_type| event_type == &envelope.contract.event_type),
-            Self::Namespaces(namespaces) => namespaces
-                .iter()
-                .any(|namespace| namespace.matches_event_type(&envelope.contract.event_type)),
-        }
-    }
-}
-
+/// Event-runtime data for journal policy.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JournalPolicy {
     pub mode: JournalMode,
@@ -55,10 +11,12 @@ pub struct JournalPolicy {
 }
 
 impl JournalPolicy {
+    /// Executes the disabled event-runtime operation.
     pub fn disabled() -> Self {
         Self::default()
     }
 
+    /// Executes the before dispatch event-runtime operation.
     pub fn before_dispatch(selector: JournalSelector) -> Self {
         Self {
             mode: JournalMode::BeforeDispatch,
@@ -66,6 +24,7 @@ impl JournalPolicy {
         }
     }
 
+    /// Executes the after dispatch event-runtime operation.
     pub fn after_dispatch(selector: JournalSelector) -> Self {
         Self {
             mode: JournalMode::AfterDispatch,
@@ -73,6 +32,7 @@ impl JournalPolicy {
         }
     }
 
+    /// Executes the before and after dispatch event-runtime operation.
     pub fn before_and_after_dispatch(selector: JournalSelector) -> Self {
         Self {
             mode: JournalMode::BeforeAndAfterDispatch,
@@ -84,8 +44,32 @@ impl JournalPolicy {
         &self,
         envelope: &StoredEventEnvelope,
         phase: JournalDispatchPhase,
-    ) -> bool {
-        self.mode.includes(phase) && self.selector.matches(envelope)
+    ) -> JournalAppendDecision {
+        let mode_includes = matches!(
+            (self.mode, phase),
+            (
+                JournalMode::BeforeDispatch,
+                JournalDispatchPhase::BeforeDispatch
+            ) | (
+                JournalMode::AfterDispatch,
+                JournalDispatchPhase::AfterDispatch
+            ) | (JournalMode::BeforeAndAfterDispatch, _)
+        );
+        let event_type = &envelope.contract.event_type;
+        let selector_matches = match &self.selector {
+            JournalSelector::All => true,
+            JournalSelector::EventTypes(event_types)
+            | JournalSelector::ContractAllowlist(event_types) => event_types.contains(event_type),
+            JournalSelector::Namespaces(namespaces) => {
+                enforcer_domain::events_types::EventNamespace::from_event_type(event_type)
+                    .is_ok_and(|namespace| namespaces.contains(&namespace))
+            }
+        };
+        if mode_includes && selector_matches {
+            JournalAppendDecision::Append
+        } else {
+            JournalAppendDecision::Skip
+        }
     }
 }
 

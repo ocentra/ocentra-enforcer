@@ -10,12 +10,11 @@
 //! Non-blocking (T2/`Severity::Warning`): scored discipline, not a hard
 //! compile-time gate.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Expr, ExprTry};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -35,6 +34,7 @@ const FS_IO_FNS: &[&str] = &[
 ];
 
 /// The `RUST-ERR-CONTEXT` `Validator`.
+#[derive(Debug)]
 pub struct ErrContextValidator {
     rule_id: RuleId,
 }
@@ -44,7 +44,7 @@ impl ErrContextValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-ERR-CONTEXT".parse()?,
+            rule_id: BuiltInRustRule::ErrContext.id(),
         })
     }
 }
@@ -55,12 +55,12 @@ impl Validator for ErrContextValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -76,35 +76,36 @@ fn is_bare_fs_io_call(expr: &Expr) -> Option<String> {
         return None;
     };
     let segment = path_expr.path.segments.last()?;
-    let name = segment.ident.to_string();
     FS_IO_FNS
-        .contains(&name.as_str())
-        .then(|| format!("fs::{name}"))
+        .iter()
+        .find(|name| segment.ident == **name)
+        .map(|name| format!("fs::{name}"))
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_expr_try(&mut self, item: &'ast ExprTry) {
         if let Some(call_name) = is_bare_fs_io_call(&item.expr) {
-            let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
-            self.findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Warning,
-                title: format!("bare `{call_name}(...)?` with no `.with_context`"),
-                detail: format!(
+            let line = crate::boundary::finding::source_line(item);
+            let Ok(finding) = crate::boundary::finding::from_source(
+                (self.rule_id, Severity::Warning),
+                format!("bare `{call_name}(...)?` with no `.with_context`"),
+                format!(
                     "Fix: attach `.with_context(|| format!(\"...\"))?` to this `{call_name}` \
                      call so the propagated error names the operation, not just the \
                      underlying I/O error text."
                 ),
-                file: self.file.clone(),
+                self.file,
                 line,
-                snippet: None,
-            });
+            ) else {
+                return;
+            };
+            self.findings.push(finding);
         }
         visit::visit_expr_try(self, item);
     }
@@ -112,22 +113,16 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::ErrContextValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_bare_question_and_silent_with_context() -> Result<(), Box<dyn std::error::Error>> {
         let validator = ErrContextValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/err-context/fail_bare_question.rs",
             "fixtures/err-context/pass_with_context.rs",
         )?;
@@ -135,13 +130,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = ErrContextValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

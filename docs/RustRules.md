@@ -4,7 +4,7 @@
 ```yaml
 status: "legacy monolithic Rust rulebook, kept as fallback human-canonical reading only -- NOT the AI's default read"
 canonical_form: "typed rule records in enforcer-rules (arc-04), each ruleId <-> Validator impl <-> fail/pass fixtures <-> doc-anchor <-> tier"
-routing: "mcp__enforcer__route / enforcer route returns only the matching rule records; this file is loaded on broad-review fallback only"
+routing: "native Rust route is not wired; use finding rule IDs and load this file only for broad-review fallback"
 enforcement_runtime: "native Rust (enforcer-lang-rust, cargo clippy/fmt/deny/audit), NOT Node -- the 'Hard: Node' language below is HISTORICAL, describing the retired .mjs-era gate"
 ```
 <!-- /ai-dense -->
@@ -13,8 +13,9 @@ This document is the law for Rust code in this repository. Rules are
 numbered so humans, AI agents, CI, and validation scripts can point to the
 exact broken rule. **This file is the optional human-canonical reading
 surface only** — the enforcer's AI-facing entrypoint is the typed rule
-record in `enforcer-rules` plus the router (`enforcer route` /
-`mcp__enforcer__route`), never this prose file by default.
+record in `enforcer-rules`. The current native CLI and Rust MCP router do not
+expose a working route operation, so use finding rule IDs to locate relevant
+records rather than treating this prose file as runtime authority.
 
 ## Severity and enforcement language
 
@@ -788,7 +789,10 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 
 **Enforcement:** Hard: Node.
 
-**Rule:** No build.rs unless approved by config and review.
+**Rule:** No build.rs unless its exact repo-relative path is listed in
+`allowedBuildRsPaths` and the deterministic build behavior has been reviewed.
+`allowBuildRs: true` remains a legacy global compatibility switch and should
+not be used for new approvals.
 
 <a id="rr-76"></a>
 ### RR-7.6 — Organize by domain, not technical layer only
@@ -1000,9 +1004,9 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 <a id="rr-95"></a>
 ### RR-9.5 — cargo-deny must check licenses
 
-**Enforcement:** Hard: cargo-deny.
+**Enforcement:** Hard: scanner.
 
-**Rule:** Unapproved licenses fail.
+**Rule:** Direct registry dependency requirements must be aligned across workspace members.
 
 <a id="rr-96"></a>
 ### RR-9.6 — cargo-deny must check bans
@@ -1131,7 +1135,8 @@ each `enforcer-lang-*` crate's `tests/`).
 
 **Enforcement:** Hard: Local policy.
 
-**Rule:** Use `enforcer scan --root . --workspace` for fast feedback.
+**Rule:** Use `enforcer scan --all` for workspace feedback, or pass exact
+paths for a smaller scope.
 
 <a id="rr-109"></a>
 ### RR-10.9 — Release builds must be reproducible
@@ -2017,7 +2022,8 @@ each `enforcer-lang-*` crate's `tests/`).
 
 **Enforcement:** Hard: Process.
 
-**Rule:** A Rust task is incomplete until `enforcer scan --root . --workspace` (or the CI-exact `cargo build --workspace && cargo test --workspace`) passes.
+**Rule:** A Rust task is incomplete until `enforcer scan --all` (or the
+repository's CI-exact build and test gate) passes.
 
 <a id="rr-192"></a>
 ### RR-19.2 — AI must not weaken validation

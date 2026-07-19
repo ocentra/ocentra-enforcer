@@ -7,9 +7,8 @@ of truth for availability and arguments.
 
 ## How to use it
 
-For MCP work, use the installed Enforcer MCP route tool with the target root
-and exact files under review. For the current Rust CLI, select one explicit
-scope for `check`, `scan`, or `verify`:
+For the current Rust CLI, select one explicit scope for `check`, `scan`, or
+`verify`:
 
 - paths: `enforcer check path/to/file`
 - diff: `enforcer scan --base <ref> --head <ref>`
@@ -41,6 +40,15 @@ exception. External `tests/` files are not inline-test findings.
 
 ## UI and coordination
 
-The optional Tauri UI is a presentation layer over Rust-owned actions; CLI and
-MCP use do not require it. Coordination is optional and keeps ledger state and
-exact-file claims outside the target repository.
+The optional Tauri UI is a presentation layer; CLI and MCP use do not require
+it. It currently supports project/settings persistence, scan-scope and target
+management, proof inspection, graph/search, and basic coordination status,
+messages, acknowledgements, and exact-path claims. Runs are read-only, and
+several actions remain unavailable: fix dispatch, adapter repair, assurance CI
+gating, canonical Rust scan persistence, Rust-native analysis history, finding
+waivers, run execution/maintenance, and incremental memory refresh.
+
+The current Rust MCP router wires only server status, coordination status,
+exact-path coordination claim, and UI launch/status. Registered route, scan,
+check, diagnostics, proof, and broader coordination contracts are not yet
+wired to engine delegates.

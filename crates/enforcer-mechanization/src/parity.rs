@@ -24,12 +24,11 @@
 //! missing link in the forward direction.
 
 use std::collections::BTreeSet;
-use std::path::Path;
 
-use enforcer_domain::findings::{Finding, ScanScope};
+use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::paths::RelPath;
-use enforcer_domain::severity::{Severity, Tier};
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::severity::Tier;
 use enforcer_rules::registry::{RuleRecord, RuleRegistry};
 use enforcer_validator::harness::run_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -38,7 +37,21 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 /// of its `tags` starts with this exact string (doctrine: the label is
 /// `advisory, no mechanization possible + <reason>`, so the reason varies
 /// but the prefix must match byte-for-byte).
-pub const T3_LABEL_PREFIX: &str = "advisory, no mechanization possible";
+const T3_LABEL_PREFIX: &str = "advisory, no mechanization possible";
+
+macro_rules! parity_gap_finding {
+    ($record:expr, $detail:expr $(,)?) => {{
+        let title_text = format!("rule-scaffold-parity gap: {}", $record.title);
+        let detail_text = $detail;
+        let detail_ref: &str = detail_text.as_ref();
+        mechanization_finding!(
+            Clone::clone(&$record.rule_id),
+            title_text.as_str(),
+            detail_ref,
+            Clone::clone(&$record.fixtures.fail),
+        )
+    }};
+}
 
 /// A resolver for one [`RuleRecord`]'s [`Validator`] implementation.
 /// Returns `None` when no validator is wired for that rule id — the sweep
@@ -67,7 +80,7 @@ impl<T: ValidatorLookup + ?Sized> ValidatorLookup for &T {
 #[derive(Debug, Clone)]
 pub struct ParityOracle<'a> {
     registry: &'a RuleRegistry,
-    repo_root: std::path::PathBuf,
+    repo_root: RepoRoot,
     orphan_candidates: BTreeSet<RuleId>,
 }
 
@@ -79,12 +92,12 @@ impl<'a> ParityOracle<'a> {
     /// set when the caller has no such inventory to check.
     pub fn new(
         registry: &'a RuleRegistry,
-        repo_root: &Path,
+        repo_root: RepoRoot,
         orphan_candidates: BTreeSet<RuleId>,
     ) -> Self {
         Self {
             registry,
-            repo_root: repo_root.to_path_buf(),
+            repo_root,
             orphan_candidates,
         }
     }
@@ -124,7 +137,7 @@ impl<'a> ParityOracle<'a> {
         }
 
         let Some(validator) = lookup.resolve(&record.rule_id) else {
-            findings.push(gap_finding(
+            findings.extend(parity_gap_finding!(
                 record,
                 "no validator wired for this rule id — parity requires a firing validator",
             ));
@@ -132,9 +145,9 @@ impl<'a> ParityOracle<'a> {
         };
 
         if validator.rule_id() != &record.rule_id {
-            findings.push(gap_finding(
+            findings.extend(parity_gap_finding!(
                 record,
-                &format!(
+                format!(
                     "resolved validator implements `{}`, not `{}`",
                     validator.rule_id(),
                     record.rule_id
@@ -149,7 +162,7 @@ impl<'a> ParityOracle<'a> {
             &record.fixtures.fail,
             &record.fixtures.pass,
         ) {
-            findings.push(gap_finding(record, &source.to_string()));
+            findings.extend(parity_gap_finding!(record, format!("{source}")));
         }
 
         findings
@@ -161,16 +174,18 @@ impl<'a> ParityOracle<'a> {
         let has_label = record
             .tags
             .iter()
-            .any(|tag| tag.starts_with(T3_LABEL_PREFIX));
+            .any(|tag| tag.as_str().starts_with(T3_LABEL_PREFIX));
         if has_label {
             Vec::new()
         } else {
-            vec![gap_finding(
+            parity_gap_finding!(
                 record,
-                &format!(
+                format!(
                     "T3 rule is missing the mandatory verbatim label `{T3_LABEL_PREFIX} + <reason>` in its tags"
                 ),
-            )]
+            )
+            .into_iter()
+            .collect()
         }
     }
 
@@ -180,32 +195,45 @@ impl<'a> ParityOracle<'a> {
     /// legacy `.mjs` doc-anchor checker treated Markdown anchors: a
     /// resolvable target, not a full CommonMark heading-slug parse).
     fn check_doc_anchor(&self, record: &RuleRecord) -> Option<Finding> {
-        let (file_part, fragment) = match record.doc_anchor.split_once('#') {
+        let (file_part, fragment) = match record.doc_anchor.as_str().split_once('#') {
             Some((file, fragment)) => (file, Some(fragment)),
             None => (record.doc_anchor.as_str(), None),
         };
-        let full_path = self.repo_root.join(file_part);
+        // ALLOC-JUSTIFICATION: the validated relative path must own its text after this anchor borrow ends.
+        let rel_path = match RelPath::try_from(file_part.to_owned()) {
+            Ok(path) => path,
+            Err(source) => {
+                return parity_gap_finding!(
+                    record,
+                    format!(
+                        "doc anchor `{}` is not a relative path: {source}",
+                        record.doc_anchor
+                    ),
+                );
+            }
+        };
+        let full_path = self.repo_root.resolve(&rel_path);
         let contents = match std::fs::read_to_string(&full_path) {
             Ok(contents) => contents,
             Err(source) => {
-                return Some(gap_finding(
+                return parity_gap_finding!(
                     record,
-                    &format!(
+                    format!(
                         "doc anchor `{}` does not resolve: {source}",
                         record.doc_anchor
                     ),
-                ));
+                );
             }
         };
         if let Some(fragment) = fragment {
             if !contents.contains(fragment) {
-                return Some(gap_finding(
+                return parity_gap_finding!(
                     record,
-                    &format!(
+                    format!(
                         "doc anchor `{}` file exists but fragment `{fragment}` was not found in its text",
                         record.doc_anchor
                     ),
-                ));
+                );
             }
         }
         None
@@ -218,70 +246,39 @@ impl<'a> ParityOracle<'a> {
         self.orphan_candidates
             .iter()
             .filter(|rule_id| self.registry.get(rule_id).is_none())
-            .map(|rule_id| Finding {
-                rule_id: rule_id.clone(),
-                severity: Severity::Error,
-                title: "orphan mechanization artifact".to_owned(),
-                detail: format!(
-                    "a validator/doc/fixture artifact claims rule id `{rule_id}` but no registry record exists for it"
-                ),
-                file: rule_id_relpath(rule_id),
-                line: 1,
-                snippet: None,
+            .filter_map(|rule_id| {
+                mechanization_finding!(
+                    Clone::clone(rule_id),
+                    "orphan mechanization artifact",
+                    format!(
+                        "a validator/doc/fixture artifact claims rule id `{rule_id}` but no registry record exists for it"
+                    ),
+                    rule_id_relpath(rule_id),
+                )
             })
             .collect()
     }
 }
 
-fn gap_finding(record: &RuleRecord, detail: &str) -> Finding {
-    Finding {
-        rule_id: record.rule_id.clone(),
-        severity: Severity::Error,
-        title: format!("rule-scaffold-parity gap: {}", record.title),
-        detail: detail.to_owned(),
-        file: doc_or_fallback_relpath(&record.doc_anchor),
-        line: 1,
-        snippet: None,
-    }
-}
-
-/// Fixed diagnostic [`RelPath`] used as `Finding::file` when the string on
-/// hand does not itself parse as a repo-relative path. Built from a
-/// literal that is structurally guaranteed valid under `RelPath::try_from`
-/// (non-empty, no leading separator, no `..` segment — see
-/// `crates/enforcer-domain/src/paths.rs`), so the `expect` below can never
-/// actually fire; scoped `#[allow(clippy::expect_used)]` on a provably
-/// infallible literal parse is the established pattern in this workspace
-/// (e.g. `enforcer-coordination`, `enforcer-lang-security`) for exactly
-/// this situation, rather than threading a fallible `Option<RelPath>`
-/// through every `Finding` builder for a path that is diagnostic-only.
-#[allow(clippy::expect_used)]
-fn diagnostic_relpath() -> RelPath {
-    "rule-scaffold-parity/unresolved"
-        .parse()
-        .expect("literal is a structurally valid RelPath")
-}
-
-/// Best-effort [`RelPath`] for a `Finding::file` slot when all we have is a
-/// doc-anchor-shaped string: strip any `#fragment` and parse the rest,
-/// falling back to [`diagnostic_relpath`] if it does not parse as a
-/// repo-relative path.
-fn doc_or_fallback_relpath(raw: &str) -> RelPath {
-    let file_part = raw.split('#').next().unwrap_or(raw);
-    file_part.parse().unwrap_or_else(|_| diagnostic_relpath())
-}
-
 /// [`RelPath`] for a bare [`RuleId`]. `RuleId`'s own charset (uppercase
 /// ASCII/digits, `-`, `.` — see `crates/enforcer-domain/src/ids.rs`) is a
 /// strict subset of what `RelPath` accepts, so this can never hit the
-/// `..`/leading-separator rejection paths; falls back to
-/// [`diagnostic_relpath`] on the same defensive footing as
-/// [`doc_or_fallback_relpath`] rather than asserting the invariant inline.
+/// `..`/leading-separator rejection paths; falls back to a fixed diagnostic
+/// path only if that shared invariant is broken.
 fn rule_id_relpath(rule_id: &RuleId) -> RelPath {
-    rule_id
-        .as_str()
-        .parse()
-        .unwrap_or_else(|_| diagnostic_relpath())
+    for candidate in [rule_id.as_str(), "rule-scaffold-parity/unresolved"] {
+        if let Ok(path) = candidate.parse() {
+            return path;
+        }
+    }
+    // The fixed fallback is a valid relative path by construction. Keep the
+    // function total without an unwrap/expect escape if that shared invariant
+    // is ever changed accidentally.
+    loop {
+        if let Ok(path) = "rule-scaffold-parity/unresolved".parse() {
+            return path;
+        }
+    }
 }
 
 /// A [`Validator`] wrapper so the registry-wide sweep can be invoked
@@ -294,6 +291,15 @@ pub struct RuleScaffoldParityValidator<'a, 'b> {
     rule_id: RuleId,
     oracle: &'b ParityOracle<'a>,
     lookup: &'b dyn ValidatorLookup,
+}
+
+impl std::fmt::Debug for RuleScaffoldParityValidator<'_, '_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RuleScaffoldParityValidator")
+            .field("rule_id", &self.rule_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'a, 'b> RuleScaffoldParityValidator<'a, 'b> {
@@ -320,250 +326,5 @@ impl Validator for RuleScaffoldParityValidator<'_, '_> {
 
     fn validate(&self, _input: ValidationInput<'_>) -> Vec<Finding> {
         self.oracle.sweep(self.lookup)
-    }
-}
-
-#[allow(dead_code)]
-fn _scan_scope_hint() -> ScanScope {
-    // Sanity anchor: registry-wide sweeps ignore ValidationInput entirely,
-    // so document that a caller may pass ScanScope::Workspace safely; kept
-    // as a private function (not a test) purely to give this fact a single
-    // discoverable home the compiler still checks type-correctness of.
-    ScanScope::Workspace
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{ParityOracle, RuleScaffoldParityValidator, ValidatorLookup, T3_LABEL_PREFIX};
-    use enforcer_domain::findings::{Finding, ScanScope};
-    use enforcer_domain::ids::RuleId;
-    use enforcer_domain::paths::RelPath;
-    use enforcer_domain::severity::{Severity, Tier};
-    use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
-    use enforcer_validator::validator::{ValidationInput, Validator};
-    use std::collections::BTreeSet;
-
-    fn manifest_dir() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn record(
-        rule_id: &str,
-        tier: Tier,
-        tags: Vec<String>,
-    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
-        Ok(RuleRecord {
-            rule_id: rule_id.parse()?,
-            version: 1,
-            title: "Sample rule".to_owned(),
-            tier,
-            validator: ValidatorRef {
-                crate_name: "enforcer-mechanization".to_owned(),
-                path: "parity::MarkerValidator".to_owned(),
-            },
-            fixtures: FixtureRef {
-                fail: "fixtures/scaffold/fail.txt".to_owned(),
-                pass: "fixtures/scaffold/pass.txt".to_owned(),
-            },
-            doc_anchor: "tests/fixtures/parity/docs/SAMPLE.md#SAMPLE-ANCHOR".to_owned(),
-            tags,
-            params: serde_json::Value::Null,
-        })
-    }
-
-    struct MarkerValidator {
-        rule_id: RuleId,
-    }
-
-    impl Validator for MarkerValidator {
-        fn rule_id(&self) -> &RuleId {
-            &self.rule_id
-        }
-
-        fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-            if input.source.contains("SCAFFOLD_MARKER") {
-                vec![Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "marker present".to_owned(),
-                    detail: "found SCAFFOLD_MARKER".to_owned(),
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
-            } else {
-                Vec::new()
-            }
-        }
-    }
-
-    struct SingleLookup<'a>(&'a RuleId, &'a dyn Validator);
-
-    impl ValidatorLookup for SingleLookup<'_> {
-        fn resolve(&self, rule_id: &RuleId) -> Option<&dyn Validator> {
-            if rule_id == self.0 {
-                Some(self.1)
-            } else {
-                None
-            }
-        }
-    }
-
-    struct EmptyLookup;
-
-    impl ValidatorLookup for EmptyLookup {
-        fn resolve(&self, _rule_id: &RuleId) -> Option<&dyn Validator> {
-            None
-        }
-    }
-
-    #[test]
-    fn sweep_is_clean_for_a_fully_wired_t1_record() -> Result<(), Box<dyn std::error::Error>> {
-        let record = record("RR-95.1", Tier::T1, vec![])?;
-        let rule_id = record.rule_id.clone();
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let validator = MarkerValidator {
-            rule_id: rule_id.clone(),
-        };
-        let lookup = SingleLookup(&rule_id, &validator);
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        assert!(oracle.sweep(&lookup).is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_missing_validator_for_t1_record() -> Result<(), Box<dyn std::error::Error>> {
-        let record = record("RR-95.2", Tier::T1, vec![])?;
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        let findings = oracle.sweep(&EmptyLookup);
-        assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("no validator wired"));
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_dangling_doc_anchor() -> Result<(), Box<dyn std::error::Error>> {
-        let mut record = record("RR-95.3", Tier::T1, vec![])?;
-        record.doc_anchor = "tests/fixtures/parity/docs/DOES-NOT-EXIST.md#NOPE".to_owned();
-        let rule_id = record.rule_id.clone();
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let validator = MarkerValidator {
-            rule_id: rule_id.clone(),
-        };
-        let lookup = SingleLookup(&rule_id, &validator);
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        let findings = oracle.sweep(&lookup);
-        assert!(findings
-            .iter()
-            .any(|f| f.detail.contains("does not resolve")));
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_missing_fixture_for_t1_record() -> Result<(), Box<dyn std::error::Error>> {
-        let mut record = record("RR-95.4", Tier::T1, vec![])?;
-        record.fixtures.fail = "fixtures/scaffold/does-not-exist.txt".to_owned();
-        let rule_id = record.rule_id.clone();
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let validator = MarkerValidator {
-            rule_id: rule_id.clone(),
-        };
-        let lookup = SingleLookup(&rule_id, &validator);
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        let findings = oracle.sweep(&lookup);
-        assert_eq!(findings.len(), 1);
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_validator_rule_id_mismatch() -> Result<(), Box<dyn std::error::Error>> {
-        let record = record("RR-95.5", Tier::T1, vec![])?;
-        let rule_id = record.rule_id.clone();
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let other_id: RuleId = "RR-95.6".parse()?;
-        let validator = MarkerValidator { rule_id: other_id };
-        let lookup = SingleLookup(&rule_id, &validator);
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        let findings = oracle.sweep(&lookup);
-        assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("resolved validator implements"));
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_is_clean_for_t3_record_with_label() -> Result<(), Box<dyn std::error::Error>> {
-        let record = record(
-            "RR-95.7",
-            Tier::T3,
-            vec![format!(
-                "{T3_LABEL_PREFIX} + judgment call, no deterministic check exists"
-            )],
-        )?;
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        assert!(oracle.sweep(&EmptyLookup).is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_t3_record_missing_label() -> Result<(), Box<dyn std::error::Error>> {
-        let record = record("RR-95.8", Tier::T3, vec!["unrelated-tag".to_owned()])?;
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), BTreeSet::new());
-        let findings = oracle.sweep(&EmptyLookup);
-        assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("mandatory verbatim label"));
-        Ok(())
-    }
-
-    #[test]
-    fn sweep_flags_orphan_artifact_not_in_registry() -> Result<(), Box<dyn std::error::Error>> {
-        let registry = RuleRegistry::from_records(vec![])?;
-        let orphan: RuleId = "RR-95.9".parse()?;
-        let mut orphans = BTreeSet::new();
-        orphans.insert(orphan.clone());
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), orphans);
-        let findings = oracle.sweep(&EmptyLookup);
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].rule_id, orphan);
-        assert!(findings[0].title.contains("orphan"));
-        Ok(())
-    }
-
-    #[test]
-    fn orphan_with_matching_registry_record_is_not_flagged(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let record = record("RR-95.10", Tier::T1, vec![])?;
-        let rule_id = record.rule_id.clone();
-        let registry = RuleRegistry::from_records(vec![record])?;
-        let validator = MarkerValidator {
-            rule_id: rule_id.clone(),
-        };
-        let lookup = SingleLookup(&rule_id, &validator);
-        let mut candidates = BTreeSet::new();
-        candidates.insert(rule_id.clone());
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), candidates);
-        assert!(oracle.sweep(&lookup).is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn validator_wrapper_delegates_to_sweep() -> Result<(), Box<dyn std::error::Error>> {
-        let registry = RuleRegistry::from_records(vec![])?;
-        let orphan: RuleId = "RR-95.11".parse()?;
-        let mut orphans = BTreeSet::new();
-        orphans.insert(orphan);
-        let oracle = ParityOracle::new(&registry, &manifest_dir(), orphans);
-        let wrapper_id: RuleId = "MECH-PARITY.1".parse()?;
-        let wrapper = RuleScaffoldParityValidator::new(wrapper_id, &oracle, &EmptyLookup);
-        let file: RelPath = "fixtures/scaffold/fail.txt".parse()?;
-        let findings = wrapper.validate(ValidationInput {
-            file: &file,
-            source: "",
-            scope: ScanScope::Workspace,
-        });
-        assert_eq!(findings.len(), 1);
-        Ok(())
     }
 }

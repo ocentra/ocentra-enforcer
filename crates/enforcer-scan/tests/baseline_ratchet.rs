@@ -16,9 +16,11 @@
 
 use std::path::{Path, PathBuf};
 
-use enforcer_domain::findings::Violation;
+use enforcer_domain::findings::{FindingLine, ReportOutcome, Violation};
+use enforcer_domain::telemetry_types::SourceLine;
+use enforcer_scan::boundary::baseline::{BaselineEntryDto, BaselineRecordDto};
 use enforcer_scan::rules::baseline_ratchet::{
-    load_baseline, write_baseline, Baseline, BaselineKey, BaselineRatchetValidator, BaselineRecord,
+    load_baseline, write_baseline, Baseline, BaselineLocation, BaselineRatchetValidator,
     BASELINE_RECORD_VERSION,
 };
 
@@ -40,7 +42,7 @@ fn load_violations(name: &str) -> Result<Vec<Violation>, Box<dyn std::error::Err
 }
 
 fn baseline_from(violations: &[Violation]) -> Baseline {
-    Baseline::from_known(violations.iter().map(BaselineKey::for_violation))
+    Baseline::from_known(violations.iter().map(BaselineLocation::for_violation))
 }
 
 fn temp_baseline_path(name: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -67,11 +69,19 @@ fn clean_baseline_write_round_trips_via_persisted_record() -> TestResult {
     let loaded = load_baseline(&path)?;
 
     assert_eq!(loaded, baseline, "round-tripped baseline must be identical");
-    assert_eq!(loaded.len(), 2);
+    assert_eq!(loaded.entry_count().get(), 2);
 
     let raw = std::fs::read_to_string(&path)?;
-    let record: BaselineRecord = serde_json::from_str(&raw)?;
+    let record: BaselineRecordDto = serde_json::from_str(&raw)?;
     assert_eq!(record.version, BASELINE_RECORD_VERSION);
+    let round_trip_entry: &BaselineEntryDto = record
+        .entries
+        .first()
+        .ok_or("persisted baseline DTO must contain its first entry")?;
+    assert_eq!(round_trip_entry.file.as_str(), "crates/legacy/src/lib.rs");
+    let wire = serde_json::to_string(&record)?;
+    let restored: BaselineRecordDto = serde_json::from_str(&wire)?;
+    assert_eq!(restored, record);
     record.verify()?;
 
     std::fs::remove_file(&path)?;
@@ -112,7 +122,7 @@ fn unchanged_run_passes_with_warnings() -> TestResult {
 
     let outcome = BaselineRatchetValidator::gate(&baseline, &current);
 
-    assert!(outcome.passes(), "an unchanged run must pass the gate");
+    assert_eq!(outcome.passes(), ReportOutcome::Clean);
     assert!(outcome.errors.is_empty());
     assert_eq!(
         outcome.warnings.len(),
@@ -133,7 +143,7 @@ fn one_added_finding_fails() -> TestResult {
 
     let outcome = BaselineRatchetValidator::gate(&baseline, &current);
 
-    assert!(!outcome.passes(), "a brand-new finding must fail closed");
+    assert_eq!(outcome.passes(), ReportOutcome::Violations);
     assert_eq!(outcome.errors.len(), 1);
     assert_eq!(
         outcome.errors[0].finding().file.as_str(),
@@ -145,7 +155,7 @@ fn one_added_finding_fails() -> TestResult {
         "the two known findings still just warn"
     );
     assert_eq!(
-        outcome.ratcheted_baseline.len(),
+        outcome.ratcheted_baseline.entry_count().get(),
         3,
         "the ratcheted baseline absorbs the new finding going forward"
     );
@@ -153,7 +163,7 @@ fn one_added_finding_fails() -> TestResult {
 }
 
 /// (d) A grown count — a new occurrence line inside an already-baselined
-/// file — fails closed exactly like any other new [`BaselineKey`]; growth
+/// file — fails closed exactly like any other new [`BaselineLocation`]; growth
 /// cannot hide behind "the file was already flagged".
 #[test]
 fn one_grown_count_fails() -> TestResult {
@@ -163,12 +173,15 @@ fn one_grown_count_fails() -> TestResult {
 
     let outcome = BaselineRatchetValidator::gate(&baseline, &current);
 
-    assert!(
-        !outcome.passes(),
-        "a grown occurrence count must fail closed"
-    );
+    assert_eq!(outcome.passes(), ReportOutcome::Violations);
     assert_eq!(outcome.errors.len(), 1);
-    assert_eq!(outcome.errors[0].finding().line, 25);
+    assert_eq!(
+        outcome.errors[0].finding().line,
+        FindingLine::known(SourceLine::try_new(
+            std::num::NonZeroU32::new(25)
+                .ok_or_else(|| std::io::Error::other("fixture line must be positive"))?,
+        ))
+    );
     assert_eq!(outcome.warnings.len(), 2);
     Ok(())
 }
@@ -181,17 +194,14 @@ fn one_grown_count_fails() -> TestResult {
 fn one_removed_finding_shrinks_the_allowance() -> TestResult {
     let baselined = load_violations("clean_write.json")?;
     let baseline = baseline_from(&baselined);
-    assert_eq!(baseline.len(), 2);
+    assert_eq!(baseline.entry_count().get(), 2);
     let current = load_violations("removed_finding_shrink.json")?;
 
     let outcome = BaselineRatchetValidator::gate(&baseline, &current);
 
-    assert!(
-        outcome.passes(),
-        "removing a finding must never fail the gate"
-    );
+    assert_eq!(outcome.passes(), ReportOutcome::Clean);
     assert_eq!(
-        outcome.ratcheted_baseline.len(),
+        outcome.ratcheted_baseline.entry_count().get(),
         1,
         "the fixed finding must be dropped, shrinking the baseline"
     );
@@ -201,16 +211,13 @@ fn one_removed_finding_shrinks_the_allowance() -> TestResult {
     let path = temp_baseline_path("shrunk")?;
     write_baseline(&path, &outcome.ratcheted_baseline)?;
     let reloaded = load_baseline(&path)?;
-    assert_eq!(reloaded.len(), 1);
+    assert_eq!(reloaded.entry_count().get(), 1);
 
     // A later run against the ORIGINAL (larger) violation set must now
     // re-fail on the dropped key: the ratchet never silently re-grants an
     // allowance it already shrank away.
     let later_outcome = BaselineRatchetValidator::gate(&reloaded, &baselined);
-    assert!(
-        !later_outcome.passes(),
-        "a since-fixed-then-reintroduced finding must fail closed again, not be re-grandfathered"
-    );
+    assert_eq!(later_outcome.passes(), ReportOutcome::Violations);
 
     std::fs::remove_file(&path)?;
     Ok(())

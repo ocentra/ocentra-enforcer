@@ -34,12 +34,15 @@
 //! per the file-ownership split with X06.1.
 
 use crate::git::GitMetadata;
-mod fingerprint;
-
-pub use fingerprint::SourceBodyFingerprint;
+pub mod fingerprint;
 
 use crate::parsers::{self, Language, ParsedFile};
-use fingerprint::{hash_bytes, source_body_fingerprints_for_symbols};
+use enforcer_domain::memory_types::{
+    ComplexityLanguage, ComplexitySourceBytes, ComplexitySymbolLocation, GraphChangeCount,
+    GraphSourceLine, GraphSymbolKindSnapshot, IndexMode, LanguageTag, OperationalGraphEdgeRow,
+    OperationalGraphNodeRow, ParserSourceText, ReceiverHint,
+};
+use fingerprint::{hash_bytes, source_body_fingerprints_for_symbols, SourceBodyFingerprint};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -118,7 +121,7 @@ pub struct FileNode {
     /// and this path has been committed at least once.
     pub last_commit: Option<String>,
     /// How many commits in HEAD's history have touched this path.
-    pub change_count: usize,
+    pub change_count: GraphChangeCount,
     /// Ids of every symbol/route/import/call chunk this file produced
     /// in the current index run -- the "previous chunk ids" the
     /// workpack's file-history summary requires be retained across
@@ -134,7 +137,7 @@ pub struct SymbolNode {
     pub id: String,
     pub name: String,
     pub file_id: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
     /// X06 core parity: Tier A complexity metrics
     /// ([`crate::complexity::compute`]) -- `Some` for callable symbols
     /// ([`CodeNode::Function`]/[`CodeNode::Method`]/[`CodeNode::Test`]/
@@ -149,7 +152,7 @@ pub struct SymbolNode {
     /// ([`crate::complexity::propagate_transitive_loop_depth`]),
     /// populated by a post-index pass over the whole repo's call graph
     /// once every symbol id is known. `None` until that pass runs.
-    pub transitive_metrics: Option<crate::complexity::TransitiveMetrics>,
+    pub transitive_metrics: Option<enforcer_domain::memory_types::ComplexityTransitiveMetrics>,
     /// Baseline-compatible source/body fingerprint evidence for
     /// `SIMILAR_TO`: deterministic shingles over the callable body text
     /// recovered during indexing. `None` when no source body can be
@@ -164,381 +167,10 @@ pub struct TombstoneNode {
     pub id: String,
     pub rel_path: String,
     pub last_commit: Option<String>,
-    pub change_count: usize,
+    pub change_count: GraphChangeCount,
     /// Chunk ids the file had at the time it was deleted (its last
     /// [`FileNode::chunk_ids`] before deletion).
     pub prior_chunk_ids: Vec<String>,
-}
-
-/// The subset of [`Language`] worth keeping on the node itself (so
-/// callers querying the graph don't need to re-derive it from the
-/// path's extension).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LanguageTag {
-    Rust,
-    TypeScript,
-    JavaScript,
-    Python,
-    Go,
-    Java,
-    C,
-    Cpp,
-    CSharp,
-    Php,
-    /// Kotlin. Language-parity wave G2.1a.
-    Kotlin,
-    /// Swift. Language-parity wave G2.1a.
-    Swift,
-    /// TSX -- distinct from [`LanguageTag::TypeScript`], mirroring
-    /// [`Language::Tsx`]'s own doc comment. Language-parity wave G2.1a.
-    Tsx,
-    /// Solidity. Language-parity wave G2.1d.
-    Solidity,
-    /// GDScript. Language-parity wave G2.1d.
-    Gdscript,
-    /// Dart. Language-parity wave G2.1b.
-    Dart,
-    /// Scala. Language-parity wave G2.1b.
-    Scala,
-    /// Groovy. Language-parity wave G2.1b.
-    Groovy,
-    /// Ruby. Language-parity wave G2.1c.
-    Ruby,
-    /// Zig. Language-parity wave G2.1c.
-    Zig,
-    /// Objective-C. Language-parity wave G2.1c.
-    ObjectiveC,
-    /// Bash. Language-parity wave G2.2f.
-    Bash,
-    /// Lua. Language-parity wave G2.2f.
-    Lua,
-    /// Elixir. Language-parity wave G2.2f.
-    Elixir,
-    /// Haskell. Language-parity wave G2.2 (sibling batch). Courtesy
-    /// addition by the G2.2f/Lua-Elixir-Bash worker while
-    /// compile-checking its own claim -- see this file's
-    /// `complexity_language`'s own doc note.
-    Haskell,
-    /// OCaml. Language-parity wave G2.2 (sibling batch). Courtesy
-    /// addition, same reason as [`LanguageTag::Haskell`] above.
-    OCaml,
-    /// Erlang. Language-parity wave G2.2 (sibling batch). Courtesy
-    /// addition, same reason as [`LanguageTag::Haskell`] above.
-    Erlang,
-    /// CUDA. Language-parity wave G2.2b.
-    Cuda,
-    /// D. Language-parity wave G2.2b.
-    D,
-    /// PowerShell. Language-parity wave G2.2b.
-    PowerShell,
-    /// F#. Language-parity wave G2.2c.
-    Fsharp,
-    /// Gleam. Language-parity wave G2.2c.
-    Gleam,
-    /// GLSL. Language-parity wave G2.2c.
-    Glsl,
-    /// Ada. Language-parity wave G2.2a. Courtesy addition by the
-    /// G2.2h/R-Perl-Clojure worker while compile-checking its own claim
-    /// (Ada/Apex/Crystal are a sibling G2.2 batch's own languages, not
-    /// this worker's) -- same "not yet wired into `complexity.rs`"
-    /// convention every prior wave's own courtesy addition here follows.
-    Ada,
-    /// Apex. Language-parity wave G2.2a. Courtesy addition, same reason
-    /// as [`LanguageTag::Ada`] above.
-    Apex,
-    /// Crystal. Language-parity wave G2.2a. Courtesy addition, same
-    /// reason as [`LanguageTag::Ada`] above.
-    Crystal,
-    /// R. Language-parity wave G2.2h.
-    R,
-    /// Perl. Language-parity wave G2.2h.
-    Perl,
-    /// Clojure. Language-parity wave G2.2h.
-    Clojure,
-    /// Julia. Language-parity wave G2.2d.
-    Julia,
-    /// Odin. Language-parity wave G2.2d.
-    Odin,
-    /// Pascal. Language-parity wave G2.2d.
-    Pascal,
-    /// QML. Language-parity wave G2.2e. Courtesy addition by the
-    /// G2.2h/R-Perl-Clojure worker while compile-checking its own claim
-    /// (QML/ReScript/Squirrel are a sibling G2.2 batch's own languages,
-    /// not this worker's).
-    Qml,
-    /// ReScript. Language-parity wave G2.2e. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Rescript,
-    /// Squirrel. Language-parity wave G2.2e. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Squirrel,
-    /// Sway. Language-parity wave G2.3e. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Sway,
-    /// Starlark. Language-parity wave G2.3e. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Starlark,
-    /// Templ. Language-parity wave G2.3e. Courtesy addition, same reason
-    /// as [`LanguageTag::Qml`] above.
-    Templ,
-    /// Typst. Language-parity wave G2.3e. Courtesy addition, same reason
-    /// as [`LanguageTag::Qml`] above.
-    Typst,
-    /// WGSL. Language-parity wave G2.3e. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Wgsl,
-    /// Wolfram. Language-parity wave G2.3e. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Wolfram,
-    /// Slang. Language-parity wave G2.3e. Courtesy addition, same reason
-    /// as [`LanguageTag::Qml`] above.
-    Slang,
-    /// SCSS. Courtesy addition (this crate's own `code_graph.rs` needs one
-    /// `LanguageTag` variant per `Language` variant regardless of which
-    /// wave/worker landed it -- same reason as [`LanguageTag::Qml`] above).
-    Scss,
-    /// CMake. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Cmake,
-    /// Makefile. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Makefile,
-    /// Fortran. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Fortran,
-    /// VimScript. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Vimscript,
-    /// Puppet. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Puppet,
-    /// Elm. Courtesy addition, same reason as [`LanguageTag::Qml`] above.
-    Elm,
-    /// Bicep. Language-parity wave G2.3c.
-    Bicep,
-    /// BitBake. Language-parity wave G2.3c.
-    Bitbake,
-    /// Cairo. Language-parity wave G2.3c.
-    Cairo,
-    /// CFScript. Language-parity wave G2.3c.
-    Cfscript,
-    /// FunC. Language-parity wave G2.3c.
-    Func,
-    /// Move. Language-parity wave G2.3c.
-    Move,
-    /// Nickel. Language-parity wave G2.3c.
-    Nickel,
-    /// Jsonnet. Language-parity wave G2.3c.
-    Jsonnet,
-    /// Just. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Just,
-    /// HLSL. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Hlsl,
-    /// ISPC. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Ispc,
-    /// PureScript. Language-parity wave G2.3d. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Purescript,
-    /// Magma. Language-parity wave G2.3d. Courtesy addition, same reason
-    /// as [`LanguageTag::Qml`] above.
-    Magma,
-    /// Hare. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Hare,
-    /// Pony. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Pony,
-    /// NASM. Language-parity wave G2.3d. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Nasm,
-    /// COBOL. Language-parity wave G2.3b. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Cobol,
-    /// Common Lisp. Language-parity wave G2.3b. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Commonlisp,
-    /// Lean. Language-parity wave G2.3b. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Lean,
-    /// TLA+. Language-parity wave G2.3b. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Tlaplus,
-    /// Verilog. Language-parity wave G2.3b. Courtesy addition, same reason
-    /// as [`LanguageTag::Qml`] above.
-    Verilog,
-    /// VHDL. Language-parity wave G2.3b. Courtesy addition, same reason as
-    /// [`LanguageTag::Qml`] above.
-    Vhdl,
-    /// SystemVerilog. Language-parity wave G2.3b. Courtesy addition, same
-    /// reason as [`LanguageTag::Qml`] above.
-    Systemverilog,
-    /// Cap'n Proto. Language-parity wave G2.4c/orchestrator completion
-    /// pass. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Capnp,
-    /// Emacs Lisp. Language-parity wave G2.4e/orchestrator completion
-    /// pass. Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    EmacsLisp,
-    /// Agda. Language-parity wave G2.6 (found missing during G2.5
-    /// closeout). Courtesy addition, same reason as [`LanguageTag::Qml`]
-    /// above.
-    Agda,
-    /// FORM. Language-parity wave G2.6, same as [`LanguageTag::Agda`]
-    /// above.
-    Form,
-    /// AWK. Language-parity wave G2.4a.
-    Awk,
-    /// Fish. Language-parity wave G2.4a.
-    Fish,
-    /// Zsh. Language-parity wave G2.4a.
-    Zsh,
-    /// Tcl. Language-parity wave G2.4a.
-    Tcl,
-    /// Scheme. Language-parity wave G2.4a.
-    Scheme,
-    /// Racket. Language-parity wave G2.4a.
-    Racket,
-    /// Smithy. Language-parity wave G2.4c/orchestrator completion pass.
-    Smithy,
-    /// Pine Script. Language-parity wave G2.4e/orchestrator completion
-    /// pass.
-    Pine,
-    /// MATLAB. Language-parity wave G2.4d redo.
-    Matlab,
-    /// Luau. Language-parity wave G2.4d redo.
-    Luau,
-    /// Teal. Language-parity wave G2.4d redo.
-    Teal,
-    /// Fennel. Language-parity wave G2.4d redo.
-    Fennel,
-    /// Meson. Language-parity wave G2.4d redo.
-    Meson,
-    /// Kconfig. Language-parity wave G2.4d redo.
-    Kconfig,
-    /// HCL. Language-parity wave G2.4b-redo.
-    Hcl,
-    /// Nix. Language-parity wave G2.4b-redo.
-    Nix,
-    /// SQL. Language-parity wave G2.4b-redo.
-    Sql,
-    /// Protobuf. Language-parity wave G2.4b-redo.
-    Protobuf,
-    /// Prisma. Language-parity wave G2.4b-redo.
-    Prisma,
-    /// Pkl. Language-parity wave G2.4b-redo.
-    Pkl,
-    /// Thrift. Language-parity wave G2.4c-redo.
-    Thrift,
-    /// WIT. Language-parity wave G2.4c-redo.
-    Wit,
-    /// LLVM IR. Language-parity wave G2.4c-redo.
-    LlvmIr,
-    /// LLVM TableGen. Language-parity wave G2.4c-redo.
-    TableGen,
-    /// CFML (tag dialect). Language-parity wave G2.4e redo.
-    Cfml,
-    /// Go Template. Language-parity wave G2.4e redo.
-    Gotemplate,
-    /// DeviceTree. Language-parity wave G2.4e redo.
-    Devicetree,
-    /// Smali. Language-parity wave G2.4e redo.
-    Smali,
-    /// JSON5. Language-parity wave G2.5c.
-    Json5,
-    /// KDL. Language-parity wave G2.5c.
-    Kdl,
-    /// Linker Script. Language-parity wave G2.5c.
-    LinkerScript,
-    /// Liquid. Language-parity wave G2.5c.
-    Liquid,
-    /// Markdown. Language-parity wave G2.5c.
-    Markdown,
-    /// Mermaid. Language-parity wave G2.5c.
-    Mermaid,
-    /// PO (gettext). Language-parity wave G2.5c.
-    Po,
-    /// Java/Jakarta `.properties`. Language-parity wave G2.5c.
-    Properties,
-    /// Standalone regular-expression pattern. Language-parity wave G2.5c.
-    Regex,
-    // NOTE (worker G2.5b closing a gap left by a concurrent G2.5a
-    // worker): Assembly/Astro/Beancount/Bibtex/Blade/Css/Csv/Diff/
-    // Dockerfile/Dotenv/Gitattributes each already had a real
-    // `parsers::Language` variant, `classify` mapping, `parse_file`
-    // dispatch arm, and `languages::generic::parse_*` extractor landed
-    // -- but no `LanguageTag` variant/`From<Language>` arm/
-    // `complexity_language` arm here at all, leaving the whole crate
-    // non-compiling for every worker regardless of which language
-    // batch they touch. Added here purely additively (new variants
-    // only, nothing else in this enum touched) to unblock the shared
-    // build; G2.5a's own worker should feel free to expand these doc
-    // comments with their own grammar-provenance detail.
-    Assembly,
-    Astro,
-    Beancount,
-    Bibtex,
-    Blade,
-    Css,
-    Csv,
-    Diff,
-    Dockerfile,
-    Dotenv,
-    Gitattributes,
-    /// gitignore. Language-parity wave G2.5b.
-    Gitignore,
-    /// GN. Language-parity wave G2.5b.
-    Gn,
-    /// Go Mod. Language-parity wave G2.5b.
-    GoMod,
-    /// GraphQL. Language-parity wave G2.5b.
-    Graphql,
-    /// HTML. Language-parity wave G2.5b.
-    Html,
-    /// Hyprlang. Language-parity wave G2.5b.
-    Hyprlang,
-    /// INI. Language-parity wave G2.5b.
-    Ini,
-    /// Janet. Language-parity wave G2.5b.
-    Janet,
-    /// Jinja2. Language-parity wave G2.5b.
-    Jinja2,
-    /// JSDoc. Language-parity wave G2.5b.
-    Jsdoc,
-    /// JSON. Language-parity wave G2.5b.
-    Json,
-    /// Requirements (pip). Language-parity wave G2.5d/orchestrator
-    /// completion pass.
-    Requirements,
-    /// RON. Language-parity wave G2.5d/orchestrator completion pass.
-    Ron,
-    /// reStructuredText. Language-parity wave G2.5d/orchestrator
-    /// completion pass.
-    Rst,
-    /// SOQL. Language-parity wave G2.5d/orchestrator completion pass.
-    Soql,
-    /// SOSL. Language-parity wave G2.5d/orchestrator completion pass.
-    Sosl,
-    /// SSH client config. Language-parity wave G2.5d/orchestrator
-    /// completion pass.
-    Sshconfig,
-    /// Svelte. Language-parity wave G2.5d/orchestrator completion pass.
-    Svelte,
-    /// TOML. Language-parity wave G2.5d/orchestrator completion pass.
-    Toml,
-    /// Vue. Language-parity wave G2.5d/orchestrator completion pass.
-    Vue,
-    /// XML. Language-parity wave G2.5d/orchestrator completion pass.
-    Xml,
-    /// YAML. Language-parity wave G2.5d/orchestrator completion pass.
-    Yaml,
-    ConfigToml,
-    ConfigJson,
-    ConfigYaml,
-    TextOnly,
 }
 
 impl From<Language> for LanguageTag {
@@ -717,7 +349,7 @@ impl From<Language> for LanguageTag {
 pub struct ImportEdge {
     pub from_file_id: String,
     pub module_path: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// A call edge: `from_file_id` calls `callee` (as written) at `line`.
@@ -725,7 +357,7 @@ pub struct ImportEdge {
 pub struct CallEdge {
     pub from_file_id: String,
     pub callee: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
     /// X06 core parity (cross-repo-intelligence): each call argument's
     /// raw source text, in written order, carried straight through from
     /// [`crate::parsers::CallRef::arg_texts`] -- additive, defaults to
@@ -748,13 +380,13 @@ pub struct CallEdge {
     /// The enclosing symbol's own start line, paired with
     /// [`Self::from_symbol`] -- lets [`crate::resolution`] rebuild that
     /// symbol's stable `sym:` id without a separate name+line lookup.
-    pub from_symbol_line: Option<usize>,
+    pub from_symbol_line: Option<GraphSourceLine>,
     /// The method-call receiver's own text (`x` in `x.foo()`), carried
     /// through from [`crate::parsers::CallRef::receiver_text`].
     pub receiver_text: Option<String>,
     /// Cheap syntactic classification of [`Self::receiver_text`],
     /// carried through from [`crate::parsers::CallRef::receiver_hint`].
-    pub receiver_hint: Option<crate::parsers::ReceiverHint>,
+    pub receiver_hint: Option<ReceiverHint>,
 }
 
 /// A route/endpoint declared in `from_file_id`.
@@ -763,7 +395,7 @@ pub struct RouteEdge {
     pub from_file_id: String,
     pub method: String,
     pub path: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// X06 rich vocabulary (additive): an INHERITS edge -- `sub_id` extends
@@ -774,7 +406,7 @@ pub struct RouteEdge {
 pub struct InheritsEdge {
     pub sub_id: String,
     pub super_name: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// An IMPLEMENTS edge -- `type_id` implements a trait/interface named
@@ -783,7 +415,7 @@ pub struct InheritsEdge {
 pub struct ImplementsEdge {
     pub type_id: String,
     pub trait_name: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// A DECORATES edge -- `target_id` is decorated by `decorator_name`.
@@ -791,7 +423,7 @@ pub struct ImplementsEdge {
 pub struct DecoratesEdge {
     pub target_id: String,
     pub decorator_name: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// A TYPE_REF edge -- `from_id`'s signature references a type named
@@ -800,7 +432,7 @@ pub struct DecoratesEdge {
 pub struct TypeRefEdge {
     pub from_id: String,
     pub type_name: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// A DEFINES edge -- `container_id` defines member symbol `member_id`
@@ -810,7 +442,7 @@ pub struct TypeRefEdge {
 pub struct DefinesEdge {
     pub container_id: String,
     pub member_id: String,
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// One file's entry in the manifest carried between index runs: the
@@ -821,7 +453,7 @@ pub struct DefinesEdge {
 pub struct ManifestEntry {
     pub content_hash: String,
     pub last_commit: Option<String>,
-    pub change_count: usize,
+    pub change_count: GraphChangeCount,
     pub chunk_ids: Vec<String>,
 }
 
@@ -856,33 +488,6 @@ pub struct IndexReport {
 /// distinction: "`full` and `moderate` both compute git history; only
 /// `fast` omits it." Adding a future gated pass should extend this
 /// enum's match arms, not add a parallel boolean flag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum IndexMode {
-    /// Everything this indexer currently supports, including git
-    /// history. The default -- back-compat convenience constructors
-    /// ([`CodeGraph::index_repository`]) always run at this mode.
-    #[default]
-    Full,
-    /// Same file-history computation as [`IndexMode::Full`] in this
-    /// slice (the baseline's moderate/full split is driven entirely by
-    /// the macro-extraction/similarity passes this crate does not
-    /// implement); kept as a distinct variant so a future gated pass has
-    /// somewhere to plug in without another signature change.
-    Moderate,
-    /// Skips git-history computation (`last_commit`/`change_count` stay
-    /// at their defaults: `None`/`0`) for the fastest indexing pass.
-    Fast,
-}
-
-impl IndexMode {
-    /// Whether this mode computes per-file git history
-    /// (`last_commit`/`change_count`). Matches the baseline's
-    /// "`full`/`moderate` compute git history; only `fast` omits it."
-    fn computes_git_history(self) -> bool {
-        !matches!(self, IndexMode::Fast)
-    }
-}
-
 /// X06.8: bundled options for [`CodeGraph::index_repository_with_options`],
 /// the extended entry point that adds indexing-depth gating and the
 /// optional `.codebase-memory/graph.db.zst` persistence artifact on top
@@ -980,19 +585,22 @@ impl CodeGraph {
     /// endpoints, label), so fields that require source text or git
     /// history are left empty instead of guessed.
     pub fn from_store_projection(
-        nodes: &[(String, String)],
-        edges: &[(String, String, String)],
+        nodes: &[OperationalGraphNodeRow],
+        edges: &[OperationalGraphEdgeRow],
     ) -> Self {
         let mut graph = Self::new();
 
-        for (node_id, node_kind) in nodes {
-            graph
-                .nodes
-                .push(code_node_from_store_projection(node_id, node_kind));
+        for row in nodes {
+            graph.nodes.push(code_node_from_store_projection(
+                row.node_id.as_str(),
+                row.node_kind.as_str(),
+            ));
         }
 
-        for (from, to, label) in edges {
-            match normalize_store_projection_kind(label).as_str() {
+        for row in edges {
+            let from = row.from_id.as_str();
+            let to = row.to_id.as_str();
+            match normalize_store_projection_kind(row.label.as_str()).as_str() {
                 "calls" | "call" => graph.calls.push(CallEdge {
                     from_file_id: file_id_for_projection_edge(from),
                     callee: node_name_from_projection_id(to),
@@ -1014,28 +622,28 @@ impl CodeGraph {
                     });
                 }
                 "inherits" | "inherit" => graph.inherits.push(InheritsEdge {
-                    sub_id: from.clone(),
+                    sub_id: from.to_owned(),
                     super_name: node_name_from_projection_id(to),
                     line: line_from_projection_id(to),
                 }),
                 "implements" | "implement" => graph.implements.push(ImplementsEdge {
-                    type_id: from.clone(),
+                    type_id: from.to_owned(),
                     trait_name: node_name_from_projection_id(to),
                     line: line_from_projection_id(to),
                 }),
                 "decorates" | "decorate" => graph.decorates.push(DecoratesEdge {
-                    target_id: from.clone(),
+                    target_id: from.to_owned(),
                     decorator_name: node_name_from_projection_id(to),
                     line: line_from_projection_id(to),
                 }),
                 "typeref" | "type_ref" | "type_refs" => graph.type_refs.push(TypeRefEdge {
-                    from_id: from.clone(),
+                    from_id: from.to_owned(),
                     type_name: node_name_from_projection_id(to),
                     line: line_from_projection_id(to),
                 }),
                 "defines" | "define" => graph.defines.push(DefinesEdge {
-                    container_id: from.clone(),
-                    member_id: to.clone(),
+                    container_id: from.to_owned(),
+                    member_id: to.to_owned(),
                     line: line_from_projection_id(to),
                 }),
                 // `contains` is derived by CodeAdjacency from each symbol's
@@ -1199,7 +807,9 @@ impl CodeGraph {
 
         // Bootstrap-on-index: no local manifest entries yet, but an
         // artifact already exists on disk -- import it before indexing.
-        if previous_manifest.entries.is_empty() && crate::artifacts::artifact_exists(repo_root) {
+        if previous_manifest.entries.is_empty()
+            && crate::artifacts::artifact_exists(repo_root).is_present()
+        {
             let (snapshot, _meta) = crate::artifacts::import_graph_artifact(repo_root)?;
             self.restore_from_snapshot(&snapshot);
         }
@@ -1214,13 +824,20 @@ impl CodeGraph {
             let indexed_at = options
                 .indexed_at
                 .ok_or(IndexWithOptionsError::MissingIndexedAt)?;
-            let snapshot = crate::artifacts::GraphSnapshot::from_code_graph(self);
+            let snapshot =
+                crate::boundary::artifact_transport::GraphSnapshotDto::from_code_graph(self)?;
             let commit = GitMetadata::open(repo_root)
                 .ok()
                 .flatten()
                 .and_then(|g| g.head_commit());
             crate::artifacts::export_graph_artifact(
-                repo_root, &snapshot, project, commit, indexed_at,
+                repo_root,
+                &snapshot,
+                project,
+                commit.map(|commit| {
+                    enforcer_domain::memory_types::GraphArtifactCommit::from(commit.as_str())
+                }),
+                indexed_at,
             )?;
         }
 
@@ -1240,9 +857,9 @@ impl CodeGraph {
         let mut node_events = 0_u64;
         for node in &self.nodes {
             store.append_graph_event(
-                crate::schema::GraphEventKind::NodeAdded {
-                    node_id: node.id().to_owned(),
-                    node_kind: store_projection_node_kind(node).to_owned(),
+                enforcer_domain::memory_types::GraphEventKind::NodeAdded {
+                    node_id: node.id().into(),
+                    node_kind: store_projection_node_kind(node).into(),
                 },
                 ts.to_owned(),
             )?;
@@ -1252,7 +869,11 @@ impl CodeGraph {
         let mut edge_events = 0_u64;
         for (from, to, label) in self.store_projection_edges() {
             store.append_graph_event(
-                crate::schema::GraphEventKind::EdgeAdded { from, to, label },
+                enforcer_domain::memory_types::GraphEventKind::EdgeAdded {
+                    from: from.into(),
+                    to: to.into(),
+                    label: label.into(),
+                },
                 ts.to_owned(),
             )?;
             edge_events += 1;
@@ -1265,23 +886,33 @@ impl CodeGraph {
     }
 
     /// Repopulate this (assumed-empty, freshly constructed) graph from a
-    /// previously exported [`crate::artifacts::GraphSnapshot`] -- the
+    /// previously exported [`crate::boundary::artifact_transport::GraphSnapshotDto`] -- the
     /// "reconstruct node/edge counts" half of bootstrap-on-index. Kept
     /// deliberately additive (append-only, like every other mutation in
     /// this graph): a caller that bootstraps into a non-empty graph gets
     /// the union, not a silent overwrite.
-    fn restore_from_snapshot(&mut self, snapshot: &crate::artifacts::GraphSnapshot) {
+    fn restore_from_snapshot(
+        &mut self,
+        snapshot: &crate::boundary::artifact_transport::GraphSnapshotDto,
+    ) {
         for file in &snapshot.files {
             let node = FileNode {
-                id: file.id.clone(),
-                rel_path: file.rel_path.clone(),
+                id: file.id.as_str().to_owned(),
+                rel_path: file.rel_path.as_str().to_owned(),
                 language: LanguageTag::TextOnly,
-                content_hash: file.content_hash.clone(),
-                last_commit: file.last_commit.clone(),
+                content_hash: file.content_hash.as_str().to_owned(),
+                last_commit: file
+                    .last_commit
+                    .as_ref()
+                    .map(|commit| commit.as_str().to_owned()),
                 change_count: file.change_count,
-                chunk_ids: file.chunk_ids.clone(),
+                chunk_ids: file
+                    .chunk_ids
+                    .iter()
+                    .map(|chunk| chunk.as_str().to_owned())
+                    .collect(),
             };
-            if file.text_only {
+            if file.text_only.is_text_only() {
                 self.nodes.push(CodeNode::TextOnly(node));
             } else {
                 self.nodes.push(CodeNode::File(node));
@@ -1289,9 +920,9 @@ impl CodeGraph {
         }
         for symbol in &snapshot.symbols {
             let node = SymbolNode {
-                id: symbol.id.clone(),
-                name: symbol.name.clone(),
-                file_id: symbol.file_id.clone(),
+                id: symbol.id.as_str().to_owned(),
+                name: symbol.name.as_str().to_owned(),
+                file_id: symbol.file_id.as_str().to_owned(),
                 line: symbol.line,
                 // A snapshot round-trip carries no source text to
                 // recompute complexity metrics from -- they are
@@ -1303,49 +934,63 @@ impl CodeGraph {
                 transitive_metrics: None,
                 source_body_fingerprint: symbol.source_body_fingerprint.as_ref().map(|fp| {
                     SourceBodyFingerprint {
-                        source_hash: fp.source_hash.clone(),
-                        fp: fp.fp.clone(),
-                        k: fp.k,
-                        body_grams: fp.body_grams.iter().cloned().collect(),
+                        source_hash: fp.source_hash.as_str().into(),
+                        fp: fp
+                            .fp
+                            .as_ref()
+                            .map(|fingerprint| fingerprint.as_str().into()),
+                        k: fp.k.map(|value| usize::from(value).into()),
+                        body_grams: fp
+                            .body_grams
+                            .iter()
+                            .map(|gram| gram.as_str().into())
+                            .collect(),
                     }
                 }),
             };
             self.nodes.push(match symbol.kind {
-                crate::artifacts::GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Type => CodeNode::Type(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Test => CodeNode::Test(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Method => CodeNode::Method(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Class => CodeNode::Class(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Struct => CodeNode::Struct(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Interface => CodeNode::Interface(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Enum => CodeNode::Enum(node),
-                crate::artifacts::GraphSymbolKindSnapshot::TypeAlias => CodeNode::TypeAlias(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Module => CodeNode::Module(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Lambda => CodeNode::Lambda(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Variable => CodeNode::Variable(node),
-                crate::artifacts::GraphSymbolKindSnapshot::Constant => CodeNode::Constant(node),
+                GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
+                GraphSymbolKindSnapshot::Type => CodeNode::Type(node),
+                GraphSymbolKindSnapshot::Test => CodeNode::Test(node),
+                GraphSymbolKindSnapshot::Method => CodeNode::Method(node),
+                GraphSymbolKindSnapshot::Class => CodeNode::Class(node),
+                GraphSymbolKindSnapshot::Struct => CodeNode::Struct(node),
+                GraphSymbolKindSnapshot::Interface => CodeNode::Interface(node),
+                GraphSymbolKindSnapshot::Enum => CodeNode::Enum(node),
+                GraphSymbolKindSnapshot::TypeAlias => CodeNode::TypeAlias(node),
+                GraphSymbolKindSnapshot::Module => CodeNode::Module(node),
+                GraphSymbolKindSnapshot::Lambda => CodeNode::Lambda(node),
+                GraphSymbolKindSnapshot::Variable => CodeNode::Variable(node),
+                GraphSymbolKindSnapshot::Constant => CodeNode::Constant(node),
             });
         }
         for tombstone in &snapshot.tombstones {
             self.nodes.push(CodeNode::Tombstone(TombstoneNode {
-                id: tombstone.id.clone(),
-                rel_path: tombstone.rel_path.clone(),
-                last_commit: tombstone.last_commit.clone(),
+                id: tombstone.id.as_str().to_owned(),
+                rel_path: tombstone.rel_path.as_str().to_owned(),
+                last_commit: tombstone
+                    .last_commit
+                    .as_ref()
+                    .map(|commit| commit.as_str().to_owned()),
                 change_count: tombstone.change_count,
-                prior_chunk_ids: tombstone.prior_chunk_ids.clone(),
+                prior_chunk_ids: tombstone
+                    .prior_chunk_ids
+                    .iter()
+                    .map(|chunk| chunk.as_str().to_owned())
+                    .collect(),
             }));
         }
         for edge in &snapshot.imports {
             self.imports.push(ImportEdge {
-                from_file_id: edge.from_file_id.clone(),
-                module_path: edge.module_path.clone(),
+                from_file_id: edge.from_file_id.as_str().to_owned(),
+                module_path: edge.module_path.as_str().to_owned(),
                 line: edge.line,
             });
         }
         for edge in &snapshot.calls {
             self.calls.push(CallEdge {
-                from_file_id: edge.from_file_id.clone(),
-                callee: edge.callee.clone(),
+                from_file_id: edge.from_file_id.as_str().to_owned(),
+                callee: edge.callee.as_str().to_owned(),
                 line: edge.line,
                 // A snapshot round-trip carries no argument source text
                 // (same "dropped, not guessed" rationale as the symbol
@@ -1361,9 +1006,9 @@ impl CodeGraph {
         }
         for edge in &snapshot.routes {
             self.routes.push(RouteEdge {
-                from_file_id: edge.from_file_id.clone(),
-                method: edge.method.clone(),
-                path: edge.path.clone(),
+                from_file_id: edge.from_file_id.as_str().to_owned(),
+                method: edge.method.as_str().to_owned(),
+                path: edge.path.as_str().to_owned(),
                 line: edge.line,
             });
         }
@@ -1389,10 +1034,11 @@ impl CodeGraph {
                 path: rel_path.clone(),
                 source,
             })?;
-            let content_hash = hash_bytes(&content);
+            let content_hash = hash_bytes(ComplexitySourceBytes::from(content.as_slice()));
+            let content_hash_text = content_hash.as_str().to_owned();
 
             let previous = previous_manifest.entries.get(&rel_path);
-            let unchanged_entry = previous.filter(|p| p.content_hash == content_hash);
+            let unchanged_entry = previous.filter(|p| p.content_hash == content_hash_text);
 
             if let Some(entry) = unchanged_entry {
                 let entry = entry.clone();
@@ -1405,7 +1051,11 @@ impl CodeGraph {
             let is_new = previous.is_none();
             let history = if mode.computes_git_history() {
                 git.as_mut()
-                    .map(|g| g.history_for(&rel_path))
+                    .map(|g| {
+                        let rel_path =
+                            enforcer_domain::memory_types::MemoryGitRelativePath::from(&rel_path);
+                        g.history_for(&rel_path)
+                    })
                     .unwrap_or_default()
             } else {
                 crate::git::PathHistory::default()
@@ -1417,7 +1067,7 @@ impl CodeGraph {
             let (file_id, chunk_ids) = self.insert_file_and_chunks(NewFileParams {
                 rel_path: &rel_path,
                 language,
-                content_hash: &content_hash,
+                content_hash: &content_hash_text,
                 history: &history,
                 parsed,
                 text: Some(&text),
@@ -1426,9 +1076,9 @@ impl CodeGraph {
             new_manifest.entries.insert(
                 rel_path.clone(),
                 ManifestEntry {
-                    content_hash,
-                    last_commit: history.last_commit,
-                    change_count: history.change_count,
+                    content_hash: content_hash_text,
+                    last_commit: history.last_commit.map(Into::into),
+                    change_count: history.change_count.get().into(),
                     chunk_ids,
                 },
             );
@@ -1488,7 +1138,7 @@ impl CodeGraph {
     /// for a signal callers use to decide where to *look*, not a
     /// compiler-grade call graph.
     fn propagate_complexity(&mut self) {
-        use crate::complexity::CallGraphNode;
+        use enforcer_domain::memory_types::{ComplexityCallGraph, ComplexityCallGraphNode};
 
         let callable_ids: Vec<(String, usize)> = self
             .nodes
@@ -1529,8 +1179,11 @@ impl CodeGraph {
             let Some(symbol) = self.nodes.get(*idx).and_then(callable_symbol) else {
                 continue;
             };
-            let loop_depth = symbol.metrics.map(|m| m.loop_depth).unwrap_or(0);
-            let self_recursive = symbol.metrics.map(|m| m.self_recursive).unwrap_or(false);
+            let loop_depth = symbol
+                .metrics
+                .map(|m| m.loop_depth)
+                .unwrap_or(enforcer_domain::memory_types::ComplexityMeasure::ZERO);
+            let self_recursive = symbol.metrics.map(|m| m.self_recursive).unwrap_or_default();
 
             let mut callees = Vec::new();
             if let Some(names) = callees_by_file.get(symbol.file_id.as_str()) {
@@ -1542,21 +1195,23 @@ impl CodeGraph {
                         .trim_end_matches(['(', ')']);
                     if let Some(matches) = ids_by_name.get(last) {
                         for candidate in matches {
-                            callees.push((*candidate).to_string());
+                            callees.push((*candidate).to_string().into());
                         }
                     }
                 }
             }
 
-            graph_nodes.push(CallGraphNode {
-                id: id.clone(),
+            graph_nodes.push(ComplexityCallGraphNode {
+                id: id.clone().into(),
                 loop_depth,
                 self_recursive,
                 callees,
             });
         }
 
-        let results = crate::complexity::propagate_transitive_loop_depth(&graph_nodes);
+        let results = crate::complexity::propagate_transitive_loop_depth(ComplexityCallGraph::new(
+            &graph_nodes,
+        ));
 
         for (id, idx) in &callable_ids {
             if let Some(metrics) = results.get(id) {
@@ -1616,32 +1271,40 @@ impl CodeGraph {
             // per file for every callable symbol name/line pair, keyed
             // by `(name, line)` so each symbol below can look its own
             // metrics up without re-parsing per-symbol. `None` (empty
-            // map) for languages [`crate::complexity::ComplexityLanguage`]
+            // map) for languages [`ComplexityLanguage`]
             // has no mapping for -- those symbols simply keep
             // `metrics: None`, same as any resolution miss.
             let metrics_by_symbol = text
                 .zip(complexity_language(language))
                 .map(|(text, lang)| {
-                    let names: Vec<(String, usize)> = parsed
+                    let names: Vec<ComplexitySymbolLocation> = parsed
                         .symbols
                         .iter()
-                        .map(|s| (s.name.clone(), s.line))
+                        .map(|s| ComplexitySymbolLocation::new(s.name.clone(), s.line))
                         .collect();
                     crate::complexity::metrics_for_symbols(lang, text, &names)
                 })
                 .unwrap_or_default();
             let fingerprints_by_symbol = text
-                .map(|text| source_body_fingerprints_for_symbols(text, &parsed.symbols))
+                .map(|text| {
+                    source_body_fingerprints_for_symbols(
+                        ParserSourceText::from(text),
+                        &parsed.symbols,
+                    )
+                })
                 .unwrap_or_default();
 
             for symbol in &parsed.symbols {
                 let sym_id = format!("sym:{rel_path}:{}:{}", symbol.line, symbol.name);
                 let metrics = metrics_by_symbol
-                    .get(&(symbol.name.clone(), symbol.line))
+                    .get(&ComplexitySymbolLocation::new(
+                        symbol.name.clone(),
+                        symbol.line,
+                    ))
                     .copied();
                 let node = SymbolNode {
                     id: sym_id.clone(),
-                    name: symbol.name.clone(),
+                    name: symbol.name.clone().into(),
                     file_id: file_id.clone(),
                     line: symbol.line,
                     metrics,
@@ -1650,7 +1313,7 @@ impl CodeGraph {
                         .get(&(symbol.name.clone(), symbol.line))
                         .cloned(),
                 };
-                sym_id_by_name.insert(symbol.name.clone(), sym_id.clone());
+                sym_id_by_name.insert(symbol.name.clone().into(), sym_id.clone());
                 self.nodes.push(match symbol.kind {
                     parsers::SymbolKind::Function => CodeNode::Function(node),
                     parsers::SymbolKind::Type => CodeNode::Type(node),
@@ -1671,70 +1334,70 @@ impl CodeGraph {
             for import in &parsed.imports {
                 self.imports.push(ImportEdge {
                     from_file_id: file_id.clone(),
-                    module_path: import.module_path.clone(),
+                    module_path: import.module_path.clone().into(),
                     line: import.line,
                 });
             }
             for call in &parsed.calls {
                 self.calls.push(CallEdge {
                     from_file_id: file_id.clone(),
-                    callee: call.callee.clone(),
+                    callee: call.callee.clone().into(),
                     line: call.line,
-                    arg_texts: call.arg_texts.clone(),
-                    from_symbol: call.from_symbol.clone(),
+                    arg_texts: call.arg_texts.iter().cloned().map(Into::into).collect(),
+                    from_symbol: call.from_symbol.clone().map(Into::into),
                     from_symbol_line: call.from_symbol_line,
-                    receiver_text: call.receiver_text.clone(),
+                    receiver_text: call.receiver_text.clone().map(Into::into),
                     receiver_hint: call.receiver_hint,
                 });
             }
             for route in &parsed.routes {
                 self.routes.push(RouteEdge {
                     from_file_id: file_id.clone(),
-                    method: route.method.clone(),
-                    path: route.path.clone(),
+                    method: route.method.clone().into(),
+                    path: route.path.clone().into(),
                     line: route.line,
                 });
             }
             for inherits in &parsed.inherits {
-                if let Some(sub_id) = sym_id_by_name.get(&inherits.sub_name) {
+                if let Some(sub_id) = sym_id_by_name.get(inherits.sub_name.as_str()) {
                     self.inherits.push(InheritsEdge {
                         sub_id: sub_id.clone(),
-                        super_name: inherits.super_name.clone(),
+                        super_name: inherits.super_name.clone().into(),
                         line: inherits.line,
                     });
                 }
             }
             for implements in &parsed.implements {
-                if let Some(type_id) = sym_id_by_name.get(&implements.type_name) {
+                if let Some(type_id) = sym_id_by_name.get(implements.type_name.as_str()) {
                     self.implements.push(ImplementsEdge {
                         type_id: type_id.clone(),
-                        trait_name: implements.trait_name.clone(),
+                        trait_name: implements.trait_name.clone().into(),
                         line: implements.line,
                     });
                 }
             }
             for decorates in &parsed.decorates {
-                if let Some(target_id) = sym_id_by_name.get(&decorates.target_name) {
+                if let Some(target_id) = sym_id_by_name.get(decorates.target_name.as_str()) {
                     self.decorates.push(DecoratesEdge {
                         target_id: target_id.clone(),
-                        decorator_name: decorates.decorator_name.clone(),
+                        decorator_name: decorates.decorator_name.clone().into(),
                         line: decorates.line,
                     });
                 }
             }
             for type_ref in &parsed.type_refs {
-                if let Some(from_id) = sym_id_by_name.get(&type_ref.from_name) {
+                if let Some(from_id) = sym_id_by_name.get(type_ref.from_name.as_str()) {
                     self.type_refs.push(TypeRefEdge {
                         from_id: from_id.clone(),
-                        type_name: type_ref.type_name.clone(),
+                        type_name: type_ref.type_name.clone().into(),
                         line: type_ref.line,
                     });
                 }
             }
             for defines in &parsed.defines {
                 if let (Some(container_id), Some(member_id)) = (
-                    sym_id_by_name.get(&defines.container_name),
-                    sym_id_by_name.get(&defines.member_name),
+                    sym_id_by_name.get(defines.container_name.as_str()),
+                    sym_id_by_name.get(defines.member_name.as_str()),
                 ) {
                     self.defines.push(DefinesEdge {
                         container_id: container_id.clone(),
@@ -1750,8 +1413,8 @@ impl CodeGraph {
             rel_path: rel_path.to_string(),
             language: LanguageTag::from(language),
             content_hash: content_hash.to_string(),
-            last_commit: history.last_commit.clone(),
-            change_count: history.change_count,
+            last_commit: history.last_commit.as_ref().map(ToString::to_string),
+            change_count: history.change_count.get().into(),
             chunk_ids: chunk_ids.clone(),
         };
         if matches!(language, Language::TextOnly) {
@@ -1786,9 +1449,10 @@ impl CodeGraph {
             let from = resolved
                 .from_symbol_id
                 .clone()
+                .map(|id| id.to_string())
                 .unwrap_or_else(|| call.from_file_id.clone());
             for target in &resolved.candidates {
-                edges.push((from.clone(), target.clone(), "calls".to_owned()));
+                edges.push((from.clone(), target.to_string(), "calls".to_owned()));
             }
         }
 
@@ -1915,7 +1579,7 @@ fn file_node_from_projection_id(node_id: &str, _text_only: bool) -> FileNode {
         language: LanguageTag::TextOnly,
         content_hash: String::new(),
         last_commit: None,
-        change_count: 0,
+        change_count: GraphChangeCount::ZERO,
         chunk_ids: Vec::new(),
     }
 }
@@ -1930,7 +1594,7 @@ fn tombstone_from_projection_id(node_id: &str) -> TombstoneNode {
         id: node_id.to_owned(),
         rel_path,
         last_commit: None,
-        change_count: 0,
+        change_count: GraphChangeCount::ZERO,
         prior_chunk_ids: Vec::new(),
     }
 }
@@ -1941,7 +1605,7 @@ fn symbol_node_from_projection_id(node_id: &str) -> SymbolNode {
         id: node_id.to_owned(),
         name,
         file_id,
-        line,
+        line: line.into(),
         metrics: None,
         transitive_metrics: None,
         source_body_fingerprint: None,
@@ -1978,11 +1642,11 @@ fn node_name_from_projection_id(node_id: &str) -> String {
         .to_owned()
 }
 
-fn line_from_projection_id(node_id: &str) -> usize {
+fn line_from_projection_id(node_id: &str) -> GraphSourceLine {
     if node_id.starts_with("sym:") {
-        return symbol_parts_from_projection_id(node_id).1;
+        return symbol_parts_from_projection_id(node_id).1.into();
     }
-    0
+    GraphSourceLine::UNKNOWN
 }
 
 fn file_id_for_projection_edge(node_id: &str) -> String {
@@ -2037,26 +1701,26 @@ fn callable_symbol_mut(node: &mut CodeNode) -> Option<&mut SymbolNode> {
     }
 }
 
-/// Map a [`Language`] to the [`crate::complexity::ComplexityLanguage`]
+/// Map a [`Language`] to the canonical [`ComplexityLanguage`]
 /// its Tier A metrics pass understands, or `None` for a language with
 /// no structural extractor (config/text-only -- `parsed` is already
 /// `None` for those, so this is belt-and-suspenders) or one not yet
 /// wired into `complexity.rs` (wave-B languages: extend this match
 /// alongside `ComplexityLanguage`'s own variants, not by adding a
 /// second parallel mapping elsewhere).
-fn complexity_language(language: Language) -> Option<crate::complexity::ComplexityLanguage> {
+fn complexity_language(language: Language) -> Option<ComplexityLanguage> {
     match language {
-        Language::Rust => Some(crate::complexity::ComplexityLanguage::Rust),
+        Language::Rust => Some(ComplexityLanguage::Rust),
         Language::TypeScript | Language::JavaScript => {
-            Some(crate::complexity::ComplexityLanguage::TypeScriptOrJavaScript)
+            Some(ComplexityLanguage::TypeScriptOrJavaScript)
         }
-        Language::Python => Some(crate::complexity::ComplexityLanguage::Python),
-        Language::Go => Some(crate::complexity::ComplexityLanguage::Go),
-        Language::Java => Some(crate::complexity::ComplexityLanguage::Java),
-        Language::C => Some(crate::complexity::ComplexityLanguage::C),
-        Language::Cpp => Some(crate::complexity::ComplexityLanguage::Cpp),
-        Language::CSharp => Some(crate::complexity::ComplexityLanguage::CSharp),
-        Language::Php => Some(crate::complexity::ComplexityLanguage::Php),
+        Language::Python => Some(ComplexityLanguage::Python),
+        Language::Go => Some(ComplexityLanguage::Go),
+        Language::Java => Some(ComplexityLanguage::Java),
+        Language::C => Some(ComplexityLanguage::C),
+        Language::Cpp => Some(ComplexityLanguage::Cpp),
+        Language::CSharp => Some(ComplexityLanguage::CSharp),
+        Language::Php => Some(ComplexityLanguage::Php),
         // Language-parity wave G2.1a: Kotlin/Swift/TSX are onboarded
         // for structural extraction (symbols/calls/imports/DEFINES/
         // INHERITS) but NOT yet wired into `complexity.rs`'s own

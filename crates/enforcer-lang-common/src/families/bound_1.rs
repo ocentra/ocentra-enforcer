@@ -4,83 +4,212 @@
 //! rule fires on its own literal marker; fail/pass fixtures live under
 //! `fixtures/bound-1/<rule-id>/{fail,pass}.txt`.
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::findings::FindingTitle;
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
-use enforcer_validator::validator::Validator;
+use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::registry::reg;
+use crate::boundary::register_pattern as reg;
 
 /// Build every `BOUND-1` validator.
-pub fn validators() -> Vec<Box<dyn Validator>> {
+pub fn validators() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
     let mut v: Vec<Box<dyn Validator>> = Vec::new();
     reg(
         &mut v,
-        "BOUND-1.1",
-        "Boundary modules require invariant documentation",
+        "BOUND-1.1".parse::<RuleId>()?,
+        "Boundary modules require invariant documentation".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_1_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.2",
-        "Raw boundary input must be converted",
+        "BOUND-1.2".parse::<RuleId>()?,
+        "Raw boundary input must be converted".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_2_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.3",
-        "Boundary modules cannot contain domain decisions",
+        "BOUND-1.3".parse::<RuleId>()?,
+        "Boundary modules cannot contain domain decisions".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_3_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.4",
-        "Domain modules cannot import boundary modules",
+        "BOUND-1.4".parse::<RuleId>()?,
+        "Domain modules cannot import boundary modules".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_4_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.5",
-        "Boundary modules require negative tests",
+        "BOUND-1.5".parse::<RuleId>()?,
+        "Boundary modules require negative tests".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_5_MARKER",
     );
+    v.push(Box::new(BoundaryDeclarationBudget::new()?));
     reg(
         &mut v,
-        "BOUND-1.6",
-        "Boundary raw type count is budgeted",
-        Severity::Error,
-        "ENFORCER_BOUND_1_6_MARKER",
-    );
-    reg(
-        &mut v,
-        "BOUND-1.7",
-        "Boundary glob additions require waiver",
+        "BOUND-1.7".parse::<RuleId>()?,
+        "Boundary glob additions require waiver".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_7_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.8",
-        "Boundary utility filenames are forbidden",
+        "BOUND-1.8".parse::<RuleId>()?,
+        "Boundary utility filenames are forbidden".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_8_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.9",
-        "Boundary DTOs cannot leak into domain signatures",
+        "BOUND-1.9".parse::<RuleId>()?,
+        "Boundary DTOs cannot leak into domain signatures".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_9_MARKER",
     );
     reg(
         &mut v,
-        "BOUND-1.10",
-        "Boundary conversion functions return typed errors",
+        "BOUND-1.10".parse::<RuleId>()?,
+        "Boundary conversion functions return typed errors".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_BOUND_1_10_MARKER",
     );
-    v
+    Ok(v)
+}
+
+#[derive(Debug)]
+struct BoundaryDeclarationBudget {
+    rule_id: RuleId,
+    title: FindingTitle,
+}
+
+impl BoundaryDeclarationBudget {
+    fn new() -> Result<Self, DecodeError> {
+        Ok(Self {
+            rule_id: "BOUND-1.6".parse()?,
+            title: "Boundary raw type count is budgeted".parse()?,
+        })
+    }
+}
+
+impl Validator for BoundaryDeclarationBudget {
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+    fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
+        let source = input.source.as_str();
+        let fixture_marker = "ENFORCER_BOUND_1_6_MARKER";
+        if source.contains(fixture_marker) {
+            return crate::boundary::finding(
+                &self.rule_id,
+                Severity::Error,
+                (self.title.as_str(), "boundary DTO budget marker", None),
+                input.file,
+                1,
+            )
+            .into_iter()
+            .collect();
+        }
+        if !input.file.as_str().contains("boundary") || !input.file.as_str().ends_with(".rs") {
+            return Vec::new();
+        }
+        let declarations = source
+            .lines()
+            .filter_map(crate::boundary::source_analysis::boundary_declaration_name)
+            .filter(|name| {
+                !crate::boundary::source_analysis::has_fallible_domain_conversion(source, name)
+            })
+            .count();
+        if declarations <= 3 {
+            return Vec::new();
+        }
+        crate::boundary::finding(
+            &self.rule_id,
+            Severity::Error,
+            (
+                self.title.as_str(),
+                format!("boundary declares {declarations} raw DTO shapes; budget is 3"),
+                None,
+            ),
+            input.file,
+            1,
+        )
+        .into_iter()
+        .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BoundaryDeclarationBudget;
+    use enforcer_domain::findings::ScanScope;
+    use enforcer_validator::validator::{ValidationInput, Validator};
+
+    #[test]
+    fn reference_heavy_boundary_module_stays_within_declaration_budget(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let validator = BoundaryDeclarationBudget::new()?;
+        let file = crate::boundary::static_rel_path("src/boundary/wire.rs")?;
+        let source = "pub struct EventDto;\nimpl TryFrom<EventDto> for Domain { fn try_from(_: EventDto) -> Result<Self, ()> { todo!() } }\nfn repeat(_: EventDto, _: EventDto, _: EventDto) {}";
+        assert!(validator
+            .validate(ValidationInput {
+                file: &file,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+                scope: ScanScope::Files
+            })
+            .is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn oversized_boundary_declaration_set_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+        let validator = BoundaryDeclarationBudget::new()?;
+        let file = crate::boundary::static_rel_path("src/boundary/wire.rs")?;
+        let source =
+            "pub struct OneDto;\npub struct TwoDto;\npub struct ThreeDto;\npub struct FourDto;";
+        let findings = validator.validate(ValidationInput {
+            file: &file,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+            scope: ScanScope::Files,
+        });
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].rule_id.as_str(), "BOUND-1.6");
+        Ok(())
+    }
+
+    #[test]
+    fn commented_conversion_text_does_not_exempt_a_raw_declaration_set(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let validator = BoundaryDeclarationBudget::new()?;
+        let file = crate::boundary::static_rel_path("src/boundary/wire.rs")?;
+        let source = "pub struct OneDto;\npub struct TwoDto;\npub struct ThreeDto;\npub struct FourDto;\n// impl TryFrom<FourDto> for Four {}";
+        let findings = validator.validate(ValidationInput {
+            file: &file,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+            scope: ScanScope::Files,
+        });
+        assert_eq!(findings.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn converted_boundary_declaration_set_is_not_counted_as_raw(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let validator = BoundaryDeclarationBudget::new()?;
+        let file = crate::boundary::static_rel_path("src/boundary/wire.rs")?;
+        let source = "pub struct OneDto;\npub struct TwoDto;\npub struct ThreeDto;\npub struct FourDto;\nimpl TryFrom<OneDto> for One {}\nimpl TryFrom<TwoDto> for Two {}\nimpl TryFrom<ThreeDto> for Three {}\nimpl TryFrom<FourDto> for Four {}";
+        assert!(validator
+            .validate(ValidationInput {
+                file: &file,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+                scope: ScanScope::Files
+            })
+            .is_empty());
+        Ok(())
+    }
 }

@@ -17,30 +17,18 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::text_scan::lines;
+use crate::boundary::finding::{from_source, SourceFinding};
+use crate::boundary::source_analysis::import_target;
+use crate::boundary::source_text::lines;
 
 const RULE_ID: &str = "TS-4.1";
 
 /// Forbidden (importer-layer-substring, imported-path-substring) pairs.
 const FORBIDDEN_PAIRS: &[(&str, &str)] = &[("/domain/", "/infrastructure/"), ("/domain/", "/ui/")];
 
-fn import_target(line: &str) -> Option<&str> {
-    let trimmed = line.trim_start();
-    if !trimmed.starts_with("import ") && !trimmed.starts_with("export ") {
-        return None;
-    }
-    let from_idx = trimmed.find(" from ")?;
-    let rest = trimmed.get(from_idx + " from ".len()..)?;
-    let quote = rest.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let body = rest.get(1..)?;
-    let closing = body.find(quote)?;
-    body.get(..closing)
-}
-
 /// `typescript/import-boundaries` validator for TS-4.1.
+#[derive(Debug)]
+#[doc = "TypeScript import-boundary validator."]
 pub struct ImportBoundariesValidator {
     rule_id: RuleId,
 }
@@ -49,7 +37,7 @@ impl ImportBoundariesValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: RULE_ID.parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id(RULE_ID)?,
         })
     }
 }
@@ -63,23 +51,25 @@ impl Validator for ImportBoundariesValidator {
         let importer_path = format!("/{}", input.file.as_str());
         let mut findings = Vec::new();
         for line in lines(input.source) {
-            let Some(target) = import_target(line.text) else {
+            let Some(target) = import_target(line.text.as_str()) else {
                 continue;
             };
             for (importer_layer, forbidden_layer) in FORBIDDEN_PAIRS {
                 if importer_path.contains(importer_layer) && target.contains(forbidden_layer) {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "Import boundary policy must be respected".to_owned(),
-                        detail: format!(
-                            "line {}: `{importer_layer}` file imports forbidden `{forbidden_layer}` target `{target}`",
-                            line.number
-                        ),
-                        file: input.file.clone(),
-                        line: line.number,
-                        snippet: Some(line.text.trim().to_owned()),
-                    });
+                    findings.extend(from_source(
+                        &self.rule_id,
+                        input.file,
+                        SourceFinding {
+                            severity: Severity::Error,
+                            title: "Import boundary policy must be respected",
+                            detail: format!(
+                                "line {}: `{importer_layer}` file imports forbidden `{forbidden_layer}` target `{target}`",
+                                line.number
+                            ),
+                            line: line.number,
+                            snippet: Some(line.text.as_str().trim()),
+                        },
+                    ));
                 }
             }
         }
@@ -90,8 +80,7 @@ impl Validator for ImportBoundariesValidator {
 #[cfg(test)]
 mod tests {
     use super::ImportBoundariesValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
+    use crate::boundary::test_fixtures::run_fixture_parity;
 
     #[test]
     fn fires_on_domain_importing_infrastructure_and_stays_silent_on_layered_import(
@@ -99,7 +88,6 @@ mod tests {
         let validator = ImportBoundariesValidator::new()?;
         run_fixture_parity(
             &validator,
-            &PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "fixtures/import-boundaries/ts-4-1/domain/fail.ts",
             "fixtures/import-boundaries/ts-4-1/domain/pass.ts",
         )?;

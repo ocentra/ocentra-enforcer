@@ -35,9 +35,11 @@ human reviewer to catch failures this router and its validators can reject.
    - `test_*.py`, `*_test.py`, `tests/**`: also read Python test docs and common test-double docs.
    - `pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`, `pytest.ini`, `mypy.ini`, `ruff.toml`: read Python toolchain docs.
    - Unknown files: do not load detailed rules unless a failing rule ID exists.
+   - Fileless command/log evidence, `*fileless-telemetry*.json`, and
+     `*fileless-report*`: read `rules/common/fileless-malware.md`.
 
 3. Route by explicit failure.
-   - If a validator returns `RR-*`, `TS-*`, `PY-*`, `SEC-*`, `GEN-*`, `TEST-*`, `PORT-*`, `SRC-*`, `CONTRACT-*`, `DEP-*`, `SBOM-*`, `AI-*`, `DOC-*`, `HAR-*`, `ENF-*`, `CFG-*`, or `WAIVER-*`,
+   - If a validator returns `RR-*`, `TS-*`, `PY-*`, `SEC-*`, `CYBER-*`, `GEN-*`, `TEST-*`, `PORT-*`, `SRC-*`, `CONTRACT-*`, `DEP-*`, `SBOM-*`, `AI-*`, `DOC-*`, `HAR-*`, `ENF-*`, `CFG-*`, or `WAIVER-*`,
      open only the doc listed for that rule in `rules/rules.json`.
    - Use the old full `docs/RustRules.md` only as a legacy fallback for broad
      policy review or missing registry entries.

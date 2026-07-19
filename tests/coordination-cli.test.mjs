@@ -23,6 +23,83 @@ const PACK_ROOT = path.resolve(
 );
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
 
+test("CLI closeout all-owned remains lane-scoped and exact closeout reaches zero", () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-cli-closeout-scope-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-cli-closeout-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"));
+  fs.writeFileSync(path.join(targetRoot, "src", "alpha.rs"), "fn alpha() {}\n");
+  fs.writeFileSync(path.join(targetRoot, "src", "beta.rs"), "fn beta() {}\n");
+
+  const run = (...args) =>
+    spawnCli(
+      process.execPath,
+      [CLI, "coordination", ...args, "--state-root", stateRoot, "--hub", "scope-hub"],
+      { cwd: targetRoot, encoding: "utf8" },
+    );
+
+  const init = run("init", "--lane", "lane-alpha");
+  assert.equal(init.status, 0, init.stderr);
+  for (const [lane, file] of [
+    ["lane-alpha", "src/alpha.rs"],
+    ["lane-beta", "src/beta.rs"],
+  ]) {
+    const claim = run(
+      "claim",
+      "--lane",
+      lane,
+      "--root",
+      targetRoot,
+      "--paths",
+      file,
+      "--reason",
+      `${lane} claim`,
+    );
+    assert.equal(claim.status, 0, claim.stderr);
+  }
+
+  const scoped = run(
+    "closeout",
+    "--lane",
+    "lane-alpha",
+    "--root",
+    targetRoot,
+    "--all-owned",
+    "--no-repair-stale",
+    "--reason",
+    "alpha only",
+  );
+  assert.equal(scoped.status, 0, scoped.stderr);
+  const scopedReport = JSON.parse(scoped.stdout);
+  assert.equal(scopedReport.filters.includeAllLanes, false);
+  assert.equal(scopedReport.initialClaimCount, 1);
+  assert.equal(scopedReport.releasedClaimCount, 1);
+
+  const afterScoped = run("presence");
+  assert.equal(afterScoped.status, 0, afterScoped.stderr);
+  const scopedClaims = JSON.parse(afterScoped.stdout).views.byClaimedPath;
+  assert.equal(scopedClaims["src/alpha.rs"], undefined);
+  assert.equal(scopedClaims["src/beta.rs"][0].lane, "lane-beta");
+
+  const exact = run(
+    "closeout",
+    "--lane",
+    "lane-beta",
+    "--root",
+    targetRoot,
+    "--no-repair-stale",
+    "--reason",
+    "beta exact closeout",
+  );
+  assert.equal(exact.status, 0, exact.stderr);
+  const exactReport = JSON.parse(exact.stdout);
+  assert.equal(exactReport.filters.includeAllLanes, false);
+  assert.equal(exactReport.remainingClaimCount, 0);
+
+  const afterExact = run("presence");
+  assert.equal(afterExact.status, 0, afterExact.stderr);
+  assert.deepEqual(JSON.parse(afterExact.stdout).views.byClaimedPath, {});
+});
+
 test("coordination sync converges local roots and transfers HTTP suffixes only", async () => {
   const leftRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sync-left-"));
   const rightRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sync-right-"));

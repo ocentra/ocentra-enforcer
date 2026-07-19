@@ -16,8 +16,8 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
-use super::spec::redact_line;
-use super::text_scan::{is_comment_only_line, lines};
+use crate::boundary::spec::redact_line;
+use crate::boundary::text_scan::{is_comment_only_line, lines};
 
 /// `SEC-1.1` — inline secrets are forbidden (`appliesTo: **/*`).
 ///
@@ -31,17 +31,28 @@ pub struct InlineSecretsValidator {
     generic_secret: Regex,
 }
 
+impl std::fmt::Debug for InlineSecretsValidator {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InlineSecretsValidator")
+            .field("rule_id", &self.rule_id)
+            .field("patterns", &"<redacted>")
+            .finish()
+    }
+}
+
 impl InlineSecretsValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "SEC-1.1".parse()?,
-            #[allow(clippy::unwrap_used)]
-            openai_key: Regex::new(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b").unwrap(),
-            #[allow(clippy::unwrap_used)]
-            generic_secret: Regex::new(
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::Sec1Rule1.id(),
+            openai_key: crate::boundary::regex::compile(
+                "sec1OpenAiKey",
+                r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b",
+            )?,
+            generic_secret: crate::boundary::regex::compile(
+                "sec1GenericSecret",
                 r#"(?i)\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']"#,
-            )
-            .unwrap(),
+            )?,
         })
     }
 }
@@ -57,23 +68,21 @@ impl Validator for InlineSecretsValidator {
             if is_comment_only_line(line.text) {
                 continue;
             }
-            let hit = if self.openai_key.is_match(line.text) {
+            let hit = if self.openai_key.is_match(line.text.as_str()) {
                 Some("OpenAI key found.")
-            } else if self.generic_secret.is_match(line.text) {
+            } else if self.generic_secret.is_match(line.text.as_str()) {
                 Some("Inline secret-like assignment found.")
             } else {
                 None
             };
             if let Some(detail) = hit {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Inline secrets are forbidden".to_owned(),
-                    detail: detail.to_owned(),
-                    file: input.file.clone(),
-                    line: line.number,
-                    snippet: Some(redact_line(line.text)),
-                });
+                findings.extend(crate::boundary::finding::from_owned_source(
+                    (&self.rule_id, Severity::Error),
+                    "Inline secrets are forbidden",
+                    detail,
+                    input.file,
+                    (line.number, Some(redact_line(line.text.as_str()))),
+                ));
             }
         }
         findings
@@ -90,6 +99,7 @@ impl Validator for InlineSecretsValidator {
 /// return false` short-circuit), then the forbidden set (`.env*`,
 /// `google-services.json`, `GoogleService-Info.plist`, `id_rsa[.pub]`,
 /// `*.pem`/`*.p12`/`*.pfx`/`*.key`) is tested.
+#[derive(Debug)]
 pub struct SensitiveFilesValidator {
     rule_id: RuleId,
     allowed: Vec<Regex>,
@@ -98,32 +108,32 @@ pub struct SensitiveFilesValidator {
 
 impl SensitiveFilesValidator {
     pub fn new() -> Result<Self, DecodeError> {
-        #[allow(clippy::unwrap_used)]
         let allowed = vec![
-            Regex::new(r"(?i)(^|/)\.env\.example$").unwrap(),
-            Regex::new(r"(?i)(^|/)\.env\.sample$").unwrap(),
-            Regex::new(r"(?i)(^|/)\.env\.template$").unwrap(),
+            crate::boundary::regex::compile("sec1EnvExample", r"(?i)(^|/)\.env\.example$")?,
+            crate::boundary::regex::compile("sec1EnvSample", r"(?i)(^|/)\.env\.sample$")?,
+            crate::boundary::regex::compile("sec1EnvTemplate", r"(?i)(^|/)\.env\.template$")?,
         ];
-        #[allow(clippy::unwrap_used)]
         let forbidden = vec![
-            Regex::new(r"(?i)(^|/)\.env(\..+)?$").unwrap(),
-            Regex::new(r"(?i)(^|/)google-services\.json$").unwrap(),
-            Regex::new(r"(^|/)GoogleService-Info\.plist$").unwrap(),
-            Regex::new(r"(?i)(^|/)id_rsa(\.pub)?$").unwrap(),
-            Regex::new(r"(?i)\.(pem|p12|pfx|key)$").unwrap(),
+            crate::boundary::regex::compile("sec1Env", r"(?i)(^|/)\.env(\..+)?$")?,
+            crate::boundary::regex::compile(
+                "sec1GoogleServices",
+                r"(?i)(^|/)google-services\.json$",
+            )?,
+            crate::boundary::regex::compile(
+                "sec1GoogleServiceInfo",
+                r"(^|/)GoogleService-Info\.plist$",
+            )?,
+            crate::boundary::regex::compile("sec1IdRsa", r"(?i)(^|/)id_rsa(\.pub)?$")?,
+            crate::boundary::regex::compile(
+                "sec1PrivateKeyExtension",
+                r"(?i)\.(pem|p12|pfx|key)$",
+            )?,
         ];
         Ok(Self {
-            rule_id: "SEC-1.2".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::Sec1Rule2.id(),
             allowed,
             forbidden,
         })
-    }
-
-    fn is_forbidden(&self, rel: &str) -> bool {
-        if self.allowed.iter().any(|pattern| pattern.is_match(rel)) {
-            return false;
-        }
-        self.forbidden.iter().any(|pattern| pattern.is_match(rel))
     }
 }
 
@@ -134,16 +144,20 @@ impl Validator for SensitiveFilesValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let rel = input.file.as_str();
-        if self.is_forbidden(rel) {
-            vec![Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "Sensitive files are forbidden in source scope".to_owned(),
-                detail: "forbidden sensitive file path".to_owned(),
-                file: input.file.clone(),
-                line: 1,
-                snippet: Some(rel.to_owned()),
-            }]
+        if crate::boundary::source_predicates::path_is_forbidden(
+            input.file,
+            &self.allowed,
+            &self.forbidden,
+        ) {
+            crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "Sensitive files are forbidden in source scope",
+                "forbidden sensitive file path",
+                input.file,
+                (1, Some(rel)),
+            )
+            .into_iter()
+            .collect()
         } else {
             Vec::new()
         }
@@ -152,31 +166,20 @@ impl Validator for SensitiveFilesValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
+    use crate::boundary::fixture::run_manifest_fixture_parity;
     use enforcer_domain::findings::ScanScope;
-    use enforcer_domain::paths::RelPath;
-    use enforcer_validator::harness::run_fixture_parity;
 
     use super::{InlineSecretsValidator, SensitiveFilesValidator};
     use enforcer_validator::validator::{ValidationInput, Validator};
 
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn rel(path: &str) -> RelPath {
-        #[allow(clippy::unwrap_used)]
-        path.parse().unwrap()
-    }
-
     #[test]
     fn inline_secrets_fires_on_openai_key() -> Result<(), Box<dyn std::error::Error>> {
         let validator = InlineSecretsValidator::new()?;
-        let file = rel("src/config.rs");
+        let file = crate::boundary::fixture::rel_path("src/config.rs")?;
+        let source = ["let key = \"sk-", "proj-abcdefghijklmnopqrstuvwx\";"].concat();
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "let key = \"sk-proj-abcdefghijklmnopqrstuvwx\";",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         assert_eq!(findings.len(), 1);
@@ -186,10 +189,12 @@ mod tests {
     #[test]
     fn inline_secrets_silent_on_placeholder() -> Result<(), Box<dyn std::error::Error>> {
         let validator = InlineSecretsValidator::new()?;
-        let file = rel("src/config.rs");
+        let file = crate::boundary::fixture::rel_path("src/config.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "let api_key = std::env::var(\"API_KEY\")?;",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "let api_key = std::env::var(\"API_KEY\")?;",
+            ),
             scope: ScanScope::Files,
         });
         assert!(findings.is_empty());
@@ -199,10 +204,12 @@ mod tests {
     #[test]
     fn sensitive_files_fires_on_dotenv() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SensitiveFilesValidator::new()?;
-        let file = rel(".env");
+        let file = crate::boundary::fixture::rel_path(".env")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "SECRET=abc",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "SECRET=abc",
+            ),
             scope: ScanScope::Files,
         });
         assert_eq!(findings.len(), 1);
@@ -212,10 +219,12 @@ mod tests {
     #[test]
     fn sensitive_files_allows_dotenv_example() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SensitiveFilesValidator::new()?;
-        let file = rel(".env.example");
+        let file = crate::boundary::fixture::rel_path(".env.example")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "SECRET=changeme",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "SECRET=changeme",
+            ),
             scope: ScanScope::Files,
         });
         assert!(findings.is_empty());
@@ -225,9 +234,8 @@ mod tests {
     #[test]
     fn sec_1_1_inline_secrets_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
         let validator = InlineSecretsValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/sec-1-1/fail.rs",
             "fixtures/sec-1-1/pass.rs",
         )?;
@@ -237,9 +245,8 @@ mod tests {
     #[test]
     fn sec_1_2_sensitive_files_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SensitiveFilesValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/sec-1-2/fail/.env",
             "fixtures/sec-1-2/pass/.env.example",
         )?;

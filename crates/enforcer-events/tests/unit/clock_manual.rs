@@ -7,18 +7,20 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+// CANCELLATION-TEST: every spawned manual-clock operation is retained and joined;
+// timeout cases verify the losing future is cancelled without wall-clock sleeps.
 
-use tokio::{sync::Notify, task::yield_now};
+use tokio::{
+    sync::{Mutex, Notify},
+    task::yield_now,
+};
 
 use crate::{
     AggregateKey, DispatchMode, DomainEvent, EventBus, EventClock, EventContract, EventQueuePolicy,
     EventResponseContract, EventType, EventingError, HandlerExecutionPolicy, IdempotencyKey,
-    ManualEventClock, RequestCompletionOutcome, RequestEvent, RequestId, RequestOptions,
-    SchemaVersion,
+    ManualEventClock, RequestEvent, RequestId, RequestOptions, SchemaVersion,
 };
-use enforcer_events::bus::reports::dead_letter::DeadLetterReason;
-use enforcer_events::bus::reports::handler::HandlerOutcome;
+use enforcer_domain::events_types::{DeadLetterReason, HandlerOutcome, RequestCompletionOutcome};
 
 use super::fixtures::{
     metadata, subscriber, subscriber_for_event, test_event, TestText, TEST_LABEL, TEST_TARGET,
@@ -37,16 +39,16 @@ async fn manual_clock_advances_registered_sleepers_without_wall_clock_sleep(
     let completed = Arc::new(AtomicUsize::new(0));
     let completed_clone = Arc::clone(&completed);
     let sleeper = tokio::spawn(async move {
-        sleeper_clock.sleep(Duration::from_millis(10)).await;
+        sleeper_clock.sleep(Duration::from_millis(10).into()).await;
         completed_clone.fetch_add(1, Ordering::SeqCst);
     });
 
-    yield_until(|| clock.pending_sleep_count() == 1).await?;
-    clock.advance(Duration::from_millis(9));
+    yield_until(|| crate::event_count_value(clock.pending_sleep_count()) == 1).await?;
+    clock.advance(Duration::from_millis(9).into());
     yield_now().await;
     assert_eq!(completed.load(Ordering::SeqCst), 0);
 
-    clock.advance(Duration::from_millis(1));
+    clock.advance(Duration::from_millis(1).into());
     sleeper.await?;
     assert_eq!(completed.load(Ordering::SeqCst), 1);
     Ok(())
@@ -56,7 +58,8 @@ async fn manual_clock_advances_registered_sleepers_without_wall_clock_sleep(
 async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_ttl(Duration::from_millis(10))?;
+    let policy = EventQueuePolicy::no_subscriber_queue(crate::event_count(2))?
+        .with_ttl(Duration::from_millis(10).into())?;
     let bus = EventBus::with_queue_policy_and_clock(policy, clock.shared());
 
     bus.publish(
@@ -64,7 +67,7 @@ async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
         metadata(TestText(TEST_TARGET.to_owned()))?,
     )
     .await?;
-    clock.advance(Duration::from_millis(11));
+    clock.advance(Duration::from_millis(11).into());
     bus.subscribe::<super::fixtures::TestEvent, _, _>(
         subscriber(
             TestText("manual-clock-subscriber".to_owned()),
@@ -75,8 +78,8 @@ async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
     .await?;
     let drain = bus.drain_queued(DispatchMode::Sequential).await?;
 
-    assert_eq!(drain.expired_count, 0);
-    assert_eq!(drain.dispatched_count, 0);
+    assert_eq!(crate::event_count_value(drain.expired_count), 0);
+    assert_eq!(crate::event_count_value(drain.dispatched_count), 0);
     assert_eq!(bus.dead_letters().await.len(), 1);
     Ok(())
 }
@@ -104,9 +107,9 @@ async fn manual_clock_dead_letters_past_deadline_without_dispatch(
     .await?;
     let deadline = clock
         .now()
-        .checked_add(Duration::from_millis(5))
+        .checked_add(Duration::from_millis(5).into())
         .ok_or("deadline fits manual clock")?;
-    clock.advance(Duration::from_millis(6));
+    clock.advance(Duration::from_millis(6).into());
 
     let report = bus
         .publish(
@@ -117,8 +120,8 @@ async fn manual_clock_dead_letters_past_deadline_without_dispatch(
     let dead_letters = bus.dead_letters().await;
 
     assert_eq!(attempts.load(Ordering::SeqCst), 0);
-    assert_eq!(report.subscriber_count, 0);
-    assert_eq!(report.dead_letter_count, 1);
+    assert_eq!(crate::event_count_value(report.subscriber_count), 0);
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
     assert_eq!(dead_letters[0].reason, DeadLetterReason::DeadlineExpired);
     Ok(())
 }
@@ -128,7 +131,7 @@ async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_handler_policy_and_clock(
-        HandlerExecutionPolicy::new(Some(Duration::from_millis(5)), 2)?,
+        HandlerExecutionPolicy::new(Some(Duration::from_millis(5).into()), crate::event_count(2))?,
         clock.shared(),
     );
     let attempts = Arc::new(AtomicUsize::new(0));
@@ -144,7 +147,7 @@ async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
             let handler_attempts = Arc::clone(&handler_attempts);
             async move {
                 handler_attempts.fetch_add(1, Ordering::SeqCst);
-                handler_clock.sleep(Duration::from_millis(50)).await;
+                handler_clock.sleep(Duration::from_millis(50).into()).await;
                 Ok(())
             }
         },
@@ -153,20 +156,35 @@ async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let publish =
-        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish_task = async move { publish_bus.publish(publish_event, publish_metadata).await };
+    let publish = tokio::spawn(publish_task);
 
-    yield_until(|| attempts.load(Ordering::SeqCst) == 1 && clock.pending_sleep_count() >= 2)
-        .await?;
-    clock.advance(Duration::from_millis(5));
-    yield_until(|| attempts.load(Ordering::SeqCst) == 2 && clock.pending_sleep_count() >= 3)
-        .await?;
-    clock.advance(Duration::from_millis(5));
+    yield_until(|| {
+        attempts.load(Ordering::SeqCst) == 1
+            && clock
+                .pending_sleep_count()
+                .as_nonzero()
+                .is_some_and(|count| count.get() >= 2)
+    })
+    .await?;
+    clock.advance(Duration::from_millis(5).into());
+    yield_until(|| {
+        attempts.load(Ordering::SeqCst) == 2
+            && clock
+                .pending_sleep_count()
+                .as_nonzero()
+                .is_some_and(|count| count.get() >= 3)
+    })
+    .await?;
+    clock.advance(Duration::from_millis(5).into());
 
     let report = publish.await??;
     assert_eq!(attempts.load(Ordering::SeqCst), 2);
-    assert_eq!(report.handler_reports[0].attempts, 2);
-    assert_eq!(report.dead_letter_count, 1);
+    assert_eq!(
+        crate::event_count_value(report.handler_reports[0].attempts),
+        2
+    );
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
     Ok(())
 }
 
@@ -175,7 +193,7 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_handler_policy_and_clock(
-        HandlerExecutionPolicy::new(None, 3)?,
+        HandlerExecutionPolicy::new(None, crate::event_count(3))?,
         clock.shared(),
     );
     let attempts = Arc::new(AtomicUsize::new(0));
@@ -191,9 +209,11 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
             let handler_attempts = Arc::clone(&handler_attempts);
             async move {
                 handler_attempts.fetch_add(1, Ordering::SeqCst);
-                handler_clock.sleep(Duration::from_millis(1)).await;
+                handler_clock.sleep(Duration::from_millis(1).into()).await;
                 Err(EventingError::EmptyValue {
-                    field: "manual_clock_deadline_retry",
+                    field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                        "manual_clock_deadline_retry",
+                    ),
                 })
             }
         },
@@ -201,16 +221,16 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
     .await?;
     let deadline = clock
         .now()
-        .checked_add(Duration::from_millis(1))
+        .checked_add(Duration::from_millis(1).into())
         .ok_or("deadline fits manual clock")?;
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?.with_deadline(deadline);
-    let publish =
-        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish_task = async move { publish_bus.publish(publish_event, publish_metadata).await };
+    let publish = tokio::spawn(publish_task);
 
-    yield_until(|| clock.pending_sleep_count() >= 1).await?;
-    clock.advance(Duration::from_millis(1));
+    yield_until(|| clock.pending_sleep_count().as_nonzero().is_some()).await?;
+    clock.advance(Duration::from_millis(1).into());
 
     let report = publish.await??;
     assert_eq!(attempts.load(Ordering::SeqCst), 1);
@@ -218,8 +238,11 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
         report.handler_reports[0].outcome,
         HandlerOutcome::DeadlineExpired
     );
-    assert_eq!(report.handler_reports[0].attempts, 1);
-    assert_eq!(report.dead_letter_count, 1);
+    assert_eq!(
+        crate::event_count_value(report.handler_reports[0].attempts),
+        1
+    );
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
     Ok(())
 }
 
@@ -229,9 +252,11 @@ async fn manual_clock_drives_request_timeout_and_late_completion_without_wall_cl
     let clock = ManualEventClock::new();
     let bus = EventBus::with_clock(clock.shared());
     let outcomes = Arc::new(Mutex::new(Vec::new()));
+    let late_task = Arc::new(Mutex::new(None));
     let late_sleep_registered = Arc::new(Notify::new());
     let handler_clock = clock.clone();
     let handler_outcomes = Arc::clone(&outcomes);
+    let handler_late_task = Arc::clone(&late_task);
     let handler_late_sleep_registered = Arc::clone(&late_sleep_registered);
     bus.subscribe::<ClockRequestEvent, _, _>(
         subscriber_for_event(
@@ -242,21 +267,21 @@ async fn manual_clock_drives_request_timeout_and_late_completion_without_wall_cl
         move |context| {
             let handler_clock = handler_clock.clone();
             let handler_outcomes = Arc::clone(&handler_outcomes);
+            let handler_late_task = Arc::clone(&handler_late_task);
             let handler_late_sleep_registered = Arc::clone(&handler_late_sleep_registered);
             async move {
-                tokio::spawn(async move {
-                    let sleep = handler_clock.sleep(Duration::from_millis(20));
+                let task = async move {
+                    let sleep = handler_clock.sleep(Duration::from_millis(20).into());
                     handler_late_sleep_registered.notify_one();
                     sleep.await;
                     let completion = context.complete_request(ClockResponse::approved()).await?;
-                    let Ok(mut guard) = handler_outcomes.lock() else {
-                        return Err(EventingError::EmptyValue {
-                            field: "outcomes_lock_poisoned",
-                        });
-                    };
+                    let mut guard = handler_outcomes.lock().await;
                     guard.push(completion.outcome);
                     Ok::<(), EventingError>(())
-                });
+                };
+                let handle = tokio::spawn(task);
+                let mut slot = handler_late_task.lock().await;
+                *slot = Some(handle);
                 Ok(())
             }
         },
@@ -265,7 +290,7 @@ async fn manual_clock_drives_request_timeout_and_late_completion_without_wall_cl
     let request_bus = bus.clone();
     let request_event = ClockRequestEvent::new()?;
     let request_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let request_timeout = RequestOptions::with_timeout(Duration::from_millis(5))?;
+    let request_timeout = RequestOptions::with_timeout(Duration::from_millis(5).into())?;
     let request = tokio::spawn(async move {
         request_bus
             .publish_request(request_event, request_metadata, request_timeout)
@@ -273,29 +298,40 @@ async fn manual_clock_drives_request_timeout_and_late_completion_without_wall_cl
     });
 
     late_sleep_registered.notified().await;
-    yield_until(|| clock.pending_sleep_count() >= 2).await?;
-    clock.advance(Duration::from_millis(5));
+    yield_until(|| {
+        clock
+            .pending_sleep_count()
+            .as_nonzero()
+            .is_some_and(|count| count.get() >= 2)
+    })
+    .await?;
+    clock.advance(Duration::from_millis(5).into());
     let result = request.await?;
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
 
-    clock.advance(Duration::from_millis(20));
-    yield_until(|| matches!(outcomes.lock(), Ok(guard) if !guard.is_empty())).await?;
-    let Ok(outcomes_guard) = outcomes.lock() else {
-        return Err("outcomes lock poisoned".into());
+    clock.advance(Duration::from_millis(20).into());
+    let late_task = {
+        let mut slot = late_task.lock().await;
+        slot.take()
     };
+    let Some(late_task) = late_task else {
+        return Err("late task was not recorded".into());
+    };
+    late_task.await??;
+    let outcomes_guard = outcomes.lock().await;
     assert_eq!(outcomes_guard.as_slice(), &[RequestCompletionOutcome::Late]);
     Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ClockRequestEvent {
-    request_id: RequestId,
+    request_id: String,
 }
 
 impl ClockRequestEvent {
     fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            request_id: RequestId::parse(CLOCK_REQUEST_ID)?,
+            request_id: CLOCK_REQUEST_ID.to_owned(),
         })
     }
 }
@@ -304,16 +340,16 @@ impl DomainEvent for ClockRequestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             EventType::parse(CLOCK_REQUEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(CLOCK_REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(CLOCK_REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(CLOCK_REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(CLOCK_REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -321,7 +357,7 @@ impl RequestEvent for ClockRequestEvent {
     type Response = ClockResponse;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 

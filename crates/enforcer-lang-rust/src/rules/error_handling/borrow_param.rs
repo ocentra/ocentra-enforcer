@@ -11,17 +11,17 @@
 //! heuristic that a genuine ownership-transfer case should waive, not an
 //! infallible dataflow proof.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{FnArg, ItemFn, Pat, Type};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The `RUST-BORROW-1.1` `Validator`.
+#[derive(Debug)]
 pub struct BorrowParamValidator {
     rule_id: RuleId,
 }
@@ -31,7 +31,7 @@ impl BorrowParamValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-BORROW-1.1".parse()?,
+            rule_id: BuiltInRustRule::BorrowParam.id(),
         })
     }
 }
@@ -42,12 +42,12 @@ impl Validator for BorrowParamValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -55,7 +55,7 @@ impl Validator for BorrowParamValidator {
     }
 }
 
-fn param_name_and_owned_string(arg: &FnArg) -> Option<String> {
+fn param_name_and_owned_string(arg: &FnArg) -> Option<&syn::Ident> {
     let FnArg::Typed(pat_type) = arg else {
         return None;
     };
@@ -73,33 +73,34 @@ fn param_name_and_owned_string(arg: &FnArg) -> Option<String> {
     let Pat::Ident(pat_ident) = pat_type.pat.as_ref() else {
         return None;
     };
-    Some(pat_ident.ident.to_string())
+    Some(&pat_ident.ident)
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
         for arg in &item.sig.inputs {
             if let Some(name) = param_name_and_owned_string(arg) {
-                let line = u32::try_from(arg.span().start().line.max(1)).unwrap_or(u32::MAX);
-                self.findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Warning,
-                    title: format!("param `{name}: String` taken by value"),
-                    detail: format!(
+                let line = crate::boundary::finding::source_line(arg);
+                let Ok(finding) = crate::boundary::finding::from_source(
+                    (self.rule_id, Severity::Warning),
+                    format!("param `{name}: String` taken by value"),
+                    format!(
                         "Fix: if `fn {}` only reads `{name}`, borrow it as `&str` instead of \
                          taking ownership of a `String`.",
                         item.sig.ident
                     ),
-                    file: self.file.clone(),
+                    self.file,
                     line,
-                    snippet: None,
-                });
+                ) else {
+                    return;
+                };
+                self.findings.push(finding);
             }
         }
         visit::visit_item_fn(self, item);
@@ -108,15 +109,10 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::BorrowParamValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_owned_string_and_silent_on_borrowed_str() -> Result<(), Box<dyn std::error::Error>>
@@ -124,7 +120,6 @@ mod tests {
         let validator = BorrowParamValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/borrow-param/fail_owned_string.rs",
             "fixtures/borrow-param/pass_borrowed_str.rs",
         )?;
@@ -132,13 +127,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = BorrowParamValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

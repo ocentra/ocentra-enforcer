@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Portable in-process typed event bus vendored from OcentraParent's ocentra-eventing crate: DomainEvent + EventEnvelope<E> with stored-decode-verifies-contract, correlation/causation ids, panic-isolated dispatch, journaling, queueing, and request/response. Zero dependency on the rest of the Enforcer workspace so it can be lifted into any other Rust project unchanged."
+description = "Typed in-process event runtime using canonical enforcer-domain values, with contract-verified storage, panic-isolated dispatch, journaling, queueing, and request/response."
 publish = false
 
 [dependencies]
@@ -13,10 +13,13 @@ publish = false
 chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde", "std"] }
 # DEPENDENCY-JUSTIFICATION: async stream and future composition for event delivery.
 futures = "0.3.31"
+thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt", "sync", "time"] }
+# DEPENDENCY-JUSTIFICATION: canonical event IDs, statuses, counts, durations, and journal brands shared across crates.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 
 [lints]
 workspace = true

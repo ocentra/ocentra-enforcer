@@ -50,8 +50,8 @@ export function helperAssertsWireRoundTrip(definition) {
 }
 
 /** Describes generic round-trip helpers only after their internal dataflow is proven. */
-export function roundTripHelperDescriptors(source) {
-  return helperDefinitions(source).flatMap((definition) => {
+export function roundTripHelperDescriptors(source, masked = undefined) {
+  return helperDefinitions(source, masked).flatMap((definition) => {
     const assertsInternally = helperAssertsInputRoundTrip(definition)
       || helperAssertsWireRoundTrip(definition);
     if (assertsInternally) return [{ name: definition.name, assertsInternally: true }];

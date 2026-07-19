@@ -21,331 +21,273 @@
 //! data-driven family rather than splitting into separate modules.
 //!
 //! Several rows encode a JS-source `condition && !markerPresent(line)`
-//! shape (SEC-2.11/.12/.14 "real secret WITHOUT an allowed placeholder
+//! shape (SEC-2.11/.12/.14 "real secret WITHOUT an allowed safe-value
 //! marker"; SEC-2.16/.17/.18 "tool invocation WITHOUT its required
 //! flag"). Rust's `regex` crate has no negative lookaround, so those rows
 //! use [`RuleSpec::suppressed_by_any_of`]: the base `pattern` matches the
 //! positive shape, and a hit is suppressed if the marker pattern ALSO
 //! matches the same line — the two-regex equivalent of the JS `&& !`.
 
+use crate::boundary::spec::{RuleBehavior, RuleSpec};
 use enforcer_domain::boundary::decode_error::DecodeError;
-use regex::Regex;
+use enforcer_domain::ids::BuiltInSecurityRule;
 
-use super::spec::{MatchTarget, RuleSpec};
+const ANY_SECRET_PATTERN: &str = r#"(?i)\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']"#;
+const ENV_PLACEHOLDER_ALLOWED_PATTERN: &str =
+    r"(?i)example|placeholder|changeme|replace_me|dummy|fake|test|<[^>]+>|\$\{[^}]+\}";
+const FIXTURE_MARKER_ALLOWED_PATTERN: &str = r"(?i)\bfake\b|\bfixture\b|\bexample\b";
 
 /// Build every one of the 20 `SEC-2.*` specs. Fails closed (propagates the
 /// first regex-compile error) rather than constructing a partially valid
 /// table — see [`super::registry::build_all`] for the caller contract.
-#[allow(clippy::too_many_lines, clippy::vec_init_then_push)]
-pub fn specs() -> Result<Vec<RuleSpec>, DecodeError> {
-    let any_secret = any_secret_pattern();
-    let env_placeholder_allowed = env_placeholder_allowed_pattern();
-    let fixture_marker_allowed = fixture_marker_allowed_pattern();
+pub(crate) fn specs() -> Result<Vec<RuleSpec>, DecodeError> {
+    let compile = |pattern| crate::boundary::regex::compile("securityRulePattern", pattern);
+    let any_secret = ANY_SECRET_PATTERN;
+    let env_placeholder_allowed = ENV_PLACEHOLDER_ALLOWED_PATTERN;
+    let fixture_marker_allowed = FIXTURE_MARKER_ALLOWED_PATTERN;
 
-    let mut specs = Vec::new();
+    let specs = [
+        // SEC-2.1 — GitHub tokens (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_...`).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule1,
+            "GitHub tokens are forbidden",
+            "GitHub token found.",
+            compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.2 — AWS access keys (`AKIA` + 16 uppercase-alnum).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule2,
+            "AWS access keys are forbidden",
+            "AWS access key found.",
+            compile(r"\bAKIA[0-9A-Z]{16}\b")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.3 — Google service account JSON markers.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule3,
+            "Google service account JSON is forbidden",
+            "Google service account JSON marker found.",
+            compile(r#""type"\s*:\s*"service_account"|"private_key_id"\s*:"#)?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.4 — Azure credential assignments.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule4,
+            "Azure credentials are forbidden",
+            "Azure credential assignment found.",
+            compile(r"(?i)\bAZURE_(?:CLIENT_SECRET|TENANT_ID|CLIENT_ID)\b\s*[:=]")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.5 — Slack/Discord tokens.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule5,
+            "Slack and Discord tokens are forbidden",
+            "Slack or Discord token found.",
+            compile(r"(?i)\bxox[baprs]-[A-Za-z0-9-]{10,}\b|discord(?:app)?\.[A-Za-z0-9_-]{20,}")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.6 — JWT-looking three-segment tokens.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule6,
+            "JWT-looking secrets are forbidden",
+            "JWT-looking token found.",
+            compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.7 — PEM-style private key blocks.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule7,
+            "Private key blocks are forbidden",
+            "private key block found.",
+            compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.8 — npm/PyPI/Cargo registry tokens.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule8,
+            "Package registry tokens are forbidden",
+            "package registry token found.",
+            compile(
+                r"\b(?:npm_[A-Za-z0-9]{20,}|pypi-[A-Za-z0-9_-]{20,}|CARGO_REGISTRY_TOKEN\s*=)",
+            )?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.9 — Stripe live/test keys.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule9,
+            "Stripe keys are forbidden",
+            "Stripe key found.",
+            compile(r"\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b")?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.10 — high-entropy secret assignments (32+ character encoded
+        // value assigned to a secret/token/password/key identifier).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule10,
+            "High-entropy secret assignments are forbidden",
+            "high-entropy secret assignment found.",
+            compile(
+                r#"(?i)\b(?:secret|token|password|key)\b\s*[:=]\s*["'][A-Za-z0-9+/=_-]{32,}["']"#,
+            )?,
+            RuleBehavior::content(),
+        ),
+        // SEC-2.11 — `.env.example` must carry only sentinel-looking
+        // values: fire on a real-looking secret assignment UNLESS the line
+        // also carries one of the safe-value forms recognized by
+        // `ENV_PLACEHOLDER_ALLOWED` in the JS source.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule11,
+            ".env.example may contain placeholders only",
+            ".env.example contains a real-looking secret.",
+            compile(any_secret)?,
+            RuleBehavior::unguarded_content_suppressed(compile(env_placeholder_allowed)?),
+        ),
+        // SEC-2.12 — same shape as SEC-2.11 for `.env.template`.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule12,
+            ".env.template may contain placeholders only",
+            ".env.template contains a real-looking secret.",
+            compile(any_secret)?,
+            RuleBehavior::unguarded_content_suppressed(compile(env_placeholder_allowed)?),
+        ),
+        // SEC-2.13 — secret-looking values are forbidden in snapshot/test
+        // artifacts. The JS source keys this off `context.isTestLike`, a
+        // classification this crate's per-line `Validator` contract does not
+        // carry; ported as an unconditional real-secret-shape check, with the
+        // rule's fixtures living under a `snapshot`-shaped fixture path to
+        // document the intended scope (arc-14+'s scan orchestration is
+        // expected to route only test/snapshot files to this rule).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule13,
+            "Secrets are forbidden in snapshots",
+            "secret-looking value found in snapshot/test artifact.",
+            compile(any_secret)?,
+            RuleBehavior::unguarded_content(),
+        ),
+        // SEC-2.14 — fixture secrets require an explicit sentinel on the
+        // same line: fire on a real-looking secret assignment UNLESS the line
+        // also carries one of the accepted fixture sentinels.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule14,
+            "Fixture secrets require fake markers",
+            "fixture secret lacks explicit fake marker.",
+            compile(any_secret)?,
+            RuleBehavior::unguarded_content_suppressed(compile(fixture_marker_allowed)?),
+        ),
+        // SEC-2.15 — secret diagnostics must redact matched values. The
+        // scanner's OWN output redaction is enforced structurally by
+        // `super::spec::redact_line` (every finding's snippet is redacted
+        // before construction), so this rule's fixtures prove the
+        // CONTRAPOSITIVE: a line that looks like un-redacted diagnostic
+        // output (carries a real secret-shaped literal) is the fail shape; a
+        // `[REDACTED]` sentinel in the same position is the pass shape
+        // (the shared secret-shape pattern requires 16+ literal chars inside
+        // matching quotes, which `[REDACTED]` does not satisfy).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule15,
+            "Secret diagnostics must redact matched values",
+            "diagnostic output line carries an unredacted secret-looking value.",
+            compile(any_secret)?,
+            RuleBehavior::unguarded_content(),
+        ),
+        // SEC-2.16 — Gitleaks invocations must emit SARIF: fire on a
+        // `gitleaks detect|protect|dir|git` command line UNLESS it also
+        // carries `sarif` or `--report-format sarif`.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule16,
+            "Secret scanners must emit SARIF",
+            "Gitleaks command does not emit SARIF.",
+            compile(r"(?i)\bgitleaks\s+(?:detect|protect|dir|git)\b")?,
+            RuleBehavior::command_suppressed(compile(r"(?i)\bsarif\b|--report-format\s+sarif")?),
+        ),
+        // SEC-2.17 — Gitleaks findings must be normalized through
+        // Enforcer/SARIF: same command shape as SEC-2.16, suppressed by
+        // either `ocentra-enforcer` or `--report-format sarif`.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule17,
+            "Gitleaks findings must be normalized",
+            "Gitleaks command is not normalized through Enforcer/SARIF.",
+            compile(r"(?i)\bgitleaks\s+(?:detect|protect|dir|git)\b")?,
+            RuleBehavior::command_suppressed(compile(
+                r"(?i)\bocentra-enforcer\b|--report-format\s+sarif",
+            )?),
+        ),
+        // SEC-2.18 — TruffleHog findings must be normalized through
+        // JSON/Enforcer: fire on a bare `trufflehog` invocation UNLESS it
+        // also carries `--json`/`json`/`ocentra-enforcer`.
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule18,
+            "TruffleHog findings must be normalized",
+            "TruffleHog command is not normalized through JSON/Enforcer.",
+            compile(r"(?i)\btrufflehog\b")?,
+            RuleBehavior::command_suppressed(compile(
+                r"(?i)--json\b|\bjson\b|\bocentra-enforcer\b",
+            )?),
+        ),
+        // SEC-2.19 — committed SSH private key files (path-based).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule19,
+            "Committed SSH keys are forbidden",
+            "SSH key file found in source scope.",
+            compile(r"(?i)(^|/)(?:id_rsa|id_ed25519|id_ecdsa|id_dsa)(?:\.pub)?$")?,
+            RuleBehavior::path(),
+        ),
+        // SEC-2.20 — mobile secret config files (path-based).
+        RuleSpec::new(
+            BuiltInSecurityRule::Sec2Rule20,
+            "Mobile secret config files are forbidden",
+            "mobile secret config file found in source scope.",
+            compile(r"(^|/)(?:google-services\.json|GoogleService-Info\.plist)$")?,
+            RuleBehavior::path(),
+        ),
+    ];
 
-    // SEC-2.1 — GitHub tokens (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_...`).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.1",
-        title: "GitHub tokens are forbidden",
-        detail: "GitHub token found.",
-        pattern: compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.2 — AWS access keys (`AKIA` + 16 uppercase-alnum).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.2",
-        title: "AWS access keys are forbidden",
-        detail: "AWS access key found.",
-        pattern: compile(r"\bAKIA[0-9A-Z]{16}\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.3 — Google service account JSON markers.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.3",
-        title: "Google service account JSON is forbidden",
-        detail: "Google service account JSON marker found.",
-        pattern: compile(r#""type"\s*:\s*"service_account"|"private_key_id"\s*:"#)?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.4 — Azure credential assignments.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.4",
-        title: "Azure credentials are forbidden",
-        detail: "Azure credential assignment found.",
-        pattern: compile(r"(?i)\bAZURE_(?:CLIENT_SECRET|TENANT_ID|CLIENT_ID)\b\s*[:=]")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.5 — Slack/Discord tokens.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.5",
-        title: "Slack and Discord tokens are forbidden",
-        detail: "Slack or Discord token found.",
-        pattern: compile(
-            r"(?i)\bxox[baprs]-[A-Za-z0-9-]{10,}\b|discord(?:app)?\.[A-Za-z0-9_-]{20,}",
-        )?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.6 — JWT-looking three-segment tokens.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.6",
-        title: "JWT-looking secrets are forbidden",
-        detail: "JWT-looking token found.",
-        pattern: compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.7 — PEM-style private key blocks.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.7",
-        title: "Private key blocks are forbidden",
-        detail: "private key block found.",
-        pattern: compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.8 — npm/PyPI/Cargo registry tokens.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.8",
-        title: "Package registry tokens are forbidden",
-        detail: "package registry token found.",
-        pattern: compile(
-            r"\b(?:npm_[A-Za-z0-9]{20,}|pypi-[A-Za-z0-9_-]{20,}|CARGO_REGISTRY_TOKEN\s*=)",
-        )?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.9 — Stripe live/test keys.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.9",
-        title: "Stripe keys are forbidden",
-        detail: "Stripe key found.",
-        pattern: compile(r"\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.10 — high-entropy secret assignments (32+ char base64-ish
-    // value assigned to a secret/token/password/key identifier).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.10",
-        title: "High-entropy secret assignments are forbidden",
-        detail: "high-entropy secret assignment found.",
-        pattern: compile(
-            r#"(?i)\b(?:secret|token|password|key)\b\s*[:=]\s*["'][A-Za-z0-9+/=_-]{32,}["']"#,
-        )?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.11 — `.env.example` must carry only placeholder-looking
-    // values: fire on a real-looking secret assignment UNLESS the line
-    // also carries an allowed placeholder marker (`example`,
-    // `placeholder`, `changeme`, `replace_me`, `dummy`, `fake`, `test`,
-    // `<...>`, `${...}` — `ENV_PLACEHOLDER_ALLOWED` in the JS source).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.11",
-        title: ".env.example may contain placeholders only",
-        detail: ".env.example contains a real-looking secret.",
-        pattern: compile(&any_secret)?,
-        target: MatchTarget::Content,
-        comment_guard: false,
-        suppressed_by_any_of: Some(compile(&env_placeholder_allowed)?),
-    });
-
-    // SEC-2.12 — same shape as SEC-2.11 for `.env.template`.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.12",
-        title: ".env.template may contain placeholders only",
-        detail: ".env.template contains a real-looking secret.",
-        pattern: compile(&any_secret)?,
-        target: MatchTarget::Content,
-        comment_guard: false,
-        suppressed_by_any_of: Some(compile(&env_placeholder_allowed)?),
-    });
-
-    // SEC-2.13 — secret-looking values are forbidden in snapshot/test
-    // artifacts. The JS source keys this off `context.isTestLike`, a
-    // classification this crate's per-line `Validator` contract does not
-    // carry; ported as an unconditional real-secret-shape check, with the
-    // rule's fixtures living under a `snapshot`-shaped fixture path to
-    // document the intended scope (arc-14+'s scan orchestration is
-    // expected to route only test/snapshot files to this rule).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.13",
-        title: "Secrets are forbidden in snapshots",
-        detail: "secret-looking value found in snapshot/test artifact.",
-        pattern: compile(&any_secret)?,
-        target: MatchTarget::Content,
-        comment_guard: false,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.14 — fixture secrets require an explicit fake marker on the
-    // same line: fire on a real-looking secret assignment UNLESS the line
-    // also carries `fake`, `fixture`, or `example`.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.14",
-        title: "Fixture secrets require fake markers",
-        detail: "fixture secret lacks explicit fake marker.",
-        pattern: compile(&any_secret)?,
-        target: MatchTarget::Content,
-        comment_guard: false,
-        suppressed_by_any_of: Some(compile(&fixture_marker_allowed)?),
-    });
-
-    // SEC-2.15 — secret diagnostics must redact matched values. The
-    // scanner's OWN output redaction is enforced structurally by
-    // `super::spec::redact_line` (every finding's snippet is redacted
-    // before construction), so this rule's fixtures prove the
-    // CONTRAPOSITIVE: a line that looks like un-redacted diagnostic
-    // output (carries a real secret-shaped literal) is the fail shape; a
-    // `[REDACTED]` placeholder in the same position is the pass shape
-    // (the shared secret-shape pattern requires 16+ literal chars inside
-    // matching quotes, which `[REDACTED]` does not satisfy).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.15",
-        title: "Secret diagnostics must redact matched values",
-        detail: "diagnostic output line carries an unredacted secret-looking value.",
-        pattern: compile(&any_secret)?,
-        target: MatchTarget::Content,
-        comment_guard: false,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.16 — Gitleaks invocations must emit SARIF: fire on a
-    // `gitleaks detect|protect|dir|git` command line UNLESS it also
-    // carries `sarif` or `--report-format sarif`.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.16",
-        title: "Secret scanners must emit SARIF",
-        detail: "Gitleaks command does not emit SARIF.",
-        pattern: compile(r"(?i)\bgitleaks\s+(?:detect|protect|dir|git)\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: Some(compile(r"(?i)\bsarif\b|--report-format\s+sarif")?),
-    });
-
-    // SEC-2.17 — Gitleaks findings must be normalized through
-    // Enforcer/SARIF: same command shape as SEC-2.16, suppressed by
-    // either `ocentra-enforcer` or `--report-format sarif`.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.17",
-        title: "Gitleaks findings must be normalized",
-        detail: "Gitleaks command is not normalized through Enforcer/SARIF.",
-        pattern: compile(r"(?i)\bgitleaks\s+(?:detect|protect|dir|git)\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: Some(compile(
-            r"(?i)\bocentra-enforcer\b|--report-format\s+sarif",
-        )?),
-    });
-
-    // SEC-2.18 — TruffleHog findings must be normalized through
-    // JSON/Enforcer: fire on a bare `trufflehog` invocation UNLESS it
-    // also carries `--json`/`json`/`ocentra-enforcer`.
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.18",
-        title: "TruffleHog findings must be normalized",
-        detail: "TruffleHog command is not normalized through JSON/Enforcer.",
-        pattern: compile(r"(?i)\btrufflehog\b")?,
-        target: MatchTarget::Content,
-        comment_guard: true,
-        suppressed_by_any_of: Some(compile(r"(?i)--json\b|\bjson\b|\bocentra-enforcer\b")?),
-    });
-
-    // SEC-2.19 — committed SSH private key files (path-based).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.19",
-        title: "Committed SSH keys are forbidden",
-        detail: "SSH key file found in source scope.",
-        pattern: compile(r"(?i)(^|/)(?:id_rsa|id_ed25519|id_ecdsa|id_dsa)(?:\.pub)?$")?,
-        target: MatchTarget::Path,
-        comment_guard: false,
-        suppressed_by_any_of: None,
-    });
-
-    // SEC-2.20 — mobile secret config files (path-based).
-    specs.push(RuleSpec {
-        rule_id: "SEC-2.20",
-        title: "Mobile secret config files are forbidden",
-        detail: "mobile secret config file found in source scope.",
-        pattern: compile(r"(^|/)(?:google-services\.json|GoogleService-Info\.plist)$")?,
-        target: MatchTarget::Path,
-        comment_guard: false,
-        suppressed_by_any_of: None,
-    });
-
-    Ok(specs)
-}
-
-fn compile(pattern: &str) -> Result<Regex, DecodeError> {
-    Regex::new(pattern).map_err(|source| {
-        DecodeError::new("securityRulePattern", format!("invalid regex: {source}"))
-    })
-}
-
-/// The generic real-looking-secret-assignment shape shared by several
-/// SEC-2 rows (mirrors `SECRET_RE` in `src/generic-scanner-shared.mjs`).
-fn any_secret_pattern() -> String {
-    r#"(?i)\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']"#
-        .to_owned()
-}
-
-/// `ENV_PLACEHOLDER_ALLOWED` from `src/generic-scanner-shared.mjs`: the set
-/// of markers that make an otherwise real-looking `.env.example`/
-/// `.env.template` value acceptable.
-fn env_placeholder_allowed_pattern() -> String {
-    r"(?i)example|placeholder|changeme|replace_me|dummy|fake|test|<[^>]+>|\$\{[^}]+\}".to_owned()
-}
-
-/// The fixture-fake-marker allowance for SEC-2.14 (`fake`/`fixture`/
-/// `example`, matching `scanSecretLine`'s own inline check).
-fn fixture_marker_allowed_pattern() -> String {
-    r"(?i)\bfake\b|\bfixture\b|\bexample\b".to_owned()
+    specs.into_iter().collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-    use enforcer_validator::validator::Validator;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
+    use enforcer_validator::validator::{ValidationInput, Validator};
 
     use super::specs;
-    use crate::rules::spec::SpecValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
+    use crate::boundary::spec::SpecValidator;
 
     #[test]
     fn all_twenty_specs_construct_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let built = specs()?;
         assert_eq!(built.len(), 20);
+        Ok(())
+    }
+
+    #[test]
+    fn sec_2_18_requires_command_context_without_hiding_real_commands(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let spec = specs()?
+            .into_iter()
+            .find(|spec| spec.rule_id().as_str() == "SEC-2.18")
+            .ok_or("SEC-2.18 spec missing")?;
+        let validator = SpecValidator::new(spec)?;
+        let file = crate::boundary::fixture::rel_path(
+            "crates/enforcer-lang-security/src/rules/generic_scanner.rs",
+        )?;
+        let rule_definition = ["compile(r\"(?i)\\btruffle", "hog\\b\")?"].concat();
+        let command = ["run: truffle", "hog filesystem ."].concat();
+        let rule_findings = validator.validate(ValidationInput {
+            file: &file,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                &rule_definition,
+            ),
+            scope: enforcer_domain::findings::ScanScope::Files,
+        });
+        let command_findings = validator.validate(ValidationInput {
+            file: &file,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&command),
+            scope: enforcer_domain::findings::ScanScope::Files,
+        });
+        assert!(rule_findings.is_empty());
+        assert_eq!(command_findings.len(), 1);
         Ok(())
     }
 
@@ -471,10 +413,10 @@ mod tests {
         for spec in built {
             let (_, fail, pass) = fixture_pairs
                 .iter()
-                .find(|(rule_id, _, _)| *rule_id == spec.rule_id)
-                .ok_or_else(|| format!("no fixture pair registered for {}", spec.rule_id))?;
+                .find(|(rule_id, _, _)| *rule_id == spec.rule_id().as_str())
+                .ok_or_else(|| format!("no fixture pair registered for {}", spec.rule_id()))?;
             let validator = SpecValidator::new(spec)?;
-            run_fixture_parity(&validator, &manifest_dir(), fail, pass)
+            run_manifest_fixture_parity(&validator, fail, pass)
                 .map_err(|e| format!("{}: {e}", validator.rule_id()))?;
         }
         Ok(())

@@ -14,10 +14,10 @@
 //! project store. Then re-open the store and prove every appended
 //! observation reads back with the SAME content it was written with.
 
-use enforcer_memory::ids::ProjectId;
+use enforcer_domain::memory_types::ProjectId;
+use enforcer_memory::boundary::log_schema::{ObservationLogEntryDto, SCHEMA_VERSION};
 use enforcer_memory::ingest::parse_ndjson;
 use enforcer_memory::log::read_verified;
-use enforcer_memory::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use enforcer_memory::store::manifest::ArtifactManifest;
 use enforcer_memory::store::Store;
 
@@ -61,12 +61,12 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     let mut artifacts = ArtifactManifest::open(&artifacts_root)?;
     let artifact_id = artifacts.put(
         raw.as_bytes(),
-        Some("memory/streams/arc-17.ndjson"),
+        Some("memory/streams/arc-17.ndjson".into()),
         "2026-07-04T00:00:00Z",
     )?;
     let round_tripped = artifacts.get(&artifact_id)?;
     assert_eq!(
-        round_tripped,
+        round_tripped.as_ref(),
         raw.as_bytes(),
         "the real stream file must round-trip byte-for-byte through the content-addressed manifest"
     );
@@ -80,25 +80,26 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
 
     let expected_len = records.len();
     for record in &records {
+        let record_wire = record.to_dto();
         let repo_context = record
-            .landed_at
+            .landed_at()
             .first()
             .cloned()
-            .unwrap_or_else(|| record.applies_to.first().cloned().unwrap_or_default());
-        let clean = record.landed_at.is_empty();
+            .unwrap_or_else(|| record_wire.applies_to.first().cloned().unwrap_or_default());
+        let clean = record.landed_at().is_empty();
         store
             .observation_log_mut()
-            .append_with_seq(|seq| ObservationLogEntry {
+            .append_with_seq(|seq| ObservationLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq,
-                id: record.id.clone(),
-                lesson_id: record.id.clone(),
+                seq: seq.into(),
+                id: record.id().to_owned(),
+                lesson_id: record.id().to_owned(),
                 rule_id: None,
                 fault_class: None,
                 repo_context,
                 clean,
                 source_surface: "real-stream-ingest-test".to_owned(),
-                ts: record.ts.clone(),
+                ts: record_wire.ts,
                 supersedes_seq: None,
                 payload_kind: None,
                 payload: None,
@@ -106,7 +107,7 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     }
     assert_eq!(
         store.observation_log_mut().high_watermark(),
-        expected_len as u64
+        enforcer_domain::memory_types::Seq::from_log_position(expected_len as u64)
     );
 
     // 4. Re-open the store (a fresh handle, proving persistence -- not
@@ -114,7 +115,9 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     //    verifying the hash chain against its independent sidecar.
     let log_path = store.observation_log_path();
     drop(store);
-    let outcome = read_verified::<ObservationLogEntry>(&log_path, |e| e.seq)?;
+    let outcome = read_verified::<ObservationLogEntryDto>(&log_path, |e| {
+        enforcer_domain::memory_types::Seq::from_log_position(e.seq)
+    })?;
     assert!(
         outcome.quarantined.is_empty(),
         "no row should be quarantined on a clean real ingest: {:?}",
@@ -123,11 +126,13 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     assert_eq!(outcome.entries.len(), expected_len);
     for (record, entry) in records.iter().zip(outcome.entries.iter()) {
         assert_eq!(
-            record.id, entry.id,
+            record.id(),
+            entry.id,
             "read-back id must match the source record's id"
         );
         assert_eq!(
-            record.ts, entry.ts,
+            record.to_dto().ts,
+            entry.ts,
             "read-back timestamp must match the source record's ts"
         );
     }

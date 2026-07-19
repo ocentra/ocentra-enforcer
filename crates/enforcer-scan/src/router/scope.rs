@@ -14,83 +14,38 @@
 //! paths (and therefore languages) outside the requested scope.
 
 use enforcer_domain::paths::RelPath;
-
-/// The scope a route plan applies to. Default is [`RouteScope::Repo`]
-/// (whole-repo, honest default); every other variant is an explicit
-/// narrowing request from the caller (an AI, a CLI flag, or the f03 tie
-/// config).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum RouteScope {
-    /// The whole repository. Default — no narrowing was requested.
-    #[default]
-    Repo,
-    /// A Cargo workspace as a unit (all member crates together).
-    Workspace,
-    /// One Cargo crate, identified by its manifest directory (repo-relative
-    /// path to the crate root, e.g. `crates/enforcer-scan`).
-    Crate(String),
-    /// One non-Cargo package (e.g. a `package.json` package), identified by
-    /// its manifest directory.
-    Package(String),
-    /// An arbitrary repo-relative folder, not tied to a manifest.
-    Folder(String),
-    /// A named domain/monorepo sub-project grouping (e.g. `apps/web`,
-    /// `services/billing`) — a folder-shaped narrowing with a semantic
-    /// label distinct from a bare [`RouteScope::Folder`].
-    Domain(String),
-    /// A git diff range — the route plan applies only to files touched
-    /// between two commit-ish endpoints. Carries no endpoints itself (those
-    /// live in [`crate::scope::ResolvedScope`]); this variant just marks
-    /// that the plan was narrowed by diff rather than by a static path.
-    Diff,
-}
-
-impl RouteScope {
-    /// The repo-relative root this scope narrows to, if any. `None` for
-    /// [`RouteScope::Repo`], [`RouteScope::Workspace`], and
-    /// [`RouteScope::Diff`] (none of which are a single static path root).
-    pub fn root(&self) -> Option<&str> {
-        match self {
-            RouteScope::Repo | RouteScope::Workspace | RouteScope::Diff => None,
-            RouteScope::Crate(root)
-            | RouteScope::Package(root)
-            | RouteScope::Folder(root)
-            | RouteScope::Domain(root) => Some(root.as_str()),
-        }
-    }
-
-    /// Does `path` fall under this scope? [`RouteScope::Repo`] and
-    /// [`RouteScope::Workspace`] admit every path (no narrowing).
-    /// [`RouteScope::Diff`] is resolved by the caller's pre-filtered path
-    /// list, not by this predicate, so it also admits every path it is
-    /// asked about here. The path-rooted variants admit only paths under
-    /// their `root`.
-    pub fn admits(&self, path: &RelPath) -> bool {
-        match self.root() {
-            Some(root) => {
-                let candidate = path.as_str();
-                candidate == root || candidate.starts_with(&format!("{root}/"))
-            }
-            None => true,
-        }
-    }
-}
+use enforcer_domain::scan_types::RouteScope;
 
 /// Narrow a walked, repo-relative path list down to only the paths
 /// [`RouteScope::admits`]. Pure and total: an empty `paths` or a scope that
 /// admits nothing both yield an empty result, never a fallback to "admit
 /// everything" — an honest empty narrowing, not a false whole-repo route.
 pub fn narrow<'a>(paths: &'a [RelPath], scope: &RouteScope) -> Vec<&'a RelPath> {
-    paths.iter().filter(|p| scope.admits(p)).collect()
+    paths
+        .iter()
+        .filter(|path| scope_admits(scope, path))
+        .collect()
+}
+
+fn scope_admits(scope: &RouteScope, path: &RelPath) -> bool {
+    let Some(root) = scope.root() else {
+        return true;
+    };
+    path == root
+        || path
+            .as_str()
+            .strip_prefix(root.as_str())
+            .is_some_and(|suffix| suffix.starts_with('/'))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{narrow, RouteScope};
+    use super::narrow;
+    use enforcer_domain::scan_types::RouteScope;
     use std::str::FromStr;
 
-    fn rel(path: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
-        Ok(enforcer_domain::paths::RelPath::from_str(path)?)
+    fn rel(literal: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
+        Ok(enforcer_domain::paths::RelPath::from_str(literal)?)
     }
 
     #[test]
@@ -107,7 +62,7 @@ mod tests {
             rel("crates/enforcer-scan/src/lib.rs")?,
             rel("crates/enforcer-core/src/lib.rs")?,
         ];
-        let scope = RouteScope::Crate("crates/enforcer-scan".to_owned());
+        let scope = RouteScope::Crate("crates/enforcer-scan".parse()?);
         let narrowed = narrow(&paths, &scope);
         assert_eq!(narrowed.len(), 1);
         assert_eq!(narrowed[0].as_str(), "crates/enforcer-scan/src/lib.rs");
@@ -118,7 +73,7 @@ mod tests {
     fn folder_scope_excludes_siblings_with_shared_prefix() -> Result<(), Box<dyn std::error::Error>>
     {
         let paths = vec![rel("apps/web/index.ts")?, rel("apps/web2/index.ts")?];
-        let scope = RouteScope::Folder("apps/web".to_owned());
+        let scope = RouteScope::Folder("apps/web".parse()?);
         let narrowed = narrow(&paths, &scope);
         assert_eq!(narrowed.len(), 1);
         assert_eq!(narrowed[0].as_str(), "apps/web/index.ts");
@@ -129,7 +84,7 @@ mod tests {
     fn scope_admitting_nothing_yields_honest_empty_result() -> Result<(), Box<dyn std::error::Error>>
     {
         let paths = vec![rel("crates/enforcer-scan/src/lib.rs")?];
-        let scope = RouteScope::Crate("crates/enforcer-other".to_owned());
+        let scope = RouteScope::Crate("crates/enforcer-other".parse()?);
         assert!(narrow(&paths, &scope).is_empty());
         Ok(())
     }

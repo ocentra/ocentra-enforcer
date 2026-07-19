@@ -1,7 +1,7 @@
-import type { UiFindingRow } from "../bindings/UiFindingRow";
-import type { UiReportPayload } from "../bindings/UiReportPayload";
+import type { UiFindingRowResponse } from "../bindings/UiFindingRowResponse";
+import type { UiReportResponse } from "../bindings/UiReportResponse";
 
-type ReportFinding = UiFindingRow & {
+type ReportFinding = UiFindingRowResponse & {
   doc?: string;
   waiverId?: string;
   waiverOwner?: string;
@@ -10,7 +10,7 @@ type ReportFinding = UiFindingRow & {
   waiverSource?: string;
 };
 
-export type EnforcerReport = UiReportPayload & {
+export type EnforcerReport = UiReportResponse & {
   violations: ReportFinding[];
   warnings: ReportFinding[];
   waived: ReportFinding[];

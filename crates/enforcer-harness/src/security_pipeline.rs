@@ -16,7 +16,7 @@
 //!   engine is required in CI), rejects malformed or dishonest shapes
 //!   with typed decode failures, and mints the branded values every
 //!   other module consumes.
-//! - [`seam`] is the shared branded vocabulary those values are made of.
+//! - `enforcer-domain::harness_types` owns the shared branded vocabulary.
 //! - The stage modules own the branded outcome types and the pass/fail
 //!   GATES (each an `enforcer_validator::Validator`), one gate per
 //!   module:
@@ -51,5 +51,4 @@ pub mod crypto_localnet;
 pub mod fuzz;
 pub mod observability;
 pub mod observability_sampling;
-pub mod seam;
 pub mod static_analysis;

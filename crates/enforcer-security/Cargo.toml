@@ -23,11 +23,13 @@ syn = { version = "=2.0.118", features = ["full", "extra-traits", "visit"] }
 proc-macro2 = { version = "=1.0.106", features = ["span-locations"] }
 # DEPENDENCY-JUSTIFICATION: Track H validators use shared decode errors,
 # branded domain values, and the common validator contract.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: property tests exercise the policy-ingestion parser
+# across generated category documents and prove stable first-occurrence mapping.
+proptest = "=1.9.0"
 # DEPENDENCY-JUSTIFICATION: external integration tests load the production
 # registry and mechanization parity harness rather than test doubles.
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }

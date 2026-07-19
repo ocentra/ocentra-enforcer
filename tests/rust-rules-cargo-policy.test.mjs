@@ -2,13 +2,47 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { makeProject, runGate, runGateArgs, expectFailure, expectFailures } from './rust-rules-fixture.mjs';
+
+function refreshLock(project) {
+  const result = spawnSync('cargo', ['generate-lockfile', '--offline'], {
+    cwd: project,
+    encoding: 'utf8',
+    shell: false,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+}
 test('Cargo wildcard dependency fails with RR-9.1', () => {
   const project = makeProject({
     'src/lib.rs': 'pub struct UserId;\n',
   });
   fs.appendFileSync(path.join(project, 'Cargo.toml'), '\n[dependencies]\nserde = "*"\n', 'utf8');
   expectFailure(project, 'RR-9.1');
+});
+
+test('locked Cargo metadata rejects a stale lock without mutating Cargo.lock', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub struct Value;\n',
+    'helper/Cargo.toml': `
+[package]
+name = "helper"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+`,
+    'helper/src/lib.rs': 'pub struct Helper;\n',
+  });
+  const manifest = path.join(project, 'Cargo.toml');
+  const lockPath = path.join(project, 'Cargo.lock');
+  const before = fs.readFileSync(lockPath, 'utf8');
+  fs.appendFileSync(manifest, '\n[dependencies]\nhelper = { path = "helper" }\n', 'utf8');
+
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.notEqual(result.status, 0, output);
+  assert.match(output, /RR-9\.25/u, output);
+  assert.equal(fs.readFileSync(lockPath, 'utf8'), before);
 });
 
 test('private test parse helpers do not require property or fuzz evidence', () => {
@@ -253,6 +287,7 @@ edition = "2021"
 pub fn load_user(id: &str) -> Option<&str> { Some(id) }
 `,
   });
+  refreshLock(project);
   const result = runGateArgs(project, ['scan', '--files', 'crates/good/src/lib.rs']);
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
@@ -292,6 +327,7 @@ rust-version = "1.75"
 pub fn load_user(id: &str) -> Option<&str> { Some(id) }
 `,
   });
+  refreshLock(project);
   const result = runGateArgs(project, ['scan', '--crate', 'good-crate']);
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });

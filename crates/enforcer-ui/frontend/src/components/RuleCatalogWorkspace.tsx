@@ -36,9 +36,9 @@ export function RuleCatalogWorkspace({
   catalog: CatalogRule[];
   catalogLoading: boolean;
   catalogError: string;
-  coverage?: ProjectRuleCoverage;
+  coverage?: ProjectRuleCoverage | undefined;
   overrides: RuleOverride[];
-  focusRuleId?: string;
+  focusRuleId?: string | undefined;
   onUpdateOverride: (override: RuleOverride) => Promise<void>;
 }) {
   const [view, setView] = useState<CatalogView>("detected");
@@ -195,7 +195,7 @@ function EmptyInspector() {
   return <div className="empty-inspector"><BookOpenCheck size={24} /><strong>Select a numbered rule</strong><small>Its source, trigger, fixture contract, and project policy state appear here.</small></div>;
 }
 
-function OverrideDialog({ rule, existing, onClose, onSave }: { rule: CatalogRule; existing?: RuleOverride; onClose: () => void; onSave: (override: RuleOverride) => Promise<void> }) {
+function OverrideDialog({ rule, existing, onClose, onSave }: { rule: CatalogRule; existing?: RuleOverride | undefined; onClose: () => void; onSave: (override: RuleOverride) => Promise<void> }) {
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const [severity, setSeverity] = useState<RuleSeverity>(existing?.severity ?? rule.severity);
   const [owner, setOwner] = useState(existing?.waiver?.owner ?? "");

@@ -308,7 +308,7 @@ fn strip_extended_length_prefix(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{parse_all, workspace_root, HashSet};
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

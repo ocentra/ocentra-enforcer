@@ -14,8 +14,8 @@
 //! NEVER write into the checked-in fixture tree, and NEVER touch the real
 //! `~/.codex` (the live session's actual config).
 
+use enforcer_domain::install_types::InstallRequestContext;
 use enforcer_install::adapters::codex::CodexAdapter;
-use enforcer_install::cli_contract::RequestContext;
 use enforcer_install::core::HarnessAdapter;
 use enforcer_install::error::InstallError;
 use std::path::{Path, PathBuf};
@@ -43,7 +43,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
 }
 
 /// Stand up an isolated temp-dir copy of `fixture_name`, returning the
-/// `TempDir` handle (kept alive for the test's duration) plus the fake
+/// `TempDir` handle (kept alive for the test's duration) plus the fixture
 /// `enforcer` binary path every test registers.
 fn isolated_fixture(
     fixture_name: &str,
@@ -52,7 +52,7 @@ fn isolated_fixture(
     copy_dir_all(&fixture_root(fixture_name), dir.path())?;
     let binary = dir.path().join("bin").join("enforcer");
     std::fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-    std::fs::write(&binary, b"fake-enforcer-binary")?;
+    std::fs::write(&binary, b"fixture-enforcer-binary")?;
     Ok((dir, binary))
 }
 
@@ -63,26 +63,35 @@ fn golden(name: &str) -> Result<String, std::io::Error> {
 #[test]
 fn pass_fixture_install_then_verify_is_all_green() -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("pass")?;
-    let adapter = CodexAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let plan = adapter.plan(&ctx)?;
-    assert!(!plan.is_noop(), "fresh pass fixture must have work to do");
+    assert!(
+        !plan.planned_changes.is_empty(),
+        "fresh pass fixture must have work to do"
+    );
     let applied = adapter.apply(&plan)?;
-    assert!(applied.all_succeeded());
+    assert!(applied.applied.iter().all(|change| matches!(
+        change.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    )));
 
     let verify = adapter.verify(&ctx)?;
     assert!(
-        verify.all_passed(),
+        verify.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )),
         "expected every check green, got {verify:?}"
     );
 
     // The pre-existing unrelated mcp_servers entry + table must have
     // survived the merge (never a destructive overwrite).
     let raw = std::fs::read_to_string(adapter.config_toml_path())?;
-    assert!(raw.contains("other-tool"));
-    assert!(raw.contains("keep = \"me\""));
-    assert!(raw.contains("[mcp_servers.enforcer]"));
+    assert!(raw.as_str().contains("other-tool"));
+    assert!(raw.as_str().contains("keep = \"me\""));
+    assert!(raw.as_str().contains("[mcp_servers.enforcer]"));
 
     // Descriptor + global AGENTS.md + skill all exist.
     assert!(adapter.agent_descriptor_path().is_file());
@@ -101,18 +110,24 @@ fn descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip(
     let fixed = raw.replace("PLACEHOLDER_BINARY_PATH", &escaped_binary);
     std::fs::write(&config_toml_path, fixed)?;
 
-    let adapter = CodexAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let verify = adapter.verify(&ctx)?;
-    assert!(!verify.all_passed());
+    assert!(!verify.checks.iter().all(|check| matches!(
+        check.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    )));
     let descriptor_check = verify
         .checks
         .iter()
-        .find(|c| c.name == "agent-descriptor-present")
+        .find(|check| check.name.as_str() == "agent-descriptor-present")
         .ok_or("expected an agent-descriptor-present check to be present, not skipped")?;
-    assert!(!descriptor_check.passed);
-    assert!(!descriptor_check.detail.is_empty());
+    assert!(!matches!(
+        descriptor_check.status,
+        enforcer_domain::install_types::CheckStatus::Passed
+    ));
+    assert!(!descriptor_check.detail.as_str().is_empty());
     Ok(())
 }
 
@@ -120,8 +135,8 @@ fn descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip(
 fn config_toml_fail_fixture_verify_fails_closed_with_typed_error(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("config_toml_fail")?;
-    let adapter = CodexAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let result = adapter.verify(&ctx);
     assert!(
@@ -143,8 +158,8 @@ fn config_toml_fail_fixture_verify_fails_closed_with_typed_error(
 fn pass_fixture_round_trip_install_uninstall_restores_unrelated_state(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("pass")?;
-    let adapter = CodexAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary);
+    let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
     let install_plan = adapter.plan(&ctx)?;
     adapter.apply(&install_plan)?;
@@ -152,13 +167,17 @@ fn pass_fixture_round_trip_install_uninstall_restores_unrelated_state(
     assert!(adapter.skill_md_path().is_file());
 
     let uninstall_plan = adapter.plan_uninstall(&ctx)?;
-    assert!(!uninstall_plan.is_noop());
+    assert_eq!(
+        uninstall_plan.planned_changes.len(),
+        4,
+        "uninstall must remove the MCP registration, managed block, agent descriptor, and skill"
+    );
     adapter.apply_uninstall(&uninstall_plan)?;
 
     let post = std::fs::read_to_string(adapter.config_toml_path())?;
-    assert!(post.contains("other-tool"));
-    assert!(post.contains("keep = \"me\""));
-    assert!(!post.contains("[mcp_servers.enforcer]"));
+    assert!(post.as_str().contains("other-tool"));
+    assert!(post.as_str().contains("keep = \"me\""));
+    assert!(!post.as_str().contains("[mcp_servers.enforcer]"));
     assert!(!adapter.agent_descriptor_path().is_file());
     assert!(!adapter.skill_md_path().is_file());
     Ok(())
@@ -195,7 +214,9 @@ fn global_agents_md_block_matches_golden_snapshot() -> Result<(), Box<dyn std::e
         "global AGENTS.md managed block diverged from the pinned golden snapshot"
     );
     // The transitional markers are byte-for-byte the legacy `.mjs` literals.
-    assert!(rendered.starts_with("<!-- ocentra-enforcer:start -->\n"));
+    assert!(rendered
+        .as_str()
+        .starts_with("<!-- ocentra-enforcer:start -->\n"));
     assert!(rendered
         .trim_end()
         .ends_with("<!-- ocentra-enforcer:end -->"));
@@ -210,8 +231,8 @@ fn global_agents_md_block_matches_golden_snapshot() -> Result<(), Box<dyn std::e
 #[test]
 fn mcp_servers_toml_block_matches_golden_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let (home, binary) = isolated_fixture("pass")?;
-    let adapter = CodexAdapter::new(home.path(), &binary);
-    let ctx = RequestContext::with_defaults(binary.clone());
+    let adapter = CodexAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
     let plan = adapter.plan(&ctx)?;
     adapter.apply(&plan)?;
 
@@ -257,7 +278,7 @@ fn mcp_servers_toml_block_matches_golden_snapshot() -> Result<(), Box<dyn std::e
         "golden template's ledger-home env value diverged from the generated block"
     );
 
-    assert!(!raw.contains("\"node\""));
-    assert!(!raw.contains(".mjs"));
+    assert!(!raw.as_str().contains("\"node\""));
+    assert!(!raw.as_str().contains(".mjs"));
     Ok(())
 }

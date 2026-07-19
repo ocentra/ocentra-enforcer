@@ -2,7 +2,7 @@
 //! indexes it on the REAL installed `codebase-memory-mcp` baseline via
 //! [`super::baseline::CliDriver`], runs the comparable landed
 //! `enforcer_memory` library functions against the same fixture, and
-//! emits a per-tool [`ToolDiffRow`] verdict plus the two required proof
+//! emits a per-tool [`ToolDiffRowDto`] verdict plus the two required proof
 //! artifacts (`proof/memory/x06-kg-parity.json`,
 //! `proof/memory/x06-parity/tool-results.ndjson`,
 //! `proof/memory/x06-parity/tool-diffs.ndjson`).
@@ -38,18 +38,23 @@
 
 use super::baseline::{BaselineAdapter, BaselineState, CliDriver, CodebaseMemoryMcpAdapter};
 use super::BoxError;
+use enforcer_domain::memory_types::TraceDirection;
+use enforcer_domain::memory_types::{
+    Aspect, CodeSearchMode, DetectChangesScope, GraphQueryResultRow, ProjectStatus,
+};
+use enforcer_domain::memory_types::{CrossHttpMatchKind, ResolutionConfidence};
 use enforcer_memory::adr::AdrStore;
 use enforcer_memory::analysis::query as cypher;
 use enforcer_memory::analysis::trace::trace_data_flow;
-use enforcer_memory::analysis::{trace::TraceCallsParams, CodeAdjacency, TraceDirection};
-use enforcer_memory::architecture::{self, Aspect};
+use enforcer_memory::analysis::{trace::TraceCallsParams, CodeAdjacency};
+use enforcer_memory::architecture;
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
-use enforcer_memory::code_search::{self, SearchMode, SearchQuery};
-use enforcer_memory::cross_repo::{match_cross_repo, CrossHttpMatchKind};
+use enforcer_memory::code_search::{self, SearchQuery};
+use enforcer_memory::cross_repo::match_cross_repo;
 use enforcer_memory::graph_schema;
 use enforcer_memory::parsers;
 use enforcer_memory::projects;
-use enforcer_memory::resolution::{self, ResolutionConfidence};
+use enforcer_memory::resolution::{self};
 use enforcer_memory::search::search_graph::{search_graph, SearchGraphSpec};
 use enforcer_memory::similarity::{
     semantically_related, similar_to, similar_to_body_shingles, similar_to_identifier_tokens,
@@ -66,7 +71,7 @@ use std::time::Instant;
 /// own (not dictated by an upstream schema) -- kept flat and
 /// serializable so `tool-diffs.ndjson` is directly greppable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolDiffRow {
+pub struct ToolDiffRowDto {
     pub tool: String,
     /// `"equal"`, `"better"`, `"worse"`, `"incomparable"`, or
     /// `"unrunnable: <reason>"` -- mirrors [`super::runners::RowResult`]'s
@@ -87,11 +92,12 @@ pub struct ToolDiffRow {
     pub candidate_latency_ms: Option<f64>,
 }
 
-/// One tool's raw (pre-diff) result from each side, exactly as
-/// produced -- written to `tool-results.ndjson` so a reviewer can see
-/// the actual bytes a verdict was computed from, not just the verdict.
+/// One tool's pre-diff result from each side, with machine-specific
+/// location fields removed before it is written to
+/// `tool-results.ndjson`. The semantic response remains reviewable
+/// without making the checked-in proof specific to one workstation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolResultRow {
+pub struct ToolResultRowDto {
     pub tool: String,
     pub side: String, // "baseline" | "candidate"
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +109,7 @@ pub struct ToolResultRow {
 
 /// The full `proof/memory/x06-kg-parity.json` document.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KgParityDocument {
+pub struct KgParityDocumentDto {
     pub baseline_executed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseline_binary_path: Option<String>,
@@ -113,7 +119,7 @@ pub struct KgParityDocument {
     pub tools_worse: usize,
     pub tools_incomparable: usize,
     pub tools_unrunnable: usize,
-    pub rows: Vec<ToolDiffRow>,
+    pub rows: Vec<ToolDiffRowDto>,
 }
 
 fn run_git(dir: &Path, args: &[&str]) -> Result<(), BoxError> {
@@ -247,8 +253,8 @@ fn common_normalizations() -> Vec<String> {
     ]
 }
 
-fn unrunnable_row(tool: &str, reason: &str) -> ToolDiffRow {
-    ToolDiffRow {
+fn unrunnable_row(tool: &str, reason: &str) -> ToolDiffRowDto {
+    ToolDiffRowDto {
         tool: tool.to_string(),
         comparison_verdict: format!("unrunnable: {reason}"),
         better_because: None,
@@ -267,18 +273,21 @@ struct Ctx<'a> {
     driver: &'a CliDriver,
     baseline_project: &'a str,
     candidate_graph: &'a CodeGraph,
-    results: &'a mut Vec<ToolResultRow>,
+    results: &'a mut Vec<ToolResultRowDto>,
 }
 
 fn record_baseline_result(
-    results: &mut Vec<ToolResultRow>,
+    results: &mut Vec<ToolResultRowDto>,
     tool: &str,
     call: &super::baseline::CliCallResult,
 ) {
-    results.push(ToolResultRow {
+    results.push(ToolResultRowDto {
         tool: tool.to_string(),
         side: "baseline".to_string(),
-        raw_json: call.parsed_json(),
+        raw_json: call
+            .parsed_json()
+            .as_ref()
+            .map(strip_machine_specific_fields),
         error: if call.exit_success {
             None
         } else {
@@ -289,12 +298,12 @@ fn record_baseline_result(
 }
 
 fn record_candidate_result<T: Serialize>(
-    results: &mut Vec<ToolResultRow>,
+    results: &mut Vec<ToolResultRowDto>,
     tool: &str,
     value: &T,
     latency_ms: f64,
 ) {
-    results.push(ToolResultRow {
+    results.push(ToolResultRowDto {
         tool: tool.to_string(),
         side: "candidate".to_string(),
         raw_json: serde_json::to_value(value).ok(),
@@ -303,7 +312,7 @@ fn record_candidate_result<T: Serialize>(
     });
 }
 
-fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "get_graph_schema";
     let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
     let call = match ctx.driver.call(tool, &request) {
@@ -340,7 +349,7 @@ fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         })
         .unwrap_or_default();
     let candidate_labels: BTreeSet<String> =
-        schema.labels.iter().map(|l| l.label.clone()).collect();
+        schema.labels.iter().map(|l| l.label.to_string()).collect();
 
     // Function is the one label vocabulary both systems share on this
     // tiny fixture; both sides use "File" too for the file nodes.
@@ -352,7 +361,7 @@ fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     normalizations.push("compared node-label VOCABULARY (label name set), not per-label counts (schemas' base column sets differ)".to_string());
 
     if both_have_function && both_have_file {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -362,7 +371,7 @@ fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -376,7 +385,7 @@ fn compare_get_graph_schema(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "search_graph(bm25)";
     let request = format!(
         r#"{{"project":"{}","query":"parse_config_file"}}"#,
@@ -403,7 +412,7 @@ fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     // lookup shortcut.
     let start = Instant::now();
     let spec = SearchGraphSpec {
-        query: Some("parse_config_file".to_string()),
+        query: Some("parse_config_file".to_string().into()),
         ..SearchGraphSpec::new()
     };
     let candidate_outcome = search_graph(ctx.candidate_graph, &spec);
@@ -432,7 +441,7 @@ fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_ok && candidate_found {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -445,7 +454,7 @@ fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -459,7 +468,7 @@ fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "search_graph(regex)";
     let request = format!(
         r#"{{"project":"{}","name_pattern":".*config.*"}}"#,
@@ -482,7 +491,7 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     // hand-rolled substring shortcut.
     let start = Instant::now();
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*config.*".to_string()),
+        name_pattern: Some(".*config.*".to_string().into()),
         ..SearchGraphSpec::new()
     };
     let candidate_outcome = search_graph(ctx.candidate_graph, &spec);
@@ -511,7 +520,7 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_ok && candidate_found {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -521,7 +530,7 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -535,7 +544,7 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "query_graph";
     // enforcer_memory::analysis::query DOES implement a read-only Cypher
     // subset (D-05) -- MATCH/WHERE/RETURN/ORDER BY/LIMIT over a
@@ -577,7 +586,7 @@ fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     match (baseline_ok, candidate_ok) {
-        (true, true) => ToolDiffRow {
+        (true, true) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -586,7 +595,7 @@ fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
         },
-        (false, true) => ToolDiffRow {
+        (false, true) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some(
@@ -597,7 +606,7 @@ fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
         },
-        _ => ToolDiffRow {
+        _ => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -611,7 +620,7 @@ fn compare_query_graph(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_trace_path_calls(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_trace_path_calls(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "trace_path(calls)";
     let request = format!(
         r#"{{"project":"{}","function_name":"parse_config_file","mode":"calls"}}"#,
@@ -660,7 +669,7 @@ fn compare_trace_path_calls(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 
     let normalizations = common_normalizations();
     if baseline_ok && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -670,7 +679,7 @@ fn compare_trace_path_calls(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -685,7 +694,7 @@ fn compare_trace_path_calls(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
+fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRowDto {
     let tool = "get_code_snippet";
     let request = format!(
         r#"{{"project":"{}","qualified_name":"parse_config_file"}}"#,
@@ -734,7 +743,7 @@ fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow 
     );
 
     if baseline_ok && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some("candidate additionally provides a sha256 content hash the baseline's response has no field for at all (§6.4 confirms baseline has no hash field)".to_string()),
@@ -744,7 +753,7 @@ fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow 
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -758,7 +767,11 @@ fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow 
     }
 }
 
-fn compare_get_architecture(ctx: &mut Ctx<'_>, aspect_name: &str, aspect: Aspect) -> ToolDiffRow {
+fn compare_get_architecture(
+    ctx: &mut Ctx<'_>,
+    aspect_name: &str,
+    aspect: Aspect,
+) -> ToolDiffRowDto {
     let tool = format!("get_architecture({aspect_name})");
     let request = format!(
         r#"{{"project":"{}","aspects":["{}"]}}"#,
@@ -803,7 +816,7 @@ fn compare_get_architecture(ctx: &mut Ctx<'_>, aspect_name: &str, aspect: Aspect
     ));
 
     if baseline_has_nodes && candidate_has_data {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool,
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -813,7 +826,7 @@ fn compare_get_architecture(ctx: &mut Ctx<'_>, aspect_name: &str, aspect: Aspect
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool,
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -827,7 +840,7 @@ fn compare_get_architecture(ctx: &mut Ctx<'_>, aspect_name: &str, aspect: Aspect
     }
 }
 
-fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
+fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRowDto {
     let tool = "search_code";
     let request = format!(
         r#"{{"project":"{}","pattern":"parse_config_file"}}"#,
@@ -851,15 +864,15 @@ fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
         ctx.candidate_graph,
         repo_root,
         &SearchQuery {
-            pattern: "parse_config_file",
-            mode: SearchMode::Full,
-            context_lines: 0,
-            limit: 0,
+            pattern: "parse_config_file".into(),
+            mode: CodeSearchMode::Full,
+            context_lines: 0.into(),
+            limit: 0.into(),
         },
     );
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     let (candidate_ok, candidate_error) = match &candidate_outcome {
-        Ok(outcome) => (outcome.total_matches > 0, None),
+        Ok(outcome) => (outcome.total_matches.get() > 0, None),
         Err(error) => (false, Some(error.to_string())),
     };
     record_candidate_result(
@@ -875,7 +888,7 @@ fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
     );
 
     match (baseline_ok, candidate_ok) {
-        (true, true) => ToolDiffRow {
+        (true, true) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -884,7 +897,7 @@ fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
         },
-        (false, true) => ToolDiffRow {
+        (false, true) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some(
@@ -895,7 +908,7 @@ fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
         },
-        _ => ToolDiffRow {
+        _ => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -927,7 +940,8 @@ fn populate_store_from_candidate_graph(
     fixture_dir: &Path,
 ) -> Result<(tempfile::TempDir, String), BoxError> {
     let stores_dir = tempfile::tempdir()?;
-    let repo_root = enforcer_memory::ids::repo_root(&fixture_dir.to_string_lossy())?;
+    let repo_root =
+        enforcer_memory::ids::repo_root(&fixture_dir.to_string_lossy().as_ref().into())?;
     let mut store =
         enforcer_memory::store::Store::init(stores_dir.path(), &repo_root, "2026-07-06T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
@@ -954,13 +968,13 @@ fn populate_store_from_candidate_graph(
         };
         let node_id = node.id().to_string();
         store.graph_event_log_mut().append_with_seq(|seq| {
-            enforcer_memory::schema::GraphEventLogEntry {
-                schema_version: enforcer_memory::schema::SCHEMA_VERSION,
-                seq,
+            enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
+                schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
+                seq: seq.into(),
                 id: format!("evt-node-{seq}"),
-                event: enforcer_memory::schema::GraphEventKind::NodeAdded {
-                    node_id,
-                    node_kind: node_kind.to_string(),
+                event: enforcer_domain::memory_types::GraphEventKind::NodeAdded {
+                    node_id: node_id.into(),
+                    node_kind: node_kind.into(),
                 },
                 ts: "2026-07-06T00:00:00Z".to_string(),
                 supersedes_seq: None,
@@ -979,14 +993,14 @@ fn populate_store_from_candidate_graph(
             continue;
         };
         store.graph_event_log_mut().append_with_seq(|seq| {
-            enforcer_memory::schema::GraphEventLogEntry {
-                schema_version: enforcer_memory::schema::SCHEMA_VERSION,
-                seq,
+            enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
+                schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
+                seq: seq.into(),
                 id: format!("evt-edge-{seq}"),
-                event: enforcer_memory::schema::GraphEventKind::EdgeAdded {
-                    from: call_edge.from_file_id.clone(),
-                    to: to_id,
-                    label: "calls".to_string(),
+                event: enforcer_domain::memory_types::GraphEventKind::EdgeAdded {
+                    from: call_edge.from_file_id.clone().into(),
+                    to: to_id.into(),
+                    label: "calls".into(),
                 },
                 ts: "2026-07-06T00:00:00Z".to_string(),
                 supersedes_seq: None,
@@ -1000,10 +1014,11 @@ fn populate_store_from_candidate_graph(
     // log's sole consumer, not a bespoke test-only shortcut.
     let log_path = store.graph_event_log_path();
     drop(store);
-    let outcome = enforcer_memory::log::read_verified::<enforcer_memory::schema::GraphEventLogEntry>(
-        &log_path,
-        |e| e.seq,
-    )?;
+    let outcome = enforcer_memory::log::read_verified::<
+        enforcer_memory::boundary::log_schema::GraphEventLogEntryDto,
+    >(&log_path, |e| {
+        enforcer_domain::memory_types::Seq::from_log_position(e.seq)
+    })?;
     let sqlite_path = stores_dir
         .path()
         .join(&project_id)
@@ -1014,7 +1029,7 @@ fn populate_store_from_candidate_graph(
     Ok((stores_dir, project_id))
 }
 
-fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
+fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRowDto {
     let tool = "list_projects";
     let call = match ctx.driver.call(tool, "{}") {
         Ok(call) => call,
@@ -1053,7 +1068,7 @@ fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     normalizations.push("candidate list_projects exercised over a stores_dir populated via the real graph-event-log + OperationalGraph::rebuild write path (same fixture project the baseline indexed); compared entry PRESENCE and field semantics (name/root present), not byte-identical schema, since the two persistence models differ".to_string());
 
     if baseline_ok && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1063,7 +1078,7 @@ fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1077,7 +1092,7 @@ fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     }
 }
 
-fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
+fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRowDto {
     let tool = "index_status";
     let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
     let call = match ctx.driver.call(tool, &request) {
@@ -1110,7 +1125,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
         // baseline-aligned nodes>0?ready:empty derivation, now actually
         // exercised end-to-end instead of only checking the Empty leg.
         Ok(summary) => (
-            matches!(summary.status, projects::ProjectStatus::Ready) && summary.nodes > 0,
+            matches!(summary.status, ProjectStatus::Ready) && summary.nodes > 0,
             None,
         ),
         Err(error) => (false, Some(error.to_string())),
@@ -1126,7 +1141,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     normalizations.push("candidate index_status exercised over a crate::store::Store::init-ed project populated with real NodeAdded/EdgeAdded graph events derived from the candidate CodeGraph (via graph_event_log_mut + OperationalGraph::rebuild -- the store's own documented log-replay write path), so this row compares field-level ready/empty status semantics against the baseline's own indexed project, not just the wiring on an empty throwaway store".to_string());
 
     if candidate_error.is_some() {
-        return ToolDiffRow {
+        return ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1138,7 +1153,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     }
 
     if baseline_ready && candidate_ready {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1148,7 +1163,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1162,7 +1177,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     }
 }
 
-fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "detect_changes";
     let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
     let call = match ctx.driver.call(tool, &request) {
@@ -1182,8 +1197,8 @@ fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     let view = enforcer_memory::impact::detect_changes_view(
         ctx.candidate_graph,
         &[],
-        2,
-        enforcer_memory::impact::DetectChangesScope::Symbols,
+        2.into(),
+        DetectChangesScope::Symbols,
     );
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     let candidate_zero = view.changed_count == 0;
@@ -1198,7 +1213,7 @@ fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     normalizations.push("both sides fed an empty changed-file list (fixture repo has no uncommitted diff); this row only checks the zero-change shape, not a real diff comparison".to_string());
 
     match (baseline_json.is_some(), baseline_zero, candidate_zero) {
-        (true, true, true) => ToolDiffRow {
+        (true, true, true) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1211,7 +1226,7 @@ fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             normalizations.push(
                 "baseline detect_changes exited without parseable JSON on the clean fixture while candidate returned the deterministic zero-change view; raw baseline stderr/stdout is recorded in tool-results.ndjson".to_string(),
             );
-            ToolDiffRow {
+            ToolDiffRowDto {
                 tool: tool.to_string(),
                 comparison_verdict: "better".to_string(),
                 better_because: Some(
@@ -1223,7 +1238,7 @@ fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
                 candidate_latency_ms: Some(candidate_latency_ms),
             }
         }
-        _ => ToolDiffRow {
+        _ => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1237,7 +1252,7 @@ fn compare_detect_changes(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "manage_adr(get/update)";
 
     // The baseline's manage_adr is a whole-document get/update: write a
@@ -1276,7 +1291,8 @@ fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     let mut store = AdrStore::new();
     store.update_document("adr-x06-parity", "ADR: parse_config_file decision");
     let document = store.get_document("adr-x06-parity");
-    let candidate_ok = !document.no_adr && document.content.contains("parse_config_file");
+    let candidate_ok =
+        !document.no_adr.is_no_document() && document.content.contains("parse_config_file");
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     record_candidate_result(ctx.results, tool, &candidate_ok, candidate_latency_ms);
 
@@ -1289,7 +1305,7 @@ fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_ok && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1299,7 +1315,7 @@ fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1316,7 +1332,7 @@ fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 fn compare_index_repository(
     ctx: &mut Ctx<'_>,
     index_call: &super::baseline::CliCallResult,
-) -> ToolDiffRow {
+) -> ToolDiffRowDto {
     let tool = "index_repository";
 
     // The baseline call was already made once (to obtain the project
@@ -1357,7 +1373,7 @@ fn compare_index_repository(
     );
 
     if baseline_has_project && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1367,7 +1383,7 @@ fn compare_index_repository(
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1381,7 +1397,7 @@ fn compare_index_repository(
     }
 }
 
-fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
+fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRowDto {
     let tool = "delete_project";
 
     // Baseline: index a SECOND, throwaway fixture project (distinct
@@ -1467,7 +1483,7 @@ fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow 
     normalizations.push("baseline delete_project run against a second, throwaway indexed project distinct from ctx.baseline_project (so other rows' project is left intact); candidate projects::delete_project run against a separate throwaway Store populated via the same graph-event-log write path compare_list_projects/compare_index_status use -- both sides compared on report-deleted-success AND actual-removal-verified, not report alone".to_string());
 
     if baseline_deleted && baseline_actually_gone && candidate_deleted {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1477,7 +1493,7 @@ fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow 
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1491,7 +1507,7 @@ fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow 
     }
 }
 
-fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "ingest_traces";
 
     // Baseline: `refs/x06-baseline-tool-schemas.md` §15.2 -- VERIFIED
@@ -1538,9 +1554,9 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             trace_store.ingest(
                 ctx.candidate_graph,
                 &[enforcer_memory::traces::TraceRecord {
-                    caller: caller_id,
-                    callee: "load_widget_settings".to_string(),
-                    count: 3,
+                    caller: caller_id.into(),
+                    callee: "load_widget_settings".to_string().into(),
+                    count: 3.into(),
                 }],
             );
             let edges = trace_store.edges(ctx.candidate_graph);
@@ -1561,7 +1577,7 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_is_stub && candidate_merged {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some("baseline is an unimplemented stub; candidate performs real runtime-edge merging with idempotency and unresolved tracking (refs/x06-baseline-tool-schemas.md §15.2)".to_string()),
@@ -1571,7 +1587,7 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1599,7 +1615,7 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 /// cyclomatic) and `f.transitive_loop_depth` (Tier B, interprocedural),
 /// expecting the fixture's `describe` function (a `for` loop + three
 /// `if`/`else if`/`else` arms) to be the row both filters select.
-fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "query_graph(complexity)";
     let complexity_query =
         "MATCH (f:Function) WHERE f.complexity >= 2 RETURN f.name, f.complexity ORDER BY f.name";
@@ -1648,7 +1664,7 @@ fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         )?;
         let tld_rows =
             cypher::execute(&cypher::parse(tld_query)?, &adjacency, ctx.candidate_graph)?;
-        let found_in = |rows: &[cypher::ResultRow]| {
+        let found_in = |rows: &[GraphQueryResultRow]| {
             rows.iter()
                 .any(|row| row.values().any(|v| v.contains("describe")))
         };
@@ -1674,7 +1690,7 @@ fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_complexity_ok && baseline_tld_ok && candidate_complexity_ok && candidate_tld_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1684,7 +1700,7 @@ fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1705,7 +1721,7 @@ fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 /// labels and `INHERITS`/`IMPLEMENTS`/`TYPE_REF`/`DEFINES` edge rows,
 /// and the baseline's own schema over the same repo is graded on
 /// reporting the same class of rich vocabulary.
-fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "get_graph_schema(rich_vocab)";
     let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
     let call = match ctx.driver.call("get_graph_schema", &request) {
@@ -1757,7 +1773,7 @@ fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if candidate_ok && baseline_rich_labels && baseline_rich_edges {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -1767,7 +1783,7 @@ fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else if candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some(format!(
@@ -1779,7 +1795,7 @@ fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1798,7 +1814,7 @@ fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 /// real baseline-compatible edge and `fp` property vocabulary. The
 /// candidate must additionally retain body-shingle and identifier-token
 /// signals under distinct Rust-native edge names.
-fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "get_graph_schema(similarity)";
     let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
     let call = match ctx.driver.call("get_graph_schema", &request) {
@@ -1919,7 +1935,7 @@ fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     ));
 
     if candidate_ok && baseline_similar_to && baseline_has_fingerprint_property {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some(
@@ -1934,7 +1950,7 @@ fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         normalizations.push(format!(
             "baseline did not materialize the required fingerprint-and-SIMILAR_TO evidence on this fixture (fp={baseline_has_fingerprint_property}, similar_to={baseline_similar_to}); raw response is recorded, so this remains incomparable"
         ));
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "incomparable".to_string(),
             better_because: None,
@@ -1944,7 +1960,7 @@ fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -1964,7 +1980,7 @@ fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 /// with the real captured argument expression (`path`) and the
 /// documented always-`None` `parameter_name` (no extractor records
 /// callee parameter names -- data_flow.rs module docs).
-fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "trace_path(data_flow)";
     let request = format!(
         r#"{{"project":"{}","function_name":"parse_config_file","mode":"data_flow"}}"#,
@@ -2038,7 +2054,7 @@ fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_ok && candidate_hop_ok && candidate_param_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -2048,7 +2064,7 @@ fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -2069,7 +2085,7 @@ fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRow {
 /// arbitrary pick from an ambiguous set), and the baseline's own
 /// `trace_path` from `describe` must reach `draw` through its
 /// equivalent resolution.
-fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "trace_path(calls,type_resolution)";
     let request = format!(
         r#"{{"project":"{}","function_name":"describe","mode":"calls"}}"#,
@@ -2115,7 +2131,7 @@ fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     );
 
     if baseline_ok && candidate_ok {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -2125,7 +2141,7 @@ fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -3187,7 +3203,7 @@ fn candidate_fixture_check_passes(
                 FixtureCheckKind::CallCallee => {
                     parsed.calls.iter().any(|c| c.callee.contains(expected))
                 }
-                _ => unreachable!(),
+                _ => false,
             }
         }
     }
@@ -3201,7 +3217,7 @@ fn candidate_fixture_check_passes(
 /// one `search_graph` lookup per fact; candidate: dispatched by
 /// [`FixtureCheckKind`] via [`candidate_fixture_check_passes`]) --
 /// language-parity wave G3 stage 5.
-fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "index_repository(multi_language)";
 
     let built = match build_multi_language_repo() {
@@ -3304,7 +3320,7 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     ));
 
     if baseline_missing.is_empty() && candidate_missing.is_empty() {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "equal".to_string(),
             better_because: None,
@@ -3314,7 +3330,7 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else if candidate_missing.is_empty() {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
             better_because: Some(format!(
@@ -3326,7 +3342,7 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        ToolDiffRow {
+        ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
@@ -3400,8 +3416,9 @@ fn candidate_cross_repo_report(
         ],
         &Manifest::default(),
     )?;
-    let mut targets: BTreeMap<String, &CodeGraph> = BTreeMap::new();
-    targets.insert("x06parity-crossrepo-server".to_string(), &server_graph);
+    let mut targets: BTreeMap<enforcer_domain::memory_types::CrossRepoProjectName, &CodeGraph> =
+        BTreeMap::new();
+    targets.insert("x06parity-crossrepo-server".into(), &server_graph);
     Ok(match_cross_repo(
         "x06parity-crossrepo-client",
         &client_graph,
@@ -3415,7 +3432,7 @@ fn candidate_cross_repo_report(
 /// same two graphs. Better requires live baseline Route and Channel
 /// evidence, equivalent Rust evidence for both, all landed Rust
 /// protocol detectors, and a separately identified literal URL link.
-fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "index_repository(cross-repo-intelligence)";
 
     let built = match build_cross_repo_pair() {
@@ -3505,27 +3522,27 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
                     && edge.target_project == "x06parity-crossrepo-server"
                     && edge.via == CrossHttpMatchKind::LiteralUrl
             });
-            let channel_found = report.cross_channel >= 1
+            let channel_found = report.cross_channel.get() >= 1
                 && report
                     .cross_channel_links
                     .iter()
                     .any(|edge| edge.topic == "widgets.created");
-            let async_found = report.cross_async_calls >= 1
+            let async_found = report.cross_async_calls.get() >= 1
                 && report
                     .cross_async_links
                     .iter()
                     .any(|edge| edge.key == "widgets.async");
-            let grpc_found = report.cross_grpc_calls >= 1
+            let grpc_found = report.cross_grpc_calls.get() >= 1
                 && report
                     .cross_grpc_links
                     .iter()
                     .any(|edge| edge.key == "WidgetService/GetWidget");
-            let graphql_found = report.cross_graphql_calls >= 1
+            let graphql_found = report.cross_graphql_calls.get() >= 1
                 && report
                     .cross_graphql_links
                     .iter()
                     .any(|edge| edge.key == "GetWidget");
-            let trpc_found = report.cross_trpc_calls >= 1
+            let trpc_found = report.cross_trpc_calls.get() >= 1
                 && report
                     .cross_trpc_links
                     .iter()
@@ -3538,7 +3555,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
                     && grpc_found
                     && graphql_found
                     && trpc_found
-                    && report.total_cross_edges() >= 7,
+                    && report.total_cross_edges().get() >= 7,
                 format!("{report:?}"),
             )
         }
@@ -3564,7 +3581,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
                 && baseline_http_count.unwrap_or(0) >= 1
                 && baseline_channel_count.unwrap_or(0) >= 1 =>
         {
-            ToolDiffRow {
+            ToolDiffRowDto {
                 tool: tool.to_string(),
                 comparison_verdict: "better".to_string(),
                 better_because: Some(format!(
@@ -3580,7 +3597,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             normalizations.push(format!(
                 "baseline did not emit both required Route/HTTP_CALLS and Channel edges on this fixture (counts: http={baseline_http_count:?}, async={baseline_async_count:?}, channel={baseline_channel_count:?}, grpc={baseline_grpc_count:?}, graphql={baseline_graphql_count:?}, trpc={baseline_trpc_count:?}, total={total}); raw response is recorded in tool-results.ndjson, so this remains incomparable rather than claiming better"
             ));
-            ToolDiffRow {
+            ToolDiffRowDto {
                 tool: tool.to_string(),
                 comparison_verdict: "incomparable".to_string(),
                 better_because: None,
@@ -3594,7 +3611,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             normalizations.push(
                 "baseline's cross-repo matcher reported total_cross_edges=0 after the fixture supplied baseline-native HTTP Route and event-emitter Channel inputs; raw response is recorded in tool-results.ndjson, so this remains incomparable rather than relabeled better".to_string(),
             );
-            ToolDiffRow {
+            ToolDiffRowDto {
                 tool: tool.to_string(),
                 comparison_verdict: "incomparable".to_string(),
                 better_because: None,
@@ -3608,7 +3625,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             normalizations.push(
                 "baseline cross-repo response carried no parseable total_cross_edges field (raw response recorded in tool-results.ndjson as evidence); candidate produced the full §9.5-shaped report".to_string(),
             );
-            ToolDiffRow {
+            ToolDiffRowDto {
                 tool: tool.to_string(),
                 comparison_verdict: "incomparable".to_string(),
                 better_because: None,
@@ -3618,7 +3635,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
                 candidate_latency_ms: Some(candidate_latency_ms),
             }
         }
-        (false, _) | (true, Some(_)) => ToolDiffRow {
+        (false, _) | (true, Some(_)) => ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: if candidate_ok {
                 "equal".to_string()
@@ -3640,15 +3657,16 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
-/// Run the full live comparison. Returns the [`KgParityDocument`] plus
+/// Run the full live comparison. Returns the [`KgParityDocumentDto`] plus
 /// the raw per-tool result rows (for `tool-results.ndjson`) -- never
 /// partially fabricated: every row is either a real comparison or an
 /// honest `unrunnable: <reason>`.
-pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultRow>), BoxError> {
+pub fn run_live_parity_comparison() -> Result<(KgParityDocumentDto, Vec<ToolResultRowDto>), BoxError>
+{
     let adapter = CodebaseMemoryMcpAdapter::new();
     let state = adapter.probe();
 
-    let mut results: Vec<ToolResultRow> = Vec::new();
+    let mut results: Vec<ToolResultRowDto> = Vec::new();
 
     let driver = match CliDriver::from_state(&state) {
         Ok(driver) => driver,
@@ -3678,11 +3696,11 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultR
                 "index_repository(multi_language)",
                 "index_repository(cross-repo-intelligence)",
             ];
-            let rows: Vec<ToolDiffRow> = tool_names
+            let rows: Vec<ToolDiffRowDto> = tool_names
                 .iter()
                 .map(|tool| unrunnable_row(tool, "baseline not available"))
                 .collect();
-            let document = KgParityDocument {
+            let document = KgParityDocumentDto {
                 baseline_executed: false,
                 baseline_binary_path: None,
                 tools_total: rows.len(),
@@ -3784,10 +3802,12 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultR
         .filter(|r| r.comparison_verdict.starts_with("unrunnable:"))
         .count();
 
-    let document = KgParityDocument {
+    let document = KgParityDocumentDto {
         baseline_executed: true,
         baseline_binary_path: match &state {
-            BaselineState::FoundUnprobed { path } => Some(path.to_string_lossy().into_owned()),
+            BaselineState::FoundUnprobed { path } => path
+                .file_name()
+                .map(|file_name| file_name.to_string_lossy().into_owned()),
             BaselineState::NotInstalled => None,
         },
         tools_total: rows.len(),
@@ -3828,7 +3848,7 @@ fn workspace_root() -> PathBuf {
 /// Run the live comparison and write both required proof artifacts.
 /// Exposed as a plain function (not just a `#[test]`) so a future
 /// `enforcer memory parity-harness` CLI can call it directly.
-pub fn run_and_emit_proof() -> Result<KgParityDocument, BoxError> {
+pub fn run_and_emit_proof() -> Result<KgParityDocumentDto, BoxError> {
     let (document, results) = run_live_parity_comparison()?;
     let root = workspace_root();
 
@@ -3853,9 +3873,70 @@ pub fn run_and_emit_proof() -> Result<KgParityDocument, BoxError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        build_cross_repo_pair, candidate_cross_repo_report, haystack_contains_all,
+        run_and_emit_proof, strip_machine_specific_fields, unrunnable_row, KgParityDocumentDto,
+        ToolDiffRowDto, ToolResultRowDto,
+    };
+    use crate::feature_parity::baseline::{
+        BaselineAdapter, BaselineState, CodebaseMemoryMcpAdapter,
+    };
+    use crate::feature_parity::BoxError;
+    use enforcer_domain::memory_types::CrossHttpMatchKind;
 
     type TestResult = Result<(), BoxError>;
+
+    #[test]
+    fn tool_diff_dtos_round_trip_without_losing_wire_values() -> TestResult {
+        let tool_diff: ToolDiffRowDto = ToolDiffRowDto {
+            tool: "search_graph".to_owned(),
+            comparison_verdict: "equal".to_owned(),
+            better_because: None,
+            worse_because: None,
+            normalizations: vec!["sorted keys".to_owned()],
+            baseline_latency_ms: Some(1.0),
+            candidate_latency_ms: Some(0.5),
+        };
+        let encoded = serde_json::to_vec(&tool_diff)?;
+        let decoded: ToolDiffRowDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(
+            serde_json::to_value(decoded)?,
+            serde_json::to_value(tool_diff)?
+        );
+
+        let tool_result: ToolResultRowDto = ToolResultRowDto {
+            tool: "search_graph".to_owned(),
+            side: "candidate".to_owned(),
+            raw_json: Some(serde_json::json!({"hits": 1})),
+            error: None,
+            latency_ms: Some(0.5),
+        };
+        let encoded = serde_json::to_vec(&tool_result)?;
+        let decoded: ToolResultRowDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(
+            serde_json::to_value(decoded)?,
+            serde_json::to_value(tool_result)?
+        );
+
+        let kg_parity: KgParityDocumentDto = KgParityDocumentDto {
+            baseline_executed: true,
+            baseline_binary_path: Some("codebase-memory-mcp".to_owned()),
+            tools_total: 1,
+            tools_equal: 1,
+            tools_better: 0,
+            tools_worse: 0,
+            tools_incomparable: 0,
+            tools_unrunnable: 0,
+            rows: Vec::new(),
+        };
+        let encoded = serde_json::to_vec(&kg_parity)?;
+        let decoded: KgParityDocumentDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(
+            serde_json::to_value(decoded)?,
+            serde_json::to_value(kg_parity)?
+        );
+        Ok(())
+    }
 
     #[test]
     fn strip_machine_specific_fields_removes_documented_keys() {
@@ -3981,7 +4062,7 @@ mod tests {
         assert_eq!(report.cross_grpc_calls, report.cross_grpc_links.len());
         assert_eq!(report.cross_graphql_calls, report.cross_graphql_links.len());
         assert_eq!(report.cross_trpc_calls, report.cross_trpc_links.len());
-        assert!(report.total_cross_edges() >= 7);
+        assert!(report.total_cross_edges().get() >= 7);
         Ok(())
     }
 

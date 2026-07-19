@@ -10,8 +10,9 @@
 //! own doc comment for the specifics) -- not byte-for-byte parity with
 //! prior behavior.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_gdscript;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -300,7 +301,10 @@ func increment(amount):
 	return total
 "#;
     let parsed = parse_gdscript(src);
-    assert!(symbol_kind(&parsed.symbols, "increment").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "increment"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

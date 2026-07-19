@@ -1,44 +1,61 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod async_commands;
 mod desktop_scan_history;
+mod memory_async_commands;
 mod memory_commands;
-mod project_settings;
 mod project_registry;
+mod project_settings;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
+use async_commands::{
+    load_scan_targets, run_legacy_analysis, run_packaged_scan, waive_packaged_finding,
+};
+#[cfg(test)]
+use desktop_scan_history::desktop_scan_run_path;
+use desktop_scan_history::{
+    desktop_scan_run_id, load_cached_scan, load_desktop_scan_history, load_desktop_scan_run,
+    persist_desktop_report, DesktopReportPayload,
+};
+use enforcer_domain::config_types::{ConfigProfileName, CrateName, PolicyOwner, PolicyReason};
+use enforcer_domain::coordination_types::{
+    ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
+    CoordinationMessageBody, CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
+};
+use enforcer_domain::memory_types::{GraphSnapshotNodeId, GraphSymbolKindSnapshot};
+use enforcer_domain::rules_types::{
+    RuleDocAnchor, RuleParameters, RuleTitle, RuleVersion, ValidatorPath,
+};
+use enforcer_domain::scan_types::CommitRef;
 use enforcer_literal_scan::{language_registry, LanguageSpec};
-use enforcer_memory::artifacts::{GraphSnapshot, GraphSymbolKindSnapshot};
+use enforcer_memory::artifacts::GraphSnapshot;
 use enforcer_memory::code_graph::CodeGraph;
 use enforcer_memory::ids::repo_root;
 use enforcer_memory::store::{sqlite::OperationalGraph, Store};
-use enforcer_proof::read_model::{read_project_proof_snapshot, ProjectProofSnapshot};
+use enforcer_proof::boundary::read_model::{read_project_proof_snapshot, ProjectProofSnapshotDto};
 use globset::{GlobBuilder, GlobSetBuilder};
-use desktop_scan_history::{
-    desktop_scan_run_id, desktop_scan_run_path, load_cached_scan, load_desktop_scan_history,
-    load_desktop_scan_run, persist_desktop_report, DesktopReportPayload,
-};
-use memory_commands::{
-    create_memory_index, load_memory_summary, memory_index_status, search_memory_graph,
-};
-use project_settings::{
-    load_project_settings, load_scan_scope_settings, write_rule_override,
-    write_scan_scope_settings,
-};
+use memory_async_commands::create_memory_index;
+use memory_commands::{load_memory_summary, memory_index_status, search_memory_graph};
 use project_registry::{
     discover_desktop_project_worktrees, git_value, load_desktop_projects,
     preview_desktop_project_registration, register_desktop_project,
 };
+use project_settings::{
+    load_project_settings, load_scan_scope_settings, write_rule_override, write_scan_scope_settings,
+};
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroU32;
 use std::str::FromStr;
 
 use enforcer_domain::ids::{LaneId, RuleId};
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::{WaiverExpiryDate, WaiverOwner, WaiverReason};
 use enforcer_domain::severity::Tier;
 use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
-use enforcer_rules::waiver::WaiverDate;
-use enforcer_ui::actions::file_rule_waiver::{upsert_file_rule_waiver, FileRuleWaiverRequest};
+use enforcer_ui::actions::file_rule_waiver::{upsert_file_rule_waiver, FileRuleWaiverInput};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -565,7 +582,7 @@ struct ScanFindingPayload {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct DesktopFindingWaiverRequest {
+struct DesktopFindingWaiverInput {
     path: String,
     rule_id: String,
     owner: String,
@@ -658,10 +675,18 @@ fn load_engine_capabilities() -> EngineCapabilityPayload {
 #[tauri::command]
 fn load_desktop_rule_catalog() -> Result<DesktopRuleCatalog, String> {
     let path = resolve_pack_root()?.join("rules").join("rules.json");
-    let bytes = std::fs::read(&path)
-        .map_err(|error| format!("cannot read desktop rule catalog {}: {error}", path.display()))?;
-    serde_json::from_slice(&bytes)
-        .map_err(|error| format!("cannot decode desktop rule catalog {}: {error}", path.display()))
+    let bytes = std::fs::read(&path).map_err(|error| {
+        format!(
+            "cannot read desktop rule catalog {}: {error}",
+            path.display()
+        )
+    })?;
+    serde_json::from_slice(&bytes).map_err(|error| {
+        format!(
+            "cannot decode desktop rule catalog {}: {error}",
+            path.display()
+        )
+    })
 }
 
 #[tauri::command]
@@ -674,22 +699,29 @@ fn load_project_rule_coverage(root: String) -> Result<ProjectRuleCoveragePayload
     let detected_languages = detect_project_languages(&root_path);
     let project_paths = walk_repo_files(&root_path)?
         .into_iter()
-        .filter_map(|path| path.strip_prefix(&root_path).ok().map(normalize_project_path))
+        .filter_map(|path| {
+            path.strip_prefix(&root_path)
+                .ok()
+                .map(normalize_project_path)
+        })
         .collect::<Vec<_>>();
-    let catalog_languages = catalog
-        .languages
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
+    let catalog_languages = catalog.languages.iter().cloned().collect::<BTreeSet<_>>();
     let observed_without_catalog = detected_languages
         .iter()
         .filter(|language| language.as_str() != "common" && !catalog_languages.contains(*language))
         .cloned()
         .collect();
-    let settings = enforcer_ui::settings::read::load_settings_view(&root_path.join("enforce.config.json")).ok();
+    let settings =
+        enforcer_ui::settings::read::load_settings_view(&root_path.join("enforce.config.json"))
+            .ok();
     let overrides = settings
         .as_ref()
-        .map(|view| view.rule_toggles.iter().map(|row| (row.rule_id.as_str(), row)).collect::<BTreeMap<_, _>>())
+        .map(|view| {
+            view.rule_toggles
+                .iter()
+                .map(|row| (row.rule_id.as_str(), row))
+                .collect::<BTreeMap<_, _>>()
+        })
         .unwrap_or_default();
     let rules = catalog
         .rules
@@ -728,7 +760,12 @@ fn load_project_rule_coverage(root: String) -> Result<ProjectRuleCoveragePayload
         detected_languages,
         catalog_languages: catalog_languages.into_iter().collect(),
         observed_without_catalog,
-        settings_status: if settings.is_some() { "loaded" } else { "unavailable" }.to_owned(),
+        settings_status: if settings.is_some() {
+            "loaded"
+        } else {
+            "unavailable"
+        }
+        .to_owned(),
         rules,
     })
 }
@@ -776,9 +813,16 @@ fn evaluate_rule_path_match(patterns: &[String], project_paths: &[String]) -> Ru
             }
         }
     };
-    let matched_path_count = project_paths.iter().filter(|path| set.is_match(path)).count();
+    let matched_path_count = project_paths
+        .iter()
+        .filter(|path| set.is_match(path))
+        .count();
     RulePathMatch {
-        status: if matched_path_count == 0 { "no-match" } else { "matched" },
+        status: if matched_path_count == 0 {
+            "no-match"
+        } else {
+            "matched"
+        },
         matched_path_count,
     }
 }
@@ -850,7 +894,8 @@ fn load_security_profile(root: String) -> Result<SecurityProfilePayload, String>
     let project_activation = match &activation {
         Some(activation) => format!(
             "Activated by {} for {}. Scan coverage and CI gating are not implemented yet.",
-            activation.owner, activation.source_spec
+            activation.owner.as_str(),
+            activation.source_spec.as_str()
         ),
         None => "Not activated. Supply a source specification, owner, and reason to record activation intent; coverage and CI gating remain unavailable.".to_owned(),
     };
@@ -874,11 +919,16 @@ fn activate_security_profile(
     enforcer_security::activation::write_project_activation(
         &PathBuf::from(&root),
         &enforcer_security::activation::SecurityProfileActivation {
-            schema_version: 1,
-            profile_name: enforcer_security::activation::MONEY_CRITICAL_PROFILE.to_owned(),
-            source_spec: request.source_spec,
-            owner: request.owner,
-            reason: request.reason,
+            schema_version: NonZeroU32::MIN,
+            profile_name: ConfigProfileName::try_new(
+                enforcer_security::activation::MONEY_CRITICAL_PROFILE.to_owned(),
+            )
+            .map_err(|error| error.to_string())?,
+            source_spec: request.source_spec.parse().map_err(
+                |error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string(),
+            )?,
+            owner: PolicyOwner::try_new(request.owner).map_err(|error| error.to_string())?,
+            reason: PolicyReason::try_new(request.reason).map_err(|error| error.to_string())?,
         },
     )?;
     load_security_profile(root)
@@ -898,9 +948,7 @@ fn parse_workpack_index_row(line: &str) -> Option<WorkpackIndexRow> {
         .split('|')
         .map(str::trim)
         .fuse();
-    let Some(status) = cells.next() else {
-        return None;
-    };
+    let status = cells.next()?;
     let workpack = cells.next()?;
     let track = cells.next()?;
     let owns = cells.next()?;
@@ -930,33 +978,6 @@ fn parse_workpack_index_row(line: &str) -> Option<WorkpackIndexRow> {
         parallel_safe_with: parallel_safe_with.to_owned(),
         source_path: source_path.trim_start_matches("./").to_owned(),
     })
-}
-
-#[tauri::command]
-async fn run_packaged_scan(
-    root: String,
-    target: Option<DesktopScanTarget>,
-) -> Result<DesktopReportPayload, String> {
-    tauri::async_runtime::spawn_blocking(move || run_packaged_scan_sync(root, target))
-        .await
-        .map_err(|error| format!("scan task failed: {error}"))?
-}
-
-#[tauri::command]
-async fn waive_packaged_finding(
-    root: String,
-    request: DesktopFindingWaiverRequest,
-) -> Result<DesktopReportPayload, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let root_path = PathBuf::from(&root);
-        if !root_path.is_dir() {
-            return Err(format!("project root is not a directory: {root}"));
-        }
-        write_desktop_file_rule_waiver(&root_path, request)?;
-        run_packaged_scan_sync(root, None)
-    })
-    .await
-    .map_err(|error| format!("waiver task failed: {error}"))?
 }
 
 /// Why a typed desktop command step (waiver persistence, packaged resource
@@ -989,32 +1010,46 @@ impl From<DesktopCommandError> for String {
 /// which also keeps the packaged scanner able to reload the registry.
 fn write_desktop_file_rule_waiver(
     root_path: &Path,
-    request: DesktopFindingWaiverRequest,
+    request: DesktopFindingWaiverInput,
 ) -> Result<(), DesktopCommandError> {
-    let rule_id = RuleId::from_str(request.rule_id.trim().to_ascii_uppercase().as_str())
-        .map_err(|error| {
+    let rule_id = RuleId::from_str(request.rule_id.trim().to_ascii_uppercase().as_str()).map_err(
+        |error| {
             DesktopCommandError(format!(
                 "waiver references an invalid rule id `{}`: {error}",
                 request.rule_id
             ))
-        })?;
+        },
+    )?;
     let expires = match request.expires.as_deref().map(str::trim) {
-        Some(value) if !value.is_empty() => Some(WaiverDate::from_str(value).map_err(
-            |error| DesktopCommandError(format!("invalid waiver expiry `{value}`: {error}")),
-        )?),
+        Some(value) if !value.is_empty() => {
+            Some(WaiverExpiryDate::from_str(value).map_err(|error| {
+                DesktopCommandError(format!("invalid waiver expiry `{value}`: {error}"))
+            })?)
+        }
         _ => None,
     };
     let waivable_rules = desktop_waivable_rule_registry()?;
-    let typed_request = FileRuleWaiverRequest {
-        path: request.path,
+    let typed_request = FileRuleWaiverInput {
+        path: RelPath::try_from(request.path).map_err(|error| {
+            DesktopCommandError(format!(
+                "waiver references an invalid relative path: {error}"
+            ))
+        })?,
         rule_id,
-        owner: request.owner,
-        reason: request.reason,
+        owner: WaiverOwner::try_from(request.owner)
+            .map_err(|error| DesktopCommandError(format!("waiver owner is invalid: {error}")))?,
+        reason: WaiverReason::try_from(request.reason)
+            .map_err(|error| DesktopCommandError(format!("waiver reason is invalid: {error}")))?,
         expires,
     };
-    upsert_file_rule_waiver(root_path, &waivable_rules, current_waiver_date()?, &typed_request)
-        .map(|_| ())
-        .map_err(|error| DesktopCommandError(format!("waiver rejected: {error}")))
+    upsert_file_rule_waiver(
+        root_path,
+        &waivable_rules,
+        &current_waiver_date()?,
+        &typed_request,
+    )
+    .map(|_| ())
+    .map_err(|error| DesktopCommandError(format!("waiver rejected: {error}")))
 }
 
 /// Build the rule registry the desktop waiver path validates against, from the
@@ -1054,22 +1089,43 @@ fn desktop_waivable_rule_registry() -> Result<RuleRegistry, DesktopCommandError>
             };
             Ok(RuleRecord {
                 rule_id,
-                version: 1,
-                title,
+                version: RuleVersion::try_new(NonZeroU32::MIN),
+                title: RuleTitle::try_from(title).map_err(|error| {
+                    DesktopCommandError(format!("packaged rule title is invalid: {error}"))
+                })?,
                 tier: Tier::T1,
                 validator: ValidatorRef {
-                    // ALLOC-JUSTIFICATION: ValidatorRef owns its crate label;
-                    // one small allocation per waivable catalog rule.
-                    crate_name: "ocentra-enforcer-packaged".to_owned(),
-                    path: validator_path,
+                    crate_name: CrateName::try_new("ocentra-enforcer-packaged".to_owned())
+                        .map_err(|error| {
+                            DesktopCommandError(format!(
+                                "packaged validator crate is invalid: {error}"
+                            ))
+                        })?,
+                    path: ValidatorPath::try_from(validator_path).map_err(|error| {
+                        DesktopCommandError(format!("packaged validator path is invalid: {error}"))
+                    })?,
                 },
                 fixtures: FixtureRef {
-                    fail: format!("packaged-catalog://{id}/fail"),
-                    pass: format!("packaged-catalog://{id}/pass"),
+                    fail: RelPath::try_from(format!("packaged-catalog/{id}/fail")).map_err(
+                        |error| {
+                            DesktopCommandError(format!(
+                                "packaged fail fixture path is invalid: {error}"
+                            ))
+                        },
+                    )?,
+                    pass: RelPath::try_from(format!("packaged-catalog/{id}/pass")).map_err(
+                        |error| {
+                            DesktopCommandError(format!(
+                                "packaged pass fixture path is invalid: {error}"
+                            ))
+                        },
+                    )?,
                 },
-                doc_anchor,
+                doc_anchor: RuleDocAnchor::try_from(doc_anchor).map_err(|error| {
+                    DesktopCommandError(format!("packaged rule doc anchor is invalid: {error}"))
+                })?,
                 tags: Vec::new(),
-                params: serde_json::json!(null),
+                params: RuleParameters::default(),
             })
         })
         .collect::<Result<Vec<_>, DesktopCommandError>>()?;
@@ -1080,9 +1136,9 @@ fn desktop_waivable_rule_registry() -> Result<RuleRegistry, DesktopCommandError>
     })
 }
 
-/// Today's calendar date (UTC) as a strict [`WaiverDate`], for expiry checks.
+/// Today's calendar date (UTC) as a strict [`WaiverExpiryDate`], for expiry checks.
 /// The day-count split uses Howard Hinnant's `civil_from_days` algorithm.
-fn current_waiver_date() -> Result<WaiverDate, DesktopCommandError> {
+fn current_waiver_date() -> Result<WaiverExpiryDate, DesktopCommandError> {
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|error| {
@@ -1103,18 +1159,12 @@ fn current_waiver_date() -> Result<WaiverDate, DesktopCommandError> {
     let month = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
     let year = yoe + era * 400 + i64::from(month <= 2);
     let year = u16::try_from(year).map_err(|_| {
-        DesktopCommandError(format!("current year {year} is out of range for waiver dates"))
+        DesktopCommandError(format!(
+            "current year {year} is out of range for waiver dates"
+        ))
     })?;
-    WaiverDate::new(year, month, day).map_err(|error| {
-        DesktopCommandError(format!("cannot build today's waiver date: {error}"))
-    })
-}
-
-#[tauri::command]
-async fn load_scan_targets(root: String) -> Result<Vec<DesktopScanTarget>, String> {
-    tauri::async_runtime::spawn_blocking(move || discover_scan_targets(Path::new(&root)))
-        .await
-        .map_err(|error| format!("scan target discovery failed: {error}"))?
+    WaiverExpiryDate::try_from(format!("{year:04}-{month:02}-{day:02}"))
+        .map_err(|error| DesktopCommandError(format!("cannot build today's waiver date: {error}")))
 }
 
 fn workspace_scan_target() -> DesktopScanTarget {
@@ -1245,10 +1295,9 @@ fn validated_scan_target(
         return Ok(DesktopScanTarget {
             id: format!("files:{}", files.join(",")),
             label: if files.len() == 1 {
-                files
-                    .first()
-                    .cloned()
-                    .ok_or_else(|| "file scan target requires at least one project-relative path".to_owned())?
+                files.first().cloned().ok_or_else(|| {
+                    "file scan target requires at least one project-relative path".to_owned()
+                })?
             } else {
                 format!("{} selected paths", files.len())
             },
@@ -1354,9 +1403,7 @@ fn run_packaged_scan_sync(
             .crate_name
             .as_deref()
             .ok_or_else(|| "validated crate target is missing a package name".to_owned())?;
-        command.arg("--crate").arg(
-            crate_name,
-        );
+        command.arg("--crate").arg(crate_name);
     } else if target.mode == "files" {
         command.arg("--files").args(&target.files);
     } else if target.mode == "diff" {
@@ -1368,11 +1415,7 @@ fn run_packaged_scan_sync(
             .head
             .as_deref()
             .ok_or_else(|| "validated diff target is missing a head revision".to_owned())?;
-        command
-            .arg("--base")
-            .arg(base)
-            .arg("--head")
-            .arg(head);
+        command.arg("--base").arg(base).arg("--head").arg(head);
     } else {
         command.arg("--workspace");
     }
@@ -1403,16 +1446,6 @@ fn run_packaged_scan_sync(
     };
     persist_desktop_report(&root_path, &report)?;
     Ok(report)
-}
-
-#[tauri::command]
-async fn run_legacy_analysis(
-    root: String,
-    kind: LegacyAnalysisKind,
-) -> Result<LegacyAnalysisRunPayload, String> {
-    tauri::async_runtime::spawn_blocking(move || run_legacy_analysis_sync(root, kind))
-        .await
-        .map_err(|error| format!("analysis task failed: {error}"))?
 }
 
 fn run_legacy_analysis_sync(
@@ -1500,9 +1533,11 @@ fn load_harness_runs_from(root: &Path) -> Result<HarnessRunsPayload, String> {
             root.display()
         ));
     }
-    let config = enforcer_harness::config::HarnessConfig::default();
+    let config = enforcer_domain::config_types::HarnessConfig::default();
     let query = enforcer_harness::query::RunQuery {
-        limit: Some(100),
+        limit: Some(enforcer_domain::config_types::HarnessRunLimit::from_value(
+            100,
+        )),
         ..enforcer_harness::query::RunQuery::default()
     };
     let runs = enforcer_harness::query::list_runs(root, &config, &query)
@@ -1510,9 +1545,15 @@ fn load_harness_runs_from(root: &Path) -> Result<HarnessRunsPayload, String> {
         .iter()
         .map(harness_run_row)
         .collect();
-    let (found_failure, failed_run, diagnostics) =
-        enforcer_harness::query::last_failure(root, &config, &query, Some(25))
-            .map_err(|error| format!("cannot read latest harness failure: {error}"))?;
+    let (found_failure, failed_run, diagnostics) = enforcer_harness::query::last_failure(
+        root,
+        &config,
+        &query,
+        Some(enforcer_domain::config_types::HarnessRunLimit::from_value(
+            25,
+        )),
+    )
+    .map_err(|error| format!("cannot read latest harness failure: {error}"))?;
     let last_failure = if found_failure {
         failed_run.map(|run| HarnessFailurePayload {
             run: harness_run_row(&run),
@@ -1549,9 +1590,12 @@ fn load_harness_run_detail_from(
     root: &Path,
     run_id: &str,
 ) -> Result<HarnessRunDetailPayload, String> {
-    let config = enforcer_harness::config::HarnessConfig::default();
+    let config = enforcer_domain::config_types::HarnessConfig::default();
     let query = enforcer_harness::query::RunQuery {
-        run_id: Some(run_id.to_owned()),
+        run_id: Some(
+            enforcer_domain::harness_types::HarnessRunId::try_new(run_id.to_owned())
+                .map_err(|error| format!("invalid harness run id: {error}"))?,
+        ),
         ..enforcer_harness::query::RunQuery::default()
     };
     let run = enforcer_harness::query::run_summary(root, &config, &query)
@@ -1561,14 +1605,26 @@ fn load_harness_run_detail_from(
         root,
         &config,
         &query,
-        enforcer_harness::query::DiagnosticsFilter {
-            limit: Some(100),
+        &enforcer_harness::query::DiagnosticsFilter {
+            limit: Some(enforcer_domain::config_types::HarnessRunLimit::from_value(
+                100,
+            )),
             ..enforcer_harness::query::DiagnosticsFilter::default()
         },
     )
     .map_err(|error| format!("cannot read typed harness diagnostics: {error}"))?;
-    let stdout = load_harness_artifact(root, &config, &query, "stdout")?;
-    let stderr = load_harness_artifact(root, &config, &query, "stderr")?;
+    let stdout = load_harness_artifact(
+        root,
+        &config,
+        &query,
+        enforcer_domain::harness_types::HarnessArtifactKind::Stdout,
+    )?;
+    let stderr = load_harness_artifact(
+        root,
+        &config,
+        &query,
+        enforcer_domain::harness_types::HarnessArtifactKind::Stderr,
+    )?;
     Ok(HarnessRunDetailPayload {
         run: harness_run_row(&run),
         diagnostics: diagnostics.iter().map(harness_diagnostic).collect(),
@@ -1580,13 +1636,23 @@ fn load_harness_run_detail_from(
 
 fn load_harness_artifact(
     root: &Path,
-    config: &enforcer_harness::config::HarnessConfig,
+    config: &enforcer_domain::config_types::HarnessConfig,
     query: &enforcer_harness::query::RunQuery,
-    artifact: &str,
+    artifact: enforcer_domain::harness_types::HarnessArtifactKind,
 ) -> Result<HarnessArtifactPayload, String> {
-    let (available, _, content, error) =
-        enforcer_harness::query::read_artifact(root, config, query, artifact, Some(8_000))
-            .map_err(|source| format!("cannot read harness {artifact} artifact: {source}"))?;
+    let (available, _, content, error) = enforcer_harness::query::read_artifact(
+        root,
+        config,
+        query,
+        artifact,
+        Some(enforcer_domain::config_types::HarnessArtifactByteLimit::from_value(8_000)),
+    )
+    .map_err(|source| {
+        format!(
+            "cannot read harness {} artifact: {source}",
+            artifact.as_str()
+        )
+    })?;
     Ok(HarnessArtifactPayload {
         available,
         content,
@@ -1748,7 +1814,8 @@ fn desktop_workspace_root() -> Result<PackRoot, DesktopCommandError> {
 #[tauri::command]
 fn load_hub(ledger_root: Option<String>) -> Result<serde_json::Value, String> {
     let root = resolve_hub_ledger_root(ledger_root)?;
-    let payload = enforcer_ui::hub::render_hub_from_root(enforcer_ui::hub::RunMode::Human, &root);
+    let payload =
+        enforcer_ui::hub::render_hub_from_root(enforcer_domain::ui_types::UiRunMode::Human, &root);
     serde_json::to_value(payload)
         .map_err(|error| format!("cannot encode coordination ledger view: {error}"))
 }
@@ -1759,23 +1826,28 @@ fn send_hub_message(
     ledger_root: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let root = resolve_hub_ledger_root(ledger_root)?;
-    let hub = enforcer_coordination::api::open(&root)
+    let typed_root = CoordinationLedgerRoot::try_from(root.clone())
+        .map_err(|error| format!("invalid coordination ledger root: {error}"))?;
+    let hub = enforcer_coordination::api::open(typed_root)
         .map_err(|error| format!("cannot open existing coordination identity: {error}"))?;
-    let caller = desktop_hub_caller();
+    let caller = desktop_hub_caller()?;
     let recipient_lane: LaneId = request
         .recipient_lane
         .trim()
         .parse()
         .map_err(|error| format!("invalid coordination recipient lane: {error}"))?;
+    let body = CoordinationMessageBody::try_from(request.body)
+        .map_err(|error| format!("invalid coordination message body: {error}"))?;
     enforcer_coordination::api::send_message(
         &hub,
         &hub.config.default_lane,
-        &recipient_lane,
-        &request.body,
+        recipient_lane,
+        body,
         &caller,
     )
     .map_err(|error| format!("cannot dispatch coordination message: {error}"))?;
-    let payload = enforcer_ui::hub::render_hub_from_root(enforcer_ui::hub::RunMode::Human, &root);
+    let payload =
+        enforcer_ui::hub::render_hub_from_root(enforcer_domain::ui_types::UiRunMode::Human, &root);
     serde_json::to_value(payload)
         .map_err(|error| format!("cannot encode updated coordination ledger view: {error}"))
 }
@@ -1786,17 +1858,23 @@ fn acknowledge_hub_message(
     ledger_root: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let root = resolve_hub_ledger_root(ledger_root)?;
-    let hub = enforcer_coordination::api::open(&root)
+    let typed_root = CoordinationLedgerRoot::try_from(root.clone())
+        .map_err(|error| format!("invalid coordination ledger root: {error}"))?;
+    let hub = enforcer_coordination::api::open(typed_root)
         .map_err(|error| format!("cannot open existing coordination identity: {error}"))?;
-    let caller = desktop_hub_caller();
+    let caller = desktop_hub_caller()?;
+    let message_id = message_id
+        .try_into()
+        .map_err(|error| format!("invalid coordination message id: {error}"))?;
     enforcer_coordination::api::acknowledge_message(
         &hub,
         &hub.config.default_lane,
-        &message_id,
+        message_id,
         &caller,
     )
     .map_err(|error| format!("cannot acknowledge coordination message: {error}"))?;
-    let payload = enforcer_ui::hub::render_hub_from_root(enforcer_ui::hub::RunMode::Human, &root);
+    let payload =
+        enforcer_ui::hub::render_hub_from_root(enforcer_domain::ui_types::UiRunMode::Human, &root);
     serde_json::to_value(payload)
         .map_err(|error| format!("cannot encode updated coordination ledger view: {error}"))
 }
@@ -1828,33 +1906,43 @@ fn create_hub_claim(
     }
 
     let root = resolve_hub_ledger_root(ledger_root)?;
-    let hub = enforcer_coordination::api::open(&root)
+    let typed_root = CoordinationLedgerRoot::try_from(root.clone())
+        .map_err(|error| format!("invalid coordination ledger root: {error}"))?;
+    let hub = enforcer_coordination::api::open(typed_root)
         .map_err(|error| format!("cannot open existing coordination identity: {error}"))?;
-    let lane = request
+    let lane: LaneId = request
         .lane_id
         .trim()
         .parse()
         .map_err(|error| format!("invalid claim lane: {error}"))?;
-    let owns = vec![path.to_string_lossy().replace('\\', "/")];
-    let caller = desktop_project_caller(&project_root);
+    let coordination_repo_root = CoordinationRepoRoot::try_from(project_root.clone())
+        .map_err(|error| format!("invalid coordination project root: {error}"))?;
+    let owns = vec![
+        ClaimPath::try_from(path.to_string_lossy().replace('\\', "/"))
+            .map_err(|error| format!("invalid coordination claim path: {error}"))?,
+    ];
+    let reason = ClaimReason::try_from(reason.to_owned())
+        .map_err(|error| format!("invalid coordination claim reason: {error}"))?;
+    let caller = desktop_project_caller(&project_root)?;
     let outcome = enforcer_coordination::api::claim_all(
         &hub,
         enforcer_coordination::api::ClaimRequestArgs {
-            repo_root: &project_root,
+            repo_root: &coordination_repo_root,
             lane: &lane,
             owns: &owns,
             caller: &caller,
-            reason: Some(reason),
+            reason: Some(&reason),
         },
     )
     .map_err(|error| format!("cannot create coordination claim: {error}"))?;
-    if !outcome.ok {
+    if outcome.status != ClaimOutcomeStatus::Accepted {
         return Err(format!(
             "claim blocked by {} existing ownership record(s)",
             outcome.blockers.len()
         ));
     }
-    let payload = enforcer_ui::hub::render_hub_from_root(enforcer_ui::hub::RunMode::Human, &root);
+    let payload =
+        enforcer_ui::hub::render_hub_from_root(enforcer_domain::ui_types::UiRunMode::Human, &root);
     serde_json::to_value(payload)
         .map_err(|error| format!("cannot encode updated coordination ledger view: {error}"))
 }
@@ -1872,7 +1960,7 @@ fn resolve_hub_ledger_root(ledger_root: Option<String>) -> Result<PathBuf, Strin
     Ok(root)
 }
 
-fn desktop_hub_caller() -> enforcer_coordination::api::CallerContext {
+fn desktop_hub_caller() -> Result<enforcer_coordination::api::CallerContext, String> {
     // The hub caller identity is a label, not a resource read: when the pack
     // root cannot be resolved, degrade to a neutral desktop caller rather than
     // depend on a compile-time path.
@@ -1880,34 +1968,46 @@ fn desktop_hub_caller() -> enforcer_coordination::api::CallerContext {
         Ok(root) => desktop_project_caller(&root),
         // ALLOC-JUSTIFICATION: CallerContext owns its identity strings; the
         // three small labels below allocate once per degraded hub call.
-        Err(_) => enforcer_coordination::api::CallerContext {
-            project_id: "enforcer-desktop".to_owned(),
-            // ALLOC-JUSTIFICATION: covered by the CallerContext note above.
-            worktree_root: "unavailable".to_owned(),
-            branch: "unavailable".to_owned(),
+        Err(_) => Ok(enforcer_coordination::api::CallerContext {
+            project_id: CoordinationProjectId::from_static("enforcer-desktop")
+                .map_err(|error| format!("invalid desktop project identity: {error}"))?,
+            worktree_root: CoordinationWorktree::from_static("unavailable")
+                .map_err(|error| format!("invalid desktop worktree identity: {error}"))?,
+            branch: CoordinationBranch::from_static("unavailable")
+                .map_err(|error| format!("invalid desktop branch identity: {error}"))?,
             commit: None,
             codex_thread_id: None,
             codex_session_id: None,
-        },
+        }),
     }
 }
 
-fn desktop_project_caller(root: &Path) -> enforcer_coordination::api::CallerContext {
+fn desktop_project_caller(
+    root: &Path,
+) -> Result<enforcer_coordination::api::CallerContext, String> {
     let project_id = root
         .file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.trim().is_empty())
         .unwrap_or("enforcer-desktop")
         .to_owned();
-    enforcer_coordination::api::CallerContext {
-        project_id,
-        worktree_root: root.display().to_string(),
-        branch: git_value(&root, &["branch", "--show-current"])
-            .unwrap_or_else(|| "unavailable".to_owned()),
-        commit: git_value(&root, &["rev-parse", "HEAD"]),
+    let branch =
+        git_value(root, &["branch", "--show-current"]).unwrap_or_else(|| "unavailable".to_owned());
+    let commit = git_value(root, &["rev-parse", "HEAD"])
+        .map(CommitRef::try_from)
+        .transpose()
+        .map_err(|error| format!("invalid desktop commit identity: {error}"))?;
+    Ok(enforcer_coordination::api::CallerContext {
+        project_id: CoordinationProjectId::try_from(project_id)
+            .map_err(|error| format!("invalid desktop project identity: {error}"))?,
+        worktree_root: CoordinationWorktree::try_from(root.display().to_string())
+            .map_err(|error| format!("invalid desktop worktree identity: {error}"))?,
+        branch: CoordinationBranch::try_from(branch)
+            .map_err(|error| format!("invalid desktop branch identity: {error}"))?,
+        commit,
         codex_thread_id: None,
         codex_session_id: None,
-    }
+    })
 }
 
 #[tauri::command]
@@ -2041,7 +2141,7 @@ fn language_for_project_path<'a>(path: &Path, registry: &'a [LanguageSpec]) -> O
                         .any(|candidate| candidate.eq_ignore_ascii_case(value))
                 })
         })
-        .map(|spec| spec.id)
+        .map(|spec| spec.id.as_str())
 }
 
 #[tauri::command]
@@ -2107,7 +2207,7 @@ fn list_proof_artifacts(root: String) -> Result<Vec<ProofArtifactPayload>, Strin
 }
 
 #[tauri::command]
-fn load_project_proof_snapshot(root: String) -> Result<ProjectProofSnapshot, String> {
+fn load_project_proof_snapshot(root: String) -> Result<ProjectProofSnapshotDto, String> {
     let root_path = PathBuf::from(&root);
     if !root_path.is_dir() {
         return Err(format!("project root is not a directory: {root}"));
@@ -2117,22 +2217,20 @@ fn load_project_proof_snapshot(root: String) -> Result<ProjectProofSnapshot, Str
 
 #[cfg(test)]
 mod desktop_project_tests {
-    use super::{
-        activate_security_profile, create_hub_claim,
-        desktop_scan_run_path, desktop_workspace_root, detect_project_languages,
-        discover_scan_targets, evaluate_rule_path_match,
-        load_desktop_rule_catalog, load_project_rule_coverage,
-        load_desktop_scan_history, load_engine_capabilities, load_harness_run_detail_from,
-        load_harness_runs_from, load_memory_summary, load_workpack_index, parse_workpack_index,
-        persist_desktop_report, run_legacy_analysis_sync, write_scan_scope_settings,
-        DesktopReportPayload,
-        HubClaimRequest, LegacyAnalysisKind, LegacyAnalysisRunPayload, PackagedScanPayload,
-        ScanFindingPayload, SecurityActivationRequest,
-    };
-    use super::project_settings::ScanScopeSettingsRequest;
     use super::project_registry::{
         desktop_project_registration_preview, discover_git_worktrees, load_desktop_projects_from,
         parse_git_worktree_porcelain, paths_equal, register_desktop_project_at, DesktopProject,
+    };
+    use super::project_settings::ScanScopeSettingsRequest;
+    use super::{
+        activate_security_profile, create_hub_claim, desktop_scan_run_path, desktop_workspace_root,
+        detect_project_languages, discover_scan_targets, evaluate_rule_path_match,
+        load_desktop_rule_catalog, load_desktop_scan_history, load_engine_capabilities,
+        load_harness_run_detail_from, load_harness_runs_from, load_memory_summary,
+        load_project_rule_coverage, load_workpack_index, parse_workpack_index,
+        persist_desktop_report, run_legacy_analysis_sync, write_scan_scope_settings,
+        DesktopReportPayload, HubClaimRequest, LegacyAnalysisKind, LegacyAnalysisRunPayload,
+        PackagedScanPayload, ScanFindingPayload, SecurityActivationRequest,
     };
     use std::path::Path;
 
@@ -2174,9 +2272,21 @@ mod desktop_project_tests {
 
         assert!(payload.capabilities.len() >= 12);
         assert_eq!(dispatch.state, "planned");
-        assert_eq!(dispatch.target.as_ref().map(|target| target.workspace), Some("findings"));
-        assert_eq!(dispatch.target.as_ref().map(|target| target.project_context), Some("required"));
-        assert!(dispatch.missing.contains("FixIntent"));
+        assert_eq!(
+            dispatch.target.as_ref().map(|target| target.workspace),
+            Some("findings")
+        );
+        assert_eq!(
+            dispatch
+                .target
+                .as_ref()
+                .map(|target| target.project_context),
+            Some("required")
+        );
+        assert_eq!(
+            dispatch.missing,
+            "Validated, deduplicated FixIntent, agent pickup, disposition, closeout, token gate, verification, proof, and report-row state"
+        );
         Ok(())
     }
 
@@ -2191,11 +2301,22 @@ mod desktop_project_tests {
             .ok_or_else(|| "engine capability catalog is missing `finding-actions`".to_owned())?;
 
         assert_eq!(actions.state, "partial");
-        assert_eq!(actions.target.as_ref().map(|target| target.workspace), Some("findings"));
-        assert!(actions.source.contains("typed Rust g03 waiver command"));
-        assert!(actions.source.contains("packaged scan overlay"));
-        assert!(actions.controls.contains("typed g03 module"));
-        assert!(actions.missing.contains("FixIntent lifecycle"));
+        assert_eq!(
+            actions.target.as_ref().map(|target| target.workspace),
+            Some("findings")
+        );
+        assert_eq!(
+            actions.source,
+            "Packaged exact-path waiver registry, typed Rust g03 waiver command, packaged scan overlay, and exact-path Hub claims"
+        );
+        assert_eq!(
+            actions.controls,
+            "Eligible findings can create one policy-validated project waiver with accountable owner and reason through the typed g03 module; the scan refreshes after the write, while immutable rules remain non-actionable"
+        );
+        assert_eq!(
+            actions.missing,
+            "Typed defer/comment actions, FixIntent lifecycle, waiver history, expiry/revocation, and report-row closeout"
+        );
         Ok(())
     }
 
@@ -2238,14 +2359,20 @@ mod desktop_project_tests {
             .ok_or_else(|| "engine capability catalog is missing `rules`".to_owned())?;
 
         assert_eq!(rules.state, "partial");
-        assert!(rules.source.contains("display catalog"));
-        assert!(rules.missing.contains("production RuleRegistry"));
+        assert_eq!(
+            rules.source,
+            "Desktop rules/rules.json display catalog, typed project overrides, and a separately observed scanner-language stack"
+        );
+        assert_eq!(
+            rules.missing,
+            "A production RuleRegistry shared with the packaged scanner; broader rule applicability, fixture/example payloads, and waiver history"
+        );
         Ok(())
     }
 
     #[test]
-    fn engine_capability_catalog_routes_project_lifecycle_to_setup_honestly(
-    ) -> Result<(), String> {
+    fn engine_capability_catalog_routes_project_lifecycle_to_setup_honestly() -> Result<(), String>
+    {
         let payload = load_engine_capabilities();
         let lifecycle = payload
             .capabilities
@@ -2254,14 +2381,26 @@ mod desktop_project_tests {
             .ok_or_else(|| "engine capability catalog is missing `project-lifecycle`".to_owned())?;
 
         assert_eq!(lifecycle.state, "partial");
-        assert_eq!(lifecycle.target.as_ref().map(|target| target.workspace), Some("setup"));
-        assert_eq!(lifecycle.target.as_ref().map(|target| target.project_context), Some("required"));
-        assert!(lifecycle.workpacks.contains(&"f02"));
-        assert!(lifecycle.workpacks.contains(&"f03"));
-        assert!(lifecycle.workpacks.contains(&"c11"));
-        assert!(lifecycle.missing.contains("onboarding/baseline"));
-        assert!(lifecycle.missing.contains("CI wiring"));
-        assert!(!lifecycle.source.contains("harness discovery"));
+        assert_eq!(
+            lifecycle.target.as_ref().map(|target| target.workspace),
+            Some("setup")
+        );
+        assert_eq!(
+            lifecycle
+                .target
+                .as_ref()
+                .map(|target| target.project_context),
+            Some("required")
+        );
+        assert_eq!(lifecycle.workpacks, vec!["f02", "f03", "c11"]);
+        assert_eq!(
+            lifecycle.source,
+            "Desktop registration, typed scan-scope and policy settings, memory-index status, proof read model, and legacy CI-posture analysis"
+        );
+        assert_eq!(
+            lifecycle.missing,
+            "Explicit f02 onboarding/baseline, resolved f03 enforcement tie, c11 install/repair/CI wiring, and persisted lifecycle evidence"
+        );
         Ok(())
     }
 
@@ -2275,13 +2414,33 @@ mod desktop_project_tests {
             .ok_or_else(|| "engine capability catalog is missing `harness-adapters`".to_owned())?;
 
         assert_eq!(adapters.state, "partial");
-        assert_eq!(adapters.target.as_ref().map(|target| target.mode), Some("hub"));
-        assert_eq!(adapters.target.as_ref().map(|target| target.workspace), Some("hub"));
-        assert_eq!(adapters.target.as_ref().and_then(|target| target.subview), Some("harnesses"));
-        assert_eq!(adapters.target.as_ref().map(|target| target.project_context), Some("none"));
-        assert!(adapters.controls.contains("Hub -> Adapters"));
-        assert!(adapters.controls.contains("capability evidence"));
-        assert!(adapters.missing.contains("hook installation"));
+        assert_eq!(
+            adapters.target.as_ref().map(|target| target.mode),
+            Some("hub")
+        );
+        assert_eq!(
+            adapters.target.as_ref().map(|target| target.workspace),
+            Some("hub")
+        );
+        assert_eq!(
+            adapters.target.as_ref().and_then(|target| target.subview),
+            Some("harnesses")
+        );
+        assert_eq!(
+            adapters
+                .target
+                .as_ref()
+                .map(|target| target.project_context),
+            Some("none")
+        );
+        assert_eq!(
+            adapters.controls,
+            "Hub -> Adapters shows present or absent homes, source paths, and declared capability evidence"
+        );
+        assert_eq!(
+            adapters.missing,
+            "Adapter verification, hook installation, repair, and desktop onboarding"
+        );
         Ok(())
     }
 
@@ -2295,12 +2454,29 @@ mod desktop_project_tests {
             .ok_or_else(|| "engine capability catalog is missing `planning`".to_owned())?;
 
         assert_eq!(planning.state, "partial");
-        assert_eq!(planning.target.as_ref().map(|target| target.workspace), Some("engine"));
-        assert_eq!(planning.target.as_ref().map(|target| target.project_context), Some("none"));
-        assert!(planning.controls.contains("Engine Workpacks"));
-        assert!(planning.workpacks.contains(&"b01"));
-        assert!(planning.workpacks.contains(&"d08"));
-        assert!(planning.missing.contains("Plan scaffold/validation UI"));
+        assert_eq!(
+            planning.target.as_ref().map(|target| target.workspace),
+            Some("engine")
+        );
+        assert_eq!(
+            planning
+                .target
+                .as_ref()
+                .map(|target| target.project_context),
+            Some("none")
+        );
+        assert_eq!(
+            planning.controls,
+            "Engine Workpacks filters the declared plan index and shows each workpack's ownership, dependencies, plan status, and desktop placement"
+        );
+        assert_eq!(
+            planning.workpacks,
+            vec!["b01", "b02", "b03", "b05", "d01", "d08"]
+        );
+        assert_eq!(
+            planning.missing,
+            "Plan scaffold/validation UI, workpack execution truth, and mechanization backlog control"
+        );
         Ok(())
     }
 
@@ -2343,11 +2519,12 @@ mod desktop_project_tests {
             .map(|target| target.id.as_str())
             .collect::<Vec<_>>();
 
-        assert!(target_ids.contains(&"paths:src"));
-        assert!(target_ids.contains(&"paths:packages"));
-        assert!(!target_ids.contains(&"paths:node_modules"));
-        assert!(!target_ids.contains(&"paths:target"));
-        assert!(!target_ids.contains(&"paths:.enforce"));
+        assert_eq!(
+            target_ids
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            std::collections::BTreeSet::from(["paths:packages", "paths:src", "workspace"])
+        );
         std::fs::remove_dir_all(root)?;
         Ok(())
     }
@@ -2358,7 +2535,7 @@ mod desktop_project_tests {
         let memory = targets
             .iter()
             .find(|target| target.id == "crate:enforcer-memory")
-            .expect("enforcer-memory package target is present");
+            .ok_or("enforcer-memory package target is absent")?;
 
         assert_eq!(memory.mode, "crate");
         assert_eq!(memory.crate_name.as_deref(), Some("enforcer-memory"));
@@ -2368,18 +2545,17 @@ mod desktop_project_tests {
     #[test]
     fn scan_target_catalog_lists_controlled_fixture_packages(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let root = desktop_workspace_root()?.join(
-            "crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace",
-        );
+        let root = desktop_workspace_root()?
+            .join("crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace");
         let targets = discover_scan_targets(&root)?;
         let alpha = targets
             .iter()
             .find(|target| target.id == "crate:desktop-scan-alpha")
-            .expect("controlled alpha package target is present");
+            .ok_or("controlled alpha package target is absent")?;
         let beta = targets
             .iter()
             .find(|target| target.id == "crate:desktop-scan-beta")
-            .expect("controlled beta package target is present");
+            .ok_or("controlled beta package target is absent")?;
 
         assert_eq!(alpha.mode, "crate");
         assert_eq!(alpha.crate_name.as_deref(), Some("desktop-scan-alpha"));
@@ -2390,9 +2566,8 @@ mod desktop_project_tests {
 
     #[test]
     fn packaged_scan_fixture_excludes_other_packages() -> Result<(), Box<dyn std::error::Error>> {
-        let fixture_root = desktop_workspace_root()?.join(
-            "crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace",
-        );
+        let fixture_root = desktop_workspace_root()?
+            .join("crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace");
         let fixture_root = fixture_root.display().to_string();
         let script = desktop_workspace_root()?
             .join("scripts")
@@ -2423,35 +2598,33 @@ mod desktop_project_tests {
             alpha["scope"]["crateName"].as_str(),
             Some("desktop-scan-alpha")
         );
-        assert!(alpha["scope"]["files"]
+        let alpha_files = alpha["scope"]["files"]
             .as_array()
-            .expect("crate report includes selected files")
-            .iter()
-            .all(|file| file
-                .as_str()
-                .is_some_and(|path| path.starts_with("crates/scan-alpha/"))));
-        assert!(alpha["findings"]
+            .ok_or("crate report omitted selected files")?;
+        assert!(alpha_files.iter().all(|file| file
+            .as_str()
+            .is_some_and(|path| path.starts_with("crates/scan-alpha/"))));
+        let alpha_findings = alpha["findings"]
             .as_array()
-            .expect("crate report includes findings")
-            .iter()
-            .all(|finding| finding["file"]
-                .as_str()
-                .is_some_and(|path| !path.starts_with("crates/scan-beta/"))));
+            .ok_or("crate report omitted findings")?;
+        assert!(alpha_findings.iter().all(|finding| finding["file"]
+            .as_str()
+            .is_some_and(|path| !path.starts_with("crates/scan-beta/"))));
 
         let workspace = scan(&["--root", &fixture_root, "--workspace", "--json"])?;
         assert_eq!(workspace["scope"]["mode"].as_str(), Some("all"));
-        assert!(workspace["findings"]
+        let workspace_findings = workspace["findings"]
             .as_array()
-            .expect("workspace report includes findings")
-            .iter()
-            .any(|finding| finding["file"]
-                .as_str()
-                .is_some_and(|path| path.starts_with("crates/scan-beta/"))));
+            .ok_or("workspace report omitted findings")?;
+        assert!(workspace_findings.iter().any(|finding| finding["file"]
+            .as_str()
+            .is_some_and(|path| path.starts_with("crates/scan-beta/"))));
         Ok(())
     }
 
     #[test]
-    fn desktop_rule_catalog_reads_the_canonical_registry() -> Result<(), Box<dyn std::error::Error>> {
+    fn desktop_rule_catalog_reads_the_canonical_registry() -> Result<(), Box<dyn std::error::Error>>
+    {
         let catalog = load_desktop_rule_catalog()?;
 
         assert_eq!(catalog.schema_version, 2);
@@ -2468,13 +2641,29 @@ mod desktop_project_tests {
             .join("crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace");
         let coverage = load_project_rule_coverage(root.display().to_string())?;
 
-        assert!(coverage.detected_languages.contains(&"rust".to_owned()));
-        assert!(coverage.catalog_languages.contains(&"rust".to_owned()));
-        assert!(coverage.rules.iter().any(|rule| rule.language == "rust" && rule.scope == "language-match"));
+        assert_eq!(
+            coverage
+                .detected_languages
+                .iter()
+                .find(|language| language.as_str() == "rust")
+                .map(String::as_str),
+            Some("rust")
+        );
+        assert_eq!(
+            coverage
+                .catalog_languages
+                .iter()
+                .find(|language| language.as_str() == "rust")
+                .map(String::as_str),
+            Some("rust")
+        );
         assert!(coverage
             .rules
             .iter()
-            .any(|rule| rule.language == "rust" && rule.path_match_status == "matched" && rule.matched_path_count > 0));
+            .any(|rule| rule.language == "rust" && rule.scope == "language-match"));
+        assert!(coverage.rules.iter().any(|rule| rule.language == "rust"
+            && rule.path_match_status == "matched"
+            && rule.matched_path_count > 0));
         Ok(())
     }
 
@@ -2518,11 +2707,16 @@ mod desktop_project_tests {
 
         let languages = detect_project_languages(&root);
 
-        assert!(languages.contains(&"rust".to_owned()));
-        assert!(languages.contains(&"go".to_owned()));
-        assert!(languages.contains(&"powershell".to_owned()));
-        assert!(languages.contains(&"dockerfile".to_owned()));
-        assert!(!languages.contains(&"python".to_owned()));
+        assert_eq!(
+            languages,
+            vec![
+                "dockerfile".to_owned(),
+                "go".to_owned(),
+                "powershell".to_owned(),
+                "rust".to_owned(),
+                "toml".to_owned()
+            ]
+        );
         std::fs::remove_dir_all(root)?;
         Ok(())
     }
@@ -2551,8 +2745,20 @@ mod desktop_project_tests {
 
         assert!(payload.rows.len() >= 100);
         assert!(payload.rows.iter().any(|row| row.id == "g09"));
-        assert!(payload.status_counts.contains_key("TODO"));
-        assert!(payload.caveat.contains("not execution"));
+        assert_eq!(
+            payload.status_counts.get("TODO").copied(),
+            Some(
+                payload
+                    .rows
+                    .iter()
+                    .filter(|row| row.status == "TODO")
+                    .count()
+            )
+        );
+        assert_eq!(
+            payload.caveat,
+            "Declared Markdown index status only. It is not execution, proof, or repository-completion truth."
+        );
         Ok(())
     }
 
@@ -2578,7 +2784,7 @@ mod desktop_project_tests {
                 assert!(report.summary.categories_relevant > 0);
             }
             LegacyAnalysisRunPayload::UiLogicCoupling { .. } => {
-                panic!("test-doctrine request returned UI coupling")
+                return Err("test-doctrine request returned UI coupling".into());
             }
         }
 
@@ -2590,7 +2796,7 @@ mod desktop_project_tests {
                 assert_eq!(report.summary.total_findings, report.findings.len());
             }
             LegacyAnalysisRunPayload::TestDoctrine { .. } => {
-                panic!("UI coupling request returned test doctrine")
+                return Err("UI coupling request returned test doctrine".into());
             }
         }
         Ok(())
@@ -2608,24 +2814,44 @@ mod desktop_project_tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&root)?;
-        let config = enforcer_harness::config::HarnessConfig::default();
+        let config = enforcer_domain::config_types::HarnessConfig::default();
+        let repo_root = enforcer_domain::paths::RepoRoot::try_from(root.as_path())?;
         enforcer_harness::storage::record_run(
             &enforcer_harness::storage::RunInput {
-                repo_root: &root,
-                run_id: "fixture-failed-run".to_owned(),
-                tool: "cargo".to_owned(),
-                language: Some("rust".to_owned()),
-                command: vec!["cargo".to_owned(), "test".to_owned()],
-                stdout: format!("token {fixture_access_key} must redact"),
-                stderr: "fixture failure".to_owned(),
-                exit_code: 1,
+                repo_root: &repo_root,
+                run_id: enforcer_domain::harness_types::HarnessRunId::try_new(
+                    "fixture-failed-run".to_owned(),
+                )?,
+                tool: enforcer_domain::harness_types::HarnessToolName::try_new("cargo".to_owned())?,
+                language: Some(enforcer_domain::harness_types::HarnessLanguage::Rust),
+                command: vec![
+                    enforcer_domain::harness_types::HarnessCommandArgument::try_new(
+                        "cargo".to_owned(),
+                    )?,
+                    enforcer_domain::harness_types::HarnessCommandArgument::try_new(
+                        "test".to_owned(),
+                    )?,
+                ],
+                stdout: enforcer_domain::harness_types::HarnessCapturedOutput::from_owned(format!(
+                    "token {fixture_access_key} must redact"
+                )),
+                stderr: enforcer_domain::harness_types::HarnessCapturedOutput::from_owned(
+                    "fixture failure".to_owned(),
+                ),
+                exit_code: enforcer_domain::telemetry_types::ProcessExitCode::new(1),
                 crate_name: None,
                 package_name: None,
                 domain: None,
-                tags: vec!["fixture".to_owned()],
-                pinned: true,
-                started_at: "2026-07-10T00:00:00Z".to_owned(),
-                ended_at: "2026-07-10T00:00:01Z".to_owned(),
+                tags: vec![enforcer_domain::harness_types::HarnessTag::try_new(
+                    "fixture".to_owned(),
+                )?],
+                pinned: enforcer_domain::harness_types::HarnessPinned::Pinned,
+                started_at: enforcer_domain::harness_types::HarnessTimestamp::try_new(
+                    "2026-07-10T00:00:00Z".to_owned(),
+                )?,
+                ended_at: enforcer_domain::harness_types::HarnessTimestamp::try_new(
+                    "2026-07-10T00:00:01Z".to_owned(),
+                )?,
             },
             &config,
         )?;
@@ -2641,8 +2867,8 @@ mod desktop_project_tests {
         );
         let detail = load_harness_run_detail_from(&root, "fixture-failed-run")?;
         assert!(detail.stdout.available);
-        assert!(!detail.stdout.content.contains(&fixture_access_key));
-        assert!(!detail.diagnostics.is_empty());
+        assert_eq!(detail.stdout.content, "token [REDACTED] must redact");
+        assert_eq!(detail.diagnostics.len(), 1);
         std::fs::remove_dir_all(&root)?;
         Ok(())
     }
@@ -2671,13 +2897,9 @@ mod desktop_project_tests {
     }
 
     #[test]
-    fn desktop_registry_rejects_a_worktree_without_its_main_root() {
-        let mut project = fixture_project(
-            std::env::current_dir()
-                .expect("current directory is available")
-                .display()
-                .to_string(),
-        );
+    fn desktop_registry_rejects_a_worktree_without_its_main_root(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut project = fixture_project(std::env::current_dir()?.display().to_string());
         project.kind = "worktree".to_owned();
         project.main_root = None;
         let registry = std::env::temp_dir().join("enforcer-desktop-project-invalid.json");
@@ -2685,7 +2907,8 @@ mod desktop_project_tests {
         let error = register_desktop_project_at(&registry, project)
             .expect_err("missing worktree main root must be rejected");
 
-        assert!(error.contains("requires mainRoot"));
+        assert_eq!(error, "desktop worktree registration requires mainRoot");
+        Ok(())
     }
 
     #[test]
@@ -2729,8 +2952,14 @@ mod desktop_project_tests {
         let discovered = discover_git_worktrees(&root)?;
 
         assert_eq!(discovered.len(), 2);
-        assert_eq!(discovered[0].root, root);
-        assert_eq!(discovered[1].root, linked);
+        assert_eq!(
+            discovered[0].root.as_str(),
+            root.display().to_string().replace('\\', "/")
+        );
+        assert_eq!(
+            discovered[1].root.as_str(),
+            linked.display().to_string().replace('\\', "/")
+        );
         assert_eq!(discovered[1].branch, "fixture-linked");
         assert_eq!(
             parse_git_worktree_porcelain("worktree C:/repo\nHEAD abc\ndetached\n\n")?[0].branch,
@@ -2793,10 +3022,12 @@ mod desktop_project_tests {
         assert_eq!(preview.project.kind, "worktree");
         assert_eq!(preview.project.worktree, "linked");
         assert_eq!(preview.project.branch, "fixture-linked");
-        assert!(paths_equal(
-            Path::new(preview.project.main_root.as_deref().expect("main root")),
-            &root
-        ));
+        let main_root = preview
+            .project
+            .main_root
+            .as_deref()
+            .ok_or("worktree preview omitted main root")?;
+        assert!(paths_equal(Path::new(main_root), &root));
         assert!(preview
             .project
             .detected_languages
@@ -2951,18 +3182,17 @@ mod desktop_project_tests {
 
         assert!(profile.activated);
         assert_eq!(profile.profile_name, "money-critical-security");
-        assert!(profile.project_activation.contains("platform-security"));
-        assert!(profile
-            .project_activation
-            .contains("docs/money-controls.md"));
-        assert!(profile.project_activation.contains("not implemented"));
+        assert_eq!(
+            profile.project_activation,
+            "Activated by platform-security for docs/money-controls.md. Scan coverage and CI gating are not implemented yet."
+        );
         assert!(root.join(".enforce/security-profile.json").is_file());
         let activation = enforcer_security::activation::load_project_activation(&root)?
-            .expect("activation record");
-        assert_eq!(activation.owner, "platform-security");
-        assert_eq!(activation.source_spec, "docs/money-controls.md");
+            .ok_or("activation record was not persisted")?;
+        assert_eq!(activation.owner.as_str(), "platform-security");
+        assert_eq!(activation.source_spec.as_str(), "docs/money-controls.md");
         assert_eq!(
-            activation.reason,
+            activation.reason.as_str(),
             "the fixture handles money-critical operations"
         );
         std::fs::remove_dir_all(root)?;
@@ -3025,7 +3255,9 @@ mod desktop_project_tests {
             Some(ledger.display().to_string()),
         )?;
 
-        let claims = payload["claims"].as_array().expect("claims array");
+        let claims = payload["claims"]
+            .as_array()
+            .ok_or("hub claim payload omitted claims array")?;
         assert_eq!(claims.len(), 1);
         assert_eq!(claims[0]["laneId"], "desktop-fixture-lane");
         assert_eq!(claims[0]["paths"][0], "src/lib.rs");
@@ -3043,12 +3275,22 @@ mod desktop_project_tests {
         // g09 memory explorer reports the combined evidence scope: the
         // selected project's own store plus engine proof artifacts.
         assert_eq!(summary.provenance.scope, "project-store-plus-engine-proof");
+        let selected_project = selected_project
+            .canonicalize()
+            .map_err(|error| format!("cannot canonicalize selected project: {error}"))?;
+        let selected_project =
+            enforcer_domain::paths::RepoRoot::try_from(selected_project.as_path())
+                .map_err(|error| format!("invalid selected project root: {error}"))?;
         assert_eq!(
             summary.provenance.selected_project_root,
-            selected_project.display().to_string()
+            selected_project.as_str()
         );
         assert!(summary.provenance.artifact_root.ends_with("proof\\memory"));
-        assert!(summary.provenance.generated_at_unix_secs.is_some());
+        let generated_at = summary
+            .provenance
+            .generated_at_unix_secs
+            .ok_or_else(|| "memory proof provenance omitted generation time".to_owned())?;
+        assert!(generated_at > 0);
         // The parity artifact is live engine evidence that evolves with x06
         // runs, so assert the structural identity (verdicts partition the
         // tool set) instead of pinning counts that rot.
@@ -3100,7 +3342,8 @@ fn load_graph(root: String, focus: Option<GraphFocusRequest>) -> Result<GraphPay
         .edges_snapshot()
         .map_err(|error| format!("cannot read projected graph edges: {error}"))?;
     let graph = CodeGraph::from_store_projection(&nodes, &edges);
-    let snapshot = GraphSnapshot::from_code_graph(&graph);
+    let snapshot = GraphSnapshot::from_code_graph(&graph)
+        .map_err(|error| format!("cannot build graph snapshot: {error}"))?;
     Ok(build_projection(&root, snapshot, focus))
 }
 
@@ -3245,8 +3488,8 @@ fn build_projection(
     snapshot: GraphSnapshot,
     focus: Option<GraphFocusRequest>,
 ) -> GraphPayload {
-    let total_nodes = snapshot.node_count();
-    let total_edges = snapshot.edge_count();
+    let total_nodes: usize = snapshot.node_count().into();
+    let total_edges: usize = snapshot.edge_count().into();
     let folder_aggregates = graph_folder_aggregates(&snapshot);
     let focus_query = focus
         .as_ref()
@@ -3268,25 +3511,25 @@ fn build_projection(
     let mut nodes = Vec::new();
     let mut included = BTreeSet::new();
     let mut files_by_id = BTreeMap::new();
-    let mut symbols_by_name: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut symbols_by_name: HashMap<&str, Vec<&GraphSnapshotNodeId>> = HashMap::new();
 
     for file in &snapshot.files {
-        files_by_id.insert(file.id.as_str(), file.rel_path.as_str());
+        files_by_id.insert(&file.id, file.rel_path.as_str());
     }
     for file in snapshot
         .files
         .iter()
-        .filter(|file| !focus_query.is_some() || focused_file_ids.contains(&file.id))
+        .filter(|file| focus_query.is_none() || focused_file_ids.contains(&file.id))
         .take(MAX_PROJECTION_FILES)
     {
         included.insert(file.id.clone());
         nodes.push(GraphNodePayload {
-            id: file.id.clone(),
-            label: file.rel_path.clone(),
+            id: file.id.to_string(),
+            label: file.rel_path.to_string(),
             kind: "file".to_owned(),
-            path: file.rel_path.clone(),
+            path: file.rel_path.to_string(),
             line: 1,
-            status: if file.text_only {
+            status: if file.text_only.is_text_only() {
                 "text-only"
             } else {
                 "indexed"
@@ -3299,7 +3542,7 @@ fn build_projection(
         symbols_by_name
             .entry(symbol.name.as_str())
             .or_default()
-            .push(symbol.id.as_str());
+            .push(&symbol.id);
     }
     for symbol in &snapshot.symbols {
         if nodes.len() >= MAX_PROJECTION_NODES || !included.contains(&symbol.file_id) {
@@ -3307,15 +3550,15 @@ fn build_projection(
         }
         included.insert(symbol.id.clone());
         nodes.push(GraphNodePayload {
-            id: symbol.id.clone(),
-            label: symbol.name.clone(),
+            id: symbol.id.to_string(),
+            label: symbol.name.to_string(),
             kind: symbol_kind(&symbol.kind).to_owned(),
             path: files_by_id
-                .get(symbol.file_id.as_str())
+                .get(&symbol.file_id)
                 .copied()
                 .unwrap_or_default()
                 .to_owned(),
-            line: symbol.line,
+            line: symbol.line.into(),
             status: "indexed".to_owned(),
         });
     }
@@ -3327,8 +3570,8 @@ fn build_projection(
         }
         if included.contains(&symbol.file_id) && included.contains(&symbol.id) {
             edges.push(GraphEdgePayload {
-                from: symbol.file_id.clone(),
-                to: symbol.id.clone(),
+                from: symbol.file_id.to_string(),
+                to: symbol.id.to_string(),
                 label: "defines".to_owned(),
             });
         }
@@ -3345,8 +3588,8 @@ fn build_projection(
         };
         if included.contains(&call.from_file_id) && included.contains(*target) {
             edges.push(GraphEdgePayload {
-                from: call.from_file_id.clone(),
-                to: (*target).to_owned(),
+                from: call.from_file_id.to_string(),
+                to: target.to_string(),
                 label: "calls".to_owned(),
             });
         }
@@ -3361,8 +3604,8 @@ fn build_projection(
         if let Some(target) = target.filter(|id| included.contains(*id)) {
             if included.contains(&import.from_file_id) {
                 edges.push(GraphEdgePayload {
-                    from: import.from_file_id.clone(),
-                    to: target.to_owned(),
+                    from: import.from_file_id.to_string(),
+                    to: target.to_string(),
                     label: "imports".to_owned(),
                 });
             }
@@ -3392,25 +3635,45 @@ fn graph_folder_aggregates(snapshot: &GraphSnapshot) -> Vec<GraphFolderAggregate
         .collect::<HashMap<_, _>>();
     let mut aggregates = BTreeMap::<String, GraphFolderAggregatePayload>::new();
     let mut add = |file_id: &str, files: usize, symbols: usize, calls: usize| {
-        let Some(path) = file_paths.get(file_id) else { return };
+        let Some(path) = file_paths.get(file_id) else {
+            return;
+        };
         let parts = path.split(['/', '\\']).collect::<Vec<_>>();
         for depth in 1..parts.len() {
             let folder = parts.get(..depth).unwrap_or_default().join("/");
-            let entry = aggregates.entry(folder.clone()).or_insert(GraphFolderAggregatePayload { path: folder, files: 0, symbols: 0, calls: 0 });
+            let entry = aggregates
+                .entry(folder.clone())
+                .or_insert(GraphFolderAggregatePayload {
+                    path: folder,
+                    files: 0,
+                    symbols: 0,
+                    calls: 0,
+                });
             entry.files += files;
             entry.symbols += symbols;
             entry.calls += calls;
         }
     };
-    for file in &snapshot.files { add(file.id.as_str(), 1, 0, 0); }
-    for symbol in &snapshot.symbols { add(symbol.file_id.as_str(), 0, 1, 0); }
-    for call in &snapshot.calls { add(call.from_file_id.as_str(), 0, 0, 1); }
+    for file in &snapshot.files {
+        add(file.id.as_str(), 1, 0, 0);
+    }
+    for symbol in &snapshot.symbols {
+        add(symbol.file_id.as_str(), 0, 1, 0);
+    }
+    for call in &snapshot.calls {
+        add(call.from_file_id.as_str(), 0, 0, 1);
+    }
     let mut rows = aggregates.into_values().collect::<Vec<_>>();
-    rows.sort_by(|left, right| right.files.cmp(&left.files).then_with(|| left.path.cmp(&right.path)));
+    rows.sort_by(|left, right| {
+        right
+            .files
+            .cmp(&left.files)
+            .then_with(|| left.path.cmp(&right.path))
+    });
     rows
 }
 
-fn focused_graph_file_ids(snapshot: &GraphSnapshot, query: &str) -> BTreeSet<String> {
+fn focused_graph_file_ids(snapshot: &GraphSnapshot, query: &str) -> BTreeSet<GraphSnapshotNodeId> {
     let normalized = query.trim().to_ascii_lowercase();
     if normalized.is_empty() {
         return BTreeSet::new();
@@ -3418,34 +3681,57 @@ fn focused_graph_file_ids(snapshot: &GraphSnapshot, query: &str) -> BTreeSet<Str
     let mut files = snapshot
         .files
         .iter()
-        .filter(|file| file.rel_path.to_ascii_lowercase().contains(&normalized))
+        .filter(|file| {
+            file.rel_path
+                .as_str()
+                .to_ascii_lowercase()
+                .contains(&normalized)
+        })
         .map(|file| file.id.clone())
         .collect::<BTreeSet<_>>();
     files.extend(
         snapshot
             .symbols
             .iter()
-            .filter(|symbol| symbol.name.to_ascii_lowercase().contains(&normalized))
+            .filter(|symbol| {
+                symbol
+                    .name
+                    .as_str()
+                    .to_ascii_lowercase()
+                    .contains(&normalized)
+            })
             .map(|symbol| symbol.file_id.clone()),
     );
     files.extend(
         snapshot
             .calls
             .iter()
-            .filter(|call| call.callee.to_ascii_lowercase().contains(&normalized))
+            .filter(|call| {
+                call.callee
+                    .as_str()
+                    .to_ascii_lowercase()
+                    .contains(&normalized)
+            })
             .map(|call| call.from_file_id.clone()),
     );
     files
 }
 
-fn focused_graph_file_ids_for_node(snapshot: &GraphSnapshot, node_id: &str) -> BTreeSet<String> {
-    if let Some(file) = snapshot.files.iter().find(|file| file.id == node_id) {
+fn focused_graph_file_ids_for_node(
+    snapshot: &GraphSnapshot,
+    node_id: &str,
+) -> BTreeSet<GraphSnapshotNodeId> {
+    if let Some(file) = snapshot
+        .files
+        .iter()
+        .find(|file| file.id.as_str() == node_id)
+    {
         return BTreeSet::from([file.id.clone()]);
     }
     snapshot
         .symbols
         .iter()
-        .find(|symbol| symbol.id == node_id)
+        .find(|symbol| symbol.id.as_str() == node_id)
         .map(|symbol| BTreeSet::from([symbol.file_id.clone()]))
         .unwrap_or_default()
 }
@@ -3478,9 +3764,9 @@ mod graph_projection_tests {
         build_projection, focused_graph_file_ids, focused_graph_file_ids_for_node,
         graph_folder_aggregates, symbol_kind, GraphFocusRequest, MAX_PROJECTION_FILES,
     };
+    use enforcer_domain::memory_types::{GraphSymbolKindSnapshot, GraphTextOnly, SourceHash};
     use enforcer_memory::artifacts::{
-        CallEdgeSnapshot, GraphFileSnapshot, GraphSnapshot, GraphSymbolKindSnapshot,
-        GraphSymbolSnapshot,
+        CallEdgeSnapshot, GraphFileSnapshot, GraphSnapshot, GraphSymbolSnapshot,
     };
 
     #[test]
@@ -3506,54 +3792,63 @@ mod graph_projection_tests {
     }
 
     #[test]
-    fn focused_projection_selects_files_from_path_symbol_and_call_matches() {
+    fn focused_projection_selects_files_from_path_symbol_and_call_matches(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let snapshot = GraphSnapshot {
             files: vec![
                 GraphFileSnapshot {
-                    id: "file-api".to_owned(),
-                    rel_path: "src/api.rs".to_owned(),
-                    text_only: false,
-                    content_hash: "api".to_owned(),
+                    id: "file-api".parse()?,
+                    rel_path: "src/api.rs".parse()?,
+                    text_only: GraphTextOnly::STRUCTURED,
+                    content_hash: SourceHash::try_new("a".repeat(64))?,
                     last_commit: None,
-                    change_count: 0,
+                    change_count: 0.into(),
                     chunk_ids: Vec::new(),
                 },
                 GraphFileSnapshot {
-                    id: "file-worker".to_owned(),
-                    rel_path: "src/worker.rs".to_owned(),
-                    text_only: false,
-                    content_hash: "worker".to_owned(),
+                    id: "file-worker".parse()?,
+                    rel_path: "src/worker.rs".parse()?,
+                    text_only: GraphTextOnly::STRUCTURED,
+                    content_hash: SourceHash::try_new("b".repeat(64))?,
                     last_commit: None,
-                    change_count: 0,
+                    change_count: 0.into(),
                     chunk_ids: Vec::new(),
                 },
             ],
             symbols: vec![GraphSymbolSnapshot {
-                id: "symbol-handler".to_owned(),
+                id: "symbol-handler".parse()?,
                 kind: GraphSymbolKindSnapshot::Function,
-                name: "handle_request".to_owned(),
-                file_id: "file-api".to_owned(),
-                line: 4,
+                name: "handle_request".parse()?,
+                file_id: "file-api".parse()?,
+                line: 4.into(),
                 source_body_fingerprint: None,
             }],
             calls: vec![CallEdgeSnapshot {
-                from_file_id: "file-worker".to_owned(),
-                callee: "run_worker".to_owned(),
-                line: 9,
+                from_file_id: "file-worker".parse()?,
+                callee: "run_worker".parse()?,
+                line: 9.into(),
             }],
             ..GraphSnapshot::default()
         };
 
-        assert!(focused_graph_file_ids(&snapshot, "api").contains("file-api"));
-        assert!(focused_graph_file_ids(&snapshot, "request").contains("file-api"));
-        assert!(focused_graph_file_ids(&snapshot, "worker").contains("file-worker"));
+        assert!(focused_graph_file_ids(&snapshot, "api")
+            .iter()
+            .any(|id| id.as_str() == "file-api"));
+        assert!(focused_graph_file_ids(&snapshot, "request")
+            .iter()
+            .any(|id| id.as_str() == "file-api"));
+        assert!(focused_graph_file_ids(&snapshot, "worker")
+            .iter()
+            .any(|id| id.as_str() == "file-worker"));
         let exact_symbol_file = focused_graph_file_ids_for_node(&snapshot, "symbol-handler");
-        assert!(exact_symbol_file.contains("file-api"));
-        assert!(!exact_symbol_file.contains("file-worker"));
+        assert!(exact_symbol_file.iter().any(|id| id.as_str() == "file-api"));
+        assert!(!exact_symbol_file
+            .iter()
+            .any(|id| id.as_str() == "file-worker"));
         let src = graph_folder_aggregates(&snapshot)
             .into_iter()
             .find(|aggregate| aggregate.path == "src")
-            .expect("src aggregate");
+            .ok_or("src aggregate was not produced")?;
         assert_eq!((src.files, src.symbols, src.calls), (2, 1, 1));
 
         let projection = build_projection(
@@ -3571,25 +3866,29 @@ mod graph_projection_tests {
             .nodes
             .iter()
             .all(|node| node.path == "src/api.rs"));
+        Ok(())
     }
 
     #[test]
-    fn focused_projection_reaches_a_file_outside_the_default_file_cap() {
+    fn focused_projection_reaches_a_file_outside_the_default_file_cap(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let files = (0..=MAX_PROJECTION_FILES)
-            .map(|index| GraphFileSnapshot {
-                id: format!("file-{index}"),
-                rel_path: if index == MAX_PROJECTION_FILES {
-                    "src/late-focus.rs".to_owned()
-                } else {
-                    format!("src/file-{index}.rs")
-                },
-                text_only: false,
-                content_hash: format!("hash-{index}"),
-                last_commit: None,
-                change_count: 0,
-                chunk_ids: Vec::new(),
+            .map(|index| {
+                Ok(GraphFileSnapshot {
+                    id: format!("file-{index}").parse()?,
+                    rel_path: if index == MAX_PROJECTION_FILES {
+                        "src/late-focus.rs".parse()?
+                    } else {
+                        format!("src/file-{index}.rs").parse()?
+                    },
+                    text_only: GraphTextOnly::STRUCTURED,
+                    content_hash: SourceHash::try_new(format!("{index:064x}"))?,
+                    last_commit: None,
+                    change_count: 0.into(),
+                    chunk_ids: Vec::new(),
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
         let snapshot = GraphSnapshot {
             files,
             ..GraphSnapshot::default()
@@ -3613,11 +3912,11 @@ mod graph_projection_tests {
         assert!(focused_projection.focus_matched);
         assert_eq!(focused_projection.nodes.len(), 1);
         assert_eq!(focused_projection.nodes[0].path, "src/late-focus.rs");
+        Ok(())
     }
-
 }
 
-fn main() {
+fn main() -> Result<(), tauri::Error> {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             desktop_status,
@@ -3660,5 +3959,4 @@ fn main() {
             load_memory_summary
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Enforcer desktop UI");
 }

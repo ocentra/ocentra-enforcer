@@ -16,13 +16,14 @@
 //! - `service_test.rs`: a test file calling `handler` -- for
 //!   `include_tests` filtering and test-coverage risk-signal coverage.
 
-use enforcer_memory::analysis::trace::{
-    self, hop_to_risk_label, Approximation, RiskLabel, TraceCallsParams,
-};
-use enforcer_memory::analysis::{CodeAdjacency, EdgeKind, TraceDirection};
+use enforcer_domain::memory_types::EdgeProvenance;
+use enforcer_domain::memory_types::{Approximation, ImpactScope, RiskLabel, RiskLevel};
+use enforcer_domain::memory_types::{MemoryEdgeKind, TraceDirection};
+use enforcer_memory::analysis::trace::{self, hop_to_risk_label, TraceCallsParams};
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
-use enforcer_memory::impact::{self, ImpactScope, RiskFactors, RiskLevel};
-use enforcer_memory::traces::{EdgeProvenance, TraceRecord, TraceStore};
+use enforcer_memory::impact::{self, RiskFactors};
+use enforcer_memory::traces::{TraceRecord, TraceStore};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -88,7 +89,7 @@ fn calls_mode_hop_set_matches_underlying_adjacency_trace() -> TestResult {
 
     let params = TraceCallsParams {
         direction: TraceDirection::Out,
-        depth: 3,
+        depth: 3.into(),
         ..Default::default()
     };
     let report = trace::trace_calls(&adjacency, &graph, "file:service.rs", &params);
@@ -97,7 +98,7 @@ fn calls_mode_hop_set_matches_underlying_adjacency_trace() -> TestResult {
     let raw = adjacency.trace_calls("file:service.rs", TraceDirection::Out, 3);
     let mut raw_ids: Vec<String> = raw
         .into_iter()
-        .flat_map(|p| p.into_iter().map(|h| h.node_id))
+        .flat_map(|p| p.into_iter().map(|h| h.node_id.to_string()))
         .collect();
     raw_ids.sort();
     raw_ids.dedup();
@@ -159,7 +160,7 @@ fn calls_mode_from_a_symbol_start_finds_the_containing_files_outbound_callee() -
         &start_symbol_id,
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
@@ -176,7 +177,7 @@ fn calls_mode_from_a_symbol_start_finds_the_containing_files_outbound_callee() -
     let raw_ids: Vec<String> = adjacency
         .trace_calls(&start_symbol_id, TraceDirection::Out, 3)
         .into_iter()
-        .flat_map(|p| p.into_iter().map(|h| h.node_id))
+        .flat_map(|p| p.into_iter().map(|h| h.node_id.to_string()))
         .collect();
     assert!(
         raw_ids.iter().any(|id| id.contains("widget")),
@@ -206,7 +207,7 @@ fn data_flow_mode_reaches_the_full_three_hop_chain_and_stays_honest() -> TestRes
 
     let params = TraceCallsParams {
         direction: TraceDirection::Out,
-        depth: 3,
+        depth: 3.into(),
         ..Default::default()
     };
     let report = trace::trace_data_flow(&adjacency, &graph, "file:client.ts", &params);
@@ -271,8 +272,8 @@ fn cross_service_mode_finds_producer_route_and_upstream_consumer() -> TestResult
         "file:client.ts",
         trace::TraceCrossServiceParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     assert!(
@@ -300,7 +301,7 @@ fn direction_and_depth_bound_the_calls_mode_hop_set() -> TestResult {
         "file:service.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 1,
+            depth: 1.into(),
             ..Default::default()
         },
     );
@@ -314,7 +315,7 @@ fn direction_and_depth_bound_the_calls_mode_hop_set() -> TestResult {
         "file:service.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
@@ -345,8 +346,8 @@ fn include_tests_false_excludes_the_test_files_own_hop() -> TestResult {
         &handler_id,
         &TraceCallsParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
             ..Default::default()
         },
     );
@@ -356,8 +357,8 @@ fn include_tests_false_excludes_the_test_files_own_hop() -> TestResult {
         &handler_id,
         &TraceCallsParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: false,
+            depth: 3.into(),
+            include_tests: false.into(),
             ..Default::default()
         },
     );
@@ -390,14 +391,14 @@ fn edge_types_filter_restricts_every_hop_kind() -> TestResult {
         "file:service.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
-            edge_types: Some(&[EdgeKind::Calls]),
+            depth: 3.into(),
+            edge_types: Some(&[MemoryEdgeKind::Calls]),
             ..Default::default()
         },
     );
     for path in &calls_only.paths {
         for hop in &path.hops {
-            assert_eq!(hop.via, EdgeKind::Calls);
+            assert_eq!(hop.via, MemoryEdgeKind::Calls);
         }
     }
     Ok(())
@@ -439,8 +440,8 @@ fn risk_labels_follow_the_baseline_hop_distance_scheme() -> TestResult {
         "file:service.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
-            risk_labels: true,
+            depth: 3.into(),
+            risk_labels: true.into(),
             ..Default::default()
         },
     );
@@ -472,9 +473,9 @@ fn ingest_traces_annotates_parsed_edges_with_runtime_counts() -> TestResult {
     store.ingest(
         &graph,
         &[TraceRecord {
-            caller: "file:service.rs".to_string(),
-            callee: "process".to_string(),
-            count: 7,
+            caller: "file:service.rs".to_string().into(),
+            callee: "process".to_string().into(),
+            count: 7.into(),
         }],
     );
 
@@ -509,9 +510,9 @@ fn ingest_traces_creates_runtime_only_edges_for_resolved_symbol_pairs() -> TestR
     store.ingest(
         &graph,
         &[TraceRecord {
-            caller: handler_id.clone(),
-            callee: process_id.clone(),
-            count: 4,
+            caller: handler_id.clone().into(),
+            callee: process_id.clone().into(),
+            count: 4.into(),
         }],
     );
 
@@ -531,9 +532,9 @@ fn ingest_traces_reingestion_sums_counts_idempotently() -> TestResult {
     let graph = build_fixture_graph(dir.path())?;
 
     let batch = vec![TraceRecord {
-        caller: "file:service.rs".to_string(),
-        callee: "process".to_string(),
-        count: 3,
+        caller: "file:service.rs".to_string().into(),
+        callee: "process".to_string().into(),
+        count: 3.into(),
     }];
 
     let mut store = TraceStore::new();
@@ -575,30 +576,30 @@ fn ingest_traces_never_drops_unresolved_records() -> TestResult {
         &graph,
         &[
             TraceRecord {
-                caller: "sym:does-not-exist.rs:1:ghost".to_string(),
-                callee: "process".to_string(),
-                count: 1,
+                caller: "sym:does-not-exist.rs:1:ghost".to_string().into(),
+                callee: "process".to_string().into(),
+                count: 1.into(),
             },
             TraceRecord {
-                caller: "file:service.rs".to_string(),
-                callee: "sym:does-not-exist.rs:1:ghost".to_string(),
-                count: 1,
+                caller: "file:service.rs".to_string().into(),
+                callee: "sym:does-not-exist.rs:1:ghost".to_string().into(),
+                count: 1.into(),
             },
             TraceRecord {
-                caller: "sym:does-not-exist.rs:1:also-ghost".to_string(),
-                callee: "sym:does-not-exist.rs:1:ghost-too".to_string(),
-                count: 1,
+                caller: "sym:does-not-exist.rs:1:also-ghost".to_string().into(),
+                callee: "sym:does-not-exist.rs:1:ghost-too".to_string().into(),
+                count: 1.into(),
             },
         ],
     );
 
     assert_eq!(store.unresolved().len(), 3);
-    assert!(store.unresolved()[0].unresolved_caller);
-    assert!(!store.unresolved()[0].unresolved_callee);
-    assert!(!store.unresolved()[1].unresolved_caller);
-    assert!(store.unresolved()[1].unresolved_callee);
-    assert!(store.unresolved()[2].unresolved_caller);
-    assert!(store.unresolved()[2].unresolved_callee);
+    assert!(store.unresolved()[0].unresolved_caller.is_unresolved());
+    assert!(!store.unresolved()[0].unresolved_callee.is_unresolved());
+    assert!(!store.unresolved()[1].unresolved_caller.is_unresolved());
+    assert!(store.unresolved()[1].unresolved_callee.is_unresolved());
+    assert!(store.unresolved()[2].unresolved_caller.is_unresolved());
+    assert!(store.unresolved()[2].unresolved_callee.is_unresolved());
 
     let edges = store.edges(&graph);
     assert!(edges
@@ -612,14 +613,14 @@ fn ingest_traces_never_drops_unresolved_records() -> TestResult {
 #[test]
 fn risk_boundaries_high_centrality_beats_test_coverage() {
     let high_centrality_untested = RiskFactors {
-        centrality_degree: 25,
-        has_test_coverage: false,
-        has_downstream_route: false,
+        centrality_degree: 25.into(),
+        has_test_coverage: false.into(),
+        has_downstream_route: false.into(),
     };
     let high_centrality_tested = RiskFactors {
-        centrality_degree: 25,
-        has_test_coverage: true,
-        has_downstream_route: false,
+        centrality_degree: 25.into(),
+        has_test_coverage: true.into(),
+        has_downstream_route: false.into(),
     };
     assert_eq!(
         impact::classify_risk_from_factors(high_centrality_untested),
@@ -636,9 +637,9 @@ fn risk_boundaries_high_centrality_beats_test_coverage() {
 #[test]
 fn risk_boundaries_leaf_node_tested_is_low() {
     let leaf = RiskFactors {
-        centrality_degree: 0,
-        has_test_coverage: true,
-        has_downstream_route: false,
+        centrality_degree: 0.into(),
+        has_test_coverage: true.into(),
+        has_downstream_route: false.into(),
     };
     assert_eq!(impact::classify_risk_from_factors(leaf), RiskLevel::Low);
 }
@@ -646,9 +647,9 @@ fn risk_boundaries_leaf_node_tested_is_low() {
 #[test]
 fn risk_boundaries_untested_downstream_route_is_high() {
     let untested_route = RiskFactors {
-        centrality_degree: 1,
-        has_test_coverage: false,
-        has_downstream_route: true,
+        centrality_degree: 1.into(),
+        has_test_coverage: false.into(),
+        has_downstream_route: true.into(),
     };
     assert_eq!(
         impact::classify_risk_from_factors(untested_route),
@@ -668,19 +669,19 @@ fn scoped_impact_over_the_fixture_graph_finds_the_downstream_route_and_test_cove
     // test_node_ids file-id fix `include_tests` relies on).
     let report = impact::analyze_diff_impact_scoped(
         &graph,
-        &["service.rs".to_string()],
-        impact::DEFAULT_DEPTH,
+        &["service.rs".into()],
+        impact::DEFAULT_DEPTH.into(),
         ImpactScope::All,
     );
     assert_eq!(report.impacted.len(), 1);
     let impacted = &report.impacted[0];
     assert!(
-        impacted.factors.has_downstream_route,
+        impacted.factors.has_downstream_route.is_present(),
         "expected router.ts's POST /items downstream of service.rs, got {:?}",
         impacted.factors
     );
     assert!(
-        impacted.factors.has_test_coverage,
+        impacted.factors.has_test_coverage.is_present(),
         "expected service_test.rs's coverage of handler() to count, got {:?}",
         impacted.factors
     );

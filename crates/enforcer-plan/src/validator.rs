@@ -14,7 +14,7 @@
 //! equivalent required section-set ([`PlanResumeStateValidator`]). Finally,
 //! a workpack's `Requirement Checklist` must not contradict its own
 //! `Where We Are` prose ([`check_checklist_drift`] — the L24 lesson: arc-12
-//! shipped a checklist item copy-pasted from a sibling pack that its own
+//! shipped a checklist item duplicated from a sibling pack that its own
 //! Where-We-Are already said did not apply).
 //!
 //! Each single-file check implements `enforcer_validator::validator::Validator`
@@ -29,12 +29,19 @@
 //! linking each `ruleId` to this module, its doc anchor, and its fixtures
 //! live in `enforcer-rules`' `src/rules/plan.rs` (b02 also owns that file).
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::boundary::validation::ValidationSourceText;
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
-use enforcer_domain::severity::Severity;
+use enforcer_domain::ids::{LaneId, RuleId};
+use enforcer_domain::plan_types::PlanCondition;
+use enforcer_domain::plan_types::PlanOwnershipPattern;
 
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use crate::boundary::finding::build_error_finding_at as finding;
+use crate::boundary::validator::{
+    extract_line_value, one_based_line, section_text, workpack_id_condition,
+};
 /// The exact `agent-capsule` marker block every workpack must carry,
 /// verbatim except for the `Doc:` line (which names the workpack). Sourced
 /// from the workpacks this plan already ships (see
@@ -64,27 +71,10 @@ const REQUIRED_HEADINGS: &[&str] = &[
     "## Parallel Ownership Notes",
 ];
 
-fn finding(
-    rule_id: &RuleId,
-    title: &str,
-    detail: impl Into<String>,
-    file: &enforcer_domain::paths::RelPath,
-    line: u32,
-) -> Finding {
-    Finding {
-        rule_id: rule_id.clone(),
-        severity: Severity::Error,
-        title: title.to_owned(),
-        detail: detail.into(),
-        file: file.clone(),
-        line,
-        snippet: None,
-    }
-}
-
 /// `PLAN-CAPSULE`: every workpack contains the exact agent-capsule marker
 /// block, unmodified fields (the `Doc:` line is the only line allowed to
 /// vary — it names the workpack).
+#[derive(Debug)]
 pub struct PlanCapsuleValidator {
     rule_id: RuleId,
 }
@@ -104,7 +94,7 @@ impl Validator for PlanCapsuleValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
         let Some(start) = lines
             .iter()
             .position(|l| l.trim() == "<!-- agent-capsule -->")
@@ -127,12 +117,9 @@ impl Validator for PlanCapsuleValidator {
                 return vec![finding(
                     &self.rule_id,
                     "truncated agent-capsule block",
-                    format!(
-                        "capsule ended before required line `{}`",
-                        expected
-                    ),
+                    format!("capsule ended before required line `{}`", expected),
                     input.file,
-                    (cursor + 1) as u32,
+                    one_based_line(cursor),
                 )];
             };
             if *expected == "> Plan: `enforcer-selfhost-plan`" {
@@ -145,7 +132,7 @@ impl Validator for PlanCapsuleValidator {
                         "agent-capsule field modified",
                         format!("expected `{expected}`, found `{}`", actual.trim()),
                         input.file,
-                        (cursor + 1) as u32,
+                        one_based_line(cursor),
                     )];
                 }
                 cursor += 1;
@@ -164,7 +151,7 @@ impl Validator for PlanCapsuleValidator {
                     "agent-capsule field modified",
                     format!("expected `{expected}`, found `{}`", actual.trim()),
                     input.file,
-                    (cursor + 1) as u32,
+                    one_based_line(cursor),
                 )];
             }
             cursor += 1;
@@ -176,6 +163,7 @@ impl Validator for PlanCapsuleValidator {
 }
 
 /// `PLAN-SKELETON`: required headings present, in order.
+#[derive(Debug)]
 pub struct PlanSkeletonValidator {
     rule_id: RuleId,
 }
@@ -193,7 +181,7 @@ impl Validator for PlanSkeletonValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
         let mut cursor = 0usize;
         for &heading in REQUIRED_HEADINGS {
             let found = lines
@@ -234,6 +222,7 @@ const VALID_ENFORCEMENT_TIERS: &[&str] = &["T1", "T2", "T3"];
 /// `RuleId`/`LaneId` newtypes for workpack ids because a workpack id is a
 /// distinct vocabulary (short doc-authoring slugs, not rule or
 /// coordination-lane ids); this validator owns that grammar itself.
+#[derive(Debug)]
 pub struct PlanFrontmatterValidator {
     rule_id: RuleId,
 }
@@ -245,30 +234,13 @@ impl PlanFrontmatterValidator {
     }
 }
 
-fn extract_line_value<'a>(lines: &[&'a str], prefix: &str) -> Option<(&'a str, usize)> {
-    lines.iter().enumerate().find_map(|(idx, line)| {
-        let trimmed = line.trim();
-        trimmed.strip_prefix(prefix).map(|rest| (rest.trim(), idx))
-    })
-}
-
-fn is_well_formed_workpack_id(token: &str) -> bool {
-    let token = token.trim().trim_matches('`');
-    !token.is_empty()
-        && token.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
-        && token
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic())
-}
-
 impl Validator for PlanFrontmatterValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
 
         let Some((owns_value, owns_line)) = extract_line_value(&lines, "- owns:") else {
             return vec![finding(
@@ -285,7 +257,7 @@ impl Validator for PlanFrontmatterValidator {
                 "empty owns frontmatter",
                 "`- owns:` line has no glob values",
                 input.file,
-                (owns_line + 1) as u32,
+                one_based_line(owns_line),
             )];
         }
 
@@ -306,13 +278,13 @@ impl Validator for PlanFrontmatterValidator {
                 if token.is_empty() {
                     continue;
                 }
-                if !is_well_formed_workpack_id(token) {
+                if matches!(workpack_id_condition(token), PlanCondition::Unsatisfied) {
                     return vec![finding(
                         &self.rule_id,
                         "malformed deps id",
                         format!("`- deps:` token `{token}` is not a well-formed workpack id"),
                         input.file,
-                        (deps_line + 1) as u32,
+                        one_based_line(deps_line),
                     )];
                 }
             }
@@ -335,7 +307,7 @@ impl Validator for PlanFrontmatterValidator {
                 "empty tier frontmatter",
                 "`- tier:` line has no priority token",
                 input.file,
-                (tier_line + 1) as u32,
+                one_based_line(tier_line),
             )];
         };
         if !VALID_PRIORITY_TIERS.contains(&priority_token) {
@@ -344,7 +316,7 @@ impl Validator for PlanFrontmatterValidator {
                 "tier not in the P0-P5 set",
                 format!("`- tier:` priority token `{priority_token}` is not one of P0..P5"),
                 input.file,
-                (tier_line + 1) as u32,
+                one_based_line(tier_line),
             )];
         }
         if let Some(enforcement_token) = tokens.next() {
@@ -356,7 +328,7 @@ impl Validator for PlanFrontmatterValidator {
                         "`- tier:` enforcement token `{enforcement_token}` is not one of T1..T3"
                     ),
                     input.file,
-                    (tier_line + 1) as u32,
+                    one_based_line(tier_line),
                 )];
             }
         }
@@ -369,41 +341,50 @@ impl Validator for PlanFrontmatterValidator {
 #[derive(Debug, Clone)]
 pub struct OwnsRecord {
     /// Human-readable workpack label for diagnostics (file stem or id).
-    pub workpack_id: String,
+    pub workpack_id: LaneId,
     /// Dependency ids this workpack declares (raw tokens, e.g. `a01`).
-    pub deps: Vec<String>,
+    pub deps: Vec<LaneId>,
     /// `owns:` glob strings, verbatim.
-    pub owns: Vec<String>,
+    pub owns: Vec<PlanOwnershipPattern>,
 }
 
 /// Parse the `deps:`/`owns:` frontmatter lines out of one workpack's raw
 /// text into an [`OwnsRecord`]. Returns `None` if either line is absent —
 /// callers should run [`PlanFrontmatterValidator`] first so a structurally
 /// broken workpack is reported by that rule, not silently skipped here.
-pub fn parse_owns_record(workpack_id: &str, source: &str) -> Option<OwnsRecord> {
-    let lines: Vec<&str> = source.lines().collect();
-    let (owns_value, _) = extract_line_value(&lines, "- owns:")?;
-    let (deps_value, _) = extract_line_value(&lines, "- deps:")?;
+pub fn parse_owns_record(
+    workpack_id: LaneId,
+    source: &ValidationSourceText,
+) -> Result<Option<OwnsRecord>, DecodeError> {
+    let lines: Vec<&str> = source.as_source().as_str().lines().collect();
+    let Some((owns_value, _)) = extract_line_value(&lines, "- owns:") else {
+        return Ok(None);
+    };
+    let Some((deps_value, _)) = extract_line_value(&lines, "- deps:") else {
+        return Ok(None);
+    };
     let owns = owns_value
         .split(',')
-        .map(|s| s.trim().trim_matches('`').to_owned())
+        .map(|s| s.trim().trim_matches('`'))
         .filter(|s| !s.is_empty())
-        .collect();
+        .map(str::parse)
+        .collect::<Result<Vec<PlanOwnershipPattern>, _>>()?;
     let deps_value = deps_value.trim().trim_matches('`');
     let deps = if deps_value == "none" {
         Vec::new()
     } else {
         deps_value
             .split(',')
-            .map(|s| s.trim().trim_matches('`').to_owned())
+            .map(|s| s.trim().trim_matches('`'))
             .filter(|s| !s.is_empty())
-            .collect()
+            .map(str::parse)
+            .collect::<Result<Vec<LaneId>, _>>()?
     };
-    Some(OwnsRecord {
-        workpack_id: workpack_id.to_owned(),
+    Ok(Some(OwnsRecord {
+        workpack_id,
         deps,
         owns,
-    })
+    }))
 }
 
 /// Two glob strings overlap when they are byte-identical, or when one is a
@@ -413,19 +394,21 @@ pub fn parse_owns_record(workpack_id: &str, source: &str) -> Option<OwnsRecord> 
 /// solver) — the doctrine only needs to catch the two shapes this plan's
 /// workpacks actually author: two exact-identical paths, and a `**` glob
 /// that contains a sibling's exact path.
-fn globs_overlap(a: &str, b: &str) -> bool {
+fn globs_overlap(a: &PlanOwnershipPattern, b: &PlanOwnershipPattern) -> PlanCondition {
+    let a = a.as_str();
+    let b = b.as_str();
     if a == b {
-        return true;
+        return PlanCondition::Satisfied;
     }
     let a_root = a.trim_end_matches("**").trim_end_matches('/');
     let b_root = b.trim_end_matches("**").trim_end_matches('/');
     if a.ends_with("**") && b.starts_with(a_root) {
-        return true;
+        return PlanCondition::Satisfied;
     }
     if b.ends_with("**") && a.starts_with(b_root) {
-        return true;
+        return PlanCondition::Satisfied;
     }
-    false
+    PlanCondition::Unsatisfied
 }
 
 /// `PLAN-PARALLEL-SAFETY`: for any two workpacks with no dependency edge
@@ -443,14 +426,11 @@ fn globs_overlap(a: &str, b: &str) -> bool {
 pub fn check_parallel_safety(
     rule_id: &RuleId,
     records: &[OwnsRecord],
-    file_for: impl Fn(&str) -> enforcer_domain::paths::RelPath,
+    file_for: impl Fn(&LaneId) -> enforcer_domain::paths::RelPath,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
     for (index, a) in records.iter().enumerate() {
-        let Some(following) = index
-            .checked_add(1)
-            .and_then(|start| records.get(start..))
-        else {
+        let Some(following) = index.checked_add(1).and_then(|start| records.get(start..)) else {
             continue;
         };
         for b in following {
@@ -459,10 +439,11 @@ pub fn check_parallel_safety(
             if has_dep_edge {
                 continue;
             }
-            let overlap = a
-                .owns
-                .iter()
-                .any(|oa| b.owns.iter().any(|ob| globs_overlap(oa, ob)));
+            let overlap = a.owns.iter().any(|oa| {
+                b.owns
+                    .iter()
+                    .any(|ob| matches!(globs_overlap(oa, ob), PlanCondition::Satisfied))
+            });
             if overlap {
                 findings.push(finding(
                     rule_id,
@@ -492,6 +473,7 @@ const RESUME_STATE_MARKERS: &[&str] = &["where we are", "checklist", "progress",
 /// `RESUME_STATE.md` file, or any other file a caller points it at as the
 /// equivalent-section-set carrier), firing when ANY required marker is
 /// absent.
+#[derive(Debug)]
 pub struct PlanResumeStateValidator {
     rule_id: RuleId,
 }
@@ -509,7 +491,7 @@ impl Validator for PlanResumeStateValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let lowercase = input.source.to_lowercase();
+        let lowercase = input.source.as_str().to_lowercase();
         let mut missing = Vec::new();
         for marker in RESUME_STATE_MARKERS {
             let present = lowercase.contains(marker)
@@ -538,7 +520,7 @@ impl Validator for PlanResumeStateValidator {
 }
 
 /// L24 (`refs/orchestration-lessons.md`): arc-12 shipped a checklist item
-/// ("port the .mjs k8s logic") copy-pasted from a sibling language pack,
+/// ("port the .mjs k8s logic") inherited from a sibling language pack,
 /// while its own `Where We Are` correctly said no such logic existed —
 /// the checklist contradicted the pack's own stated scope facts. This
 /// `PLAN-CHECKLIST-DRIFT` predicate flags a narrow, high-confidence slice
@@ -551,7 +533,7 @@ impl Validator for PlanResumeStateValidator {
 /// workpack-scoped helper other checks in this module can call inline
 /// with the same [`ValidationInput`] shape.
 pub fn check_checklist_drift(rule_id: &RuleId, input: ValidationInput<'_>) -> Vec<Finding> {
-    let lower = input.source.to_lowercase();
+    let lower = input.source.as_str().to_lowercase();
     let where_we_are = section_text(&lower, "## where we are", "## where we want to be");
     let checklist = section_text(
         &lower,
@@ -587,27 +569,23 @@ pub fn check_checklist_drift(rule_id: &RuleId, input: ValidationInput<'_>) -> Ve
     }
 }
 
-fn section_text(lowercase_source: &str, start_heading: &str, end_heading: &str) -> Option<String> {
-    let start = lowercase_source
-        .find(start_heading)?
-        .checked_add(start_heading.len())?;
-    let rest = lowercase_source.get(start..)?;
-    let end = rest.find(end_heading).unwrap_or(rest.len());
-    rest.get(..end).map(str::to_owned)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        check_checklist_drift, check_parallel_safety, parse_owns_record, OwnsRecord,
+        PlanCapsuleValidator, PlanFrontmatterValidator, PlanResumeStateValidator,
+        PlanSkeletonValidator, Validator,
+    };
+    use enforcer_domain::boundary::decode_error::DecodeError;
+    use enforcer_domain::boundary::validation::{ValidationSource, ValidationSourceText};
     use enforcer_domain::findings::ScanScope;
-    use enforcer_validator::harness::run_fixture_parity;
+    use enforcer_domain::ids::{LaneId, RuleId};
+    use enforcer_domain::paths::{RelPath, RepoRoot};
+    use enforcer_validator::{harness::run_fixture_parity, validator::ValidationInput};
+    use proptest::proptest;
 
-    fn manifest_dir() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn rid(s: &str) -> Result<RuleId, Box<dyn std::error::Error>> {
-        Ok(s.parse()?)
+    fn manifest_dir() -> Result<RepoRoot, Box<dyn std::error::Error>> {
+        Ok(RepoRoot::try_from(env!("CARGO_MANIFEST_DIR").to_owned())?)
     }
 
     /// Test-only `file_for` callback for [`check_parallel_safety`]: builds
@@ -617,7 +595,7 @@ mod tests {
     /// own tests pass in is a short alnum/dash token, so the primary
     /// candidate always parses; the loop only exists to keep this
     /// panic-free even if that ever stopped being true.
-    fn test_file_for(id: &str) -> enforcer_domain::paths::RelPath {
+    fn test_file_for(id: &LaneId) -> enforcer_domain::paths::RelPath {
         let candidates = [
             format!("docs/plans/enforcer-selfhost-plan/workpacks/{id}.md"),
             "docs/plans/enforcer-selfhost-plan/workpacks/unknown.md".to_owned(),
@@ -637,66 +615,104 @@ mod tests {
         }
     }
 
+    proptest! {
+        #[test]
+        fn parse_owns_record_handles_arbitrary_text(source in "(?s).{0,4096}") {
+            if let Ok(workpack_id) = "property-workpack".parse::<LaneId>() {
+                let source = ValidationSourceText::try_new(source);
+                let parsed = parse_owns_record(workpack_id.clone(), &source);
+                prop_assert!(match parsed {
+                    Ok(None) => true,
+                    Ok(Some(record)) => {
+                        record.workpack_id == workpack_id
+                            && record.owns.iter().all(|pattern| !pattern.as_str().is_empty())
+                    }
+                    Err(DecodeError { path, .. }) => {
+                        path == "planOwnershipPattern" || path == "laneId"
+                    }
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn parse_owns_record_rejects_invalid_ownership_pattern(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let source = ValidationSourceText::try_new(
+            "- deps: none\n- owns: ../outside-the-repository.rs".to_owned(),
+        );
+        let result = parse_owns_record("invalid-owns".parse()?, &source);
+        assert!(matches!(
+            result,
+            Err(DecodeError { ref path, .. }) if path == "planOwnershipPattern"
+        ));
+        Ok(())
+    }
+
     #[test]
     fn capsule_validator_parity() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = PlanCapsuleValidator::new(rid("PLAN-CAPSULE.1")?);
+        let validator = PlanCapsuleValidator::new("PLAN-CAPSULE.1".parse()?);
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "tests/fixtures/plan-validator/capsule/fail/workpack.md",
-            "tests/fixtures/plan-validator/capsule/pass/workpack.md",
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/capsule/fail/workpack.md".parse()?,
+            &"tests/fixtures/plan-validator/capsule/pass/workpack.md".parse()?,
         )?;
         Ok(())
     }
 
     #[test]
     fn skeleton_validator_parity() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = PlanSkeletonValidator::new(rid("PLAN-SKELETON.1")?);
+        let validator = PlanSkeletonValidator::new("PLAN-SKELETON.1".parse()?);
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "tests/fixtures/plan-validator/skeleton/fail/workpack.md",
-            "tests/fixtures/plan-validator/skeleton/pass/workpack.md",
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/skeleton/fail/workpack.md".parse()?,
+            &"tests/fixtures/plan-validator/skeleton/pass/workpack.md".parse()?,
         )?;
         Ok(())
     }
 
     #[test]
     fn frontmatter_validator_parity() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = PlanFrontmatterValidator::new(rid("PLAN-FRONTMATTER.1")?);
+        let validator = PlanFrontmatterValidator::new("PLAN-FRONTMATTER.1".parse()?);
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "tests/fixtures/plan-validator/frontmatter/fail/workpack.md",
-            "tests/fixtures/plan-validator/frontmatter/pass/workpack.md",
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/frontmatter/fail/workpack.md".parse()?,
+            &"tests/fixtures/plan-validator/frontmatter/pass/workpack.md".parse()?,
         )?;
         Ok(())
     }
 
     #[test]
     fn resume_state_validator_parity() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = PlanResumeStateValidator::new(rid("PLAN-RESUME.1")?);
+        let validator = PlanResumeStateValidator::new("PLAN-RESUME.1".parse()?);
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
-            "tests/fixtures/plan-validator/resume-state/fail/RESUME_STATE.md",
-            "tests/fixtures/plan-validator/resume-state/pass/RESUME_STATE.md",
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/resume-state/fail/RESUME_STATE.md".parse()?,
+            &"tests/fixtures/plan-validator/resume-state/pass/RESUME_STATE.md".parse()?,
         )?;
         Ok(())
     }
 
     #[test]
     fn parallel_safety_flags_overlap_without_dep_edge() -> Result<(), Box<dyn std::error::Error>> {
-        let rule_id = rid("PLAN-PARALLEL.1")?;
-        let a = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/parallel-safety/overlap-a.md"),
-        )?;
-        let b = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/parallel-safety/overlap-b.md"),
-        )?;
+        let rule_id: RuleId = "PLAN-PARALLEL.1".parse()?;
+        let a = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/parallel-safety/overlap-a.md".parse()?,
+        ))?;
+        let b = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/parallel-safety/overlap-b.md".parse()?,
+        ))?;
         let records = vec![
-            parse_owns_record("z97", &a).ok_or("expected z97 to parse")?,
-            parse_owns_record("z98", &b).ok_or("expected z98 to parse")?,
+            parse_owns_record("z97".parse()?, &ValidationSourceText::try_new(a))?
+                .ok_or("expected z97 to parse")?,
+            parse_owns_record("z98".parse()?, &ValidationSourceText::try_new(b))?
+                .ok_or("expected z98 to parse")?,
         ];
         let findings = check_parallel_safety(&rule_id, &records, test_file_for);
         assert_eq!(findings.len(), 1);
@@ -707,16 +723,20 @@ mod tests {
     #[test]
     fn parallel_safety_allows_disjoint_owns_without_dep_edge(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let rule_id = rid("PLAN-PARALLEL.1")?;
-        let a = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/parallel-safety/disjoint-a.md"),
-        )?;
-        let b = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/parallel-safety/disjoint-b.md"),
-        )?;
+        let rule_id: RuleId = "PLAN-PARALLEL.1".parse()?;
+        let a = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/parallel-safety/disjoint-a.md".parse()?,
+        ))?;
+        let b = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/parallel-safety/disjoint-b.md".parse()?,
+        ))?;
         let records = vec![
-            parse_owns_record("z95", &a).ok_or("expected z95 to parse")?,
-            parse_owns_record("z96", &b).ok_or("expected z96 to parse")?,
+            parse_owns_record("z95".parse()?, &ValidationSourceText::try_new(a))?
+                .ok_or("expected z95 to parse")?,
+            parse_owns_record("z96".parse()?, &ValidationSourceText::try_new(b))?
+                .ok_or("expected z96 to parse")?,
         ];
         let findings = check_parallel_safety(&rule_id, &records, test_file_for);
         assert!(findings.is_empty());
@@ -726,17 +746,17 @@ mod tests {
     #[test]
     fn parallel_safety_allows_overlap_when_dep_edge_declared(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let rule_id = rid("PLAN-PARALLEL.1")?;
+        let rule_id: RuleId = "PLAN-PARALLEL.1".parse()?;
         let records = vec![
             OwnsRecord {
-                workpack_id: "x1".to_owned(),
-                deps: vec!["x2".to_owned()],
-                owns: vec!["crates/sample/src/shared.rs".to_owned()],
+                workpack_id: "x1".parse()?,
+                deps: vec!["x2".parse()?],
+                owns: vec!["crates/sample/src/shared.rs".parse()?],
             },
             OwnsRecord {
-                workpack_id: "x2".to_owned(),
+                workpack_id: "x2".parse()?,
                 deps: vec![],
-                owns: vec!["crates/sample/src/shared.rs".to_owned()],
+                owns: vec!["crates/sample/src/shared.rs".parse()?],
             },
         ];
         let findings = check_parallel_safety(&rule_id, &records, test_file_for);
@@ -746,17 +766,18 @@ mod tests {
 
     #[test]
     fn checklist_drift_fires_on_contradiction() -> Result<(), Box<dyn std::error::Error>> {
-        let rule_id = rid("PLAN-DRIFT.1")?;
-        let source = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/checklist-drift/fail/workpack.md"),
-        )?;
+        let rule_id: RuleId = "PLAN-DRIFT.1".parse()?;
+        let source = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/checklist-drift/fail/workpack.md".parse()?,
+        ))?;
         let file: enforcer_domain::paths::RelPath =
             "tests/fixtures/plan-validator/checklist-drift/fail/workpack.md".parse()?;
         let findings = check_checklist_drift(
             &rule_id,
             ValidationInput {
                 file: &file,
-                source: &source,
+                source: ValidationSource::from_text(&source),
                 scope: ScanScope::Files,
             },
         );
@@ -767,17 +788,18 @@ mod tests {
 
     #[test]
     fn checklist_drift_silent_on_consistent_workpack() -> Result<(), Box<dyn std::error::Error>> {
-        let rule_id = rid("PLAN-DRIFT.1")?;
-        let source = std::fs::read_to_string(
-            manifest_dir().join("tests/fixtures/plan-validator/checklist-drift/pass/workpack.md"),
-        )?;
+        let rule_id: RuleId = "PLAN-DRIFT.1".parse()?;
+        let source = std::fs::read_to_string(crate::boundary::validator::fixture_path(
+            &manifest_dir()?,
+            &"tests/fixtures/plan-validator/checklist-drift/pass/workpack.md".parse()?,
+        ))?;
         let file: enforcer_domain::paths::RelPath =
             "tests/fixtures/plan-validator/checklist-drift/pass/workpack.md".parse()?;
         let findings = check_checklist_drift(
             &rule_id,
             ValidationInput {
                 file: &file,
-                source: &source,
+                source: ValidationSource::from_text(&source),
                 scope: ScanScope::Files,
             },
         );
@@ -796,7 +818,7 @@ mod tests {
         // `self_host_full_plan_reports_findings_readonly` below — see that
         // test's doc comment for why a hard zero-findings assertion over
         // sibling docs is out of this pack's scope.
-        let workspace_root = manifest_dir()
+        let workspace_root = std::path::PathBuf::from(manifest_dir()?.as_str())
             .parent()
             .and_then(|p| p.parent())
             .ok_or("expected crates/enforcer-plan to have a workspace root two levels up")?
@@ -812,12 +834,12 @@ mod tests {
             "docs/plans/enforcer-selfhost-plan/workpacks/b02-plan-structure-validator.md"
                 .parse()?;
 
-        let capsule = PlanCapsuleValidator::new(rid("PLAN-CAPSULE.1")?);
-        let skeleton = PlanSkeletonValidator::new(rid("PLAN-SKELETON.1")?);
-        let frontmatter = PlanFrontmatterValidator::new(rid("PLAN-FRONTMATTER.1")?);
+        let capsule = PlanCapsuleValidator::new("PLAN-CAPSULE.1".parse()?);
+        let skeleton = PlanSkeletonValidator::new("PLAN-SKELETON.1".parse()?);
+        let frontmatter = PlanFrontmatterValidator::new("PLAN-FRONTMATTER.1".parse()?);
         let input_for = |scope| ValidationInput {
             file: &file,
-            source: &source,
+            source: ValidationSource::from_text(&source),
             scope,
         };
         let mut findings = Vec::new();
@@ -853,7 +875,7 @@ mod tests {
         // asserted to have actually run (not silently skipped), with the
         // finding detail available to the caller/CI log without gating
         // b02's own proof-green.
-        let workspace_root = manifest_dir()
+        let workspace_root = std::path::PathBuf::from(manifest_dir()?.as_str())
             .parent()
             .and_then(|p| p.parent())
             .ok_or("expected crates/enforcer-plan to have a workspace root two levels up")?
@@ -864,9 +886,9 @@ mod tests {
             return Ok(());
         }
 
-        let capsule = PlanCapsuleValidator::new(rid("PLAN-CAPSULE.1")?);
-        let skeleton = PlanSkeletonValidator::new(rid("PLAN-SKELETON.1")?);
-        let frontmatter = PlanFrontmatterValidator::new(rid("PLAN-FRONTMATTER.1")?);
+        let capsule = PlanCapsuleValidator::new("PLAN-CAPSULE.1".parse()?);
+        let skeleton = PlanSkeletonValidator::new("PLAN-SKELETON.1".parse()?);
+        let frontmatter = PlanFrontmatterValidator::new("PLAN-FRONTMATTER.1".parse()?);
 
         let mut total_ran = 0usize;
         let mut findings = Vec::new();
@@ -885,7 +907,7 @@ mod tests {
             let file: enforcer_domain::paths::RelPath = rel.parse()?;
             let input_for = |scope| ValidationInput {
                 file: &file,
-                source: &source,
+                source: ValidationSource::from_text(&source),
                 scope,
             };
             findings.extend(capsule.validate(input_for(ScanScope::Files)));

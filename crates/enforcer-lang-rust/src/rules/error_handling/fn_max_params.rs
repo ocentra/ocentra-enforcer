@@ -4,20 +4,21 @@
 //! `self`/`&self`/`&mut self` receivers do not count toward the limit —
 //! only the explicit typed parameter list does.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{FnArg, ImplItemFn, ItemFn, Signature, TraitItemFn};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RustExplicitParameterCount;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// Maximum permitted explicit (non-`self`) parameter count.
-const MAX_PARAMS: usize = 5;
+const MAX_PARAMS: RustExplicitParameterCount = RustExplicitParameterCount::from_count(5);
 
 /// The `RUST-FN-MAX-PARAMS` `Validator`.
+#[derive(Debug)]
 pub struct FnMaxParamsValidator {
     rule_id: RuleId,
 }
@@ -27,7 +28,7 @@ impl FnMaxParamsValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-FN-MAX-PARAMS".parse()?,
+            rule_id: BuiltInRustRule::FnMaxParams.id(),
         })
     }
 }
@@ -38,12 +39,12 @@ impl Validator for FnMaxParamsValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -51,57 +52,59 @@ impl Validator for FnMaxParamsValidator {
     }
 }
 
-fn explicit_param_count(sig: &Signature) -> usize {
-    sig.inputs
-        .iter()
-        .filter(|arg| matches!(arg, FnArg::Typed(_)))
-        .count()
+fn explicit_param_count(sig: &Signature) -> RustExplicitParameterCount {
+    RustExplicitParameterCount::from_parameters(
+        sig.inputs
+            .iter()
+            .filter(|arg| matches!(arg, FnArg::Typed(_))),
+    )
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl Visitor {
-    fn check(&mut self, sig: &Signature, span_line: u32) {
+impl Visitor<'_> {
+    fn check(&mut self, sig: &Signature, span_line: enforcer_domain::telemetry_types::SourceLine) {
         let count = explicit_param_count(sig);
         if count > MAX_PARAMS {
-            self.findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: format!(
+            let Ok(finding) = crate::boundary::finding::from_source(
+                (self.rule_id, Severity::Error),
+                format!(
                     "`fn {}` has {count} parameters (max {MAX_PARAMS})",
                     sig.ident
                 ),
-                detail: format!(
+                format!(
                     "Fix: bundle these {count} parameters into one named input struct and \
                      take it by value or reference instead."
                 ),
-                file: self.file.clone(),
-                line: span_line,
-                snippet: None,
-            });
+                self.file,
+                span_line,
+            ) else {
+                return;
+            };
+            self.findings.push(finding);
         }
     }
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
-        let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+        let line = crate::boundary::finding::source_line(item);
         self.check(&item.sig, line);
         visit::visit_item_fn(self, item);
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
-        let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+        let line = crate::boundary::finding::source_line(item);
         self.check(&item.sig, line);
         visit::visit_impl_item_fn(self, item);
     }
 
     fn visit_trait_item_fn(&mut self, item: &'ast TraitItemFn) {
-        let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+        let line = crate::boundary::finding::source_line(item);
         self.check(&item.sig, line);
         visit::visit_trait_item_fn(self, item);
     }
@@ -109,22 +112,16 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::FnMaxParamsValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_six_params_and_silent_on_input_struct() -> Result<(), Box<dyn std::error::Error>> {
         let validator = FnMaxParamsValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/fn-max-params/fail_six.rs",
             "fixtures/fn-max-params/pass_input_struct.rs",
         )?;
@@ -132,13 +129,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = FnMaxParamsValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

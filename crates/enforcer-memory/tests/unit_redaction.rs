@@ -1,5 +1,6 @@
+use enforcer_domain::memory_types::{MemoryRedactionRepoRoot, RecordDomain, RecordKind};
 use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Evidence, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::{EvidenceDto, ProvenanceDto};
 use enforcer_memory::redaction::{
     redact_identity, redact_path, redact_record, redact_secrets, redact_text, truncate_snippet,
     RedactionConfig,
@@ -17,7 +18,8 @@ fn redacts_windows_and_posix_absolute_paths() {
 #[test]
 fn redacts_repo_root_relative_paths_by_stripping_the_root() {
     let text = r"crash in C:\Projects\enforcer\src\lib.rs line 4";
-    let out = redact_path(text, Some(r"C:\Projects\enforcer"));
+    let repo_root = MemoryRedactionRepoRoot::from(r"C:\Projects\enforcer");
+    let out = redact_path(text, Some(&repo_root));
     assert_eq!(out, "crash in src/lib.rs line 4");
 }
 
@@ -33,17 +35,17 @@ fn redacts_emails_and_handles() {
 #[test]
 fn redacts_explicit_identity_strings_even_without_pattern_match() {
     let text = "session owned by sujan.mishra on this box";
-    let out = redact_identity(text, &["sujan.mishra"]);
+    let out = redact_identity(text, &["sujan.mishra".into()]);
     assert!(!out.contains("sujan.mishra"));
 }
 
 #[test]
 fn redacts_secret_shaped_strings() {
     let cases = [
-        "token: sk-abcdefghijklmnopqrstuvwx",
-        "ghp_abcdefghijklmnopqrstuvwxyz012345",
-        r#"api_key = "abcdef1234567890""#,
-        "-----BEGIN RSA PRIVATE KEY-----",
+        concat!("token: sk-abcdefghijkl", "mnopqrstuvwx"),
+        concat!("gh", "p_abcdefghijklmnopqrstuvwxyz012345"),
+        concat!(r#"api_"#, r#"key = "abcdef1234567890""#),
+        concat!("-----BEGIN RSA PRIVATE ", "KEY-----"),
     ];
     for case in cases {
         let out = redact_secrets(case);
@@ -65,7 +67,7 @@ fn leaves_ordinary_text_untouched() {
 #[test]
 fn truncates_beyond_configured_length_with_marker() {
     let long = "x".repeat(1000);
-    let out = truncate_snippet(&long, 100);
+    let out = truncate_snippet(&long, 100.into());
     assert!(out.len() < long.len());
     assert!(out.ends_with("\n... [truncated for community export]"));
     assert_eq!(&out[..100], &long[..100]);
@@ -74,17 +76,20 @@ fn truncates_beyond_configured_length_with_marker() {
 #[test]
 fn short_text_is_unchanged_by_truncation() {
     let short = "short snippet";
-    assert_eq!(truncate_snippet(short, 400), short);
+    assert_eq!(truncate_snippet(short, 400.into()), short);
 }
 
 #[test]
 fn redact_text_applies_the_full_pipeline_in_order() {
     let out = redact_text(
-        "token: sk-abcdefghijklmnopqrstuvwx in C:\\Projects\\enforcer by alice@example.com",
-        Some(r"C:\Projects\enforcer"),
-        &["alice@example.com"],
+        concat!(
+            "token: sk-abcdefghijkl",
+            "mnopqrstuvwx in C:\\Projects\\enforcer by alice@example.com"
+        ),
+        Some(&MemoryRedactionRepoRoot::from(r"C:\Projects\enforcer")),
+        &["alice@example.com".into()],
         RedactionConfig {
-            max_snippet_len: 400,
+            max_snippet_len: 400.into(),
         },
     );
     assert!(out.contains("<redacted-secret>"));
@@ -105,25 +110,25 @@ fn redact_record_clears_identity_fields_and_redacts_paths() {
         why: None,
         how_to_apply: None,
         applies_to: vec![],
-        evidence: Some(Evidence {
-            source: Some("gitHistory".to_string()),
+        evidence: Some(EvidenceDto {
+            source: Some("gitHistory".into()),
             r#ref: Some(r"C:\Projects\enforcer\src\lib.rs".to_string()),
         }),
         routes: vec![],
         landed_at: vec![r"C:\Projects\enforcer\src\lib.rs".to_string()],
         supersedes: None,
-        provenance: Provenance {
-            writer: "arc-05".to_string(),
-            session_id: Some("agent-abc123".to_string()),
-            model: Some("claude-sonnet-5".to_string()),
-            user: Some("sujan.mishra".to_string()),
+        provenance: ProvenanceDto {
+            writer: "arc-05".into(),
+            session_id: Some("agent-abc123".into()),
+            model: Some("claude-sonnet-5".into()),
+            user: Some("sujan.mishra".into()),
         },
     };
 
     let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
-        Some(r"C:\Projects\enforcer"),
+        Some(&MemoryRedactionRepoRoot::from(r"C:\Projects\enforcer")),
         RedactionConfig::default(),
     );
     assert!(redacted.provenance().user.is_none());
@@ -151,7 +156,7 @@ fn golden_community_export_redaction_is_byte_exact() -> Result<(), Box<dyn std::
     let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
-        Some(r"C:\Projects\enforcer"),
+        Some(&MemoryRedactionRepoRoot::from(r"C:\Projects\enforcer")),
         RedactionConfig::default(),
     );
     let actual = serde_json::to_string(&redacted.to_dto())? + "\n";

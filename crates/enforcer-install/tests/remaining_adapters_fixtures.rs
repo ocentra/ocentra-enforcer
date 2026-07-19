@@ -11,22 +11,22 @@
 //!   surface` label, writing zero files.
 //! - `remaining-adapters-detect`: c02's `detect_harnesses` enumerates all
 //!   six [`enforcer_domain::ids::HarnessId`]s, and `enforcer_install::core::doctor`
-//!   aggregates one [`enforcer_install::report::VerifyReport`] per adapter
+//!   aggregates one [`enforcer_install::report::VerifyReportDto`] per adapter
 //!   across the full six-adapter set.
 
+use enforcer_domain::install_types::{DoctorCommand, InstallRequestContext};
 use enforcer_install::adapters::aider::AiderAdapter;
 use enforcer_install::adapters::antigravity::AntigravityAdapter;
 use enforcer_install::adapters::kilocode::KiloCodeAdapter;
 use enforcer_install::adapters::kiro::KiroAdapter;
 use enforcer_install::adapters::opencode::OpenCodeAdapter;
 use enforcer_install::adapters::windsurf::WindsurfAdapter;
-use enforcer_install::cli_contract::{DoctorRequest, RequestContext};
 use enforcer_install::core::{doctor, HarnessAdapter};
 use enforcer_install::detect::{detect_harnesses, MapEnv, RealFs, KNOWN_HARNESS_IDS};
-use std::path::PathBuf;
-
-fn ctx(binary: &std::path::Path) -> RequestContext {
-    RequestContext::with_defaults(binary.to_path_buf())
+fn ctx(
+    binary: &std::path::Path,
+) -> Result<InstallRequestContext, enforcer_domain::boundary::decode_error::DecodeError> {
+    InstallRequestContext::try_with_defaults(binary.to_path_buf())
 }
 
 // ---------------------------------------------------------------------
@@ -68,20 +68,20 @@ fn doctor_aggregates_a_verify_report_per_adapter_across_all_six(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let home = tempfile::tempdir()?;
     let binary = home.path().join("bin").join("enforcer");
-    let antigravity = AntigravityAdapter::new(home.path(), &binary);
-    let windsurf = WindsurfAdapter::new(home.path(), &binary);
-    let kilocode = KiloCodeAdapter::new(home.path(), &binary);
-    let kiro = KiroAdapter::new(home.path(), &binary);
+    let antigravity = AntigravityAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let windsurf = WindsurfAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let kilocode = KiloCodeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+    let kiro = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
     let opencode = OpenCodeAdapter::new();
     let aider = AiderAdapter::new();
 
     let adapters: Vec<&dyn HarnessAdapter> =
         vec![&antigravity, &windsurf, &kilocode, &kiro, &opencode, &aider];
-    let request = DoctorRequest::default();
-    let outcomes = doctor(&adapters, &ctx(&binary), &request)?;
+    let request = DoctorCommand::default();
+    let outcomes = doctor(&adapters, &ctx(&binary)?, &request)?;
     assert_eq!(outcomes.len(), 6);
 
-    let keys: Vec<&str> = outcomes.iter().map(|(key, _)| *key).collect();
+    let keys: Vec<&str> = outcomes.iter().map(|(key, _)| key.as_str()).collect();
     for expected in [
         "antigravity",
         "windsurf",
@@ -105,7 +105,8 @@ fn doctor_aggregates_a_verify_report_per_adapter_across_all_six(
 macro_rules! json_adapter_proof {
     ($mod_name:ident, $adapter:ty, $seed_dir:expr, $config_rel:expr) => {
         mod $mod_name {
-            use super::*;
+            use super::ctx;
+            use enforcer_install::core::HarnessAdapter;
 
             #[test]
             fn not_detected_fixture_yields_zero_writes() -> Result<(), Box<dyn std::error::Error>> {
@@ -118,8 +119,8 @@ macro_rules! json_adapter_proof {
                 // Simply constructing it and calling `verify` (the doctor
                 // path an absent-harness caller would take) must not
                 // create any file.
-                let adapter = <$adapter>::new(home.path(), &binary);
-                let _ = adapter.verify(&ctx(&binary));
+                let adapter = <$adapter>::try_new(home.path().to_path_buf(), binary.clone())?;
+                let _ = adapter.verify(&ctx(&binary)?)?;
                 let config_path = home.path().join($config_rel);
                 assert!(!config_path.exists(), "verify must not write");
                 Ok(())
@@ -131,19 +132,32 @@ macro_rules! json_adapter_proof {
                 let home = tempfile::tempdir()?;
                 let binary = home.path().join("bin").join("enforcer");
                 std::fs::create_dir_all(home.path().join($seed_dir))?;
-                let adapter = <$adapter>::new(home.path(), &binary);
+                let adapter = <$adapter>::try_new(home.path().to_path_buf(), binary.clone())?;
 
-                let plan = adapter.plan(&ctx(&binary))?;
-                assert!(!plan.is_noop());
+                let plan = adapter.plan(&ctx(&binary)?)?;
+                assert_eq!(
+                    plan.planned_changes.len(),
+                    1,
+                    "a fresh native adapter fixture must plan exactly one config write"
+                );
                 let applied = adapter.apply(&plan)?;
-                assert!(applied.all_succeeded());
+                assert!(applied.applied.iter().all(|change| matches!(
+                    change.status,
+                    enforcer_domain::install_types::CheckStatus::Passed
+                )));
 
-                let verify = adapter.verify(&ctx(&binary))?;
-                assert!(verify.all_passed(), "expected all checks green: {verify:?}");
-
-                let second_plan = adapter.plan(&ctx(&binary))?;
+                let verify = adapter.verify(&ctx(&binary)?)?;
                 assert!(
-                    second_plan.is_noop(),
+                    verify.checks.iter().all(|check| matches!(
+                        check.status,
+                        enforcer_domain::install_types::CheckStatus::Passed
+                    )),
+                    "expected all checks green: {verify:?}"
+                );
+
+                let second_plan = adapter.plan(&ctx(&binary)?)?;
+                assert!(
+                    second_plan.planned_changes.is_empty(),
                     "second apply must be a no-op (idempotent)"
                 );
                 Ok(())
@@ -154,9 +168,9 @@ macro_rules! json_adapter_proof {
             ) -> Result<(), Box<dyn std::error::Error>> {
                 let home = tempfile::tempdir()?;
                 let binary = home.path().join("bin").join("enforcer");
-                let adapter = <$adapter>::new(home.path(), &binary);
+                let adapter = <$adapter>::try_new(home.path().to_path_buf(), binary.clone())?;
 
-                let plan = adapter.plan(&ctx(&binary))?;
+                let plan = adapter.plan(&ctx(&binary)?)?;
                 adapter.apply(&plan)?;
 
                 let config_path = home.path().join($config_rel);
@@ -172,9 +186,12 @@ macro_rules! json_adapter_proof {
                 }
                 std::fs::write(&config_path, serde_json::to_string_pretty(&root)?)?;
 
-                let report = adapter.verify(&ctx(&binary))?;
-                assert!(!report.all_passed());
-                assert_eq!(report.checks[0].name, "mcp-registration-present");
+                let report = adapter.verify(&ctx(&binary)?)?;
+                assert!(!report.checks.iter().all(|check| matches!(
+                    check.status,
+                    enforcer_domain::install_types::CheckStatus::Passed
+                )));
+                assert_eq!(report.checks[0].name.as_str(), "mcp-registration-present");
                 Ok(())
             }
         }
@@ -183,25 +200,25 @@ macro_rules! json_adapter_proof {
 
 json_adapter_proof!(
     antigravity_proof,
-    AntigravityAdapter,
+    enforcer_install::adapters::antigravity::AntigravityAdapter,
     ".gemini/config",
     ".gemini/config/mcp_config.json"
 );
 json_adapter_proof!(
     windsurf_proof,
-    WindsurfAdapter,
+    enforcer_install::adapters::windsurf::WindsurfAdapter,
     ".codeium/windsurf",
     ".codeium/windsurf/mcp_config.json"
 );
 json_adapter_proof!(
     kilocode_proof,
-    KiloCodeAdapter,
+    enforcer_install::adapters::kilocode::KiloCodeAdapter,
     "globalStorage/kilocode.kilo-code/settings",
     "globalStorage/kilocode.kilo-code/settings/mcp_settings.json"
 );
 json_adapter_proof!(
     kiro_proof,
-    KiroAdapter,
+    enforcer_install::adapters::kiro::KiroAdapter,
     ".kiro/settings",
     ".kiro/settings/mcp.json"
 );
@@ -213,34 +230,52 @@ json_adapter_proof!(
 macro_rules! cli_only_stub_proof {
     ($mod_name:ident, $adapter:ty, $key:expr) => {
         mod $mod_name {
-            use super::*;
+            use super::ctx;
+            use enforcer_install::core::HarnessAdapter;
 
             #[test]
             fn deferred_no_mcp_surface_label_is_present_and_writes_zero_files(
             ) -> Result<(), Box<dyn std::error::Error>> {
                 let dir = tempfile::tempdir()?;
-                let binary = PathBuf::from("/abs/path/to/enforcer");
+                let binary = std::env::temp_dir().join("enforcer");
                 let adapter = <$adapter>::new();
-                assert_eq!(adapter.harness_key(), $key);
+                assert_eq!(adapter.harness_key().as_str(), $key);
 
-                let plan = adapter.plan(&ctx(&binary))?;
-                assert!(plan.is_noop());
-                assert!(plan.warnings.iter().any(|w| w.contains("no mcp surface")));
+                let plan = adapter.plan(&ctx(&binary)?)?;
+                assert!(plan.planned_changes.is_empty());
+                assert!(plan
+                    .warnings
+                    .iter()
+                    .any(|w| w.as_str().contains("no mcp surface")));
 
                 let applied = adapter.apply(&plan)?;
                 assert!(applied.applied.is_empty());
                 let after: Vec<_> = std::fs::read_dir(dir.path())?.collect();
-                assert!(after.is_empty(), "CLI-only stub must write zero files");
+                assert!(
+                    after.is_empty(),
+                    "CLI-only no-write adapter must leave the directory empty"
+                );
 
-                let report = adapter.verify(&ctx(&binary))?;
-                assert!(report.all_passed());
-                assert!(report.checks[0].detail.contains("T3"));
-                assert!(report.checks[0].detail.contains("no mcp surface"));
+                let report = adapter.verify(&ctx(&binary)?)?;
+                assert!(report.checks.iter().all(|check| matches!(
+                    check.status,
+                    enforcer_domain::install_types::CheckStatus::Passed
+                )));
+                assert!(report.checks[0].detail.as_str().contains("T3"));
+                assert!(report.checks[0].detail.as_str().contains("no mcp surface"));
                 Ok(())
             }
         }
     };
 }
 
-cli_only_stub_proof!(opencode_proof, OpenCodeAdapter, "opencode");
-cli_only_stub_proof!(aider_proof, AiderAdapter, "aider");
+cli_only_stub_proof!(
+    opencode_proof,
+    enforcer_install::adapters::opencode::OpenCodeAdapter,
+    "opencode"
+);
+cli_only_stub_proof!(
+    aider_proof,
+    enforcer_install::adapters::aider::AiderAdapter,
+    "aider"
+);

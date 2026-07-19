@@ -2,8 +2,8 @@ import { functionDefinitions } from "./rust-rules-source-test-evidence-persisten
 import { readerTargets, writerTargets } from "./rust-rules-source-test-evidence-persistence-targets.mjs";
 
 /** Describes persistence writer/reader pairs only when both sides use a real codec. */
-export function roundTripPersistenceDescriptors(source) {
-  const definitions = functionDefinitions(source);
+export function roundTripPersistenceDescriptors(source, masked = undefined) {
+  const definitions = functionDefinitions(source, masked);
   const writers = definitions.flatMap((definition) =>
     writerTargets(definition).map((targetName) => ({
       targetName,

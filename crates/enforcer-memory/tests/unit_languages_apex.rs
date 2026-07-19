@@ -8,8 +8,9 @@
 //! Java-shaped throughout), field DEFINES, annotations as DECORATES, and
 //! full `method_invocation` callee reconstruction.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_apex;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

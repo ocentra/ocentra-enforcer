@@ -1,5 +1,6 @@
+use enforcer_domain::memory_types::CodeSearchMode;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::code_search::{search_code, SearchError, SearchMode, SearchQuery};
+use enforcer_memory::code_search::{search_code, SearchError, SearchQuery};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -17,12 +18,12 @@ fn init_git_repo(dir: &Path) -> TestResult {
 /// Test-local shorthand for the common `SearchQuery` shape (a single
 /// pattern, given mode, no context lines, no limit) so individual
 /// tests don't repeat the struct literal.
-fn query(pattern: &str, mode: SearchMode) -> SearchQuery<'_> {
+fn query(pattern: &str, mode: CodeSearchMode) -> SearchQuery<'_> {
     SearchQuery {
-        pattern,
+        pattern: pattern.into(),
         mode,
-        context_lines: 0,
-        limit: 0,
+        context_lines: 0.into(),
+        limit: 0.into(),
     }
 }
 
@@ -54,7 +55,7 @@ fn finds_matches_and_enriches_with_containing_symbol() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let outcome = search_code(&graph, dir.path(), &query("needle", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query("needle", CodeSearchMode::Full))?;
     assert_eq!(outcome.total_matches, 2);
     assert_eq!(outcome.hits.len(), 2);
     assert!(outcome
@@ -85,7 +86,7 @@ fn ranks_by_structural_importance_inbound_call_degree() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let outcome = search_code(&graph, dir.path(), &query("MARK", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query("MARK", CodeSearchMode::Full))?;
     assert_eq!(outcome.hits.len(), 2);
     assert_eq!(
         outcome.hits[0].containing_symbol.as_deref(),
@@ -107,7 +108,7 @@ fn modes_compact_full_files_shape_the_output_correctly() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let compact = search_code(&graph, dir.path(), &query("let x", SearchMode::Compact))?;
+    let compact = search_code(&graph, dir.path(), &query("let x", CodeSearchMode::Compact))?;
     assert_eq!(compact.hits.len(), 1);
     assert_eq!(compact.files, vec!["lib.rs".to_string()]);
 
@@ -115,17 +116,17 @@ fn modes_compact_full_files_shape_the_output_correctly() -> TestResult {
         &graph,
         dir.path(),
         &SearchQuery {
-            pattern: "let x",
-            mode: SearchMode::Full,
-            context_lines: 1,
-            limit: 0,
+            pattern: "let x".into(),
+            mode: CodeSearchMode::Full,
+            context_lines: 1.into(),
+            limit: 0.into(),
         },
     )?;
     assert_eq!(full.hits.len(), 1);
     assert_eq!(full.hits[0].context_before, vec!["fn a() {".to_string()]);
     assert_eq!(full.hits[0].context_after, vec!["}".to_string()]);
 
-    let files_mode = search_code(&graph, dir.path(), &query("let x", SearchMode::Files))?;
+    let files_mode = search_code(&graph, dir.path(), &query("let x", CodeSearchMode::Files))?;
     assert!(
         files_mode.hits.is_empty(),
         "files mode returns no per-line hits"
@@ -153,10 +154,10 @@ fn limit_truncates_hits_but_total_matches_reflects_the_untruncated_count() -> Te
         &graph,
         dir.path(),
         &SearchQuery {
-            pattern: "needle",
-            mode: SearchMode::Full,
-            context_lines: 0,
-            limit: 2,
+            pattern: "needle".into(),
+            mode: CodeSearchMode::Full,
+            context_lines: 0.into(),
+            limit: 2.into(),
         },
     )?;
     assert_eq!(outcome.hits.len(), 2);
@@ -179,7 +180,7 @@ fn unreadable_files_are_reported_never_silently_skipped() -> TestResult {
     // it but the read fails at search time.
     fs::remove_file(dir.path().join("lib.rs"))?;
 
-    let outcome = search_code(&graph, dir.path(), &query("needle", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query("needle", CodeSearchMode::Full))?;
     assert_eq!(outcome.hits.len(), 0);
     assert_eq!(outcome.unreadable_files.len(), 1);
     assert_eq!(outcome.unreadable_files[0].rel_path, "lib.rs");
@@ -192,7 +193,7 @@ fn invalid_regex_pattern_is_a_typed_error() {
     let outcome = search_code(
         &graph,
         Path::new("."),
-        &query("(unterminated[", SearchMode::Full),
+        &query("(unterminated[", CodeSearchMode::Full),
     );
     assert!(matches!(outcome, Err(SearchError::InvalidPattern { .. })));
 }
@@ -208,7 +209,7 @@ fn regex_pattern_matches_not_just_literal_substrings() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let outcome = search_code(&graph, dir.path(), &query(r"foo_\d", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query(r"foo_\d", CodeSearchMode::Full))?;
     assert_eq!(outcome.total_matches, 2);
     Ok(())
 }
@@ -231,7 +232,7 @@ fn function_symbols_outrank_type_symbols_at_equal_call_degree() -> TestResult {
     let outcome = search_code(
         &graph,
         dir.path(),
-        &query("Marker|marker", SearchMode::Full),
+        &query("Marker|marker", CodeSearchMode::Full),
     )?;
     let fn_rank = outcome
         .hits
@@ -263,7 +264,7 @@ fn test_symbols_are_penalized_below_zero() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let outcome = search_code(&graph, dir.path(), &query("marker", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query("marker", CodeSearchMode::Full))?;
     assert_eq!(outcome.hits.len(), 1);
     assert_eq!(
         outcome.hits[0].structural_rank, -5,
@@ -285,7 +286,7 @@ fn vendored_paths_are_penalized() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let outcome = search_code(&graph, dir.path(), &query("marker", SearchMode::Full))?;
+    let outcome = search_code(&graph, dir.path(), &query("marker", CodeSearchMode::Full))?;
     assert_eq!(outcome.hits.len(), 1);
     // +10 Function boost, 0 in_degree, -50 vendored penalty = -40.
     assert_eq!(outcome.hits[0].structural_rank, -40);

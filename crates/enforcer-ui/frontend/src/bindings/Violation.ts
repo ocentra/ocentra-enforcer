@@ -4,5 +4,6 @@ import type { Finding } from "./Finding";
 /**
  * A BLOCKING finding. Invariant: severity is [`Severity::Error`], enforced
  * at construction — a non-error finding cannot become a `Violation`.
+ *Canonical domain representation for Violation.
  */
 export type Violation = Finding;

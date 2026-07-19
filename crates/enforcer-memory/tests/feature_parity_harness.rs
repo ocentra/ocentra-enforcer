@@ -14,9 +14,10 @@
 
 mod feature_parity;
 
+use enforcer_domain::memory_types::MemoryProofPrefixStatus as PrefixStatus;
 use feature_parity::proof::{
-    build_feature_parity_document, build_qa_proof_document, write_json_document, MatrixPrefixRow,
-    PrefixStatus, REQUIRED_PREFIXES,
+    build_feature_parity_document, build_qa_proof_document, write_json_document,
+    MatrixPrefixRowDto, REQUIRED_PREFIXES,
 };
 use feature_parity::runners::run_all;
 use feature_parity::{build_fixtures, BoxError};
@@ -39,10 +40,15 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
 
     let wired = results.iter().filter(|r| !r.is_unrunnable()).count();
     let unrunnable = results.iter().filter(|r| r.is_unrunnable()).count();
+    let unrunnable_rows: Vec<String> = results
+        .iter()
+        .filter(|result| result.is_unrunnable())
+        .map(|result| format!("{}: {}", result.id, result.verdict))
+        .collect();
     assert_eq!(wired + unrunnable, 250);
     assert!(
         wired >= 250,
-        "expected all 250 QA rows to be honestly wired after x06-qa-capabilities promotion, got {wired} wired / {unrunnable} unrunnable"
+        "expected all 250 QA rows to be honestly wired after x06-qa-capabilities promotion, got {wired} wired / {unrunnable} unrunnable: {unrunnable_rows:?}"
     );
     assert_eq!(
         unrunnable, 0,
@@ -119,7 +125,7 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     );
     prefixes.insert(
         "QA",
-        MatrixPrefixRow {
+        MatrixPrefixRowDto {
             prefix: "QA".to_string(),
             status: qa_status,
             test_name: Some(
@@ -192,8 +198,8 @@ fn current_prefix_statuses(
     workspace_root: &Path,
     qa_rows_green: usize,
     qa_rows_total: usize,
-) -> TestResult<BTreeMap<&'static str, MatrixPrefixRow>> {
-    let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
+) -> TestResult<BTreeMap<&'static str, MatrixPrefixRowDto>> {
+    let mut prefixes: BTreeMap<&'static str, MatrixPrefixRowDto> = REQUIRED_PREFIXES
         .iter()
         .map(|prefix| (*prefix, pending_prefix(prefix)))
         .collect();
@@ -284,8 +290,8 @@ fn current_prefix_statuses(
     Ok(prefixes)
 }
 
-fn pending_prefix(prefix: &'static str) -> MatrixPrefixRow {
-    MatrixPrefixRow {
+fn pending_prefix(prefix: &'static str) -> MatrixPrefixRowDto {
+    MatrixPrefixRowDto {
         prefix: prefix.to_string(),
         status: PrefixStatus::Pending,
         test_name: None,
@@ -296,8 +302,8 @@ fn pending_prefix(prefix: &'static str) -> MatrixPrefixRow {
     }
 }
 
-fn green_prefix(prefix: &str, artifact_path: &str, test_name: &str) -> MatrixPrefixRow {
-    MatrixPrefixRow {
+fn green_prefix(prefix: &str, artifact_path: &str, test_name: &str) -> MatrixPrefixRowDto {
+    MatrixPrefixRowDto {
         prefix: prefix.to_string(),
         status: PrefixStatus::Green,
         test_name: Some(test_name.to_string()),
@@ -311,8 +317,8 @@ fn red_prefix(
     artifact_path: &str,
     test_name: Option<&str>,
     failure_reason: impl Into<String>,
-) -> MatrixPrefixRow {
-    MatrixPrefixRow {
+) -> MatrixPrefixRowDto {
+    MatrixPrefixRowDto {
         prefix: prefix.to_string(),
         status: PrefixStatus::Red,
         test_name: test_name.map(str::to_string),
@@ -335,7 +341,7 @@ fn artifact_status(
     prefix: &str,
     artifact_path: &str,
     test_name: &str,
-) -> MatrixPrefixRow {
+) -> MatrixPrefixRowDto {
     let status = proof["status"].as_str().unwrap_or("unknown");
     let tests_failed = proof["result"]["testsFailed"].as_u64().unwrap_or(1);
     if (status == "green" || status == "complete") && tests_failed == 0 {
@@ -352,7 +358,7 @@ fn artifact_status(
 
 fn set_artifact_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
     prefix: &'static str,
     artifact_path: &'static str,
     test_name: &'static str,
@@ -369,7 +375,7 @@ fn set_artifact_status(
 
 fn set_store_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     set_artifact_status(
         workspace_root,
@@ -382,7 +388,7 @@ fn set_store_status(
 
 fn set_rag_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     set_artifact_status(
         workspace_root,
@@ -410,7 +416,7 @@ fn set_rag_status(
 
 fn set_kg_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let Some(kg) = proof_json(workspace_root, "proof/memory/x06-kg.json")? else {
         return Ok(());
@@ -441,7 +447,7 @@ fn set_kg_status(
 
 fn set_kg_parity_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let Some(parity) = proof_json(workspace_root, "proof/memory/x06-kg-parity.json")? else {
         return Ok(());
@@ -469,7 +475,7 @@ fn set_kg_parity_status(
 
 fn set_learning_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let Some(learning) = proof_json(workspace_root, "proof/memory/x06-learning-curve.json")? else {
         return Ok(());
@@ -513,7 +519,7 @@ fn set_learning_status(
 
 fn set_token_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let Some(token) = proof_json(workspace_root, "proof/memory/x06-token-reduction.json")? else {
         return Ok(());
@@ -542,7 +548,7 @@ fn set_token_status(
 
 fn set_model_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let chat_ok = proof_json(
         workspace_root,
@@ -579,7 +585,7 @@ fn set_model_status(
 
 fn set_dogfood_status(
     workspace_root: &Path,
-    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRowDto>,
 ) -> TestResult<()> {
     let Some(dogfood) = proof_json(workspace_root, "proof/memory/x06-dogfood.json")? else {
         return Ok(());

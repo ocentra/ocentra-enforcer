@@ -6,17 +6,18 @@
 //! rule does not yet enforce structurally — presence of any `///` line
 //! above the item is what this rule checks.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Attribute, ItemFn, Visibility};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RulePredicateResult;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The `RUST-DOC-PUBLIC-ITEM` `Validator`.
+#[derive(Debug)]
 pub struct DocPublicItemValidator {
     rule_id: RuleId,
 }
@@ -26,7 +27,7 @@ impl DocPublicItemValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-DOC-PUBLIC-ITEM".parse()?,
+            rule_id: BuiltInRustRule::DocPublicItem.id(),
         })
     }
 }
@@ -37,12 +38,12 @@ impl Validator for DocPublicItemValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -50,37 +51,48 @@ impl Validator for DocPublicItemValidator {
     }
 }
 
-fn has_doc_comment(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| attr.path().is_ident("doc"))
+fn has_doc_comment(attrs: &[Attribute]) -> RulePredicateResult {
+    if attrs.iter().any(|attr| attr.path().is_ident("doc")) {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
+    }
 }
 
-fn is_public(vis: &Visibility) -> bool {
-    matches!(vis, Visibility::Public(_))
+fn is_public(vis: &Visibility) -> RulePredicateResult {
+    if matches!(vis, Visibility::Public(_)) {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
+    }
 }
 
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
-        if is_public(&item.vis) && !has_doc_comment(&item.attrs) {
-            let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
-            self.findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Warning,
-                title: format!("`pub fn {}` has no `///` doc comment", item.sig.ident),
-                detail: format!(
+        if is_public(&item.vis) == RulePredicateResult::Matched
+            && has_doc_comment(&item.attrs) == RulePredicateResult::NotMatched
+        {
+            let line = crate::boundary::finding::source_line(item);
+            let Ok(finding) = crate::boundary::finding::from_source(
+                (self.rule_id, Severity::Warning),
+                format!("`pub fn {}` has no `///` doc comment", item.sig.ident),
+                format!(
                     "Fix: add a `///` summary above `pub fn {}` (and `# Errors`/`# Panics` \
                      sections if it returns `Result` or can panic).",
                     item.sig.ident
                 ),
-                file: self.file.clone(),
+                self.file,
                 line,
-                snippet: None,
-            });
+            ) else {
+                return;
+            };
+            self.findings.push(finding);
         }
         visit::visit_item_fn(self, item);
     }
@@ -88,22 +100,16 @@ impl<'ast> Visit<'ast> for Visitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
 
     use super::DocPublicItemValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_missing_doc_and_silent_when_documented() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DocPublicItemValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/doc-public-item/fail_no_doc.rs",
             "fixtures/doc-public-item/pass_documented.rs",
         )?;
@@ -111,13 +117,16 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         use enforcer_validator::validator::Validator;
         let validator = DocPublicItemValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

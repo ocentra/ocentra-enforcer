@@ -1,12 +1,14 @@
-use crate::{EventClockInstant, EventType, EventingError, QueueDisposition, StoredEventEnvelope};
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use crate::{clock::EventClockInstant, error::EventingError};
+use enforcer_domain::events_types::EventType;
+use enforcer_domain::events_types::{
+    DeadLetterReason, JournalAppendDecision, QueueDisposition, QueueExpirationState,
+};
 
 use crate::bus::{
     publish::flow::DispatchRequest,
     publish::DispatchStoredError,
-    reports::{
-        dead_letter::{DeadLetter, DeadLetterReason},
-        handler::QueueDrainReport,
-    },
+    reports::{dead_letter::DeadLetter, handler::QueueDrainReport},
     DispatchMode, EventBus,
 };
 
@@ -20,7 +22,7 @@ pub(super) async fn drain_queued_matching_unchecked(
     let mut dispatch_reports = Vec::new();
     let mut attempted_count = 0_usize;
 
-    while attempted_count < queued_before {
+    while attempted_count < crate::boundary::event_values::event_count_value(queued_before) {
         let Some(queued_envelope) = bus.queue.take_next_queued(event_type) else {
             break;
         };
@@ -28,11 +30,12 @@ pub(super) async fn drain_queued_matching_unchecked(
         let now = bus.clock.now();
         if let Some((reason, error)) = queued_expiration(
             &queued_envelope.stored,
-            queued_envelope.is_expired(now, bus.queue.policy().ttl()),
+            queued_envelope.expiration(now, bus.queue.policy().ttl()),
             now,
         ) {
             expired_count += 1;
             let dead_letter = DeadLetter::for_queue(&queued_envelope.stored, reason, error);
+            // CLONE-JUSTIFICATION: the completion registry owns the idempotency key after the queued envelope is consumed.
             bus.queue.mark_completed(
                 &queued_envelope.stored.event_id,
                 queued_envelope.stored.idempotency_key.clone(),
@@ -47,6 +50,7 @@ pub(super) async fn drain_queued_matching_unchecked(
             continue;
         }
 
+        // CLONE-JUSTIFICATION: dispatch consumes an owned snapshot while queue recovery retains the original envelope.
         let report = match bus
             .dispatch_stored_checked(
                 DispatchRequest {
@@ -55,7 +59,7 @@ pub(super) async fn drain_queued_matching_unchecked(
                     dispatch_mode,
                 },
                 bus.queue.report(QueueDisposition::Dispatched),
-                false,
+                JournalAppendDecision::Skip,
             )
             .await
         {
@@ -71,8 +75,8 @@ pub(super) async fn drain_queued_matching_unchecked(
 
     Ok(QueueDrainReport {
         queued_before,
-        dispatched_count: dispatch_reports.len(),
-        expired_count,
+        dispatched_count: crate::boundary::event_values::event_count(dispatch_reports.len()),
+        expired_count: crate::boundary::event_values::event_count(expired_count),
         remaining_count: bus.queue.queued_count(event_type),
         dispatch_reports,
     })
@@ -80,10 +84,11 @@ pub(super) async fn drain_queued_matching_unchecked(
 
 fn queued_expiration(
     stored: &StoredEventEnvelope,
-    ttl_expired: bool,
+    expiration: QueueExpirationState,
     now: EventClockInstant,
 ) -> Option<(DeadLetterReason, EventingError)> {
     if stored.is_deadline_expired(now) {
+        // CLONE-JUSTIFICATION: the deadline error owns the event type while the stored envelope remains available for dead-letter construction.
         return Some((
             DeadLetterReason::DeadlineExpired,
             EventingError::EventDeadlineExpired {
@@ -91,7 +96,8 @@ fn queued_expiration(
             },
         ));
     }
-    if ttl_expired {
+    if expiration == QueueExpirationState::Expired {
+        // CLONE-JUSTIFICATION: the expiry error owns the event type while the stored envelope remains available for dead-letter construction.
         return Some((
             DeadLetterReason::QueueExpired,
             EventingError::NoSubscriber {

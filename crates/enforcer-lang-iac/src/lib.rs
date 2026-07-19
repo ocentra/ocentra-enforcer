@@ -32,4 +32,34 @@
 //! its owning validator, and is the single source the count-parity
 //! completeness test in `tests/completeness.rs` walks.
 
+macro_rules! iac_finding {
+    ($rule_id:expr, $title:expr, $detail:expr, $file:expr, $line:expr, $snippet:expr $(,)?) => {{
+        let detail_text = $detail;
+        let detail_ref: &str = detail_text.as_ref();
+        let snippet = $snippet.and_then(
+            |source: enforcer_domain::boundary::validation::ValidationSource<'_>| match source
+                .as_str()
+                .trim()
+                .parse::<enforcer_domain::findings::FindingSnippet>()
+            {
+                Ok(snippet) => Some(snippet),
+                Err(_) => None,
+            },
+        );
+        match detail_ref.parse::<enforcer_domain::findings::FindingDetail>() {
+            Ok(detail) => Some(enforcer_domain::findings::Finding {
+                rule_id: Clone::clone(&$rule_id),
+                severity: enforcer_domain::severity::Severity::Error,
+                title: Clone::clone(&$title),
+                detail,
+                file: Clone::clone($file),
+                line: enforcer_domain::findings::FindingLine::known($line),
+                snippet,
+            }),
+            Err(_) => None,
+        }
+    }};
+}
+
+mod boundary;
 pub mod rules;

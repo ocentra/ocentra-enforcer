@@ -3,7 +3,10 @@
 //! This module owns Go-only declarations, receiver-based DEFINES edges,
 //! import extraction, test naming, and route detection.
 
-use super::*;
+use super::{
+    child_text, parse_with_spec, syntax_children, DefinesRef, ImportRef, InheritsRef, LangSpec,
+    Node, ParsedFile, Quirks, RouteRef, SymbolKind, SymbolRef, HTTP_METHODS,
+};
 
 /// Raw source bytes owned by one Go extraction pass.
 ///
@@ -33,9 +36,9 @@ fn go_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "const_declaration" => {
             for name in go_spec_names(node, "const_spec", source) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Return `false` (not "fully handled"): a `const_spec`'s
@@ -50,9 +53,9 @@ fn go_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "var_declaration" => {
             for name in go_spec_names(node, "var_spec", source) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Variable,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Same rationale as `const_declaration` above.
@@ -61,8 +64,8 @@ fn go_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "import_declaration" => {
             for path in go_import_paths(node, source) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -83,9 +86,9 @@ fn go_on_method_defined(node: Node<'_>, name: &str, line: usize, src: &[u8], out
     }
     if let Some(receiver_type) = go_receiver_type_name(node, GoSource(src)) {
         out.defines.push(DefinesRef {
-            container_name: receiver_type,
-            member_name: name.to_string(),
-            line,
+            container_name: (receiver_type).into(),
+            member_name: (name.to_string()).into(),
+            line: line.into(),
         });
     }
 }
@@ -95,9 +98,9 @@ fn walk_go_type_declaration(node: Node<'_>, source: GoSource<'_>, out: &mut Pars
         if spec.kind() == "type_alias" {
             if let Some(name) = child_text(spec, "name", source.bytes()) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: spec.start_position().row + 1,
+                    line: (spec.start_position().row + 1).into(),
                 });
             }
             continue;
@@ -115,45 +118,45 @@ fn walk_go_type_declaration(node: Node<'_>, source: GoSource<'_>, out: &mut Pars
         match type_node.kind() {
             "struct_type" => {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Struct,
-                    line,
+                    line: line.into(),
                 });
                 for (member_name, embedded) in go_struct_fields(type_node, source) {
                     if embedded {
                         out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name: member_name,
-                            line,
+                            sub_name: (name.clone()).into(),
+                            super_name: (member_name).into(),
+                            line: line.into(),
                         });
                     } else {
                         out.defines.push(DefinesRef {
-                            container_name: name.clone(),
-                            member_name,
-                            line,
+                            container_name: (name.clone()).into(),
+                            member_name: member_name.into(),
+                            line: line.into(),
                         });
                     }
                 }
             }
             "interface_type" => {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for method_name in go_interface_methods(type_node, source) {
                     out.defines.push(DefinesRef {
-                        container_name: name.clone(),
-                        member_name: method_name,
-                        line,
+                        container_name: (name.clone()).into(),
+                        member_name: (method_name).into(),
+                        line: line.into(),
                     });
                 }
             }
             _ => {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line,
+                    line: line.into(),
                 });
             }
         }
@@ -284,9 +287,9 @@ fn go_route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<R
         return None;
     }
     Some(RouteRef {
-        method,
-        path,
-        line: call_node.start_position().row + 1,
+        method: method.into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -298,8 +301,12 @@ pub fn go_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(go_quirk)),
         is_test_name: go_is_test_name,
-        route_from_call: Some(Box::new(go_route_from_call)),
-        on_method_defined: Some(Box::new(go_on_method_defined)),
+        route_from_call: Some(Box::new(|ctx| {
+            go_route_from_call(ctx.callee, ctx.call_node, ctx.source)
+        })),
+        on_method_defined: Some(Box::new(|ctx| {
+            go_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }

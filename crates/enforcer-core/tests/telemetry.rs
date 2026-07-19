@@ -9,6 +9,7 @@
 use enforcer_core::error::Result;
 use enforcer_core::telemetry::{verify_file_chain, RunTelemetrySink, DEFAULT_RUN_TELEMETRY_PATH};
 use enforcer_domain::run_record::{ExitStatus, FindingCounts, RunRecord, RunRecordParams};
+use enforcer_domain::telemetry_types::{DurationMillis, EpochMillis, FindingCount, RunCommandName};
 
 fn temp_path(name: &str) -> std::path::PathBuf {
     let unique = format!(
@@ -22,19 +23,19 @@ fn temp_path(name: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(unique)
 }
 
-fn sample_record(seq: u32, exit_status: ExitStatus) -> RunRecord {
+fn sample_record(seq: u32, exit_status: ExitStatus) -> Result<RunRecord> {
     let findings = FindingCounts {
-        error: seq,
+        error: FindingCount::new(u64::from(seq)),
         ..FindingCounts::default()
     };
-    RunRecord::new(RunRecordParams {
-        epoch_ms: 1_700_000_000_000 + u64::from(seq),
-        command: "check".to_owned(),
+    Ok(RunRecord::new(RunRecordParams {
+        epoch_ms: EpochMillis::new(1_700_000_000_000 + u64::from(seq)),
+        command: RunCommandName::try_new("check".to_owned())?,
         rule_ids_in_scope: &[],
         findings,
-        duration_ms: 100 + u64::from(seq),
+        duration_ms: DurationMillis::new(100 + u64::from(seq)),
         exit_status,
-    })
+    }))
 }
 
 #[test]
@@ -47,13 +48,13 @@ fn a_scripted_run_appends_exactly_one_valid_ndjson_line() -> Result<()> {
     let path = temp_path("single-run");
     {
         let mut sink: RunTelemetrySink<RunRecord> = RunTelemetrySink::open(&path)?;
-        sink.append(&sample_record(1, ExitStatus::Clean))?;
+        sink.append(&sample_record(1, ExitStatus::Clean)?)?;
     }
     let raw = std::fs::read_to_string(&path)?;
     let lines: Vec<&str> = raw.lines().filter(|l| !l.trim().is_empty()).collect();
     assert_eq!(lines.len(), 1, "exactly one NDJSON line per run");
     let decoded: RunRecord = serde_json::from_str(lines[0])?;
-    assert_eq!(decoded, sample_record(1, ExitStatus::Clean));
+    assert_eq!(decoded, sample_record(1, ExitStatus::Clean)?);
     std::fs::remove_file(&path)?;
     Ok(())
 }
@@ -64,8 +65,8 @@ fn two_runs_append_two_independently_parseable_lines_and_hash_chain_verifies_on_
     let path = temp_path("two-runs");
     {
         let mut sink: RunTelemetrySink<RunRecord> = RunTelemetrySink::open(&path)?;
-        sink.append(&sample_record(1, ExitStatus::Clean))?;
-        sink.append(&sample_record(2, ExitStatus::Violations))?;
+        sink.append(&sample_record(1, ExitStatus::Clean)?)?;
+        sink.append(&sample_record(2, ExitStatus::Violations)?)?;
     }
     let raw = std::fs::read_to_string(&path)?;
     let lines: Vec<&str> = raw.lines().filter(|l| !l.trim().is_empty()).collect();
@@ -112,7 +113,7 @@ fn telemetry_never_influences_findings_or_a_would_be_exit_code() -> Result<()> {
     // the sink API has no exit-code-shaped return value to smuggle one
     // through.
     let path = temp_path("observer");
-    let record = sample_record(3, ExitStatus::Violations);
+    let record = sample_record(3, ExitStatus::Violations)?;
     let findings_before = record.findings;
     {
         let mut sink: RunTelemetrySink<RunRecord> = RunTelemetrySink::open(&path)?;

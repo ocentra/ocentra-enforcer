@@ -15,7 +15,6 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: core execution primitives, canonical domain values,
 # durable coordination events, and validator contracts used by hub operations.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: runs the validator during guarded coordination and fix-loop rescans.
@@ -28,6 +27,8 @@ glob = "=0.3.3"
 # DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for coordination
 # ledger and lock behavior tests.
 tempfile = "=3.27.0"
+# DEPENDENCY-JUSTIFICATION: property regression coverage for path normalization invariants.
+proptest = "=1.9.0"
 
 [lints]
 workspace = true

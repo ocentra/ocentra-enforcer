@@ -14,6 +14,7 @@
 //! Also proves persona free-text (non-bullet prose that happens to contain
 //! "must"/"never") is ignored by the T1 gate.
 
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::severity::Severity;
 use enforcer_rules::loader::load_registry_from_files;
 use enforcer_validator::doc_rule_parity::{check_doc_against_registry, find_undocumented_rules};
@@ -39,7 +40,8 @@ fn full_parity_bullet_citing_real_rule_passes() -> Result<(), Box<dyn std::error
     let doc_path = "docs/agents/common.md".parse()?;
     let source = read_doc("full-parity")?;
 
-    let findings = check_doc_against_registry(&doc_path, &source, &registry)?;
+    let findings =
+        check_doc_against_registry(&doc_path, ValidationSource::from_text(&source), &registry)?;
 
     assert!(
         findings.is_empty(),
@@ -55,7 +57,8 @@ fn doc_with_no_validator_fails_closed() -> Result<(), Box<dyn std::error::Error>
     let doc_path = "docs/agents/common.md".parse()?;
     let source = read_doc("doc-with-no-validator")?;
 
-    let findings = check_doc_against_registry(&doc_path, &source, &registry)?;
+    let findings =
+        check_doc_against_registry(&doc_path, ValidationSource::from_text(&source), &registry)?;
 
     assert_eq!(
         findings.len(),
@@ -63,7 +66,7 @@ fn doc_with_no_validator_fails_closed() -> Result<(), Box<dyn std::error::Error>
         "expected exactly one finding for a bullet citing an unregistered ruleId, got {findings:?}"
     );
     assert_eq!(findings[0].severity, Severity::Error);
-    assert!(findings[0].detail.contains("RR-100.2") || findings[0].snippet.is_some());
+    assert!(findings[0].detail.as_str().contains("RR-100.2"));
     Ok(())
 }
 
@@ -77,7 +80,8 @@ fn validator_with_no_doc_surfaces_as_advisory() -> Result<(), Box<dyn std::error
     // No must/never bullet in this doc cites RR-100.3 at all, so the T1 gate
     // over this single doc produces zero findings...
     let doc_path = "docs/agents/common.md".parse()?;
-    let gate_findings = check_doc_against_registry(&doc_path, &source, &registry)?;
+    let gate_findings =
+        check_doc_against_registry(&doc_path, ValidationSource::from_text(&source), &registry)?;
     assert!(
         gate_findings.is_empty(),
         "a doc with no must/never bullets should not trip the T1 gate, got {gate_findings:?}"
@@ -85,7 +89,11 @@ fn validator_with_no_doc_surfaces_as_advisory() -> Result<(), Box<dyn std::error
 
     // ...but the reverse (T2 advisory) check flags the registered rule as
     // undocumented, since no doc in the corpus cites it.
-    let advisory_findings = find_undocumented_rules([source.as_str()], &registry, &advisory_path);
+    let advisory_findings = find_undocumented_rules(
+        [ValidationSource::from_text(&source)],
+        &registry,
+        &advisory_path,
+    )?;
     assert_eq!(
         advisory_findings.len(),
         1,
@@ -103,7 +111,11 @@ fn full_parity_doc_leaves_no_undocumented_advisory() -> Result<(), Box<dyn std::
     let advisory_path = "docs/agents".parse()?;
     let source = read_doc("full-parity")?;
 
-    let advisory_findings = find_undocumented_rules([source.as_str()], &registry, &advisory_path);
+    let advisory_findings = find_undocumented_rules(
+        [ValidationSource::from_text(&source)],
+        &registry,
+        &advisory_path,
+    )?;
     assert!(
         advisory_findings.is_empty(),
         "RR-100.1 is cited by the full-parity doc, so it must not surface as undocumented: {advisory_findings:?}"
@@ -126,7 +138,8 @@ fn free_text_must_never_prose_is_not_gated() -> Result<(), Box<dyn std::error::E
         "fixture drifted: expected the free-text paragraph to still be present"
     );
 
-    let findings = check_doc_against_registry(&doc_path, &source, &registry)?;
+    let findings =
+        check_doc_against_registry(&doc_path, ValidationSource::from_text(&source), &registry)?;
     assert!(
         findings.is_empty(),
         "free-text must/never prose must not be gated, got {findings:?}"

@@ -18,7 +18,7 @@ fn preserves_decorated_class_and_call_children() {
         .map(|call| {
             (
                 call.callee.as_str(),
-                call.arg_texts.iter().map(String::as_str).collect(),
+                call.arg_texts.iter().map(|text| text.as_str()).collect(),
             )
         })
         .collect();

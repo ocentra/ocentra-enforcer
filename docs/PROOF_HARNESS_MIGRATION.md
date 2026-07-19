@@ -1,4 +1,4 @@
-# Proof Harness Migration Contract
+# Internal Proof Harness Migration Reference
 
 <!-- ai-dense -->
 ```yaml
@@ -8,10 +8,9 @@ deletion_rule: "inventory -> map enforcer proof definitions -> PROOF-LEGACY-PARI
 ```
 <!-- /ai-dense -->
 
-Proof collection is now an enforcer-owned v1 surface. The first implementation
-does not delete any product repo proof script, but it provides the reusable
-contracts, routing, local storage, CLI, MCP tools, and claim validation needed
-to migrate those scripts safely.
+This file records a proposed replacement pattern for proof collection. It is
+not current product behavior. The reusable Rust types and storage contracts
+exist, but the native proof CLI and Rust MCP proof tools are not wired.
 
 This file records the intended replacement pattern so product repos can stop
 using legacy TypeScript domain packages as proof authority.
@@ -35,16 +34,16 @@ it. If runtime consumers are gone and only proof scripts remain, the migration
 path is to replace those scripts with the enforcer checks against Rust/generated
 outputs.
 
-## Implemented v1 Surface
+## Intended Surface
 
 - `proof/INDEX.md`: agent decision tree for proof routing.
 - `proof/proofs.json`: typed/serde-validated proof registry.
-- `enforcer proof route`: route by files, plan, capability, or proof id.
-- `enforcer proof inventory`: read-only legacy proof script inventory.
-- `enforcer proof run`: run proof through bounded local artifacts.
-- `enforcer proof claim --pr-ready`: reject missing, stale, failed,
+- planned `enforcer proof route`: route by files, plan, capability, or proof id.
+- planned `enforcer proof inventory`: read-only proof script inventory.
+- planned `enforcer proof run`: run proof through bounded local artifacts.
+- planned `enforcer proof claim --pr-ready`: reject missing, stale, failed,
   manual-required, or artifact-broken claims.
-- `mcp__enforcer__proof_*`: MCP equivalents for route, run, status,
+- planned `mcp__enforcer__proof_*`: MCP equivalents for route, run, status,
   inventory, claim, last failure, diagnostics, artifact, reset, prune, and
   export.
 
@@ -80,10 +79,8 @@ The inventory now emits a migration matrix with:
 
 ## Parent-Specific Interpretation
 
-For the consumer repo (Parent), `packages/agent-protocol-domain` should not
-remain alive only because a legacy `scripts/test/*proof*.mjs` script imports
-it. The replacement is an enforcer proof definition that validates
-`crates/agent-protocol` and any generated/mirrored artifacts directly.
+This section is historical migration guidance for an internal consumer, not a
+claim about the Enforcer product surface.
 
 Deletion rule:
 

@@ -1,7 +1,8 @@
+use enforcer_domain::memory_types::{RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::boundary::record::ProvenanceDto;
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::ingest::{ingest_observation, Observation};
-use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
 use enforcer_memory::sessionstart::recall_pack;
 
 fn landed_record(id: &str) -> MemoryRecord {
@@ -19,8 +20,8 @@ fn landed_record(id: &str) -> MemoryRecord {
         routes: vec![],
         landed_at: vec!["commit abc".to_string()],
         supersedes: None,
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     }
@@ -42,13 +43,13 @@ fn recall_pack_lists_active_lessons_with_incident_counts() {
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-a-0001".to_string(),
+            lesson_id: ("mem-a-0001".to_string()).into(),
             rule_id: None,
             fault_class: None,
-            repo_context: "crates/foo".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-04T01:00:00Z".to_string(),
+            repo_context: ("crates/foo".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-04T01:00:00Z".to_string()).into(),
         },
     );
     let pack = recall_pack(&graph, 5);

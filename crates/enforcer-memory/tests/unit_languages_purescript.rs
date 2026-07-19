@@ -112,7 +112,10 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         symbol_kind(&parsed.symbols, "Shape"),
         Some(&SymbolKind::Interface)
     );
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
     Ok(())
 }
 

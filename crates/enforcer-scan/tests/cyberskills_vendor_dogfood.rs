@@ -34,17 +34,10 @@ fn cyberskills_vendor_not_dogfooded() -> Result<(), Box<dyn std::error::Error>> 
         return Ok(());
     }
 
-    let profile_name = ConfigProfileName("ocentra-enforcer".to_owned());
+    let profile_name = ConfigProfileName::new("ocentra-enforcer".to_owned())?;
     let config = resolve_profile_only(&profile_name)?;
 
-    let rules = IgnoreRules {
-        ignore_dirs: config.ignore_dirs.clone(),
-        ignore_file_globs: config
-            .ignore_file_globs
-            .iter()
-            .map(|glob| glob.as_str().to_owned())
-            .collect(),
-    };
+    let rules = IgnoreRules::new(config.ignore_dirs, config.ignore_file_globs);
 
     let walked = walk(&root, &rules)?;
     let vendor_hits: Vec<_> = walked
@@ -74,10 +67,7 @@ fn without_the_vendor_glob_the_walk_would_see_vendor_files(
         return Ok(());
     }
 
-    let rules = IgnoreRules {
-        ignore_dirs: Vec::new(),
-        ignore_file_globs: Vec::new(),
-    };
+    let rules = IgnoreRules::default();
     let walked = walk(&root, &rules)?;
     let vendor_hits = walked
         .iter()

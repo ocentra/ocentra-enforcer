@@ -26,7 +26,7 @@
 //!   silently replaced. This is the idempotency contract the proof row
 //!   requires ("preserved waivers").
 //! - [`BASELINE_FILE`] (`.enforce/baseline.json`): the d02
-//!   [`crate::rules::baseline_ratchet::BaselineRecord`], capturing every
+//!   [`crate::rules::baseline_ratchet::BaselineRecordDto`], capturing every
 //!   current violation as a grandfathered baseline entry (the ratchet's
 //!   prior baseline is always empty at onboard time -- this is the
 //!   "capture", not the "check", step; d02's own gate is what ratchets it
@@ -65,13 +65,16 @@ use std::path::Path;
 use enforcer_config::error::ConfigLoadError;
 use enforcer_config::serde::WireProjectConfig;
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::boundary::hash;
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::scan_types::{ProjectRegistration, ScopeRequest};
+use enforcer_domain::telemetry_types::RecordSchemaVersion;
 
+use crate::boundary::onboard::ProjectRegistrationDto;
 use crate::engine;
 use crate::rules::baseline_ratchet::{self, Baseline};
 use crate::scope;
-use enforcer_domain::scan_types::ScopeRequest;
 use crate::walk::{self, IgnoreRules};
 
 /// Directory onboarding scaffolds under the repo root.
@@ -83,14 +86,14 @@ pub const BASELINE_FILE: &str = "baseline.json";
 /// The project registration file name under `.enforce/`.
 pub const REGISTRATION_FILE: &str = "project.json";
 /// Schema version of [`ProjectRegistrationDto`]'s on-disk wire form.
-pub const REGISTRATION_VERSION: u32 = 1;
+pub const REGISTRATION_VERSION: RecordSchemaVersion = RecordSchemaVersion::V1;
 
 /// Derive the deterministic project id for `repo_root`: the SHA-256 digest
 /// of its canonical (normalized, absolute) string form. See the module docs
 /// "Project id" section for why this reuses [`Sha256`] rather than a new
 /// brand.
 pub fn project_id(repo_root: &RepoRoot) -> Sha256 {
-    Sha256::of(repo_root.as_str().as_bytes())
+    hash::validate(repo_root.as_str().as_bytes())
 }
 
 /// The `.enforce/project.json` registration record: what later commands
@@ -102,21 +105,6 @@ pub fn project_id(repo_root: &RepoRoot) -> Sha256 {
 /// `register_project`. Serialize-only in this module: decoding happens at
 /// consumer boundary modules, never here (round-trip proven in
 /// `tests/onboard.rs` against a boundary-side wire mirror).
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-#[doc = "Registration record; see the serialization note above."]
-pub struct ProjectRegistrationDto {
-    /// Schema version; see [`REGISTRATION_VERSION`].
-    // BRAND-INVARIANT: a plain schema-version counter, always minted from
-    // `REGISTRATION_VERSION` by `register_project` (the only constructor
-    // path); private so no other value can ever populate it.
-    version: u32,
-    /// The deterministic project id (see [`project_id`]).
-    pub project_id: Sha256,
-    /// The repo root this registration was computed for.
-    pub repo_root: RepoRoot,
-}
-
 /// Typed onboarding failure. Every variant fails closed -- there is no
 /// silent-default path anywhere in [`onboard`]/[`require_onboarded`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -246,7 +234,7 @@ fn write_default_config_if_absent(config_path: &Path) -> Result<ConfigProvisioni
 /// Run the ratchet-first baseline scan: every current violation across the
 /// whole repo becomes a grandfathered baseline entry (the ratchet's prior
 /// is always empty here -- see module docs). Writes the resulting
-/// `BaselineRecord` to `baseline_path` and returns the captured
+/// `BaselineRecordDto` to `baseline_path` and returns the captured
 /// [`Baseline`].
 fn capture_ratchet_first_baseline(
     repo_root: &RepoRoot,
@@ -272,7 +260,7 @@ fn register_project(
     repo_root: &RepoRoot,
     registration_path: &Path,
 ) -> Result<Sha256, OnboardError> {
-    let registration = ProjectRegistrationDto {
+    let registration = ProjectRegistration {
         version: REGISTRATION_VERSION,
         project_id: project_id(repo_root),
         // CLONE-JUSTIFICATION: the registration record owns its branded
@@ -280,8 +268,8 @@ fn register_project(
         // caller's borrow lives on unchanged.
         repo_root: repo_root.clone(),
     };
-    let payload =
-        serde_json::to_vec_pretty(&registration).map_err(|e| io_err(registration_path, e))?;
+    let payload = serde_json::to_vec_pretty(&ProjectRegistrationDto::from(&registration))
+        .map_err(|e| io_err(registration_path, e))?;
     std::fs::write(registration_path, payload).map_err(|e| io_err(registration_path, e))?;
     Ok(registration.project_id)
 }

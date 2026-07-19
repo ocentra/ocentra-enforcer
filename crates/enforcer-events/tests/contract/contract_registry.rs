@@ -1,9 +1,9 @@
 use super::support::{
     test_event, test_event_for_type, TestText as SupportText, OTHER_EVENT_TYPE, TEST_EVENT_TYPE,
 };
+use enforcer_domain::events_types::EventType;
 use enforcer_events::contract_registry::EventContractRegistry;
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::EventType;
 
 #[test]
 fn contract_registry_generates_markdown_in_event_type_order(
@@ -24,8 +24,8 @@ fn contract_registry_generates_markdown_in_event_type_order(
         vec![TEST_EVENT_TYPE.to_string(), OTHER_EVENT_TYPE.to_string()]
     );
 
-    let markdown = registry.render_markdown().into_string();
-    let lines = markdown.lines().collect::<Vec<_>>();
+    let markdown = registry.render_markdown()?.into_markdown();
+    let lines = markdown.as_str().lines().collect::<Vec<_>>();
     assert_eq!(lines.first().copied(), Some("# Event Contract Registry"));
     assert_eq!(
         lines.get(2).copied(),
@@ -39,9 +39,11 @@ fn contract_registry_generates_markdown_in_event_type_order(
         .any(|line| line.starts_with("| eventing.test.other | 1 |")));
 
     let observed_index = markdown
+        .as_str()
         .find(TEST_EVENT_TYPE)
         .ok_or("observed event appears in markdown")?;
     let other_index = markdown
+        .as_str()
         .find(OTHER_EVENT_TYPE)
         .ok_or("other event appears in markdown")?;
     assert!(observed_index < other_index);
@@ -69,11 +71,13 @@ fn contract_registry_rejects_duplicate_event_type(
 }
 
 #[test]
-fn empty_contract_registry_docs_are_explicit() {
-    let markdown = EventContractRegistry::new().render_markdown();
+fn empty_contract_registry_docs_are_explicit(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let markdown = EventContractRegistry::new().render_markdown()?;
 
     assert_eq!(
-        markdown.as_str(),
+        markdown.markdown().as_str(),
         "# Event Contract Registry\n\n_No event contracts registered._\n"
     );
+    Ok(())
 }

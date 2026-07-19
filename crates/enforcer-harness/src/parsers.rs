@@ -10,6 +10,12 @@
 //! Unparseable JSON becomes a graceful `HAR-2.4` skip diagnostic rather than
 //! a hard failure — mirrors `parserDiagnostic` in the legacy `.mjs`.
 
+use enforcer_domain::harness_types::{
+    HarnessCapturedOutput, HarnessDiagnosticFingerprint, HarnessDiagnosticMessage,
+    HarnessDiagnosticPath, HarnessExternalRuleId, HarnessLanguage, HarnessRunId, HarnessSourceLine,
+    HarnessToolName,
+};
+use enforcer_domain::severity::Severity;
 use regex::Regex;
 use serde_json::Value;
 
@@ -18,25 +24,135 @@ use serde_json::Value;
 /// formatting); this is the harness's own wire-adjacent record, matching
 /// the legacy `.mjs` diagnostic object shape field-for-field so `[REDACTED]`
 /// text carries straight through into `diagnostics.ndjson`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HarnessDiagnostic {
-    pub run_id: String,
-    pub tool: String,
-    pub language: String,
-    pub severity: String,
-    pub rule_id: String,
-    pub file: String,
-    pub line: u64,
-    pub message: String,
+    pub run_id: HarnessRunId,
+    pub tool: HarnessToolName,
+    pub language: HarnessLanguage,
+    pub severity: Severity,
+    pub rule_id: HarnessExternalRuleId,
+    pub file: HarnessDiagnosticPath,
+    pub line: HarnessSourceLine,
+    pub message: HarnessDiagnosticMessage,
+    pub source: Option<HarnessCapturedOutput>,
+    pub fingerprint: Option<HarnessDiagnosticFingerprint>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct HarnessDiagnosticDto {
+    run_id: String,
+    tool: String,
+    language: String,
+    severity: String,
+    rule_id: String,
+    file: String,
+    line: u64,
+    message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
+    source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fingerprint: Option<String>,
+    fingerprint: Option<String>,
+}
+
+impl From<&HarnessDiagnostic> for HarnessDiagnosticDto {
+    fn from(diagnostic: &HarnessDiagnostic) -> Self {
+        Self {
+            run_id: diagnostic.run_id.as_str().to_owned(),
+            tool: diagnostic.tool.as_str().to_owned(),
+            language: diagnostic.language.as_str().to_owned(),
+            severity: severity_label(diagnostic.severity).to_owned(),
+            rule_id: diagnostic.rule_id.as_str().to_owned(),
+            file: diagnostic.file.as_str().to_owned(),
+            line: diagnostic.line.get(),
+            message: diagnostic.message.as_str().to_owned(),
+            source: diagnostic
+                .source
+                .as_ref()
+                .map(|value| value.as_str().to_owned()),
+            fingerprint: diagnostic
+                .fingerprint
+                .as_ref()
+                .map(|value| value.as_str().to_owned()),
+        }
+    }
+}
+
+impl From<HarnessDiagnosticDto> for HarnessDiagnostic {
+    fn from(diagnostic: HarnessDiagnosticDto) -> Self {
+        Self {
+            run_id: HarnessRunId::from_adapter(&diagnostic.run_id),
+            tool: HarnessToolName::from_adapter(&diagnostic.tool),
+            language: language_from_label(&diagnostic.language),
+            severity: severity_from_label(&diagnostic.severity),
+            rule_id: HarnessExternalRuleId::from_adapter(&diagnostic.rule_id),
+            file: HarnessDiagnosticPath::from_adapter(&diagnostic.file),
+            line: HarnessSourceLine::from_external(diagnostic.line),
+            message: HarnessDiagnosticMessage::from_adapter(&diagnostic.message),
+            source: diagnostic.source.map(HarnessCapturedOutput::from_owned),
+            fingerprint: diagnostic
+                .fingerprint
+                .and_then(|value| HarnessDiagnosticFingerprint::try_new(value).ok()),
+        }
+    }
+}
+
+pub(crate) fn severity_from_label(value: &str) -> Severity {
+    match value.to_ascii_lowercase().as_str() {
+        "error" => Severity::Error,
+        "info" | "note" => Severity::Info,
+        _ => Severity::Warning,
+    }
+}
+
+fn severity_label(value: Severity) -> &'static str {
+    match value {
+        Severity::Error => "error",
+        Severity::Warning => "warning",
+        Severity::Info => "info",
+    }
+}
+
+pub(crate) fn language_from_label(value: &str) -> HarnessLanguage {
+    match value.to_ascii_lowercase().as_str() {
+        "rust" => HarnessLanguage::Rust,
+        "typescript" => HarnessLanguage::Typescript,
+        "python" => HarnessLanguage::Python,
+        _ => HarnessLanguage::Common,
+    }
+}
+
+#[derive(Clone, Copy)]
+struct DiagnosticInput<'a> {
+    run_id: &'a str,
+    tool: &'a str,
+    language: HarnessLanguage,
+    severity: Severity,
+    rule_id: &'a str,
+    file: &'a str,
+    line: u64,
+    message: &'a str,
+}
+
+fn diagnostic(input: DiagnosticInput<'_>) -> HarnessDiagnostic {
+    HarnessDiagnostic {
+        run_id: HarnessRunId::from_adapter(input.run_id),
+        tool: HarnessToolName::from_adapter(input.tool),
+        language: input.language,
+        severity: input.severity,
+        rule_id: HarnessExternalRuleId::from_adapter(input.rule_id),
+        file: HarnessDiagnosticPath::from_adapter(input.file),
+        line: HarnessSourceLine::from_external(input.line),
+        message: HarnessDiagnosticMessage::from_adapter(input.message),
+        source: None,
+        fingerprint: None,
+    }
 }
 
 /// Parse combined stdout+stderr text into diagnostics across every known
 /// adapter shape. Never panics/hard-fails on malformed input — unparseable
 /// JSON becomes a graceful skip diagnostic.
+/// PROPERTY-TEST: `tests/parser_properties.rs` supplies arbitrary text twice
+/// and asserts deterministic diagnostics without panics.
 pub fn parse_diagnostics(
     run_id: &str,
     tool: &str,
@@ -58,23 +174,22 @@ pub fn parse_diagnostics(
 }
 
 /// Graceful-skip diagnostic: reports that a tool/parser step was skipped
-/// (e.g. tool binary absent, malformed JSON) WITHOUT hard-failing the run.
+/// (e.g. tool executable absent, malformed JSON) WITHOUT hard-failing the run.
 pub fn skip_diagnostic(run_id: &str, tool: &str, context: &str, detail: &str) -> HarnessDiagnostic {
-    HarnessDiagnostic {
-        run_id: run_id.to_owned(),
-        tool: tool.to_owned(),
+    let message = format!("Harness parser ignored {context}: {detail}");
+    diagnostic(DiagnosticInput {
+        run_id,
+        tool,
         language: infer_language(tool),
-        severity: "warning".to_owned(),
-        rule_id: "HAR-2.4".to_owned(),
-        file: ".".to_owned(),
+        severity: Severity::Warning,
+        rule_id: "HAR-2.4",
+        file: ".",
         line: 1,
-        message: format!("Harness parser ignored {context}: {detail}"),
-        source: None,
-        fingerprint: None,
-    }
+        message: &message,
+    })
 }
 
-/// A tool binary was not found on `PATH`. Report skip, do NOT hard-fail —
+/// A tool executable was not found on `PATH`. Report skip, do NOT hard-fail —
 /// the distribution-doctrine graceful-skip seam.
 pub fn missing_tool_skip(run_id: &str, tool: &str) -> HarnessDiagnostic {
     skip_diagnostic(
@@ -85,27 +200,26 @@ pub fn missing_tool_skip(run_id: &str, tool: &str) -> HarnessDiagnostic {
     )
 }
 
-/// Infer a coarse language tag from a tool binary name (`cargo` -> `rust`,
+/// Infer a coarse language tag from a tool executable name (`cargo` -> `rust`,
 /// `tsc`/`eslint` -> `typescript`, `ruff`/`pytest` -> `python`, else
 /// `common`). Mirrors `inferLanguage` in `src/harness.mjs`.
-pub fn infer_language(tool: &str) -> String {
+pub fn infer_language(tool: &str) -> HarnessLanguage {
     let normalized = tool.to_ascii_lowercase();
     if normalized.contains("cargo") || normalized.contains("rust") {
-        "rust"
+        HarnessLanguage::Rust
     } else if normalized.contains("ts")
         || normalized.contains("eslint")
         || normalized.contains("vite")
     {
-        "typescript"
+        HarnessLanguage::Typescript
     } else if normalized.contains("py")
         || normalized.contains("ruff")
         || normalized.contains("pytest")
     {
-        "python"
+        HarnessLanguage::Python
     } else {
-        "common"
+        HarnessLanguage::Common
     }
-    .to_owned()
 }
 
 fn normalize_rel(value: &str) -> String {
@@ -167,22 +281,19 @@ pub fn rust_message_to_diagnostic(run_id: &str, tool: &str, message: &Value) -> 
         .and_then(|s| s.get("line_start"))
         .and_then(Value::as_u64)
         .unwrap_or(1);
-    HarnessDiagnostic {
-        run_id: run_id.to_owned(),
-        tool: tool.to_owned(),
-        language: "rust".to_owned(),
-        severity: if level == "error" { "error" } else { "warning" }.to_owned(),
-        rule_id,
-        file,
+    diagnostic(DiagnosticInput {
+        run_id,
+        tool,
+        language: HarnessLanguage::Rust,
+        severity: severity_from_label(level),
+        rule_id: &rule_id,
+        file: &file,
         line,
         message: message
             .get("message")
             .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_owned(),
-        source: None,
-        fingerprint: None,
-    }
+            .unwrap_or_default(),
+    })
 }
 
 fn primary_span(message: &Value) -> Option<&Value> {
@@ -259,31 +370,27 @@ fn eslint_diagnostics(run_id: &str, tool: &str, parsed: &Value) -> Vec<HarnessDi
             .into_iter()
             .flatten()
         {
-            out.push(HarnessDiagnostic {
-                run_id: run_id.to_owned(),
-                tool: tool.to_owned(),
-                language: "typescript".to_owned(),
+            let normalized_file = normalize_rel(file);
+            out.push(diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Typescript,
                 severity: if message.get("severity").and_then(Value::as_i64) == Some(2) {
-                    "error"
+                    Severity::Error
                 } else {
-                    "warning"
-                }
-                .to_owned(),
+                    Severity::Warning
+                },
                 rule_id: message
                     .get("ruleId")
                     .and_then(Value::as_str)
-                    .unwrap_or("eslint")
-                    .to_owned(),
-                file: normalize_rel(file),
+                    .unwrap_or("eslint"),
+                file: &normalized_file,
                 line: message.get("line").and_then(Value::as_u64).unwrap_or(1),
                 message: message
                     .get("message")
                     .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-                source: None,
-                fingerprint: None,
-            });
+                    .unwrap_or_default(),
+            }));
         }
     }
     out
@@ -294,34 +401,33 @@ fn bandit_diagnostics(run_id: &str, tool: &str, parsed: &Value) -> Vec<HarnessDi
         .as_array()
         .into_iter()
         .flatten()
-        .map(|entry| HarnessDiagnostic {
-            run_id: run_id.to_owned(),
-            tool: tool.to_owned(),
-            language: "python".to_owned(),
-            severity: "error".to_owned(),
-            rule_id: entry
-                .get("code")
-                .and_then(Value::as_str)
-                .unwrap_or("bandit")
-                .to_owned(),
-            file: normalize_rel(
+        .map(|entry| {
+            let file = normalize_rel(
                 entry
                     .get("filename")
                     .and_then(Value::as_str)
                     .unwrap_or_default(),
-            ),
-            line: entry
-                .get("location")
-                .and_then(|l| l.get("row"))
-                .and_then(Value::as_u64)
-                .unwrap_or(1),
-            message: entry
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_owned(),
-            source: None,
-            fingerprint: None,
+            );
+            diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Python,
+                severity: Severity::Error,
+                rule_id: entry
+                    .get("code")
+                    .and_then(Value::as_str)
+                    .unwrap_or("bandit"),
+                file: &file,
+                line: entry
+                    .get("location")
+                    .and_then(|l| l.get("row"))
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1),
+                message: entry
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            })
         })
         .collect()
 }
@@ -329,45 +435,46 @@ fn bandit_diagnostics(run_id: &str, tool: &str, parsed: &Value) -> Vec<HarnessDi
 fn pyright_diagnostics(run_id: &str, tool: &str, entries: &[Value]) -> Vec<HarnessDiagnostic> {
     entries
         .iter()
-        .map(|entry| HarnessDiagnostic {
-            run_id: run_id.to_owned(),
-            tool: tool.to_owned(),
-            language: "python".to_owned(),
-            severity: entry
-                .get("severity")
-                .and_then(Value::as_str)
-                .unwrap_or("error")
-                .to_owned(),
-            rule_id: "pyright".to_owned(),
-            file: entry
+        .map(|entry| {
+            let file = entry
                 .get("file")
                 .and_then(Value::as_str)
                 .map(normalize_rel)
-                .unwrap_or_else(|| ".".to_owned()),
-            line: entry
-                .get("range")
-                .and_then(|r| r.get("start"))
-                .and_then(|s| s.get("line"))
-                .and_then(Value::as_u64)
-                .map(|l| l + 1)
-                .unwrap_or(1),
-            message: entry
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_owned(),
-            source: None,
-            fingerprint: None,
+                .unwrap_or_else(|| ".".to_owned());
+            diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Python,
+                severity: severity_from_label(
+                    entry
+                        .get("severity")
+                        .and_then(Value::as_str)
+                        .unwrap_or("error"),
+                ),
+                rule_id: "pyright",
+                file: &file,
+                line: entry
+                    .get("range")
+                    .and_then(|r| r.get("start"))
+                    .and_then(|s| s.get("line"))
+                    .and_then(Value::as_u64)
+                    .map(|l| l + 1)
+                    .unwrap_or(1),
+                message: entry
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            })
         })
         .collect()
 }
 
-fn sarif_severity(level: &str) -> &'static str {
+fn sarif_severity(level: &str) -> Severity {
     match level {
-        "error" => "error",
-        "warning" => "warning",
-        "note" | "none" => "info",
-        _ => "warning",
+        "error" => Severity::Error,
+        "warning" => Severity::Warning,
+        "note" | "none" => Severity::Info,
+        _ => Severity::Warning,
     }
 }
 
@@ -395,11 +502,12 @@ fn sarif_diagnostics(run_id: &str, tool: &str, runs: &[Value]) -> Vec<HarnessDia
                 .get("level")
                 .and_then(Value::as_str)
                 .unwrap_or("warning");
-            out.push(HarnessDiagnostic {
-                run_id: run_id.to_owned(),
-                tool: tool.to_owned(),
-                language: "common".to_owned(),
-                severity: sarif_severity(level).to_owned(),
+            let normalized_uri = normalize_rel(uri);
+            out.push(diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Common,
+                severity: sarif_severity(level),
                 rule_id: result
                     .get("ruleId")
                     .and_then(Value::as_str)
@@ -409,9 +517,8 @@ fn sarif_diagnostics(run_id: &str, tool: &str, runs: &[Value]) -> Vec<HarnessDia
                             .and_then(|r| r.get("id"))
                             .and_then(Value::as_str)
                     })
-                    .unwrap_or("sarif")
-                    .to_owned(),
-                file: normalize_rel(uri),
+                    .unwrap_or("sarif"),
+                file: &normalized_uri,
                 line: region
                     .and_then(|r| r.get("startLine"))
                     .and_then(Value::as_u64)
@@ -420,11 +527,8 @@ fn sarif_diagnostics(run_id: &str, tool: &str, runs: &[Value]) -> Vec<HarnessDia
                     .get("message")
                     .and_then(|m| m.get("text").or_else(|| m.get("markdown")))
                     .and_then(Value::as_str)
-                    .unwrap_or("SARIF result")
-                    .to_owned(),
-                source: None,
-                fingerprint: None,
-            });
+                    .unwrap_or("SARIF result"),
+            }));
         }
     }
     out
@@ -435,9 +539,17 @@ fn sarif_diagnostics(run_id: &str, tool: &str, runs: &[Value]) -> Vec<HarnessDia
 // ---------------------------------------------------------------------
 
 fn parse_tsc_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnostic> {
-    #[allow(clippy::unwrap_used)]
-    let re =
-        Regex::new(r"(?m)^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s+(.+)$").unwrap();
+    let re = match Regex::new(r"(?m)^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s+(.+)$") {
+        Ok(regex) => regex,
+        Err(error) => {
+            return vec![skip_diagnostic(
+                run_id,
+                tool,
+                "tsc parser",
+                &error.to_string(),
+            )]
+        }
+    };
     re.captures_iter(text)
         .filter_map(|cap| {
             let file = cap.get(1)?.as_str();
@@ -445,41 +557,47 @@ fn parse_tsc_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnostic
             let severity = cap.get(4)?.as_str();
             let rule_id = cap.get(5)?.as_str();
             let message = cap.get(6)?.as_str();
-            Some(HarnessDiagnostic {
-                run_id: run_id.to_owned(),
-                tool: tool.to_owned(),
-                language: "typescript".to_owned(),
-                severity: severity.to_owned(),
-                rule_id: rule_id.to_owned(),
-                file: normalize_rel(file),
+            let normalized_file = normalize_rel(file);
+            Some(diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Typescript,
+                severity: severity_from_label(severity),
+                rule_id,
+                file: &normalized_file,
                 line,
-                message: message.to_owned(),
-                source: None,
-                fingerprint: None,
-            })
+                message,
+            }))
         })
         .collect()
 }
 
 fn parse_pytest_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnostic> {
-    #[allow(clippy::unwrap_used)]
-    let re = Regex::new(r"(?m)^FAILED\s+([^:\s]+(?:::[^\s]+)*)\s+-\s+(.+)$").unwrap();
+    let re = match Regex::new(r"(?m)^FAILED\s+([^:\s]+(?:::[^\s]+)*)\s+-\s+(.+)$") {
+        Ok(regex) => regex,
+        Err(error) => {
+            return vec![skip_diagnostic(
+                run_id,
+                tool,
+                "pytest parser",
+                &error.to_string(),
+            )]
+        }
+    };
     re.captures_iter(text)
         .filter_map(|cap| {
             let path = cap.get(1)?.as_str().split("::").next().unwrap_or_default();
             let message = cap.get(2)?.as_str();
-            Some(HarnessDiagnostic {
-                run_id: run_id.to_owned(),
-                tool: tool.to_owned(),
-                language: "python".to_owned(),
-                severity: "error".to_owned(),
-                rule_id: "pytest".to_owned(),
-                file: path.to_owned(),
+            Some(diagnostic(DiagnosticInput {
+                run_id,
+                tool,
+                language: HarnessLanguage::Python,
+                severity: Severity::Error,
+                rule_id: "pytest",
+                file: path,
                 line: 1,
-                message: message.to_owned(),
-                source: None,
-                fingerprint: None,
-            })
+                message,
+            }))
         })
         .collect()
 }
@@ -514,10 +632,11 @@ pub fn dedupe_diagnostics(diagnostics: Vec<HarnessDiagnostic>) -> Vec<HarnessDia
     out
 }
 
-fn fingerprint(key: &str) -> String {
+fn fingerprint(key: &str) -> HarnessDiagnosticFingerprint {
     use base64::Engine as _;
     let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(key.as_bytes());
-    encoded.chars().take(24).collect()
+    let compact: String = encoded.chars().take(24).collect();
+    HarnessDiagnosticFingerprint::from_digest(compact)
 }
 
 /// Sort diagnostics by `(file, line, ruleId, message)` — mirrors
@@ -535,7 +654,44 @@ pub fn sort_diagnostics(mut diagnostics: Vec<HarnessDiagnostic>) -> Vec<HarnessD
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        dedupe_diagnostics, missing_tool_skip, parse_diagnostics, sort_diagnostics,
+        HarnessDiagnostic, HarnessDiagnosticDto,
+    };
+
+    #[test]
+    fn harness_diagnostic_wire_roundtrip_preserves_domain_record() -> Result<(), serde_json::Error>
+    {
+        let mut diagnostic = super::diagnostic(super::DiagnosticInput {
+            run_id: "roundtrip-run",
+            tool: "cargo",
+            language: enforcer_domain::harness_types::HarnessLanguage::Rust,
+            severity: enforcer_domain::severity::Severity::Error,
+            rule_id: "E0308",
+            file: "src/lib.rs",
+            line: 7,
+            message: "mismatched types",
+        });
+        diagnostic.fingerprint = Some(
+            enforcer_domain::harness_types::HarnessDiagnosticFingerprint::from_digest(
+                "fingerprint".to_owned(),
+            ),
+        );
+        let wire = serde_json::to_string(&HarnessDiagnosticDto::from(&diagnostic))?;
+        let decoded: HarnessDiagnosticDto = serde_json::from_str(&wire)?;
+        assert_eq!(HarnessDiagnostic::from(decoded), diagnostic);
+        Ok(())
+    }
+
+    #[test]
+    fn harness_diagnostic_dto_rejects_incomplete_wire_shape() {
+        let invalid = r#"{"run_id":"run","tool":"cargo"}"#;
+        let decoded = serde_json::from_str::<HarnessDiagnosticDto>(invalid);
+        assert!(
+            decoded.is_err(),
+            "missing diagnostic fields must be rejected"
+        );
+    }
 
     #[test]
     fn rustc_compiler_message_fail_fixture_produces_error_finding() {
@@ -551,7 +707,10 @@ mod tests {
         .to_string();
         let diagnostics = parse_diagnostics("run-1", "cargo", &line, "");
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].severity, "error");
+        assert_eq!(
+            diagnostics[0].severity,
+            enforcer_domain::severity::Severity::Error
+        );
         assert_eq!(diagnostics[0].rule_id, "E0308");
         assert_eq!(diagnostics[0].file, "src/lib.rs");
         assert_eq!(diagnostics[0].line, 12);
@@ -571,8 +730,11 @@ mod tests {
     fn missing_tool_is_a_graceful_skip_not_a_hard_fail() {
         let skip = missing_tool_skip("run-1", "cflint");
         assert_eq!(skip.rule_id, "HAR-2.4");
-        assert_eq!(skip.severity, "warning");
-        assert!(skip.message.contains("cflint"));
+        assert_eq!(skip.severity, enforcer_domain::severity::Severity::Warning);
+        assert_eq!(
+            skip.message,
+            "Harness parser ignored missing tool: `cflint` was not found on PATH"
+        );
     }
 
     #[test]
@@ -583,10 +745,9 @@ mod tests {
         // line yields a skip diagnostic from each; neither path panics or
         // hard-fails, which is the property under test.
         let diagnostics = parse_diagnostics("run-1", "cargo", "{not json", "");
-        assert!(!diagnostics.is_empty());
-        assert!(diagnostics
-            .iter()
-            .all(|d| d.rule_id == "HAR-2.4" && d.severity == "warning"));
+        assert_eq!(diagnostics.len(), 2);
+        assert!(diagnostics.iter().all(|d| d.rule_id == "HAR-2.4"
+            && d.severity == enforcer_domain::severity::Severity::Warning));
     }
 
     #[test]
@@ -633,8 +794,14 @@ mod tests {
         .to_string();
         let diagnostics = parse_diagnostics("run-1", "eslint", &payload, "");
         assert_eq!(diagnostics.len(), 2);
-        assert_eq!(diagnostics[0].severity, "error");
-        assert_eq!(diagnostics[1].severity, "warning");
+        assert_eq!(
+            diagnostics[0].severity,
+            enforcer_domain::severity::Severity::Error
+        );
+        assert_eq!(
+            diagnostics[1].severity,
+            enforcer_domain::severity::Severity::Warning
+        );
     }
 
     #[test]
@@ -652,43 +819,50 @@ mod tests {
         .to_string();
         let diagnostics = parse_diagnostics("run-1", "cflint", &payload, "");
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].severity, "error");
+        assert_eq!(
+            diagnostics[0].severity,
+            enforcer_domain::severity::Severity::Error
+        );
         assert_eq!(diagnostics[0].file, "a.cfc");
         assert_eq!(diagnostics[0].line, 5);
     }
 
     #[test]
     fn dedupe_collapses_identical_diagnostics_and_stamps_fingerprint() {
-        let d = HarnessDiagnostic {
-            run_id: "r".into(),
-            tool: "cargo".into(),
-            language: "rust".into(),
-            severity: "error".into(),
-            rule_id: "E0308".into(),
-            file: "a.rs".into(),
+        let d = super::diagnostic(super::DiagnosticInput {
+            run_id: "r",
+            tool: "cargo",
+            language: enforcer_domain::harness_types::HarnessLanguage::Rust,
+            severity: enforcer_domain::severity::Severity::Error,
+            rule_id: "E0308",
+            file: "a.rs",
             line: 1,
-            message: "boom".into(),
-            source: None,
-            fingerprint: None,
-        };
+            message: "boom",
+        });
         let out = dedupe_diagnostics(vec![d.clone(), d]);
         assert_eq!(out.len(), 1);
-        assert!(out[0].fingerprint.is_some());
+        assert_eq!(
+            out.first()
+                .and_then(|diagnostic| diagnostic.fingerprint.as_ref())
+                .map(|value| value.as_str())
+                .map(str::len),
+            Some(24)
+        );
     }
 
     #[test]
     fn sort_orders_by_file_then_line_then_rule_then_message() {
-        let mk = |file: &str, line: u64, rule: &str| HarnessDiagnostic {
-            run_id: "r".into(),
-            tool: "t".into(),
-            language: "common".into(),
-            severity: "error".into(),
-            rule_id: rule.into(),
-            file: file.into(),
-            line,
-            message: "m".into(),
-            source: None,
-            fingerprint: None,
+        let mk = |file: &str, line: u64, rule: &str| {
+            super::diagnostic(super::DiagnosticInput {
+                run_id: "r",
+                tool: "t",
+                language: enforcer_domain::harness_types::HarnessLanguage::Common,
+                severity: enforcer_domain::severity::Severity::Error,
+                rule_id: rule,
+                file,
+                line,
+                message: "m",
+            })
         };
         let sorted = sort_diagnostics(vec![
             mk("b.rs", 1, "Z"),

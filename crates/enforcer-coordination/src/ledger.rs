@@ -8,17 +8,19 @@
 //! `api::release`, and `api::closeout` need. Broader dashboard/session
 //! materialization is deferred — see the crate-level deviation note.
 
-use std::collections::BTreeMap;
-
-use crate::events::HubEvent;
+use crate::events::boundary::{
+    to_domain_valid_claim_paths, to_domain_valid_claim_writers, HubEventResponse,
+};
 use crate::lock::path_overlaps;
 use crate::lock::singletons::normalize_coordination_path;
-use crate::lock::{ClaimContext, ClaimEventId, ClaimLane, ClaimWriter, RawClaim};
+use crate::lock::RawClaim;
+use enforcer_domain::coordination_types::ClaimPath;
 
 /// A currently-active claim, keyed by `(writer, eventId)` in the JS source's
 /// `claimIdentityKey`; here we key by event id alone since ids are globally
 /// unique.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "Owned active-claim projection materialized from the append-only event stream."]
 pub struct ActiveClaim {
     pub raw: RawClaim,
 }
@@ -26,47 +28,36 @@ pub struct ActiveClaim {
 /// Fold a full event history into the set of currently-active claims. Ported
 /// (narrowed) from `materialize.js`'s claim/release/claim.resolve handling
 /// (lines ~150-209).
-pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
-    let mut claims: BTreeMap<String, RawClaim> = BTreeMap::new();
+pub fn active_claims(events: &[HubEventResponse]) -> Vec<RawClaim> {
+    let mut claims = Vec::new();
     for event in events {
         match event.kind.as_str() {
             "claim" => {
                 if let Some(paths) = &event.paths {
-                    let context = context_from_event(event);
-                    // CLONE-JUSTIFICATION: the active-claim index owns its
-                    // event key independently of the durable claim snapshot.
-                    claims.insert(
-                        event.id.clone(),
-                        RawClaim {
-                            // CLONE-JUSTIFICATION: materialization produces
-                            // an owned snapshot after the event stream borrow
-                            // ends; its identity fields cannot borrow events.
-                            writer: ClaimWriter::from(event.writer.clone()),
-                            lane: ClaimLane::from(event.lane.clone()),
-                            // CLONE-JUSTIFICATION: the active snapshot keeps
-                            // its claimed paths, event identity, and optional
-                            // release reason after stream replay completes.
-                            paths: paths.clone(),
-                            event_id: ClaimEventId::from(event.id.clone()),
-                            // CLONE-JUSTIFICATION: the active projection
-                            // owns the optional reason after replay releases
-                            // the source event borrow.
-                            reason: event.reason.clone(),
-                            context,
-                        },
-                    );
+                    if paths.is_empty() {
+                        continue;
+                    }
+                    let Ok(claim) = event.to_domain() else {
+                        continue;
+                    };
+                    claims.push(claim);
                 }
             }
             "release" => {
                 if let Some(release_paths) = &event.paths {
-                    let normalized_release: Vec<String> = release_paths
-                        .iter()
-                        .map(|p| normalize_coordination_path(p))
-                        .collect();
-                    claims.retain(|_, claim| {
+                    let normalized_release =
+                        normalize_valid_paths(to_domain_valid_claim_paths(release_paths));
+                    claims.retain_mut(|claim| {
                         claim.paths.retain(|claim_path| {
-                            let cp = normalize_coordination_path(claim_path);
-                            !normalized_release.iter().any(|rp| path_overlaps(rp, &cp))
+                            let Some(normalized_claim) = normalized_claim_path(claim_path) else {
+                                return true;
+                            };
+                            !normalized_release.iter().any(|release_path| {
+                                matches!(
+                                    path_overlaps(release_path, &normalized_claim),
+                                    enforcer_domain::coordination_types::CoordinationMatch::Matches
+                                )
+                            })
                         });
                         !claim.paths.is_empty()
                     });
@@ -74,24 +65,30 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
             }
             "claim.resolve" => {
                 if let Some(resolve_paths) = &event.paths {
-                    let owners: Option<std::collections::HashSet<String>> = event
-                        .owners
-                        .as_ref()
-                        .map(|owners| owners.iter().cloned().collect());
-                    let normalized_resolve: Vec<String> = resolve_paths
-                        .iter()
-                        .map(|p| normalize_coordination_path(p))
-                        .collect();
-                    claims.retain(|_, claim| {
+                    let owners = event.owners.as_ref().map(|raw_owners| {
+                        to_domain_valid_claim_writers(raw_owners)
+                            .into_iter()
+                            .collect::<std::collections::HashSet<_>>()
+                    });
+                    let normalized_resolve =
+                        normalize_valid_paths(to_domain_valid_claim_paths(resolve_paths));
+                    claims.retain(|claim| {
                         let overlaps = claim.paths.iter().any(|claim_path| {
-                            let cp = normalize_coordination_path(claim_path);
-                            normalized_resolve.iter().any(|rp| path_overlaps(rp, &cp))
+                            let Some(normalized_claim) = normalized_claim_path(claim_path) else {
+                                return false;
+                            };
+                            normalized_resolve.iter().any(|resolve_path| {
+                                matches!(
+                                    path_overlaps(resolve_path, &normalized_claim),
+                                    enforcer_domain::coordination_types::CoordinationMatch::Matches
+                                )
+                            })
                         });
                         if !overlaps {
                             return true;
                         }
                         let should_resolve = match &owners {
-                            Some(owners) => owners.contains(claim.writer.as_str()),
+                            Some(owners) => owners.contains(&claim.writer),
                             None => event.owner.as_deref() != Some(claim.writer.as_str()),
                         };
                         !should_resolve
@@ -101,28 +98,22 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
             _ => {}
         }
     }
-    claims.into_values().collect()
+    claims
 }
 
-fn context_from_event(event: &HubEvent) -> ClaimContext {
-    let Some(value) = &event.context else {
-        return ClaimContext::default();
+fn normalized_claim_path(path: &ClaimPath) -> Option<ClaimPath> {
+    let Ok(path) = normalize_coordination_path(path) else {
+        return None;
     };
-    let get = |key: &str| -> Option<String> {
-        value.get(key).and_then(|v| v.as_str()).map(str::to_owned)
-    };
-    ClaimContext {
-        project_id: get("projectId"),
-        git_remote: get("gitRemote"),
-        repo_root: get("repoRoot"),
-        worktree_root: get("worktreeRoot"),
-        branch: get("branch"),
-        codex_thread_id: get("codexThreadId"),
-        codex_session_id: get("codexSessionId"),
-        explicit_codex_thread_id: get("explicitCodexThreadId"),
-        explicit_codex_session_id: get("explicitCodexSessionId"),
-        claim_group: get("claimGroup"),
-        lock_kind: get("lockKind"),
-        operation: get("operation"),
+    Some(path)
+}
+
+fn normalize_valid_paths(paths: Vec<ClaimPath>) -> Vec<ClaimPath> {
+    let mut normalized = Vec::new();
+    for path in paths {
+        if let Ok(path) = normalize_coordination_path(&path) {
+            normalized.push(path);
+        }
     }
+    normalized
 }

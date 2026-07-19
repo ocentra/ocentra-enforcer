@@ -19,8 +19,9 @@ pub(super) fn fmt_queue_error(
             capacity,
         } => write!(
             formatter,
-            "event queue capacity exceeded for {}: {capacity}",
-            event_type.as_str()
+            "event queue capacity exceeded for {}: {}",
+            event_type.as_str(),
+            crate::boundary::event_values::event_count_value(*capacity)
         ),
         EventingError::EventDeadlineExpired { event_type } => {
             write!(

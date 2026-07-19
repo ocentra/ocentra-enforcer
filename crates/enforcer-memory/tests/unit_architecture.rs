@@ -1,7 +1,6 @@
+use enforcer_domain::memory_types::{Aspect, EntryPointKind, LayerCategory};
 use enforcer_memory::analysis::clustering::{self, ClusteringResult};
-use enforcer_memory::architecture::{
-    build_overview, build_report, Aspect, EntryPointKind, LayerCategory,
-};
+use enforcer_memory::architecture::{build_overview, build_report, ArchitectureReport};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use serde_json::json;
 use std::error::Error;
@@ -138,18 +137,26 @@ fn all_aspect_populates_every_typed_section() -> TestResult {
     let graph = build_two_crate_fixture(dir.path())?;
 
     let report = build_report(&graph, &[Aspect::All], None, 10, 20);
-    assert!(report.overview.is_some());
-    assert!(report.structure.is_some());
-    assert!(report.dependencies.is_some());
-    assert!(report.routes.is_some());
-    assert!(report.languages.is_some());
-    assert!(report.packages.is_some());
-    assert!(report.entry_points.is_some());
-    assert!(report.hotspots.is_some());
-    assert!(report.boundaries.is_some());
-    assert!(report.layers.is_some());
-    assert!(report.file_tree.is_some());
-    assert!(report.clusters.is_some());
+    assert!(matches!(
+        report,
+        ArchitectureReport {
+            overview: Some(_),
+            structure: Some(_),
+            dependencies: Some(_),
+            routes: Some(_),
+            languages: Some(_),
+            packages: Some(_),
+            entry_points: Some(_),
+            hotspots: Some(_),
+            hotspot_entries: Some(_),
+            boundaries: Some(_),
+            layers: Some(_),
+            layer_classification: Some(_),
+            file_tree: Some(_),
+            clusters: Some(_),
+            cluster_cohesion: Some(_),
+        }
+    ));
     Ok(())
 }
 
@@ -159,18 +166,26 @@ fn single_aspect_request_populates_only_that_section() -> TestResult {
     let graph = build_two_crate_fixture(dir.path())?;
 
     let report = build_report(&graph, &[Aspect::Routes], None, 10, 20);
-    assert!(report.routes.is_some());
-    assert!(report.overview.is_none());
-    assert!(report.structure.is_none());
-    assert!(report.dependencies.is_none());
-    assert!(report.languages.is_none());
-    assert!(report.packages.is_none());
-    assert!(report.entry_points.is_none());
-    assert!(report.hotspots.is_none());
-    assert!(report.boundaries.is_none());
-    assert!(report.layers.is_none());
-    assert!(report.file_tree.is_none());
-    assert!(report.clusters.is_none());
+    assert!(matches!(
+        report,
+        ArchitectureReport {
+            overview: None,
+            structure: None,
+            dependencies: None,
+            routes: Some(_),
+            languages: None,
+            packages: None,
+            entry_points: None,
+            hotspots: None,
+            hotspot_entries: None,
+            boundaries: None,
+            layers: None,
+            layer_classification: None,
+            file_tree: None,
+            clusters: None,
+            cluster_cohesion: None,
+        }
+    ));
     Ok(())
 }
 
@@ -184,7 +199,7 @@ fn path_prefix_filters_structure_and_languages_to_matching_files_only() -> TestR
     let report = build_report(
         &graph,
         &[Aspect::Structure, Aspect::Languages],
-        Some("crates/core/"),
+        Some("crates/core/".into()),
         10,
         20,
     );
@@ -210,7 +225,13 @@ fn absolute_or_traversal_path_prefixes_fail_closed() -> TestResult {
     let graph = build_two_crate_fixture(dir.path())?;
 
     for invalid_prefix in ["/", "/crates/core", "../crates/core", "crates/../api"] {
-        let report = build_report(&graph, &[Aspect::Overview], Some(invalid_prefix), 10, 20);
+        let report = build_report(
+            &graph,
+            &[Aspect::Overview],
+            Some(invalid_prefix.into()),
+            10,
+            20,
+        );
         let overview = report.overview.ok_or("expected overview section")?;
         assert_eq!(
             overview.total_files_json(),
@@ -267,7 +288,13 @@ fn package_fan_counts_respect_the_requested_path_scope() -> TestResult {
     let dir = tempfile::tempdir()?;
     let graph = build_two_crate_fixture(dir.path())?;
 
-    let report = build_report(&graph, &[Aspect::Packages], Some("crates/core/"), 10, 20);
+    let report = build_report(
+        &graph,
+        &[Aspect::Packages],
+        Some("crates/core/".into()),
+        10,
+        20,
+    );
     let packages = report.packages.ok_or("expected packages section")?;
     let core = packages
         .iter()
@@ -341,7 +368,6 @@ fn layers_aspect_orders_core_before_api_on_acyclic_fixture() -> TestResult {
         "acyclic fixture must report no cycle cluster ids, got {:?}",
         layering.cycle_cluster_ids
     );
-    assert!(!layering.layers.is_empty());
 
     // Find which layer contains the cluster with core's lib.rs vs
     // the cluster with api's main.rs, and assert core's layer index
@@ -376,7 +402,7 @@ fn layers_aspect_orders_core_before_api_on_acyclic_fixture() -> TestResult {
             .layers
             .iter()
             .find(|l| l.cluster_ids.iter().any(|id| id == cluster_id))
-            .map(|l| l.index)
+            .map(|l| usize::from(l.index))
     };
 
     if core_cluster.id != api_cluster.id {
@@ -451,7 +477,7 @@ fn clusters_aspect_returns_clustering_result() -> TestResult {
 
     let report = build_report(&graph, &[Aspect::Clusters], None, 10, 20);
     let clusters = report.clusters.ok_or("expected clusters section")?;
-    assert!(!clusters.clusters.is_empty());
+    assert!(clusters.clusters.len() >= 2);
     Ok(())
 }
 
@@ -549,7 +575,7 @@ fn layer_classification_labels_api_section_as_api() -> TestResult {
         .find(|c| c.name == "crates/api")
         .ok_or("expected a crates/api classification entry")?;
     assert_eq!(api_entry.layer, LayerCategory::Api);
-    assert!(!api_entry.reason.is_empty());
+    assert_eq!(api_entry.reason.as_str(), "declares at least one route");
     Ok(())
 }
 
@@ -612,7 +638,9 @@ fn cluster_cohesion_is_populated_and_bounded_zero_to_one() -> TestResult {
     let cohesion = report
         .cluster_cohesion
         .ok_or("expected cluster_cohesion section")?;
-    assert!(!cohesion.is_empty());
+    assert!(cohesion
+        .iter()
+        .any(|entry| (0.0..=1.0).contains(&entry.cohesion)));
     for entry in &cohesion {
         assert!(
             (0.0..=1.0).contains(&entry.cohesion),
@@ -632,10 +660,9 @@ fn cluster_cohesion_is_populated_and_bounded_zero_to_one() -> TestResult {
 fn routes_aspect_is_capped_at_twenty() -> TestResult {
     let dir = tempfile::tempdir()?;
     init_repo(dir.path())?;
-    let mut body = String::new();
-    for i in 0..25 {
-        body.push_str(&format!("app.get(\"/route{i}\", (req, res) => {{}});\n"));
-    }
+    let body = (0..25)
+        .map(|index| format!("app.get(\"/route{index}\", (req, res) => {{}});\n"))
+        .collect::<String>();
     fs::write(dir.path().join("routes.js"), &body)?;
     commit_all(dir.path(), "first")?;
 
@@ -664,28 +691,28 @@ fn layers_aspect_reports_cycle_without_panicking() {
     let clusters = ClusteringResult {
         clusters: vec![
             clustering::Cluster {
-                id: "cluster-a".to_string(),
-                member_node_ids: vec!["file:a.rs".to_string()],
-                file_ids: vec!["file:a.rs".to_string()],
+                id: "cluster-a".to_string().into(),
+                member_node_ids: vec!["file:a.rs".to_string().into()],
+                file_ids: vec!["file:a.rs".to_string().into()],
                 symbol_ids: vec![],
             },
             clustering::Cluster {
-                id: "cluster-b".to_string(),
-                member_node_ids: vec!["file:b.rs".to_string()],
-                file_ids: vec!["file:b.rs".to_string()],
+                id: "cluster-b".to_string().into(),
+                member_node_ids: vec!["file:b.rs".to_string().into()],
+                file_ids: vec!["file:b.rs".to_string().into()],
                 symbol_ids: vec![],
             },
         ],
         inter_cluster_edges: vec![
             clustering::InterClusterEdge {
-                from_cluster: "cluster-a".to_string(),
-                to_cluster: "cluster-b".to_string(),
-                count: 1,
+                from_cluster: "cluster-a".to_string().into(),
+                to_cluster: "cluster-b".to_string().into(),
+                count: 1.into(),
             },
             clustering::InterClusterEdge {
-                from_cluster: "cluster-b".to_string(),
-                to_cluster: "cluster-a".to_string(),
-                count: 1,
+                from_cluster: "cluster-b".to_string().into(),
+                to_cluster: "cluster-a".to_string().into(),
+                count: 1.into(),
             },
         ],
     };

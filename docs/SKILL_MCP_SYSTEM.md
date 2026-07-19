@@ -2,61 +2,52 @@
 
 <!-- ai-dense -->
 ```yaml
-install_model: single native `enforcer` binary registers as MCP server (user/global scope, any of 11 harnesses) + installs a skill; target repos never copy the implementation
-commands: "enforcer install [--dry-run]; enforcer doctor; enforcer init --root <repo> --profile strict --adapters <harness>,mcp,precommit,github-actions --dry-run"
-mcp_safety: "direct coordination writes fail closed when mcp__enforcer__mcp_status reports stale; fallback = the updated CLI via mcp__enforcer__run"
-skill_workflow: "route -> open only routed rule records -> scan/check/verify/run/proof by smallest scope -> violations are hard failures"
+native_install: "enforcer install"
+native_cli_validation: "check/scan/verify with paths, --base/--head, or --all"
+wired_rust_mcp: "mcp_status | coordination_status | coordination_claim | ui"
+registered_not_wired: "route, scan, check, diagnostics, proof, and broader coordination tools"
 ```
 <!-- /ai-dense -->
 
-The install model is: one native binary plus a per-harness skill/MCP
-registration. A target repo should not copy the enforcer implementation. It
-should call the installed binary.
-
-## Install Shape
-
-```mermaid
-flowchart TD
-  A["Enforcer install (per machine, per harness)"]
-  B["Harness MCP config (any of 11 adapters)"]
-  C["User skill"]
-  D["Ledger home"]
-  E["Target repo"]
-  F["Target config"]
-  G["Thin hooks"]
-  H["Enforcer binary (MCP server + CLI)"]
-  A --> B
-  A --> C
-  A --> D
-  E --> F
-  E --> G
-  B --> H
-  H --> E
-  H --> D
-```
+The native Rust binary provides both CLI and MCP stdio entrypoints. The
+current installer registers its absolute path with supported user-level
+harness adapters and runs an internal health check.
 
 ## Commands
 
-```bash
-enforcer install --dry-run
+```powershell
 enforcer install
-enforcer doctor
-enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+enforcer check path/to/file
+enforcer scan --base origin/main --head HEAD
+enforcer verify --mode local --all
+enforcer serve
 ```
 
-## MCP Safety
+`install` accepts no flags. The native CLI does not currently expose public
+`doctor`, `init`, `update`, or `uninstall` commands. Its visible `plan`,
+`proof`, and `coordination` groups are reserved but return not-wired errors.
 
-Direct coordination write tools fail closed when the MCP server is stale. The
-stale response includes an `mcp__enforcer__run` fallback command so agents
-can use the updated CLI without corrupting append-only coordination streams.
+## Current Rust MCP Surface
 
-Agents should call `mcp__enforcer__mcp_status` before direct coordination
-writes and require `directWritesAllowed: true`.
+The current router executes:
+
+- `ocentra_enforcer_mcp_status`;
+- `ocentra_enforcer_coordination_status`;
+- `ocentra_enforcer_coordination_claim`;
+- `ocentra_enforcer_ui`.
+
+MCP discovery also lists contracts for routing, validation, diagnostics,
+proof, and broader coordination. Those registrations currently return a
+structured not-wired error and are not supported actions.
 
 ## Skill Workflow
 
-1. Call `mcp__enforcer__route` / `enforcer route`.
-2. Open only the routed rule records — never the full rule corpus by
-   default.
-3. Use `scan`, `check`, `verify`, `run`, and `proof` tools by smallest scope.
-4. Treat `violations` as hard failures.
+1. Confirm the binary with `enforcer --help`.
+2. Choose the smallest native CLI scope that covers the change.
+3. Run `check`, `scan`, or `verify`.
+4. Treat violations as hard failures and repair the reported cause.
+5. Widen to the repository's required gate before completion.
+
+The frozen Node compatibility service has a different command and MCP surface.
+Documentation for that service must identify it explicitly and must not be
+used as evidence that the Rust boundary is wired.

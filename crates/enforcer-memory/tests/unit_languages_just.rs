@@ -80,9 +80,18 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
     let path = Path::new(FIXTURE_DIR).join("widget.just");
     let src = fs::read_to_string(&path)?;
     let parsed = parse_just(&src);
-    assert!(symbol_kind(&parsed.symbols, "build").is_some());
-    assert!(symbol_kind(&parsed.symbols, "setup").is_some());
-    assert!(symbol_kind(&parsed.symbols, "test").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "build"),
+        Some(&SymbolKind::Function)
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "setup"),
+        Some(&SymbolKind::Function)
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "test"),
+        Some(&SymbolKind::Function)
+    );
     assert!(
         parsed.calls.iter().any(|c| c.callee == "setup"),
         "{:?}",

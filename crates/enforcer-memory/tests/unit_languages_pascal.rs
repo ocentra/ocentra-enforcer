@@ -387,13 +387,12 @@ begin
 end;"#,
     );
     let parsed = parse_pascal(src);
-    let kinds: Vec<&SymbolKind> = parsed
-        .symbols
-        .iter()
-        .filter(|s| s.name == "P")
-        .map(|s| &s.kind)
-        .collect();
-    assert!(!kinds.is_empty());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "P"),
+        Some(&SymbolKind::Function),
+        "{:?}",
+        parsed.symbols
+    );
 }
 
 #[test]

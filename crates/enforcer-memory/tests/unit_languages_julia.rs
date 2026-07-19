@@ -9,8 +9,9 @@
 //! `f(x) = body`-is-a-def-only-when-LHS-is-a-call gate, and
 //! `module_definition`'s real `name` field.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_julia;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -325,7 +326,10 @@ function render()
 end
 "#;
     let parsed = parse_julia(src);
-    assert!(symbol_kind(&parsed.symbols, "render").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "render"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]
@@ -351,8 +355,14 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         "{:?}",
         parsed.inherits
     );
-    assert!(symbol_kind(&parsed.symbols, "draw").is_some());
-    assert!(symbol_kind(&parsed.symbols, "square").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "draw"),
+        Some(&SymbolKind::Function)
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "square"),
+        Some(&SymbolKind::Function)
+    );
     Ok(())
 }
 

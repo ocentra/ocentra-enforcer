@@ -31,25 +31,25 @@ pub(super) struct TestText(pub(super) String);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct TestEvent {
     pub(super) label: String,
-    aggregate_key: AggregateKey,
-    idempotency_key: IdempotencyKey,
-    event_type: EventType,
+    aggregate_key: String,
+    idempotency_key: String,
+    event_type: String,
 }
 
 impl DomainEvent for TestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
-            self.event_type.clone(),
-            SchemaVersion::new(1)?,
+            EventType::parse(&self.event_type)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        Ok(self.aggregate_key.clone())
+        Ok(AggregateKey::parse(&self.aggregate_key)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        Ok(self.idempotency_key.clone())
+        Ok(IdempotencyKey::parse(&self.idempotency_key)?)
     }
 }
 
@@ -106,9 +106,9 @@ pub(super) fn test_event_for_type_with_aggregate_and_idempotency(
 ) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestEvent {
         label: label.0,
-        aggregate_key: AggregateKey::parse(aggregate_key.0)?,
-        idempotency_key: IdempotencyKey::parse(idempotency_key.0)?,
-        event_type: EventType::parse(event_type.0)?,
+        aggregate_key: aggregate_key.0,
+        idempotency_key: idempotency_key.0,
+        event_type: event_type.0,
     })
 }
 
@@ -123,11 +123,11 @@ pub(super) fn metadata_with_event_id(
     event_id: TestText,
 ) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
-        crate::EventId::parse(event_id.0)?,
+        crate::EventId::parse(&{ event_id.0 })?,
         CorrelationId::parse(TEST_CORRELATION_ID)?,
         source()?,
         RecordedAt::parse(TEST_OBSERVED_AT)?,
-        Some(TargetHandler::parse(target.0)?),
+        Some(TargetHandler::parse(&{ target.0 })?),
     ))
 }
 
@@ -154,8 +154,8 @@ pub(super) fn subscriber_for_event(
     event_type: TestText,
 ) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSubscriber::new(
-        SubscriberId::parse(id.0)?,
-        EventType::parse(event_type.0)?,
-        TargetHandler::parse(target.0)?,
+        SubscriberId::parse(&{ id.0 })?,
+        EventType::parse(&{ event_type.0 })?,
+        TargetHandler::parse(&{ target.0 })?,
     ))
 }

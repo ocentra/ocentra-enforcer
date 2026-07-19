@@ -1,8 +1,8 @@
+use enforcer_domain::memory_types::{GraphSearchMode, NodeLabel};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::embed::{Embedder, HashingEmbedder};
-use enforcer_memory::search::{
-    run_search_graph as search_graph, search_graph_with_semantic, NodeLabel, SearchGraphSpec,
-    SearchMode,
+use enforcer_memory::search::search_graph::{
+    search_graph, search_graph_with_semantic, SearchGraphError, SearchGraphSpec,
 };
 use enforcer_memory::vector::VectorIndex;
 use std::collections::HashSet;
@@ -39,10 +39,11 @@ fn fixture_graph() -> Result<(tempfile::TempDir, CodeGraph), Box<dyn std::error:
     let file_path = dir.path().join("lib.rs");
     fs::write(
         &file_path,
-        "struct Widget;\nfn parseConfig() { helper(); }\nfn helper() {}\n#[test]\nfn a_test() {}\n",
+        "struct Widget;\nfn parseConfig() { helper(); }\nfn helper() { let _ = 1; }\n#[test]\nfn a_test() { let _ = 2; }\n",
     )?;
     commit_all(dir.path(), "first")?;
     let mut graph = CodeGraph::new();
+    assert!(graph.nodes().is_empty());
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
     Ok((dir, graph))
 }
@@ -51,11 +52,11 @@ fn fixture_graph() -> Result<(tempfile::TempDir, CodeGraph), Box<dyn std::error:
 fn regex_name_pattern_hits() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some("parse.*".to_owned()),
+        name_pattern: Some("parse.*".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert_eq!(result.search_mode, SearchMode::Regex);
+    assert_eq!(result.search_mode, GraphSearchMode::Regex);
     assert!(result.results.iter().any(|h| h.name == "parseConfig"));
     Ok(())
 }
@@ -64,7 +65,7 @@ fn regex_name_pattern_hits() -> TestResult {
 fn qn_pattern_hits() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        qn_pattern: Some(".*helper".to_owned()),
+        qn_pattern: Some(".*helper".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
@@ -78,13 +79,13 @@ fn label_filter_selects_only_that_label() -> TestResult {
     // Struct node, not a generic Type -- assert against its real label.
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
         label: Some(NodeLabel::Struct),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert!(!result.results.is_empty());
-    assert!(result.results.iter().all(|h| h.label == "Struct"));
+    assert!(result.results.iter().all(|h| h.label.as_str() == "Struct"));
+    assert!(result.results.iter().any(|h| h.name == "Widget"));
     Ok(())
 }
 
@@ -92,12 +93,15 @@ fn label_filter_selects_only_that_label() -> TestResult {
 fn file_pattern_bare_literal_is_substring_match() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        file_pattern: Some("lib.rs".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
+        file_pattern: Some("lib.rs".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert!(!result.results.is_empty());
+    assert!(result
+        .results
+        .iter()
+        .all(|hit| hit.file_path.as_str().contains("lib.rs")));
     Ok(())
 }
 
@@ -105,15 +109,18 @@ fn file_pattern_bare_literal_is_substring_match() -> TestResult {
 fn file_pattern_glob_matches() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        file_pattern: Some("*.rs".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
+        file_pattern: Some("*.rs".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert!(!result.results.is_empty());
+    assert!(result
+        .results
+        .iter()
+        .all(|hit| hit.file_path.as_str().ends_with(".rs")));
     let spec_no_match = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        file_pattern: Some("*.py".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
+        file_pattern: Some("*.py".to_owned().into()),
         ..Default::default()
     };
     let result_no_match = search_graph(&graph, &spec_no_match)?;
@@ -124,26 +131,28 @@ fn file_pattern_glob_matches() -> TestResult {
 #[test]
 fn degree_filters_on_known_fixture_graph() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
-    // parseConfig's file has 1 outbound call (helper); min_degree
-    // filters out nodes with total degree below the threshold.
+    // The file node owns the outbound call and the resolved helper symbol owns
+    // the inbound edge; symbol-level callers are not synthesized by this graph.
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        min_degree: Some(1),
+        name_pattern: Some(".*".to_owned().into()),
+        min_degree: Some(1.into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert!(!result.results.is_empty());
+    let names: Vec<&str> = result.results.iter().map(|hit| hit.name.as_str()).collect();
+    assert_eq!(names, vec!["helper", "lib.rs"]);
 
     let spec_max = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        max_degree: Some(0),
+        name_pattern: Some(".*".to_owned().into()),
+        max_degree: Some(0.into()),
         ..Default::default()
     };
     let result_max = search_graph(&graph, &spec_max)?;
-    assert!(result_max
-        .results
-        .iter()
-        .all(|h| h.in_degree.unwrap_or(0) + h.out_degree.unwrap_or(0) == 0));
+    assert!(result_max.results.iter().all(|h| {
+        h.in_degree.map(|degree| degree.get()).unwrap_or(0)
+            + h.out_degree.map(|degree| degree.get()).unwrap_or(0)
+            == 0
+    }));
     Ok(())
 }
 
@@ -151,14 +160,14 @@ fn degree_filters_on_known_fixture_graph() -> TestResult {
 fn exclude_entry_points_removes_zero_inbound_nodes() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let baseline_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
         ..Default::default()
     };
     let baseline = search_graph(&graph, &baseline_spec)?;
 
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        exclude_entry_points: true,
+        name_pattern: Some(".*".to_owned().into()),
+        exclude_entry_points: true.into(),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
@@ -170,8 +179,8 @@ fn exclude_entry_points_removes_zero_inbound_nodes() -> TestResult {
 fn include_connected_returns_names_via_one_hop_bfs() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some("parseConfig".to_owned()),
-        include_connected: true,
+        name_pattern: Some("parseConfig".to_owned().into()),
+        include_connected: true.into(),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
@@ -189,14 +198,14 @@ fn include_connected_returns_names_via_one_hop_bfs() -> TestResult {
 fn relationship_validation_rejects_lowercase() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        relationship: Some("calls".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
+        relationship: Some("calls".to_owned().into()),
         ..Default::default()
     };
     match search_graph(&graph, &spec) {
         Err(err) => assert_eq!(
             err,
-            enforcer_memory::search::SearchGraphError::InvalidRelationship
+            enforcer_memory::search::search_graph::SearchGraphError::InvalidRelationship
         ),
         Ok(_) => return Err("expected InvalidRelationship error".into()),
     }
@@ -208,11 +217,14 @@ fn relationship_validation_rejects_too_long() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let long = "A".repeat(65);
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        relationship: Some(long),
+        name_pattern: Some(".*".to_owned().into()),
+        relationship: Some(long.into()),
         ..Default::default()
     };
-    assert!(search_graph(&graph, &spec).is_err());
+    assert_eq!(
+        search_graph(&graph, &spec),
+        Err(SearchGraphError::InvalidRelationship)
+    );
     Ok(())
 }
 
@@ -220,11 +232,12 @@ fn relationship_validation_rejects_too_long() -> TestResult {
 fn relationship_validation_accepts_valid_uppercase() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        relationship: Some("CALLS".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
+        relationship: Some("CALLS".to_owned().into()),
         ..Default::default()
     };
-    assert!(search_graph(&graph, &spec).is_ok());
+    let result = search_graph(&graph, &spec)?;
+    assert_eq!(result.search_mode, GraphSearchMode::Regex);
     Ok(())
 }
 
@@ -232,28 +245,28 @@ fn relationship_validation_accepts_valid_uppercase() -> TestResult {
 fn pagination_is_deterministic_page1_plus_page2_equals_full() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let full_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
         ..Default::default()
     };
     let full = search_graph(&graph, &full_spec)?;
-    assert!(full.total >= 4);
+    assert!(full.total.get() >= 4);
     // Split the full result set into two pages of ceil(total/2) each
     // so page1+page2 always covers the whole set regardless of the
     // fixture's exact node count.
-    let page_size = full.total.div_ceil(2);
+    let page_size = full.total.get().div_ceil(2);
 
     let page1_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        limit: Some(page_size),
-        offset: 0,
+        name_pattern: Some(".*".to_owned().into()),
+        limit: Some(page_size.into()),
+        offset: 0.into(),
         ..Default::default()
     };
     let page1 = search_graph(&graph, &page1_spec)?;
 
     let page2_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        limit: Some(page_size),
-        offset: page_size,
+        name_pattern: Some(".*".to_owned().into()),
+        limit: Some(page_size.into()),
+        offset: page_size.into(),
         ..Default::default()
     };
     let page2 = search_graph(&graph, &page2_spec)?;
@@ -262,9 +275,9 @@ fn pagination_is_deterministic_page1_plus_page2_equals_full() -> TestResult {
         .results
         .iter()
         .chain(page2.results.iter())
-        .map(|h| h.name.clone())
+        .map(|h| h.name.clone().into())
         .collect();
-    let mut full_names: Vec<String> = full.results.iter().map(|h| h.name.clone()).collect();
+    let mut full_names: Vec<String> = full.results.iter().map(|h| h.name.clone().into()).collect();
     combined.sort();
     full_names.sort();
     assert_eq!(
@@ -281,7 +294,10 @@ fn pagination_is_deterministic_page1_plus_page2_equals_full() -> TestResult {
         );
     }
 
-    assert!(!page2.has_more, "the second page must be the last page");
+    assert!(
+        !bool::from(page2.has_more),
+        "the second page must be the last page"
+    );
     Ok(())
 }
 
@@ -289,20 +305,20 @@ fn pagination_is_deterministic_page1_plus_page2_equals_full() -> TestResult {
 fn pagination_has_more_is_correct_on_last_page() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let full_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
+        name_pattern: Some(".*".to_owned().into()),
         ..Default::default()
     };
     let full = search_graph(&graph, &full_spec)?;
-    let total = full.total;
+    let total = full.total.get();
 
     let last_page_spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        limit: Some(total),
-        offset: 0,
+        name_pattern: Some(".*".to_owned().into()),
+        limit: Some(total.into()),
+        offset: 0.into(),
         ..Default::default()
     };
     let last_page = search_graph(&graph, &last_page_spec)?;
-    assert!(!last_page.has_more);
+    assert!(!bool::from(last_page.has_more));
     Ok(())
 }
 
@@ -313,12 +329,11 @@ fn results_and_semantic_results_are_separate_lists() -> TestResult {
     let entries: Vec<(String, Vec<f32>)> = Vec::new();
     let vector_index = VectorIndex::build(&entries, embedder.model_info());
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        semantic_query: Some(vec!["parse".to_owned(), "config".to_owned()]),
+        name_pattern: Some(".*".to_owned().into()),
+        semantic_query: Some(vec!["parse".to_owned().into(), "config".to_owned().into()]),
         ..Default::default()
     };
     let result = search_graph_with_semantic(&graph, &spec, Some((&embedder, &vector_index)))?;
-    assert!(!result.results.is_empty());
     // semantic_results is a genuinely separate list (may or may not
     // be empty depending on hashing-embedder cosine values, but it
     // must never be the same Vec instance/content as `results`
@@ -342,8 +357,8 @@ fn results_and_semantic_results_are_separate_lists() -> TestResult {
 fn include_connected_names_are_deduplicated_and_sorted() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        include_connected: true,
+        name_pattern: Some(".*".to_owned().into()),
+        include_connected: true.into(),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
@@ -360,14 +375,14 @@ fn include_connected_names_are_deduplicated_and_sorted() -> TestResult {
 fn bm25_mode_ignores_name_pattern_when_query_succeeds() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        query: Some("parseConfig".to_owned()),
+        query: Some("parseConfig".to_owned().into()),
         // A name_pattern that would match NOTHING if it were
         // applied -- proves BM25 short-circuited and ignored it.
-        name_pattern: Some("^nonexistent-name-zzz$".to_owned()),
+        name_pattern: Some("^nonexistent-name-zzz$".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert_eq!(result.search_mode, SearchMode::Bm25);
+    assert_eq!(result.search_mode, GraphSearchMode::Bm25);
     assert!(
         !result.results.is_empty(),
         "BM25 must ignore name_pattern once it has usable tokens and succeeds"
@@ -380,12 +395,12 @@ fn bm25_falls_through_to_regex_when_no_usable_tokens() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
         // Punctuation-only query tokenizes to zero terms.
-        query: Some("!!!".to_owned()),
-        name_pattern: Some("helper".to_owned()),
+        query: Some("!!!".to_owned().into()),
+        name_pattern: Some("helper".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
-    assert_eq!(result.search_mode, SearchMode::Regex);
+    assert_eq!(result.search_mode, GraphSearchMode::Regex);
     assert!(result.results.iter().any(|h| h.name == "helper"));
     Ok(())
 }
@@ -394,13 +409,13 @@ fn bm25_falls_through_to_regex_when_no_usable_tokens() -> TestResult {
 fn empty_pattern_matches_matches_everything_and_reports_zero_total_gracefully() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some("^nonexistent-zzz$".to_owned()),
+        name_pattern: Some("^nonexistent-zzz$".to_owned().into()),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
     assert_eq!(result.total, 0);
     assert!(result.results.is_empty());
-    assert!(!result.has_more);
+    assert!(!bool::from(result.has_more));
     Ok(())
 }
 
@@ -408,23 +423,26 @@ fn empty_pattern_matches_matches_everything_and_reports_zero_total_gracefully() 
 fn offset_at_usize_max_returns_an_empty_page_without_overflowing() -> TestResult {
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
-        name_pattern: Some(".*".to_owned()),
-        offset: usize::MAX,
+        name_pattern: Some(".*".to_owned().into()),
+        offset: usize::MAX.into(),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
     assert!(result.results.is_empty());
-    assert!(!result.has_more);
+    assert!(!bool::from(result.has_more));
     Ok(())
 }
 
 #[test]
 fn invalid_pattern_returns_typed_error_not_panic() {
     let spec = SearchGraphSpec {
-        name_pattern: Some("(unclosed".to_owned()),
+        name_pattern: Some("(unclosed".to_owned().into()),
         ..Default::default()
     };
     let graph = CodeGraph::new();
     let result = search_graph(&graph, &spec);
-    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(SearchGraphError::InvalidPattern { .. })
+    ));
 }

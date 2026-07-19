@@ -17,7 +17,11 @@ pub(super) fn fmt_journal_error(
             write!(formatter, "event journal decode failed: {reason}")
         }
         EventingError::JournalCorruptLine { line, reason } => {
-            write!(formatter, "event journal corrupt line {line}: {reason}")
+            write!(
+                formatter,
+                "event journal corrupt line {}: {reason}",
+                crate::boundary::event_values::event_count_value(*line)
+            )
         }
         EventingError::JournalAppendGateClosed => {
             formatter.write_str("event journal append gate is closed")

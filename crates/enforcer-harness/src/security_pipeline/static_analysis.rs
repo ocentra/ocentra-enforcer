@@ -22,7 +22,9 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::security_pipeline::seam::{EngineDetailText, EngineLine, EngineRuleLabel};
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessSourceLine,
+};
 
 /// Threat citations this gate treats as EXPLOITABLE (blocking). A
 /// curated, deliberately small allow-list — extending it is a reviewed
@@ -37,13 +39,13 @@ pub const EXPLOITABLE_THREAT_IDS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StaticFinding {
     /// The engine rule that fired.
-    pub rule: EngineRuleLabel,
+    pub rule: HarnessExternalRuleId,
     /// Target-relative file the finding points at.
     pub file: RelPath,
     /// 1-based line the engine reported.
-    pub line: EngineLine,
+    pub line: HarnessSourceLine,
     /// Human-readable finding detail.
-    pub message: EngineDetailText,
+    pub message: HarnessDiagnosticMessage,
     /// Validated threat citation, when the engine supplied one.
     pub threat: Option<ThreatId>,
 }
@@ -102,20 +104,23 @@ impl StaticThreatGate {
                     return None;
                 }
                 let title = String::from("static finding threat-mapped to an exploitable weakness");
-                Some(Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: each finding owns its rule id
                     // and file so the report outlives this borrowed
                     // gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!("{} [{threat}]: {}", finding.rule.0, finding.message.0),
+                    format!("{} [{threat}]: {}", finding.rule, finding.message),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: file.clone(),
-                    line: finding.line.0,
-                    snippet: None,
-                })
+                    file.clone(),
+                    finding
+                        .line
+                        .finding_line()
+                        .map(std::num::NonZeroU32::get)
+                        .unwrap_or(0),
+                )
             })
             .collect()
     }
@@ -132,24 +137,25 @@ impl Validator for StaticThreatGate {
     /// never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         match crate::security_pipeline::adapters::static_analysis_report::parse_recorded(
-            input.source,
+            input.source.as_str(),
         ) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
                 let title = String::from("static adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    self.rule_id.clone(),
+                    Severity::Error,
                     title,
-                    detail: format!("{rejection}"),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

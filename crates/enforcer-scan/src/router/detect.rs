@@ -11,39 +11,7 @@
 use std::collections::BTreeSet;
 
 use enforcer_domain::paths::RelPath;
-use serde::{Deserialize, Serialize};
-
-/// A detected implementation language, keyed to the language-family
-/// partition the landed `enforcer-lang-*` crates use. Distinct from
-/// [`super::LanguageFamily`] (the arc-15 skeleton's coarse by-extension
-/// classifier): this enum is f05's own, richer detection surface, driven by
-/// the full arc-13 ~65-language registry plus manifest sniffing, not just a
-/// 6-way extension match.
-#[doc = "SERDE-TAG-JUSTIFICATION: detected languages are closed camelCase tokens carried in `RoutePlanDto.languages`; adding a tag would change that stable array contract without adding discrimination beyond the enum value itself."]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum DetectedLanguage {
-    /// `Cargo.toml` present, or any `.rs` file.
-    Rust,
-    /// `package.json`/`tsconfig.json` present, or any `.ts`/`.tsx`/`.js`/
-    /// `.jsx`/`.mjs`/`.cjs` file.
-    TypeScript,
-    /// `pyproject.toml`/`setup.py` present, or any `.py`/`.pyw` file.
-    Python,
-    /// `pubspec.yaml` present, or any `.dart` file.
-    Dart,
-    /// `go.mod` present, or any `.go` file.
-    Go,
-    /// `box.json` present (BoxLang), or any `.cfc`/`.cfm` file (ColdFusion/
-    /// CFML — arc-13's `coldfusion` registry entry covers the extensions;
-    /// `box.json` is the manifest signal).
-    Cfml,
-    /// Any other extensioned file with no dedicated `enforcer-lang-*` pack
-    /// (whether or not the arc-13 registry itself recognizes the
-    /// extension) — routes to the literal-scan universal floor only, never
-    /// a T1 blocker.
-    Other,
-}
+use enforcer_domain::scan_types::DetectedLanguage;
 
 /// A manifest file whose mere presence signals a language, independent of
 /// any single file's extension (e.g. an empty `Cargo.toml`-only repo with
@@ -88,6 +56,19 @@ const MANIFEST_SIGNALS: &[ManifestSignal] = &[
         basename: "box.json",
         language: DetectedLanguage::Cfml,
     },
+];
+
+const NON_SOURCE_BASENAMES: &[&str] = &[
+    "OWNERS",
+    "CODEOWNERS",
+    "Cargo.lock",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "uv.lock",
+    "poetry.lock",
+    "pdm.lock",
 ];
 
 /// Map an arc-13 [`enforcer_literal_scan::LanguageFamily`] + extension to a
@@ -152,6 +133,9 @@ pub fn detect_languages(paths: &[RelPath]) -> BTreeSet<DetectedLanguage> {
             // spurious `Other` language on top of the manifest signal.
             continue;
         }
+        if NON_SOURCE_BASENAMES.contains(&basename) {
+            continue;
+        }
 
         let ext = as_str.rsplit('.').next().unwrap_or("");
         if ext == as_str {
@@ -170,19 +154,19 @@ pub fn detect_languages(paths: &[RelPath]) -> BTreeSet<DetectedLanguage> {
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_languages, DetectedLanguage};
+    use super::detect_languages;
+    use enforcer_domain::scan_types::DetectedLanguage;
     use std::str::FromStr;
 
-    fn rel(path: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
-        Ok(enforcer_domain::paths::RelPath::from_str(path)?)
+    fn rel(literal: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
+        Ok(enforcer_domain::paths::RelPath::from_str(literal)?)
     }
 
     #[test]
     fn detects_rust_by_manifest_with_no_source_files() -> Result<(), Box<dyn std::error::Error>> {
         let paths = vec![rel("Cargo.toml")?];
         let detected = detect_languages(&paths);
-        assert!(detected.contains(&DetectedLanguage::Rust));
-        assert_eq!(detected.len(), 1);
+        assert_eq!(detected, [DetectedLanguage::Rust].into_iter().collect());
         Ok(())
     }
 
@@ -195,17 +179,44 @@ mod tests {
             rel("web/index.ts")?,
         ];
         let detected = detect_languages(&paths);
-        assert!(detected.contains(&DetectedLanguage::Rust));
-        assert!(detected.contains(&DetectedLanguage::TypeScript));
-        assert_eq!(detected.len(), 2);
+        assert_eq!(
+            detected,
+            [DetectedLanguage::Rust, DetectedLanguage::TypeScript]
+                .into_iter()
+                .collect()
+        );
         Ok(())
     }
 
     #[test]
     fn detects_python_only_in_a_python_folder() -> Result<(), Box<dyn std::error::Error>> {
-        let paths = vec![rel("pyproject.toml")?, rel("app/main.py")?];
+        let paths = vec![
+            rel("pyproject.toml")?,
+            rel("uv.lock")?,
+            rel("OWNERS")?,
+            rel("app/main.py")?,
+        ];
         let detected = detect_languages(&paths);
         assert_eq!(detected, [DetectedLanguage::Python].into_iter().collect());
+        Ok(())
+    }
+
+    #[test]
+    fn ownership_and_lock_metadata_do_not_create_other_language_routes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let paths = vec![
+            rel("Cargo.toml")?,
+            rel("Cargo.lock")?,
+            rel("OWNERS")?,
+            rel("web/package.json")?,
+            rel("web/package-lock.json")?,
+        ];
+        assert_eq!(
+            detect_languages(&paths),
+            [DetectedLanguage::Rust, DetectedLanguage::TypeScript]
+                .into_iter()
+                .collect()
+        );
         Ok(())
     }
 

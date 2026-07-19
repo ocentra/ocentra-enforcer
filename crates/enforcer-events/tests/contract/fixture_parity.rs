@@ -1,5 +1,4 @@
-use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
+use enforcer_domain::events_types::{
     AggregateKey, CausationId, CorrelationId, EventCustody, EventId, EventNamespace, EventType,
     IdempotencyKey, JournalHash, RecordedAt, RequestId, RuntimeInstanceId, RuntimeRole,
     SchemaVersion, SourceComponent, SourceService, SubscriberId, TargetHandler,
@@ -68,29 +67,37 @@ fn rust_newtypes_accept_shared_valid_parity_fixture(
     let valid = fixture()?.valid;
 
     assert_eq!(
-        EventType::parse(valid.event_type)?.as_str(),
+        EventType::parse(&valid.event_type)?.as_str(),
         "network.domain.observed"
     );
     assert_eq!(
-        EventNamespace::parse(valid.event_namespace)?.as_str(),
+        EventNamespace::parse(&valid.event_namespace)?.as_str(),
         "network"
     );
-    EventId::parse(valid.event_id)?;
-    CorrelationId::parse(valid.correlation_id)?;
-    CausationId::parse(valid.causation_id)?;
-    RequestId::parse(valid.request_id)?;
-    JournalHash::parse(valid.journal_hash)?;
-    AggregateKey::parse(valid.aggregate_key)?;
-    IdempotencyKey::parse(valid.idempotency_key)?;
-    SubscriberId::parse(valid.subscriber_id)?;
-    TargetHandler::parse(valid.target_handler)?;
-    EventCustody::parse(valid.event_custody)?;
-    RuntimeRole::parse(valid.runtime_role)?;
-    SourceService::parse(valid.source_service)?;
-    SourceComponent::parse(valid.source_component)?;
-    RuntimeInstanceId::parse(valid.runtime_instance_id)?;
-    RecordedAt::parse(valid.recorded_at)?;
-    assert_eq!(SchemaVersion::new(valid.schema_version)?.value(), 1);
+    EventId::parse(&valid.event_id)?;
+    CorrelationId::parse(&valid.correlation_id)?;
+    CausationId::parse(&valid.causation_id)?;
+    RequestId::parse(&valid.request_id)?;
+    JournalHash::parse(&valid.journal_hash)?;
+    AggregateKey::parse(&valid.aggregate_key)?;
+    IdempotencyKey::parse(&valid.idempotency_key)?;
+    SubscriberId::parse(&valid.subscriber_id)?;
+    TargetHandler::parse(&valid.target_handler)?;
+    EventCustody::parse(&valid.event_custody)?;
+    RuntimeRole::parse(&valid.runtime_role)?;
+    SourceService::parse(&valid.source_service)?;
+    SourceComponent::parse(&valid.source_component)?;
+    RuntimeInstanceId::parse(&valid.runtime_instance_id)?;
+    RecordedAt::parse(&valid.recorded_at)?;
+    assert_eq!(
+        SchemaVersion::try_new(
+            std::num::NonZeroU16::new(valid.schema_version)
+                .ok_or("schema version must be positive")?,
+        )
+        .as_nonzero()
+        .get(),
+        1
+    );
     Ok(())
 }
 
@@ -110,10 +117,7 @@ fn rust_newtypes_reject_shared_invalid_text_fixture_values(
 fn rust_schema_version_rejects_shared_invalid_versions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for value in fixture()?.invalid_schema_versions {
-        assert_eq!(
-            SchemaVersion::new(value),
-            Err(EventingError::InvalidVersion)
-        );
+        assert!(std::num::NonZeroU16::new(value).is_none());
     }
     Ok(())
 }
@@ -128,7 +132,8 @@ struct FixtureField(String);
 #[derive(Clone)]
 struct FixtureText(String);
 
-type TextParser = fn(FixtureText) -> Result<(), EventingError>;
+type TextParser =
+    fn(FixtureText) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError>;
 
 fn invalid_text_rejects(field: &FixtureField, value: FixtureText) -> bool {
     invalid_text_checkers()
@@ -203,7 +208,9 @@ fn invalid_text_checkers() -> [(FixtureField, TextParser); 17] {
 
 macro_rules! text_parser {
     ($name:ident, $ty:ty) => {
-        fn $name(value: FixtureText) -> Result<(), EventingError> {
+        fn $name(
+            value: FixtureText,
+        ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
             <$ty>::parse(value.0.as_str()).map(|_| ())
         }
     };

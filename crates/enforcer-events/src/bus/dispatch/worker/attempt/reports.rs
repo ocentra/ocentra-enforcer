@@ -1,15 +1,18 @@
-use crate::bus::reports::handler::HandlerIdentity;
-use crate::{
-    EventingError, HandlerOutcome, HandlerReport, StoredEventEnvelope, SubscriberId, TargetHandler,
-};
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use crate::error::EventingError;
+use enforcer_domain::events_types::EventErrorReason;
+use enforcer_domain::events_types::{EventCount, HandlerOutcome, SubscriberId, TargetHandler};
 
-use super::SubscriberRecord;
+use super::super::super::super::{
+    reports::handler::{HandlerIdentity, HandlerReport},
+    SubscriberRecord,
+};
 
 pub(super) fn deadline_expired_report(
     stored: &StoredEventEnvelope,
     subscriber_id: SubscriberId,
     target_handler: TargetHandler,
-    attempts: usize,
+    attempts: EventCount,
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
@@ -39,16 +42,18 @@ pub(super) fn dispatch_exhausted_report(
         },
         HandlerOutcome::Failed,
         Some(EventingError::InvalidHandlerPolicy {
-            reason: String::from("handler execution policy produced no attempt"),
+            reason: EventErrorReason::from_diagnostic(
+                "handler execution policy produced no attempt",
+            ),
         }),
-        0,
+        EventCount::ZERO,
     )
 }
 
 pub(super) fn handled_report(
     stored: &StoredEventEnvelope,
     subscriber: &SubscriberRecord,
-    attempts: usize,
+    attempts: EventCount,
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
@@ -67,7 +72,7 @@ pub(super) fn handled_report(
 pub(super) fn failed_report(
     stored: &StoredEventEnvelope,
     subscriber: &SubscriberRecord,
-    attempts: usize,
+    attempts: EventCount,
     error: EventingError,
 ) -> HandlerReport {
     HandlerReport::new(
@@ -87,7 +92,7 @@ pub(super) fn failed_report(
 pub(super) fn timed_out_report(
     stored: &StoredEventEnvelope,
     subscriber: &SubscriberRecord,
-    attempts: usize,
+    attempts: EventCount,
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
@@ -109,7 +114,7 @@ pub(super) fn timed_out_report(
 pub(super) fn panicked_report(
     stored: &StoredEventEnvelope,
     subscriber: &SubscriberRecord,
-    attempts: usize,
+    attempts: EventCount,
 ) -> HandlerReport {
     HandlerReport::new(
         stored,

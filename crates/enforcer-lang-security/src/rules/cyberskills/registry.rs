@@ -1,13 +1,14 @@
 //! The cyberskills-cluster `Validator`-registration seam: every rule id
 //! this module owns, paired with its constructed [`Validator`]. Kept
-//! DELIBERATELY SEPARATE from [`super::super::registry::build_all`] (the
-//! `SEC-*` family's count-parity seam, pinned to the workpack's
+//! DELIBERATELY SEPARATE from the top-level `SEC-*` registry builder (whose
+//! count-parity seam is pinned to the workpack's
 //! authoritative count of 22 by `tests/completeness.rs`) — the cyberskills
 //! cluster is a distinct rule family (`CYBER-*` prefix) with its own count,
 //! not a `SEC-*` row, so it must not perturb that completeness assertion.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_validator::validator::Validator;
+
+type RegistryRow = crate::rules::registry::RegistryRow;
 
 use super::auth_jwt::JwtSecurityValidator;
 use super::cloud_aws::AwsResourceHardeningValidator;
@@ -20,6 +21,9 @@ use super::cmd_injection::CommandInjectionValidator;
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
 use super::docker_daemon::DockerDaemonHardeningValidator;
 use super::dockerfile_hardening::DockerfileHardeningValidator;
+use super::fileless_malware::{
+    FilelessAnalysisReportValidator, FilelessMalwareValidator, FilelessTelemetryBaselineValidator,
+};
 use super::github_actions::GithubActionsSecurityValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
@@ -48,168 +52,51 @@ use super::web_headers::{
 use super::web_ssrf::SsrfMetadataValidator;
 use super::websocket_security::WebSocketSecurityValidator;
 
-/// One registry row: the rule id this row proves, paired with the
-/// constructed [`Validator`] trait object.
-pub struct RegistryRow {
-    /// The rule id this row proves, e.g. `CYBER-IAC-S3-SSE.1`.
-    pub rule_id: &'static str,
-    /// The constructed validator for this rule.
-    pub validator: Box<dyn Validator>,
-}
-
 /// Build every cyberskills-cluster row this module owns. Fails closed
 /// (propagates the first construction error) rather than silently
 /// dropping a malformed entry.
 pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
     Ok(vec![
-        RegistryRow {
-            rule_id: "CYBER-IAC-S3-SSE.1",
-            validator: Box::new(S3EncryptionRequiredValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-IAC-IAM-WILDCARD.1",
-            validator: Box::new(IamNoWildcardActionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-IAC-SG-SSH.1",
-            validator: Box::new(SgNoPublicSshIngressValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-AZURE-BLOB-PUBLIC.1",
-            validator: Box::new(AzureStoragePublicBlobValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-AZURE-HTTPS.1",
-            validator: Box::new(AzureStorageRequireHttpsValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-AZURE-TLS12.1",
-            validator: Box::new(AzureStorageMinTls12Validator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-HEADERS-HSTS.1",
-            validator: Box::new(HstsMissingOrWeakValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-HEADERS-CSP.1",
-            validator: Box::new(CspMissingValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-COOKIE-SECURE.1",
-            validator: Box::new(CookieSecureHttponlySamesiteValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-DEPCONFUSION.1",
-            validator: Box::new(DependencyConfusionClaimableValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-WAF-SQLI.1",
-            validator: Box::new(WafSqliSignatureValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-K8S-POD.1",
-            validator: Box::new(K8sPodSecurityValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-DOCKER.1",
-            validator: Box::new(DockerfileHardeningValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-SECRET.1",
-            validator: Box::new(ProviderCredentialValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-AWS.1",
-            validator: Box::new(AwsResourceHardeningValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-K8S-RBAC.1",
-            validator: Box::new(K8sRbacValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-GCP.1",
-            validator: Box::new(GcpResourceHardeningValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-AUTH-JWT.1",
-            validator: Box::new(JwtSecurityValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-CORS.1",
-            validator: Box::new(CorsMisconfigValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-TLS.1",
-            validator: Box::new(TlsLegacyVersionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-SSRF.1",
-            validator: Box::new(SsrfMetadataValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-CMD-INJECT.1",
-            validator: Box::new(CommandInjectionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-PATH-TRAVERSAL.1",
-            validator: Box::new(PathTraversalValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-DESERIALIZE.1",
-            validator: Box::new(InsecureDeserializationValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-WEAK-CRYPTO.1",
-            validator: Box::new(WeakCryptoValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-TLS-VERIFY.1",
-            validator: Box::new(TlsVerificationDisabledValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-SQLI-SOURCE.1",
-            validator: Box::new(SqlInjectionSourceValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-SSTI.1",
-            validator: Box::new(TemplateInjectionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-NOSQL-INJECT.1",
-            validator: Box::new(NoSqlInjectionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-PROTO-POLLUTION.1",
-            validator: Box::new(PrototypePollutionValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-GHA.1",
-            validator: Box::new(GithubActionsSecurityValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-MASS-ASSIGN.1",
-            validator: Box::new(MassAssignmentValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-TYPE-JUGGLE.1",
-            validator: Box::new(TypeJugglingValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-OAUTH.1",
-            validator: Box::new(OauthMisconfigValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-DOCKER-DAEMON.1",
-            validator: Box::new(DockerDaemonHardeningValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-MCP-POISON.1",
-            validator: Box::new(McpToolPoisoningValidator::new()?),
-        },
-        RegistryRow {
-            rule_id: "CYBER-WEBSOCKET.1",
-            validator: Box::new(WebSocketSecurityValidator::new()?),
-        },
+        RegistryRow::from_validator(Box::new(S3EncryptionRequiredValidator::new()?)),
+        RegistryRow::from_validator(Box::new(IamNoWildcardActionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(SgNoPublicSshIngressValidator::new()?)),
+        RegistryRow::from_validator(Box::new(AzureStoragePublicBlobValidator::new()?)),
+        RegistryRow::from_validator(Box::new(AzureStorageRequireHttpsValidator::new()?)),
+        RegistryRow::from_validator(Box::new(AzureStorageMinTls12Validator::new()?)),
+        RegistryRow::from_validator(Box::new(HstsMissingOrWeakValidator::new()?)),
+        RegistryRow::from_validator(Box::new(CspMissingValidator::new()?)),
+        RegistryRow::from_validator(Box::new(CookieSecureHttponlySamesiteValidator::new()?)),
+        RegistryRow::from_validator(Box::new(DependencyConfusionClaimableValidator::new()?)),
+        RegistryRow::from_validator(Box::new(WafSqliSignatureValidator::new()?)),
+        RegistryRow::from_validator(Box::new(K8sPodSecurityValidator::new()?)),
+        RegistryRow::from_validator(Box::new(DockerfileHardeningValidator::new()?)),
+        RegistryRow::from_validator(Box::new(ProviderCredentialValidator::new()?)),
+        RegistryRow::from_validator(Box::new(AwsResourceHardeningValidator::new()?)),
+        RegistryRow::from_validator(Box::new(K8sRbacValidator::new()?)),
+        RegistryRow::from_validator(Box::new(GcpResourceHardeningValidator::new()?)),
+        RegistryRow::from_validator(Box::new(JwtSecurityValidator::new()?)),
+        RegistryRow::from_validator(Box::new(CorsMisconfigValidator::new()?)),
+        RegistryRow::from_validator(Box::new(TlsLegacyVersionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(SsrfMetadataValidator::new()?)),
+        RegistryRow::from_validator(Box::new(CommandInjectionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(PathTraversalValidator::new()?)),
+        RegistryRow::from_validator(Box::new(InsecureDeserializationValidator::new()?)),
+        RegistryRow::from_validator(Box::new(WeakCryptoValidator::new()?)),
+        RegistryRow::from_validator(Box::new(TlsVerificationDisabledValidator::new()?)),
+        RegistryRow::from_validator(Box::new(SqlInjectionSourceValidator::new()?)),
+        RegistryRow::from_validator(Box::new(TemplateInjectionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(NoSqlInjectionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(PrototypePollutionValidator::new()?)),
+        RegistryRow::from_validator(Box::new(GithubActionsSecurityValidator::new()?)),
+        RegistryRow::from_validator(Box::new(MassAssignmentValidator::new()?)),
+        RegistryRow::from_validator(Box::new(FilelessMalwareValidator::new()?)),
+        RegistryRow::from_validator(Box::new(FilelessTelemetryBaselineValidator::new())),
+        RegistryRow::from_validator(Box::new(FilelessAnalysisReportValidator::new())),
+        RegistryRow::from_validator(Box::new(TypeJugglingValidator::new()?)),
+        RegistryRow::from_validator(Box::new(OauthMisconfigValidator::new()?)),
+        RegistryRow::from_validator(Box::new(DockerDaemonHardeningValidator::new()?)),
+        RegistryRow::from_validator(Box::new(McpToolPoisoningValidator::new()?)),
+        RegistryRow::from_validator(Box::new(WebSocketSecurityValidator::new()?)),
     ])
 }
 
@@ -220,8 +107,8 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 37);
-        let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
+        assert_eq!(rows.len(), 40);
+        let ids: Vec<&str> = rows.iter().map(|row| row.rule_id().as_str()).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
             "CYBER-IAC-IAM-WILDCARD.1",
@@ -255,6 +142,9 @@ mod tests {
             "CYBER-PROTO-POLLUTION.1",
             "CYBER-GHA.1",
             "CYBER-MASS-ASSIGN.1",
+            "CYBER-FILELESS-MALWARE.1",
+            "CYBER-FILELESS-TELEMETRY.1",
+            "CYBER-FILELESS-REPORT.1",
             "CYBER-TYPE-JUGGLE.1",
             "CYBER-OAUTH.1",
             "CYBER-DOCKER-DAEMON.1",

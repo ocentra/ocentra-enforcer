@@ -19,22 +19,24 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::security_pipeline::seam::{EngineDetailText, EngineLine, EngineRuleLabel};
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessSourceLine,
+};
 
 /// One recorded concurrency/load finding, fully branded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConcurrencyFinding {
     /// The engine check that fired.
-    pub rule: EngineRuleLabel,
+    pub rule: HarnessExternalRuleId,
     /// Severity on the shared scale (normalized fail-closed at the
     /// adapters boundary; an unrecognized engine word became `Error`).
     pub severity: Severity,
     /// Target-relative file the finding points at.
     pub file: RelPath,
     /// 1-based line the engine reported.
-    pub line: EngineLine,
+    pub line: HarnessSourceLine,
     /// Human-readable finding detail.
-    pub message: EngineDetailText,
+    pub message: HarnessDiagnosticMessage,
 }
 
 /// Honest three-way outcome of one recorded concurrency/load run
@@ -86,24 +88,29 @@ impl ConcurrencySeverityGate {
         findings
             .iter()
             .filter(|finding| finding.severity <= self.threshold)
-            .map(|finding| Finding {
-                // CLONE-JUSTIFICATION: each finding owns its rule id and
-                // file so the report outlives this borrowed gate/input.
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: format!(
-                    "concurrency finding at or above `{:?}` threshold",
-                    self.threshold
-                ),
-                detail: format!(
-                    "{} ({:?}): {}",
-                    finding.rule.0, finding.severity, finding.message.0
-                ),
-                // CLONE-JUSTIFICATION: same owned-report rationale as
-                // `rule_id` above.
-                file: file.clone(),
-                line: finding.line.0,
-                snippet: None,
+            .filter_map(|finding| {
+                domain_finding!(
+                    // CLONE-JUSTIFICATION: each finding owns its rule id and
+                    // file so the report outlives this borrowed gate/input.
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    format!(
+                        "concurrency finding at or above `{:?}` threshold",
+                        self.threshold
+                    ),
+                    format!(
+                        "{} ({:?}): {}",
+                        finding.rule, finding.severity, finding.message
+                    ),
+                    // CLONE-JUSTIFICATION: same owned-report rationale as
+                    // `rule_id` above.
+                    file.clone(),
+                    finding
+                        .line
+                        .finding_line()
+                        .map(std::num::NonZeroU32::get)
+                        .unwrap_or(0),
+                )
             })
             .collect()
     }
@@ -119,23 +126,25 @@ impl Validator for ConcurrencySeverityGate {
     /// boundary rejects (malformed or dishonest) is itself a blocking
     /// finding, never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match crate::security_pipeline::adapters::concurrency_report::parse_recorded(input.source) {
+        match crate::security_pipeline::adapters::concurrency_report::parse_recorded(
+            input.source.as_str(),
+        ) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
-                let title = String::from("concurrency adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title,
-                    detail: format!("{rejection}"),
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    "concurrency adapter output rejected".to_owned(),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

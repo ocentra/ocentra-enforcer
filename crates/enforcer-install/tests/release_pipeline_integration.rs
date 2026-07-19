@@ -1,13 +1,14 @@
 //! Executable public-behavior proof for the release rendering boundary and
 //! typed publication gate.
 
-use enforcer_install::ci::{
-    boundary::release_rendering::{release_matrix, EmptyReleaseVersion, ReleaseVersionWire},
-    release_pipeline::{
-        gate_release, BinaryVariant, PublicationStatus, ReleaseAsset, SmokeOutcome, SmokeResult,
-    },
+use enforcer_domain::install_types::{
+    BinaryVariant, EmptyReleaseVersion, PublicationStatus, ReleaseAsset, SmokeOutcome, SmokeResult,
+    TargetPlatform,
 };
-use enforcer_install::distribution::TargetPlatform;
+use enforcer_install::ci::{
+    boundary::release_rendering::{release_matrix, ReleaseVersionWire},
+    release_pipeline::gate_release,
+};
 
 #[test]
 fn release_boundary_rejects_blank_tags_and_renders_every_typed_asset() {

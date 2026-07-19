@@ -1,5 +1,5 @@
 import { Database, FolderCog, Link2, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import type { Project } from "../data/enforcerAppData";
 
 export type SettingsTab = "scope" | "index" | "connections";
@@ -10,7 +10,7 @@ type ProjectSettingsPayload = {
 };
 
 type ScanScopeSettingsPayload = { sourcePath: string; exists: boolean; profileName: string; ignoreDirs: string[]; ignoreFileGlobs: string[] };
-export function ProjectSettingsWorkspace({ project, initialTab, onCreateMemoryIndex, settings, settingsLoading, settingsError, scanScopeSettings, scanScopeSettingsLoading, scanScopeSettingsError, onWriteScanScopeSettings }: { project: Project; initialTab: SettingsTab; onCreateMemoryIndex: () => Promise<void>; settings?: ProjectSettingsPayload; settingsLoading: boolean; settingsError: string; scanScopeSettings?: ScanScopeSettingsPayload; scanScopeSettingsLoading: boolean; scanScopeSettingsError: string; onWriteScanScopeSettings: (request: Pick<ScanScopeSettingsPayload, "profileName" | "ignoreDirs" | "ignoreFileGlobs">) => Promise<void> }) {
+export function ProjectSettingsWorkspace({ project, initialTab, onCreateMemoryIndex, settings, settingsLoading, settingsError, scanScopeSettings, scanScopeSettingsLoading, scanScopeSettingsError, onWriteScanScopeSettings }: { project: Project; initialTab: SettingsTab; onCreateMemoryIndex: () => Promise<void>; settings?: ProjectSettingsPayload | undefined; settingsLoading: boolean; settingsError: string; scanScopeSettings?: ScanScopeSettingsPayload | undefined; scanScopeSettingsLoading: boolean; scanScopeSettingsError: string; onWriteScanScopeSettings: (request: Pick<ScanScopeSettingsPayload, "profileName" | "ignoreDirs" | "ignoreFileGlobs">) => Promise<void> }): ReactElement {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [ignoredPaths, setIgnoredPaths] = useState<string[]>([]);
   const [newPath, setNewPath] = useState("");

@@ -3,33 +3,40 @@
 //! weaver enrichment worker pool (`enrichment`), migrated out of each
 //! module's inline `#[cfg(test)]` block into one integration test file.
 
-use enforcer_memory::embed::{
-    cosine_similarity, DegradedState, Embedder, EmbeddingModelInfo, HashingEmbedder, LoadState,
+use enforcer_domain::memory_types::{DegradedState, LoadState, ParserSourceText};
+use enforcer_domain::memory_types::{
+    DocumentKind, EmbeddingGenerationId, EmbeddingVector, MemoryPriority, MemoryQueueLength,
+    RetryAttemptCount, TaskOutcome, VectorIndexEntries, VectorIndexEntry, VectorStaleReason,
+    WorkerConcurrency,
 };
+use enforcer_memory::embed::{cosine_similarity, Embedder, EmbeddingModelInfo, HashingEmbedder};
 use enforcer_memory::enrichment::{
-    process_event, EnrichmentContext, FlakyEmbedder, NullEmbedder, TaskOutcome, WorkerPool,
-    WorkerPoolConfig,
+    process_event, EnrichmentContext, FlakyEmbedder, NullEmbedder, WorkerPool, WorkerPoolConfig,
+    WorkerPoolOutcomeChannel,
 };
 use enforcer_memory::error::Result;
 use enforcer_memory::fulltext::{tokenize, FullTextIndex};
-use enforcer_memory::queue::{Priority, RetryPolicy, WeaverEvent, WeaverQueue};
+use enforcer_memory::queue::{RetryPolicy, WeaverEvent, WeaverQueue};
 use enforcer_memory::ranking::{
     fuse_rrf, reranker_lift, CandidateTrace, HardFilter, RankedHit, ScoredCandidate,
 };
 use enforcer_memory::rerank::{FusionScoreReranker, Reranker};
-use enforcer_memory::search::document::{DocumentKind, SearchDocument};
-use enforcer_memory::summaries::SummaryStore;
-use enforcer_memory::vector::{embed_documents, StaleReason, VectorIndex, VectorManifest};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::vector::{embed_documents, VectorIndex, VectorManifest};
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 // ---------------------------------------------------------------------
 // fulltext.rs
 // ---------------------------------------------------------------------
 
+fn tokenize_strings(text: &str) -> Vec<String> {
+    tokenize(&text.into()).into_iter().map(Into::into).collect()
+}
+
 #[test]
 fn fulltext_tokenize_splits_camel_case() {
-    let terms = tokenize("parseConfigFile");
+    let terms = tokenize_strings("parseConfigFile");
     assert!(terms.contains(&"parse".to_string()));
     assert!(terms.contains(&"config".to_string()));
     assert!(terms.contains(&"file".to_string()));
@@ -38,7 +45,7 @@ fn fulltext_tokenize_splits_camel_case() {
 
 #[test]
 fn fulltext_tokenize_splits_snake_case() {
-    let terms = tokenize("parse_config_file");
+    let terms = tokenize_strings("parse_config_file");
     assert!(terms.contains(&"parse".to_string()));
     assert!(terms.contains(&"config".to_string()));
     assert!(terms.contains(&"file".to_string()));
@@ -46,14 +53,14 @@ fn fulltext_tokenize_splits_snake_case() {
 
 #[test]
 fn fulltext_tokenize_splits_kebab_case() {
-    let terms = tokenize("parse-config-file");
+    let terms = tokenize_strings("parse-config-file");
     assert!(terms.contains(&"parse".to_string()));
     assert!(terms.contains(&"config".to_string()));
 }
 
 #[test]
 fn fulltext_tokenize_splits_path_separators() {
-    let terms = tokenize("crates/enforcer-memory/src/fulltext.rs");
+    let terms = tokenize_strings("crates/enforcer-memory/src/fulltext.rs");
     assert!(terms.contains(&"enforcer".to_string()));
     assert!(terms.contains(&"memory".to_string()));
     assert!(terms.contains(&"fulltext".to_string()));
@@ -61,7 +68,7 @@ fn fulltext_tokenize_splits_path_separators() {
 
 #[test]
 fn fulltext_tokenize_keeps_version_digits_attached() {
-    let terms = tokenize("schemaV2Migration");
+    let terms = tokenize_strings("schemaV2Migration");
     assert!(terms.iter().any(|t| t.contains("v2") || t == "v2"));
 }
 
@@ -80,8 +87,7 @@ fn fulltext_exact_query_finds_exact_document() -> Result<()> {
         ),
     ];
     let index = FullTextIndex::build(&docs)?;
-    let hits = index.search("parseConfigFile", 10)?;
-    assert!(!hits.is_empty());
+    let hits = index.search(&"parseConfigFile".into(), 10.into())?;
     assert_eq!(hits[0].doc_id, "sym:a.rs:1:parseConfigFile");
     Ok(())
 }
@@ -94,7 +100,7 @@ fn fulltext_split_component_query_also_matches() -> Result<()> {
         "fn parseConfigFile() { read the config file }",
     )];
     let index = FullTextIndex::build(&docs)?;
-    let hits = index.search("config", 10)?;
+    let hits = index.search(&"config".into(), 10.into())?;
     assert_eq!(hits.len(), 1);
     Ok(())
 }
@@ -106,7 +112,7 @@ fn fulltext_structural_label_boost_orders_function_above_file_for_equal_relevanc
         SearchDocument::new("sym:a.rs:1:widget", DocumentKind::Function, "widget"),
     ];
     let index = FullTextIndex::build(&docs)?;
-    let hits = index.search("widget", 10)?;
+    let hits = index.search(&"widget".into(), 10.into())?;
     assert_eq!(hits.len(), 2);
     assert_eq!(
         hits[0].doc_id, "sym:a.rs:1:widget",
@@ -119,7 +125,7 @@ fn fulltext_structural_label_boost_orders_function_above_file_for_equal_relevanc
 fn fulltext_empty_index_returns_no_hits() -> Result<()> {
     let index = FullTextIndex::build(&[])?;
     assert!(index.is_empty());
-    let hits = index.search("anything", 10)?;
+    let hits = index.search(&"anything".into(), 10.into())?;
     assert!(hits.is_empty());
     Ok(())
 }
@@ -135,14 +141,18 @@ fn vector_model_info() -> EmbeddingModelInfo {
 #[test]
 fn vector_exact_vector_query_returns_the_matching_document_first() -> Result<()> {
     let embedder = HashingEmbedder::new();
-    let entries = vec![
-        ("a".to_owned(), embedder.embed("parse config file")?),
-        ("b".to_owned(), embedder.embed("write log entry")?),
-    ];
-    let index = VectorIndex::build(&entries, vector_model_info());
-    let query_vec = embedder.embed("parse config file")?;
-    let hits = index.search(&query_vec, 2);
-    assert!(!hits.is_empty());
+    let mut entries = VectorIndexEntries::new();
+    entries.push(VectorIndexEntry {
+        doc_id: "a".into(),
+        vector: embedder.embed(ParserSourceText::from("parse config file"))?,
+    });
+    entries.push(VectorIndexEntry {
+        doc_id: "b".into(),
+        vector: embedder.embed(ParserSourceText::from("write log entry"))?,
+    });
+    let index = VectorIndex::build(entries, vector_model_info());
+    let query_vec = embedder.embed(ParserSourceText::from("parse config file"))?;
+    let hits = index.search(query_vec, 2);
     assert_eq!(hits[0].doc_id, "a");
     Ok(())
 }
@@ -150,7 +160,7 @@ fn vector_exact_vector_query_returns_the_matching_document_first() -> Result<()>
 #[test]
 fn vector_empty_index_returns_no_hits() {
     let index = VectorIndex::build(&[], vector_model_info());
-    assert!(index.is_empty());
+    assert!(index.is_empty().is_enabled());
     let hits = index.search(&[0.0, 1.0], 5);
     assert!(hits.is_empty());
 }
@@ -158,7 +168,7 @@ fn vector_empty_index_returns_no_hits() {
 #[test]
 fn vector_manifest_matches_identical_model_info() {
     let manifest = VectorManifest::new(vector_model_info());
-    assert!(manifest.matches(&vector_model_info()));
+    assert!(bool::from(manifest.matches(&vector_model_info())));
 }
 
 #[test]
@@ -169,19 +179,19 @@ fn vector_manifest_detects_dimension_mismatch() {
     let diff = manifest.diff(&other);
     assert!(diff
         .iter()
-        .any(|reason| matches!(reason, StaleReason::Dimension { .. })));
-    assert!(!manifest.matches(&other));
+        .any(|reason| matches!(reason, VectorStaleReason::Dimension { .. })));
+    assert!(!bool::from(manifest.matches(&other)));
 }
 
 #[test]
 fn vector_manifest_detects_embedding_model_name_mismatch() {
     let manifest = VectorManifest::new(vector_model_info());
     let mut other = vector_model_info();
-    other.embedding_model = "some-other-model".to_owned();
+    other.embedding_model = "some-other-model".into();
     let diff = manifest.diff(&other);
     assert!(diff
         .iter()
-        .any(|reason| matches!(reason, StaleReason::EmbeddingModel { .. })));
+        .any(|reason| matches!(reason, VectorStaleReason::EmbeddingModel { .. })));
 }
 
 #[test]
@@ -189,7 +199,7 @@ fn vector_manifest_reports_every_mismatched_field_not_just_the_first() {
     let manifest = VectorManifest::new(vector_model_info());
     let mut other = vector_model_info();
     other.dimension += 1;
-    other.dtype = "f16".to_owned();
+    other.dtype = "f16".into();
     let diff = manifest.diff(&other);
     assert!(diff.len() >= 2);
 }
@@ -222,8 +232,8 @@ fn embed_l2_normalize(vector: &mut [f32]) {
 #[test]
 fn embed_hashing_embedder_is_deterministic_across_calls() -> Result<()> {
     let embedder = HashingEmbedder::new();
-    let a = embedder.embed("parseConfigFile")?;
-    let b = embedder.embed("parseConfigFile")?;
+    let a = embedder.embed(ParserSourceText::from("parseConfigFile"))?;
+    let b = embedder.embed(ParserSourceText::from("parseConfigFile"))?;
     assert_eq!(a, b);
     Ok(())
 }
@@ -240,9 +250,15 @@ fn embed_hashing_embedder_reports_degraded_state() {
 #[test]
 fn embed_shared_vocabulary_queries_are_more_similar_than_disjoint_ones() -> Result<()> {
     let embedder = HashingEmbedder::new();
-    let a = embedder.embed("parse config file for the widget loader")?;
-    let b = embedder.embed("parse config file for the widget reader")?;
-    let c = embedder.embed("unrelated network socket timeout retry logic")?;
+    let a = embedder.embed(ParserSourceText::from(
+        "parse config file for the widget loader",
+    ))?;
+    let b = embedder.embed(ParserSourceText::from(
+        "parse config file for the widget reader",
+    ))?;
+    let c = embedder.embed(ParserSourceText::from(
+        "unrelated network socket timeout retry logic",
+    ))?;
     let sim_ab = cosine_similarity(&a, &b);
     let sim_ac = cosine_similarity(&a, &c);
     assert!(
@@ -254,15 +270,18 @@ fn embed_shared_vocabulary_queries_are_more_similar_than_disjoint_ones() -> Resu
 
 #[test]
 fn embed_cosine_similarity_is_zero_for_mismatched_lengths() {
-    assert_eq!(cosine_similarity(&[1.0, 0.0], &[1.0, 0.0, 0.0]), 0.0);
+    let left = EmbeddingVector::from(vec![1.0, 0.0]);
+    let right = EmbeddingVector::from(vec![1.0, 0.0, 0.0]);
+    assert_eq!(cosine_similarity(&left, &right), 0.0);
 }
 
 #[test]
 fn embed_cosine_similarity_is_one_for_identical_normalized_vectors() {
     let mut v = vec![3.0f32, 4.0];
     embed_l2_normalize(&mut v);
+    let v = EmbeddingVector::from(v);
     let sim = cosine_similarity(&v, &v);
-    assert!((sim - 1.0).abs() < 1e-6);
+    assert!((sim.get() - 1.0).abs() < 1e-6);
 }
 
 #[test]
@@ -282,11 +301,11 @@ fn embed_model_info_reports_stable_version_vector_fields() {
 
 fn rerank_hit(doc_id: &str, snippet: &str, score: f64) -> RankedHit {
     RankedHit {
-        doc_id: doc_id.to_owned(),
+        doc_id: doc_id.into(),
         kind: DocumentKind::Function,
-        snippet: snippet.to_owned(),
+        snippet: snippet.into(),
         source_path: None,
-        score,
+        score: score.into(),
     }
 }
 
@@ -297,7 +316,10 @@ fn rerank_prefers_higher_lexical_overlap_with_query() -> Result<()> {
         rerank_hit("low", "totally unrelated network socket code", 0.9),
         rerank_hit("high", "parse the config file for widgets", 0.1),
     ];
-    let reranked = reranker.rerank("parse config file", &candidates)?;
+    let reranked = reranker.rerank(
+        enforcer_domain::memory_types::ParserSourceText::from("parse config file"),
+        &candidates,
+    )?;
     assert_eq!(reranked[0].doc_id, "high");
     Ok(())
 }
@@ -314,7 +336,12 @@ fn rerank_reports_degraded_state() {
 #[test]
 fn rerank_of_empty_candidates_is_empty() -> Result<()> {
     let reranker = FusionScoreReranker::new();
-    assert!(reranker.rerank("anything", &[])?.is_empty());
+    assert!(reranker
+        .rerank(
+            enforcer_domain::memory_types::ParserSourceText::from("anything"),
+            &[],
+        )?
+        .is_empty());
     Ok(())
 }
 
@@ -322,7 +349,10 @@ fn rerank_of_empty_candidates_is_empty() -> Result<()> {
 fn rerank_overwrites_score_field_not_just_reorders() -> Result<()> {
     let reranker = FusionScoreReranker::new();
     let candidates = vec![rerank_hit("a", "parse config file", 0.1)];
-    let reranked = reranker.rerank("parse config file", &candidates)?;
+    let reranked = reranker.rerank(
+        enforcer_domain::memory_types::ParserSourceText::from("parse config file"),
+        &candidates,
+    )?;
     assert!(
         reranked[0].score > 0.1,
         "score should reflect the reranker's own blended score"
@@ -344,24 +374,24 @@ fn ranking_fuse_rrf_ranks_documents_present_in_both_retrievers_highest() {
     let fulltext = vec![
         ScoredCandidate {
             doc_id: "a".into(),
-            score: 10.0,
+            score: 10.0.into(),
         },
         ScoredCandidate {
             doc_id: "b".into(),
-            score: 5.0,
+            score: 5.0.into(),
         },
     ];
     let vector = vec![
         ScoredCandidate {
             doc_id: "a".into(),
-            score: 0.9,
+            score: 0.9.into(),
         },
         ScoredCandidate {
             doc_id: "c".into(),
-            score: 0.5,
+            score: 0.5.into(),
         },
     ];
-    let result = fuse_rrf(&fulltext, &vector, &corpus, &[], 60.0);
+    let result = fuse_rrf(&fulltext, &vector, &corpus, &[], 60.0.into());
     assert_eq!(
         result.candidates[0].doc_id, "a",
         "present in both retrievers at rank 1 each"
@@ -374,15 +404,17 @@ fn ranking_hard_filters_exclude_before_fusion() {
     let fulltext = vec![
         ScoredCandidate {
             doc_id: "blocked".into(),
-            score: 100.0,
+            score: 100.0.into(),
         },
         ScoredCandidate {
             doc_id: "a".into(),
-            score: 1.0,
+            score: 1.0.into(),
         },
     ];
-    let filters = vec![HardFilter::new("no-blocked", |id: &str| id != "blocked")];
-    let result = fuse_rrf(&fulltext, &[], &corpus, &filters, 60.0);
+    let filters = vec![HardFilter::from_predicate("no-blocked".into(), |id| {
+        (id != "blocked").into()
+    })];
+    let result = fuse_rrf(&fulltext, &[], &corpus, &filters, 60.0.into());
     assert!(
         result.candidates.iter().all(|hit| hit.doc_id != "blocked"),
         "hard-filtered doc must never enter the pre-rerank pool"
@@ -395,9 +427,9 @@ fn ranking_candidate_not_in_corpus_is_skipped_not_panicking() {
     let corpus = vec![ranking_doc("a")];
     let fulltext = vec![ScoredCandidate {
         doc_id: "ghost".into(),
-        score: 1.0,
+        score: 1.0.into(),
     }];
-    let result = fuse_rrf(&fulltext, &[], &corpus, &[], 60.0);
+    let result = fuse_rrf(&fulltext, &[], &corpus, &[], 60.0.into());
     assert!(result.candidates.is_empty());
 }
 
@@ -406,31 +438,31 @@ fn ranking_reranker_lift_is_zero_when_order_is_unchanged() {
     let pre = vec![
         CandidateTrace {
             doc_id: "a".into(),
-            fulltext_rank: Some(1),
+            fulltext_rank: Some(1.into()),
             vector_rank: None,
-            rrf_score: 1.0,
+            rrf_score: 1.0.into(),
         },
         CandidateTrace {
             doc_id: "b".into(),
-            fulltext_rank: Some(2),
+            fulltext_rank: Some(2.into()),
             vector_rank: None,
-            rrf_score: 0.5,
+            rrf_score: 0.5.into(),
         },
     ];
     let context = vec![
         RankedHit {
             doc_id: "a".into(),
             kind: DocumentKind::Function,
-            snippet: String::new(),
+            snippet: String::new().into(),
             source_path: None,
-            score: 1.0,
+            score: 1.0.into(),
         },
         RankedHit {
             doc_id: "b".into(),
             kind: DocumentKind::Function,
-            snippet: String::new(),
+            snippet: String::new().into(),
             source_path: None,
-            score: 0.5,
+            score: 0.5.into(),
         },
     ];
     assert_eq!(reranker_lift(&pre, &context), 0.0);
@@ -441,31 +473,31 @@ fn ranking_reranker_lift_is_positive_when_order_changes() {
     let pre = vec![
         CandidateTrace {
             doc_id: "a".into(),
-            fulltext_rank: Some(1),
+            fulltext_rank: Some(1.into()),
             vector_rank: None,
-            rrf_score: 1.0,
+            rrf_score: 1.0.into(),
         },
         CandidateTrace {
             doc_id: "b".into(),
-            fulltext_rank: Some(2),
+            fulltext_rank: Some(2.into()),
             vector_rank: None,
-            rrf_score: 0.5,
+            rrf_score: 0.5.into(),
         },
     ];
     let context = vec![
         RankedHit {
             doc_id: "b".into(),
             kind: DocumentKind::Function,
-            snippet: String::new(),
+            snippet: String::new().into(),
             source_path: None,
-            score: 0.9,
+            score: 0.9.into(),
         },
         RankedHit {
             doc_id: "a".into(),
             kind: DocumentKind::Function,
-            snippet: String::new(),
+            snippet: String::new().into(),
             source_path: None,
-            score: 0.8,
+            score: 0.8.into(),
         },
     ];
     assert!(reranker_lift(&pre, &context) > 0.0);
@@ -482,26 +514,13 @@ fn ranking_reranker_lift_is_zero_for_empty_inputs() {
 
 type EnrichmentTestResult = std::result::Result<(), Box<dyn Error>>;
 
-/// `std::sync::Mutex::lock`'s `PoisonError<MutexGuard<'_, T>>` is not
-/// `'static` (it embeds the guard), so it cannot convert into
-/// `Box<dyn Error>` via a bare `?` -- this maps it to an owned,
-/// `'static` message first.
-fn enrichment_lock_or_msg<T>(
-    mutex: &Mutex<T>,
-) -> std::result::Result<std::sync::MutexGuard<'_, T>, Box<dyn Error>> {
-    mutex
-        .lock()
-        .map_err(|_poison_error| "mutex poisoned".into())
-}
-
 fn enrichment_test_ctx(
     embedder: Arc<dyn enforcer_memory::enrichment::Embedder>,
 ) -> Arc<EnrichmentContext> {
-    Arc::new(EnrichmentContext {
+    Arc::new(EnrichmentContext::new(
         embedder,
-        summaries: Arc::new(Mutex::new(SummaryStore::new())),
-        embedding_version: 1,
-    })
+        EmbeddingGenerationId::INITIAL,
+    ))
 }
 
 #[tokio::test]
@@ -511,17 +530,22 @@ async fn enrichment_node_changed_event_produces_an_embedding_task() -> Enrichmen
         Arc::clone(&embedder) as Arc<dyn enforcer_memory::enrichment::Embedder>
     );
     let event = WeaverEvent::NodeChanged {
-        node_id: "sym:src/lib.rs:1:foo".to_owned(),
-        rel_path: "src/lib.rs".to_owned(),
-        content_hash: "hash-1".to_owned(),
+        node_id: "sym:src/lib.rs:1:foo".to_owned().into(),
+        rel_path: "src/lib.rs".to_owned().into(),
+        content_hash: "1111111111111111111111111111111111111111111111111111111111111111"
+            .to_owned()
+            .into(),
     };
 
     process_event(&ctx, &event).await?;
 
     let calls = embedder.calls();
     assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0].node_id, "sym:src/lib.rs:1:foo");
-    assert_eq!(calls[0].content_hash, "hash-1");
+    assert_eq!(calls[0].node_id.as_str(), "sym:src/lib.rs:1:foo");
+    assert_eq!(
+        calls[0].content_hash.as_str(),
+        "1111111111111111111111111111111111111111111111111111111111111111"
+    );
     Ok(())
 }
 
@@ -529,21 +553,15 @@ async fn enrichment_node_changed_event_produces_an_embedding_task() -> Enrichmen
 async fn enrichment_file_changed_event_invalidates_summary() -> EnrichmentTestResult {
     let embedder = Arc::new(NullEmbedder::new()) as Arc<dyn enforcer_memory::enrichment::Embedder>;
     let ctx = enrichment_test_ctx(embedder);
-    {
-        let mut store = enrichment_lock_or_msg(&ctx.summaries)?;
-        store.set_summary("src/lib.rs", "old summary");
-    }
+    ctx.with_summaries(|store| store.set_summary("src/lib.rs", "old summary"));
     let event = WeaverEvent::FileChanged {
-        rel_path: "src/lib.rs".to_owned(),
-        content_hash: "hash-2".to_owned(),
+        rel_path: "src/lib.rs".to_owned().into(),
+        content_hash: "hash-2".to_owned().into(),
     };
 
     process_event(&ctx, &event).await?;
 
-    let is_stale = {
-        let store = enrichment_lock_or_msg(&ctx.summaries)?;
-        store.is_stale("src/lib.rs")
-    };
+    let is_stale = ctx.with_summaries(|store| store.is_stale("src/lib.rs").is_stale());
     assert!(is_stale);
     Ok(())
 }
@@ -555,10 +573,15 @@ async fn enrichment_retry_succeeds_after_transient_failure() -> EnrichmentTestRe
         enrichment_test_ctx(Arc::clone(&flaky) as Arc<dyn enforcer_memory::enrichment::Embedder>);
     let queue = WeaverQueue::new();
     let handle = queue.handle();
-    let (config, mut outcomes) = WorkerPoolConfig {
-        max_concurrency: 2,
+    let WorkerPoolOutcomeChannel {
+        config,
+        mut outcomes,
+    } = WorkerPoolConfig {
+        max_concurrency: WorkerConcurrency::from_nonzero(
+            std::num::NonZeroUsize::new(2).unwrap_or(std::num::NonZeroUsize::MIN),
+        ),
         retry: RetryPolicy::bounded_default(),
-        embedding_version: 1,
+        embedding_version: EmbeddingGenerationId::INITIAL,
         on_outcome: None,
     }
     .with_outcome_channel();
@@ -566,11 +589,13 @@ async fn enrichment_retry_succeeds_after_transient_failure() -> EnrichmentTestRe
 
     handle.send(
         WeaverEvent::NodeChanged {
-            node_id: "n1".to_owned(),
-            rel_path: "src/lib.rs".to_owned(),
-            content_hash: "hash-3".to_owned(),
+            node_id: "sym:src/lib.rs:1:n1".to_owned().into(),
+            rel_path: "src/lib.rs".to_owned().into(),
+            content_hash: "3333333333333333333333333333333333333333333333333333333333333333"
+                .to_owned()
+                .into(),
         },
-        Priority::Hot,
+        MemoryPriority::Hot,
     )?;
 
     // Deterministic synchronization: wait on the outcome channel
@@ -593,7 +618,7 @@ async fn enrichment_retry_succeeds_after_transient_failure() -> EnrichmentTestRe
         }
     }
 
-    let dead_letters_len = pool.dead_letters.lock().map(|d| d.len()).unwrap_or(0);
+    let dead_letters_len = pool.with_dead_letters(|dead_letters| dead_letters.len());
     drop(handle);
     pool.shutdown().await;
 
@@ -606,7 +631,11 @@ async fn enrichment_retry_succeeds_after_transient_failure() -> EnrichmentTestRe
         "expected exactly 2 retry-scheduled outcomes"
     );
     assert!(succeeded, "expected the 3rd attempt to succeed");
-    assert_eq!(flaky.attempts_seen(), 3, "expected 2 failures + 1 success");
+    assert_eq!(
+        flaky.attempts_seen().get(),
+        3,
+        "expected 2 failures + 1 success"
+    );
     assert_eq!(
         dead_letters_len, 0,
         "a task that eventually succeeds must never reach the dead-letter queue"
@@ -622,25 +651,32 @@ async fn enrichment_task_failing_every_retry_lands_in_dead_letter_queue() -> Enr
     let queue = WeaverQueue::new();
     let handle = queue.handle();
     let retry = RetryPolicy {
-        max_attempts: 2,
-        base_delay: std::time::Duration::from_millis(5),
-        max_delay: std::time::Duration::from_millis(20),
+        max_attempts: RetryAttemptCount::ZERO.next().next(),
+        base_delay: std::time::Duration::from_millis(5).into(),
+        max_delay: std::time::Duration::from_millis(20).into(),
     };
-    let (config, mut outcomes) = WorkerPoolConfig {
-        max_concurrency: 2,
+    let WorkerPoolOutcomeChannel {
+        config,
+        mut outcomes,
+    } = WorkerPoolConfig {
+        max_concurrency: WorkerConcurrency::from_nonzero(
+            std::num::NonZeroUsize::new(2).unwrap_or(std::num::NonZeroUsize::MIN),
+        ),
         retry,
-        embedding_version: 1,
+        embedding_version: EmbeddingGenerationId::INITIAL,
         on_outcome: None,
     }
     .with_outcome_channel();
     let pool = WorkerPool::spawn(queue, handle.clone(), ctx, &config);
 
     let event = WeaverEvent::NodeChanged {
-        node_id: "n-dlq".to_owned(),
-        rel_path: "src/dlq.rs".to_owned(),
-        content_hash: "hash-dlq".to_owned(),
+        node_id: "sym:src/dlq.rs:1:n_dlq".to_owned().into(),
+        rel_path: "src/dlq.rs".to_owned().into(),
+        content_hash: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            .to_owned()
+            .into(),
     };
-    handle.send(event.clone(), Priority::Hot)?;
+    handle.send(event.clone(), MemoryPriority::Hot)?;
 
     // Deterministic synchronization: wait for the `DeadLettered`
     // outcome instead of polling the dead-letter queue on a sleep.
@@ -656,14 +692,17 @@ async fn enrichment_task_failing_every_retry_lands_in_dead_letter_queue() -> Enr
         "expected the task to reach the dead-letter queue"
     );
 
-    let dead_letters = Arc::clone(&pool.dead_letters);
+    let dead_letter_state = pool.with_dead_letters(|dead_letters| {
+        let found = dead_letters.find(&event.task_key());
+        (
+            dead_letters.len(),
+            found.len(),
+            found.first().map(|task| u32::from(task.attempts)),
+        )
+    });
     drop(handle);
     pool.shutdown().await;
 
-    let dlq_guard = enrichment_lock_or_msg(&dead_letters)?;
-    assert_eq!(dlq_guard.len(), 1);
-    let found = dlq_guard.find(&event.task_key());
-    assert_eq!(found.len(), 1);
-    assert_eq!(found[0].attempts, 2);
+    assert_eq!(dead_letter_state, (MemoryQueueLength::from(1), 1, Some(2)));
     Ok(())
 }

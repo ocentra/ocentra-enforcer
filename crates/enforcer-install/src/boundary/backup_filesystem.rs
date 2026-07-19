@@ -23,6 +23,24 @@ use crate::error::{InstallError, InstallResult};
 /// Suffix appended to a config path to form its backup path.
 pub const BACKUP_SUFFIX: &str = ".enforcer-bak";
 
+/// Read a file's size and contents for byte-identical dry-run proof.
+#[cfg(test)]
+pub(crate) fn snapshot_for_test(path: &Path) -> InstallResult<(u64, String)> {
+    let meta = std::fs::metadata(path).map_err(|error| InstallError::Io {
+        // ALLOC-JUSTIFICATION: the typed I/O diagnostic must retain the failing path.
+        path: path.display().to_string(),
+        // ALLOC-JUSTIFICATION: the typed I/O diagnostic must own the source error text.
+        reason: error.to_string(),
+    })?;
+    let content = std::fs::read_to_string(path).map_err(|error| InstallError::Io {
+        // ALLOC-JUSTIFICATION: the typed I/O diagnostic must retain the failing path.
+        path: path.display().to_string(),
+        // ALLOC-JUSTIFICATION: the typed I/O diagnostic must own the source error text.
+        reason: error.to_string(),
+    })?;
+    Ok((meta.len(), content))
+}
+
 /// The backup path for a given original config path.
 #[must_use]
 pub fn backup_path_for(original: &Path) -> PathBuf {
@@ -130,7 +148,17 @@ mod tests {
         let original = dir.path().join("config.json");
         fs::write(&original, "{}")?;
 
-        assert!(restore(&original).is_err());
+        let error = restore(&original)
+            .err()
+            .ok_or("restore without a backup must fail")?;
+        let expected_backup = backup_path_for(&original);
+        assert_eq!(
+            error,
+            crate::error::InstallError::BackupFailed {
+                path: original.display().to_string(),
+                reason: format!("no backup found at `{}`", expected_backup.display()),
+            }
+        );
         Ok(())
     }
 

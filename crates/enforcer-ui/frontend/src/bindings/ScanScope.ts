@@ -2,5 +2,6 @@
 
 /**
  * What a validation run covered.
+ *Canonical domain representation for ScanScope.
  */
-export type ScanScope = "workspace" | "files" | "crate" | "diff";
+export type ScanScope = "Workspace" | "Files" | "Crate" | "Diff";

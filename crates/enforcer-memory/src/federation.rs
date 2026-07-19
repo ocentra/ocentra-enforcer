@@ -19,7 +19,7 @@
 //! INACTIVE regardless of what the exporting repo's own `landedAt`
 //! said: this repo has not run its own x05 local validation on imported
 //! content yet, so [`crate::learning::lesson_status`] must report
-//! [`crate::learning::LessonStatus::Inactive`] for every imported id
+//! [`enforcer_domain::memory_types::LessonStatus::Inactive`] for every imported id
 //! until a local landing event activates it. Inactive is not hidden --
 //! [`crate::recall::recall`] still finds imported content, per the
 //! crate-wide "searchable but inactive" rule -- it is simply not counted
@@ -34,21 +34,27 @@
 //! [`crate::learning::superseded_by`] keeps the audit trail from the
 //! imported id to whatever locally validated it.
 
+use crate::boundary::share::{
+    decode_payload_unchecked, signature_for_bundle, verifying_key_for_bundle,
+    BundleGraphSnapshotDto, SignedBundleDto, BUNDLE_SCHEMA_VERSION,
+};
 use crate::graph::MemoryGraph;
-use crate::share::{
-    decode_payload_unchecked, parse_signature, parse_verifying_key, BundleGraphSnapshot,
-    SignedBundle, BUNDLE_SCHEMA_VERSION,
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    MemoryBundleContentHash, MemoryBundlePayload, MemoryBundlePublicKeyHex,
+    MemoryBundleSchemaVersion, MemoryFederationImportCount, MemoryFederationRejectedAt,
+    MemoryTrustListMembership,
 };
 
 /// A local trust list: the set of ed25519 public keys (hex-encoded, as
-/// carried in [`SignedBundle::signer_public_key_hex`]) this instance
+/// carried in [`SignedBundleDto::signer_public_key_hex`]) this instance
 /// accepts bundles from. Deliberately the simplest possible
 /// representation (no expiry/revocation/rotation) -- callers needing
 /// those layer them on top of `trusted_keys_hex`. This is a purely
 /// local, injectable abstraction -- no network call, no PKI.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrustList {
-    trusted_keys_hex: Vec<String>,
+    trusted_keys_hex: Vec<MemoryBundlePublicKeyHex>,
 }
 
 impl TrustList {
@@ -57,18 +63,21 @@ impl TrustList {
     }
 
     /// Trust list containing exactly the given hex-encoded public keys.
-    pub fn from_keys(keys_hex: impl IntoIterator<Item = String>) -> Self {
+    pub fn from_keys(keys_hex: impl IntoIterator<Item = MemoryBundlePublicKeyHex>) -> Self {
         Self {
             trusted_keys_hex: keys_hex.into_iter().collect(),
         }
     }
 
-    pub fn trust(&mut self, key_hex: impl Into<String>) {
-        self.trusted_keys_hex.push(key_hex.into());
+    pub fn trust(&mut self, key_hex: MemoryBundlePublicKeyHex) {
+        self.trusted_keys_hex.push(key_hex);
     }
 
-    pub fn is_trusted(&self, key_hex: &str) -> bool {
-        self.trusted_keys_hex.iter().any(|k| k == key_hex)
+    pub fn is_trusted(&self, key_hex: &MemoryBundlePublicKeyHex) -> MemoryTrustListMembership {
+        self.trusted_keys_hex
+            .iter()
+            .any(|trusted| trusted.as_str() == key_hex.as_str())
+            .into()
     }
 }
 
@@ -87,7 +96,7 @@ pub enum RejectReason {
     /// decompressed payload bytes.
     ChecksumTamper { expected: String, actual: String },
     /// The manifest's `schema_version` is not
-    /// [`crate::share::BUNDLE_SCHEMA_VERSION`].
+    /// [`crate::boundary::share::BUNDLE_SCHEMA_VERSION`].
     SchemaVersionIncompatible { found: u32, expected: u32 },
 }
 
@@ -114,20 +123,20 @@ impl std::fmt::Display for RejectReason {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RejectedBundle {
     pub reason: RejectReason,
-    pub at: String,
+    pub at: MemoryFederationRejectedAt,
 }
 
 /// The outcome of a successful import: how many records/lessons were
 /// added to the graph, all forced inactive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ImportReport {
-    pub records_imported: usize,
-    pub lessons_imported: usize,
+    pub records_imported: MemoryFederationImportCount,
+    pub lessons_imported: MemoryFederationImportCount,
 }
 
 impl ImportReport {
-    pub fn total(&self) -> usize {
-        self.records_imported + self.lessons_imported
+    pub fn total(&self) -> MemoryFederationImportCount {
+        (self.records_imported.get() + self.lessons_imported.get()).into()
     }
 }
 
@@ -165,34 +174,35 @@ impl RejectionLog {
 /// first regardless of which OTHER checks would also have failed.
 pub fn import_bundle(
     graph: &mut MemoryGraph,
-    bundle: &SignedBundle,
+    bundle: &SignedBundleDto,
     trust_list: &TrustList,
-    at: &str,
+    at: &MemoryFederationRejectedAt,
 ) -> Result<ImportReport, RejectedBundle> {
     verify_signature(bundle, trust_list).map_err(|reason| RejectedBundle {
         reason,
-        at: at.to_owned(),
+        at: at.retained(),
     })?;
 
     let (decompressed, snapshot) =
         decode_payload_unchecked(&bundle.compressed_payload).map_err(|source| RejectedBundle {
             reason: RejectReason::ChecksumTamper {
-                expected: bundle.manifest.content_hash.clone(),
+                expected: bundle.manifest.content_hash.retained_display(),
                 actual: format!("<undecodable: {source}>"),
             },
-            at: at.to_owned(),
+            at: at.retained(),
         })?;
 
+    let decompressed: MemoryBundlePayload = decompressed.into();
     verify_checksum(&bundle.manifest.content_hash, &decompressed).map_err(|reason| {
         RejectedBundle {
             reason,
-            at: at.to_owned(),
+            at: at.retained(),
         }
     })?;
 
     verify_schema_version(bundle.manifest.schema_version).map_err(|reason| RejectedBundle {
         reason,
-        at: at.to_owned(),
+        at: at.retained(),
     })?;
 
     Ok(ingest_inactive(graph, snapshot))
@@ -205,49 +215,55 @@ pub fn import_bundle(
 /// site.
 pub fn import_bundle_logged(
     graph: &mut MemoryGraph,
-    bundle: &SignedBundle,
+    bundle: &SignedBundleDto,
     trust_list: &TrustList,
-    at: &str,
+    at: &MemoryFederationRejectedAt,
     log: &mut RejectionLog,
 ) -> Result<ImportReport, RejectedBundle> {
     let outcome = import_bundle(graph, bundle, trust_list, at);
     if let Err(rejected) = &outcome {
-        log.record(rejected.clone());
+        log.record(rejected.retained());
     }
     outcome
 }
 
-fn verify_signature(bundle: &SignedBundle, trust_list: &TrustList) -> Result<(), RejectReason> {
-    if !trust_list.is_trusted(&bundle.signer_public_key_hex) {
+fn verify_signature(bundle: &SignedBundleDto, trust_list: &TrustList) -> Result<(), RejectReason> {
+    if !trust_list
+        .is_trusted(&bundle.signer_public_key_hex)
+        .is_trusted()
+    {
         return Err(RejectReason::UntrustedSigner(format!(
             "signer key {} is not in the local trust list",
             bundle.signer_public_key_hex
         )));
     }
-    let verifying_key = parse_verifying_key(&bundle.signer_public_key_hex)
-        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable public key".to_owned()))?;
-    let signature = parse_signature(&bundle.signature_hex)
-        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable signature".to_owned()))?;
+    let verifying_key = verifying_key_for_bundle(&bundle.signer_public_key_hex)
+        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable public key".retained()))?;
+    let signature = signature_for_bundle(&bundle.signature_hex)
+        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable signature".retained()))?;
     verifying_key
         .verify_strict(&bundle.compressed_payload, &signature)
         .map_err(|source| RejectReason::UntrustedSigner(format!("verification failed: {source}")))
 }
 
-fn verify_checksum(expected_hash: &str, decompressed_payload: &[u8]) -> Result<(), RejectReason> {
-    let actual = enforcer_core::hash_chain::link_digest(None, decompressed_payload);
-    if actual != expected_hash {
+fn verify_checksum(
+    expected_hash: &MemoryBundleContentHash,
+    decompressed_payload: &MemoryBundlePayload,
+) -> Result<(), RejectReason> {
+    let actual = enforcer_core::hash_chain::link_digest(None, decompressed_payload.as_ref());
+    if actual.as_str() != expected_hash.as_str() {
         return Err(RejectReason::ChecksumTamper {
-            expected: expected_hash.to_owned(),
-            actual,
+            expected: expected_hash.as_str().into(),
+            actual: actual.retained_display(),
         });
     }
     Ok(())
 }
 
-fn verify_schema_version(found: u32) -> Result<(), RejectReason> {
-    if found != BUNDLE_SCHEMA_VERSION {
+fn verify_schema_version(found: MemoryBundleSchemaVersion) -> Result<(), RejectReason> {
+    if u32::from(found) != BUNDLE_SCHEMA_VERSION {
         return Err(RejectReason::SchemaVersionIncompatible {
-            found,
+            found: found.into(),
             expected: BUNDLE_SCHEMA_VERSION,
         });
     }
@@ -257,7 +273,7 @@ fn verify_schema_version(found: u32) -> Result<(), RejectReason> {
 /// Ingest every record/lesson in `snapshot` into `graph`, forcing each
 /// one inactive (`landed_at` cleared) regardless of what the exporting
 /// repo recorded.
-fn ingest_inactive(graph: &mut MemoryGraph, snapshot: BundleGraphSnapshot) -> ImportReport {
+fn ingest_inactive(graph: &mut MemoryGraph, snapshot: BundleGraphSnapshotDto) -> ImportReport {
     let mut report = ImportReport::default();
     for mut dto in snapshot.records {
         dto.landed_at.clear();
@@ -266,7 +282,7 @@ fn ingest_inactive(graph: &mut MemoryGraph, snapshot: BundleGraphSnapshot) -> Im
     }
     for mut lesson in snapshot.lessons {
         lesson.landed_at.clear();
-        graph.ingest_lesson_row(lesson);
+        graph.ingest_lesson_row(lesson.into());
         report.lessons_imported += 1;
     }
     report

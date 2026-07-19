@@ -4,16 +4,17 @@
 ```yaml
 scope: "Rust surface only, not the system architecture doc -- see RUST_ARCHITECTURE.md and README.md for the full model"
 implementation: enforcer-lang-rust crate (syn-backed); Rust is also the enforcer's OWN implementation language
-routing: enforcer route / mcp__enforcer__route -- do not default-load the monolithic RustRules.md
+routing: native Rust route is not wired; use finding rule IDs and focused scopes
 contract_layer: enforcer-domain (serde + branded newtypes); TS types for the UI derived via ts_rs, never hand-written
-meta_enforcement: "enforcer check rule-coverage/policy-integrity/waiver-policy -- immutable rules cannot be disabled by project config"
+meta_enforcement: "typed rule records and validator tests protect policy integrity"
 ```
 <!-- /ai-dense -->
 
 The enforcer is a standalone, multi-language enforcement platform. Rust is
 one validated language family alongside TypeScript/JavaScript, Python, Dart,
-CFML, and common security/generated-artifact checks, proof harnessing,
-compact diagnostics, and coordination — and Rust is also the enforcer's own
+CFML, and common security/generated-artifact checks. Proof, diagnostics, and
+coordination also have engine crates, though not every public boundary is
+wired. Rust is also the enforcer's own
 implementation language end to end. This document explains the Rust
 validator surface only; it is not the system architecture document.
 
@@ -27,29 +28,27 @@ For the full system model, use:
 
 ## Consumption Model
 
-Default use is install-once, MCP/CLI:
+Current native use is install-once plus explicit CLI validation:
 
 ```bash
-enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
-enforcer scan --root <repo> --files crates/example/src/lib.rs
-enforcer cargo --root <repo> --crate example-crate
+enforcer install
+enforcer scan crates/example/src/lib.rs
+enforcer verify --mode local --all
 ```
 
-Each tool call must pass the target repo as `root`. The enforcer binary
-itself never needs to live inside the target repo.
+Run validation from the target repository or pass explicit paths. The native
+Rust scope grammar is paths, `--base`/`--head`, or `--all`.
 
 ## Indexed Rule Routing
 
-Agents should call:
+The current native CLI and Rust MCP router do not expose a working rule-route
+operation. Use the smallest explicit validation scope and open only the rule
+records referenced by its findings.
 
-```text
-mcp__enforcer__route
-```
-
-Use the returned rule records instead of loading a monolithic Rust rulebook
-by default. `docs/RustRules.md` remains a fallback for broad Rust policy
-review, missing registry entries, or unknown failures — the canonical form
-of every rule is the typed record in `enforcer-rules`, not the prose file.
+`docs/RustRules.md` remains a fallback for broad Rust policy review, missing
+registry entries, or unknown failures. The canonical form of every rule is
+the typed record in `enforcer-rules`, not the prose file. The frozen Node
+compatibility service still has routing, but that is not the Rust contract.
 
 ## Rust Gate Shape
 
@@ -70,12 +69,13 @@ Use `rules/rust/*.md` for routed remediation details and
 
 ## Meta-Enforcement
 
-Rust rules are protected by the shared policy layer:
+Rust rules are protected by typed records, validator coverage, fixtures, and
+workspace tests. The current native CLI does not expose named
+`rule-coverage`, `policy-integrity`, or `waiver-policy` commands. Use the
+repository's focused validator tests and then the public workspace gate:
 
 ```bash
-enforcer check rule-coverage --root <repo>
-enforcer check policy-integrity --root <repo>
-enforcer check waiver-policy --root <repo>
+enforcer check --all
 ```
 
 Immutable Rust rules cannot be disabled or downgraded by project config.

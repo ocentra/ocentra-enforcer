@@ -47,9 +47,12 @@ fn injected_extra_local_only_step_fails_closed() -> Result<(), Box<dyn std::erro
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert_eq!(findings[0].title, "local-only step has no matching CI step");
     assert_eq!(
-        findings[0].detail,
+        findings[0].title.as_str(),
+        "local-only step has no matching CI step"
+    );
+    assert_eq!(
+        findings[0].detail.as_str(),
         "step `cargo local-only-lint` runs locally but is not present in the CI workflow's step set"
     );
     Ok(())
@@ -67,11 +70,11 @@ fn injected_version_skew_fails_closed() -> Result<(), Box<dyn std::error::Error>
         "expected exactly one finding: {findings:?}"
     );
     assert_eq!(
-        findings[0].title,
+        findings[0].title.as_str(),
         "pinned version skew between local and CI"
     );
     assert_eq!(
-        findings[0].detail,
+        findings[0].detail.as_str(),
         "component `cargo deny check` is pinned to `0.14.0` locally but `0.15.2` in CI"
     );
     Ok(())
@@ -90,9 +93,9 @@ fn injected_toolchain_channel_skew_fails_closed() -> Result<(), Box<dyn std::err
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert_eq!(findings[0].title, "pinned toolchain channel skew");
+    assert_eq!(findings[0].title.as_str(), "pinned toolchain channel skew");
     assert_eq!(
-        findings[0].detail,
+        findings[0].detail.as_str(),
         "`rust-toolchain.toml` channel is `1.95.0` but the CI-observed channel is `1.80.0`"
     );
     Ok(())
@@ -157,5 +160,5 @@ jobs:
         .iter()
         .map(|step| step.name.as_str())
         .collect();
-    assert_eq!(names, vec!["cargo fmt --check", "", "x"]);
+    assert_eq!(names, vec!["cargo fmt --check", "unnamed-step", "x"]);
 }

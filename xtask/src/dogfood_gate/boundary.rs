@@ -12,17 +12,27 @@
 use std::path::{Path, PathBuf};
 
 use enforcer_core::redaction::Redactor;
-use enforcer_proof::journal::{JournalRecord, ProofJournal, JOURNAL_SCHEMA_VERSION};
+use enforcer_domain::boundary::validation::ValidationSource;
+use enforcer_domain::hashes::Sha256;
+use enforcer_domain::proof_types::{JournalEventType, ProofId, ProofRunId};
+use enforcer_domain::scan_types::{
+    LiteralScanCount, LiteralScanPaths, LiteralScanRoot, ScanTargetCount,
+};
+use enforcer_domain::telemetry_types::{FindingCount, RecordSchemaVersion};
+use enforcer_domain::xtask_types::{
+    DogfoodFamily, DogfoodGateVerdict, LiteralFloorCheck, ToolchainMode,
+};
+use enforcer_proof::journal::{JournalRecordEnvelope, ProofJournal, JOURNAL_SCHEMA_VERSION};
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::dogfood::{self, RustRuleScanResult, ToolchainMode};
-use crate::dogfood_gate::{judge, ruleset_fingerprint, FloorCheck, GateError, Verdict};
+use crate::dogfood::{self, RustRuleScanResult};
+use crate::dogfood_gate::{judge, ruleset_fingerprint, GateError};
 
 /// Manifest schema version. Bump only on a wire-incompatible change.
-const MANIFEST_SCHEMA_VERSION: u32 = 1;
+const MANIFEST_SCHEMA_VERSION: RecordSchemaVersion = RecordSchemaVersion::V1;
 
 /// Ceiling record schema version. Bump only on a wire-incompatible change.
-const CEILING_SCHEMA_VERSION: u32 = 1;
+const CEILING_SCHEMA_VERSION: RecordSchemaVersion = RecordSchemaVersion::V1;
 
 /// Where the gate reads/writes everything, all derived from one root so
 /// fixture repos and the live workspace share the identical layout.
@@ -80,47 +90,49 @@ impl GatePaths {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[doc = "The committed T2-ceiling wire record; see the note above."]
-pub struct CeilingDto {
-    schema_version: u32,
+struct CeilingDto {
+    schema_version: RecordSchemaVersion,
     literal_scan_hard_findings: u64,
 }
 
-impl From<u64> for CeilingDto {
+impl From<LiteralScanCount> for CeilingDto {
     /// Build the wire record for a freshly observed hard-finding count.
-    fn from(hard_findings: u64) -> Self {
+    fn from(hard_findings: LiteralScanCount) -> Self {
         Self {
             schema_version: CEILING_SCHEMA_VERSION,
-            literal_scan_hard_findings: hard_findings,
+            literal_scan_hard_findings: finding_count_of(hard_findings.get()).get(),
         }
     }
 }
 
-impl From<&CeilingDto> for u64 {
+impl From<&CeilingDto> for LiteralScanCount {
     /// Recover the committed ceiling count from the wire record.
     fn from(record: &CeilingDto) -> Self {
-        record.literal_scan_hard_findings
+        LiteralScanCount::from_count(
+            usize::try_from(record.literal_scan_hard_findings).unwrap_or_default(),
+        )
     }
 }
 
 /// Load the committed ceiling. A missing or malformed record fails CLOSED
 /// as a ZERO ceiling (any hard finding blocks) -- never silently treated
 /// as "unlimited".
-fn load_ceiling(ceiling_store: &Path) -> u64 {
+fn load_ceiling(ceiling_store: &Path) -> LiteralScanCount {
     let Ok(raw) = std::fs::read(ceiling_store) else {
-        return 0;
+        return LiteralScanCount::from_count(0);
     };
     match serde_json::from_slice::<CeilingDto>(&raw) {
-        Ok(record) => u64::from(&record),
-        Err(_) => 0,
+        Ok(record) => LiteralScanCount::from(&record),
+        Err(_) => LiteralScanCount::from_count(0),
     }
 }
 
 /// One literal-scan floor observation.
 #[derive(Debug, Clone, Copy)]
 #[doc = "One e01 floor observation; see the module docs."]
-pub struct LiteralFloor {
-    hard_findings: u64,
-    risks: u64,
+struct LiteralFloor {
+    hard_findings: LiteralScanCount,
+    risks: LiteralScanCount,
 }
 
 /// Run the e01 literal-scan floor over the workspace's `crates/**` (the
@@ -129,30 +141,33 @@ pub struct LiteralFloor {
 /// literals` uses.
 fn run_literal_scan_floor(root: &Path) -> Result<LiteralFloor, GateError> {
     let opts = enforcer_literal_scan::CliOptions {
-        root: root.to_path_buf(),
-        files: vec![PathBuf::from("crates")],
+        root: LiteralScanRoot::from(root.to_path_buf()),
+        files: LiteralScanPaths::from(vec![PathBuf::from("crates")]),
         ..enforcer_literal_scan::CliOptions::default()
     };
     let report = enforcer_literal_scan::run_scan(&opts).map_err(GateError::from_display)?;
     Ok(LiteralFloor {
-        hard_findings: count_of(report.hard_findings.len()),
-        risks: count_of(report.literal_risks.len()),
+        hard_findings: LiteralScanCount::from(report.hard_findings.len()),
+        risks: LiteralScanCount::from(report.literal_risks.len()),
     })
 }
 
 /// Widen a length into the wire count width.
-fn count_of(length: usize) -> u64 {
+fn finding_count_of(length: usize) -> FindingCount {
     // CAST-JUSTIFICATION: usize -> u64 is lossless on every supported
     // platform (usize is at most 64 bits wide).
-    length as u64
+    FindingCount::new(length as u64)
 }
 
 /// Compare a floor observation against the committed ceiling.
-pub fn check_floor(hard_findings: u64, ceiling: u64) -> FloorCheck {
+pub fn check_floor(
+    hard_findings: LiteralScanCount,
+    ceiling: LiteralScanCount,
+) -> LiteralFloorCheck {
     if hard_findings <= ceiling {
-        FloorCheck::WithinCeiling
+        LiteralFloorCheck::WithinCeiling
     } else {
-        FloorCheck::ExceedsCeiling
+        LiteralFloorCheck::ExceedsCeiling
     }
 }
 
@@ -161,7 +176,7 @@ pub fn check_floor(hard_findings: u64, ceiling: u64) -> FloorCheck {
 ///
 /// # Errors
 /// Returns [`GateError`] if the scan or the write fails.
-pub fn write_ceiling_snapshot(paths: &GatePaths) -> Result<u64, GateError> {
+pub fn write_ceiling_snapshot(paths: &GatePaths) -> Result<LiteralScanCount, GateError> {
     let floor = run_literal_scan_floor(&paths.root)?;
     let record = CeilingDto::from(floor.hard_findings);
     if let Some(parent) = paths.ceiling_store.parent() {
@@ -178,10 +193,10 @@ pub fn write_ceiling_snapshot(paths: &GatePaths) -> Result<u64, GateError> {
 /// workpack under `docs/plans/enforcer-selfhost-plan/workpacks/`. Reports
 /// the finding count (visible in the manifest); does not gate the verdict
 /// -- see the domain module's docs for why.
-fn plan_structure_report(root: &Path) -> u64 {
+fn plan_structure_report(root: &Path) -> FindingCount {
     let workpacks_dir = root.join("docs/plans/enforcer-selfhost-plan/workpacks");
     let Ok(entries) = std::fs::read_dir(&workpacks_dir) else {
-        return 0;
+        return FindingCount::new(0);
     };
     let ids: Result<
         (
@@ -193,25 +208,25 @@ fn plan_structure_report(root: &Path) -> u64 {
     > = Ok((
         match "PLAN-CAPSULE.1".parse() {
             Ok(id) => id,
-            Err(_) => return 0,
+            Err(_) => return FindingCount::new(0),
         },
         match "PLAN-SKELETON.1".parse() {
             Ok(id) => id,
-            Err(_) => return 0,
+            Err(_) => return FindingCount::new(0),
         },
         match "PLAN-FRONTMATTER.1".parse() {
             Ok(id) => id,
-            Err(_) => return 0,
+            Err(_) => return FindingCount::new(0),
         },
     ));
     let Ok((capsule_id, skeleton_id, frontmatter_id)) = ids else {
-        return 0;
+        return FindingCount::new(0);
     };
     let capsule = enforcer_plan::validator::PlanCapsuleValidator::new(capsule_id);
     let skeleton = enforcer_plan::validator::PlanSkeletonValidator::new(skeleton_id);
     let frontmatter = enforcer_plan::validator::PlanFrontmatterValidator::new(frontmatter_id);
 
-    let mut total: u64 = 0;
+    let mut total = FindingCount::new(0);
     for entry in entries.filter_map(Result::ok) {
         let doc = entry.path();
         if doc.extension().and_then(|ext| ext.to_str()) != Some("md") {
@@ -230,13 +245,19 @@ fn plan_structure_report(root: &Path) -> u64 {
         };
         let input_for = |scope| ValidationInput {
             file: &rel_path,
-            source: &source,
+            source: ValidationSource::from_text(&source),
             scope,
         };
         let scope = enforcer_domain::findings::ScanScope::Files;
-        total += count_of(capsule.validate(input_for(scope)).len());
-        total += count_of(skeleton.validate(input_for(scope)).len());
-        total += count_of(frontmatter.validate(input_for(scope)).len());
+        total = FindingCount::new(
+            total
+                .get()
+                .saturating_add(finding_count_of(capsule.validate(input_for(scope)).len()).get())
+                .saturating_add(finding_count_of(skeleton.validate(input_for(scope)).len()).get())
+                .saturating_add(
+                    finding_count_of(frontmatter.validate(input_for(scope)).len()).get(),
+                ),
+        );
     }
     total
 }
@@ -245,17 +266,14 @@ fn plan_structure_report(root: &Path) -> u64 {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[doc = "One per-family manifest count row."]
-pub struct FamilyCountDto {
-    family: String,
-    count: u64,
+struct FamilyCountDto {
+    family: DogfoodFamily,
+    count: FindingCount,
 }
 
 impl FamilyCountDto {
-    fn row(family: &str, count: u64) -> Self {
-        Self {
-            family: String::from(family),
-            count,
-        }
+    fn row(family: DogfoodFamily, count: FindingCount) -> Self {
+        Self { family, count }
     }
 }
 
@@ -263,14 +281,14 @@ impl FamilyCountDto {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[doc = "The persisted dogfood-manifest wire record; see the module docs."]
-pub struct ManifestDto {
-    schema_version: u32,
+struct ManifestDto {
+    schema_version: RecordSchemaVersion,
     timestamp: String,
-    ruleset_fingerprint: String,
-    ran_count: u64,
+    ruleset_fingerprint: Sha256,
+    ran_count: ScanTargetCount,
     toolchain_included: bool,
     family_counts: Vec<FamilyCountDto>,
-    verdict: String,
+    verdict: DogfoodGateVerdict,
 }
 
 /// Everything one gate run produced, for the console renderer and the
@@ -278,19 +296,19 @@ pub struct ManifestDto {
 #[derive(Debug)]
 #[doc = "One composed gate run; see the module docs."]
 pub struct GateRun {
-    verdict: Verdict,
-    floor_check: FloorCheck,
+    verdict: DogfoodGateVerdict,
+    floor_check: LiteralFloorCheck,
     scan: RustRuleScanResult,
 }
 
 impl GateRun {
     /// The terminal verdict this run recorded.
-    pub fn verdict(&self) -> Verdict {
+    pub fn verdict(&self) -> DogfoodGateVerdict {
         self.verdict
     }
 
     /// The e01 floor's standing against its committed ceiling.
-    pub fn floor_check(&self) -> FloorCheck {
+    pub fn floor_check(&self) -> LiteralFloorCheck {
         self.floor_check
     }
 
@@ -333,11 +351,16 @@ fn append_journal_entry(journal_file: &Path, manifest: &ManifestDto) -> Result<(
     // CLONE-JUSTIFICATION: the journal record owns its timestamp; the
     // manifest stays borrowed for the persist step alongside this append.
     let record_timestamp = manifest.timestamp.clone();
-    let proof_id = String::from("PROOF-DOGFOOD-GATE");
-    let record = JournalRecord {
+    let proof_id =
+        ProofId::try_from(String::from("PROOF-DOGFOOD-GATE")).map_err(GateError::from_display)?;
+    let event_type = JournalEventType::try_from(format!("dogfood-gate-{}", manifest.verdict))
+        .map_err(GateError::from_display)?;
+    let run_id = ProofRunId::try_from(format!("dogfood-gate-{}", manifest.timestamp))
+        .map_err(GateError::from_display)?;
+    let record = JournalRecordEnvelope {
         schema_version: JOURNAL_SCHEMA_VERSION,
-        event_type: format!("dogfood-gate-{}", manifest.verdict),
-        run_id: format!("dogfood-gate-{}", manifest.timestamp),
+        event_type,
+        run_id,
         proof_id,
         timestamp: record_timestamp,
         payload,
@@ -373,28 +396,35 @@ pub fn run_gate(paths: &GatePaths, mode: ToolchainMode) -> Result<GateRun, GateE
     let manifest = ManifestDto {
         schema_version: MANIFEST_SCHEMA_VERSION,
         timestamp: timestamp_now()?,
-        // ALLOC-JUSTIFICATION: the manifest owns its rendered digest so
-        // the record stays self-contained on disk.
-        ruleset_fingerprint: fingerprint.to_string(),
-        ran_count: count_of(outcome.rust_rule_scan.coverage.ran_count),
+        ruleset_fingerprint: fingerprint,
+        ran_count: outcome.rust_rule_scan.coverage.ran_count(),
         toolchain_included: outcome.toolchain.is_some(),
         family_counts: vec![
             FamilyCountDto::row(
-                "rust-rules-new-violations",
-                count_of(outcome.rust_rule_scan.gate.errors.len()),
+                DogfoodFamily::RustRulesNewViolations,
+                finding_count_of(outcome.rust_rule_scan.gate.errors.len()),
             ),
             FamilyCountDto::row(
-                "rust-rules-baselined-debt",
-                count_of(outcome.rust_rule_scan.gate.warnings.len()),
+                DogfoodFamily::RustRulesBaselinedDebt,
+                finding_count_of(outcome.rust_rule_scan.gate.warnings.len()),
             ),
-            FamilyCountDto::row("literal-scan-hard-findings", floor.hard_findings),
-            FamilyCountDto::row("literal-scan-hard-findings-ceiling", ceiling),
-            FamilyCountDto::row("literal-scan-risks", floor.risks),
-            FamilyCountDto::row("plan-structure", plan_count),
+            FamilyCountDto::row(
+                DogfoodFamily::LiteralScanHardFindings,
+                finding_count_of(floor.hard_findings.get()),
+            ),
+            FamilyCountDto::row(
+                DogfoodFamily::LiteralScanHardFindingsCeiling,
+                finding_count_of(ceiling.get()),
+            ),
+            FamilyCountDto::row(
+                DogfoodFamily::LiteralScanRisks,
+                finding_count_of(floor.risks.get()),
+            ),
+            FamilyCountDto::row(DogfoodFamily::PlanStructure, plan_count),
         ],
         // ALLOC-JUSTIFICATION: the manifest owns its verdict token; the
         // Display rendering is the locked wire form.
-        verdict: verdict.to_string(),
+        verdict,
     };
 
     persist_manifest(&paths.manifest_file, &manifest)?;
@@ -411,8 +441,13 @@ pub fn run_gate(paths: &GatePaths, mode: ToolchainMode) -> Result<GateRun, GateE
 mod tests {
     use super::{check_floor, run_gate, CeilingDto, FamilyCountDto, GatePaths, ManifestDto};
     use crate::boundary::testkit::{seed, seed_config, seed_rules_catalog, violating_body};
-    use crate::dogfood::ToolchainMode;
-    use crate::dogfood_gate::{FloorCheck, Verdict};
+    use enforcer_domain::xtask_types::{
+        DogfoodFamily, DogfoodGateVerdict, LiteralFloorCheck, ToolchainMode,
+    };
+    use enforcer_domain::{
+        scan_types::{LiteralScanCount, ScanTargetCount},
+        telemetry_types::{FindingCount, RecordSchemaVersion},
+    };
     use std::path::Path;
 
     fn seed_fixture_repo(root: &Path) -> std::io::Result<()> {
@@ -431,9 +466,9 @@ mod tests {
         seed_fixture_repo(temp.path())?;
         let paths = GatePaths::under(temp.path());
         let run = run_gate(&paths, ToolchainMode::Skip).map_err(std::io::Error::other)?;
-        assert_eq!(run.verdict(), Verdict::Pass);
+        assert_eq!(run.verdict(), DogfoodGateVerdict::Pass);
         assert!(
-            run.scan().coverage.ran_count > 0,
+            !run.scan().coverage.ran_count().is_zero(),
             "coverage must be nonzero"
         );
         assert!(paths.manifest_file().is_file());
@@ -443,8 +478,7 @@ mod tests {
         // shape (wire-form check the CLI test also leans on).
         let raw = std::fs::read(paths.manifest_file())?;
         let decoded: ManifestDto = serde_json::from_slice(&raw)?;
-        let rendered = serde_json::to_string(&decoded)?;
-        assert!(rendered.contains("\"verdict\":\"pass\""));
+        assert_eq!(decoded.verdict, DogfoodGateVerdict::Pass);
         Ok(())
     }
 
@@ -457,7 +491,7 @@ mod tests {
         let run = run_gate(&paths, ToolchainMode::Skip).map_err(std::io::Error::other)?;
         assert_eq!(
             run.verdict(),
-            Verdict::Fail,
+            DogfoodGateVerdict::Fail,
             "a seeded, unbaselined self-violation must FAIL the gate"
         );
         Ok(())
@@ -486,12 +520,36 @@ mod tests {
 
     #[test]
     fn floor_check_grandfathers_up_to_the_ceiling_and_blocks_growth() {
-        assert_eq!(check_floor(0, 0), FloorCheck::WithinCeiling);
-        assert_eq!(check_floor(402, 402), FloorCheck::WithinCeiling);
-        assert_eq!(check_floor(403, 402), FloorCheck::ExceedsCeiling);
+        assert_eq!(
+            check_floor(
+                LiteralScanCount::from_count(0),
+                LiteralScanCount::from_count(0),
+            ),
+            LiteralFloorCheck::WithinCeiling
+        );
+        assert_eq!(
+            check_floor(
+                LiteralScanCount::from_count(402),
+                LiteralScanCount::from_count(402),
+            ),
+            LiteralFloorCheck::WithinCeiling
+        );
+        assert_eq!(
+            check_floor(
+                LiteralScanCount::from_count(403),
+                LiteralScanCount::from_count(402),
+            ),
+            LiteralFloorCheck::ExceedsCeiling
+        );
         // A missing/malformed ceiling record loads as zero, so any hard
         // finding blocks (fail-closed, never "unlimited").
-        assert_eq!(check_floor(1, 0), FloorCheck::ExceedsCeiling);
+        assert_eq!(
+            check_floor(
+                LiteralScanCount::from_count(1),
+                LiteralScanCount::from_count(0),
+            ),
+            LiteralFloorCheck::ExceedsCeiling
+        );
     }
 
     /// PROPERTY-TEST: over a generated grid of counts and verdict tokens,
@@ -502,20 +560,25 @@ mod tests {
     fn ceiling_and_manifest_wire_records_round_trip() -> Result<(), std::io::Error> {
         let counts = [0_u64, 1, 402, u64::MAX];
         for count in counts {
-            let record = CeilingDto::from(count);
+            let native_count = usize::try_from(count).map_err(std::io::Error::other)?;
+            let literal_count = LiteralScanCount::from_count(native_count);
+            let record = CeilingDto::from(literal_count);
             let wire = serde_json::to_vec(&record)?;
             let back: CeilingDto = serde_json::from_slice(&wire)?;
             assert_eq!(back, record, "ceiling round-trip diverged at {count}");
-            assert_eq!(u64::from(&back), count);
+            assert_eq!(LiteralScanCount::from(&back), literal_count);
 
             let manifest = ManifestDto {
-                schema_version: 1,
+                schema_version: RecordSchemaVersion::V1,
                 timestamp: String::from("2026-07-12T00:00:00.000Z"),
-                ruleset_fingerprint: String::from("sha256:0000"),
-                ran_count: count,
+                ruleset_fingerprint: enforcer_core::hash_chain::link_digest(None, b"test ruleset"),
+                ran_count: ScanTargetCount::from_count(native_count),
                 toolchain_included: count == 1,
-                family_counts: vec![FamilyCountDto::row("rust-rules-new-violations", count)],
-                verdict: String::from("pass"),
+                family_counts: vec![FamilyCountDto::row(
+                    DogfoodFamily::RustRulesNewViolations,
+                    FindingCount::new(count),
+                )],
+                verdict: DogfoodGateVerdict::Pass,
             };
             let manifest_wire = serde_json::to_vec(&manifest)?;
             let manifest_back: ManifestDto = serde_json::from_slice(&manifest_wire)?;

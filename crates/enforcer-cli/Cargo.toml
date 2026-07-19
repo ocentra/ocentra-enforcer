@@ -14,22 +14,26 @@ path = "src/main.rs"
 
 [features]
 default = ["full"]
-full = ["enforcer-coordination", "enforcer-ui"]
+full = ["enforcer-coordination", "enforcer-mcp", "enforcer-memory", "enforcer-ui"]
 lite = []
 
 [dependencies]
 # DEPENDENCY-JUSTIFICATION: CLI argument parsing and JSON report rendering at the command boundary.
 clap = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: Core policy, typed values, configuration, and scan execution used by every CLI command.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: the first-class install command delegates native harness registration and verification to the installer core.
+enforcer-install = { path = "../enforcer-install", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: CLI adapters delegate MCP, proof, planning, and literal-risk work to their typed crates.
-enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
+enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0", optional = true }
+# DEPENDENCY-JUSTIFICATION: Full CLI builds expose the enforcer-memory tool mirror through the existing output boundary; lite remains headless and memory-free.
+enforcer-memory = { path = "../enforcer-memory", version = "0.1.0", optional = true }
 enforcer-proof = { path = "../enforcer-proof", version = "0.1.0" }
-enforcer-plan = { path = "../enforcer-plan", version = "0.1.0" }
 enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Optional language routing, coordination, and human UI surfaces share this binary.
 enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }

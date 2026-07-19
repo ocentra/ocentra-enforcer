@@ -39,6 +39,7 @@ use crate::verify::VerifyMode;
     version,
     about = "Ocentra Enforcer -- mechanical enforcement, one binary."
 )]
+#[doc = "Top-level parsed command-line grammar."]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -71,9 +72,8 @@ pub enum Command {
     /// to the identical surface (`enforcer_ui::serve::ServeAlias`).
     #[cfg(feature = "full")]
     Ui(ServeArgs),
-    /// Install-time surfaces (harness registration) -- routed to arc-23;
-    /// this skeleton only reserves the subcommand name so the grammar is
-    /// stable before arc-23 lands its handler.
+    /// Register the installed binary with every supported user-level
+    /// harness, then verify each native registration before exiting.
     Install,
     /// Plan/workpack scaffolding and validation (arc-20).
     Plan,
@@ -84,6 +84,13 @@ pub enum Command {
     #[cfg(feature = "full")]
     #[command(visible_alias = "ledger")]
     Coordination,
+    /// Codebase-memory graph tools. The `cli` adapter forwards every
+    /// trailing token to enforcer-memory's MCP-compatible CLI transport.
+    #[cfg(feature = "full")]
+    Memory {
+        #[command(subcommand)]
+        action: MemoryAction,
+    },
     /// The four verify modes over the tri-modal scope grammar: `fast`
     /// (quick local subset), `local` (default dev), `ci` (headless
     /// mechanical), `parent` (OcentraParent-parity superset). Orthogonal
@@ -107,6 +114,41 @@ pub enum Command {
     /// current violation, and register the project. Explicit and
     /// re-runnable (idempotent) -- see `enforcer_scan::onboard`.
     Onboard(OnboardArgs),
+    /// Harness hook entry points. These commands consume a harness payload
+    /// from stdin and return the harness-native decision before a write lands.
+    Hook {
+        #[command(subcommand)]
+        action: HookAction,
+    },
+}
+
+/// Supported harness hook entry points.
+#[derive(Debug, Subcommand)]
+pub enum HookAction {
+    /// Validate Claude Code's `PreToolUse` Edit/Write/MultiEdit payload.
+    #[command(name = "pretooluse")]
+    PreToolUse,
+}
+
+/// `enforcer memory` actions. The memory crate owns the tool grammar; this
+/// wrapper deliberately captures its tokens unchanged rather than duplicating
+/// its flags in the top-level clap grammar.
+#[cfg(feature = "full")]
+#[derive(Debug, Subcommand)]
+pub enum MemoryAction {
+    /// Invoke a codebase-memory tool, e.g. `memory cli --json index_repository
+    /// --repo-path . --stores-dir .enforce/ci-memory --mode fast`.
+    #[command(trailing_var_arg = true, allow_hyphen_values = true)]
+    Cli(MemoryCliArgs),
+}
+
+/// Opaque tokens forwarded to [`enforcer_memory::cli::run_cli`].
+#[cfg(feature = "full")]
+#[derive(Debug, Args)]
+pub struct MemoryCliArgs {
+    /// Tool name followed by raw JSON or hyphenated tool flags.
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub args: Vec<String>,
 }
 
 /// `architecture check --language <lang> --scope <files|diff|all>`.
@@ -116,6 +158,7 @@ pub enum ArchitectureAction {
     Check(ArchitectureCheckArgs),
 }
 
+/// Arguments for the architecture-policy check.
 #[derive(Debug, Args)]
 pub struct ArchitectureCheckArgs {
     /// Language family to check. Only `rust`/`typescript` route to a real
@@ -150,6 +193,7 @@ pub struct ServeArgs {
     pub token: Option<String>,
 }
 
+/// Arguments selecting verification mode and scan scope.
 #[derive(Debug, Args)]
 pub struct VerifyArgs {
     /// Verify mode. Defaults to `local`; an empty string also coerces to
@@ -180,6 +224,7 @@ pub struct VerifyArgs {
         .args(["base", "head"])
         .multiple(true)
 ))]
+#[doc = "Parsed tri-modal workspace scope."]
 pub struct ScopeArgs {
     /// Explicit file or directory paths (Windows or POSIX separators,
     /// either works -- normalized before comparison).
@@ -199,12 +244,23 @@ pub struct ScopeArgs {
 #[cfg(test)]
 mod tests {
     use super::{Cli, Command};
-    use clap::Parser;
+    use clap::{error::ErrorKind, Parser};
 
     fn parse(args: &[&str]) -> clap::error::Result<Cli> {
         let mut full = vec!["enforcer"];
         full.extend_from_slice(args);
         Cli::try_parse_from(full)
+    }
+
+    fn assert_parse_error(
+        args: &[&str],
+        expected: ErrorKind,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let error = parse(args)
+            .err()
+            .ok_or_else(|| format!("expected clap error for arguments {args:?}"))?;
+        assert_eq!(error.kind(), expected, "arguments were {args:?}");
+        Ok(())
     }
 
     #[test]
@@ -241,27 +297,39 @@ mod tests {
     }
 
     #[test]
-    fn base_without_head_is_a_clap_error() {
-        assert!(parse(&["check", "--base", "main"]).is_err());
+    fn base_without_head_is_a_clap_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(
+            &["check", "--base", "main"],
+            ErrorKind::MissingRequiredArgument,
+        )
     }
 
     #[test]
-    fn base_head_and_paths_collision_is_a_clap_error() {
-        assert!(parse(&["check", "--base", "main", "--head", "HEAD", "src/lib.rs"]).is_err());
+    fn base_head_and_paths_collision_is_a_clap_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(
+            &["check", "--base", "main", "--head", "HEAD", "src/lib.rs"],
+            ErrorKind::ArgumentConflict,
+        )
     }
 
     #[test]
-    fn all_and_paths_collision_is_a_clap_error() {
-        assert!(parse(&["check", "--all", "src/lib.rs"]).is_err());
+    fn all_and_paths_collision_is_a_clap_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(
+            &["check", "--all", "src/lib.rs"],
+            ErrorKind::ArgumentConflict,
+        )
     }
 
     #[test]
-    fn all_and_base_head_collision_is_a_clap_error() {
-        assert!(parse(&["check", "--all", "--base", "main", "--head", "HEAD"]).is_err());
+    fn all_and_base_head_collision_is_a_clap_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(
+            &["check", "--all", "--base", "main", "--head", "HEAD"],
+            ErrorKind::ArgumentConflict,
+        )
     }
 
     #[test]
-    fn no_such_thing_as_an_override_flag() {
+    fn no_such_thing_as_an_override_flag() -> Result<(), Box<dyn std::error::Error>> {
         // Documented, checked assertion: none of these ever parse.
         for bogus in [
             "--force",
@@ -270,8 +338,9 @@ mod tests {
             "--ignore-findings",
             "--bypass",
         ] {
-            assert!(parse(&["check", "--all", bogus]).is_err());
+            assert_parse_error(&["check", "--all", bogus], ErrorKind::UnknownArgument)?;
         }
+        Ok(())
     }
 
     #[test]
@@ -287,8 +356,11 @@ mod tests {
     }
 
     #[test]
-    fn verify_mode_bogus_is_a_clap_error() {
-        assert!(parse(&["verify", "--all", "--mode", "bogus"]).is_err());
+    fn verify_mode_bogus_is_a_clap_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(
+            &["verify", "--all", "--mode", "bogus"],
+            ErrorKind::InvalidValue,
+        )
     }
 
     #[test]
@@ -304,13 +376,17 @@ mod tests {
     }
 
     #[test]
-    fn advise_other_target_is_a_usage_error() {
-        assert!(parse(&["advise", "somethingElse"]).is_err());
+    fn advise_other_target_is_a_usage_error() -> Result<(), Box<dyn std::error::Error>> {
+        assert_parse_error(&["advise", "somethingElse"], ErrorKind::InvalidValue)
     }
 
     #[test]
-    fn bare_architecture_without_check_is_a_usage_error() {
-        assert!(parse(&["architecture"]).is_err());
+    fn bare_architecture_without_check_is_a_usage_error() -> Result<(), Box<dyn std::error::Error>>
+    {
+        assert_parse_error(
+            &["architecture"],
+            ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand,
+        )
     }
 
     #[test]
@@ -334,6 +410,42 @@ mod tests {
         let via_coordination = parse(&["coordination"])?;
         assert!(matches!(via_ledger.command, Command::Coordination));
         assert!(matches!(via_coordination.command, Command::Coordination));
+        Ok(())
+    }
+
+    #[cfg(feature = "full")]
+    #[test]
+    fn memory_cli_forwards_hyphenated_tool_flags() -> Result<(), Box<dyn std::error::Error>> {
+        let cli = parse(&[
+            "memory",
+            "cli",
+            "--json",
+            "index_repository",
+            "--repo-path",
+            ".",
+            "--stores-dir",
+            ".enforce/ci-memory",
+            "--mode",
+            "fast",
+        ])?;
+        match cli.command {
+            Command::Memory {
+                action: super::MemoryAction::Cli(args),
+            } => assert_eq!(
+                args.args,
+                [
+                    "--json",
+                    "index_repository",
+                    "--repo-path",
+                    ".",
+                    "--stores-dir",
+                    ".enforce/ci-memory",
+                    "--mode",
+                    "fast",
+                ]
+            ),
+            other => return Err(format!("expected Memory CLI, got {other:?}").into()),
+        }
         Ok(())
     }
 }

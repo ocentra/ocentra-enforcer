@@ -41,9 +41,17 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub};
+use enforcer_domain::coordination_types::{
+    ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationRepoRoot,
+};
 use enforcer_domain::ids::{LaneId, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::plan_types::{
+    LaneStatus, OrchestratorTickCount, PlanClaimBlockReason, PlanCondition, PlanImportCount,
+    PlanOwnershipPattern,
+};
 
+use crate::boundary::values::{claim_block_reason, diagnostic_detail};
 use crate::error::{PlanError, PlanResult};
 use crate::validator::{check_parallel_safety, OwnsRecord};
 
@@ -61,9 +69,9 @@ fn overlap_probe_rule_id() -> PlanResult<RuleId> {
     "ORCH-PARALLEL-PROBE"
         .parse()
         .map_err(|decode_err: enforcer_domain::boundary::decode_error::DecodeError| PlanError::GraphInvalid {
-            reason: format!(
+            reason: diagnostic_detail(format!(
                 "internal: ORCH-PARALLEL-PROBE rule id literal is no longer format-valid: {decode_err}"
-            ),
+            )),
         })
 }
 
@@ -73,9 +81,9 @@ fn overlap_probe_rule_id() -> PlanResult<RuleId> {
 /// plan-graph vocabulary rather than validator vocabulary.
 #[derive(Debug, Clone)]
 pub struct WorkpackNode {
-    pub id: String,
-    pub deps: Vec<String>,
-    pub owns: Vec<String>,
+    pub id: LaneId,
+    pub deps: Vec<LaneId>,
+    pub owns: Vec<PlanOwnershipPattern>,
 }
 
 impl WorkpackNode {
@@ -101,7 +109,7 @@ impl WorkpackNode {
 /// not re-parse markdown itself.
 #[derive(Debug, Clone, Default)]
 pub struct PlanGraph {
-    nodes: BTreeMap<String, WorkpackNode>,
+    nodes: BTreeMap<LaneId, WorkpackNode>,
 }
 
 impl PlanGraph {
@@ -123,49 +131,51 @@ impl PlanGraph {
         graph
     }
 
-    pub fn node(&self, id: &str) -> Option<&WorkpackNode> {
+    pub fn node(&self, id: &LaneId) -> Option<&WorkpackNode> {
         self.nodes.get(id)
     }
 
-    pub fn ids(&self) -> impl Iterator<Item = &str> {
-        self.nodes.keys().map(String::as_str)
+    pub fn ids(&self) -> impl Iterator<Item = &LaneId> {
+        self.nodes.keys()
     }
 
     /// Detect a dependency cycle via DFS; returns the cycle's participant
     /// ids (in traversal order) if one exists. A cycle makes a deterministic
     /// frontier impossible, so callers must check this before trusting
     /// [`frontier`]'s emptiness as "nothing left" rather than "stuck".
-    pub fn find_cycle(&self) -> Option<Vec<String>> {
+    pub fn find_cycle(&self) -> Option<Vec<LaneId>> {
         #[derive(Clone, Copy, PartialEq)]
         enum Mark {
             Visiting,
             Done,
         }
-        let mut marks: HashMap<&str, Mark> = HashMap::new();
-        let mut stack: Vec<String> = Vec::new();
+        let mut marks: HashMap<&LaneId, Mark> = HashMap::new();
+        let mut stack: Vec<LaneId> = Vec::new();
 
         fn visit<'a>(
-            id: &'a str,
-            nodes: &'a BTreeMap<String, WorkpackNode>,
-            marks: &mut HashMap<&'a str, Mark>,
-            stack: &mut Vec<String>,
-        ) -> Option<Vec<String>> {
+            id: &'a LaneId,
+            nodes: &'a BTreeMap<LaneId, WorkpackNode>,
+            marks: &mut HashMap<&'a LaneId, Mark>,
+            stack: &mut Vec<LaneId>,
+        ) -> Option<Vec<LaneId>> {
             match marks.get(id) {
                 Some(Mark::Done) => return None,
                 Some(Mark::Visiting) => {
                     let start = stack.iter().position(|s| s == id).unwrap_or(0);
-                    let mut cycle: Vec<String> = stack.iter().skip(start).cloned().collect();
-                    cycle.push(id.to_owned());
+                    let mut cycle: Vec<LaneId> = stack.iter().skip(start).cloned().collect();
+                    // CLONE-JUSTIFICATION: the returned cycle owns its closing id after DFS borrows end.
+                    cycle.push(id.clone());
                     return Some(cycle);
                 }
                 None => {}
             }
             marks.insert(id, Mark::Visiting);
-            stack.push(id.to_owned());
+            // CLONE-JUSTIFICATION: the DFS stack owns ids across recursive node borrows.
+            stack.push(id.clone());
             if let Some(node) = nodes.get(id) {
                 for dep in &node.deps {
-                    if nodes.contains_key(dep.as_str()) {
-                        if let Some(cycle) = visit(dep.as_str(), nodes, marks, stack) {
+                    if nodes.contains_key(dep) {
+                        if let Some(cycle) = visit(dep, nodes, marks, stack) {
                             return Some(cycle);
                         }
                     }
@@ -177,7 +187,7 @@ impl PlanGraph {
         }
 
         for id in self.nodes.keys() {
-            if let Some(cycle) = visit(id.as_str(), &self.nodes, &mut marks, &mut stack) {
+            if let Some(cycle) = visit(id, &self.nodes, &mut marks, &mut stack) {
                 return Some(cycle);
             }
         }
@@ -188,7 +198,7 @@ impl PlanGraph {
     /// in `done`, that is not itself already in `done`, sorted so the
     /// result is deterministic across runs (id lexicographic order, NOT
     /// insertion order — matches this crate's `BTreeMap`-backed graph).
-    pub fn frontier(&self, done: &HashSet<String>) -> Vec<String> {
+    pub fn frontier(&self, done: &HashSet<LaneId>) -> Vec<LaneId> {
         self.nodes
             .values()
             .filter(|node| !done.contains(&node.id))
@@ -206,7 +216,45 @@ impl PlanGraph {
 /// batches within one frontier dispatch are NOT implied to be sequential —
 /// batching only exists to serialize residual overlap the static plan check
 /// did not already forbid entirely.
-pub type LaneBatch = Vec<String>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaneBatch {
+    lanes: Vec<LaneId>,
+}
+
+impl LaneBatch {
+    fn new(lane: LaneId) -> Self {
+        Self { lanes: vec![lane] }
+    }
+
+    fn push(&mut self, lane: LaneId) {
+        self.lanes.push(lane);
+    }
+
+    /// Iterate the typed lane identifiers assigned to this batch.
+    pub fn iter(&self) -> impl Iterator<Item = &LaneId> {
+        self.lanes.iter()
+    }
+
+    /// Number of lanes assigned to this batch.
+    pub fn len(&self) -> PlanImportCount {
+        PlanImportCount::from(self.lanes.len())
+    }
+}
+
+impl IntoIterator for LaneBatch {
+    type Item = LaneId;
+    type IntoIter = std::vec::IntoIter<LaneId>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.lanes.into_iter()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct LanePair {
+    first: LaneId,
+    second: LaneId,
+}
 
 /// Pack a frontier's workpack ids into disjoint-owns concurrent batches.
 /// Reuses [`check_parallel_safety`] (b02's PLAN-PARALLEL-SAFETY predicate) as
@@ -215,7 +263,7 @@ pub type LaneBatch = Vec<String>;
 /// coloring problem over the "conflicts" edge set — solved with a simple
 /// greedy first-fit (deterministic because both the frontier and each
 /// batch's candidate order are sorted).
-pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<LaneBatch>> {
+pub fn pack_lanes(graph: &PlanGraph, frontier: &[LaneId]) -> PlanResult<Vec<LaneBatch>> {
     let mut sorted_frontier = frontier.to_vec();
     sorted_frontier.sort();
 
@@ -230,7 +278,7 @@ pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<Lane
     // the callback can be invoked repeatedly from this borrowed closure.
     let findings = check_parallel_safety(&rule_id, &records, |_| placeholder.clone());
 
-    let mut conflicts: HashSet<(String, String)> = HashSet::new();
+    let mut conflicts: HashSet<LanePair> = HashSet::new();
     for finding in &findings {
         // `check_parallel_safety`'s detail text names both offending ids
         // (`` `a` and `b` declare no dependency edge ... ``); recover the
@@ -242,8 +290,8 @@ pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<Lane
                 if a == b {
                     continue;
                 }
-                let mentions_both = finding.detail.contains(&format!("`{a}`"))
-                    && finding.detail.contains(&format!("`{b}`"));
+                let mentions_both = finding.detail.as_str().contains(&format!("`{a}`"))
+                    && finding.detail.as_str().contains(&format!("`{b}`"));
                 if mentions_both {
                     conflicts.insert(sorted_pair(a, b));
                 }
@@ -269,17 +317,27 @@ pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<Lane
         if !placed {
             // CLONE-JUSTIFICATION: a newly created batch owns its workpack
             // id independently of the borrowed sorted frontier.
-            batches.push(vec![id.clone()]);
+            batches.push(LaneBatch::new(id.clone()));
         }
     }
     Ok(batches)
 }
 
-fn sorted_pair(a: &str, b: &str) -> (String, String) {
+fn sorted_pair(a: &LaneId, b: &LaneId) -> LanePair {
     if a <= b {
-        (a.to_owned(), b.to_owned())
+        LanePair {
+            // CLONE-JUSTIFICATION: the conflict key owns both ids after pairwise borrows end.
+            first: a.clone(),
+            // CLONE-JUSTIFICATION: the conflict key owns both ids after pairwise borrows end.
+            second: b.clone(),
+        }
     } else {
-        (b.to_owned(), a.to_owned())
+        LanePair {
+            // CLONE-JUSTIFICATION: normalized conflict ordering still requires owned ids.
+            first: b.clone(),
+            // CLONE-JUSTIFICATION: normalized conflict ordering still requires owned ids.
+            second: a.clone(),
+        }
     }
 }
 
@@ -288,8 +346,11 @@ fn placeholder_relpath() -> PlanResult<RelPath> {
     // `..` escape) by construction, pinned by `probe_relpath_literal_is_valid`
     // below; used only as the `file_for` callback's return value when
     // packing lanes, never read from disk or surfaced to a user.
+    // ALLOC-JUSTIFICATION: RelPath owns this fixed validated synthetic diagnostic path.
     RelPath::try_from("probe.md".to_owned()).map_err(|decode_err| PlanError::GraphInvalid {
-        reason: format!("internal: probe.md relpath literal is no longer valid: {decode_err}"),
+        reason: diagnostic_detail(format!(
+            "internal: probe.md relpath literal is no longer valid: {decode_err}"
+        )),
     })
 }
 
@@ -299,16 +360,26 @@ fn placeholder_relpath() -> PlanResult<RelPath> {
 /// so tests can assert ordering without inspecting a live hub's ledger.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LaneEvent {
-    Claimed { lane: String, paths: Vec<String> },
-    Guarded { lane: String },
-    ClosedOut { lane: String },
-    ClaimBlocked { lane: String, reason: String },
+    Claimed {
+        lane: LaneId,
+        paths: Vec<PlanOwnershipPattern>,
+    },
+    Guarded {
+        lane: LaneId,
+    },
+    ClosedOut {
+        lane: LaneId,
+    },
+    ClaimBlocked {
+        lane: LaneId,
+        reason: PlanClaimBlockReason,
+    },
 }
 
 /// The lifecycle contract this binding drives every lane through, factored
-/// as a trait so the real `enforcer-coordination` hub and an in-memory test
-/// double satisfy the identical call contract (workpack acceptance: "a
-/// claim/guard test uses an `enforcer-coordination` fake/in-memory harness
+/// as a trait so the real `enforcer-coordination` hub and an in-memory
+/// contract harness satisfy the identical call contract (workpack acceptance:
+/// "a claim/guard test uses an `enforcer-coordination` in-memory harness
 /// to assert claim/guard/closeout are invoked in order").
 pub trait CoordinationPort {
     /// Claim `owns:` paths for `lane`. Must be fail-closed: an overlapping
@@ -316,15 +387,15 @@ pub trait CoordinationPort {
     /// silently merged or queued without the caller's explicit opt-in
     /// (that opt-in is [`IntentQueue`], layered above this trait, not
     /// inside it).
-    fn claim(&mut self, lane: &str, owns: &[String]) -> PlanResult<bool>;
+    fn claim(&mut self, lane: &LaneId, owns: &[PlanOwnershipPattern]) -> PlanResult<PlanCondition>;
 
     /// Guard before write: re-check the lane's own claimed paths are still
     /// exclusively held before it writes (intra-lane race guard, per
     /// EXECUTION_MODEL §2d — claim/guard/lock is intra-lane).
-    fn guard(&mut self, lane: &str) -> PlanResult<()>;
+    fn guard(&mut self, lane: &LaneId) -> PlanResult<()>;
 
     /// Release every claim held by `lane` (closeout).
-    fn closeout(&mut self, lane: &str) -> PlanResult<()>;
+    fn closeout(&mut self, lane: &LaneId) -> PlanResult<()>;
 
     /// Every event this port has recorded, in call order, for
     /// order-of-operations assertions.
@@ -337,10 +408,10 @@ pub trait CoordinationPort {
 /// requirement.
 pub struct LiveCoordination<'a> {
     hub: &'a Hub,
-    repo_root: std::path::PathBuf,
+    repo_root: CoordinationRepoRoot,
     caller: CallerContext,
     events: Vec<LaneEvent>,
-    held: HashMap<String, Vec<String>>,
+    held: HashMap<LaneId, Vec<PlanOwnershipPattern>>,
 }
 
 impl std::fmt::Debug for LiveCoordination<'_> {
@@ -355,7 +426,7 @@ impl std::fmt::Debug for LiveCoordination<'_> {
 }
 
 impl<'a> LiveCoordination<'a> {
-    pub fn new(hub: &'a Hub, repo_root: std::path::PathBuf, caller: CallerContext) -> Self {
+    pub fn new(hub: &'a Hub, repo_root: CoordinationRepoRoot, caller: CallerContext) -> Self {
         Self {
             hub,
             repo_root,
@@ -367,42 +438,63 @@ impl<'a> LiveCoordination<'a> {
 }
 
 impl CoordinationPort for LiveCoordination<'_> {
-    fn claim(&mut self, lane: &str, owns: &[String]) -> PlanResult<bool> {
-        let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
-            reason: format!("invalid lane id `{lane}`: {decode_err}"),
-        })?;
+    fn claim(&mut self, lane: &LaneId, owns: &[PlanOwnershipPattern]) -> PlanResult<PlanCondition> {
+        // ALLOC-JUSTIFICATION: the coordination API is the external wire boundary;
+        // render canonical plan ownership values only for that call frame.
+        let wire_owns = owns
+            .iter()
+            .map(|pattern| {
+                ClaimPath::parse(pattern.as_str()).map_err(|error| PlanError::GraphInvalid {
+                    reason: diagnostic_detail(format!("invalid coordination claim path: {error}")),
+                })
+            })
+            .collect::<PlanResult<Vec<_>>>()?;
+        let reason =
+            ClaimReason::from_static("b04 orchestrator frontier dispatch").map_err(|error| {
+                PlanError::GraphInvalid {
+                    reason: diagnostic_detail(format!(
+                        "invalid coordination claim reason: {error}"
+                    )),
+                }
+            })?;
         let outcome = api::claim_all(
             self.hub,
             ClaimRequestArgs {
                 repo_root: &self.repo_root,
-                lane: &lane_id,
-                owns,
+                lane,
+                owns: &wire_owns,
                 caller: &self.caller,
-                reason: Some("b04 orchestrator frontier dispatch"),
+                reason: Some(&reason),
             },
         )?;
-        if outcome.ok {
-            self.held.insert(lane.to_owned(), owns.to_vec());
+        if matches!(outcome.status, ClaimOutcomeStatus::Accepted) {
+            // CLONE-JUSTIFICATION: held coordination state owns the lane beyond this request.
+            self.held.insert(lane.clone(), owns.to_vec());
             self.events.push(LaneEvent::Claimed {
-                lane: lane.to_owned(),
+                // CLONE-JUSTIFICATION: the audit event independently owns the accepted lane.
+                lane: lane.clone(),
                 paths: owns.to_vec(),
             });
-            Ok(true)
+            Ok(PlanCondition::Satisfied)
         } else {
-            let reason = outcome
-                .blockers
-                .first()
-                .map(|b| format!("{} on {:?}", b.kind.as_str(), b.paths))
-                .unwrap_or_else(|| "claim blocked".to_owned());
+            let reason = claim_block_reason(
+                outcome
+                    .blockers
+                    .first()
+                    .map(|b| format!("{} on {:?}", b.kind.as_str(), b.paths))
+                    // ALLOC-JUSTIFICATION: a stable fallback becomes the owned typed block reason.
+                    .unwrap_or_else(|| "claim blocked".to_owned()),
+            );
             self.events.push(LaneEvent::ClaimBlocked {
-                lane: lane.to_owned(),
+                // CLONE-JUSTIFICATION: the audit event outlives the borrowed claim request.
+                lane: lane.clone(),
                 reason,
             });
-            Ok(false)
+            Ok(PlanCondition::Unsatisfied)
         }
     }
 
-    fn guard(&mut self, lane: &str) -> PlanResult<()> {
+    fn guard(&mut self, lane: &LaneId) -> PlanResult<()> {
         // The intra-lane write guard re-checks THIS lane's own claimed
         // paths are still held before it writes (EXECUTION_MODEL §2d).
         // `enforcer-coordination`'s full `guardLedger` orchestration is
@@ -413,36 +505,33 @@ impl CoordinationPort for LiveCoordination<'_> {
         // assertions regardless.
         if !self.held.contains_key(lane) {
             return Err(PlanError::GraphInvalid {
-                reason: format!("guard called for lane `{lane}` with no held claim"),
+                reason: diagnostic_detail(format!(
+                    "guard called for lane `{lane}` with no held claim"
+                )),
             });
         }
-        self.events.push(LaneEvent::Guarded {
-            lane: lane.to_owned(),
-        });
+        // CLONE-JUSTIFICATION: guard history independently owns the validated lane identity.
+        self.events.push(LaneEvent::Guarded { lane: lane.clone() });
         Ok(())
     }
 
-    fn closeout(&mut self, lane: &str) -> PlanResult<()> {
-        let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
-            reason: format!("invalid lane id `{lane}`: {decode_err}"),
-        })?;
+    fn closeout(&mut self, lane: &LaneId) -> PlanResult<()> {
         let filters = CloseoutFilters {
             // CLONE-JUSTIFICATION: the closeout filter owns the lane id
             // while the same parsed id is passed by reference to the API.
-            lane: Some(lane_id.clone()),
+            lane: Some(lane.clone()),
             ..Default::default()
         };
-        api::closeout(
-            self.hub,
-            &lane_id,
-            &filters,
-            &self.caller,
-            Some("b04 lane closeout"),
-        )?;
+        let reason = ClaimReason::from_static("b04 lane closeout").map_err(|error| {
+            PlanError::GraphInvalid {
+                reason: diagnostic_detail(format!("invalid coordination closeout reason: {error}")),
+            }
+        })?;
+        api::closeout(self.hub, lane, &filters, &self.caller, Some(&reason))?;
         self.held.remove(lane);
-        self.events.push(LaneEvent::ClosedOut {
-            lane: lane.to_owned(),
-        });
+        self.events
+            // CLONE-JUSTIFICATION: closeout history persists after the lane borrow ends.
+            .push(LaneEvent::ClosedOut { lane: lane.clone() });
         Ok(())
     }
 
@@ -456,8 +545,8 @@ impl CoordinationPort for LiveCoordination<'_> {
 /// coordination without a hub process.
 #[derive(Debug, Default)]
 pub struct InMemoryCoordination {
-    claims: HashMap<String, String>, // path -> owning lane
-    held: HashSet<String>,           // lanes with an active claim
+    claims: HashMap<PlanOwnershipPattern, LaneId>, // path -> owning lane
+    held: HashSet<LaneId>,                         // lanes with an active claim
     events: Vec<LaneEvent>,
 }
 
@@ -468,49 +557,54 @@ impl InMemoryCoordination {
 }
 
 impl CoordinationPort for InMemoryCoordination {
-    fn claim(&mut self, lane: &str, owns: &[String]) -> PlanResult<bool> {
+    fn claim(&mut self, lane: &LaneId, owns: &[PlanOwnershipPattern]) -> PlanResult<PlanCondition> {
         for path in owns {
             if let Some(holder) = self.claims.get(path) {
                 if holder != lane {
                     self.events.push(LaneEvent::ClaimBlocked {
-                        lane: lane.to_owned(),
-                        reason: format!("`{path}` already claimed by `{holder}`"),
+                        // CLONE-JUSTIFICATION: blocked-claim history owns the requested lane.
+                        lane: lane.clone(),
+                        reason: claim_block_reason(format!(
+                            "`{path}` already claimed by `{holder}`"
+                        )),
                     });
-                    return Ok(false);
+                    return Ok(PlanCondition::Unsatisfied);
                 }
             }
         }
         for path in owns {
             // CLONE-JUSTIFICATION: the claims map persists an owned path key
             // after this borrowed ownership declaration is released.
-            self.claims.insert(path.clone(), lane.to_owned());
+            self.claims.insert(path.clone(), lane.clone());
         }
-        self.held.insert(lane.to_owned());
+        self.held.insert(lane.clone());
         self.events.push(LaneEvent::Claimed {
-            lane: lane.to_owned(),
+            // CLONE-JUSTIFICATION: claim history independently owns the accepted lane.
+            lane: lane.clone(),
             paths: owns.to_vec(),
         });
-        Ok(true)
+        Ok(PlanCondition::Satisfied)
     }
 
-    fn guard(&mut self, lane: &str) -> PlanResult<()> {
+    fn guard(&mut self, lane: &LaneId) -> PlanResult<()> {
         if !self.held.contains(lane) {
             return Err(PlanError::GraphInvalid {
-                reason: format!("guard called for lane `{lane}` with no held claim"),
+                reason: diagnostic_detail(format!(
+                    "guard called for lane `{lane}` with no held claim"
+                )),
             });
         }
-        self.events.push(LaneEvent::Guarded {
-            lane: lane.to_owned(),
-        });
+        // CLONE-JUSTIFICATION: guard history independently owns the validated lane identity.
+        self.events.push(LaneEvent::Guarded { lane: lane.clone() });
         Ok(())
     }
 
-    fn closeout(&mut self, lane: &str) -> PlanResult<()> {
+    fn closeout(&mut self, lane: &LaneId) -> PlanResult<()> {
         self.claims.retain(|_, holder| holder != lane);
         self.held.remove(lane);
-        self.events.push(LaneEvent::ClosedOut {
-            lane: lane.to_owned(),
-        });
+        self.events
+            // CLONE-JUSTIFICATION: closeout history persists after the lane borrow ends.
+            .push(LaneEvent::ClosedOut { lane: lane.clone() });
         Ok(())
     }
 
@@ -543,14 +637,15 @@ pub trait WorktreeSpawner {
 /// trait with zero orchestrator-side changes.
 #[derive(Debug, Default)]
 pub struct RecordingWorktreeSpawner {
-    pub spawned: Vec<String>,
+    pub spawned: Vec<LaneId>,
 }
 
 impl WorktreeSpawner for RecordingWorktreeSpawner {
     fn spawn(&mut self, lane: &LaneId) -> PlanResult<()> {
         // ALLOC-JUSTIFICATION: this test-facing recorder retains a durable
         // snapshot of each validated lane identity for lifecycle assertions.
-        self.spawned.push(lane.as_str().to_owned());
+        // CLONE-JUSTIFICATION: the recorder owns the lane after the spawn call returns.
+        self.spawned.push(lane.clone());
         Ok(())
     }
 }
@@ -561,7 +656,10 @@ impl WorktreeSpawner for RecordingWorktreeSpawner {
 /// job), but it tracks per-lane-identity dispatch counts so a caller driving
 /// real spawns from `tick()`'s dispatch step can enforce the cap
 /// mechanically rather than by convention.
-pub const WORKER_REUSE_CAP: u32 = 2;
+/// Maximum number of chained dispatches before a lane identity is retired.
+pub fn worker_reuse_cap() -> PlanImportCount {
+    PlanImportCount::from(2)
+}
 
 /// Fail-closed serialization for any residual `owns:` overlap that slips
 /// past the static `PLAN-PARALLEL-SAFETY` check (workpack requirement:
@@ -572,7 +670,7 @@ pub const WORKER_REUSE_CAP: u32 = 2;
 /// attempted anyway and blocked live.
 #[derive(Debug, Default)]
 pub struct IntentQueue {
-    queued: Vec<(String, Vec<String>)>,
+    queued: Vec<(LaneId, Vec<PlanOwnershipPattern>)>,
 }
 
 impl IntentQueue {
@@ -587,28 +685,29 @@ impl IntentQueue {
     pub fn try_claim_or_queue(
         &mut self,
         port: &mut dyn CoordinationPort,
-        lane: &str,
-        owns: &[String],
-    ) -> PlanResult<bool> {
-        if port.claim(lane, owns)? {
-            Ok(true)
+        lane: &LaneId,
+        owns: &[PlanOwnershipPattern],
+    ) -> PlanResult<PlanCondition> {
+        if matches!(port.claim(lane, owns)?, PlanCondition::Satisfied) {
+            Ok(PlanCondition::Satisfied)
         } else {
-            self.queued.push((lane.to_owned(), owns.to_vec()));
-            Ok(false)
+            // CLONE-JUSTIFICATION: queued intent state owns lane and scope until a later retry.
+            self.queued.push((lane.clone(), owns.to_vec()));
+            Ok(PlanCondition::Unsatisfied)
         }
     }
 
-    pub fn pending(&self) -> &[(String, Vec<String>)] {
+    pub fn pending(&self) -> &[(LaneId, Vec<PlanOwnershipPattern>)] {
         &self.queued
     }
 
     /// Drain and retry every queued intent through `port`, keeping any that
     /// still block. Returns the lanes that succeeded this pass.
-    pub fn drain_retry(&mut self, port: &mut dyn CoordinationPort) -> PlanResult<Vec<String>> {
+    pub fn drain_retry(&mut self, port: &mut dyn CoordinationPort) -> PlanResult<Vec<LaneId>> {
         let pending = std::mem::take(&mut self.queued);
         let mut succeeded = Vec::new();
         for (lane, owns) in pending {
-            if port.claim(&lane, &owns)? {
+            if matches!(port.claim(&lane, &owns)?, PlanCondition::Satisfied) {
                 succeeded.push(lane);
             } else {
                 self.queued.push((lane, owns));
@@ -624,13 +723,6 @@ impl IntentQueue {
 /// bookkeeping over whichever lifecycle signals its [`LaneLivenessSource`]
 /// reports, so `tick()` works the same whether the underlying signal is a
 /// live hub, mail, or a test double.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LaneStatus {
-    InFlight,
-    ReportedDone,
-    Dead,
-}
-
 /// Liveness/mail signal for one lane, as reported by whatever mechanism the
 /// loop is wired to (a real hub's presence+mail feed, or a test double).
 /// Kept intentionally minimal — the workpack's loop-test acceptance needs
@@ -640,7 +732,7 @@ pub enum LaneStatus {
 pub trait LaneLivenessSource {
     /// Current status of `lane`, or `None` if the lane is unknown to this
     /// source (never dispatched, or already fully closed out and forgotten).
-    fn status(&self, lane: &str) -> Option<LaneStatus>;
+    fn status(&self, lane: &LaneId) -> Option<LaneStatus>;
 
     /// A lane self-reporting done SHOULD be independently corroborated
     /// (zero-trust, EXECUTION_MODEL §2d) before the orchestrator trusts it.
@@ -648,7 +740,7 @@ pub trait LaneLivenessSource {
     /// claimed proof re-runs green and the diff matches the pack's `owns:`
     /// set); `false` marks the claim TAMPERED/premature and rejects it
     /// rather than integrating on faith.
-    fn verify_done_claim(&self, lane: &str) -> bool;
+    fn verify_done_claim(&self, lane: &LaneId) -> PlanCondition;
 }
 
 /// In-memory `LaneLivenessSource` test double: lets tests script a lane's
@@ -656,8 +748,8 @@ pub trait LaneLivenessSource {
 /// without a real hub/mail feed.
 #[derive(Debug, Default)]
 pub struct ScriptedLiveness {
-    status: HashMap<String, LaneStatus>,
-    verified: HashSet<String>,
+    status: HashMap<LaneId, LaneStatus>,
+    verified: HashSet<LaneId>,
 }
 
 impl ScriptedLiveness {
@@ -665,8 +757,8 @@ impl ScriptedLiveness {
         Self::default()
     }
 
-    pub fn set_status(&mut self, lane: &str, status: LaneStatus) {
-        self.status.insert(lane.to_owned(), status);
+    pub fn set_status(&mut self, lane: LaneId, status: LaneStatus) {
+        self.status.insert(lane, status);
     }
 
     /// Mark `lane`'s done-claim as one that WOULD independently verify
@@ -674,18 +766,22 @@ impl ScriptedLiveness {
     /// here fail verification by default — fail-closed, matching the
     /// zero-trust doctrine (an unscripted lane is treated as unverifiable,
     /// not as trustworthy-by-omission).
-    pub fn mark_verifiable(&mut self, lane: &str) {
-        self.verified.insert(lane.to_owned());
+    pub fn mark_verifiable(&mut self, lane: LaneId) {
+        self.verified.insert(lane);
     }
 }
 
 impl LaneLivenessSource for ScriptedLiveness {
-    fn status(&self, lane: &str) -> Option<LaneStatus> {
+    fn status(&self, lane: &LaneId) -> Option<LaneStatus> {
         self.status.get(lane).copied()
     }
 
-    fn verify_done_claim(&self, lane: &str) -> bool {
-        self.verified.contains(lane)
+    fn verify_done_claim(&self, lane: &LaneId) -> PlanCondition {
+        if self.verified.contains(lane) {
+            PlanCondition::Satisfied
+        } else {
+            PlanCondition::Unsatisfied
+        }
     }
 }
 
@@ -696,7 +792,7 @@ impl LaneLivenessSource for ScriptedLiveness {
 /// §2d.3); it emits the typed signal a caller wires to that role.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GatekeeperHandoff {
-    pub done_workpacks: Vec<String>,
+    pub done_workpacks: Vec<LaneId>,
 }
 
 /// One `tick()` call's outcome: either the loop must keep running (with the
@@ -706,7 +802,7 @@ pub struct GatekeeperHandoff {
 /// [`PlanError::IdleWithoutWatchdog`] error instead (L14/L16).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TickOutcome {
-    Continue { next_wake_armed: bool },
+    Continue { next_wake_armed: PlanCondition },
     Done(GatekeeperHandoff),
 }
 
@@ -722,16 +818,16 @@ pub struct Orchestrator<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeS
     liveness: L,
     worktrees: W,
     intents: IntentQueue,
-    done: BTreeSet<String>,
-    dispatched: BTreeMap<String, String>, // workpack id -> lane name
+    done: BTreeSet<LaneId>,
+    dispatched: BTreeMap<LaneId, LaneId>, // workpack id -> lane name
     /// Claims that were rejected for overlap and must not be dispatched
     /// until the intent queue reports a successful retry. Keeping this
     /// separate from `dispatched` makes an ownership conflict a normal
-    /// fail-closed wait state rather than a fake active lane.
-    pending_dispatches: BTreeMap<String, String>, // workpack id -> lane name
-    staleness_threshold_ticks: u32,
-    stale_counter: BTreeMap<String, u32>,
-    dispatch_count: BTreeMap<String, u32>, // L11: per-lane-identity dispatch count
+    /// fail-closed wait state rather than an incorrectly active lane.
+    pending_dispatches: BTreeMap<LaneId, LaneId>, // workpack id -> lane name
+    staleness_threshold_ticks: OrchestratorTickCount,
+    stale_counter: BTreeMap<LaneId, OrchestratorTickCount>,
+    dispatch_count: BTreeMap<LaneId, OrchestratorTickCount>,
 }
 
 impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrator<P, L, W> {
@@ -745,13 +841,13 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             done: BTreeSet::new(),
             dispatched: BTreeMap::new(),
             pending_dispatches: BTreeMap::new(),
-            staleness_threshold_ticks: 3,
+            staleness_threshold_ticks: OrchestratorTickCount::from_count(PlanImportCount::from(3)),
             stale_counter: BTreeMap::new(),
             dispatch_count: BTreeMap::new(),
         }
     }
 
-    pub fn done_workpacks(&self) -> &BTreeSet<String> {
+    pub fn done_workpacks(&self) -> &BTreeSet<LaneId> {
         &self.done
     }
 
@@ -767,8 +863,12 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     }
 
     /// Whether a workpack has entered the active dispatch set.
-    pub fn is_dispatched(&self, workpack: &str) -> bool {
-        self.dispatched.contains_key(workpack)
+    pub fn dispatch_condition(&self, workpack: &LaneId) -> PlanCondition {
+        if self.dispatched.contains_key(workpack) {
+            PlanCondition::Satisfied
+        } else {
+            PlanCondition::Unsatisfied
+        }
     }
 
     /// Mutable access to the liveness source between orchestration ticks.
@@ -792,7 +892,7 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     ///    that would have caught a conflicted-cherry-pick regression before
     ///    push, and a tampered done-claim is REJECTED, not integrated);
     /// 4. recompute the frontier and dispatch every newly-ready pack,
-    ///    capped per lane-identity at [`WORKER_REUSE_CAP`] chained
+    ///    capped per lane-identity at [`worker_reuse_cap`] chained
     ///    dispatches (L11/L11-FILL);
     /// 5. re-arm: a tick that ends with lanes still in flight and no next
     ///    wake scheduled is the typed [`PlanError::IdleWithoutWatchdog`]
@@ -801,9 +901,6 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         // (1) drain + retry queued intents.
         let retried = self.intents.drain_retry(&mut self.port)?;
         for lane in retried {
-            let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
-                reason: format!("intent queue retried invalid lane id `{lane}`: {decode_err}"),
-            })?;
             let workpack = self
                 .pending_dispatches
                 .iter()
@@ -813,18 +910,18 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                     (pending_lane == &lane).then(|| workpack.clone())
                 })
                 .ok_or_else(|| PlanError::GraphInvalid {
-                    reason: format!(
+                    reason: diagnostic_detail(format!(
                         "intent queue retried lane `{lane}` without a pending workpack dispatch"
-                    ),
+                    )),
                 })?;
             self.pending_dispatches.remove(&workpack);
-            self.activate_claimed_lane(&workpack, &lane_id)?;
+            self.activate_claimed_lane(&workpack, &lane)?;
         }
 
         // (2) liveness-check every dispatched, not-yet-done lane.
         // CLONE-JUSTIFICATION: tick mutates orchestration state after this
         // snapshot, so it owns a stable workpack/lane view for this pass.
-        let in_flight: Vec<(String, String)> = self
+        let in_flight: Vec<(LaneId, LaneId)> = self
             .dispatched
             .iter()
             .filter(|(wp, _)| !self.done.contains(*wp))
@@ -846,9 +943,12 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                 Some(LaneStatus::InFlight) | None => {
                     // CLONE-JUSTIFICATION: BTreeMap::entry needs an owned
                     // key while `in_flight` remains borrowed for iteration.
-                    let counter = self.stale_counter.entry(lane.clone()).or_insert(0);
-                    *counter += 1;
-                    if *counter >= self.staleness_threshold_ticks {
+                    let counter = self
+                        .stale_counter
+                        .entry(lane.clone())
+                        .or_insert(OrchestratorTickCount::ZERO);
+                    counter.increment();
+                    if counter.get() >= self.staleness_threshold_ticks.get() {
                         self.stale_counter.remove(lane);
                         self.respawn(workpack, lane)?;
                     }
@@ -862,7 +962,10 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         // (3) verify-and-integrate DONE lanes, zero-trust.
         for (workpack, lane) in &in_flight {
             if matches!(self.liveness.status(lane), Some(LaneStatus::ReportedDone)) {
-                if self.liveness.verify_done_claim(lane) {
+                if matches!(
+                    self.liveness.verify_done_claim(lane),
+                    PlanCondition::Satisfied
+                ) {
                     self.port.closeout(lane)?;
                     // CLONE-JUSTIFICATION: the completed-set owns workpack
                     // identities independently of this tick snapshot.
@@ -874,10 +977,13 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                         lane: lane.clone(),
                         // ALLOC-JUSTIFICATION: PlanError owns a durable
                         // diagnostic that crosses the current tick boundary.
-                        reason: "independent verification did not corroborate the done-claim \
+                        reason: diagnostic_detail(
+                            "independent verification did not corroborate the done-claim \
                                  (scope diff / proof re-run mismatch) — never trust a done-claim \
                                  on faith"
+                            // ALLOC-JUSTIFICATION: the rejected done-claim error crosses tick boundaries.
                             .to_owned(),
+                        ),
                     });
                 }
             }
@@ -886,10 +992,17 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         // (4) recompute frontier, dispatch every newly-ready pack.
         if let Some(cycle) = self.graph.find_cycle() {
             return Err(PlanError::GraphInvalid {
-                reason: format!("dependency cycle: {}", cycle.join(" -> ")),
+                reason: diagnostic_detail(format!(
+                    "dependency cycle: {}",
+                    cycle
+                        .iter()
+                        .map(LaneId::as_str)
+                        .collect::<Vec<_>>()
+                        .join(" -> ")
+                )),
             });
         }
-        let frontier: Vec<String> = self
+        let frontier: Vec<LaneId> = self
             .graph
             .frontier(&self.done.iter().cloned().collect())
             .into_iter()
@@ -905,24 +1018,35 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                 let lane = workpack.clone();
                 // CLONE-JUSTIFICATION: dispatch_count stores a durable
                 // per-lane reuse counter across ticks.
-                let count = self.dispatch_count.entry(lane.clone()).or_insert(0);
-                if *count >= WORKER_REUSE_CAP {
+                let count = self
+                    .dispatch_count
+                    .entry(lane.clone())
+                    .or_insert(OrchestratorTickCount::ZERO);
+                if count.get() >= worker_reuse_cap() {
                     // L11/L11-FILL: retire this lane identity; a fresh
                     // identity is required beyond the chained-pack cap. The
                     // workpack still dispatches (never dropped), but under a
                     // fresh derived lane name so a caller's worker-spawn
                     // step is forced to spawn fresh rather than reuse.
-                    let fresh_lane = format!("{lane}-fresh{count}");
+                    let fresh_lane: LaneId = format!("{lane}-fresh{}", count.get())
+                        .parse()
+                        .map_err(|decode_err| PlanError::GraphInvalid {
+                            reason: diagnostic_detail(format!(
+                                "cannot derive fresh lane id from `{lane}`: {decode_err}"
+                            )),
+                        })?;
                     self.dispatch(&workpack, &fresh_lane)?;
                 } else {
-                    *count += 1;
+                    count.increment();
                     self.dispatch(&workpack, &lane)?;
                 }
             }
         }
 
         // (5) terminal check + re-arm.
-        if self.done.len() == self.graph.nodes.len() && self.dispatched_all_settled() {
+        if self.done.len() == self.graph.nodes.len()
+            && matches!(self.dispatched_all_settled(), PlanCondition::Satisfied)
+        {
             return Ok(TickOutcome::Done(GatekeeperHandoff {
                 done_workpacks: self.done.iter().cloned().collect(),
             }));
@@ -936,7 +1060,7 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             // binding always reports the wake as armed because the caller
             // driving real `tick()` calls on a schedule IS the watchdog.
             Ok(TickOutcome::Continue {
-                next_wake_armed: true,
+                next_wake_armed: PlanCondition::Satisfied,
             })
         } else {
             // Nothing in flight and not all done: nothing to dispatch this
@@ -944,19 +1068,20 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             // This is a legitimate quiescent state ONLY if there is truly
             // nothing runnable; still re-arm rather than assume permanence.
             Ok(TickOutcome::Continue {
-                next_wake_armed: true,
+                next_wake_armed: PlanCondition::Satisfied,
             })
         }
     }
 
-    fn dispatched_all_settled(&self) -> bool {
-        self.dispatched.keys().all(|wp| self.done.contains(wp))
+    fn dispatched_all_settled(&self) -> PlanCondition {
+        if self.dispatched.keys().all(|wp| self.done.contains(wp)) {
+            PlanCondition::Satisfied
+        } else {
+            PlanCondition::Unsatisfied
+        }
     }
 
-    fn dispatch(&mut self, workpack: &str, lane: &str) -> PlanResult<()> {
-        let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
-            reason: format!("cannot dispatch invalid lane id `{lane}`: {decode_err}"),
-        })?;
+    fn dispatch(&mut self, workpack: &LaneId, lane: &LaneId) -> PlanResult<()> {
         let owns = self
             .graph
             .node(workpack)
@@ -965,46 +1090,58 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             // graph nodes must remain available for later frontier ticks.
             .map(|n| n.owns.clone())
             .ok_or_else(|| PlanError::GraphInvalid {
-                reason: format!("cannot dispatch unknown workpack `{workpack}`"),
+                reason: diagnostic_detail(format!(
+                    "cannot dispatch unknown workpack `{workpack}`"
+                )),
             })?;
-        if !self
-            .intents
-            .try_claim_or_queue(&mut self.port, lane_id.as_str(), &owns)?
-        {
+        if matches!(
+            self.intents
+                .try_claim_or_queue(&mut self.port, lane, &owns)?,
+            PlanCondition::Unsatisfied
+        ) {
             // ALLOC-JUSTIFICATION: pending ownership must survive this borrow
             // and be matched against a later queue retry in a future tick.
             self.pending_dispatches
                 // ALLOC-JUSTIFICATION: map keys own the validated lane across
                 // ticks until the intent queue succeeds or is rejected.
-                .insert(workpack.to_owned(), lane_id.as_str().to_owned());
+                .insert(
+                    // CLONE-JUSTIFICATION: pending dispatch state owns the workpack across ticks.
+                    workpack.clone(),
+                    // CLONE-JUSTIFICATION: pending dispatch state owns the lane across ticks.
+                    lane.clone(),
+                );
             return Ok(());
         }
-        self.activate_claimed_lane(workpack, &lane_id)
+        self.activate_claimed_lane(workpack, lane)
     }
 
     /// A lane becomes active only after its claim has been accepted. This
     /// prevents a blocked intent from reaching the write guard or spawning a
     /// worker before exclusive ownership exists.
-    fn activate_claimed_lane(&mut self, workpack: &str, lane: &LaneId) -> PlanResult<()> {
+    fn activate_claimed_lane(&mut self, workpack: &LaneId, lane: &LaneId) -> PlanResult<()> {
         // A worktree is a real worker-side effect. Guard FIRST so a rejected
         // claim cannot create a runnable worker for an unguarded scope.
         // A successful claim is not an active dispatch until both later
         // steps succeed. Compensate either failure with closeout so a failed
         // guard/spawn cannot strand ownership and block a future retry.
-        if let Err(activation_error) = self.port.guard(lane.as_str()) {
-            self.port.closeout(lane.as_str())?;
+        if let Err(activation_error) = self.port.guard(lane) {
+            self.port.closeout(lane)?;
             return Err(activation_error);
         }
         if let Err(activation_error) = self.worktrees.spawn(lane) {
-            self.port.closeout(lane.as_str())?;
+            self.port.closeout(lane)?;
             return Err(activation_error);
         }
-        self.dispatched
-            .insert(workpack.to_owned(), lane.as_str().to_owned());
+        self.dispatched.insert(
+            // CLONE-JUSTIFICATION: active dispatch state owns the workpack after activation.
+            workpack.clone(),
+            // CLONE-JUSTIFICATION: active dispatch state owns the lane after activation.
+            lane.clone(),
+        );
         Ok(())
     }
 
-    fn respawn(&mut self, workpack: &str, lane: &str) -> PlanResult<()> {
+    fn respawn(&mut self, workpack: &LaneId, lane: &LaneId) -> PlanResult<()> {
         // L23: respawn re-dispatches from the workpack's FULL owns set,
         // never a partial resume — matches "integration picks the FULL lane
         // range, never a single commit" applied to the dispatch side of the
@@ -1015,25 +1152,33 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     /// Run `tick()` until [`TickOutcome::Done`], or until `max_ticks` is
     /// exhausted (a safety bound for tests/CLI callers; a real standing
     /// loop has no such bound and re-arms indefinitely per (5) above).
-    pub fn run_until_done(&mut self, max_ticks: u32) -> PlanResult<GatekeeperHandoff> {
-        for () in std::iter::repeat_n((), max_ticks as usize) {
+    pub fn run_until_done(
+        &mut self,
+        max_ticks: OrchestratorTickCount,
+    ) -> PlanResult<GatekeeperHandoff> {
+        let tick_limit = max_ticks.get().into();
+        for () in std::iter::repeat_n((), tick_limit) {
             match self.tick()? {
                 TickOutcome::Done(handoff) => return Ok(handoff),
                 TickOutcome::Continue { next_wake_armed } => {
-                    if !next_wake_armed {
+                    if matches!(next_wake_armed, PlanCondition::Unsatisfied) {
                         return Err(PlanError::IdleWithoutWatchdog {
-                            in_flight_lanes: self
-                                .dispatched
-                                .keys()
-                                .filter(|wp| !self.done.contains(*wp))
-                                .count(),
+                            in_flight_lanes: PlanImportCount::from(
+                                self.dispatched
+                                    .keys()
+                                    .filter(|wp| !self.done.contains(*wp))
+                                    .count(),
+                            ),
                         });
                     }
                 }
             }
         }
         Err(PlanError::GraphInvalid {
-            reason: format!("plan did not reach DONE within {max_ticks} ticks"),
+            reason: diagnostic_detail(format!(
+                "plan did not reach DONE within {} ticks",
+                max_ticks.get()
+            )),
         })
     }
 }

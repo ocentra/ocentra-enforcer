@@ -21,6 +21,7 @@ pub mod cmd_injection;
 pub mod dependency_confusion;
 pub mod docker_daemon;
 pub mod dockerfile_hardening;
+pub mod fileless_malware;
 pub mod github_actions;
 pub mod iac_terraform;
 pub mod insecure_deser;

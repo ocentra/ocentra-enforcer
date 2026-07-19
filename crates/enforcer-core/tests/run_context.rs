@@ -26,8 +26,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use enforcer_core::run_context::boundary::resolve;
-use enforcer_core::run_context::{RunContext, SilentModeRefusal};
+use enforcer_core::run_context::{guard_ui_or_server, SilentModeRefusal};
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::core_types::RunContext;
 
 /// The exact structured HTML body the in-test surface serves under
 /// `HumanReview` — asserted byte-for-byte after a real loopback round
@@ -90,7 +91,7 @@ fn start_gated_ui_server(
     ctx: RunContext,
     bind_attempts: &AtomicUsize,
 ) -> Result<(SocketAddr, std::thread::JoinHandle<std::io::Result<()>>), FixtureError> {
-    ctx.guard_ui_or_server()?;
+    guard_ui_or_server(ctx)?;
     bind_attempts.fetch_add(1, Ordering::SeqCst);
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     let addr = listener.local_addr()?;

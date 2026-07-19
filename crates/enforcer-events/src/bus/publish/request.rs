@@ -1,4 +1,8 @@
-use crate::{EventMetadata, EventingError, RequestEvent, RequestOptions, RequestReport};
+use crate::{
+    envelope::EventMetadata,
+    error::EventingError,
+    request::{RequestEvent, RequestOptions, RequestReport},
+};
 
 use super::EventBus;
 
@@ -11,7 +15,7 @@ pub(super) async fn publish_request<E>(
     options: RequestOptions,
 ) -> Result<RequestReport<E::Response>, EventingError>
 where
-    E: RequestEvent,
+    E: RequestEvent + serde::Serialize,
 {
     bus.ensure_active()?;
     let request_id = event.request_id()?;

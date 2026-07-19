@@ -45,6 +45,13 @@
 //! array; a flag with no following value (or immediately followed by
 //! another `--flag`) is treated as `true` (boolean flag).
 
+use crate::boundary::cli_arguments::CliBoundaryArguments;
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    MemoryCliArgsJson, MemoryCliEnvelopeJson, MemoryCliExitCode, MemoryCliJsonOutput,
+    MemoryCliProgress, MemoryCliRequestDuration, MemoryCliResultDisposition, MemoryCliStderr,
+    MemoryCliStdout, MemoryCliToolName, MemoryCliUnknownTool,
+};
 use serde_json::Value;
 
 /// Error returned by [`cli_invoke`] itself (argument decoding failure) --
@@ -79,11 +86,17 @@ pub enum CliError {
 /// malformed JSON input; every other outcome (bad repo path, parse error,
 /// not-wired tool, unknown tool name) is a successful `Ok(String)` whose
 /// envelope has `"isError": true`, mirroring the MCP contract exactly.
-pub fn cli_invoke(tool: &str, json_args: &str) -> Result<String, CliError> {
-    let args: Value = serde_json::from_str(json_args)
-        .map_err(|source| CliError::InvalidJson(source.to_string()))?;
-    let result = crate::mcp::call_tool(tool, &args);
+pub fn cli_invoke(
+    tool: impl Into<MemoryCliToolName>,
+    json_args: impl Into<MemoryCliArgsJson>,
+) -> Result<MemoryCliEnvelopeJson, CliError> {
+    let tool = tool.into();
+    let json_args = json_args.into();
+    let args: Value = crate::boundary::json::decode(json_args.as_str())
+        .map_err(|source| CliError::InvalidJson(source.retained_display()))?;
+    let result = crate::mcp::call_tool(tool.as_str(), &args);
     serde_json::to_string_pretty(&result)
+        .map(Into::into)
         .map_err(|source| CliError::InvalidJson(format!("failed to encode result: {source}")))
 }
 
@@ -92,42 +105,37 @@ pub fn cli_invoke(tool: &str, json_args: &str) -> Result<String, CliError> {
 /// workpack's "structured errors, nonzero exit on error" requirement).
 /// Malformed JSON is also treated as an error (defensive: this should
 /// never happen for a string [`cli_invoke`] itself produced).
-pub fn is_error_result(result_json: &str) -> bool {
-    match serde_json::from_str::<Value>(result_json) {
-        Ok(value) => value.get("isError").and_then(Value::as_bool) != Some(false),
-        Err(_) => true,
+pub fn is_error_result(result_json: &MemoryCliEnvelopeJson) -> MemoryCliResultDisposition {
+    match crate::boundary::json::decode::<Value>(result_json.as_str()) {
+        Ok(value) if value.get("isError").and_then(Value::as_bool) == Some(false) => {
+            MemoryCliResultDisposition::Success
+        }
+        Ok(_) | Err(_) => MemoryCliResultDisposition::Error,
     }
 }
 
 /// True if `envelope` (a parsed [`cli_invoke`] result) is specifically the
 /// unknown-tool-name special case, by its exact binding-spec text.
-fn is_unknown_tool(envelope: &Value) -> bool {
-    envelope_text(envelope).is_some_and(|text| text.starts_with("unknown tool: "))
-}
-
-fn envelope_text(envelope: &Value) -> Option<&str> {
-    envelope
-        .get("content")
-        .and_then(Value::as_array)
-        .and_then(|content| content.first())
-        .and_then(|entry| entry.get("text"))
-        .and_then(Value::as_str)
+fn is_unknown_tool(envelope: &Value) -> MemoryCliUnknownTool {
+    crate::boundary::cli_arguments::envelope_text(envelope)
+        .is_some_and(|text| text.starts_with("unknown tool: "))
+        .into()
 }
 
 /// Parsed CLI invocation: which output mode, and the tool + JSON args to
 /// dispatch. Built by [`parse_cli_args`]; consumed by [`run_cli`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct CliInvocation {
-    pub json_output: bool,
+    pub json_output: MemoryCliJsonOutput,
     /// `--progress` is accepted (binding spec: `cli [--progress]
     /// [--json] <tool> [json|--flags]`) but has no effect in this crate's
     /// synchronous, non-streaming dispatch -- there is no progress-sink
     /// seam to report through yet. Recorded rather than silently dropped
     /// so a future progress-reporting pass has a documented flag to wire,
     /// not a flag this parser would need to be taught about from scratch.
-    pub progress: bool,
-    pub tool: String,
-    pub args_json: String,
+    pub progress: MemoryCliProgress,
+    pub tool: MemoryCliToolName,
+    pub args_json: MemoryCliArgsJson,
 }
 
 /// Parse `argv` (NOT including the program name / `cli` subcommand word
@@ -136,11 +144,17 @@ pub struct CliInvocation {
 /// argument after the tool name, or zero-or-more `--flag [value]` pairs
 /// (mutually exclusive with the raw-JSON form -- whichever the first
 /// non-flag token after the tool name looks like is exclusively used).
-pub fn parse_cli_args(argv: &[String]) -> Result<CliInvocation, CliError> {
+/// PROPERTY-TEST: `tests/property_parser_contracts.rs::every_registered_parser_is_total`
+/// exercises this parser with arbitrary generated text and asserts that it
+/// remains panic-free at the argument boundary.
+/// FUZZ-TARGET: the same property harness supplies arbitrary token corpora;
+/// this parser has no binary frame decoder or network I/O surface.
+pub fn parse_cli_args(argv: impl CliBoundaryArguments) -> Result<CliInvocation, CliError> {
+    let argv = argv.into_memory_cli_arguments();
     let mut json_output = false;
     let mut progress = false;
     let mut rest: Vec<&str> = Vec::new();
-    for arg in argv {
+    for arg in argv.as_slice() {
         match arg.as_str() {
             "--json" => json_output = true,
             "--progress" => progress = true,
@@ -149,108 +163,25 @@ pub fn parse_cli_args(argv: &[String]) -> Result<CliInvocation, CliError> {
     }
     let Some((&tool, flag_args)) = rest.split_first() else {
         return Err(CliError::InvalidJson(
-            "missing required <tool> argument".to_owned(),
+            "missing required <tool> argument".retained(),
         ));
     };
-    let args_json = if flag_args.is_empty() {
-        "{}".to_owned()
+    let args_json: MemoryCliArgsJson = if flag_args.is_empty() {
+        "{}".into()
     } else if flag_args.len() == 1 {
         match flag_args.first().copied() {
-            Some(raw_json) if raw_json.starts_with('{') => raw_json.to_owned(),
-            _ => flags_to_json(flag_args)?,
+            Some(raw_json) if raw_json.starts_with('{') => raw_json.into(),
+            _ => crate::boundary::cli_arguments::flags_to_json(flag_args)?,
         }
     } else {
-        flags_to_json(flag_args)?
+        crate::boundary::cli_arguments::flags_to_json(flag_args)?
     };
     Ok(CliInvocation {
-        json_output,
-        progress,
-        tool: tool.to_owned(),
+        json_output: json_output.into(),
+        progress: progress.into(),
+        tool: tool.into(),
         args_json,
     })
-}
-
-/// Convert `--flag value --flag2 value2 --bool-flag` tokens into a JSON
-/// object string. Kebab-case flag names are converted to this server's
-/// own camelCase schema convention (see module docs) via
-/// [`kebab_to_key`]; a flag repeated more than once accumulates its
-/// values into a JSON array (order preserved); a flag with no following
-/// value (end of args, or immediately followed by another `--flag`)
-/// becomes the JSON boolean `true`.
-fn flags_to_json(tokens: &[&str]) -> Result<String, CliError> {
-    let mut map: serde_json::Map<String, Value> = serde_json::Map::new();
-    let mut tokens = tokens.iter().copied().peekable();
-    while let Some(token) = tokens.next() {
-        let Some(flag) = token.strip_prefix("--") else {
-            return Err(CliError::InvalidJson(format!(
-                "expected a --flag, got {token:?}"
-            )));
-        };
-        let key = kebab_to_key(flag);
-        let value: Value = match tokens.peek().copied() {
-            Some(next) if !next.starts_with("--") => match tokens.next() {
-                Some(raw) => parse_flag_value(raw),
-                None => Value::Bool(true),
-            },
-            _ => Value::Bool(true),
-        };
-        insert_or_accumulate(&mut map, key, value);
-    }
-    serde_json::to_string(&Value::Object(map))
-        .map_err(|source| CliError::InvalidJson(format!("failed to encode flags: {source}")))
-}
-
-fn insert_or_accumulate(map: &mut serde_json::Map<String, Value>, key: String, value: Value) {
-    match map.get_mut(&key) {
-        None => {
-            map.insert(key, value);
-        }
-        Some(Value::Array(existing)) => existing.push(value),
-        Some(existing) => {
-            let previous = existing.clone();
-            map.insert(key, Value::Array(vec![previous, value]));
-        }
-    }
-}
-
-/// Best-effort scalar coercion for a flag's raw string value: `true`/
-/// `false` become JSON booleans, a value that parses as an integer
-/// becomes a JSON number, everything else stays a JSON string. This is
-/// deliberately simpler than full schema-driven coercion (looking up
-/// each tool's declared property type) -- every one of this crate's own
-/// handlers (`src/mcp.rs`) already accepts loosely-typed JSON and reports
-/// a clear `tool_error` on a genuine type mismatch, so a permissive
-/// string-first coercion here does not hide a real input error, it just
-/// defers the type check to the handler that already owns it.
-fn parse_flag_value(raw: &str) -> Value {
-    match raw {
-        "true" => Value::Bool(true),
-        "false" => Value::Bool(false),
-        other => other
-            .parse::<i64>()
-            .map(|n| Value::Number(n.into()))
-            .unwrap_or_else(|_| Value::String(other.to_owned())),
-    }
-}
-
-/// Convert one kebab-case flag name (`repo-path`) to this server's
-/// camelCase schema key convention (`repoPath`) -- see module docs.
-fn kebab_to_key(flag: &str) -> String {
-    let mut out = String::with_capacity(flag.len());
-    let mut uppercase_next = false;
-    for c in flag.chars() {
-        if c == '-' {
-            uppercase_next = true;
-            continue;
-        }
-        if uppercase_next {
-            out.extend(c.to_uppercase());
-            uppercase_next = false;
-        } else {
-            out.push(c);
-        }
-    }
-    out
 }
 
 /// The result of running a full CLI invocation end to end: what to print
@@ -260,23 +191,27 @@ fn kebab_to_key(flag: &str) -> String {
 /// `print_stdout`/`print_stderr` clippy denies intact (workspace lints).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CliOutcome {
-    pub stdout: Option<String>,
-    pub stderr: Option<String>,
+    pub stdout: Option<MemoryCliStdout>,
+    pub stderr: Option<MemoryCliStderr>,
     /// Strictly `0` (success, or `--help`/usage) or `1` (everything else
     /// -- tool error, usage error, unknown tool), per the binding spec.
-    pub exit_code: i32,
+    pub exit_code: MemoryCliExitCode,
 }
 
 /// Emit the CLI transport's per-request diagnostic record (event
 /// `mcp.request`, WARN on error), matching the MCP `tools/call` path's
 /// own emission in [`crate::mcp::handle_frame`].
-fn emit_request_diagnostic(tool: &str, duration: std::time::Duration, is_error: bool) {
+fn emit_request_diagnostic(
+    tool: &MemoryCliToolName,
+    duration: MemoryCliRequestDuration,
+    disposition: MemoryCliResultDisposition,
+) {
     let record = crate::diagnostics::RequestRecord {
-        protocol: "cli",
-        method: "cli".to_owned(),
-        tool: Some(tool.to_owned()),
-        duration,
-        is_error,
+        protocol: "cli".into(),
+        method: "cli".into(),
+        tool: Some(tool.as_str().into()),
+        duration: duration.get().into(),
+        is_error: disposition.is_error().into(),
     };
     let diagnostics = crate::diagnostics::Diagnostics::from_env();
     crate::diagnostics::emit_to_stderr(&diagnostics, record.level(), &record);
@@ -291,78 +226,97 @@ const HELP_TEXT: &str =
 /// [`cli_invoke`], and decide what to print where and the exit code,
 /// implementing the binding spec's default-unwraps-the-envelope /
 /// `--json`-prints-the-raw-envelope / strictly-0-or-1-exit-code contract.
-pub fn run_cli(argv: &[String]) -> CliOutcome {
-    if argv.iter().any(|a| a == "--help" || a == "-h") {
+pub fn run_cli(argv: impl CliBoundaryArguments) -> CliOutcome {
+    let argv = argv.into_memory_cli_arguments();
+    if argv.as_slice().iter().any(|a| a == "--help" || a == "-h") {
         return CliOutcome {
-            stdout: Some(HELP_TEXT.to_owned()),
+            stdout: Some(HELP_TEXT.into()),
             stderr: None,
-            exit_code: 0,
+            exit_code: 0.into(),
         };
     }
-    let invocation = match parse_cli_args(argv) {
+    let invocation = match parse_cli_args(&argv) {
         Ok(invocation) => invocation,
         Err(err) => {
             return CliOutcome {
                 stdout: None,
-                stderr: Some(err.to_string()),
-                exit_code: 1,
+                stderr: Some(err.retained_display().into()),
+                exit_code: 1.into(),
             }
         }
     };
     let started = std::time::Instant::now();
-    let envelope_json = match cli_invoke(&invocation.tool, &invocation.args_json) {
-        Ok(json) => json,
-        Err(err) => {
-            emit_request_diagnostic(&invocation.tool, started.elapsed(), true);
-            return CliOutcome {
-                stdout: None,
-                stderr: Some(err.to_string()),
-                exit_code: 1,
-            };
-        }
-    };
-    let envelope: Value = match serde_json::from_str(&envelope_json) {
+    let envelope_json =
+        match cli_invoke(invocation.tool.retained(), invocation.args_json.retained()) {
+            Ok(json) => json,
+            Err(err) => {
+                emit_request_diagnostic(
+                    &invocation.tool,
+                    started.elapsed().into(),
+                    MemoryCliResultDisposition::Error,
+                );
+                return CliOutcome {
+                    stdout: None,
+                    stderr: Some(err.retained_display().into()),
+                    exit_code: 1.into(),
+                };
+            }
+        };
+    let envelope: Value = match crate::boundary::json::decode(&envelope_json) {
         Ok(value) => value,
         Err(err) => {
-            emit_request_diagnostic(&invocation.tool, started.elapsed(), true);
+            emit_request_diagnostic(
+                &invocation.tool,
+                started.elapsed().into(),
+                MemoryCliResultDisposition::Error,
+            );
             return CliOutcome {
                 stdout: None,
-                stderr: Some(format!(
-                    "internal error: failed to re-parse envelope: {err}"
-                )),
-                exit_code: 1,
+                stderr: Some(format!("internal error: failed to re-parse envelope: {err}").into()),
+                exit_code: 1.into(),
             };
         }
     };
-    let is_error = is_error_result(&envelope_json) || is_unknown_tool(&envelope);
-    emit_request_diagnostic(&invocation.tool, started.elapsed(), is_error);
-    let exit_code = if is_error { 1 } else { 0 };
+    let mut disposition = is_error_result(&envelope_json);
+    if is_unknown_tool(&envelope).is_unknown_tool() {
+        disposition = MemoryCliResultDisposition::Error;
+    }
+    let is_error = disposition.is_error();
+    emit_request_diagnostic(&invocation.tool, started.elapsed().into(), disposition);
+    let exit_code: MemoryCliExitCode = if is_error { 1 } else { 0 }.into();
 
-    if invocation.json_output {
+    if invocation.json_output.is_json_output() {
         let printed = if is_error {
             None
         } else {
-            Some(envelope_json.clone())
+            Some(String::from(envelope_json.retained()))
         };
-        let printed_err = if is_error { Some(envelope_json) } else { None };
+        let printed_err = if is_error {
+            Some(String::from(envelope_json))
+        } else {
+            None
+        };
         return CliOutcome {
-            stdout: printed,
-            stderr: printed_err,
+            stdout: printed.map(Into::into),
+            stderr: printed_err.map(Into::into),
             exit_code,
         };
     }
 
     // Default mode: unwrap the envelope, printing content[0].text alone.
-    let text = envelope_text(&envelope).unwrap_or("").to_owned();
+    let text = match crate::boundary::cli_arguments::envelope_text(&envelope) {
+        Some(value) => String::from(value).retained(),
+        None => "".retained(),
+    };
     if is_error {
         CliOutcome {
             stdout: None,
-            stderr: Some(text),
+            stderr: Some(text.into()),
             exit_code,
         }
     } else {
         CliOutcome {
-            stdout: Some(text),
+            stdout: Some(text.into()),
             stderr: None,
             exit_code,
         }

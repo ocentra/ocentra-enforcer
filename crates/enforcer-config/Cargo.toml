@@ -12,10 +12,11 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-# DEPENDENCY-JUSTIFICATION: typed configuration loading resolves profiles into execution context.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: branded configuration/domain values survive profile resolution.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+
+[dev-dependencies]
+proptest = "1.9.0"
 
 [lints]
 workspace = true

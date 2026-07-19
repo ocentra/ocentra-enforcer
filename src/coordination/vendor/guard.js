@@ -1,6 +1,6 @@
 import { parseLaneId } from "./domain.js";
-import { inspectLedger } from "./doctor.js";
-import { materialize } from "./materialize.js";
+import { inspectLiveLedger } from "./doctor.js";
+import { materializeLive } from "./live-state.js";
 import { isFolderLikeClaimPath } from "./claim-policy.js";
 import { buildCoordinationContext } from "./context.js";
 import {
@@ -16,7 +16,7 @@ import {
 export async function guardLedger(root, input) {
     const lane = parseLaneId(input.lane);
     const operation = normalizeOperation(input.operation, "commit");
-    const inspection = await inspectLedger(root);
+    const inspection = await inspectLiveLedger(root);
     const findings = [];
     const globalWarnings = [];
     let globalWarningCount = 0;
@@ -35,7 +35,7 @@ export async function guardLedger(root, input) {
     const focused = changedPaths.length > 0 && input.focused !== false;
     let state;
     try {
-        state = await materialize(root);
+        state = await materializeLive(root);
     }
     catch (error) {
         findings.push(`ledger materialization failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -129,7 +129,8 @@ export async function guardLedger(root, input) {
     }
     addCommitClaimFindings(findings, state, lane, changedPaths, operation, input, requestContext);
     await addFolderClaimFindings(findings, root, state, lane, focused, changedPaths);
-    addDiagnosticFindings(findings, inspection.diagnostics, lane, focused, noteGlobalWarning);
+    const diagnostics = [...(state.checkpointAudit?.diagnostics ?? []), ...inspection.diagnostics];
+    addDiagnosticFindings(findings, diagnostics, lane, focused, noteGlobalWarning);
     return {
         ok: findings.length === 0,
         lane,
@@ -144,9 +145,9 @@ export async function guardLedger(root, input) {
         mergeRisks: decision?.mergeRisks ?? [],
         hardConflictCount: hardConflicts.length,
         editIntentCount: state.ownership.editIntents?.length ?? 0,
-        diagnostics: inspection.diagnostics.slice(0, globalWarningLimit),
-        diagnosticCount: inspection.diagnostics.length,
-        diagnosticsTruncated: inspection.diagnostics.length > globalWarningLimit,
+        diagnostics: diagnostics.slice(0, globalWarningLimit),
+        diagnosticCount: diagnostics.length,
+        diagnosticsTruncated: diagnostics.length > globalWarningLimit,
     };
 }
 function addCommitClaimFindings(findings, state, lane, changedPaths, operation, input, requestContext) {

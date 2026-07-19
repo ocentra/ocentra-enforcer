@@ -11,9 +11,11 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::paths::RelPath;
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_lang_ts::rules::layered_frontend::{
     FeatureBoundariesValidator, NoRepoInRouterValidator, StrEnumOnlyValidator,
     SymbolLevelDiValidator,
@@ -28,12 +30,22 @@ const LAYERED_FRONTEND_JSON: &str =
 /// Repo root: two levels up from this crate's manifest dir
 /// (`crates/enforcer-lang-ts` -> workspace root), matching the
 /// `RuleRecord.fixtures` paths, which are workspace-root-relative.
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn repo_root() -> Result<RepoRoot, DecodeError> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+        .ok_or_else(|| {
+            DecodeError::new("repoRoot", "crate is not nested beneath workspace root")
+        })?;
+    RepoRoot::try_from(root)
+}
+
+fn layered_frontend_catalog() -> Result<(RuleCatalogJson, RuleCatalogSource), DecodeError> {
+    Ok((
+        LAYERED_FRONTEND_JSON.parse()?,
+        "rules/layered-frontend.json".parse()?,
+    ))
 }
 
 /// A lookup mapping each `LFE-*` `RuleId` to its concrete validator
@@ -61,10 +73,11 @@ impl ValidatorLookup for LayeredFrontendLookup {
 #[test]
 fn every_layered_frontend_rule_passes_the_d01_five_way_parity_sweep(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(LAYERED_FRONTEND_JSON, "rules/layered-frontend.json")?;
+    let (raw_catalog, catalog_source) = layered_frontend_catalog()?;
+    let records = parse_catalog(&raw_catalog, &catalog_source)?;
     let registry = load_registry_from_records(records)?;
     let lookup = LayeredFrontendLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),
@@ -75,7 +88,8 @@ fn every_layered_frontend_rule_passes_the_d01_five_way_parity_sweep(
 
 #[test]
 fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(LAYERED_FRONTEND_JSON, "rules/layered-frontend.json")?;
+    let (raw_catalog, catalog_source) = layered_frontend_catalog()?;
+    let records = parse_catalog(&raw_catalog, &catalog_source)?;
     let registry = load_registry_from_records(records)?;
 
     struct EmptyLookup;
@@ -85,7 +99,7 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
         }
     }
 
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&EmptyLookup);
     assert_eq!(
         findings.len(),
@@ -97,26 +111,28 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
 
 #[test]
 fn seeded_dangling_doc_anchor_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(LAYERED_FRONTEND_JSON, "rules/layered-frontend.json")?;
-    records[0].doc_anchor = "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".to_owned();
+    let (raw_catalog, catalog_source) = layered_frontend_catalog()?;
+    let mut records = parse_catalog(&raw_catalog, &catalog_source)?;
+    records[0].doc_anchor = "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".parse()?;
     let registry = load_registry_from_records(records)?;
     let lookup = LayeredFrontendLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(findings
         .iter()
-        .any(|f| f.detail.contains("does not resolve")));
+        .any(|f| f.detail.as_str().contains("does not resolve")));
     Ok(())
 }
 
 #[test]
 fn seeded_missing_fail_fixture_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(LAYERED_FRONTEND_JSON, "rules/layered-frontend.json")?;
+    let (raw_catalog, catalog_source) = layered_frontend_catalog()?;
+    let mut records = parse_catalog(&raw_catalog, &catalog_source)?;
     records[0].fixtures.fail =
-        "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/does-not-exist.ts".to_owned();
+        "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/does-not-exist.ts".parse()?;
     let registry = load_registry_from_records(records)?;
     let lookup = LayeredFrontendLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert_eq!(findings.len(), 1);
     Ok(())
@@ -131,7 +147,9 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
         router
             .validate(ValidationInput {
                 file: &router_path,
-                source: "import { UserRepository } from 'data';",
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                    "import { UserRepository } from 'data';",
+                ),
                 scope: ScanScope::Files,
             })
             .len(),
@@ -140,7 +158,9 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
     assert!(router
         .validate(ValidationInput {
             file: &router_path,
-            source: "import { UserRepository } from",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "import { UserRepository } from",
+            ),
             scope: ScanScope::Files,
         })
         .is_empty());
@@ -151,7 +171,9 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
         feature
             .validate(ValidationInput {
                 file: &feature_path,
-                source: "import x from '@/features/payments/internal/api';",
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                    "import x from '@/features/payments/internal/api';",
+                ),
                 scope: ScanScope::Files,
             })
             .len(),
@@ -160,7 +182,9 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
     assert!(feature
         .validate(ValidationInput {
             file: &feature_path,
-            source: "import x from '@/features/';",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "import x from '@/features/';",
+            ),
             scope: ScanScope::Files,
         })
         .is_empty());
@@ -170,7 +194,9 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
     assert!(enum_validator
         .validate(ValidationInput {
             file: &enum_path,
-            source: "enum Status {\n    Ready = 'ready'\n}",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "enum Status {\n    Ready = 'ready'\n}",
+            ),
             scope: ScanScope::Files,
         })
         .is_empty());
@@ -179,7 +205,7 @@ fn layered_frontend_text_parsers_handle_complete_and_truncated_syntax(
     assert!(di
         .validate(ValidationInput {
             file: &enum_path,
-            source: "@inject(",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text("@inject("),
             scope: ScanScope::Files,
         })
         .is_empty());

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactElement, useState } from "react";
 import { Braces, FileCog, ListChecks, ShieldCheck } from "lucide-react";
 import { summarizeLanguages, type Project } from "../data/enforcerAppData";
 import { projectRuleLanguages, type CatalogRule, type RuleOverride, unsupportedProjectRuleLanguages } from "../data/ruleCatalog";
@@ -17,7 +17,7 @@ type ScanScopeSettingsPayload = {
 
 type PolicySection = "binding" | "coverage" | "tools" | "scope" | "overrides";
 
-export function DoctrineWorkspace({ project, catalog, overrides, settings, settingsLoading, settingsError, scanScopeSettings, onOpenRules, onOpenSettings }: { project: Project; catalog: CatalogRule[]; overrides: RuleOverride[]; settings?: ProjectSettingsPayload; settingsLoading: boolean; settingsError: string; scanScopeSettings?: ScanScopeSettingsPayload; onOpenRules: () => void; onOpenSettings: () => void }) {
+export function DoctrineWorkspace({ project, catalog, overrides, settings, settingsLoading, settingsError, scanScopeSettings, onOpenRules, onOpenSettings }: { project: Project; catalog: CatalogRule[]; overrides: RuleOverride[]; settings?: ProjectSettingsPayload | undefined; settingsLoading: boolean; settingsError: string; scanScopeSettings?: ScanScopeSettingsPayload | undefined; onOpenRules: () => void; onOpenSettings: () => void }): ReactElement {
   const exclusions = [...(scanScopeSettings?.ignoreDirs ?? []), ...(scanScopeSettings?.ignoreFileGlobs ?? [])];
   const policyLanguages = projectRuleLanguages(project, catalog);
   const observedWithoutPolicy = unsupportedProjectRuleLanguages(project, catalog);

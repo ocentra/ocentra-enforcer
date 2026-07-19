@@ -19,18 +19,20 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use crate::security_pipeline::seam::{EngineDetailText, EngineRuleLabel, SeedText};
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessReproductionSeed,
+};
 
 /// One recorded property/fuzz failure, fully branded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuzzFailure {
     /// The failing property's name.
-    pub property: EngineRuleLabel,
+    pub property: HarnessExternalRuleId,
     /// The persisted seed that reproduces this failure; its absence is
     /// exactly what [`FuzzSeedGate`] flags.
-    pub seed: Option<SeedText>,
+    pub seed: Option<HarnessReproductionSeed>,
     /// The concrete counterexample, when the tool captured one.
-    pub counterexample: Option<EngineDetailText>,
+    pub counterexample: Option<HarnessDiagnosticMessage>,
 }
 
 /// Honest three-way outcome of one recorded property/fuzz run
@@ -80,30 +82,28 @@ impl FuzzSeedGate {
         failures
             .iter()
             .filter(|failure| failure.seed.is_none())
-            .map(|failure| {
+            .filter_map(|failure| {
                 let rendered_counterexample = match &failure.counterexample {
-                    Some(text) => format!(" (counterexample: {})", text.0),
+                    Some(text) => format!(" (counterexample: {text})"),
                     None => String::new(),
                 };
-                let title = String::from("fuzz/property failure missing persisted seed");
-                Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: each finding owns its rule id
                     // and file so the report outlives this borrowed
                     // gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title,
-                    detail: format!(
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    "fuzz/property failure missing persisted seed".to_owned(),
+                    format!(
                         "property `{}` failed with no persisted seed — the failure cannot be \
                          reproduced or regression-tested{rendered_counterexample}",
-                        failure.property.0
+                        failure.property
                     ),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: file.clone(),
-                    line: 1,
-                    snippet: None,
-                }
+                    file.clone(),
+                    1,
+                )
             })
             .collect()
     }
@@ -119,23 +119,24 @@ impl Validator for FuzzSeedGate {
     /// boundary rejects (malformed or dishonest) is itself a blocking
     /// finding, never a silent pass.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match crate::security_pipeline::adapters::fuzz_report::parse_recorded(input.source) {
+        match crate::security_pipeline::adapters::fuzz_report::parse_recorded(input.source.as_str())
+        {
             Ok(outcome) => self.evaluate(&outcome, input.file),
             Err(rejection) => {
-                let title = String::from("fuzz adapter output rejected");
-                vec![Finding {
+                domain_finding!(
                     // CLONE-JUSTIFICATION: the finding owns its rule id and
                     // file so the report outlives this borrowed gate/input.
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title,
-                    detail: format!("{rejection}"),
+                    self.rule_id.clone(),
+                    Severity::Error,
+                    "fuzz adapter output rejected".to_owned(),
+                    format!("{rejection}"),
                     // CLONE-JUSTIFICATION: same owned-report rationale as
                     // `rule_id` above.
-                    file: input.file.clone(),
-                    line: 1,
-                    snippet: None,
-                }]
+                    input.file.clone(),
+                    1,
+                )
+                .into_iter()
+                .collect()
             }
         }
     }

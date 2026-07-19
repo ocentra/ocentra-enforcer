@@ -43,7 +43,9 @@ fn corpus_frontmatter_lint() -> Result<(), Box<dyn std::error::Error>> {
         let findings = validator
             .validate(ValidationInput {
                 file: &file,
-                source: &case.input,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                    &case.input,
+                ),
                 scope: ScanScope::Files,
             })
             .len();
@@ -60,7 +62,9 @@ fn corpus_frontmatter_lint() -> Result<(), Box<dyn std::error::Error>> {
                 case.expect,
                 findings,
                 if flagged { "flagged" } else { "clean" },
-                case.reason.as_deref().unwrap_or("no corpus reason recorded")
+                case.reason
+                    .as_deref()
+                    .unwrap_or("no corpus reason recorded")
             ));
         }
     }
@@ -133,13 +137,13 @@ fn real_corpus_has_no_structural_false_positives() -> Result<(), Box<dyn std::er
         };
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         for finding in &findings {
             if STRUCTURAL_MARKERS
                 .iter()
-                .any(|m| finding.detail.contains(m))
+                .any(|m| finding.detail.as_str().contains(m))
             {
                 offenders.push(format!("{}: {}", path.display(), finding.detail));
             }

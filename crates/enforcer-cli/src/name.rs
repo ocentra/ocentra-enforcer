@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn binary_name_is_non_empty() {
-        assert!(!BINARY_NAME.is_empty());
+        assert_eq!(BINARY_NAME, "enforcer");
     }
 
     #[test]

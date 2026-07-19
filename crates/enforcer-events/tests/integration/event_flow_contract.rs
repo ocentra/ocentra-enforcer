@@ -3,14 +3,14 @@ use std::{
     time::Duration,
 };
 
-use enforcer_events::bus::{subscriber::EventSubscriber, EventBus};
-use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
-use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
+use enforcer_domain::events_types::{
     AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
     RequestId, RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService,
     SubscriberId, TargetHandler,
 };
+use enforcer_events::bus::{subscriber::EventSubscriber, EventBus};
+use enforcer_events::envelope::{DomainEvent, EventContract, EventMetadata, EventSource};
+use enforcer_events::error::EventingError;
 use enforcer_events::request::{EventResponseContract, RequestEvent, RequestOptions};
 use serde::{Deserialize, Serialize};
 
@@ -55,13 +55,13 @@ impl DomainEvent for FireAndForgetEvent {
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(FIRE_AND_FORGET_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(FIRE_AND_FORGET_IDEMPOTENCY)?)
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct AwaitableRequestEvent {
-    request_id: RequestId,
+    request_id: String,
     payload_ref: IntegrationPayloadRef,
 }
 
@@ -75,7 +75,7 @@ impl DomainEvent for AwaitableRequestEvent {
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -83,7 +83,7 @@ impl RequestEvent for AwaitableRequestEvent {
     type Response = AwaitableResponseEvent;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 
@@ -117,7 +117,7 @@ async fn publish_and_wait_dispatches_typed_fire_and_forget_event(
         .publish_and_wait(fire_and_forget_event(), metadata()?)
         .await?;
 
-    assert_eq!(report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
     let observed = match observed_payload.lock() {
         Ok(guard) => guard.clone(),
         Err(_) => return Err("observed payload mutex was poisoned".into()),
@@ -149,13 +149,16 @@ async fn publish_request_waits_for_typed_subscriber_response(
         .publish_request(
             awaitable_request_event()?,
             metadata()?,
-            RequestOptions::with_timeout(Duration::from_millis(RESPONSE_TIMEOUT_MILLIS))?,
+            RequestOptions::with_timeout(Duration::from_millis(RESPONSE_TIMEOUT_MILLIS).into())?,
         )
         .await?;
 
     assert_eq!(report.request_id, RequestId::parse(REQUEST_ID)?);
     assert_eq!(report.response, awaitable_response_event()?);
-    assert_eq!(report.publish_report.handled_count, 1);
+    assert_eq!(
+        crate::event_count_value(report.publish_report.handled_count),
+        1
+    );
 
     Ok(())
 }
@@ -168,7 +171,7 @@ fn fire_and_forget_event() -> FireAndForgetEvent {
 
 fn awaitable_request_event() -> Result<AwaitableRequestEvent, EventingError> {
     Ok(AwaitableRequestEvent {
-        request_id: RequestId::parse(REQUEST_ID)?,
+        request_id: REQUEST_ID.to_owned(),
         payload_ref: IntegrationPayloadRef(REQUEST_PAYLOAD_REF.to_owned()),
     })
 }
@@ -199,8 +202,8 @@ pub(super) struct TestText(pub(super) String);
 
 fn subscriber(id: TestText, event_type: TestText) -> Result<EventSubscriber, EventingError> {
     Ok(EventSubscriber::new(
-        SubscriberId::parse(id.0)?,
-        EventType::parse(event_type.0)?,
+        SubscriberId::parse(&{ id.0 })?,
+        EventType::parse(&{ event_type.0 })?,
         TargetHandler::parse(TARGET_HANDLER)?,
     ))
 }
@@ -222,12 +225,15 @@ fn metadata() -> Result<EventMetadata, EventingError> {
 }
 
 fn aggregate_key() -> Result<AggregateKey, EventingError> {
-    AggregateKey::parse(AGGREGATE_KEY)
+    Ok(AggregateKey::parse(AGGREGATE_KEY)?)
 }
 
 fn event_contract(event_type: TestText) -> Result<EventContract, EventingError> {
     Ok(EventContract::new(
-        EventType::parse(event_type.0)?,
-        SchemaVersion::new(SCHEMA_VERSION)?,
+        EventType::parse(&{ event_type.0 })?,
+        SchemaVersion::try_new(
+            std::num::NonZeroU16::new(SCHEMA_VERSION).ok_or(EventingError::InvalidVersion)?,
+        ),
     ))
 }
+// contractHash: sha256:4ff3f250b54e3764c9828a451f563152fcb6e22ff65172bf70c651b9ee8640d5

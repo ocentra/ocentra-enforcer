@@ -1,36 +1,48 @@
-use std::{num::NonZeroUsize, time::Duration};
+use enforcer_domain::events_types::{EventCount, EventDuration, EventErrorReason};
+use std::num::NonZeroUsize;
 
-use crate::EventingError;
+use crate::error::EventingError;
 
+/// Event-runtime data for handler execution policy.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HandlerExecutionPolicy {
-    timeout: Option<Duration>,
+    timeout: Option<EventDuration>,
     max_attempts: NonZeroUsize,
 }
 
 impl HandlerExecutionPolicy {
-    pub fn new(timeout: Option<Duration>, max_attempts: usize) -> Result<Self, EventingError> {
-        if matches!(timeout, Some(duration) if duration.is_zero()) {
+    /// Executes the new event-runtime operation.
+    pub fn new(
+        timeout: Option<EventDuration>,
+        max_attempts: EventCount,
+    ) -> Result<Self, EventingError> {
+        if matches!(timeout, Some(duration) if duration.value().is_zero()) {
             return Err(EventingError::InvalidHandlerPolicy {
-                reason: "timeout must be greater than zero".to_string(),
+                reason: EventErrorReason::from_diagnostic("timeout must be greater than zero"),
             });
         }
         let max_attempts =
-            NonZeroUsize::new(max_attempts).ok_or_else(|| EventingError::InvalidHandlerPolicy {
-                reason: "max_attempts must be greater than zero".to_string(),
-            })?;
+            max_attempts
+                .as_nonzero()
+                .ok_or_else(|| EventingError::InvalidHandlerPolicy {
+                    reason: EventErrorReason::from_diagnostic(
+                        "max_attempts must be greater than zero",
+                    ),
+                })?;
         Ok(Self {
             timeout,
             max_attempts,
         })
     }
 
-    pub fn timeout(&self) -> Option<Duration> {
+    /// Executes the timeout event-runtime operation.
+    pub fn timeout(&self) -> Option<EventDuration> {
         self.timeout
     }
 
-    pub fn max_attempts(&self) -> usize {
-        self.max_attempts.get()
+    /// Executes the max attempts event-runtime operation.
+    pub fn max_attempts(&self) -> EventCount {
+        crate::boundary::event_values::event_count(self.max_attempts.get())
     }
 }
 

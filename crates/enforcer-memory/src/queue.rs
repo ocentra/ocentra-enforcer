@@ -4,7 +4,7 @@
 //! # Harvested-from
 //!
 //! Pattern harvested from TabAgentServer `Rust/weaver` (tokio MPSC +
-//! worker-pool event queue), per `refs/x06-source-scout-digests.md` §2
+//! worker-pool event queue), per `refs/x06-source-scout-digests.md` Â§2
 //! and `MEMORY_RETRIEVAL_DECISIONS.md` D-09. TabAgentServer's queue is a
 //! single unbounded channel with no priority, no retry, and no
 //! dead-letter path; every one of those is new work for enforcer,
@@ -20,23 +20,12 @@
 //! see `tests/weaver_enrichment.rs::queue_processing_does_not_block_foreground_query`
 //! for the concurrent proof.
 
-use std::time::Duration;
-
-/// Priority tier an event is enqueued at. Hot events (interactive,
-/// just-edited files) are drained before warm, warm before cold --
-/// see [`WeaverQueue::recv_next`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Priority {
-    /// Background housekeeping: periodic re-summarization sweeps,
-    /// low-urgency associative link rebuilds.
-    Cold,
-    /// Normal enrichment triggered by an indexing pass that was not the
-    /// file the user is actively looking at.
-    Warm,
-    /// Just-edited/just-created content the foreground is likely to ask
-    /// about next.
-    Hot,
-}
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::{
+    MemoryPriority, MemoryQueueEmpty, MemoryQueueExhausted, MemoryQueueLastError,
+    MemoryQueueLength, MemoryRetryDelay, MemoryRetryMultiplier, MemoryTaskKey, RetryAttemptCount,
+    WeaverContentHash, WeaverNodeId, WeaverRelativePath,
+};
 
 /// The unit of work the weaver processes. Deliberately a flat enum
 /// (mirrors [`crate::code_graph::CodeNode`]'s "flat, no nested edge
@@ -48,37 +37,37 @@ pub enum WeaverEvent {
     /// triggers the semantic indexer (embedding-task production) and
     /// the entity/symbol linker.
     NodeChanged {
-        node_id: String,
-        rel_path: String,
-        content_hash: String,
+        node_id: WeaverNodeId,
+        rel_path: WeaverRelativePath,
+        content_hash: WeaverContentHash,
     },
     /// A file changed on disk -- triggers summary invalidation
     /// (distinct from `NodeChanged` because a comment-only edit can
     /// change a file's content hash without changing any symbol node,
     /// yet the file summary is still stale).
     FileChanged {
-        rel_path: String,
-        content_hash: String,
+        rel_path: WeaverRelativePath,
+        content_hash: WeaverContentHash,
     },
     /// A file was deleted (tombstoned) -- triggers associative-link
     /// cleanup and summary invalidation for the tombstone.
-    FileDeleted { rel_path: String },
+    FileDeleted { rel_path: WeaverRelativePath },
     /// Ask the associative linker to (re)compute 2-3 hop links from a
     /// node, per the MIA-framework "associative links" concept
-    /// (digest §2).
-    RelinkRequested { node_id: String },
+    /// (digest Â§2).
+    RelinkRequested { node_id: WeaverNodeId },
 }
 
 impl WeaverEvent {
     /// A stable key used for retry/dead-letter bookkeeping and for the
     /// hard-test fixtures to recognize "the same logical task" across
     /// a retry attempt.
-    pub fn task_key(&self) -> String {
+    pub fn task_key(&self) -> MemoryTaskKey {
         match self {
-            WeaverEvent::NodeChanged { node_id, .. } => format!("node-changed:{node_id}"),
-            WeaverEvent::FileChanged { rel_path, .. } => format!("file-changed:{rel_path}"),
-            WeaverEvent::FileDeleted { rel_path } => format!("file-deleted:{rel_path}"),
-            WeaverEvent::RelinkRequested { node_id } => format!("relink:{node_id}"),
+            WeaverEvent::NodeChanged { node_id, .. } => format!("node-changed:{node_id}").into(),
+            WeaverEvent::FileChanged { rel_path, .. } => format!("file-changed:{rel_path}").into(),
+            WeaverEvent::FileDeleted { rel_path } => format!("file-deleted:{rel_path}").into(),
+            WeaverEvent::RelinkRequested { node_id } => format!("relink:{node_id}").into(),
         }
     }
 }
@@ -90,8 +79,8 @@ impl WeaverEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueuedTask {
     pub event: WeaverEvent,
-    pub priority: Priority,
-    pub attempt: u32,
+    pub priority: MemoryPriority,
+    pub attempt: RetryAttemptCount,
 }
 
 /// A task that exhausted its retry budget. Recorded verbatim (never
@@ -100,21 +89,21 @@ pub struct QueuedTask {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailedTask {
     pub event: WeaverEvent,
-    pub attempts: u32,
-    pub last_error: String,
+    pub attempts: RetryAttemptCount,
+    pub last_error: MemoryQueueLastError,
 }
 
 /// Bounded exponential backoff schedule for task retries. Deterministic
 /// (no jitter) so tests can assert exact delays without flaking.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RetryPolicy {
-    pub max_attempts: u32,
-    pub base_delay: Duration,
-    pub max_delay: Duration,
+    pub max_attempts: RetryAttemptCount,
+    pub base_delay: MemoryRetryDelay,
+    pub max_delay: MemoryRetryDelay,
 }
 
 impl RetryPolicy {
-    pub const DEFAULT_MAX_ATTEMPTS: u32 = 3;
+    pub const DEFAULT_MAX_ATTEMPTS: RetryAttemptCount = RetryAttemptCount::DEFAULT_LIMIT;
 
     /// A conservative default: 3 attempts total (1 initial + 2 retries),
     /// 50ms base doubling up to a 2s cap -- short enough that the hard
@@ -123,37 +112,38 @@ impl RetryPolicy {
     pub fn bounded_default() -> Self {
         Self {
             max_attempts: Self::DEFAULT_MAX_ATTEMPTS,
-            base_delay: Duration::from_millis(50),
-            max_delay: Duration::from_secs(2),
+            base_delay: MemoryRetryDelay::from_millis(50),
+            max_delay: MemoryRetryDelay::from_secs(2),
         }
     }
 
     /// Delay before the given (1-based) retry attempt. `attempt = 1`
     /// is the delay before the FIRST retry (i.e. after the initial
     /// attempt, which is attempt 0, has failed).
-    pub fn delay_for(&self, attempt: u32) -> Duration {
-        let shift = attempt.min(20); // avoid overflow on 1u64 << shift
-        let scaled = self.base_delay.saturating_mul(1u32 << shift);
+    pub fn delay_for(&self, attempt: RetryAttemptCount) -> MemoryRetryDelay {
+        let shift = u32::from(attempt).min(20); // avoid overflow on 1u64 << shift
+        let scaled = self
+            .base_delay
+            .saturating_mul(MemoryRetryMultiplier::from(1u32 << shift));
         scaled.min(self.max_delay)
     }
 
-    pub fn is_exhausted(&self, attempts_made: u32) -> bool {
-        attempts_made >= self.max_attempts
+    pub fn is_exhausted(&self, attempts_made: RetryAttemptCount) -> MemoryQueueExhausted {
+        (attempts_made >= self.max_attempts).into()
     }
 }
 
-/// In-process priority queue over the three [`Priority`] tiers, backed
-/// by one `tokio::sync::mpsc::unbounded_channel` per tier so `send`
-/// never blocks the caller (owner-set: foreground never waits on
-/// enrichment) regardless of how deep any tier's backlog is.
+/// In-process priority queue over the three [`MemoryPriority`] tiers. Each
+/// tier has a bounded channel; producers use `try_send`, so foreground work
+/// never waits on enrichment and overload is reported explicitly.
 #[derive(Debug)]
 pub struct WeaverQueue {
-    hot_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
-    hot_rx: tokio::sync::mpsc::UnboundedReceiver<QueuedTask>,
-    warm_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
-    warm_rx: tokio::sync::mpsc::UnboundedReceiver<QueuedTask>,
-    cold_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
-    cold_rx: tokio::sync::mpsc::UnboundedReceiver<QueuedTask>,
+    hot_tx: tokio::sync::mpsc::Sender<QueuedTask>,
+    hot_rx: tokio::sync::mpsc::Receiver<QueuedTask>,
+    warm_tx: tokio::sync::mpsc::Sender<QueuedTask>,
+    warm_rx: tokio::sync::mpsc::Receiver<QueuedTask>,
+    cold_tx: tokio::sync::mpsc::Sender<QueuedTask>,
+    cold_rx: tokio::sync::mpsc::Receiver<QueuedTask>,
 }
 
 /// A cloneable handle for enqueuing work. Cheap to clone (just three
@@ -161,60 +151,67 @@ pub struct WeaverQueue {
 /// (indexer, watcher, MCP handlers) can hold one.
 #[derive(Debug, Clone)]
 pub struct WeaverQueueHandle {
-    hot_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
-    warm_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
-    cold_tx: tokio::sync::mpsc::UnboundedSender<QueuedTask>,
+    hot_tx: tokio::sync::mpsc::Sender<QueuedTask>,
+    warm_tx: tokio::sync::mpsc::Sender<QueuedTask>,
+    cold_tx: tokio::sync::mpsc::Sender<QueuedTask>,
 }
 
-/// The queue is closed (all handles dropped) -- returned by
-/// [`WeaverQueueHandle::send`] when the receiver side is gone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-#[error("weaver queue is closed")]
-pub struct QueueClosed;
+const QUEUE_TIER_CAPACITY: usize = 256;
 
+/// A non-blocking enqueue could not accept the task.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum QueueSendError {
+    #[error("weaver queue is closed")]
+    Closed,
+    #[error("weaver queue tier is full")]
+    Full,
+}
+
+/// The queue is unavailable -- returned by
+/// [`WeaverQueueHandle::send`] when the receiver side is gone.
 impl WeaverQueueHandle {
     /// Enqueue `event` at `priority`. Non-blocking: this is a plain
     /// unbounded-channel `send`, never an `await`, so a foreground
     /// query path that also holds a handle can never stall behind
     /// enrichment work (see module docs).
-    pub fn send(&self, event: WeaverEvent, priority: Priority) -> Result<(), QueueClosed> {
+    pub fn send(&self, event: WeaverEvent, priority: MemoryPriority) -> Result<(), QueueSendError> {
         let task = QueuedTask {
             event,
             priority,
-            attempt: 0,
+            attempt: RetryAttemptCount::ZERO,
         };
         let result = match priority {
-            Priority::Hot => self.hot_tx.send(task),
-            Priority::Warm => self.warm_tx.send(task),
-            Priority::Cold => self.cold_tx.send(task),
+            MemoryPriority::Hot => self.hot_tx.try_send(task),
+            MemoryPriority::Warm => self.warm_tx.try_send(task),
+            MemoryPriority::Cold => self.cold_tx.try_send(task),
         };
-        // `SendError<QueuedTask>` carries the un-sent task back, which
-        // is not itself an "original error to preserve as a source" --
-        // the task is already owned by the caller's `Result::Err` path
-        // in the form of the original `event`/`priority` arguments they
-        // still have, and `QueueClosed` is a plain, sourceless marker
-        // (there is exactly one reason a bounded set of senders can
-        // fail to send: every receiver is gone).
-        result.map_err(|_send_error| QueueClosed)
+        result.map_err(|error| queue_send_error(&error))
     }
 
     /// Re-enqueue a task that failed and is eligible for another
     /// attempt, preserving its original priority.
-    pub fn retry(&self, task: QueuedTask) -> Result<(), QueueClosed> {
+    pub fn retry(&self, task: QueuedTask) -> Result<(), QueueSendError> {
         let result = match task.priority {
-            Priority::Hot => self.hot_tx.send(task),
-            Priority::Warm => self.warm_tx.send(task),
-            Priority::Cold => self.cold_tx.send(task),
+            MemoryPriority::Hot => self.hot_tx.try_send(task),
+            MemoryPriority::Warm => self.warm_tx.try_send(task),
+            MemoryPriority::Cold => self.cold_tx.try_send(task),
         };
-        result.map_err(|_send_error| QueueClosed)
+        result.map_err(|error| queue_send_error(&error))
+    }
+}
+
+fn queue_send_error(error: &tokio::sync::mpsc::error::TrySendError<QueuedTask>) -> QueueSendError {
+    match error {
+        tokio::sync::mpsc::error::TrySendError::Closed(_) => QueueSendError::Closed,
+        tokio::sync::mpsc::error::TrySendError::Full(_) => QueueSendError::Full,
     }
 }
 
 impl WeaverQueue {
     pub fn new() -> Self {
-        let (hot_tx, hot_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (warm_tx, warm_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (cold_tx, cold_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (hot_tx, hot_rx) = tokio::sync::mpsc::channel(QUEUE_TIER_CAPACITY);
+        let (warm_tx, warm_rx) = tokio::sync::mpsc::channel(QUEUE_TIER_CAPACITY);
+        let (cold_tx, cold_rx) = tokio::sync::mpsc::channel(QUEUE_TIER_CAPACITY);
         Self {
             hot_tx,
             hot_rx,
@@ -228,9 +225,9 @@ impl WeaverQueue {
     /// A cloneable producer handle sharing this queue's channels.
     pub fn handle(&self) -> WeaverQueueHandle {
         WeaverQueueHandle {
-            hot_tx: self.hot_tx.clone(),
-            warm_tx: self.warm_tx.clone(),
-            cold_tx: self.cold_tx.clone(),
+            hot_tx: self.hot_tx.retained(),
+            warm_tx: self.warm_tx.retained(),
+            cold_tx: self.cold_tx.retained(),
         }
     }
 
@@ -239,6 +236,9 @@ impl WeaverQueue {
     /// being drained still wins as soon as this call runs again;
     /// returns `None` once every sender (including this queue's own,
     /// if dropped) is gone and all three tiers are empty.
+    /// Cancellation is executable-proof covered by
+    /// `recv_next_cancellation_preserves_queued_work`: dropping a pending
+    /// receive leaves every channel ready for subsequent work.
     pub async fn recv_next(&mut self) -> Option<QueuedTask> {
         // Drain strictly in priority order: only look at warm/cold if
         // hot has nothing *ready right now*, per D-09's hot/warm/cold
@@ -261,6 +261,8 @@ impl WeaverQueue {
         // is pending still loses to a hot task per `biased`, and the
         // caller's own loop (`WorkerPool::spawn`'s drain loop) is what
         // calls `recv_next` again for the next task, not this method.
+        // CANCEL-SAFE: channel receive futures do not remove a task unless
+        // their branch wins; dropping an unselected receive preserves it.
         tokio::select! {
             biased;
             task = self.hot_rx.recv() => task,
@@ -297,20 +299,20 @@ impl DeadLetterQueue {
         &self.entries
     }
 
-    pub fn len(&self) -> usize {
-        self.entries.len()
+    pub fn len(&self) -> MemoryQueueLength {
+        self.entries.len().into()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+    pub fn is_empty(&self) -> MemoryQueueEmpty {
+        self.entries.is_empty().into()
     }
 
     /// Find dead-lettered entries for a given logical task key (see
     /// [`WeaverEvent::task_key`]).
-    pub fn find(&self, task_key: &str) -> Vec<&FailedTask> {
+    pub fn find(&self, task_key: &MemoryTaskKey) -> Vec<&FailedTask> {
         self.entries
             .iter()
-            .filter(|f| f.event.task_key() == task_key)
+            .filter(|f| f.event.task_key().as_str() == task_key.as_str())
             .collect()
     }
 }

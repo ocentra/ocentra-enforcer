@@ -14,56 +14,77 @@
 //! listed explicitly in [`explicit_fixture_paths`] rather than forced
 //! into the uniform pattern.
 
-use std::path::PathBuf;
+use std::path::Path;
 
+use enforcer_domain::ids::{BuiltInDartRule, RuleId};
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_lang_dart::all_validators;
 use enforcer_validator::harness::run_fixture_parity;
 
-fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn manifest_dir() -> Result<RepoRoot, Box<dyn std::error::Error>> {
+    Ok(RepoRoot::try_from(Path::new(env!("CARGO_MANIFEST_DIR")))?)
+}
+
+#[derive(Debug)]
+struct FixturePair {
+    rule_id: RuleId,
+    fail_path: RelPath,
+    pass_path: RelPath,
+}
+
+fn fixture_pair(
+    rule: BuiltInDartRule,
+    fail_path: &str,
+    pass_path: &str,
+) -> Result<FixturePair, Box<dyn std::error::Error>> {
+    Ok(FixturePair {
+        rule_id: rule.id(),
+        fail_path: fail_path.parse()?,
+        pass_path: pass_path.parse()?,
+    })
 }
 
 /// Rules whose fixtures do not follow the uniform
 /// `fixtures/<RuleId>/{fail,pass}.dart` shape: `(rule_id, fail_path,
 /// pass_path)`, repo-relative to this crate's manifest dir.
-fn explicit_fixture_paths() -> Vec<(&'static str, &'static str, &'static str)> {
-    vec![
-        (
-            "DART-ARCH-1.1",
+fn explicit_fixture_paths() -> Result<Vec<FixturePair>, Box<dyn std::error::Error>> {
+    Ok(vec![
+        fixture_pair(
+            BuiltInDartRule::LayerBoundary,
             "tests/fixtures/DART-ARCH-1.1/data/order_repo.dart",
             "tests/fixtures/DART-ARCH-1.1/data/order_repo_clean.dart",
-        ),
-        (
-            "DART-TOOL-1.1",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::StrictAnalysisOptions,
             "tests/fixtures/DART-TOOL-1.1/fail.yaml",
             "tests/fixtures/DART-TOOL-1.1/pass.yaml",
-        ),
-        (
-            "DART-TOOL-1.2",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::CiRunsAnalyze,
             "tests/fixtures/DART-TOOL-1.2/fail.yaml",
             "tests/fixtures/DART-TOOL-1.2/pass.yaml",
-        ),
-        (
-            "DART-TOOL-1.3",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::CiRunsFormatCheck,
             "tests/fixtures/DART-TOOL-1.3/fail.yaml",
             "tests/fixtures/DART-TOOL-1.3/pass.yaml",
-        ),
-        (
-            "DART-DEP-1.1",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::UnpinnedDependency,
             "tests/fixtures/DART-DEP-1.1/fail.yaml",
             "tests/fixtures/DART-DEP-1.1/pass.yaml",
-        ),
-        (
-            "DART-GEN-1.1",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::HandEditedGeneratedFile,
             "tests/fixtures/DART-GEN-1.1/order.g.dart",
             "tests/fixtures/DART-GEN-1.1/order_pass.g.dart",
-        ),
-        (
-            "DART-NAME-1.1",
+        )?,
+        fixture_pair(
+            BuiltInDartRule::SnakeCaseFilename,
             "tests/fixtures/DART-NAME-1.1/OrderCard.dart",
             "tests/fixtures/DART-NAME-1.1/order_card.dart",
-        ),
-    ]
+        )?,
+    ])
 }
 
 #[test]
@@ -75,19 +96,21 @@ fn every_registered_validator_proves_fail_and_pass_fixtures(
         "expected at least one registered DART-* validator"
     );
 
-    let explicit = explicit_fixture_paths();
+    let root = manifest_dir()?;
+    let explicit = explicit_fixture_paths()?;
     let mut proven = 0usize;
     for validator in &validators {
-        let rule_id = validator.rule_id().to_string();
-        let (fail_path, pass_path) = match explicit.iter().find(|(id, _, _)| *id == rule_id) {
-            Some((_, fail, pass)) => (fail.to_string(), pass.to_string()),
-            None => (
-                format!("tests/fixtures/{rule_id}/fail.dart"),
-                format!("tests/fixtures/{rule_id}/pass.dart"),
-            ),
+        let rule_id = validator.rule_id();
+        let Some(pair) = explicit.iter().find(|pair| &pair.rule_id == rule_id) else {
+            let fail_path: RelPath = format!("tests/fixtures/{rule_id}/fail.dart").parse()?;
+            let pass_path: RelPath = format!("tests/fixtures/{rule_id}/pass.dart").parse()?;
+            run_fixture_parity(validator.as_ref(), &root, &fail_path, &pass_path)
+                .map_err(|error| format!("{rule_id}: {error}"))?;
+            proven += 1;
+            continue;
         };
 
-        run_fixture_parity(validator.as_ref(), &manifest_dir(), &fail_path, &pass_path)
+        run_fixture_parity(validator.as_ref(), &root, &pair.fail_path, &pair.pass_path)
             .map_err(|error| format!("{rule_id}: {error}"))?;
         proven += 1;
     }
@@ -106,7 +129,6 @@ fn every_registered_validator_proves_fail_and_pass_fixtures(
 #[test]
 fn harness_catches_a_validator_that_never_fires() -> Result<(), Box<dyn std::error::Error>> {
     use enforcer_domain::findings::Finding;
-    use enforcer_domain::ids::RuleId;
     use enforcer_validator::validator::{ValidationInput, Validator};
 
     struct NeverFires {
@@ -124,14 +146,12 @@ fn harness_catches_a_validator_that_never_fires() -> Result<(), Box<dyn std::err
     }
 
     let broken = NeverFires {
-        rule_id: "DART-BANG-1.1".parse()?,
+        rule_id: BuiltInDartRule::UncheckedBangOrCast.id(),
     };
-    let outcome = run_fixture_parity(
-        &broken,
-        &manifest_dir(),
-        "tests/fixtures/DART-BANG-1.1/fail.dart",
-        "tests/fixtures/DART-BANG-1.1/pass.dart",
-    );
+    let root = manifest_dir()?;
+    let fail_path: RelPath = "tests/fixtures/DART-BANG-1.1/fail.dart".parse()?;
+    let pass_path: RelPath = "tests/fixtures/DART-BANG-1.1/pass.dart".parse()?;
+    let outcome = run_fixture_parity(&broken, &root, &fail_path, &pass_path);
     assert!(
         outcome.is_err(),
         "the harness must reject a validator that never fires on its fail fixture"

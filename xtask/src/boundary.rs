@@ -22,8 +22,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use crate::dogfood::{self, ToolchainMode};
-use crate::dogfood_gate::{self, Verdict};
+use crate::dogfood;
+use crate::dogfood_gate;
+use enforcer_domain::findings::ReportOutcome;
+use enforcer_domain::xtask_types::{DogfoodGateVerdict, ToolchainMode};
 
 /// Repo-relative location of the committed a10 baseline snapshot.
 const BASELINE_STORE_REL: &str = "xtask/dogfood-baseline.json";
@@ -95,7 +97,7 @@ fn run_baseline_write(root: &Path, baseline_store: &Path) -> ExitCode {
         Ok(baseline) => {
             emit(&format!(
                 "baseline snapshot refreshed: {} known occurrence(s) recorded at {}",
-                baseline.len(),
+                baseline.entry_count().get(),
                 baseline_store.display()
             ));
             ExitCode::SUCCESS
@@ -115,9 +117,13 @@ fn run_dogfood_command(root: &Path, baseline_store: &Path, mode: ToolchainMode) 
             let mut toolchain_green = true;
             if let Some(toolchain) = &outcome.toolchain {
                 emit(&format!("toolchain: {toolchain:?}"));
-                toolchain_green = toolchain.passes();
+                toolchain_green = matches!(toolchain.verdict(), DogfoodGateVerdict::Pass);
             }
-            if outcome.rust_rule_scan.gate.passes() && toolchain_green {
+            if matches!(
+                outcome.rust_rule_scan.gate.passes(),
+                ReportOutcome::Clean
+            ) && toolchain_green
+            {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::from(EXIT_VIOLATIONS)
@@ -135,17 +141,21 @@ fn run_dogfood_command(root: &Path, baseline_store: &Path, mode: ToolchainMode) 
 fn render_scan_summary(scan: &dogfood::RustRuleScanResult) {
     emit(&format!(
         "rust-rule scan: {} file(s) dispatched, {} finding(s) total, {} new violation(s), {} baselined",
-        scan.coverage.ran_count,
+        scan.coverage.ran_count().get(),
         scan.report.findings.len(),
         scan.gate.errors.len(),
         scan.gate.warnings.len()
     ));
     for violation in &scan.gate.errors {
         let finding = violation.finding();
+        let line = match finding.line {
+            enforcer_domain::findings::FindingLine::Known(line) => line.to_string(),
+            enforcer_domain::findings::FindingLine::Unspecified => String::from("0"),
+        };
         emit(&format!(
             "  NEW: {}:{} {} -- {}",
             finding.file.as_str(),
-            finding.line,
+            line,
             finding.rule_id.as_str(),
             finding.title
         ));
@@ -189,8 +199,8 @@ fn run_gate_command(root: &Path, mode: ToolchainMode) -> ExitCode {
                 paths.journal_file().display()
             ));
             match run.verdict() {
-                Verdict::Pass => ExitCode::SUCCESS,
-                Verdict::Fail => ExitCode::from(EXIT_VIOLATIONS),
+                DogfoodGateVerdict::Pass => ExitCode::SUCCESS,
+                DogfoodGateVerdict::Fail => ExitCode::from(EXIT_VIOLATIONS),
             }
         }
         Err(err) => {

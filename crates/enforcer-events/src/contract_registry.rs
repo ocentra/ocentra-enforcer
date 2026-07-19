@@ -3,55 +3,66 @@ use std::{
     collections::{btree_map::Entry, BTreeMap},
 };
 
-use crate::{DomainEvent, EventContract, EventType, EventingError, SchemaVersion};
+use crate::{
+    envelope::{DomainEvent, EventContract},
+    error::EventingError,
+};
+use enforcer_domain::events_types::{EventType, RenderedMarkdown, RustTypeName, SchemaVersion};
 
 const DOC_TITLE: &str = "# Event Contract Registry";
 const DOC_EMPTY: &str = "_No event contracts registered._";
 const DOC_HEADER: &str = "| Event Type | Schema Version | Rust Type |";
 const DOC_SEPARATOR: &str = "| --- | --- | --- |";
-const CELL_ESCAPE_TARGET: &str = "|";
-const CELL_ESCAPE_REPLACEMENT: &str = "\\|";
 
+/// Event-runtime data for event contract descriptor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventContractDescriptor {
     contract: EventContract,
-    rust_type: &'static str,
+    rust_type: RustTypeName,
 }
 
 impl EventContractDescriptor {
+    /// Executes the from event event-runtime operation.
     pub fn from_event<E>(event: &E) -> Result<Self, EventingError>
     where
         E: DomainEvent,
     {
+        // ALLOC-JUSTIFICATION: the descriptor retains the concrete Rust type name after registration returns.
         Ok(Self {
             contract: event.contract()?,
-            rust_type: type_name::<E>(),
+            rust_type: RustTypeName::try_new(type_name::<E>().to_owned())?,
         })
     }
 
+    /// Executes the event type event-runtime operation.
     pub fn event_type(&self) -> &EventType {
         &self.contract.event_type
     }
 
+    /// Executes the schema version event-runtime operation.
     pub fn schema_version(&self) -> SchemaVersion {
         self.contract.schema_version
     }
 
-    pub fn rust_type(&self) -> &'static str {
-        self.rust_type
+    /// Executes the rust type event-runtime operation.
+    pub fn rust_type(&self) -> &RustTypeName {
+        &self.rust_type
     }
 }
 
+/// Event-runtime data for event contract registry.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EventContractRegistry {
     descriptors: BTreeMap<EventType, EventContractDescriptor>,
 }
 
 impl EventContractRegistry {
+    /// Executes the new event-runtime operation.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Executes the register event event-runtime operation.
     pub fn register_event<E>(
         &mut self,
         event: &E,
@@ -62,28 +73,37 @@ impl EventContractRegistry {
         self.register(EventContractDescriptor::from_event(event)?)
     }
 
+    /// Executes the register event-runtime operation.
     pub fn register(
         &mut self,
         descriptor: EventContractDescriptor,
     ) -> Result<&EventContractDescriptor, EventingError> {
+        // CLONE-JUSTIFICATION: the map owns its key independently of the descriptor value.
         let event_type = descriptor.event_type().clone();
-        match self.descriptors.entry(event_type.clone()) {
-            Entry::Occupied(_) => Err(EventingError::DuplicateEventContract { event_type }),
+        match self.descriptors.entry(event_type) {
+            Entry::Occupied(occupied) => Err(EventingError::DuplicateEventContract {
+                // CLONE-JUSTIFICATION: the error owns the rejected key while the registry retains the existing entry.
+                event_type: occupied.key().clone(),
+            }),
             Entry::Vacant(vacant) => Ok(&*vacant.insert(descriptor)),
         }
     }
 
+    /// Executes the descriptors event-runtime operation.
     pub fn descriptors(&self) -> impl Iterator<Item = &EventContractDescriptor> {
         self.descriptors.values()
     }
 
-    pub fn render_markdown(&self) -> EventContractRegistryDocumentation {
+    /// Executes the render markdown event-runtime operation.
+    pub fn render_markdown(&self) -> Result<EventContractRegistryDocumentation, EventingError> {
         let mut markdown = String::from(DOC_TITLE);
         markdown.push_str("\n\n");
         if self.descriptors.is_empty() {
             markdown.push_str(DOC_EMPTY);
             markdown.push('\n');
-            return EventContractRegistryDocumentation { markdown };
+            return Ok(EventContractRegistryDocumentation {
+                markdown: RenderedMarkdown::try_new(markdown)?,
+            });
         }
         markdown.push_str(DOC_HEADER);
         markdown.push('\n');
@@ -91,32 +111,36 @@ impl EventContractRegistry {
         markdown.push('\n');
         for descriptor in self.descriptors() {
             markdown.push_str("| ");
-            markdown.push_str(&escape_markdown_cell(descriptor.event_type().as_str()));
+            markdown.push_str(&descriptor.event_type().as_str().replace('|', "\\|"));
             markdown.push_str(" | ");
-            markdown.push_str(&descriptor.schema_version().value().to_string());
+            // ALLOC-JUSTIFICATION: rendered documentation owns the decimal schema version in its output buffer.
+            markdown.push_str(&descriptor.schema_version().as_nonzero().get().to_string());
             markdown.push_str(" | ");
-            markdown.push_str(&escape_markdown_cell(descriptor.rust_type()));
+            markdown.push_str(&descriptor.rust_type().as_str().replace('|', "\\|"));
             markdown.push_str(" |\n");
         }
-        EventContractRegistryDocumentation { markdown }
+        Ok(EventContractRegistryDocumentation {
+            markdown: RenderedMarkdown::try_new(markdown)?,
+        })
     }
 }
 
+/// Event-runtime data for event contract registry documentation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventContractRegistryDocumentation {
-    markdown: String,
+    markdown: RenderedMarkdown,
 }
 
 impl EventContractRegistryDocumentation {
-    pub fn as_str(&self) -> &str {
+    /// Executes the markdown event-runtime operation.
+    pub fn markdown(&self) -> &RenderedMarkdown {
         &self.markdown
     }
 
-    pub fn into_string(self) -> String {
+    /// Executes the into markdown event-runtime operation.
+    pub fn into_markdown(self) -> RenderedMarkdown {
         self.markdown
     }
 }
-
-fn escape_markdown_cell(value: &str) -> String {
-    value.replace(CELL_ESCAPE_TARGET, CELL_ESCAPE_REPLACEMENT)
-}
+// INVALID-INPUT-TEST: contract registry tests reject malformed event types and
+// duplicate registrations before documentation is rendered.

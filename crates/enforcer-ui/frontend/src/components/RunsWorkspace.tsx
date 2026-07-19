@@ -2,7 +2,7 @@ import { AlertTriangle, Database, FileText, RefreshCw, TerminalSquare } from "lu
 import { type ReactElement } from "react";
 
 /** Captures a harness execution status supplied by the native run store. */
-export type HarnessRunStatus = string;
+export type HarnessRunStatus = "passed" | "failed";
 
 /** Represents one summary row in the harness execution history. */
 export type HarnessRunRow = {
@@ -58,15 +58,15 @@ export type HarnessRunPayload = {
   runs: HarnessRunRow[];
   lastFailure?: HarnessFailurePayload | null;
   caveat: string;
-  selectedRun?: HarnessRunDetailPayload | null;
+  selectedRun?: HarnessRunDetailPayload | null | undefined;
 };
 
 /** Defines run workspace state and shell callbacks. */
 export type RunsWorkspaceProps = {
-  payload?: HarnessRunPayload;
+  payload?: HarnessRunPayload | undefined;
   loading: boolean;
-  error?: string;
-  selectedRunId?: string;
+  error?: string | undefined;
+  selectedRunId?: string | undefined;
   onSelectRun: (runId: string) => void;
   onRefresh: () => void;
 };
@@ -157,7 +157,7 @@ function EmptyRuns() {
   );
 }
 
-function RunDetail({ run, detail }: { run?: HarnessRunRow; detail?: HarnessRunDetailPayload }) {
+function RunDetail({ run, detail }: { run?: HarnessRunRow | undefined; detail?: HarnessRunDetailPayload | undefined }) {
   if (!run) {
     return <aside className="detail-panel engine-detail"><div className="detail-heading"><TerminalSquare size={20} /><span><strong>Select an execution</strong><small>Choose a harness run to request its diagnostics and bounded artifact excerpt.</small></span></div></aside>;
   }

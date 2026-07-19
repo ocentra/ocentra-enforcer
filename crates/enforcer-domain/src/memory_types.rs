@@ -496,6 +496,24 @@ impl<'a> From<&'a String> for ParserSourceText<'a> {
     }
 }
 
+/// Borrowed filename suffixes used to classify C-family test files.
+#[derive(Debug, Clone, Copy)]
+#[doc = "BRAND-INVARIANT: parser classification borrows one fixed suffix vocabulary for the duration of a dispatch."]
+pub struct ParserTestSuffixes<'a>(&'a [&'a str]);
+
+impl<'a> ParserTestSuffixes<'a> {
+    /// View the borrowed test-file suffix vocabulary.
+    pub const fn as_slice(self) -> &'a [&'a str] {
+        self.0
+    }
+}
+
+impl<'a> From<&'a [&'a str]> for ParserTestSuffixes<'a> {
+    fn from(value: &'a [&'a str]) -> Self {
+        Self(value)
+    }
+}
+
 /// One-based source position carried by code-graph nodes and edges.
 #[derive(
     Debug,
@@ -3905,6 +3923,35 @@ impl ModelCacheArtifactSizeBytes {
     pub const fn try_new(value: u64) -> Self {
         Self(value)
     }
+
+    /// Return the exact artifact byte count.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
+/// Borrowed local filesystem path of one model-cache artifact.
+#[derive(Debug, Clone, Copy)]
+#[doc = "BRAND-INVARIANT: cache validation borrows an artifact path from one decoded local manifest candidate."]
+pub struct ModelCacheArtifactFile<'a>(&'a std::path::Path);
+
+impl<'a> ModelCacheArtifactFile<'a> {
+    /// View the borrowed artifact path.
+    pub const fn as_path(self) -> &'a std::path::Path {
+        self.0
+    }
+}
+
+impl<'a> From<&'a std::path::Path> for ModelCacheArtifactFile<'a> {
+    fn from(value: &'a std::path::Path) -> Self {
+        Self(value)
+    }
+}
+
+impl<'a> From<&'a std::path::PathBuf> for ModelCacheArtifactFile<'a> {
+    fn from(value: &'a std::path::PathBuf) -> Self {
+        Self(value.as_path())
+    }
 }
 
 impl From<u64> for ModelCacheArtifactSizeBytes {
@@ -4534,6 +4581,72 @@ impl std::ops::Deref for StreamingCacheChunksDirectory {
     }
 }
 
+/// Filesystem path of one numbered streaming-cache chunk.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[doc = "BRAND-INVARIANT: the path is derived beneath a validated streaming-cache chunks directory from a typed chunk index."]
+pub struct StreamingCacheChunkPath(std::path::PathBuf);
+
+impl StreamingCacheChunkPath {
+    /// View the chunk path.
+    pub fn as_path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl From<std::path::PathBuf> for StreamingCacheChunkPath {
+    fn from(value: std::path::PathBuf) -> Self {
+        Self(value)
+    }
+}
+
+impl From<StreamingCacheChunkPath> for std::path::PathBuf {
+    fn from(value: StreamingCacheChunkPath) -> Self {
+        value.0
+    }
+}
+
+impl AsRef<std::path::Path> for StreamingCacheChunkPath {
+    fn as_ref(&self) -> &std::path::Path {
+        self.as_path()
+    }
+}
+
+/// Borrowed identifier or relative path sanitized into one cache path segment.
+#[derive(Debug, Clone, Copy)]
+#[doc = "BRAND-INVARIANT: cache layout borrows the source text only while producing a filesystem-safe owned segment."]
+pub struct StreamingCacheSegmentInput<'a>(&'a str);
+
+impl<'a> StreamingCacheSegmentInput<'a> {
+    /// View the unsanitized segment input.
+    pub const fn as_str(self) -> &'a str {
+        self.0
+    }
+}
+
+impl<'a> From<&'a str> for StreamingCacheSegmentInput<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(value)
+    }
+}
+
+/// Owned filesystem-safe streaming-cache path segment.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[doc = "BRAND-INVARIANT: every character is ASCII alphanumeric or one of dash, underscore, and dot; empty inputs map to artifact."]
+pub struct StreamingCachePathSegment(String);
+
+impl StreamingCachePathSegment {
+    /// View the sanitized path segment.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for StreamingCachePathSegment {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
 /// Compressed shared-memory payload bytes.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[doc = "Canonical domain representation for MemoryBundlePayload."]
@@ -4939,6 +5052,26 @@ memory_bool!(
     ArtifactManifestIsEmpty,
     is_empty
 );
+memory_bool!(
+    #[doc = "Whether a rich Memory evidence report is missing required t0 provenance."]
+    MemoryEvidenceIncomplete,
+    is_incomplete
+);
+memory_bool!(
+    #[doc = "Whether one parsed Memory lesson-ledger row is a Markdown separator."]
+    MemoryLessonSeparatorRow,
+    is_separator
+);
+memory_bool!(
+    #[doc = "Whether a parser-classified C-family path names a test file."]
+    ParserTestPath,
+    is_test
+);
+memory_bool!(
+    #[doc = "Whether a Memory summary entity is present in the link table."]
+    MemorySummaryEntityLinked,
+    is_linked
+);
 
 /// Byte-exact source payload returned by snippet retrieval.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -5153,6 +5286,24 @@ impl PartialEq<bool> for SearchGraphFlag {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[doc = "BRAND-INVARIANT: impact analysis computes this signal from graph evidence; raw storage remains private."]
 pub struct ImpactSignal(bool);
+
+/// Borrowed graph-node identifier inspected by impact analysis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc = "BRAND-INVARIANT: impact analysis borrows an existing graph identifier only for one scope decision."]
+pub struct ImpactNodeRef<'a>(&'a str);
+
+impl<'a> ImpactNodeRef<'a> {
+    /// View the borrowed graph-node identifier.
+    pub const fn as_str(self) -> &'a str {
+        self.0
+    }
+}
+
+impl<'a> From<&'a str> for ImpactNodeRef<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(value)
+    }
+}
 
 impl ImpactSignal {
     /// Whether the impact signal is present.

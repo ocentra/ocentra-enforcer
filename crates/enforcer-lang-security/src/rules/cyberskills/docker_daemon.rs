@@ -42,14 +42,13 @@
 //! - `tls: false` or `tlsverify: false` (explicit) — agent.py (CIS 2.6,
 //!   HIGH) / process.py `check_tls_config`: the Docker daemon's remote API
 //!   socket is unauthenticated when either flag is explicitly disabled.
-//! - `tls: true` with no `tlsverify` setting â€” transport encryption alone
+//! - `tls: true` with no `tlsverify` setting — transport encryption alone
 //!   does not authenticate remote API clients, so mutual TLS verification
 //!   must be explicitly enabled.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
@@ -58,6 +57,7 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 /// left enabled, privilege-escalation not blocked, user-namespace
 /// remapping disabled, experimental features enabled, live-restore
 /// disabled, and an unauthenticated TLS-less remote API.
+#[derive(Debug)]
 pub struct DockerDaemonHardeningValidator {
     rule_id: RuleId,
 }
@@ -65,20 +65,8 @@ pub struct DockerDaemonHardeningValidator {
 impl DockerDaemonHardeningValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-DOCKER-DAEMON.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberDockerDaemon.id(),
         })
-    }
-
-    fn finding(&self, file: &RelPath, severity: Severity, title: &str, detail: String) -> Finding {
-        Finding {
-            rule_id: self.rule_id.clone(),
-            severity,
-            title: title.to_owned(),
-            detail,
-            file: file.clone(),
-            line: 1,
-            snippet: None,
-        }
     }
 }
 
@@ -88,7 +76,7 @@ impl Validator for DockerDaemonHardeningValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(input.source) else {
+        let Some(value) = crate::boundary::json::value(input.source.as_str()) else {
             return Vec::new();
         };
         let Some(config) = value.as_object() else {
@@ -96,52 +84,44 @@ impl Validator for DockerDaemonHardeningValidator {
         };
 
         let mut findings = Vec::new();
+        let emit = crate::boundary::finding::DynamicFindingFactory::new(&self.rule_id);
 
         if config
             .get("insecure-registries")
             .and_then(|v| v.as_array())
             .is_some_and(|registries| !registries.is_empty())
         {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Error,
-                    "Docker daemon allows insecure (plaintext) registries",
-                    "daemon.json sets a non-empty `insecure-registries` list, which lets the \
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon allows insecure (plaintext) registries",
+                "daemon.json sets a non-empty `insecure-registries` list, which lets the \
                  daemon pull images over plaintext HTTP with no TLS/authentication. Fix: \
                  remove `insecure-registries` (or leave it empty) and configure the registry \
-                 with TLS instead."
-                        .to_owned(),
-                ),
-            );
+                 with TLS instead.",
+            ));
         }
 
         if config.get("icc").and_then(|v| v.as_bool()) == Some(true) {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Error,
-                    "Docker daemon has inter-container communication enabled",
-                    "daemon.json sets `icc: true`, allowing containers on the default bridge \
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon has inter-container communication enabled",
+                "daemon.json sets `icc: true`, allowing containers on the default bridge \
                  network to communicate with each other unrestricted. Fix: set `icc` to \
-                 `false` and use explicit user-defined networks or published ports."
-                        .to_owned(),
-                ),
-            );
+                 `false` and use explicit user-defined networks or published ports.",
+            ));
         }
 
         if config.get("no-new-privileges").and_then(|v| v.as_bool()) == Some(false) {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Error,
-                    "Docker daemon does not block privilege escalation",
-                    "daemon.json sets `no-new-privileges: false`, allowing container processes \
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon does not block privilege escalation",
+                "daemon.json sets `no-new-privileges: false`, allowing container processes \
                  to gain additional privileges via setuid/setgid binaries or capability \
-                 escalation. Fix: set `no-new-privileges` to `true`."
-                        .to_owned(),
-                ),
-            );
+                 escalation. Fix: set `no-new-privileges` to `true`.",
+            ));
         }
 
         if config
@@ -149,45 +129,36 @@ impl Validator for DockerDaemonHardeningValidator {
             .and_then(|v| v.as_str())
             .is_some_and(|remap| remap.is_empty() || remap == "none")
         {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Error,
-                    "Docker daemon has user namespace remapping disabled",
-                    "daemon.json sets `userns-remap` to an empty value or `\"none\"`, which \
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon has user namespace remapping disabled",
+                "daemon.json sets `userns-remap` to an empty value or `\"none\"`, which \
                  leaves container root (UID 0) mapped directly to host root and enables a \
                  container breakout to gain root on the host. Fix: set `userns-remap` to \
-                 `\"default\"` (or a configured subuid/subgid user)."
-                        .to_owned(),
-                ),
-            );
+                 `\"default\"` (or a configured subuid/subgid user).",
+            ));
         }
 
         if config.get("experimental").and_then(|v| v.as_bool()) == Some(true) {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Warning,
-                    "Docker daemon has experimental features enabled",
-                    "daemon.json sets `experimental: true`, enabling unsupported daemon features \
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Warning,
+                "Docker daemon has experimental features enabled",
+                "daemon.json sets `experimental: true`, enabling unsupported daemon features \
                  that may carry unstable or insecure behavior. Fix: set `experimental` to \
-                 `false` in production."
-                        .to_owned(),
-                ),
-            );
+                 `false` in production.",
+            ));
         }
 
         if config.get("live-restore").and_then(|v| v.as_bool()) == Some(false) {
-            findings.push(
-                self.finding(
-                    input.file,
-                    Severity::Warning,
-                    "Docker daemon has live-restore disabled",
-                    "daemon.json sets `live-restore: false`, so every running container is \
-                 killed on a daemon restart or upgrade. Fix: set `live-restore` to `true`."
-                        .to_owned(),
-                ),
-            );
+            findings.extend(emit.finding(
+                input.file,
+                Severity::Warning,
+                "Docker daemon has live-restore disabled",
+                "daemon.json sets `live-restore: false`, so every running container is \
+                 killed on a daemon restart or upgrade. Fix: set `live-restore` to `true`.",
+            ));
         }
 
         let mut disabled_tls_keys: Vec<&str> = Vec::new();
@@ -198,7 +169,7 @@ impl Validator for DockerDaemonHardeningValidator {
             disabled_tls_keys.push("tlsverify");
         }
         if !disabled_tls_keys.is_empty() {
-            findings.push(self.finding(
+            findings.extend(emit.finding(
                 input.file,
                 Severity::Error,
                 "Docker daemon exposes an unauthenticated remote API",
@@ -222,26 +193,24 @@ impl Validator for DockerDaemonHardeningValidator {
                 })
             });
         if has_remote_tcp_host && config.get("tls").is_none() && config.get("tlsverify").is_none() {
-            findings.push(self.finding(
+            findings.extend(emit.finding(
                 input.file,
                 Severity::Error,
                 "Docker daemon exposes a remote TCP API without TLS",
-                "daemon.json configures a `tcp://` host without `tls` or `tlsverify`, exposing an unauthenticated Docker API to the network. Fix: use a Unix socket where possible, or set both `tls` and `tlsverify` to `true` with `tlscacert`, `tlscert`, and `tlskey`.".to_owned(),
+                "daemon.json configures a `tcp://` host without `tls` or `tlsverify`, exposing an unauthenticated Docker API to the network. Fix: use a Unix socket where possible, or set both `tls` and `tlsverify` to `true` with `tlscacert`, `tlscert`, and `tlskey`.",
             ));
         }
 
         if config.get("tls").and_then(|value| value.as_bool()) == Some(true)
             && config.get("tlsverify").is_none()
         {
-            findings.push(self.finding(
+            findings.extend(emit.finding(
                 input.file,
                 Severity::Error,
                 "Docker daemon enables TLS without client certificate verification",
-                String::from(
-                    "daemon.json enables `tls` but does not set `tlsverify: true`, so the remote \
-                     API encrypts traffic without requiring authenticated client certificates. Fix: \
-                     set `tlsverify` to `true` and configure `tlscacert`, `tlscert`, and `tlskey`.",
-                ),
+                "daemon.json enables `tls` but does not set `tlsverify: true`, so the remote \
+                 API encrypts traffic without requiring authenticated client certificates. Fix: \
+                 set `tlsverify` to `true` and configure `tlscacert`, `tlscert`, and `tlskey`.",
             ));
         }
 

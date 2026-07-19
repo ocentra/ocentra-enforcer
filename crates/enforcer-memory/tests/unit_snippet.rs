@@ -1,3 +1,4 @@
+use enforcer_domain::memory_types::SnippetMatchMethod;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::snippet::{get_code_snippet, SnippetError};
 use sha2::{Digest, Sha256};
@@ -55,7 +56,7 @@ fn snippet_bytes_are_hash_equal_to_an_independent_file_slice() -> TestResult {
     // reusing any of this module's own byte-offset bookkeeping, per
     // L37 (never verify a value against itself).
     let raw = fs::read(dir.path().join("lib.rs"))?;
-    let independent_slice = &raw[snippet.start_byte..snippet.end_byte];
+    let independent_slice = &raw[snippet.start_byte.get()..snippet.end_byte.get()];
     let mut hasher = Sha256::new();
     hasher.update(independent_slice);
     let digest = hasher.finalize();
@@ -65,7 +66,7 @@ fn snippet_bytes_are_hash_equal_to_an_independent_file_slice() -> TestResult {
     }
 
     assert_eq!(snippet.sha256, expected);
-    assert_eq!(snippet.bytes, independent_slice);
+    assert_eq!(snippet.bytes.as_slice(), independent_slice);
     assert_eq!(snippet.bytes, b"fn a() {\n    1\n}\n");
     Ok(())
 }
@@ -197,7 +198,7 @@ fn bare_name_suffix_matches_and_records_match_method() -> TestResult {
     let (dir, graph) = indexed_repo(source, "lib.rs")?;
 
     let snippet = get_code_snippet(&graph, dir.path(), "helper", false)?;
-    assert_eq!(snippet.match_method, Some("suffix"));
+    assert_eq!(snippet.match_method, Some(SnippetMatchMethod::Suffix));
     assert_eq!(snippet.qualified_name, "lib.rs::helper");
     Ok(())
 }
@@ -261,7 +262,7 @@ fn include_neighbors_populates_caller_and_callee_names() -> TestResult {
 
     let snippet = get_code_snippet(&graph, dir.path(), "lib.rs::popular", true)?;
     assert!(
-        snippet.caller_names.contains(&"caller_a".to_string()),
+        snippet.caller_names.iter().any(|name| name == "caller_a"),
         "{:?}",
         snippet.caller_names
     );

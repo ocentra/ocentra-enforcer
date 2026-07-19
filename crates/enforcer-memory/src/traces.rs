@@ -1,5 +1,5 @@
 //! X06.P2: parity `ingest_traces` -- merge runtime call-trace records
-//! into the code graph's call-edge model (scout digest §1, row 14:
+//! into the code graph's call-edge model (scout digest Â§1, row 14:
 //! "runtime traces {caller, callee, count} enrich CALLS edges").
 //!
 //! [`crate::code_graph::CodeGraph`] only ever records *parsed* call
@@ -42,11 +42,15 @@
 //! same "never silent skip" doctrine [`crate::code_graph`] itself
 //! follows for unsupported file extensions.
 
-use crate::code_graph::{CodeGraph, CodeNode};
+use crate::boundary::log_schema::{ObservationLogEntryDto, TraceRecordDto, SCHEMA_VERSION};
+use crate::code_graph::CodeGraph;
 use crate::error::Result;
-use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
+use crate::owned_boundary::Retained;
 use crate::store::Store;
-use serde::{Deserialize, Serialize};
+use enforcer_domain::memory_types::{
+    EdgeProvenance, IngestSourceSurface, IngestTimestamp, ProceduralLessonReference, TraceNodeId,
+    TraceObservationCount, TraceStoreRecordCount, TraceUnresolvedCallee, TraceUnresolvedCaller,
+};
 use std::collections::BTreeMap;
 
 /// One runtime-observed call record, as a caller (e.g. an APM/tracing
@@ -56,11 +60,11 @@ use std::collections::BTreeMap;
 /// too since not every runtime tracer resolves calls to symbol
 /// granularity), and `count` is how many times this edge was observed
 /// in the reporting window.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceRecord {
-    pub caller: String,
-    pub callee: String,
-    pub count: u64,
+    pub caller: TraceNodeId,
+    pub callee: TraceNodeId,
+    pub count: TraceObservationCount,
 }
 
 /// Where a [`TracedEdge`] came from: parsed from source
@@ -69,45 +73,38 @@ pub struct TraceRecord {
 /// or observed at runtime via [`TraceStore::ingest`]. Mirrors the
 /// parity digest's QA-080 "provenance split... matters" requirement
 /// directly in the type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EdgeProvenance {
-    Parsed,
-    Inferred,
-    Runtime,
-}
-
 /// One caller->callee edge with its provenance and observed runtime
 /// count (0 if never runtime-observed -- a parsed-only edge with no
 /// matching trace record).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TracedEdge {
-    pub caller: String,
-    pub callee: String,
+    pub caller: TraceNodeId,
+    pub callee: TraceNodeId,
     pub provenance: EdgeProvenance,
-    pub observed_count: u64,
+    pub observed_count: TraceObservationCount,
 }
 
 /// A trace record whose `caller` or `callee` (or both) could not be
 /// resolved to a known graph node id at ingestion time.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnresolvedTrace {
     pub record: TraceRecord,
-    pub unresolved_caller: bool,
-    pub unresolved_callee: bool,
+    pub unresolved_caller: TraceUnresolvedCaller,
+    pub unresolved_callee: TraceUnresolvedCallee,
 }
 
+#[derive(Debug)]
 pub struct TraceRecordStoreBatch<'a> {
     pub records: &'a [TraceRecord],
-    pub source_surface: String,
-    pub ts: String,
+    pub source_surface: IngestSourceSurface,
+    pub ts: IngestTimestamp,
 }
 
 impl<'a> TraceRecordStoreBatch<'a> {
     pub fn new(
         records: &'a [TraceRecord],
-        source_surface: impl Into<String>,
-        ts: impl Into<String>,
+        source_surface: impl Into<IngestSourceSurface>,
+        ts: impl Into<IngestTimestamp>,
     ) -> Self {
         Self {
             records,
@@ -122,35 +119,35 @@ pub fn ingest_trace_records_into_store(
     trace_store: &mut TraceStore,
     graph: &CodeGraph,
     batch: &TraceRecordStoreBatch<'_>,
-) -> Result<usize> {
+) -> Result<TraceStoreRecordCount> {
     for record in batch.records {
-        let payload = serde_json::to_value(record)?;
-        store.append_observation_entry(|seq| ObservationLogEntry {
+        let payload = serde_json::to_value(TraceRecordDto::from(record))?;
+        store.append_observation_entry(|seq| ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq,
+            seq: seq.into(),
             id: format!("trace-{seq:04}"),
-            lesson_id: String::new(),
+            lesson_id: ProceduralLessonReference::default().into(),
             rule_id: None,
-            fault_class: Some("runtime-trace".to_owned()),
+            fault_class: Some("runtime-trace".retained()),
             repo_context: format!("{} -> {}", record.caller, record.callee),
             clean: true,
             // CLONE-JUSTIFICATION: emitted observation outlives the borrowed batch.
-            source_surface: batch.source_surface.clone(),
-            ts: batch.ts.clone(),
+            source_surface: batch.source_surface.as_str().retained(),
+            ts: batch.ts.as_str().retained(),
             supersedes_seq: None,
-            payload_kind: Some("runtime-trace".to_owned()),
+            payload_kind: Some("runtime-trace".retained()),
             payload: Some(payload),
         })?;
     }
     trace_store.ingest(graph, batch.records);
-    Ok(batch.records.len())
+    Ok(batch.records.len().into())
 }
 
 pub fn replay_trace_records_from_store(
     store: &Store,
     trace_store: &mut TraceStore,
     graph: &CodeGraph,
-) -> Result<usize> {
+) -> Result<TraceStoreRecordCount> {
     let outcome = store.read_observation_entries()?;
     let mut records = Vec::new();
     for entry in outcome.entries {
@@ -158,11 +155,11 @@ pub fn replay_trace_records_from_store(
             continue;
         }
         if let Some(payload) = entry.payload {
-            records.push(serde_json::from_value::<TraceRecord>(payload)?);
+            records.push(serde_json::from_value::<TraceRecordDto>(payload)?.into());
         }
     }
     trace_store.ingest(graph, &records);
-    Ok(records.len())
+    Ok(records.len().into())
 }
 
 /// The additive runtime-trace overlay described in the module docs.
@@ -173,6 +170,7 @@ pub struct TraceStore {
     /// Keyed by (caller, callee) so re-ingestion naturally finds the
     /// existing entry to sum into (see module docs, "idempotent
     /// re-ingestion").
+    // BRAND-INVARIANT: keys are exact caller/callee identities copied only from validated TraceRecord values; counts are accumulated TraceObservationCount values.
     runtime_counts: BTreeMap<(String, String), u64>,
     unresolved: Vec<UnresolvedTrace>,
 }
@@ -206,19 +204,24 @@ impl TraceStore {
         let known_ids = known_node_ids(graph);
         let known_raw_callees = known_raw_callee_texts(graph);
         for record in records {
-            let caller_known = known_ids.contains(record.caller.as_str());
-            let callee_known = known_ids.contains(record.callee.as_str())
-                || known_raw_callees.contains(record.callee.as_str());
+            let caller_id: TraceNodeId = record.caller.as_str().into();
+            let callee_id: TraceNodeId = record.callee.as_str().into();
+            let caller_known = known_ids.contains(&caller_id);
+            let callee_known =
+                known_ids.contains(&callee_id) || known_raw_callees.contains(&callee_id);
             if caller_known && callee_known {
                 // CLONE-JUSTIFICATION: runtime-count map owns the key after borrowed record inspection.
-                let key = (record.caller.clone(), record.callee.clone());
-                *self.runtime_counts.entry(key).or_insert(0) += record.count;
+                let key = (
+                    record.caller.as_str().retained(),
+                    record.callee.as_str().retained(),
+                );
+                *self.runtime_counts.entry(key).or_insert(0) += record.count.get();
             } else {
                 // CLONE-JUSTIFICATION: unresolved evidence is retained independently of the input record.
                 self.unresolved.push(UnresolvedTrace {
-                    record: record.clone(),
-                    unresolved_caller: !caller_known,
-                    unresolved_callee: !callee_known,
+                    record: record.retained(),
+                    unresolved_caller: (!caller_known).into(),
+                    unresolved_callee: (!callee_known).into(),
                 });
             }
         }
@@ -267,29 +270,29 @@ impl TraceStore {
 
         for call in graph.calls() {
             // CLONE-JUSTIFICATION: merged edge map owns keys while graph calls stay borrowed.
-            let key = (call.from_file_id.clone(), call.callee.clone());
-            merged.entry(key.clone()).or_insert(TracedEdge {
-                caller: call.from_file_id.clone(),
-                callee: call.callee.clone(),
+            let key = (call.from_file_id.retained(), call.callee.retained());
+            merged.entry(key.retained()).or_insert(TracedEdge {
+                caller: call.from_file_id.retained().into(),
+                callee: call.callee.as_str().retained().into(),
                 provenance: EdgeProvenance::Parsed,
-                observed_count: 0,
+                observed_count: 0.into(),
             });
         }
 
         for ((caller, callee), count) in &self.runtime_counts {
             // CLONE-JUSTIFICATION: merged keys and runtime edge payloads have independent ownership.
-            let key = (caller.clone(), callee.clone());
+            let key = (caller.retained(), callee.retained());
             match merged.get_mut(&key) {
-                Some(edge) => edge.observed_count = *count,
+                Some(edge) => edge.observed_count = (*count).into(),
                 None => {
                     merged.insert(
                         key,
                         TracedEdge {
                             // CLONE-JUSTIFICATION: stored runtime edge owns caller/callee beyond borrowed count-map iteration.
-                            caller: caller.clone(),
-                            callee: callee.clone(),
+                            caller: caller.retained().into(),
+                            callee: callee.retained().into(),
                             provenance: EdgeProvenance::Runtime,
-                            observed_count: *count,
+                            observed_count: (*count).into(),
                         },
                     );
                 }
@@ -302,8 +305,8 @@ impl TraceStore {
 
 /// Every node id present in `graph` (files, symbols, tombstones -- any
 /// id a trace record could legitimately reference).
-fn known_node_ids(graph: &CodeGraph) -> std::collections::HashSet<&str> {
-    graph.nodes().iter().map(CodeNode::id).collect()
+fn known_node_ids(graph: &CodeGraph) -> std::collections::HashSet<TraceNodeId> {
+    graph.nodes().iter().map(|node| node.id().into()).collect()
 }
 
 /// Every raw callee string appearing in `graph.calls()` (the parser's
@@ -312,6 +315,10 @@ fn known_node_ids(graph: &CodeGraph) -> std::collections::HashSet<&str> {
 /// values is resolvable even though it is not itself a graph node id,
 /// because [`TraceStore::edges`] merges runtime counts into parsed
 /// edges by exactly this text, not by node id (see its doc comment).
-fn known_raw_callee_texts(graph: &CodeGraph) -> std::collections::HashSet<&str> {
-    graph.calls().iter().map(|c| c.callee.as_str()).collect()
+fn known_raw_callee_texts(graph: &CodeGraph) -> std::collections::HashSet<TraceNodeId> {
+    graph
+        .calls()
+        .iter()
+        .map(|call| call.callee.as_str().into())
+        .collect()
 }

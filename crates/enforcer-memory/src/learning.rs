@@ -42,54 +42,54 @@ use crate::graph::{MemoryGraph, MemoryNode};
 use crate::ingest::replay_incident_observations_from_store;
 use crate::model_observations::project_model_runtime_observations_from_store;
 use crate::observations::replay_procedural_and_routes_from_store;
-use crate::record::RecordDomain;
+use crate::owned_boundary::Retained;
 use crate::store::Store;
+use enforcer_domain::memory_types::{
+    IngestLessonId, LearningProjectionCount, LessonStatus, MemoryLessonId, MemoryLessonLandedAt,
+    RecordDomain,
+};
 
 /// Whether a lesson has landed, proof-linked evidence or is still an
 /// unlanded/imported candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LessonStatus {
-    /// Has at least one non-empty landing reference. Proof-linkage
-    /// itself (an enforcer-proof journal ref) is asserted by
-    /// [`crate::evidence::evidence_chain`]'s caller-supplied `proof_ref`
-    /// lookup -- this status answers "landed at all", not "and proof
-    /// exists", because a graph slice with no proof store attached must
-    /// still be able to report landed-vs-not deterministically.
-    Active,
-    /// No landing reference recorded yet: imported/candidate/unlanded.
-    /// Still searchable via [`crate::recall::recall`] -- inactive is not
-    /// hidden, it's just not counted as proven.
-    Inactive,
-}
-
 /// One lesson-like node's id plus its landing references, independent
 /// of whether the node came from the NDJSON stream (`MemoryRecord`) or
 /// the ledger (`LessonRow`).
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct LessonFacts<'a> {
-    id: &'a str,
-    landed_at: Vec<&'a str>,
-    supersedes: Option<&'a str>,
+struct LessonFacts {
+    id: IngestLessonId,
+    landed_at: Vec<MemoryLessonLandedAt>,
+    supersedes: Option<IngestLessonId>,
     domain: Option<RecordDomain>,
 }
 
-fn lesson_facts(node: &MemoryNode) -> Option<LessonFacts<'_>> {
+fn lesson_facts(node: &MemoryNode) -> Option<LessonFacts> {
     match node {
         MemoryNode::Lesson(row) => Some(LessonFacts {
-            id: &row.id,
+            id: row.id.as_str().into(),
             landed_at: if row.landed_at.trim().is_empty() {
                 Vec::new()
             } else {
-                vec![row.landed_at.as_str()]
+                // CLONE-JUSTIFICATION: lesson facts retain their landing reference
+                // after the borrowed graph row is released.
+                vec![row.landed_at.clone()]
             },
             supersedes: None,
             domain: None,
         }),
-        MemoryNode::Record(record) if matches!(record.kind(), crate::record::RecordKind::Lesson) => {
+        MemoryNode::Record(record)
+            if matches!(
+                record.kind(),
+                enforcer_domain::memory_types::RecordKind::Lesson
+            ) =>
+        {
             Some(LessonFacts {
-                id: record.id(),
-                landed_at: record.landed_at().iter().map(String::as_str).collect(),
-                supersedes: record.supersedes(),
+                id: record.id().into(),
+                landed_at: record
+                    .landed_at()
+                    .iter()
+                    .map(|value| value.as_str().into())
+                    .collect(),
+                supersedes: record.supersedes().map(Into::into),
                 domain: Some(record.domain()),
             })
         }
@@ -100,22 +100,28 @@ fn lesson_facts(node: &MemoryNode) -> Option<LessonFacts<'_>> {
 /// Compute the activation status of a single lesson id. Returns `None`
 /// if no lesson-like node with this id exists in the graph at all
 /// (distinct from `Inactive`: "unknown" vs "known but not landed").
-pub fn lesson_status(graph: &MemoryGraph, lesson_id: &str) -> Option<LessonStatus> {
+pub fn lesson_status(graph: &MemoryGraph, lesson_id: &IngestLessonId) -> Option<LessonStatus> {
     let facts = graph
         .nodes()
         .iter()
         .filter_map(lesson_facts)
-        .find(|f| f.id == lesson_id)?;
-    Some(if facts.landed_at.iter().any(|l| !l.trim().is_empty()) {
-        LessonStatus::Active
-    } else {
-        LessonStatus::Inactive
-    })
+        .find(|f| f.id == *lesson_id)?;
+    Some(
+        if facts
+            .landed_at
+            .iter()
+            .any(|value| !value.as_str().trim().is_empty())
+        {
+            LessonStatus::Active
+        } else {
+            LessonStatus::Inactive
+        },
+    )
 }
 
 /// The set of lesson ids that have been superseded by some other record
 /// in the graph (i.e. appear as some other record's `supersedes` value).
-fn superseded_ids(graph: &MemoryGraph) -> HashSet<&str> {
+fn superseded_ids(graph: &MemoryGraph) -> HashSet<IngestLessonId> {
     graph
         .nodes()
         .iter()
@@ -129,7 +135,7 @@ fn superseded_ids(graph: &MemoryGraph) -> HashSet<&str> {
 /// record -- a superseded lesson never counts as active even if its own
 /// landing evidence would otherwise qualify it, because a newer record
 /// has explicitly replaced it.
-pub fn active_lessons(graph: &MemoryGraph) -> Vec<&str> {
+pub fn active_lessons(graph: &MemoryGraph) -> Vec<IngestLessonId> {
     let superseded = superseded_ids(graph);
     let mut seen = HashSet::new();
     let mut out = Vec::new();
@@ -137,13 +143,17 @@ pub fn active_lessons(graph: &MemoryGraph) -> Vec<&str> {
         let Some(facts) = lesson_facts(node) else {
             continue;
         };
-        if superseded.contains(facts.id) {
+        if superseded.contains(&facts.id) {
             continue;
         }
-        if !facts.landed_at.iter().any(|l| !l.trim().is_empty()) {
+        if !facts
+            .landed_at
+            .iter()
+            .any(|value| !value.as_str().trim().is_empty())
+        {
             continue;
         }
-        if seen.insert(facts.id) {
+        if seen.insert(facts.id.retained()) {
             out.push(facts.id);
         }
     }
@@ -153,10 +163,10 @@ pub fn active_lessons(graph: &MemoryGraph) -> Vec<&str> {
 /// The id of the record that supersedes `lesson_id`, if any. `None`
 /// when `lesson_id` has not been superseded (including when it does not
 /// exist at all).
-pub fn superseded_by<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> Option<&'a str> {
+pub fn superseded_by(graph: &MemoryGraph, lesson_id: &IngestLessonId) -> Option<IngestLessonId> {
     graph.nodes().iter().find_map(|node| {
         let facts = lesson_facts(node)?;
-        if facts.supersedes == Some(lesson_id) {
+        if facts.supersedes.as_ref() == Some(lesson_id) {
             Some(facts.id)
         } else {
             None
@@ -170,9 +180,9 @@ pub fn superseded_by<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> Option<&'a 
 /// landed so far in that domain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LearningCurvePoint {
-    pub lesson_id: String,
-    pub landed_count: usize,
-    pub cumulative_incidents: usize,
+    pub lesson_id: IngestLessonId,
+    pub landed_count: LearningProjectionCount,
+    pub cumulative_incidents: LearningProjectionCount,
 }
 
 /// Per-domain learning-curve series: the workpack's "aggregate (--all
@@ -198,20 +208,29 @@ pub fn learning_curve(graph: &MemoryGraph) -> HashMap<RecordDomain, Vec<Learning
             // this curve rather than guessed into a default domain.
             continue;
         };
-        if !facts.landed_at.iter().any(|l| !l.trim().is_empty()) {
+        if !facts
+            .landed_at
+            .iter()
+            .any(|value| !value.as_str().trim().is_empty())
+        {
             continue;
         }
         let count = landed_count.entry(domain).or_insert(0);
         *count += 1;
         let cumulative_incidents: usize = curves
             .get(&domain)
-            .map(|points| points.last().map(|p| p.cumulative_incidents).unwrap_or(0))
+            .map(|points| {
+                points
+                    .last()
+                    .map(|p| p.cumulative_incidents.get())
+                    .unwrap_or(0)
+            })
             .unwrap_or(0)
-            + graph.incidents_for_lesson(facts.id).len();
+            + graph.incidents_for_lesson(&facts.id).len();
         curves.entry(domain).or_default().push(LearningCurvePoint {
-            lesson_id: facts.id.to_string(),
-            landed_count: *count,
-            cumulative_incidents,
+            lesson_id: facts.id,
+            landed_count: (*count).into(),
+            cumulative_incidents: cumulative_incidents.into(),
         });
     }
     curves
@@ -226,20 +245,20 @@ pub fn learning_curve(graph: &MemoryGraph) -> HashMap<RecordDomain, Vec<Learning
 /// persistence in this narrow slice.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoreLearningProjection {
-    pub replayed_incident_observations: usize,
-    pub replayed_procedural_and_routes: usize,
-    pub model_runtime_observations: usize,
-    pub procedural_record_count: usize,
-    pub route_trace_count: usize,
+    pub replayed_incident_observations: LearningProjectionCount,
+    pub replayed_procedural_and_routes: LearningProjectionCount,
+    pub model_runtime_observations: LearningProjectionCount,
+    pub procedural_record_count: LearningProjectionCount,
+    pub route_trace_count: LearningProjectionCount,
     pub learning_curves: HashMap<RecordDomain, Vec<LearningCurvePoint>>,
-    pub recurrence_curves: BTreeMap<String, Vec<RecurrencePoint>>,
+    pub recurrence_curves: BTreeMap<IngestLessonId, Vec<RecurrencePoint>>,
 }
 
 pub fn project_learning_from_store(
     store: &Store,
     seed_graph: &MemoryGraph,
 ) -> Result<StoreLearningProjection> {
-    let mut projected = seed_graph.clone();
+    let mut projected = seed_graph.retained();
     let replayed_incident_observations =
         replay_incident_observations_from_store(store, &mut projected)?;
     let replayed_procedural_and_routes =
@@ -247,11 +266,11 @@ pub fn project_learning_from_store(
     let model_runtime_observations = project_model_runtime_observations_from_store(store)?.len();
     let learning_curves = learning_curve(&projected);
 
-    let mut lesson_ids = BTreeSet::<String>::new();
+    let mut lesson_ids = BTreeSet::<IngestLessonId>::new();
     for node in projected.nodes() {
         match node {
             MemoryNode::Incident(incident) if !incident.lesson_id.trim().is_empty() => {
-                lesson_ids.insert(incident.lesson_id.clone());
+                lesson_ids.insert(incident.lesson_id.retained());
             }
             MemoryNode::Lesson(_) | MemoryNode::Record(_) | MemoryNode::Incident(_) => {}
         }
@@ -260,7 +279,11 @@ pub fn project_learning_from_store(
     let recurrence_curves = lesson_ids
         .into_iter()
         .filter_map(|lesson_id| {
-            let curve = recurrence_curve(&projected, &lesson_id);
+            let Ok(evidence_lesson_id) = MemoryLessonId::try_from(lesson_id.as_str().retained())
+            else {
+                return None;
+            };
+            let curve = recurrence_curve(&projected, &evidence_lesson_id);
             if curve.is_empty() {
                 None
             } else {
@@ -270,11 +293,11 @@ pub fn project_learning_from_store(
         .collect();
 
     Ok(StoreLearningProjection {
-        replayed_incident_observations,
-        replayed_procedural_and_routes,
-        model_runtime_observations,
-        procedural_record_count: projected.procedural_records().len(),
-        route_trace_count: projected.route_traces().len(),
+        replayed_incident_observations: replayed_incident_observations.get().into(),
+        replayed_procedural_and_routes: replayed_procedural_and_routes.get().into(),
+        model_runtime_observations: model_runtime_observations.into(),
+        procedural_record_count: projected.procedural_records().len().into(),
+        route_trace_count: projected.route_traces().len().into(),
         learning_curves,
         recurrence_curves,
     })

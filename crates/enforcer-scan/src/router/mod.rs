@@ -20,38 +20,12 @@
 //! clean file.
 
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::scan_types::LanguageFamily;
 
 pub mod detect;
 pub mod native_tie;
 pub mod plan;
 pub mod scope;
-
-/// The language family a path routes to. This is deliberately the same
-/// partition the landed `enforcer-lang-*` crates use (arc-06 rust, arc-07
-/// ts, arc-08 py, arc-09 common/generic-scanner, arc-10 security, arc-11
-/// iac, arc-12 k8s) plus literal-scan (arc-13), which is family-agnostic
-/// and always runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LanguageFamily {
-    /// `.rs` — routes to `enforcer-lang-rust`.
-    Rust,
-    /// `.ts`/`.tsx`/`.js`/`.jsx`/`.mjs`/`.cjs` — routes to
-    /// `enforcer-lang-ts`.
-    TypeScript,
-    /// `.py` — routes to `enforcer-lang-py`.
-    Python,
-    /// `.tf` — routes to `enforcer-lang-iac` (Terraform slice).
-    Terraform,
-    /// `.yaml`/`.yml` whose content looks like a Kubernetes manifest or a
-    /// CloudFormation template — routes to `enforcer-lang-iac`
-    /// (CloudFormation slice) or `enforcer-lang-k8s`. This root classifies
-    /// by extension only; content-based CFN-vs-plain-YAML disambiguation
-    /// is a f05 feature-pack concern.
-    YamlOrConfig,
-    /// No family recognizes this extension. Not an error — routed to zero
-    /// language-family validators (literal-scan still runs on it).
-    Unknown,
-}
 
 /// Classify a repo-relative path into its [`LanguageFamily`] by extension.
 /// Pure and total: every path maps to exactly one family (falling back to
@@ -72,11 +46,12 @@ pub fn classify(path: &RelPath) -> LanguageFamily {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify, LanguageFamily};
+    use super::classify;
+    use enforcer_domain::scan_types::LanguageFamily;
     use std::str::FromStr;
 
-    fn rel(path: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
-        Ok(enforcer_domain::paths::RelPath::from_str(path)?)
+    fn rel(literal: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
+        Ok(enforcer_domain::paths::RelPath::from_str(literal)?)
     }
 
     #[test]

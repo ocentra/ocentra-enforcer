@@ -1,10 +1,14 @@
 //! Pure JSON-RPC framing + message types over MCP stdio.
 //!
+//! BOUNDARY-INVARIANT: framed raw stdio bytes and JSON-RPC DTOs are confined
+//! to this module; callers receive typed messages only after decoding.
+//! boundaryOwnerNote: enforcer-mcp owns MCP stdio framing and wire conversion.
+//!
 //! Ported (behavior-parity, no re-implementation drift) from the legacy
 //! `.mjs` transport pair `mcp/rust-rules-mcp-transport-frames.mjs` +
 //! `mcp/rust-rules-mcp-transport-messages.mjs`: dual framing, auto-detected
-//! per message — an `Content-Length:` header block (LSP-style) OR a bare
-//! NDJSON line — and the reply is always emitted in the SAME framing the
+//! per message â€” an `Content-Length:` header block (LSP-style) OR a bare
+//! NDJSON line â€” and the reply is always emitted in the SAME framing the
 //! request arrived in.
 //!
 //! This module is deliberately I/O-free: [`FrameReader`] consumes bytes
@@ -74,7 +78,10 @@ fn read_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
 
 fn is_content_length_prefix(buffer: &[u8]) -> bool {
     let probe_len = buffer.len().min(64);
-    let probe = String::from_utf8_lossy(&buffer[..probe_len]);
+    let Some(probe_bytes) = buffer.get(..probe_len) else {
+        return false;
+    };
+    let probe = String::from_utf8_lossy(probe_bytes);
     probe
         .trim_start()
         .to_ascii_lowercase()
@@ -83,7 +90,7 @@ fn is_content_length_prefix(buffer: &[u8]) -> bool {
 
 fn read_ndjson_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
     let newline_at = buffer.iter().position(|&b| b == b'\n')?;
-    let line = &buffer[..newline_at];
+    let line = buffer.get(..newline_at)?;
     let line = line.strip_suffix(b"\r").unwrap_or(line);
     let body = String::from_utf8_lossy(line).into_owned();
     Some((
@@ -97,14 +104,14 @@ fn read_ndjson_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
 
 fn read_content_length_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
     let (header_end, separator_len) = find_header_boundary(buffer)?;
-    let header = String::from_utf8_lossy(&buffer[..header_end]);
+    let header = String::from_utf8_lossy(buffer.get(..header_end)?);
     let content_length = parse_content_length(&header)?;
     let message_start = header_end + separator_len;
     let message_end = message_start.checked_add(content_length)?;
     if buffer.len() < message_end {
         return None;
     }
-    let body = String::from_utf8_lossy(&buffer[message_start..message_end]).into_owned();
+    let body = String::from_utf8_lossy(buffer.get(message_start..message_end)?).into_owned();
     Some((
         Frame {
             body,
@@ -158,76 +165,6 @@ pub fn encode_frame(body: &str, framing: Framing) -> Vec<u8> {
     }
 }
 
-/// A parsed JSON-RPC request/notification. `id` absent + `method` starting
-/// with `notifications/` marks a fire-and-forget notification (never
-/// replied to), matching `isNotification` in the legacy `.mjs` transport.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct RpcMessage {
-    #[serde(default)]
-    pub id: Option<serde_json::Value>,
-    pub method: String,
-    #[serde(default)]
-    pub params: Option<serde_json::Value>,
-}
-
-impl RpcMessage {
-    /// True for a fire-and-forget notification (no reply expected).
-    pub fn is_notification(&self) -> bool {
-        self.id.is_none() && self.method.starts_with("notifications/")
-    }
-}
-
-/// A JSON-RPC success reply.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct RpcResult {
-    pub jsonrpc: &'static str,
-    pub id: serde_json::Value,
-    pub result: serde_json::Value,
-}
-
-impl RpcResult {
-    pub fn new(id: serde_json::Value, result: serde_json::Value) -> Self {
-        Self {
-            jsonrpc: "2.0",
-            id,
-            result,
-        }
-    }
-}
-
-/// A JSON-RPC error reply. Standard JSON-RPC error codes: `-32700` parse
-/// error, `-32601` method not found, `-32603` internal error (mirrors the
-/// legacy `.mjs` transport's exact codes).
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct RpcError {
-    pub jsonrpc: &'static str,
-    pub id: serde_json::Value,
-    pub error: RpcErrorBody,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct RpcErrorBody {
-    pub code: i64,
-    pub message: String,
-}
-
-impl RpcError {
-    pub const PARSE_ERROR: i64 = -32700;
-    pub const METHOD_NOT_FOUND: i64 = -32601;
-    pub const INTERNAL_ERROR: i64 = -32603;
-
-    pub fn new(id: serde_json::Value, code: i64, message: impl Into<String>) -> Self {
-        Self {
-            jsonrpc: "2.0",
-            id,
-            error: RpcErrorBody {
-                code,
-                message: message.into(),
-            },
-        }
-    }
-}
-
 /// A queue-based helper used by tests (and available to [`crate::sink`]) to
 /// drain a byte stream in fixed-size chunks, mimicking chunked stdin reads
 /// without depending on real I/O.
@@ -238,7 +175,8 @@ pub fn chunk_bytes(bytes: &[u8], chunk_size: usize) -> VecDeque<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{encode_frame, FrameReader, Framing, RpcMessage};
+    use super::{encode_frame, FrameReader, Framing};
+    use crate::boundary::rpc_request::RpcMessageDto;
 
     #[test]
     fn ndjson_frame_round_trips() -> Result<(), Box<dyn std::error::Error>> {
@@ -246,7 +184,7 @@ mod tests {
         let frames = reader.push(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n");
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].framing, Framing::Ndjson);
-        let message: RpcMessage = serde_json::from_str(&frames[0].body)?;
+        let message: RpcMessageDto = serde_json::from_str(&frames[0].body)?;
         assert_eq!(message.method, "ping");
 
         let encoded = encode_frame("{\"ok\":true}", Framing::Ndjson);
@@ -310,21 +248,22 @@ mod tests {
     #[test]
     fn malformed_json_body_is_a_fail_fixture_for_the_router_layer() {
         // transport.rs itself does not parse JSON payload semantics beyond
-        // RpcMessage's shape; a malformed body still yields ONE frame (the
+        // RpcMessageDto's shape; a malformed body still yields ONE frame (the
         // framing layer's job), and the router/sink layer is responsible
-        // for turning the JSON parse failure into a -32700 RpcError. This
+        // for turning the JSON parse failure into a -32700 RpcErrorDto. This
         // fixture documents that boundary.
         let mut reader = FrameReader::new();
         let frames = reader.push(b"not json at all\n");
         assert_eq!(frames.len(), 1);
-        assert!(serde_json::from_str::<RpcMessage>(&frames[0].body).is_err());
+        assert!(serde_json::from_str::<RpcMessageDto>(&frames[0].body).is_err());
     }
 
     #[test]
     fn notification_detection_matches_legacy_semantics() -> Result<(), Box<dyn std::error::Error>> {
-        let notif: RpcMessage = serde_json::from_str("{\"method\":\"notifications/initialized\"}")?;
+        let notif: RpcMessageDto =
+            serde_json::from_str("{\"method\":\"notifications/initialized\"}")?;
         assert!(notif.is_notification());
-        let request: RpcMessage = serde_json::from_str("{\"id\":1,\"method\":\"ping\"}")?;
+        let request: RpcMessageDto = serde_json::from_str("{\"id\":1,\"method\":\"ping\"}")?;
         assert!(!request.is_notification());
         Ok(())
     }

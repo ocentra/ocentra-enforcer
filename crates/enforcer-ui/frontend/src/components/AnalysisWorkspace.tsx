@@ -72,9 +72,9 @@ export type AnalysisRun = TestDoctrineAnalysisRun | UiLogicCouplingAnalysisRun;
 /** Defines analysis workspace state supplied by the desktop shell. */
 export type AnalysisWorkspaceProps = {
   kind: AnalysisRunKind;
-  run?: AnalysisRun;
+  run?: AnalysisRun | undefined;
   loading: boolean;
-  error?: string;
+  error?: string | undefined;
   onKindChange: (kind: AnalysisRunKind) => void;
   onRun: () => void;
 };

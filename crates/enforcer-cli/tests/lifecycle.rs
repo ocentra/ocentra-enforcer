@@ -22,9 +22,17 @@
 
 use std::path::Path;
 
-use enforcer_cli::lifecycle::{run_check, run_review, CheckScope, ExitCodeShim, ReviewRequest};
-use enforcer_proof::envelope::{GitState, ProofRun, ProofStatus};
-use enforcer_proof::harness::ProofDefinition;
+use enforcer_cli::lifecycle::oracle::ReviewArgs;
+use enforcer_cli::lifecycle::{run_check, run_review};
+use enforcer_domain::cli_types::{CheckScope, PhaseVerdict};
+use enforcer_domain::core_types::ExitCode;
+use enforcer_domain::proof_types::{
+    ClaimId, GitCommit, GitRefName, ProofCapability, ProofCollector, ProofFamily, ProofId,
+    ProofRunId, ProofStatus,
+};
+use enforcer_domain::severity::Severity;
+use enforcer_proof::envelope::{GitStateEnvelope, ProofRunEnvelope};
+use enforcer_proof::harness::ProofDefinitionEnvelope;
 
 fn write_pass_fixture(root: &Path) -> std::io::Result<()> {
     let dir = root.join("src");
@@ -76,13 +84,13 @@ fn check_phase_passes_on_a_clean_fixture_tree() -> Result<(), Box<dyn std::error
     write_pass_fixture(temp.path())?;
     let outcome = run_check_in(
         temp.path(),
-        &CheckScope {
-            paths: vec![std::path::PathBuf::from("src/lib.rs")],
-        },
+        &CheckScope::new(vec![enforcer_domain::cli_types::CliSelectedPath::new(
+            std::path::PathBuf::from("src/lib.rs"),
+        )?]),
     )?;
     assert_eq!(
         outcome.exit_code,
-        ExitCodeShim::Success,
+        ExitCode::Success,
         "clean fixture tree must pass the check phase oracle, got {:?}",
         outcome.verdict
     );
@@ -96,18 +104,18 @@ fn check_phase_reports_violations_class_on_a_fail_fixture_tree(
     write_fail_fixture(temp.path())?;
     let outcome = run_check_in(
         temp.path(),
-        &CheckScope {
-            paths: vec![std::path::PathBuf::from("src/lib.rs")],
-        },
+        &CheckScope::new(vec![enforcer_domain::cli_types::CliSelectedPath::new(
+            std::path::PathBuf::from("src/lib.rs"),
+        )?]),
     )?;
     assert_eq!(
         outcome.exit_code,
-        ExitCodeShim::Violations,
+        ExitCode::Violations,
         "a phase reports success while its oracle returns fail -> this must not happen; \
          a fail fixture must force a non-success exit, got {:?}",
         outcome.verdict
     );
-    assert!(!outcome.verdict.is_pass());
+    assert!(!matches!(outcome.verdict, Ok(PhaseVerdict::Pass)));
     Ok(())
 }
 
@@ -116,16 +124,17 @@ fn check_phase_all_scope_also_reports_violations_on_fail_fixture(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     write_fail_fixture(temp.path())?;
-    let outcome = run_check_in(temp.path(), &CheckScope { paths: vec![] })?;
-    assert_eq!(outcome.exit_code, ExitCodeShim::Violations);
+    let outcome = run_check_in(temp.path(), &CheckScope::default())?;
+    assert_eq!(outcome.exit_code, ExitCode::Violations);
     Ok(())
 }
 
 #[test]
-fn review_without_proof_rows_is_blocked() {
-    let outcome = run_review(&ReviewRequest {
-        proof_ids: vec!["d06-lifecycle".to_owned()],
-        current_git: GitState::default(),
+fn review_without_proof_rows_is_blocked() -> Result<(), Box<dyn std::error::Error>> {
+    let outcome = run_review(&ReviewArgs {
+        claim_id: ClaimId::try_from("lifecycle-review".to_owned())?,
+        proof_ids: vec![ProofId::try_from("d06-lifecycle".to_owned())?],
+        current_git: GitStateEnvelope::default(),
         latest_run: &|_| None,
         definition: &|_| None,
         artifact_exists: &|_| true,
@@ -133,23 +142,25 @@ fn review_without_proof_rows_is_blocked() {
     });
     assert_ne!(
         outcome.exit_code,
-        ExitCodeShim::Success,
+        ExitCode::Success,
         "review w/o proof rows -> non-zero, got {:?}",
         outcome.verdict
     );
+    Ok(())
 }
 
 #[test]
-fn review_with_a_passed_clean_proof_row_passes() {
-    let run = ProofRun {
+fn review_with_a_passed_clean_proof_row_passes() -> Result<(), Box<dyn std::error::Error>> {
+    let proof_id = ProofId::try_from("d06-lifecycle".to_owned())?;
+    let run = ProofRunEnvelope {
         schema_version: 1,
-        proof_id: "d06-lifecycle".to_owned(),
-        run_id: "run-1".to_owned(),
+        proof_id: proof_id.clone(),
+        run_id: ProofRunId::try_from("run-1".to_owned())?,
         title: "d06 lifecycle proof".to_owned(),
-        capability: "local".to_owned(),
-        git: GitState {
-            commit: Some("deadbeef".to_owned()),
-            branch: Some("lane/d06".to_owned()),
+        capability: ProofCapability::try_from("local".to_owned())?,
+        git: GitStateEnvelope {
+            commit: Some(GitCommit::try_from("deadbeef".to_owned())?),
+            branch: Some(GitRefName::try_from("lane/d06".to_owned())?),
             dirty: Some(false),
         },
         status: ProofStatus::Passed,
@@ -163,16 +174,16 @@ fn review_with_a_passed_clean_proof_row_passes() {
         claims_proved: vec![],
         claims_not_proved: vec![],
     };
-    let definition = ProofDefinition {
-        id: "d06-lifecycle".to_owned(),
+    let definition = ProofDefinitionEnvelope {
+        id: proof_id.clone(),
         title: "d06 lifecycle proof".to_owned(),
-        family: "command".to_owned(),
-        severity: "error".to_owned(),
+        family: ProofFamily::try_from("command".to_owned())?,
+        severity: Severity::Error,
         applies_to: vec![],
         triggers: vec![],
         languages: vec![],
-        capabilities: vec!["local".to_owned()],
-        collector: "command".to_owned(),
+        capabilities: vec![ProofCapability::try_from("local".to_owned())?],
+        collector: ProofCollector::try_from("command".to_owned())?,
         docs: vec![],
         commands: vec![],
         required_artifacts: vec![],
@@ -183,11 +194,12 @@ fn review_with_a_passed_clean_proof_row_passes() {
         ci_support: true,
         device_support: false,
     };
-    let outcome = run_review(&ReviewRequest {
-        proof_ids: vec!["d06-lifecycle".to_owned()],
-        current_git: GitState {
-            commit: Some("deadbeef".to_owned()),
-            branch: Some("lane/d06".to_owned()),
+    let outcome = run_review(&ReviewArgs {
+        claim_id: ClaimId::try_from("lifecycle-review".to_owned())?,
+        proof_ids: vec![proof_id],
+        current_git: GitStateEnvelope {
+            commit: Some(GitCommit::try_from("deadbeef".to_owned())?),
+            branch: Some(GitRefName::try_from("lane/d06".to_owned())?),
             dirty: Some(false),
         },
         latest_run: &move |_| Some(run.clone()),
@@ -197,10 +209,11 @@ fn review_with_a_passed_clean_proof_row_passes() {
     });
     assert_eq!(
         outcome.exit_code,
-        ExitCodeShim::Success,
+        ExitCode::Success,
         "a green proof row + matching commit must pass, got {:?}",
         outcome.verdict
     );
+    Ok(())
 }
 
 #[test]
@@ -211,14 +224,14 @@ fn plan_implement_fix_phases_never_report_success_with_no_landed_oracle() {
     // landed a Rust oracle on this branch yet.
     assert_ne!(
         enforcer_cli::lifecycle::run_plan().exit_code,
-        ExitCodeShim::Success
+        ExitCode::Success
     );
     assert_ne!(
         enforcer_cli::lifecycle::run_implement().exit_code,
-        ExitCodeShim::Success
+        ExitCode::Success
     );
     assert_ne!(
         enforcer_cli::lifecycle::run_fix().exit_code,
-        ExitCodeShim::Success
+        ExitCode::Success
     );
 }

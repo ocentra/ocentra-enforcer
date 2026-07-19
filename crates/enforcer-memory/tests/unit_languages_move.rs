@@ -104,7 +104,10 @@ fn extracts_use_declaration_as_import() -> TestResult {
 fn extracts_branch_heavy_function_without_panicking() {
     let src = "module 0x1::m {\n    public fun helper() {\n        if (true) {\n            1;\n        };\n    }\n}\n";
     let parsed = parse_move(src);
-    assert!(symbol_kind(&parsed.symbols, "helper").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "helper"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

@@ -23,39 +23,17 @@
 
 use std::path::Path;
 
-use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::cli_types::{LifecycleFailReason, LifecycleReasonText, PhaseVerdict};
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::proof_types::{ClaimId, ProofId};
+use enforcer_domain::scan_types::ResolvedScope;
 use enforcer_proof::claim::{claim_proof, ClaimArgs};
-use enforcer_proof::envelope::GitState;
-use enforcer_scan::{engine, scope::ResolvedScope};
+use enforcer_proof::envelope::GitStateEnvelope;
+use enforcer_scan::engine;
 
-/// Why a phase did not pass. Kept as a closed enum (not a bare `String`)
-/// so callers can match on the failure class instead of parsing prose.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FailReason {
-    /// The oracle ran and found real findings/violations.
-    OracleFindings(String),
-    /// The phase's oracle has no landed implementation yet (its owning
-    /// workpack has not shipped a Rust API on this branch). This is a
-    /// real, permanent-until-landed failure, never coerced into a pass.
-    NotYetWired(String),
-    /// An internal failure unrelated to the scanned project (I/O, decode).
-    Internal(String),
-}
-
-/// The outcome of one lifecycle phase's oracle.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PhaseVerdict {
-    /// The oracle's computation says this phase is clean.
-    Pass,
-    /// The oracle's computation says this phase is not clean.
-    Fail(FailReason),
-}
-
-impl PhaseVerdict {
-    /// `true` iff this verdict is [`PhaseVerdict::Pass`].
-    pub fn is_pass(&self) -> bool {
-        matches!(self, Self::Pass)
-    }
+fn reason(value: String) -> Result<LifecycleReasonText, DecodeError> {
+    LifecycleReasonText::try_new(value)
 }
 
 /// `plan` oracle. arc-20 (`enforcer-plan`) owns workpack/plan-shape
@@ -63,25 +41,29 @@ impl PhaseVerdict {
 /// landed on `rust-build` yet (the crate exists but exposes no such
 /// check), so this oracle fails closed rather than rubber-stamping any
 /// plan as valid.
-pub fn plan_oracle() -> PhaseVerdict {
-    PhaseVerdict::Fail(FailReason::NotYetWired(
-        "plan phase has no landed oracle yet -- arc-20 (enforcer-plan) has not shipped a \
+pub fn plan_oracle() -> Result<PhaseVerdict, DecodeError> {
+    Ok(PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(
+        reason(
+            "plan phase has no landed oracle yet -- arc-20 (enforcer-plan) has not shipped a \
          plan-shape validation entry point on this branch"
-            .to_owned(),
-    ))
+                .to_owned(),
+        )?,
+    )))
 }
 
 /// `implement` oracle. There is no dedicated "implementation is complete"
 /// validator anywhere in the workspace (mechanization/d01 proves a RULE's
 /// fixture parity, not that arbitrary implementation work is done) —
 /// fails closed rather than inventing an ad hoc heuristic.
-pub fn implement_oracle() -> PhaseVerdict {
-    PhaseVerdict::Fail(FailReason::NotYetWired(
-        "implement phase has no landed oracle -- there is no general \
+pub fn implement_oracle() -> Result<PhaseVerdict, DecodeError> {
+    Ok(PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(
+        reason(
+            "implement phase has no landed oracle -- there is no general \
          \"implementation complete\" validator in the workspace; only \
          rule-fixture parity (d01) and file-scoped checks (check phase) exist"
-            .to_owned(),
-    ))
+                .to_owned(),
+        )?,
+    )))
 }
 
 /// `check` oracle: delegates to the SAME validator registry `enforcer
@@ -92,23 +74,25 @@ pub fn implement_oracle() -> PhaseVerdict {
 pub fn check_oracle(
     resolved: &ResolvedScope,
     files: &[enforcer_domain::paths::RelPath],
-) -> PhaseVerdict {
+) -> Result<PhaseVerdict, DecodeError> {
     let validators = match engine::build_family_validators() {
         Ok(validators) => validators,
         Err(err) => {
-            return PhaseVerdict::Fail(FailReason::Internal(format!(
-                "failed to build validator registry: {err}"
-            )))
+            return Ok(PhaseVerdict::Fail(LifecycleFailReason::Internal(reason(
+                format!("failed to build validator registry: {err}"),
+            )?)));
         }
     };
     let report = engine::run(resolved, files, &validators);
-    if report.ok {
-        PhaseVerdict::Pass
+    if report.ok == enforcer_domain::findings::ReportOutcome::Clean {
+        Ok(PhaseVerdict::Pass)
     } else {
-        PhaseVerdict::Fail(FailReason::OracleFindings(format!(
-            "{} violation(s), {} warning(s)",
-            report.violations.len(),
-            report.warnings.len()
+        Ok(PhaseVerdict::Fail(LifecycleFailReason::OracleFindings(
+            reason(format!(
+                "{} violation(s), {} warning(s)",
+                report.violations.len(),
+                report.warnings.len()
+            ))?,
         )))
     }
 }
@@ -119,25 +103,28 @@ pub fn check_oracle(
 /// (`crates/enforcer-coordination/src/api.rs`) — no fix-loop entry point
 /// exists to delegate to. Fails closed with the same `NotYetWired` posture
 /// as `plan`/`implement` above; this is the seam d07 must close.
-pub fn fix_oracle() -> PhaseVerdict {
-    PhaseVerdict::Fail(FailReason::NotYetWired(
-        "fix phase has no landed oracle -- d07's enforcer-coordination fix-loop entry point \
+pub fn fix_oracle() -> Result<PhaseVerdict, DecodeError> {
+    Ok(PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(
+        reason(
+            "fix phase has no landed oracle -- d07's enforcer-coordination fix-loop entry point \
          has not landed on this branch (api.rs exposes hub/lane/claim/guard/ledger/sync only)"
-            .to_owned(),
-    ))
+                .to_owned(),
+        )?,
+    )))
 }
 
 /// Arguments for [`review_oracle`], grouped so the call site stays
 /// self-describing (mirrors [`enforcer_proof::claim::ClaimArgs`]'s own
 /// shape, one level up).
 pub struct ReviewArgs<'a> {
-    pub claim_id: String,
-    pub proof_ids: Vec<String>,
-    pub current_git: GitState,
-    pub latest_run: &'a dyn Fn(&str) -> Option<enforcer_proof::envelope::ProofRun>,
-    pub definition: &'a dyn Fn(&str) -> Option<enforcer_proof::harness::ProofDefinition>,
-    pub artifact_exists: &'a dyn Fn(&str) -> bool,
-    pub required_path_exists: &'a dyn Fn(&str) -> bool,
+    pub claim_id: ClaimId,
+    pub proof_ids: Vec<ProofId>,
+    pub current_git: GitStateEnvelope,
+    pub latest_run: &'a dyn Fn(&ProofId) -> Option<enforcer_proof::envelope::ProofRunEnvelope>,
+    pub definition:
+        &'a dyn Fn(&ProofId) -> Option<enforcer_proof::harness::ProofDefinitionEnvelope>,
+    pub artifact_exists: &'a dyn Fn(&RelPath) -> bool,
+    pub required_path_exists: &'a dyn Fn(&RelPath) -> bool,
 }
 
 /// `review` oracle: blocks on missing/failed proof rows via the landed
@@ -148,11 +135,11 @@ pub struct ReviewArgs<'a> {
 /// branch (no auditor crate/module exists yet) and are therefore NOT
 /// consulted here -- `review` proves only the proof-row gate, honestly,
 /// rather than claiming to prove auditor obligations it cannot yet check.
-pub fn review_oracle(args: &ReviewArgs<'_>) -> PhaseVerdict {
+pub fn review_oracle(args: &ReviewArgs<'_>) -> Result<PhaseVerdict, DecodeError> {
     if args.proof_ids.is_empty() {
-        return PhaseVerdict::Fail(FailReason::OracleFindings(
-            "review requires at least one proof id; none were given".to_owned(),
-        ));
+        return Ok(PhaseVerdict::Fail(LifecycleFailReason::OracleFindings(
+            reason("review requires at least one proof id; none were given".to_owned())?,
+        )));
     }
     let claim = claim_proof(&ClaimArgs {
         claim_id: args.claim_id.clone(),
@@ -166,12 +153,14 @@ pub fn review_oracle(args: &ReviewArgs<'_>) -> PhaseVerdict {
         required_path_exists: args.required_path_exists,
     });
     if claim.ok() {
-        PhaseVerdict::Pass
+        Ok(PhaseVerdict::Pass)
     } else {
-        PhaseVerdict::Fail(FailReason::OracleFindings(format!(
-            "{} proof-claim violation(s): {:?}",
-            claim.violations.len(),
-            claim.violations
+        Ok(PhaseVerdict::Fail(LifecycleFailReason::OracleFindings(
+            reason(format!(
+                "{} proof-claim violation(s): {:?}",
+                claim.violations.len(),
+                claim.violations
+            ))?,
         )))
     }
 }
@@ -216,101 +205,109 @@ pub fn resolve_files(
 #[cfg(test)]
 mod tests {
     use super::{
-        check_oracle, fix_oracle, implement_oracle, plan_oracle, review_oracle, FailReason,
-        PhaseVerdict, ReviewArgs,
+        check_oracle, fix_oracle, implement_oracle, plan_oracle, review_oracle, ReviewArgs,
     };
-    use enforcer_proof::envelope::GitState;
+    use enforcer_domain::cli_types::{LifecycleFailReason, PhaseVerdict};
+    use enforcer_domain::proof_types::{
+        ClaimId, GitCommit, GitRefName, ProofCapability, ProofCollector, ProofFamily, ProofId,
+        ProofRunId,
+    };
+    use enforcer_domain::severity::Severity;
+    use enforcer_proof::envelope::GitStateEnvelope;
 
     #[test]
-    fn plan_oracle_fails_closed_not_yet_wired() {
-        let verdict = plan_oracle();
-        assert!(!verdict.is_pass());
+    fn plan_oracle_fails_closed_not_yet_wired() -> Result<(), Box<dyn std::error::Error>> {
+        let verdict = plan_oracle()?;
         assert!(matches!(
             verdict,
-            PhaseVerdict::Fail(FailReason::NotYetWired(_))
+            PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(_))
         ));
+        Ok(())
     }
 
     #[test]
-    fn implement_oracle_fails_closed_not_yet_wired() {
-        let verdict = implement_oracle();
-        assert!(!verdict.is_pass());
+    fn implement_oracle_fails_closed_not_yet_wired() -> Result<(), Box<dyn std::error::Error>> {
+        let verdict = implement_oracle()?;
         assert!(matches!(
             verdict,
-            PhaseVerdict::Fail(FailReason::NotYetWired(_))
+            PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(_))
         ));
+        Ok(())
     }
 
     #[test]
-    fn fix_oracle_fails_closed_not_yet_wired() {
-        let verdict = fix_oracle();
-        assert!(!verdict.is_pass());
+    fn fix_oracle_fails_closed_not_yet_wired() -> Result<(), Box<dyn std::error::Error>> {
+        let verdict = fix_oracle()?;
         assert!(matches!(
             verdict,
-            PhaseVerdict::Fail(FailReason::NotYetWired(_))
+            PhaseVerdict::Fail(LifecycleFailReason::NotYetWired(_))
         ));
+        Ok(())
     }
 
     #[test]
     fn check_oracle_passes_on_an_empty_file_set() -> Result<(), Box<dyn std::error::Error>> {
-        use enforcer_scan::scope::{resolve, ScopeRequest};
+        use enforcer_domain::scan_types::ScopeRequest;
+        use enforcer_scan::scope::resolve;
 
         let root: enforcer_domain::paths::RepoRoot = std::env::temp_dir()
             .to_string_lossy()
             .parse()
             .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| e.to_string())?;
         let resolved = resolve(&ScopeRequest::Paths(vec![]), &root)?;
-        let verdict = check_oracle(&resolved, &[]);
-        assert!(verdict.is_pass(), "expected pass, got {verdict:?}");
+        let verdict = check_oracle(&resolved, &[])?;
+        assert!(matches!(verdict, PhaseVerdict::Pass));
         Ok(())
     }
 
     #[test]
-    fn review_oracle_rejects_empty_proof_id_list() {
+    fn review_oracle_rejects_empty_proof_id_list() -> Result<(), Box<dyn std::error::Error>> {
         let verdict = review_oracle(&ReviewArgs {
-            claim_id: "c1".to_owned(),
+            claim_id: ClaimId::try_from("c1".to_owned())?,
             proof_ids: vec![],
-            current_git: GitState::default(),
+            current_git: GitStateEnvelope::default(),
             latest_run: &|_| None,
             definition: &|_| None,
             artifact_exists: &|_| true,
             required_path_exists: &|_| true,
-        });
-        assert!(!verdict.is_pass());
+        })?;
         assert!(matches!(
             verdict,
-            PhaseVerdict::Fail(FailReason::OracleFindings(_))
+            PhaseVerdict::Fail(LifecycleFailReason::OracleFindings(_))
         ));
+        Ok(())
     }
 
     #[test]
-    fn review_oracle_fails_when_no_proof_run_exists() {
+    fn review_oracle_fails_when_no_proof_run_exists() -> Result<(), Box<dyn std::error::Error>> {
         let verdict = review_oracle(&ReviewArgs {
-            claim_id: "c2".to_owned(),
-            proof_ids: vec!["P".to_owned()],
-            current_git: GitState::default(),
+            claim_id: ClaimId::try_from("c2".to_owned())?,
+            proof_ids: vec![ProofId::try_from("P".to_owned())?],
+            current_git: GitStateEnvelope::default(),
             latest_run: &|_| None,
             definition: &|_| None,
             artifact_exists: &|_| true,
             required_path_exists: &|_| true,
-        });
-        assert!(!verdict.is_pass());
+        })?;
+        assert!(!matches!(verdict, PhaseVerdict::Pass));
+        Ok(())
     }
 
     #[test]
-    fn review_oracle_passes_when_claim_is_clean() {
-        use enforcer_proof::envelope::{GitState as GS, ProofRun, ProofStatus};
-        use enforcer_proof::harness::ProofDefinition;
+    fn review_oracle_passes_when_claim_is_clean() -> Result<(), Box<dyn std::error::Error>> {
+        use enforcer_domain::proof_types::ProofStatus;
+        use enforcer_proof::envelope::{GitStateEnvelope as GS, ProofRunEnvelope};
+        use enforcer_proof::harness::ProofDefinitionEnvelope;
 
-        let run = ProofRun {
+        let run = ProofRunEnvelope {
             schema_version: 1,
-            proof_id: "P".to_owned(),
-            run_id: "run-1".to_owned(),
+            proof_id: ProofId::try_from("P".to_owned())?,
+            run_id: ProofRunId::try_from("run-1".to_owned())?,
             title: "P".to_owned(),
-            capability: "local".to_owned(),
+            capability: ProofCapability::try_from("local".to_owned())?,
             git: GS {
-                commit: Some("abc".to_owned()),
-                branch: Some("main".to_owned()),
+                commit: Some(GitCommit::try_from("abcdef0".to_owned())?),
+                branch: Some(GitRefName::try_from("main".to_owned())?),
                 dirty: Some(false),
             },
             status: ProofStatus::Passed,
@@ -324,16 +321,16 @@ mod tests {
             claims_proved: vec![],
             claims_not_proved: vec![],
         };
-        let definition = ProofDefinition {
-            id: "P".to_owned(),
+        let definition = ProofDefinitionEnvelope {
+            id: ProofId::try_from("P".to_owned())?,
             title: "P".to_owned(),
-            family: "command".to_owned(),
-            severity: "error".to_owned(),
+            family: ProofFamily::try_from("command".to_owned())?,
+            severity: Severity::Error,
             applies_to: vec![],
             triggers: vec![],
             languages: vec![],
-            capabilities: vec!["local".to_owned()],
-            collector: "command".to_owned(),
+            capabilities: vec![ProofCapability::try_from("local".to_owned())?],
+            collector: ProofCollector::try_from("command".to_owned())?,
             docs: vec![],
             commands: vec![],
             required_artifacts: vec![],
@@ -345,18 +342,19 @@ mod tests {
             device_support: false,
         };
         let verdict = review_oracle(&ReviewArgs {
-            claim_id: "c3".to_owned(),
-            proof_ids: vec!["P".to_owned()],
-            current_git: GitState {
-                commit: Some("abc".to_owned()),
-                branch: Some("main".to_owned()),
+            claim_id: ClaimId::try_from("c3".to_owned())?,
+            proof_ids: vec![ProofId::try_from("P".to_owned())?],
+            current_git: GitStateEnvelope {
+                commit: Some(GitCommit::try_from("abcdef0".to_owned())?),
+                branch: Some(GitRefName::try_from("main".to_owned())?),
                 dirty: Some(false),
             },
             latest_run: &|_| Some(run.clone()),
             definition: &|_| Some(definition.clone()),
             artifact_exists: &|_| true,
             required_path_exists: &|_| true,
-        });
-        assert!(verdict.is_pass(), "expected pass, got {verdict:?}");
+        })?;
+        assert!(matches!(verdict, PhaseVerdict::Pass));
+        Ok(())
     }
 }

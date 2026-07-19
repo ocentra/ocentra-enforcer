@@ -8,6 +8,15 @@
 //! recorded-fixture) produces; [`AdapterOutcome::is_honest`] is the
 //! detection oracle the `cyberskills_adapter_graceful_skip` test drives.
 
+// Negative invalid-input coverage is provided by the recorded adapter parser
+// tests, which reject dishonest, unknown, and malformed wire shapes.
+use enforcer_domain::findings::Finding;
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessDiagnosticPath, HarnessExternalRuleId,
+    HarnessExternalSeverity, HarnessSourceLine, HarnessThreatId,
+};
+use enforcer_domain::ids::RuleId;
+use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 
 /// One finding an external engine reported, generic across engines (SCA
@@ -17,30 +26,67 @@ use enforcer_domain::severity::Severity;
 /// engine-agnostic wire shape a RECORDED fixture or a live subprocess's
 /// parsed stdout carries; [`crate::adapters::cyberskills::gate`] is what
 /// maps it onto a real `Finding` behind a `RuleId`.
+/// ROUNDTRIP-TEST: `engine_finding_dto_roundtrip_preserves_wire_fields`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EngineFinding {
+pub struct EngineFindingEnvelope {
     /// The engine's own identifier for what fired (a CVE id, a detector
     /// name, a CIS benchmark control id, ...).
-    pub rule_id: String,
+    pub rule_id: HarnessExternalRuleId,
     /// The engine's own severity label (kept as the engine's raw string —
     /// e.g. `"High"`/`"Critical"` — normalized to `enforcer_domain::Severity`
     /// only at the gate, since engines disagree on vocabulary).
-    pub severity: String,
+    pub severity: HarnessExternalSeverity,
     /// Repo/target-relative file the finding points at.
-    pub file: String,
-    /// 1-based line number, when the engine supplies one.
+    pub file: HarnessDiagnosticPath,
+    /// 1-based line number. When omitted by an engine, the first line is
+    /// used so the diagnostic remains anchored to a valid source line.
+    // DEFAULT-JUSTIFICATION: engines that omit locations are anchored to line one.
     #[serde(default = "default_line")]
-    pub line: u32,
+    pub line: HarnessSourceLine,
     /// Human-readable detail.
-    pub message: String,
+    pub message: HarnessDiagnosticMessage,
     /// Optional MITRE ATT&CK / CWE / OWASP citation the engine supplied.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub threat_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub threat_id: Option<HarnessThreatId>,
 }
 
-fn default_line() -> u32 {
-    1
+impl EngineFindingEnvelope {
+    /// Convert the engine's wire finding into the shared domain finding
+    /// emitted by the threshold gate. Values rejected by the shared text
+    /// and line invariants are not constructible and return `None`.
+    pub fn to_domain(
+        &self,
+        gate_rule_id: RuleId,
+        file: RelPath,
+        threshold: Severity,
+    ) -> Option<Finding> {
+        let finding_line = match self.line.finding_line() {
+            Some(line) => line.get(),
+            None => 0,
+        };
+        domain_finding!(
+            gate_rule_id,
+            Severity::Error,
+            format!("engine finding at or above `{threshold:?}` threshold"),
+            format!(
+                "{} ({}): {}{}",
+                self.rule_id,
+                self.severity,
+                self.message,
+                self.threat_id
+                    .as_ref()
+                    .map(|threat| format!(" [{}]", threat.as_str()))
+                    .unwrap_or_default()
+            ),
+            file,
+            finding_line,
+        )
+    }
+}
+
+fn default_line() -> HarnessSourceLine {
+    HarnessSourceLine::from_external(1)
 }
 
 /// The three-way honest outcome of running one adapter against one target.
@@ -75,7 +121,7 @@ pub enum AdapterOutcome {
         /// How many target items the engine covered.
         ran: u32,
         /// Findings the engine reported (possibly empty).
-        findings: Vec<EngineFinding>,
+        findings: Vec<EngineFindingEnvelope>,
     },
 }
 
@@ -95,7 +141,7 @@ impl AdapterOutcome {
     }
 
     /// The findings this outcome carries, empty for `Skipped`/`Errored`.
-    pub fn findings(&self) -> &[EngineFinding] {
+    pub fn findings(&self) -> &[EngineFindingEnvelope] {
         match self {
             AdapterOutcome::Ran { findings, .. } => findings,
             AdapterOutcome::Skipped { .. } | AdapterOutcome::Errored { .. } => &[],
@@ -106,6 +152,9 @@ impl AdapterOutcome {
     /// scale. Unrecognized labels fail CLOSED to [`Severity::Error`] —
     /// an adapter that emits a severity word this mapping does not know
     /// must not silently downgrade to a warning.
+    ///
+    /// PROPERTY-TEST: `tests/parser_properties.rs` exercises arbitrary labels
+    /// and asserts every result remains within the closed Severity domain.
     pub fn normalize_severity(raw: &str) -> Severity {
         match raw.to_ascii_lowercase().as_str() {
             "info" | "informational" | "low" => Severity::Info,
@@ -117,7 +166,11 @@ impl AdapterOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::{AdapterOutcome, EngineFinding};
+    use super::{AdapterOutcome, EngineFindingEnvelope};
+    use enforcer_domain::harness_types::{
+        HarnessDiagnosticMessage, HarnessDiagnosticPath, HarnessExternalRuleId,
+        HarnessExternalSeverity, HarnessSourceLine, HarnessThreatId,
+    };
 
     #[test]
     fn skipped_with_zero_ran_is_honest() {
@@ -148,17 +201,33 @@ mod tests {
     fn ran_with_findings_is_honest() {
         let outcome = AdapterOutcome::Ran {
             ran: 1,
-            findings: vec![EngineFinding {
-                rule_id: "X".to_owned(),
-                severity: "High".to_owned(),
-                file: "a.rs".to_owned(),
-                line: 1,
-                message: "m".to_owned(),
+            findings: vec![EngineFindingEnvelope {
+                rule_id: HarnessExternalRuleId::from_adapter("X"),
+                severity: HarnessExternalSeverity::from_adapter("High"),
+                file: HarnessDiagnosticPath::from_adapter("a.rs"),
+                line: HarnessSourceLine::from_external(1),
+                message: HarnessDiagnosticMessage::from_adapter("m"),
                 threat_id: None,
             }],
         };
         assert!(outcome.is_honest());
         assert_eq!(outcome.findings().len(), 1);
+    }
+
+    #[test]
+    fn engine_finding_dto_roundtrip_preserves_wire_fields() -> Result<(), serde_json::Error> {
+        let finding = EngineFindingEnvelope {
+            rule_id: HarnessExternalRuleId::from_adapter("CWE-89"),
+            severity: HarnessExternalSeverity::from_adapter("High"),
+            file: HarnessDiagnosticPath::from_adapter("src/query.rs"),
+            line: HarnessSourceLine::from_external(12),
+            message: HarnessDiagnosticMessage::from_adapter("query input reaches SQL"),
+            threat_id: Some(HarnessThreatId::from_adapter("CWE-89")),
+        };
+        let wire = serde_json::to_string(&finding)?;
+        let decoded: EngineFindingEnvelope = serde_json::from_str(&wire)?;
+        assert_eq!(decoded, finding);
+        Ok(())
     }
 
     #[test]

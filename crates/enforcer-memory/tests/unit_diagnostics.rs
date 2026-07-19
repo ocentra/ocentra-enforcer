@@ -11,8 +11,12 @@
 //! comments) rather than widening the module's public surface just for
 //! test access.
 
+use enforcer_domain::memory_types::{
+    Format, Level, MemoryDiagnosticFieldValue, MemoryDiagnosticFreeText,
+    MemoryDiagnosticRequestDuration, SkipPhase,
+};
 use enforcer_memory::diagnostics::{
-    redact, redact_free_text, Diagnostics, FileSkipRecord, Format, Level, RequestRecord, SkipPhase,
+    redact, redact_free_text, Diagnostics, FileSkipRecord, RequestRecord,
 };
 use std::error::Error;
 use std::time::Duration;
@@ -61,11 +65,11 @@ fn level_from_env_str_accepts_both_names_and_baseline_numeric_forms() {
 fn text_format_renders_request_record_as_kv_line_with_msg_key() -> TestResult {
     let diagnostics = Diagnostics::new(Level::Debug, Format::Text);
     let record = RequestRecord {
-        protocol: "mcp",
-        method: "tools/call".to_owned(),
-        tool: Some("index_repository".to_owned()),
-        duration: Duration::from_millis(42),
-        is_error: false,
+        protocol: "mcp".into(),
+        method: "tools/call".into(),
+        tool: Some("index_repository".into()),
+        duration: MemoryDiagnosticRequestDuration::from(Duration::from_millis(42)),
+        is_error: false.into(),
     };
     let mut buf = Vec::new();
     diagnostics.emit(&mut buf, record.level(), &record)?;
@@ -86,16 +90,16 @@ fn text_format_renders_request_record_as_kv_line_with_msg_key() -> TestResult {
 #[test]
 fn request_record_level_is_warn_on_error_info_otherwise() {
     let ok_record = RequestRecord {
-        protocol: "mcp",
-        method: "tools/call".to_owned(),
-        tool: Some("search_graph".to_owned()),
-        duration: Duration::from_millis(1),
-        is_error: false,
+        protocol: "mcp".into(),
+        method: "tools/call".into(),
+        tool: Some("search_graph".into()),
+        duration: MemoryDiagnosticRequestDuration::from(Duration::from_millis(1)),
+        is_error: false.into(),
     };
     assert_eq!(ok_record.level(), Level::Info);
 
     let err_record = RequestRecord {
-        is_error: true,
+        is_error: true.into(),
         ..ok_record
     };
     assert_eq!(err_record.level(), Level::Warn);
@@ -105,8 +109,8 @@ fn request_record_level_is_warn_on_error_info_otherwise() {
 fn json_format_renders_file_skip_record_as_one_line_object_with_event_key() -> TestResult {
     let diagnostics = Diagnostics::new(Level::Debug, Format::Json);
     let record = FileSkipRecord {
-        path: "src/weird.xyz".to_owned(),
-        reason: "no extractor for extension".to_owned(),
+        path: "src/weird.xyz".into(),
+        reason: "no extractor for extension".into(),
         phase: SkipPhase::Parse,
     };
     let mut buf = Vec::new();
@@ -124,11 +128,11 @@ fn json_format_renders_file_skip_record_as_one_line_object_with_event_key() -> T
 fn a_record_below_the_configured_level_is_not_emitted_at_all() -> TestResult {
     let diagnostics = Diagnostics::new(Level::Warn, Format::Text);
     let record = RequestRecord {
-        protocol: "mcp",
-        method: "tools/call".to_owned(),
-        tool: Some("search_graph".to_owned()),
-        duration: Duration::from_millis(1),
-        is_error: false,
+        protocol: "mcp".into(),
+        method: "tools/call".into(),
+        tool: Some("search_graph".into()),
+        duration: MemoryDiagnosticRequestDuration::from(Duration::from_millis(1)),
+        is_error: false.into(),
     };
     let mut buf = Vec::new();
     diagnostics.emit(&mut buf, Level::Debug, &record)?;
@@ -158,7 +162,7 @@ fn from_env_defaults_when_vars_are_unset_or_garbage() {
 fn redaction_truncates_oversized_field_values_and_never_leaks_full_source_text() -> TestResult {
     let huge_source_text = "fn very_long_function_body() {\n".repeat(50);
     assert!(huge_source_text.len() > MAX_FIELD_LEN);
-    let redacted = redact(&huge_source_text);
+    let redacted = redact(&MemoryDiagnosticFieldValue::from(&huge_source_text));
     assert!(redacted.len() < huge_source_text.len());
     assert!(redacted.ends_with("bytes total]"));
     // The record types below are the ONLY things this module ever
@@ -166,8 +170,8 @@ fn redaction_truncates_oversized_field_values_and_never_leaks_full_source_text()
     // the crate-wide "no raw prompt/private source text in diagnostics"
     // guarantee for every call site that uses them.
     let record = FileSkipRecord {
-        path: "irrelevant.rs".to_owned(),
-        reason: huge_source_text.clone(),
+        path: "irrelevant.rs".into(),
+        reason: huge_source_text.clone().into(),
         phase: SkipPhase::Extract,
     };
     let diagnostics = Diagnostics::new(Level::Debug, Format::Json);
@@ -192,11 +196,11 @@ fn redact_free_text_truncates_a_short_but_adversarial_value_that_plain_redact_wo
     assert!(small_source_text.len() < MAX_FIELD_LEN);
     assert!(small_source_text.len() > MAX_FREE_TEXT_LEN);
     assert_eq!(
-        redact(small_source_text),
+        redact(&MemoryDiagnosticFieldValue::from(small_source_text)),
         small_source_text.replace('\n', " "),
         "plain redact must NOT truncate a value this short (documents the gap redact_free_text closes)"
     );
-    let redacted = redact_free_text(small_source_text);
+    let redacted = redact_free_text(&MemoryDiagnosticFreeText::from(small_source_text));
     assert!(redacted.len() < small_source_text.len());
     assert!(redacted.ends_with("bytes total]"));
     assert!(
@@ -208,6 +212,6 @@ fn redact_free_text_truncates_a_short_but_adversarial_value_that_plain_redact_wo
 #[test]
 fn redaction_strips_control_characters_so_a_value_cannot_forge_extra_log_lines() {
     let malicious = "short\nlevel=error msg=tool_call tool=fabricated";
-    let redacted = redact(malicious);
+    let redacted = redact(&MemoryDiagnosticFieldValue::from(malicious));
     assert!(!redacted.contains('\n'));
 }

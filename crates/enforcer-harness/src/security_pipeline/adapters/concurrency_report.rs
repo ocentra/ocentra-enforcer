@@ -19,11 +19,13 @@
 
 use enforcer_core::error::Result;
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessSourceLine,
+};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 
 use crate::security_pipeline::concurrency::{ConcurrencyFinding, ConcurrencyOutcome};
-use crate::security_pipeline::seam::{EngineDetailText, EngineLine, EngineRuleLabel};
 
 /// Raw wire shape of one recorded concurrency/load report.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -106,10 +108,10 @@ fn finding_from_record(record: ConcurrencyFindingRecord) -> Result<ConcurrencyFi
         _ => Severity::Error,
     };
     Ok(ConcurrencyFinding {
-        rule: EngineRuleLabel(record.rule_id),
+        rule: HarnessExternalRuleId::try_new(record.rule_id)?,
         severity,
         file: record.file.parse::<RelPath>()?,
-        line: EngineLine(record.line),
-        message: EngineDetailText(record.message),
+        line: HarnessSourceLine::from_external(u64::from(record.line)),
+        message: HarnessDiagnosticMessage::try_new(record.message)?,
     })
 }

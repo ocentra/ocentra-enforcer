@@ -10,5 +10,7 @@
 //! any workpack's `owns:` line; c07 creates it as a minimal `pub mod`
 //! declaration list (not a `pub use` re-export barrel) so its two owned
 //! emitter modules have somewhere to live.
+#[path = "boundary/consumer_ci.rs"]
 pub mod consumer_ci;
+#[path = "boundary/git_hooks.rs"]
 pub mod git_hooks;

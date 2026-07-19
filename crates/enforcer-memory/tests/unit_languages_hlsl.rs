@@ -96,7 +96,10 @@ float4 main(float4 x) {
 }
 "#;
     let parsed = parse_hlsl(src);
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]
@@ -110,7 +113,10 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         "{:?}",
         parsed.symbols
     );
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
     // `SymbolKind::Class`, not `Struct` -- see
     // `extracts_struct_specifier_with_field_defines`'s own doc comment.
     assert_eq!(

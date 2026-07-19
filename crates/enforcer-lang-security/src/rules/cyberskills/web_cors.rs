@@ -32,6 +32,7 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 /// `CYBER-CORS.1` — ACAO wildcard/`null` + ACAC `true` CORS misconfiguration.
+#[derive(Debug)]
 pub struct CorsMisconfigValidator {
     rule_id: RuleId,
     acao_wildcard_or_null: Regex,
@@ -41,7 +42,7 @@ pub struct CorsMisconfigValidator {
 impl CorsMisconfigValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-CORS.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberCors.id(),
             // Matches `Access-Control-Allow-Origin` set to a bare `*` or
             // `null`, across header-text (`Name: value`), JSON
             // (`"Name": "value"`), and code-call (`'Name', 'value'`)
@@ -55,11 +56,11 @@ impl CorsMisconfigValidator {
             acao_wildcard_or_null: Regex::new(
                 r#"(?i)Access-Control-Allow-Origin[\s'":=,]+(\*|null)(?:['"]|[\s;,)}\]]|$)"#,
             )
-            .map_err(|err| DecodeError::new("cyberskillsCorsAcaoRegex", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsCorsAcaoRegex", err))?,
             acac_true: Regex::new(
                 r#"(?i)Access-Control-Allow-Credentials[\s'":=,]+true(?:['"]|[\s;,)}\]]|$)"#,
             )
-            .map_err(|err| DecodeError::new("cyberskillsCorsAcacRegex", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsCorsAcacRegex", err))?,
         })
     }
 }
@@ -73,10 +74,12 @@ impl Validator for CorsMisconfigValidator {
         let mut acao_hit: Option<(u32, &'static str)> = None;
         let mut acac_line: Option<u32> = None;
 
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             if let (None, Some(captures)) = (acao_hit, self.acao_wildcard_or_null.captures(line)) {
-                let value = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
+                let Some(value) = captures.get(1).map(|capture| capture.as_str()) else {
+                    continue;
+                };
                 let label = if value.eq_ignore_ascii_case("null") {
                     "null"
                 } else {
@@ -92,11 +95,10 @@ impl Validator for CorsMisconfigValidator {
         match (acao_hit, acac_line) {
             (Some((acao_at, label)), Some(acac_at)) => {
                 let line = acao_at.min(acac_at);
-                vec![Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "CORS wildcard/null origin combined with credentials".to_owned(),
-                    detail: format!(
+                crate::boundary::finding::from_owned_source(
+                    (&self.rule_id, Severity::Error),
+                    "CORS wildcard/null origin combined with credentials",
+                    format!(
                         "`Access-Control-Allow-Origin: {label}` is combined with \
                          `Access-Control-Allow-Credentials: true`. Any website can send \
                          credentialed cross-origin requests and read the response, exfiltrating \
@@ -104,27 +106,26 @@ impl Validator for CorsMisconfigValidator {
                          explicit allowlist of trusted origins, or drop \
                          `Access-Control-Allow-Credentials` if credentials are not required."
                     ),
-                    file: input.file.clone(),
-                    line,
-                    snippet: None,
-                }]
+                    input.file,
+                    (line, None),
+                )
+                .into_iter()
+                .collect()
             }
-            (Some((acao_at, label)), None) => {
-                vec![Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Warning,
-                    title: "Permissive CORS origin".to_owned(),
-                    detail: format!(
-                        "`Access-Control-Allow-Origin: {label}` allows any origin to read \
+            (Some((acao_at, label)), None) => crate::boundary::finding::from_owned_source(
+                (&self.rule_id, Severity::Warning),
+                "Permissive CORS origin",
+                format!(
+                    "`Access-Control-Allow-Origin: {label}` allows any origin to read \
                          non-credentialed responses. Fix: scope `Access-Control-Allow-Origin` to \
                          an explicit allowlist of trusted origins unless the endpoint is \
                          intentionally public."
-                    ),
-                    file: input.file.clone(),
-                    line: acao_at,
-                    snippet: None,
-                }]
-            }
+                ),
+                input.file,
+                (acao_at, None),
+            )
+            .into_iter()
+            .collect(),
             (None, _) => Vec::new(),
         }
     }
@@ -132,22 +133,15 @@ impl Validator for CorsMisconfigValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::CorsMisconfigValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_web_cors() -> Result<(), Box<dyn std::error::Error>> {
         let validator = CorsMisconfigValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.cors-misconfig/bad/wildcard_creds.txt",
             "tests/fixtures/cyberskills/web.cors-misconfig/good/scoped.txt",
         )?;

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use enforcer_domain::paths::RepoRoot;
 use serde::{Deserialize, Serialize};
 
 use crate::ScanFindingPayload;
@@ -16,8 +17,10 @@ pub(crate) struct DesktopReportPayload {
     pub(crate) runtime: String,
     pub(crate) persistence: String,
     pub(crate) generated_at: String,
+    // DEFAULT-JUSTIFICATION: legacy history rows predate the explicit run id.
     #[serde(default)]
     pub(crate) run_id: String,
+    // DEFAULT-JUSTIFICATION: legacy history rows predate the target label.
     #[serde(default)]
     pub(crate) target_label: String,
 }
@@ -38,11 +41,8 @@ pub(crate) struct DesktopScanHistoryEntry {
 
 #[tauri::command]
 pub(crate) fn load_cached_scan(root: String) -> Result<Option<DesktopReportPayload>, String> {
-    let root_path = PathBuf::from(&root);
-    if !root_path.is_dir() {
-        return Err(format!("project root is not a directory: {root}"));
-    }
-    let cache_path = desktop_report_cache_path(&root_path);
+    let root = project_root(root)?;
+    let cache_path = desktop_report_cache_path(project_path(&root));
     if !cache_path.is_file() {
         return Ok(None);
     }
@@ -115,11 +115,8 @@ pub(crate) fn persist_desktop_report(
 pub(crate) fn load_desktop_scan_history(
     root: String,
 ) -> Result<Vec<DesktopScanHistoryEntry>, String> {
-    let root_path = PathBuf::from(&root);
-    if !root_path.is_dir() {
-        return Err(format!("project root is not a directory: {root}"));
-    }
-    let history_dir = desktop_scan_history_dir(&root_path);
+    let root = project_root(root)?;
+    let history_dir = desktop_scan_history_dir(project_path(&root));
     if !history_dir.is_dir() {
         return Ok(Vec::new());
     }
@@ -177,11 +174,8 @@ pub(crate) fn load_desktop_scan_run(
     {
         return Err("invalid desktop scan run id".to_owned());
     }
-    let root_path = PathBuf::from(&root);
-    if !root_path.is_dir() {
-        return Err(format!("project root is not a directory: {root}"));
-    }
-    let path = desktop_scan_run_path(&root_path, &run_id);
+    let root = project_root(root)?;
+    let path = desktop_scan_run_path(project_path(&root), &run_id);
     let bytes = std::fs::read(&path).map_err(|error| {
         format!(
             "cannot read desktop scan run at {}: {error}",
@@ -194,4 +188,20 @@ pub(crate) fn load_desktop_scan_run(
             path.display()
         )
     })
+}
+
+fn project_root(root: String) -> Result<RepoRoot, String> {
+    let root_path = PathBuf::from(&root);
+    if !root_path.is_dir() {
+        return Err(format!("project root is not a directory: {root}"));
+    }
+    let canonical = root_path
+        .canonicalize()
+        .map_err(|error| format!("cannot resolve project root: {error}"))?;
+    RepoRoot::try_from(canonical.as_path())
+        .map_err(|error| format!("invalid project root: {error}"))
+}
+
+fn project_path(root: &RepoRoot) -> &Path {
+    Path::new(root.as_str())
 }

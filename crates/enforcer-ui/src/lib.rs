@@ -21,7 +21,7 @@
 //!
 //! This workpack (arc-24) lays the crate SKELETON only:
 //! - [`payload`] — renders an `enforcer-domain::findings::Report` into the
-//!   [`payload::UiReportPayload`] the frontend consumes, plus the
+//!   [`payload::UiReportResponse`] the frontend consumes, plus the
 //!   empty-state and malformed-request rejection paths. Fully implemented
 //!   here (not a mount point) because it is the one seam every Track G
 //!   feature pack needs before any of them can render anything.
@@ -51,14 +51,17 @@
 /// g01 (Tauri shell + served HTML fallback). This workpack lays the
 /// self-contained headless-served-HTML smoke path; the Tauri desktop
 /// shell wiring itself is g01's to fill.
+#[path = "boundary/serve.rs"]
 pub mod serve;
 
 /// g02 (report view: violation-matrix completeness, grouping, silent-mode
 /// suppression). Mount point only — g02 fills this module.
+#[path = "boundary/report/mod.rs"]
 pub mod report;
 
 /// g03 (waiver-honesty actions: named waivers, never silent suppression).
 /// Mount point only — g03 fills this module.
+#[path = "boundary/actions/mod.rs"]
 pub mod actions;
 
 /// g04 (run-dispatch: fix-intent schema at the boundary, ledger write via
@@ -68,10 +71,12 @@ pub mod run_dispatch;
 
 /// g05 (settings / config control-plane; writes routed through arc-23
 /// c-track adapters). Mount point only — g05 fills this module.
+#[path = "boundary/settings/mod.rs"]
 pub mod settings;
 
 /// g06 (live lane/claim/lease/mail hub panel, read-only view over arc-16
 /// materialized state). Mount point only — g06 fills this module.
+#[path = "boundary/hub/mod.rs"]
 pub mod hub;
 
 /// g07 (UI-security surface). Mount point only — g07 fills this module.
@@ -80,14 +85,17 @@ pub mod security;
 /// g08 (rules-&-skills explorer: the human-canonical `.md` browsed by a
 /// human while the AI still reads the structured rule). Filled by g08 —
 /// see [`explorer`] for the dual-audience render contract.
+#[path = "boundary/explorer/mod.rs"]
 pub mod explorer;
 
+#[path = "boundary/memory_explorer/mod.rs"]
 pub mod memory_explorer;
 
 /// Renders `enforcer-domain::findings::Report` into the UI data model at
 /// the Rust boundary (arc-24-owned; the seam every Track G pack renders
 /// through). Frontend types are DERIVED from this module + `enforcer-
 /// domain` via [`ts_export`].
+#[path = "boundary/payload.rs"]
 pub mod payload;
 
 /// The Rust->TS type-generation pipeline: `ts_rs::TS::export_all_to` over

@@ -1,18 +1,18 @@
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use serde::{Deserialize, Serialize};
+use enforcer_domain::events_types::{JournalDispatchPhase, JournalHash, JournalSequence};
 
-use crate::{EventingError, JournalHash, StoredEventEnvelope};
+use crate::error::EventingError;
 
 pub(crate) mod hash_chain;
 pub mod ndjson;
 pub mod policy;
 
-use policy::JournalDispatchPhase;
-
 pub type JournalAppendFuture<'a> =
     Pin<Box<dyn Future<Output = Result<JournalAppend, EventingError>> + Send + 'a>>;
 
+/// Contract implemented by event journal.
 pub trait EventJournal: Send + Sync {
     fn append<'a>(&'a self, envelope: &'a StoredEventEnvelope) -> JournalAppendFuture<'a>;
 
@@ -27,10 +27,10 @@ pub trait EventJournal: Send + Sync {
 
 pub type SharedEventJournal = Arc<dyn EventJournal>;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Event-runtime data for journal append.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JournalAppend {
-    pub sequence: u64,
+    pub sequence: JournalSequence,
     pub previous_hash: Option<JournalHash>,
     pub current_hash: Option<JournalHash>,
 }

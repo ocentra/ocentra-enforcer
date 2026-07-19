@@ -26,20 +26,12 @@
 //! deliberate instance-metadata access), so this is intentionally a pure
 //! textual match, not a call-graph/data-flow analysis.
 
+use crate::boundary::pattern::{LabelledLiteralPattern, LabelledLiteralSource as MetadataEndpoint};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
-
-/// One well-known cloud-instance-metadata endpoint literal: the exact
-/// address string and a human label naming the platform/service it belongs
-/// to (used in finding details).
-struct MetadataEndpoint {
-    literal: &'static str,
-    label: &'static str,
-}
 
 /// The well-known cloud-metadata address set. `169.254.169.254` and
 /// `metadata.google.internal` are ported verbatim from both vendor
@@ -69,23 +61,23 @@ const METADATA_ENDPOINTS: &[MetadataEndpoint] = &[
 ];
 
 /// `CYBER-SSRF.1` — literal cloud-instance-metadata endpoint access.
+#[derive(Debug)]
 pub struct SsrfMetadataValidator {
     rule_id: RuleId,
-    endpoints: Vec<(Regex, &'static str, &'static str)>,
+    endpoints: Vec<LabelledLiteralPattern>,
 }
 
 impl SsrfMetadataValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut endpoints = Vec::with_capacity(METADATA_ENDPOINTS.len());
         for entry in METADATA_ENDPOINTS {
-            let pattern = format!("(?i){}", regex::escape(entry.literal));
-            let regex = Regex::new(&pattern).map_err(|err| {
-                DecodeError::new("cyberskillsSsrfMetadataPattern", err.to_string())
-            })?;
-            endpoints.push((regex, entry.literal, entry.label));
+            endpoints.push(LabelledLiteralPattern::compile_source(
+                "cyberskillsSsrfMetadataPattern",
+                entry,
+            )?);
         }
         Ok(Self {
-            rule_id: "CYBER-SSRF.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberSsrf.id(),
             endpoints,
         })
     }
@@ -98,17 +90,18 @@ impl Validator for SsrfMetadataValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
-            for (regex, literal, label) in &self.endpoints {
-                if !regex.is_match(line) {
+            for endpoint in &self.endpoints {
+                if !endpoint.regex().is_match(line) {
                     continue;
                 }
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Cloud instance metadata endpoint referenced".to_owned(),
-                    detail: format!(
+                let literal = endpoint.literal().as_str();
+                let label = endpoint.label().as_str();
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Cloud instance metadata endpoint referenced",
+                    format!(
                         "Line references `{literal}` — {label}. This is a classic SSRF /\
                          credential-theft target: any code path that lets a request reach this \
                          address can be used to steal instance credentials or configuration. \
@@ -117,10 +110,9 @@ impl Validator for SsrfMetadataValidator {
                          100.100.100.200, fd00:ec2::254, metadata.google.internal) at the network \
                          egress layer."
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -129,22 +121,15 @@ impl Validator for SsrfMetadataValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::SsrfMetadataValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_web_ssrf() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SsrfMetadataValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.ssrf-metadata/bad/metadata.py",
             "tests/fixtures/cyberskills/web.ssrf-metadata/good/safe.py",
         )?;

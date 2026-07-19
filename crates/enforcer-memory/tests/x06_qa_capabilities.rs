@@ -1,12 +1,14 @@
-use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
+use enforcer_domain::memory_types::DocumentKind;
+use enforcer_domain::memory_types::TraceDirection;
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::impact::analyze_diff_impact;
 use enforcer_memory::ingest::{ingest_observation, Observation};
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::search::{DocumentKind, SearchDocument};
-use enforcer_memory::similarity::{similar_to, SIMILAR_TO_THRESHOLD};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::similarity::{similar_to_identifier_tokens, SIMILAR_TO_THRESHOLD};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -123,48 +125,61 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
 fn x06_qa_error_change_rows_can_recall_downstream_breakage() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_lesson_row(LessonRow {
-        id: "lesson-decode-error-downstream-break".to_owned(),
-        date: "2026-07-09".to_owned(),
+        id: "lesson-decode-error-downstream-break".to_owned().into(),
+        date: "2026-07-09".to_owned().into(),
         observed: "changing DecodeError from enum variant to struct broke downstream match arms"
-            .to_owned(),
+            .to_owned()
+            .into(),
         lesson:
             "before changing public error type shape, find downstream constructors and match arms"
-                .to_owned(),
-        landed_at: "commit error-type-breakage-proof".to_owned(),
-        ships_via: "x06-qa".to_owned(),
+                .to_owned()
+                .into(),
+        landed_at: "commit error-type-breakage-proof".to_owned().into(),
+        ships_via: "x06-qa".to_owned().into(),
     });
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "lesson-decode-error-downstream-break".to_owned(),
-            rule_id: Some("QA-188".to_owned()),
-            fault_class: Some("error-type-downstream-breakage".to_owned()),
+            lesson_id: ("lesson-decode-error-downstream-break".to_owned()).into(),
+            rule_id: Some("QA-188".to_owned().into()),
+            fault_class: Some("error-type-downstream-breakage".to_owned().into()),
             repo_context:
                 "DecodeError shape change broke enforcer-mcp match arms and CLI conversion"
-                    .to_owned(),
-            clean: false,
-            source_surface: "fixture:error-history".to_owned(),
-            ts: "2026-07-09T00:00:00Z".to_owned(),
+                    .to_owned()
+                    .into(),
+            clean: (false).into(),
+            source_surface: ("fixture:error-history".to_owned()).into(),
+            ts: ("2026-07-09T00:00:00Z".to_owned()).into(),
         },
     );
     graph.ingest_lesson_row(LessonRow {
-        id: "lesson-unrelated-route-policy".to_owned(),
-        date: "2026-07-09".to_owned(),
-        observed: "route auth policy missed public endpoint coverage".to_owned(),
-        lesson: "pair route extraction with auth-call evidence".to_owned(),
-        landed_at: "commit unrelated-route-proof".to_owned(),
-        ships_via: "x06-qa".to_owned(),
+        id: "lesson-unrelated-route-policy".to_owned().into(),
+        date: "2026-07-09".to_owned().into(),
+        observed: "route auth policy missed public endpoint coverage"
+            .to_owned()
+            .into(),
+        lesson: "pair route extraction with auth-call evidence"
+            .to_owned()
+            .into(),
+        landed_at: "commit unrelated-route-proof".to_owned().into(),
+        ships_via: "x06-qa".to_owned().into(),
     });
 
     let docs = graph
         .nodes()
         .iter()
-        .map(|node| SearchDocument::new(node.id(), DocumentKind::Lesson, node.searchable_text()))
+        .map(|node| {
+            SearchDocument::new(
+                node.id().as_str(),
+                DocumentKind::Lesson,
+                node.searchable_text().as_str(),
+            )
+        })
         .collect::<Vec<_>>();
     let index = FullTextIndex::build(&docs)?;
     let hits = index.search(
-        "DecodeError shape broke downstream match arms conversion",
-        5,
+        &"DecodeError shape broke downstream match arms conversion".into(),
+        5.into(),
     )?;
 
     assert_eq!(
@@ -177,7 +192,7 @@ fn x06_qa_error_change_rows_can_recall_downstream_breakage() -> TestResult {
             .any(|hit| hit.doc_id == "lesson-decode-error-downstream-break"),
         "error-change history should also return the landed lesson context, got {hits:?}"
     );
-    let incidents = graph.incidents_for_lesson("lesson-decode-error-downstream-break");
+    let incidents = graph.incidents_for_lesson(&"lesson-decode-error-downstream-break".into());
     assert!(
         incidents
             .iter()
@@ -203,45 +218,61 @@ fn x06_qa_error_change_rows_can_recall_downstream_breakage() -> TestResult {
 fn x06_qa_previous_bug_rows_can_recall_similar_incidents() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_lesson_row(LessonRow {
-        id: "lesson-walk-real-node-not-children".to_owned(),
-        date: "2026-07-09".to_owned(),
+        id: "lesson-walk-real-node-not-children".to_owned().into(),
+        date: "2026-07-09".to_owned().into(),
         observed: "tree-sitter quirk skipped the actual call node and only walked children"
-            .to_owned(),
+            .to_owned()
+            .into(),
         lesson: "when a field resolves to the call node itself, recurse with walk on that node instead of walk_children"
-            .to_owned(),
-        landed_at: "commit previous-bug-proof".to_owned(),
-        ships_via: "x06-qa".to_owned(),
+            .to_owned()
+            .into(),
+        landed_at: "commit previous-bug-proof".to_owned().into(),
+        ships_via: "x06-qa".to_owned().into(),
     });
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "lesson-walk-real-node-not-children".to_owned(),
-            rule_id: Some("QA-067".to_owned()),
-            fault_class: Some("previous-bug-similarity".to_owned()),
+            lesson_id: ("lesson-walk-real-node-not-children".to_owned()).into(),
+            rule_id: Some("QA-067".to_owned().into()),
+            fault_class: Some("previous-bug-similarity".to_owned().into()),
             repo_context:
                 "purescript exp_apply bug: walker skipped the real call node and found no callee"
-                    .to_owned(),
-            clean: false,
-            source_surface: "fixture:previous-bug".to_owned(),
-            ts: "2026-07-09T00:00:00Z".to_owned(),
+                    .to_owned()
+                    .into(),
+            clean: (false).into(),
+            source_surface: ("fixture:previous-bug".to_owned()).into(),
+            ts: ("2026-07-09T00:00:00Z".to_owned()).into(),
         },
     );
     graph.ingest_lesson_row(LessonRow {
-        id: "lesson-unrelated-cache-policy".to_owned(),
-        date: "2026-07-09".to_owned(),
-        observed: "model cache path policy rejected an absolute path".to_owned(),
-        lesson: "keep dev cache paths repo-relative and package cache paths app-owned".to_owned(),
-        landed_at: "commit unrelated-proof".to_owned(),
-        ships_via: "x06-models".to_owned(),
+        id: "lesson-unrelated-cache-policy".to_owned().into(),
+        date: "2026-07-09".to_owned().into(),
+        observed: "model cache path policy rejected an absolute path"
+            .to_owned()
+            .into(),
+        lesson: "keep dev cache paths repo-relative and package cache paths app-owned"
+            .to_owned()
+            .into(),
+        landed_at: "commit unrelated-proof".to_owned().into(),
+        ships_via: "x06-models".to_owned().into(),
     });
 
     let docs = graph
         .nodes()
         .iter()
-        .map(|node| SearchDocument::new(node.id(), DocumentKind::Lesson, node.searchable_text()))
+        .map(|node| {
+            SearchDocument::new(
+                node.id().as_str(),
+                DocumentKind::Lesson,
+                node.searchable_text().as_str(),
+            )
+        })
         .collect::<Vec<_>>();
     let index = FullTextIndex::build(&docs)?;
-    let hits = index.search("skipped real call node walk children callee missing", 5)?;
+    let hits = index.search(
+        &"skipped real call node walk children callee missing".into(),
+        5.into(),
+    )?;
 
     assert!(
         hits.iter()
@@ -250,7 +281,7 @@ fn x06_qa_previous_bug_rows_can_recall_similar_incidents() -> TestResult {
     );
     assert!(
         graph
-            .incidents_for_lesson("lesson-walk-real-node-not-children")
+            .incidents_for_lesson(&"lesson-walk-real-node-not-children".into())
             .iter()
             .any(|incident| incident
                 .repo_context
@@ -352,7 +383,7 @@ fn x06_qa_duplicate_logic_rows_can_find_similar_functions() -> TestResult {
     commit_all(dir.path(), "initial duplicate logic fixture")?;
 
     let graph = index_files(dir.path(), &["similar.rs"])?;
-    let edges = similar_to(&graph);
+    let edges = similar_to_identifier_tokens(&graph);
     let duplicate_edge = edges.iter().find(|edge| {
         (edge.source_id.contains("parse_policy_rule")
             && edge.target_id.contains("rule_policy_parse"))
@@ -366,7 +397,7 @@ fn x06_qa_duplicate_logic_rows_can_find_similar_functions() -> TestResult {
         "duplicate logic edge must clear similarity threshold, got {edge:?}"
     );
     assert!(
-        edge.same_file,
+        edge.same_file.is_same_file(),
         "duplicate logic fixture should report same-file similarity, got {edge:?}"
     );
     assert!(
@@ -394,7 +425,7 @@ fn x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file() -
     commit_all(dir.path(), "initial rules fixture")?;
 
     let graph = index_files(dir.path(), &["rule.rs", "policy.rs"])?;
-    let report = analyze_diff_impact(&graph, &["policy.rs".to_owned()], 3);
+    let report = analyze_diff_impact(&graph, &["policy.rs".into()], 3.into());
     let impacted = report
         .impacted
         .iter()

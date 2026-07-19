@@ -32,15 +32,20 @@
 //! itself, and never touches any global/ambient path other than the one
 //! `target_path` names.
 
-use crate::cli_contract::RequestContext;
+//! BOUNDARY-INVARIANT: adapter configuration is normalized before install decisions.
+//! Negative invalid inputs are rejected by adapter configuration tests.
+//!
 use crate::core::HarnessAdapter;
 use crate::error::{InstallError, InstallResult};
-use crate::report::{
-    AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange, VerifyCheck,
-    VerifyReport,
+use enforcer_domain::ids::HarnessId;
+use enforcer_domain::install_types::ArtifactKind;
+use enforcer_domain::install_types::{
+    AppliedInstallChange, ApplyResult, ChangeDisposition, CheckStatus, CheckSubject, InstallReport,
+    InstallReportText, InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
+use enforcer_domain::install_types::{InstallBinaryPath, InstallRequestContext, InstallTargetPath};
 use enforcer_domain::paths::RepoRoot;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// The top-level `mcpServers` map key every generic-adapter registration
 /// writes under. Always the x01 const — never the legacy literal.
@@ -48,41 +53,15 @@ fn server_key() -> &'static str {
     enforcer_mcp::name::SERVER_NAME
 }
 
-/// The fixed marker [`render_description`]/[`parse_description_binary_path`]
-/// use to carry the target binary path through a [`PlannedChange`]'s
-/// human-readable `description` field, since that type (owned by arc-23)
-/// has no dedicated structured field for it. `apply` only receives the
-/// previously computed [`InstallReport`] (never the original `ctx`), so
-/// the binary path must round-trip through the plan itself.
-const BINARY_PATH_MARKER: &str = "\u{0}binary_path=";
-
-fn render_description(binary_path: &Path) -> String {
-    format!(
-        "upsert mcpServers[\"{}\"]{}{}",
-        server_key(),
-        BINARY_PATH_MARKER,
-        binary_path.display()
-    )
-}
-
-fn parse_description_binary_path(description: &str) -> InstallResult<PathBuf> {
-    description
-        .split_once(BINARY_PATH_MARKER)
-        .map(|(_, rhs)| PathBuf::from(rhs))
-        .ok_or_else(|| InstallError::MalformedConfig {
-            path: description.to_owned(),
-            reason: "generic adapter planned-change description missing binary-path marker"
-                .to_owned(),
-        })
-}
-
 /// Configuration for one generic-adapter instance: which harness key it
 /// reports under, which `.mcp.json` file it upserts into, and the
 /// absolute `enforcer` binary path to register.
 #[derive(Debug, Clone)]
 pub struct GenericAdapterConfig {
-    harness_key: &'static str,
-    target_path: PathBuf,
+    harness_key: HarnessId,
+    target_path: InstallTargetPath,
+    binary_path: InstallBinaryPath,
+    server_map_key: &'static str,
 }
 
 impl GenericAdapterConfig {
@@ -95,17 +74,34 @@ impl GenericAdapterConfig {
     /// absolute — a relative target cannot resolve from an arbitrary repo
     /// cwd (RUST_ARCHITECTURE.md), so this is rejected at construction
     /// rather than silently written.
-    pub fn new(harness_key: &'static str, target_path: PathBuf) -> InstallResult<Self> {
-        if !target_path.is_absolute() {
-            return Err(InstallError::MalformedConfig {
-                path: target_path.display().to_string(),
-                reason: "generic adapter target path must be absolute".to_owned(),
-            });
-        }
-        Ok(Self {
+    pub fn new(
+        harness_key: HarnessId,
+        target_path: InstallTargetPath,
+        binary_path: InstallBinaryPath,
+    ) -> Self {
+        Self {
             harness_key,
             target_path,
-        })
+            binary_path,
+            server_map_key: "mcpServers",
+        }
+    }
+
+    /// Build a config for a harness whose native settings use a different
+    /// top-level server map, such as Zed's `context_servers`.
+    #[must_use]
+    pub fn new_with_server_map(
+        harness_key: HarnessId,
+        target_path: InstallTargetPath,
+        binary_path: InstallBinaryPath,
+        server_map_key: &'static str,
+    ) -> Self {
+        Self {
+            harness_key,
+            target_path,
+            binary_path,
+            server_map_key,
+        }
     }
 }
 
@@ -126,27 +122,33 @@ impl GenericAdapter {
 
     fn planned_change(
         &self,
-        ctx: &RequestContext,
-        is_update: bool,
-    ) -> InstallResult<PlannedChange> {
+        ctx: &InstallRequestContext,
+        disposition: ChangeDisposition,
+    ) -> InstallResult<PlannedInstallChange> {
         let path: RepoRoot = self
             .config
             .target_path
+            .as_path()
             .display()
             .to_string()
             .try_into()
             .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| {
                 InstallError::MalformedConfig {
-                    path: self.config.target_path.display().to_string(),
+                    path: self.config.target_path.as_path().display().to_string(),
                     reason: e.to_string(),
                 }
             })?;
-        Ok(PlannedChange {
-            harness: self.config.harness_key.to_owned(),
+        Ok(PlannedInstallChange {
+            harness: self.config.harness_key.clone(),
             kind: ArtifactKind::McpRegistration,
             path,
-            description: render_description(&ctx.binary_path),
-            is_update,
+            description: InstallReportText::try_from(format!(
+                "upsert {}[\"{}\"] with binary `{}`",
+                self.config.server_map_key,
+                server_key(),
+                ctx.binary_path.as_path().display()
+            ))?,
+            disposition,
         })
     }
 
@@ -155,33 +157,38 @@ impl GenericAdapter {
     /// already matches `binary_path` (the idempotent-reinstall / is_update
     /// signal).
     fn read_existing(&self) -> InstallResult<serde_json::Value> {
-        if !self.config.target_path.is_file() {
+        if !self.config.target_path.as_path().is_file() {
             return Ok(serde_json::json!({}));
         }
-        let raw =
-            std::fs::read_to_string(&self.config.target_path).map_err(|e| InstallError::Io {
-                path: self.config.target_path.display().to_string(),
+        let raw = std::fs::read_to_string(self.config.target_path.as_path()).map_err(|e| {
+            InstallError::Io {
+                path: self.config.target_path.as_path().display().to_string(),
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
         if raw.trim().is_empty() {
             return Ok(serde_json::json!({}));
         }
         serde_json::from_str(&raw).map_err(|e| InstallError::MalformedConfig {
-            path: self.config.target_path.display().to_string(),
+            path: self.config.target_path.as_path().display().to_string(),
             reason: e.to_string(),
         })
     }
 
     fn current_registration_matches(&self, value: &serde_json::Value, binary_path: &Path) -> bool {
         value
-            .get("mcpServers")
+            .get(self.config.server_map_key)
             .and_then(|servers| servers.get(server_key()))
             .and_then(|entry| entry.get("command"))
             .and_then(serde_json::Value::as_str)
             == Some(&binary_path.display().to_string())
     }
 
-    fn upsert(value: &mut serde_json::Value, binary_path: &Path) -> InstallResult<()> {
+    fn upsert(
+        value: &mut serde_json::Value,
+        binary_path: &Path,
+        server_map_key: &'static str,
+    ) -> InstallResult<()> {
         if !value.is_object() {
             *value = serde_json::json!({});
         }
@@ -192,7 +199,7 @@ impl GenericAdapter {
             });
         };
         let servers = root
-            .entry("mcpServers")
+            .entry(server_map_key)
             .or_insert_with(|| serde_json::json!({}));
         if !servers.is_object() {
             *servers = serde_json::json!({});
@@ -200,7 +207,7 @@ impl GenericAdapter {
         let Some(servers_map) = servers.as_object_mut() else {
             return Err(InstallError::MalformedConfig {
                 path: binary_path.display().to_string(),
-                reason: "expected `mcpServers` to be a JSON object".to_owned(),
+                reason: format!("expected `{server_map_key}` to be a JSON object"),
             });
         };
         servers_map.insert(
@@ -216,25 +223,38 @@ impl GenericAdapter {
 }
 
 impl HarnessAdapter for GenericAdapter {
-    fn harness_key(&self) -> &'static str {
-        self.config.harness_key
+    fn harness_key(&self) -> HarnessId {
+        self.config.harness_key.clone()
     }
 
-    fn plan(&self, ctx: &RequestContext) -> InstallResult<InstallReport> {
+    fn plan(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
+        if ctx.binary_path != self.config.binary_path {
+            return Err(InstallError::MalformedConfig {
+                path: self.config.target_path.as_path().display().to_string(),
+                reason: "request binary path does not match the generic adapter configuration"
+                    .to_owned(),
+            });
+        }
         let existing = self.read_existing()?;
-        let already_matches = self.current_registration_matches(&existing, &ctx.binary_path);
+        let already_matches =
+            self.current_registration_matches(&existing, ctx.binary_path.as_path());
         if already_matches {
             return Ok(InstallReport {
                 planned_changes: vec![],
                 warnings: vec![],
             });
         }
-        let is_update = existing
-            .get("mcpServers")
+        let disposition = if existing
+            .get(self.config.server_map_key)
             .and_then(|servers| servers.get(server_key()))
-            .is_some();
+            .is_some()
+        {
+            ChangeDisposition::Update
+        } else {
+            ChangeDisposition::Create
+        };
         Ok(InstallReport {
-            planned_changes: vec![self.planned_change(ctx, is_update)?],
+            planned_changes: vec![self.planned_change(ctx, disposition)?],
             warnings: vec![],
         })
     }
@@ -242,12 +262,14 @@ impl HarnessAdapter for GenericAdapter {
     fn apply(&self, report: &InstallReport) -> InstallResult<ApplyResult> {
         let mut applied = Vec::with_capacity(report.planned_changes.len());
         for change in &report.planned_changes {
-            let binary_path = parse_description_binary_path(&change.description)?;
-
             let mut existing = self.read_existing()?;
-            Self::upsert(&mut existing, &binary_path)?;
+            Self::upsert(
+                &mut existing,
+                self.config.binary_path.as_path(),
+                self.config.server_map_key,
+            )?;
 
-            if let Some(parent) = self.config.target_path.parent() {
+            if let Some(parent) = self.config.target_path.as_path().parent() {
                 std::fs::create_dir_all(parent).map_err(|e| InstallError::Io {
                     path: parent.display().to_string(),
                     reason: e.to_string(),
@@ -258,38 +280,45 @@ impl HarnessAdapter for GenericAdapter {
                     path: self.config.target_path.display().to_string(),
                     reason: e.to_string(),
                 })?;
-            std::fs::write(&self.config.target_path, rendered).map_err(|e| InstallError::Io {
-                path: self.config.target_path.display().to_string(),
-                reason: e.to_string(),
+            std::fs::write(self.config.target_path.as_path(), rendered).map_err(|e| {
+                InstallError::Io {
+                    path: self.config.target_path.as_path().display().to_string(),
+                    reason: e.to_string(),
+                }
             })?;
 
-            applied.push(AppliedChange {
+            applied.push(AppliedInstallChange {
                 change: change.clone(),
-                succeeded: true,
+                status: CheckStatus::Passed,
                 backup_path: None,
             });
         }
         Ok(ApplyResult { applied })
     }
 
-    fn verify(&self, ctx: &RequestContext) -> InstallResult<VerifyReport> {
+    fn verify(&self, ctx: &InstallRequestContext) -> InstallResult<InstallVerifyReport> {
         let existing = self.read_existing()?;
-        let passed = self.current_registration_matches(&existing, &ctx.binary_path);
-        Ok(VerifyReport {
-            checks: vec![VerifyCheck {
-                harness: self.config.harness_key.to_owned(),
-                name: "mcp-registration-present".to_owned(),
-                passed,
-                detail: if passed {
+        let passed = self.current_registration_matches(&existing, ctx.binary_path.as_path());
+        Ok(InstallVerifyReport {
+            checks: vec![InstallVerifyCheck {
+                subject: CheckSubject::Harness(self.config.harness_key.clone()),
+                name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                status: if passed {
+                    CheckStatus::Passed
+                } else {
+                    CheckStatus::Failed
+                },
+                detail: InstallReportText::try_from(if passed {
                     String::new()
                 } else {
                     format!(
-                        "mcpServers[\"{}\"].command != {} at `{}`",
+                        "{}[\"{}\"].command != {} at `{}`",
+                        self.config.server_map_key,
                         server_key(),
-                        ctx.binary_path.display(),
-                        self.config.target_path.display()
+                        ctx.binary_path.as_path().display(),
+                        self.config.target_path.as_path().display()
                     )
-                },
+                })?,
             }],
         })
     }
@@ -298,14 +327,29 @@ impl HarnessAdapter for GenericAdapter {
 #[cfg(test)]
 mod tests {
     use super::{server_key, GenericAdapter, GenericAdapterConfig};
-    use crate::cli_contract::RequestContext;
     use crate::core::HarnessAdapter;
+    use enforcer_domain::ids::HarnessId;
+    use enforcer_domain::install_types::{
+        InstallBinaryPath, InstallRequestContext, InstallTargetPath,
+    };
     use std::path::PathBuf;
 
     fn fixture_root(name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/generic")
             .join(name)
+    }
+
+    fn config(
+        harness: &str,
+        target: PathBuf,
+        binary: PathBuf,
+    ) -> Result<GenericAdapterConfig, Box<dyn std::error::Error>> {
+        Ok(GenericAdapterConfig::new(
+            HarnessId::try_from(harness.to_owned())?,
+            InstallTargetPath::try_from(target)?,
+            InstallBinaryPath::try_from(binary)?,
+        ))
     }
 
     #[test]
@@ -318,18 +362,21 @@ mod tests {
     fn fresh_install_writes_the_golden_bytes() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let target = dir.path().join(".mcp.json");
-        let config = GenericAdapterConfig::new("generic-harness", target.clone())?;
+        let binary = std::env::temp_dir().join("enforcer");
+        let config = config("generic-harness", target.clone(), binary.clone())?;
         let adapter = GenericAdapter::new(config);
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
+        let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
 
         let plan = adapter.plan(&ctx)?;
-        assert!(!plan.is_noop());
+        assert_eq!(plan.planned_changes.len(), 1);
         adapter.apply(&plan)?;
 
         let written = std::fs::read_to_string(&target)?;
         let golden = std::fs::read_to_string(fixture_root("fresh_install").join("mcp.json"))?;
         let written_value: serde_json::Value = serde_json::from_str(&written)?;
-        let golden_value: serde_json::Value = serde_json::from_str(&golden)?;
+        let mut golden_value: serde_json::Value = serde_json::from_str(&golden)?;
+        golden_value["mcpServers"]["enforcer"]["command"] =
+            serde_json::Value::String(binary.display().to_string());
         assert_eq!(written_value, golden_value);
         Ok(())
     }
@@ -348,9 +395,10 @@ mod tests {
             }))?,
         )?;
 
-        let config = GenericAdapterConfig::new("generic-harness", target.clone())?;
+        let binary = std::env::temp_dir().join("enforcer");
+        let config = config("generic-harness", target.clone(), binary.clone())?;
         let adapter = GenericAdapter::new(config);
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
+        let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
 
         let plan = adapter.plan(&ctx)?;
         adapter.apply(&plan)?;
@@ -363,7 +411,7 @@ mod tests {
         );
         assert_eq!(
             written["mcpServers"]["enforcer"]["command"],
-            "/abs/path/to/enforcer"
+            binary.display().to_string()
         );
         Ok(())
     }
@@ -372,14 +420,15 @@ mod tests {
     fn never_writes_the_legacy_ocentra_enforcer_key() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let target = dir.path().join(".mcp.json");
-        let config = GenericAdapterConfig::new("generic-harness", target.clone())?;
+        let binary = std::env::temp_dir().join("enforcer");
+        let config = config("generic-harness", target.clone(), binary.clone())?;
         let adapter = GenericAdapter::new(config);
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
+        let ctx = InstallRequestContext::try_with_defaults(binary)?;
         let plan = adapter.plan(&ctx)?;
         adapter.apply(&plan)?;
 
         let written = std::fs::read_to_string(&target)?;
-        assert!(!written.contains("ocentra-enforcer"));
+        assert!(!written.as_str().contains("ocentra-enforcer"));
         Ok(())
     }
 
@@ -387,15 +436,16 @@ mod tests {
     fn idempotent_reinstall_yields_a_noop_plan() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let target = dir.path().join(".mcp.json");
-        let config = GenericAdapterConfig::new("generic-harness", target)?;
+        let binary = std::env::temp_dir().join("enforcer");
+        let config = config("generic-harness", target, binary.clone())?;
         let adapter = GenericAdapter::new(config);
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
+        let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
         let plan = adapter.plan(&ctx)?;
         adapter.apply(&plan)?;
 
         let second_plan = adapter.plan(&ctx)?;
-        assert!(second_plan.is_noop());
+        assert!(second_plan.planned_changes.is_empty());
         Ok(())
     }
 
@@ -404,37 +454,55 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let target = dir.path().join(".mcp.json");
-        let config = GenericAdapterConfig::new("generic-harness", target)?;
+        let binary = std::env::temp_dir().join("enforcer");
+        let config = config("generic-harness", target, binary.clone())?;
         let adapter = GenericAdapter::new(config);
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
+        let ctx = InstallRequestContext::try_with_defaults(binary)?;
 
         let plan = adapter.plan(&ctx)?;
         adapter.apply(&plan)?;
         let report = adapter.verify(&ctx)?;
-        assert!(report.all_passed());
+        assert!(report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
 
-        let moved_ctx = RequestContext::with_defaults(PathBuf::from("/abs/new/path/enforcer"));
+        let moved_ctx =
+            InstallRequestContext::try_with_defaults(std::env::temp_dir().join("new-enforcer"))?;
         let report = adapter.verify(&moved_ctx)?;
-        assert!(!report.all_passed());
-        assert_eq!(report.checks[0].name, "mcp-registration-present");
-        assert!(!report.checks[0].detail.is_empty());
+        assert!(!report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
+        assert_eq!(report.checks[0].name.as_str(), "mcp-registration-present");
+        assert!(!report.checks[0].detail.as_str().is_empty());
         Ok(())
     }
 
     #[test]
-    fn rejects_a_relative_target_path() {
-        let result =
-            GenericAdapterConfig::new("generic-harness", PathBuf::from("relative/.mcp.json"));
-        assert!(result.is_err());
+    fn rejects_a_relative_target_path() -> Result<(), Box<dyn std::error::Error>> {
+        let result = InstallTargetPath::try_from(PathBuf::from("relative/.mcp.json"));
+        let error = result
+            .err()
+            .ok_or("relative installer target must be rejected")?;
+        assert_eq!(error.path, "installTargetPath");
+        assert_eq!(error.reason, "must be an absolute filesystem path");
+        Ok(())
     }
 
     #[test]
-    fn never_writes_a_per_repo_project_file_path_by_construction() {
+    fn never_writes_a_per_repo_project_file_path_by_construction(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // The adapter has no notion of "project file" at all -- it only
         // ever writes `target_path`, which construction requires to be
         // absolute. This test documents that guarantee: there is no
         // relative/per-repo code path to accidentally exercise.
-        let result = GenericAdapterConfig::new("generic-harness", PathBuf::from(".mcp.json"));
-        assert!(result.is_err());
+        let result = InstallTargetPath::try_from(PathBuf::from(".mcp.json"));
+        let error = result
+            .err()
+            .ok_or("project-relative installer target must be rejected")?;
+        assert_eq!(error.path, "installTargetPath");
+        assert_eq!(error.reason, "must be an absolute filesystem path");
+        Ok(())
     }
 }

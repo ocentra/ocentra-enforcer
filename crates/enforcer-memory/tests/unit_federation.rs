@@ -1,18 +1,24 @@
 use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 
+use enforcer_domain::memory_types::{ExportConsent, MemoryFederationRejectedAt, MemoryShareScope};
+use enforcer_domain::memory_types::{RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::boundary::record::ProvenanceDto;
+use enforcer_memory::boundary::share::{
+    export_bundle, BundleGraphSnapshotDto, ExportRequest, SignedBundleDto,
+};
 use enforcer_memory::federation::{
     import_bundle, import_bundle_logged, RejectReason, RejectedBundle, RejectionLog, TrustList,
 };
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
-use enforcer_memory::share::{
-    export_bundle, BundleGraphSnapshot, ExportConsent, ExportRequest, Scope, SignedBundle,
-};
 
-fn sample_snapshot() -> BundleGraphSnapshot {
+fn rejected_at() -> MemoryFederationRejectedAt {
+    "2026-07-05T01:00:00Z".into()
+}
+
+fn sample_snapshot() -> BundleGraphSnapshotDto {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(MemoryRecord {
         schema_version: 1,
@@ -28,33 +34,33 @@ fn sample_snapshot() -> BundleGraphSnapshot {
         routes: vec![],
         landed_at: vec!["commit abc".to_string()],
         supersedes: None,
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     });
     graph.ingest_lesson_row(LessonRow {
-        id: "L1".to_string(),
-        date: "2026-07-05".to_string(),
-        observed: "x".to_string(),
-        lesson: "y".to_string(),
-        landed_at: "commit def".to_string(),
-        ships_via: "arc-16".to_string(),
+        id: "L1".to_string().into(),
+        date: "2026-07-05".to_string().into(),
+        observed: "x".to_string().into(),
+        lesson: "y".to_string().into(),
+        landed_at: "commit def".to_string().into(),
+        ships_via: "arc-16".to_string().into(),
     });
-    BundleGraphSnapshot::from_graph(&graph)
+    BundleGraphSnapshotDto::from_graph(&graph)
 }
 
 fn signed_personal_bundle(
     key: &SigningKey,
-) -> Result<SignedBundle, enforcer_memory::share::ShareError> {
+) -> Result<SignedBundleDto, enforcer_memory::boundary::share::ShareError> {
     export_bundle(
         &sample_snapshot(),
         ExportRequest {
-            scope: Scope::Personal,
+            scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
             git_head: None,
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         key,
     )
@@ -68,7 +74,7 @@ fn roundtrip_import_from_a_trusted_signer_succeeds() -> Result<(), Box<dyn std::
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     let mut graph = MemoryGraph::new();
-    let report = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
+    let report = import_bundle(&mut graph, &bundle, &trust_list, &rejected_at())
         .map_err(|rejected| format!("expected success, got {rejected:?}"))?;
     assert_eq!(report.records_imported, 1);
     assert_eq!(report.lessons_imported, 1);
@@ -88,7 +94,7 @@ fn untrusted_signer_is_rejected_with_signature_reason() -> Result<(), Box<dyn st
         &mut graph,
         &bundle,
         &empty_trust_list,
-        "2026-07-05T01:00:00Z",
+        &rejected_at(),
         &mut log,
     );
     match outcome {
@@ -98,7 +104,10 @@ fn untrusted_signer_is_rejected_with_signature_reason() -> Result<(), Box<dyn st
         }) => {}
         other => return Err(format!("expected UntrustedSigner rejection, got {other:?}").into()),
     }
-    assert!(graph.is_empty(), "rejected import must not touch the graph");
+    assert!(
+        graph.is_empty().is_empty(),
+        "rejected import must not touch the graph"
+    );
     assert_eq!(log.entries().len(), 1, "rejection must be recorded");
     Ok(())
 }
@@ -110,10 +119,10 @@ fn tampered_payload_is_rejected_with_checksum_reason() -> Result<(), Box<dyn std
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
-    bundle.manifest.content_hash = format!("sha256:{}", "0".repeat(64));
+    bundle.manifest.content_hash = format!("sha256:{}", "0".repeat(64)).into();
 
     let mut graph = MemoryGraph::new();
-    let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
+    let outcome = import_bundle(&mut graph, &bundle, &trust_list, &rejected_at());
     match outcome {
         Err(RejectedBundle {
             reason: RejectReason::ChecksumTamper { .. },
@@ -121,7 +130,7 @@ fn tampered_payload_is_rejected_with_checksum_reason() -> Result<(), Box<dyn std
         }) => {}
         other => return Err(format!("expected ChecksumTamper rejection, got {other:?}").into()),
     }
-    assert!(graph.is_empty());
+    assert!(graph.is_empty().is_empty());
     Ok(())
 }
 
@@ -138,7 +147,7 @@ fn tampered_signed_bytes_are_rejected_with_signature_reason(
     }
 
     let mut graph = MemoryGraph::new();
-    let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
+    let outcome = import_bundle(&mut graph, &bundle, &trust_list, &rejected_at());
     match outcome {
         Err(RejectedBundle {
             reason: RejectReason::UntrustedSigner(_),
@@ -146,7 +155,7 @@ fn tampered_signed_bytes_are_rejected_with_signature_reason(
         }) => {}
         other => return Err(format!("expected UntrustedSigner rejection, got {other:?}").into()),
     }
-    assert!(graph.is_empty());
+    assert!(graph.is_empty().is_empty());
     Ok(())
 }
 
@@ -154,12 +163,12 @@ fn tampered_signed_bytes_are_rejected_with_signature_reason(
 fn wrong_schema_version_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = signed_personal_bundle(&key)?;
-    bundle.manifest.schema_version = 999;
+    bundle.manifest.schema_version = 999.into();
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     let mut graph = MemoryGraph::new();
-    let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
+    let outcome = import_bundle(&mut graph, &bundle, &trust_list, &rejected_at());
     match outcome {
         Err(RejectedBundle {
             reason: RejectReason::SchemaVersionIncompatible { found: 999, .. },
@@ -171,6 +180,7 @@ fn wrong_schema_version_is_rejected() -> Result<(), Box<dyn std::error::Error>> 
             )
         }
     }
+    assert!(graph.is_empty().is_empty());
     Ok(())
 }
 
@@ -183,17 +193,17 @@ fn imported_lesson_is_inactive_until_local_validation_activates_it(
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     let mut graph = MemoryGraph::new();
-    import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
+    import_bundle(&mut graph, &bundle, &trust_list, &rejected_at())
         .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
     assert_eq!(
-        enforcer_memory::learning::lesson_status(&graph, "mem-primary-0001"),
-        Some(enforcer_memory::learning::LessonStatus::Inactive),
+        enforcer_memory::learning::lesson_status(&graph, &"mem-primary-0001".into()),
+        Some(LessonStatus::Inactive),
         "imported record must be inactive even though the exporter had landed it"
     );
     assert_eq!(
-        enforcer_memory::learning::lesson_status(&graph, "L1"),
-        Some(enforcer_memory::learning::LessonStatus::Inactive),
+        enforcer_memory::learning::lesson_status(&graph, &"L1".into()),
+        Some(LessonStatus::Inactive),
         "imported lesson row must be inactive even though the exporter had landed it"
     );
 
@@ -217,27 +227,28 @@ fn imported_lesson_is_inactive_until_local_validation_activates_it(
         routes: vec![],
         landed_at: vec!["local-commit-xyz".to_string()],
         supersedes: Some("mem-primary-0001".to_string()),
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     });
     assert_eq!(
-        enforcer_memory::learning::lesson_status(&graph, "mem-primary-0001-validated"),
-        Some(enforcer_memory::learning::LessonStatus::Active),
+        enforcer_memory::learning::lesson_status(&graph, &"mem-primary-0001-validated".into(),),
+        Some(LessonStatus::Active),
         "the local validation record itself is active"
     );
     assert!(
-        enforcer_memory::learning::active_lessons(&graph).contains(&"mem-primary-0001-validated"),
+        enforcer_memory::learning::active_lessons(&graph)
+            .contains(&"mem-primary-0001-validated".into()),
         "the validated record must be the one counted as active"
     );
     assert!(
-        !enforcer_memory::learning::active_lessons(&graph).contains(&"mem-primary-0001"),
+        !enforcer_memory::learning::active_lessons(&graph).contains(&"mem-primary-0001".into()),
         "the superseded imported id must never be counted as active"
     );
     assert_eq!(
-        enforcer_memory::learning::superseded_by(&graph, "mem-primary-0001"),
-        Some("mem-primary-0001-validated"),
+        enforcer_memory::learning::superseded_by(&graph, &"mem-primary-0001".into()),
+        Some("mem-primary-0001-validated".into()),
         "the audit trail must record what superseded the imported id"
     );
     Ok(())
@@ -252,11 +263,11 @@ fn graph_bootstrap_artifact_import_reconstructs_graph_counts(
     let bundle = export_bundle(
         &snapshot,
         ExportRequest {
-            scope: Scope::Team,
+            scope: MemoryShareScope::Team,
             consent: ExportConsent::Granted,
-            creator: Some("team-bootstrap".to_string()),
-            git_head: Some("deadbeef".to_string()),
-            created_at: "2026-07-05T00:00:00Z".to_string(),
+            creator: Some("team-bootstrap".to_string().into()),
+            git_head: Some("deadbeef".to_string().into()),
+            created_at: "2026-07-05T00:00:00Z".to_string().into(),
         },
         &key,
     )?;
@@ -264,10 +275,11 @@ fn graph_bootstrap_artifact_import_reconstructs_graph_counts(
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
     let mut graph = MemoryGraph::new();
-    let report = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
+    let report = import_bundle(&mut graph, &bundle, &trust_list, &rejected_at())
         .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
-    assert_eq!(report.total(), expected_count);
-    assert_eq!(graph.len(), expected_count);
+    assert_eq!(report.total(), expected_count.get());
+    assert_eq!(graph.len(), expected_count.get());
     Ok(())
 }
+use enforcer_domain::memory_types::LessonStatus;

@@ -3,9 +3,8 @@
 //! rule-spec plumbing they build on. See `crate` docs for the per-module
 //! rule-id breakdown.
 
-pub mod cloudformation;
-pub mod kubernetes;
+pub(crate) mod cloudformation;
+pub(crate) mod kubernetes;
 pub mod registry;
-pub mod spec;
-pub mod terraform;
-pub mod text_scan;
+pub(crate) mod spec;
+pub(crate) mod terraform;

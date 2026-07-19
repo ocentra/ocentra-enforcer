@@ -14,9 +14,12 @@
 //! executable's own path in the shared workspace `target/` dir (both
 //! crates' outputs land in the same profile dir).
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
-use enforcer_install::hooks::pretooluse::{classify, run_enforcer_check, HookDecision};
+use enforcer_domain::install_types::{HookCheckOutcome, HookDecision};
+use enforcer_install::hooks::pretooluse::{classify, run_enforcer_check};
 
 fn fixture_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pretooluse_hook")
@@ -56,9 +59,7 @@ fn enforcer_binary() -> Result<PathBuf, Box<dyn std::error::Error>> {
 /// real `enforcer check` binary against it with that dir as cwd -- matching
 /// exactly how the emitted PreToolUse hook invokes `enforcer` against the
 /// repo root Claude is editing.
-fn run_fixture(
-    name: &str,
-) -> Result<enforcer_install::hooks::pretooluse::CheckOutcome, Box<dyn std::error::Error>> {
+fn run_fixture(name: &str) -> Result<HookCheckOutcome, Box<dyn std::error::Error>> {
     let src = fixture_root().join(name).join("candidate.rs");
     let temp = tempfile::tempdir()?;
     let dest = temp.path().join("candidate.rs");
@@ -67,7 +68,64 @@ fn run_fixture(
         &enforcer_binary()?,
         temp.path(),
         Path::new("candidate.rs"),
-    ))
+    )?)
+}
+
+/// Invoke the exact command emitted into Claude's `PreToolUse` settings and
+/// send it the pending `Write` payload on stdin. This is the process-boundary
+/// proof that the hook validates proposed content, rather than only checking
+/// the old on-disk file.
+fn run_emitted_hook(
+    name: &str,
+) -> Result<(std::process::ExitStatus, serde_json::Value), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string(fixture_root().join(name).join("candidate.rs"))?;
+    let temp = tempfile::tempdir()?;
+    let target = temp.path().join("candidate.rs");
+    let mut child = Command::new(enforcer_binary()?)
+        .args(["hook", "pretooluse"])
+        .current_dir(temp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("hook child stdin unavailable")?;
+    let payload = serde_json::json!({
+        "cwd": temp.path().display().to_string(),
+        "tool_name": "Write",
+        "tool_input": {
+            "file_path": target.display().to_string(),
+            "content": source,
+        },
+    });
+    stdin.write_all(payload.to_string().as_bytes())?;
+    drop(stdin);
+    let output = child.wait_with_output()?;
+    let reply = serde_json::from_slice(&output.stdout)?;
+    Ok((output.status, reply))
+}
+
+#[test]
+fn emitted_hook_denies_violating_proposed_write_before_it_exists(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (status, reply) = run_emitted_hook("violating")?;
+    assert_eq!(status.code(), Some(1));
+    assert_eq!(reply["hookSpecificOutput"]["hookEventName"], "PreToolUse");
+    assert_eq!(reply["hookSpecificOutput"]["permissionDecision"], "deny");
+    let reason = reply["hookSpecificOutput"]["permissionDecisionReason"]
+        .as_str()
+        .ok_or("deny reason missing")?;
+    assert!(reason.contains("T1-RUSTERR.1"), "got: {reason}");
+    assert!(reason.contains("Fix:"), "got: {reason}");
+    Ok(())
+}
+
+#[test]
+fn emitted_hook_allows_conforming_proposed_write_before_it_exists(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (status, reply) = run_emitted_hook("conforming")?;
+    assert!(status.success());
+    assert_eq!(reply["hookSpecificOutput"]["hookEventName"], "PreToolUse");
+    assert_eq!(reply["hookSpecificOutput"]["permissionDecision"], "allow");
+    Ok(())
 }
 
 /// The seeded T1 violation: a first-party `.unwrap()` fires
@@ -77,17 +135,26 @@ fn run_fixture(
 fn seeded_violating_edit_denies_with_exact_rule_id_and_fix(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let outcome = run_fixture("violating")?;
-    assert_eq!(outcome.exit_code, Some(1), "stdout was: {}", outcome.stdout);
-    let decision = classify(&outcome);
-    assert!(decision.is_deny(), "expected Deny, got {decision:?}");
-    let reason = decision.reason().ok_or("deny must carry a reason")?;
+    let failure_code = std::num::NonZeroI32::new(1).ok_or("fixture exit code must be non-zero")?;
+    assert_eq!(
+        outcome.exit_status,
+        enforcer_domain::install_types::HookExitStatus::Failure(failure_code),
+        "stdout was: {}",
+        outcome.stdout.as_str()
+    );
+    let decision = classify(&outcome)?;
+    let HookDecision::Deny { reason } = decision else {
+        return Err("expected Deny".into());
+    };
     assert!(
-        reason.contains("T1-RUSTERR.1"),
-        "reason must name the exact RuleId, got: {reason}"
+        reason.as_str().contains("T1-RUSTERR.1"),
+        "reason must name the exact RuleId, got: {}",
+        reason.as_str()
     );
     assert!(
-        reason.contains("Fix:"),
-        "reason must carry the Fix: hint, got: {reason}"
+        reason.as_str().contains("Fix:"),
+        "reason must carry the Fix: hint, got: {}",
+        reason.as_str()
     );
     Ok(())
 }
@@ -97,8 +164,13 @@ fn seeded_violating_edit_denies_with_exact_rule_id_and_fix(
 #[test]
 fn conforming_edit_allows() -> Result<(), Box<dyn std::error::Error>> {
     let outcome = run_fixture("conforming")?;
-    assert_eq!(outcome.exit_code, Some(0), "stdout was: {}", outcome.stdout);
-    let decision = classify(&outcome);
+    assert_eq!(
+        outcome.exit_status,
+        enforcer_domain::install_types::HookExitStatus::Success,
+        "stdout was: {}",
+        outcome.stdout.as_str()
+    );
+    let decision = classify(&outcome)?;
     assert_eq!(decision, HookDecision::Allow);
     Ok(())
 }
@@ -108,16 +180,14 @@ fn conforming_edit_allows() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn t2_only_finding_allows_with_warning_never_denies() -> Result<(), Box<dyn std::error::Error>> {
     let outcome = run_fixture("t2_only")?;
-    let decision = classify(&outcome);
+    let decision = classify(&outcome)?;
+    let HookDecision::AllowWithWarning { reason } = decision else {
+        return Err("expected AllowWithWarning".into());
+    };
     assert!(
-        !decision.is_deny(),
-        "a T2-only finding must never deny, got {decision:?}"
+        reason.as_str().contains("LIT-1.1"),
+        "got: {}",
+        reason.as_str()
     );
-    assert!(
-        decision.is_allow_with_warning(),
-        "expected AllowWithWarning, got {decision:?}"
-    );
-    let reason = decision.reason().ok_or("warning must carry a reason")?;
-    assert!(reason.contains("LIT-1.1"), "got: {reason}");
     Ok(())
 }

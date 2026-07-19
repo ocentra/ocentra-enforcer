@@ -3,17 +3,18 @@
 //! (`enforcer_validator::harness::run_fixture_parity`), AND the
 //! count-parity assertion the workpack requires — every `language ==
 //! "common"` `RuleId` in the legacy `rules/rules.json` catalog, MINUS the
-//! SEC-2 family delegated to `enforcer-lang-security` (arc-10), has a
-//! registered validator here. Missing or extra `RuleId`s fail this test.
+//! SEC-2 family delegated to `enforcer-lang-security` (arc-10), and the
+//! standalone UI-coupling `ARCH-1.16` check, has a registered validator here.
+//! Missing or extra `RuleId`s fail this test.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_lang_common::port_platform::DeclaredScope;
 use enforcer_lang_common::registry;
 use enforcer_lang_common::rules::deferred_work::DeferredWorkValidator;
 use enforcer_lang_common::rules::test_quality::BehavioralTestNameValidator;
-use enforcer_validator::harness::run_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The legacy rule catalog, read once per test binary. Path is relative to
@@ -53,11 +54,13 @@ fn truncated_deferred_annotation_is_a_safe_malformed_finding(
     let file = "src/example.rs".parse()?;
     let findings = validator.validate(ValidationInput {
         file: &file,
-        source: "// TODO DEFERRED(#ARC-1)[revisit:",
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+            "// TODO DEFERRED(#ARC-1)[revisit:",
+        ),
         scope: enforcer_domain::findings::ScanScope::Files,
     });
     assert_eq!(findings.len(), 1);
-    assert!(findings[0].title.contains("malformed"));
+    assert!(findings[0].title.as_str().contains("malformed"));
     Ok(())
 }
 
@@ -68,7 +71,9 @@ fn truncated_test_name_is_ignored_safely() -> Result<(), Box<dyn std::error::Err
     assert!(validator
         .validate(ValidationInput {
             file: &file,
-            source: "it(\"unfinished",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "it(\"unfinished"
+            ),
             scope: enforcer_domain::findings::ScanScope::Files
         })
         .is_empty());
@@ -92,13 +97,13 @@ fn fixture_paths(rule_id: &str) -> (String, String) {
 
 /// Every rule id this crate owns, per `rules.json`: `language == "common"`
 /// minus the SEC-2 family (delegated to arc-10 per the workpack's SEC-2
-/// decision).
+/// decision) and standalone ARCH-1.16.
 fn expected_common_minus_sec2_ids() -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
     let catalog: LegacyRuleCatalog = serde_json::from_str(RULES_JSON)?;
     Ok(catalog
         .rules
         .into_iter()
-        .filter(|e| e.language == "common" && !e.id.starts_with("SEC-2"))
+        .filter(|e| e.language == "common" && !e.id.starts_with("SEC-2") && e.id != "ARCH-1.16")
         .map(|e| e.id)
         .collect())
 }
@@ -107,13 +112,20 @@ fn expected_common_minus_sec2_ids() -> Result<BTreeSet<String>, Box<dyn std::err
 fn every_registered_validator_fires_on_fail_and_is_silent_on_pass(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let validators = registry::all(DeclaredScope::Undeclared);
-    let repo_root = manifest_dir();
+    let manifest_dir = manifest_dir();
+    let repo_root = RepoRoot::try_from(manifest_dir.as_path())?;
     let mut failures = Vec::new();
     for validator in &validators {
         let rule_id = validator.rule_id().to_string();
         let (fail_path, pass_path) = fixture_paths(&rule_id);
-        if let Err(err) = run_fixture_parity(validator.as_ref(), &repo_root, &fail_path, &pass_path)
-        {
+        let fail_path = RelPath::try_from(fail_path)?;
+        let pass_path = RelPath::try_from(pass_path)?;
+        if let Err(err) = enforcer_validator::harness::run_fixture_parity(
+            validator.as_ref(),
+            &repo_root,
+            &fail_path,
+            &pass_path,
+        ) {
             failures.push(format!("{rule_id}: {err}"));
         }
     }
@@ -139,14 +151,14 @@ fn count_parity_against_rules_json_language_common_minus_sec2(
     assert!(
         missing.is_empty() && extra.is_empty(),
         "count-parity mismatch — missing (in rules.json, not registered): {missing:?}; \
-         extra (registered, not in rules.json's common-minus-SEC-2 set): {extra:?}"
+         extra (registered, not in rules.json's common-minus-SEC-2-minus-ARCH-1.16 set): {extra:?}"
     );
     assert_eq!(
         expected.len(),
-        250,
-        "expected 270 - 20 SEC-2 = 250 common rules"
+        249,
+        "expected common catalog minus SEC-2 and standalone ARCH-1.16 = 249 rules"
     );
-    assert_eq!(registered.len(), 250);
+    assert_eq!(registered.len(), 249);
     Ok(())
 }
 

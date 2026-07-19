@@ -40,45 +40,13 @@ use crate::fulltext::tokenize;
 /// build it and rejects mismatched queries.
 pub const HASHING_EMBEDDER_DIMENSION: usize = 64;
 
-/// Hardware class a capability ran (or would run) on. Adopted from the
-/// OcentraParent `ResourceClass` contract shape (BORROW_POLICY §2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ResourceClass {
-    Cpu,
-    Gpu,
-    Npu,
-}
-
-/// Typed reason a capability is degraded. Adopted from the OcentraParent
-/// `DegradedState` contract shape (BORROW_POLICY §2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DegradedState {
-    /// No real model backend is compiled/available in this build (the
-    /// default build -- `ort-models` is off).
-    ProviderUnavailable,
-    /// A real backend is available but overloaded/unresponsive.
-    Overloaded,
-    /// A real backend attempted to load but failed before inference.
-    ModelLoadFailed,
-    /// A real backend returned output that failed validation.
-    InvalidOutput,
-    /// A real backend returned output below an acceptable confidence
-    /// threshold.
-    LowConfidence,
-}
-
-/// Capability load state. Adopted from the OcentraParent
-/// `LoadState: unavailable | loading | loaded | degraded | failed`
-/// contract shape (BORROW_POLICY §2), re-typed as a Rust enum with the
-/// degraded reason carried inline rather than as a sibling field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LoadState {
-    Unavailable,
-    Loading,
-    Loaded,
-    Degraded(DegradedState),
-    Failed,
-}
+use enforcer_domain::memory_types::{
+    ComplexitySourceBytes, DegradedState, EmbeddingChunkerVersion, EmbeddingCosineSimilarity,
+    EmbeddingDimension, EmbeddingDtype, EmbeddingFormatterVersion, EmbeddingModelName,
+    EmbeddingNormalization, EmbeddingParserVersion, EmbeddingSimilarityMetric,
+    EmbeddingTermProjection, EmbeddingVector, LoadState, MemoryFullTextInput, MemoryFullTextToken,
+    ParserSourceText, ResourceClass,
+};
 
 /// Static description of the embedding model an [`Embedder`]
 /// implementation reports -- this is the "version vector" half that
@@ -86,14 +54,14 @@ pub enum LoadState {
 /// version vector) so stale-detection can fire on ANY of these changing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingModelInfo {
-    pub embedding_model: String,
-    pub dimension: usize,
-    pub dtype: String,
-    pub similarity_metric: String,
-    pub normalization: String,
-    pub formatter_version: String,
-    pub chunker_version: String,
-    pub parser_version: String,
+    pub embedding_model: EmbeddingModelName,
+    pub dimension: EmbeddingDimension,
+    pub dtype: EmbeddingDtype,
+    pub similarity_metric: EmbeddingSimilarityMetric,
+    pub normalization: EmbeddingNormalization,
+    pub formatter_version: EmbeddingFormatterVersion,
+    pub chunker_version: EmbeddingChunkerVersion,
+    pub parser_version: EmbeddingParserVersion,
 }
 
 /// One embedding vector plus the model info it was produced under, so
@@ -101,7 +69,7 @@ pub struct EmbeddingModelInfo {
 /// vector" -- it always travels with the vector.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedding {
-    pub vector: Vec<f32>,
+    pub vector: EmbeddingVector,
     pub model: EmbeddingModelInfo,
 }
 
@@ -110,7 +78,7 @@ pub struct Embedding {
 /// implementations satisfy this same trait without changing any caller.
 pub trait Embedder: Send + Sync {
     /// Embed `text` into this embedder's vector space.
-    fn embed(&self, text: &str) -> Result<Vec<f32>>;
+    fn embed(&self, text: ParserSourceText<'_>) -> Result<EmbeddingVector>;
 
     /// Static model info this embedder reports -- part of the vector
     /// index manifest's version vector (D-04).
@@ -144,50 +112,55 @@ impl HashingEmbedder {
     /// bit derived from a second hash bit -- the classic hashing-trick
     /// feature projection, deterministic across runs and platforms
     /// (FNV-1a, not `std`'s randomized `DefaultHasher`).
-    fn project_term(term: &str) -> (usize, f32) {
-        let digest = fnv1a(term.as_bytes());
-        let index = (digest % HASHING_EMBEDDER_DIMENSION as u64) as usize;
-        let sign = if digest & 1 == 0 { 1.0 } else { -1.0 };
-        (index, sign)
+    fn project_term(term: &MemoryFullTextToken) -> EmbeddingTermProjection {
+        fnv1a(ComplexitySourceBytes::from(term.as_str().as_bytes()))
     }
 }
 
-/// Deterministic FNV-1a 64-bit hash. Chosen over `std::hash` because
-/// `DefaultHasher`'s output is only guaranteed stable within one process
-/// run -- this embedder's whole contract is cross-run, cross-platform
-/// determinism (identical text always yields an identical vector).
-fn fnv1a(bytes: &[u8]) -> u64 {
-    const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0100_0000_01b3;
-    let mut hash = OFFSET_BASIS;
-    for &byte in bytes {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(PRIME);
+/// Stable FNV-1a projection for one token.
+fn fnv1a(bytes: ComplexitySourceBytes<'_>) -> EmbeddingTermProjection {
+    let digest = {
+        const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+        const PRIME: u64 = 0x0100_0000_01b3;
+        let mut hash = OFFSET_BASIS;
+        for &byte in bytes.as_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(PRIME);
+        }
+        hash
+    };
+    let dimension = u64::try_from(HASHING_EMBEDDER_DIMENSION).unwrap_or(u64::MAX);
+    let index = usize::try_from(digest % dimension).map_or(0, |value| value);
+    let sign = if digest & 1 == 0 { 1.0 } else { -1.0 };
+    EmbeddingTermProjection {
+        index: index.into(),
+        sign: sign.into(),
     }
-    hash
 }
 
 impl Embedder for HashingEmbedder {
-    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+    fn embed(&self, text: ParserSourceText<'_>) -> Result<EmbeddingVector> {
         let mut vector = vec![0.0f32; HASHING_EMBEDDER_DIMENSION];
-        for term in tokenize(text) {
-            let (index, sign) = Self::project_term(&term);
-            vector[index] += sign;
+        for term in tokenize(&MemoryFullTextInput::from(text.as_str())) {
+            let projection = Self::project_term(&term);
+            if let Some(slot) = vector.get_mut(projection.index.get()) {
+                *slot += projection.sign.get();
+            }
         }
-        l2_normalize(&mut vector);
-        Ok(vector)
+        let vector = EmbeddingVector::from(vector);
+        Ok(l2_normalize(&vector))
     }
 
     fn model_info(&self) -> EmbeddingModelInfo {
         EmbeddingModelInfo {
-            embedding_model: "enforcer-hashing-projection-v1".to_owned(),
-            dimension: HASHING_EMBEDDER_DIMENSION,
-            dtype: "f32".to_owned(),
-            similarity_metric: "cosine".to_owned(),
-            normalization: "l2".to_owned(),
-            formatter_version: "1".to_owned(),
-            chunker_version: "1".to_owned(),
-            parser_version: "1".to_owned(),
+            embedding_model: "enforcer-hashing-projection-v1".into(),
+            dimension: HASHING_EMBEDDER_DIMENSION.into(),
+            dtype: "f32".into(),
+            similarity_metric: "cosine".into(),
+            normalization: "l2".into(),
+            formatter_version: "1".into(),
+            chunker_version: "1".into(),
+            parser_version: "1".into(),
         }
     }
 
@@ -205,7 +178,17 @@ impl Embedder for HashingEmbedder {
 pub enum LocalEmbedder {
     Hashing(HashingEmbedder),
     #[cfg(feature = "ort-models")]
-    Ort(Box<crate::ort_runtime::OrtEmbedder>),
+    Ort(Box<crate::ort_runtime::real::OrtEmbedder>),
+}
+
+impl std::fmt::Debug for LocalEmbedder {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Hashing(embedder) => formatter.debug_tuple("Hashing").field(embedder).finish(),
+            #[cfg(feature = "ort-models")]
+            Self::Ort(_) => formatter.debug_tuple("Ort").field(&"OrtEmbedder").finish(),
+        }
+    }
 }
 
 impl LocalEmbedder {
@@ -215,22 +198,22 @@ impl LocalEmbedder {
 
     #[cfg(feature = "ort-models")]
     pub fn try_ort(
-        spec: &crate::model_runtime::ModelSpec,
-        provider: crate::model_runtime::ProviderKind,
+        spec: &crate::model_runtime::ModelSpecDto,
+        provider: enforcer_domain::memory_types::ProviderKind,
     ) -> Result<Self> {
-        Ok(Self::Ort(Box::new(crate::ort_runtime::OrtEmbedder::load(
-            spec, provider,
-        )?)))
+        Ok(Self::Ort(Box::new(
+            crate::ort_runtime::real::OrtEmbedder::load(spec, provider)?,
+        )))
     }
 
     #[cfg(not(feature = "ort-models"))]
     pub fn try_ort(
-        _spec: &crate::model_runtime::ModelSpec,
-        _provider: crate::model_runtime::ProviderKind,
+        _spec: &crate::model_runtime::ModelSpecDto,
+        _provider: enforcer_domain::memory_types::ProviderKind,
     ) -> Result<Self> {
         Err(crate::error::MemoryError::ModelRuntime {
-            operation: "load-local-ort-embedder",
-            reason: "ort-models feature is not compiled; default retrieval remains degraded/provider-unavailable".to_owned(),
+            operation: "load-local-ort-embedder".into(),
+            reason: "ort-models feature is not compiled; default retrieval remains degraded/provider-unavailable".into(),
         })
     }
 }
@@ -242,7 +225,7 @@ impl Default for LocalEmbedder {
 }
 
 impl Embedder for LocalEmbedder {
-    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+    fn embed(&self, text: ParserSourceText<'_>) -> Result<EmbeddingVector> {
         match self {
             Self::Hashing(embedder) => embedder.embed(text),
             #[cfg(feature = "ort-models")]
@@ -277,29 +260,33 @@ impl Embedder for LocalEmbedder {
 
 /// In-place L2 normalization; a zero vector is left as-is (no NaN from
 /// dividing by zero norm).
-fn l2_normalize(vector: &mut [f32]) {
+fn l2_normalize(vector: &EmbeddingVector) -> EmbeddingVector {
     let norm: f32 = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
+    let mut normalized = vector.as_slice().to_vec();
     if norm > 0.0 {
-        for value in vector.iter_mut() {
+        for value in &mut normalized {
             *value /= norm;
         }
     }
+    normalized.into()
 }
 
 /// Cosine similarity between two equal-length vectors. Returns `0.0` for
 /// mismatched lengths or a zero-norm vector rather than panicking --
 /// callers (fusion/HNSW candidate scoring) treat that as "no signal",
 /// never a crash.
-pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+pub fn cosine_similarity(a: &EmbeddingVector, b: &EmbeddingVector) -> EmbeddingCosineSimilarity {
+    let a = a.as_ref();
+    let b = b.as_ref();
     if a.len() != b.len() || a.is_empty() {
-        return 0.0;
+        return 0.0.into();
     }
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|v| v * v).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|v| v * v).sum::<f32>().sqrt();
     if norm_a == 0.0 || norm_b == 0.0 {
-        0.0
+        0.0.into()
     } else {
-        dot / (norm_a * norm_b)
+        (dot / (norm_a * norm_b)).into()
     }
 }

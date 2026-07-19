@@ -9,6 +9,9 @@
     "crates/enforcer-domain/src/**",
     "crates/enforcer-lang-rust/src/rules/**"
   ],
+  "domainPrimitiveOwnerGlobs": [
+    "crates/enforcer-domain/src/**"
+  ],
   "rawTypeBoundaryGlobs": [
     "crates/enforcer-cli/src/**",
     "crates/enforcer-cli/tests/**",
@@ -40,11 +43,17 @@
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
+  "allowBuildRs": false,
+  "allowedBuildRsPaths": [
+    "crates/enforcer-ui/frontend/src-tauri/build.rs"
+  ],
   "ignoreFileGlobs": [
     "**/node_modules/**",
     "vendor/**",
     "**/vendor/**",
     "**/target/**",
+    "target-*",
+    "**/target-*",
     "**/build/**",
     "**/dist/**",
     "crates/enforcer-ui/frontend/src/bindings/**",

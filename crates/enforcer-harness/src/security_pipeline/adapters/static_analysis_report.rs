@@ -17,10 +17,12 @@
 
 use enforcer_core::error::Result;
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessSourceLine,
+};
 use enforcer_domain::ids::ThreatId;
 use enforcer_domain::paths::RelPath;
 
-use crate::security_pipeline::seam::{EngineDetailText, EngineLine, EngineRuleLabel};
 use crate::security_pipeline::static_analysis::{StaticFinding, StaticOutcome};
 
 /// Raw wire shape of one recorded static-analysis report.
@@ -101,10 +103,10 @@ fn finding_from_record(record: StaticFindingRecord) -> Result<StaticFinding> {
         Some(raw_threat) => Some(raw_threat.parse::<ThreatId>()?),
     };
     Ok(StaticFinding {
-        rule: EngineRuleLabel(record.rule_id),
+        rule: HarnessExternalRuleId::try_new(record.rule_id)?,
         file: record.file.parse::<RelPath>()?,
-        line: EngineLine(record.line),
-        message: EngineDetailText(record.message),
+        line: HarnessSourceLine::from_external(u64::from(record.line)),
+        message: HarnessDiagnosticMessage::try_new(record.message)?,
         threat,
     })
 }

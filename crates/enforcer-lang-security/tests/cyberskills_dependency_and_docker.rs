@@ -8,8 +8,9 @@ use enforcer_domain::findings::ScanScope;
 use enforcer_domain::paths::RelPath;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator;
-use enforcer_validator::harness::run_fixture_parity;
+mod support;
 use enforcer_validator::validator::{ValidationInput, Validator};
+use support::assert_fixture_parity;
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -18,7 +19,7 @@ fn manifest_dir() -> PathBuf {
 #[test]
 fn dependency_confusion_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
     let validator = DependencyConfusionClaimableValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
         &manifest_dir(),
         "tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
@@ -34,12 +35,14 @@ fn dependency_confusion_reports_an_internal_npm_alias_target_once(
     let file: RelPath = "package.json".parse()?;
     let findings = validator.validate(ValidationInput {
         file: &file,
-        source: r#"{
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+            r#"{
             "dependencies": {
                 "internal-api": "^1.0.0",
                 "public-alias": "npm:internal-api@^2.0.0"
             }
         }"#,
+        ),
         scope: ScanScope::Files,
     });
 
@@ -49,7 +52,7 @@ fn dependency_confusion_reports_an_internal_npm_alias_target_once(
         "one resolved package should yield one finding"
     );
     assert_eq!(
-        findings[0].detail,
+        findings[0].detail.as_str(),
         "dependency `internal-api` is unscoped and matches an internal-looking naming \
          convention, so it is a CANDIDATE for a dependency-confusion takeover. This is a \
          naming heuristic, not a registry-verified verdict (see h12 for the registry-probe \
@@ -62,7 +65,7 @@ fn dependency_confusion_reports_an_internal_npm_alias_target_once(
 #[test]
 fn docker_daemon_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
     let validator = DockerDaemonHardeningValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
         &manifest_dir(),
         "tests/fixtures/cyberskills/container.docker-daemon/bad/daemon.json",

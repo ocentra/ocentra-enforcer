@@ -4,8 +4,8 @@ import { DECODE_OPERATION, ENCODE_OPERATION } from "./rust-rules-source-test-evi
 import { referencesVariable } from "./rust-rules-source-test-evidence-roundtrip-dataflow.mjs";
 
 /** Parses helper function definitions from source text. */
-export function helperDefinitions(source) {
-  const masked = maskRustCode(source);
+export function helperDefinitions(source, maskedSource = null) {
+  const masked = typeof maskedSource === "string" ? maskedSource : maskRustCode(source);
   const definitions = [];
   const declaration = /\bfn\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*<(?<generics>[^>{};]*\bT\b[^>{};]*)>\s*\((?<params>[^)]*)\)(?<tail>[^{;]*)\{/gu;
   for (const match of masked.matchAll(declaration)) {

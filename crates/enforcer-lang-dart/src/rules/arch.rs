@@ -6,11 +6,12 @@
 //! than a full AST parse (this crate has no tree-sitter/AST dependency).
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::boundary::validation::ValidationMarker;
+use enforcer_domain::ids::{BuiltInDartRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::support::{finding, first_line_containing, first_line_containing_any, FindingSpec};
+use super::support::{first_line_containing, first_line_containing_any, FindingSpec};
 
 /// `DART-ARCH-1.1..1.4` / `DART-DOMAIN-1.1` — layer/import boundaries.
 ///
@@ -18,6 +19,7 @@ use super::support::{finding, first_line_containing, first_line_containing_any, 
 /// path, OR when a file under a `domain/` directory imports
 /// `package:flutter/...`. Both are layer-boundary escapes: `data` must
 /// route reads back through `domain`, and `domain` must stay pure Dart.
+#[derive(Debug)]
 pub struct LayerBoundaryValidator {
     rule_id: RuleId,
 }
@@ -25,7 +27,7 @@ pub struct LayerBoundaryValidator {
 impl LayerBoundaryValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-ARCH-1.1".parse()?,
+            rule_id: BuiltInDartRule::LayerBoundary.id(),
         })
     }
 }
@@ -40,16 +42,18 @@ impl Validator for LayerBoundaryValidator {
         let spec = FindingSpec {
             rule_id: &self.rule_id,
             severity: Severity::Error,
-            title: "Dart layer boundary crossed",
+            rule: BuiltInDartRule::LayerBoundary,
         };
 
         if path.contains("/data/") || path.contains("data/") {
-            if let Some(line) = first_line_containing(input.source, "/presentation/") {
-                return vec![finding(
+            if let Some(line) = first_line_containing(
+                input.source,
+                ValidationMarker::from_static("/presentation/"),
+            ) {
+                return vec![finding!(
                     &spec,
                     "a `data/` file imports a `presentation/` path — data must route reads back \
-                     through `domain/`, never reach into presentation directly."
-                        .to_owned(),
+                     through `domain/`, never reach into presentation directly.",
                     &input,
                     line,
                 )];
@@ -57,12 +61,14 @@ impl Validator for LayerBoundaryValidator {
         }
 
         if path.contains("/domain/") || path.contains("domain/") {
-            if let Some(line) = first_line_containing(input.source, "package:flutter/") {
-                return vec![finding(
+            if let Some(line) = first_line_containing(
+                input.source,
+                ValidationMarker::from_static("package:flutter/"),
+            ) {
+                return vec![finding!(
                     &spec,
                     "a `domain/` file imports `package:flutter/...` — domain must stay pure Dart \
-                     with no Flutter dependency."
-                        .to_owned(),
+                     with no Flutter dependency.",
                     &input,
                     line,
                 )];
@@ -78,6 +84,7 @@ impl Validator for LayerBoundaryValidator {
 /// check in the same file. Both markers are common unsafe shapes:
 /// `foo['id']!` unwrapping a possibly-null map lookup, and `x as Order`
 /// with no `is Order` guard anywhere above it.
+#[derive(Debug)]
 pub struct NoUncheckedBangOrCastValidator {
     rule_id: RuleId,
 }
@@ -85,7 +92,7 @@ pub struct NoUncheckedBangOrCastValidator {
 impl NoUncheckedBangOrCastValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-BANG-1.1".parse()?,
+            rule_id: BuiltInDartRule::UncheckedBangOrCast.id(),
         })
     }
 }
@@ -99,28 +106,34 @@ impl Validator for NoUncheckedBangOrCastValidator {
         let spec = FindingSpec {
             rule_id: &self.rule_id,
             severity: Severity::Error,
-            title: "unchecked null-assertion or unguarded cast",
+            rule: BuiltInDartRule::UncheckedBangOrCast,
         };
 
         // `']!` / `')!` catches the common `map['key']!` / `fn(...)!`
         // unwrap shape without tripping on Dart's `!=` operator.
-        if let Some(line) = first_line_containing_any(input.source, &["']!", "\")!"]) {
-            return vec![finding(
+        if let Some(line) = first_line_containing_any(
+            input.source,
+            &[
+                ValidationMarker::from_static("']!"),
+                ValidationMarker::from_static("\")!"),
+            ],
+        ) {
+            return vec![finding!(
                 &spec,
                 "unchecked null-assertion `!` on a nullable lookup — use `tryParse`/a null-aware \
-                 accessor with an explicit fallback instead."
-                    .to_owned(),
+                 accessor with an explicit fallback instead.",
                 &input,
                 line,
             )];
         }
 
-        if let Some(line) = first_line_containing(input.source, " as ") {
-            if !input.source.contains(" is ") {
-                return vec![finding(
+        if let Some(line) =
+            first_line_containing(input.source, ValidationMarker::from_static(" as "))
+        {
+            if !input.source.as_str().contains(" is ") {
+                return vec![finding!(
                     &spec,
-                    "unguarded `as` cast with no preceding `is` type check anywhere in the file."
-                        .to_owned(),
+                    "unguarded `as` cast with no preceding `is` type check anywhere in the file.",
                     &input,
                     line,
                 )];
@@ -135,6 +148,7 @@ impl Validator for NoUncheckedBangOrCastValidator {
 /// declaration with a mutable (non-`final`) field and a setter is
 /// flagged; a `@freezed`-annotated class is exempt (freezed generates
 /// immutable, `final`-field data classes).
+#[derive(Debug)]
 pub struct FreezedEntityValidator {
     rule_id: RuleId,
 }
@@ -142,7 +156,7 @@ pub struct FreezedEntityValidator {
 impl FreezedEntityValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-FREEZED-1.1".parse()?,
+            rule_id: BuiltInDartRule::FreezedEntity.id(),
         })
     }
 }
@@ -153,24 +167,24 @@ impl Validator for FreezedEntityValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        if input.source.contains("@freezed") {
+        if input.source.as_str().contains("@freezed") {
             return Vec::new();
         }
-        if !input.source.contains("class ") {
+        if !input.source.as_str().contains("class ") {
             return Vec::new();
         }
-        let Some(line) = first_line_containing(input.source, "set ") else {
+        let Some(line) = first_line_containing(input.source, ValidationMarker::from_static("set "))
+        else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "mutable entity should be an immutable @freezed class",
+                rule: BuiltInDartRule::FreezedEntity,
             },
             "class declares a setter over a mutable field — entities should be immutable \
-             `@freezed` value classes, not mutable objects with setters."
-                .to_owned(),
+             `@freezed` value classes, not mutable objects with setters.",
             &input,
             line,
         )]

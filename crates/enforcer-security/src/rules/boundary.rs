@@ -110,16 +110,16 @@ impl Validator for BoundaryValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let has_auth_guard = self.auth_guard.is_match(input.source);
+        let has_auth_guard = self.auth_guard.is_match(input.source.as_str());
         let mut findings = Vec::new();
 
-        for (idx, text) in input.source.lines().enumerate() {
+        for (idx, text) in input.source.as_str().lines().enumerate() {
             // CAST-JUSTIFICATION: `enumerate` produces a source-line index and
             // `saturating_add` preserves a valid one-based finding location.
             let line_number = (idx as u32).saturating_add(1);
 
             if self.internal_route.is_match(text) && !has_auth_guard {
-                findings.push(Finding {
+                findings.extend(canonical_finding! {
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "unauthenticated internal endpoint (T1)".to_owned(),
@@ -137,7 +137,7 @@ impl Validator for BoundaryValidator {
             }
 
             if self.trusted_header.is_match(text) && !has_auth_guard {
-                findings.push(Finding {
+                findings.extend(canonical_finding! {
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "internal header trusted without verification (T1)".to_owned(),

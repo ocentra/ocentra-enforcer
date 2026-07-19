@@ -34,6 +34,7 @@ const COMMON_TEXT_EXTENSIONS = new Set([
   ".yml",
   ".env",
 ]);
+const SOURCE_COMMON_TEXT_EXTENSIONS = new Set([".json", ".jsonc", ".toml", ".yaml", ".yml", ".env"]);
 const SECRET_RE =
   /\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']/iu;
 const OPENAI_KEY_RE = /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/u;
@@ -222,7 +223,7 @@ const pythonRawJsonDictPattern = /\b(?:payload|json|data|body)\s*:\s*dict\s*(?:\
 const pythonEnvReadPattern = /\bos\.environ(?:\.|\[)|\bos\.getenv\s*\(/u;
 
 /** Collects files eligible for a generic scanner invocation. */
-export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
+export function collectGenericScopeFiles(root, scope, config, activeLanguages, sourceOnly = false) {
   if (scope.mode === "crate" && !scope.crateRoot) return [];
   const entries =
     scope.mode === "files"
@@ -238,7 +239,7 @@ export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
         .split(/\r?\n/u)
         .map((entry) => repoAbsolute(root, entry))
         .filter(
-          (file) => fs.existsSync(file) && isGenericFile(file, activeLanguages),
+          (file) => fs.existsSync(file) && isGenericFile(file, activeLanguages, sourceOnly),
         ),
     );
   }
@@ -246,7 +247,7 @@ export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
     root,
     entries,
     config,
-    (file) => isGenericFile(file, activeLanguages),
+    (file) => isGenericFile(file, activeLanguages, sourceOnly),
     scope.mode !== "crate",
   );
 }
@@ -478,8 +479,9 @@ function addViolation(
   });
 }
 
-function isGenericFile(filePath, activeLanguages) {
+function isGenericFile(filePath, activeLanguages, sourceOnly = false) {
   const ext = path.extname(filePath).toLowerCase();
+  const commonTextExtensions = sourceOnly ? SOURCE_COMMON_TEXT_EXTENSIONS : COMMON_TEXT_EXTENSIONS;
   if (
     activeLanguages.has("typescript") &&
     (TS_EXTENSIONS.has(ext) || isTypeScriptConfigPath(filePath))
@@ -490,7 +492,7 @@ function isGenericFile(filePath, activeLanguages) {
     activeLanguages.has("common") &&
     (TS_EXTENSIONS.has(ext) ||
       PY_EXTENSIONS.has(ext) ||
-      COMMON_TEXT_EXTENSIONS.has(ext) ||
+      commonTextExtensions.has(ext) ||
       ext === ".rs" ||
       isPolicyFile(filePath) ||
       isSensitiveOrGeneratedPath(filePath))
@@ -610,6 +612,7 @@ export {
   TS_EXTENSIONS,
   PY_EXTENSIONS,
   COMMON_TEXT_EXTENSIONS,
+  SOURCE_COMMON_TEXT_EXTENSIONS,
   SECRET_RE,
   OPENAI_KEY_RE,
   COMMON_SECRET_RULES,

@@ -16,7 +16,7 @@
 //! This file also proves the two OTHER acceptance-block requirements that
 //! are naturally integration-shaped rather than unit-shaped:
 //! - the `commands/plan.rs` emitter's `/plan` command dispatches through
-//!   the real `enforcer` binary invocation, not a stub (delegates to that
+//!   the real `enforcer` binary invocation, not a fixed response (delegates to that
 //!   module's own `dispatches_via_real_binary` predicate, re-asserted here
 //!   at the integration level against BOTH harness renderers);
 //! - a doc-parity check: `skills/plan/SKILL.md` carries both the
@@ -24,6 +24,7 @@
 
 use std::path::PathBuf;
 
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
@@ -70,7 +71,7 @@ fn self_validate_b05_workpack_yields_zero_findings() -> TestResult {
     let frontmatter = PlanFrontmatterValidator::new(rid("PLAN-FRONTMATTER.1")?);
     let input_for = |scope| ValidationInput {
         file: &file,
-        source: &source,
+        source: ValidationSource::from_text(&source),
         scope,
     };
 
@@ -88,7 +89,7 @@ fn self_validate_b05_workpack_yields_zero_findings() -> TestResult {
 
 /// Bonus proof (mirroring b02's own dispatch protocol): run the SAME
 /// PLAN-* validators, live, read-only against the whole plan directory's
-/// workpacks and report what they find. Never fixes a sibling doc from
+/// workpacks and report what they find. Never modifies a sibling doc from
 /// this pack, and never fails this crate's own `cargo test` on findings in
 /// files b05 does not own — see this file's module doc for why a hard
 /// zero-findings assertion over 111+ sibling docs is out of scope here.
@@ -121,7 +122,7 @@ fn self_validate_full_plan_reports_findings_readonly() -> TestResult {
         let file: RelPath = rel.parse()?;
         let input_for = |scope| ValidationInput {
             file: &file,
-            source: &source,
+            source: ValidationSource::from_text(&source),
             scope,
         };
         findings.extend(capsule.validate(input_for(ScanScope::Files)));
@@ -151,20 +152,20 @@ fn self_validate_full_plan_reports_findings_readonly() -> TestResult {
     Ok(())
 }
 
-/// A seeded violation: a `/plan` dispatch that hardcodes a fixed/fake
+/// A seeded violation: a `/plan` dispatch that hardcodes a fabricated
 /// result instead of invoking `enforcer plan new`/`enforcer plan check`
 /// must fail [`enforcer_install::commands::plan::dispatches_via_real_binary`].
-/// Proves the acceptance block's "a `/plan` dispatches a stub not the real
+/// Proves the acceptance block's "a `/plan` dispatches a fixed response not the real
 /// validator ... fails" seeded-violation case at the integration level.
 #[test]
-fn seeded_stub_dispatch_fails_the_real_binary_check() {
-    let stub = "This /plan command always reports the plan is valid.";
-    assert!(!enforcer_install::commands::plan::dispatches_via_real_binary(stub));
+fn seeded_fixed_response_dispatch_fails_the_real_binary_check() {
+    let fixed_response = "This /plan command always reports the plan is valid.";
+    assert!(!enforcer_install::commands::plan::dispatches_via_real_binary(fixed_response));
 }
 
 /// The real emitted `/plan` command (both harness renderers) dispatches
 /// through the actual `enforcer plan new`/`enforcer plan check` binary
-/// invocation — never a stub, never a call directly into `enforcer-plan`
+/// invocation — never a fixed response, never a call directly into `enforcer-plan`
 /// bypassing the CLI surface.
 #[test]
 fn plan_command_emitters_dispatch_via_the_real_binary() {

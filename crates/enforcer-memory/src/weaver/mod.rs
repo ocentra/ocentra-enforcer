@@ -13,7 +13,7 @@
 //!
 //! TabAgentServer `Rust/weaver` (tokio MPSC + worker pool, 4 module
 //! shape: semantic indexer, entity linker, associative linker,
-//! summarizer stub) per `refs/x06-source-scout-digests.md` §2 and
+//! summarizer stub) per `refs/x06-source-scout-digests.md` Â§2 and
 //! `MEMORY_RETRIEVAL_DECISIONS.md` D-09 (LOCKED). Every mechanism below
 //! that the digest calls out as absent from the source (dead-letter
 //! queue, bounded backoff retry, hot/warm/cold priority, blue/green
@@ -22,7 +22,7 @@
 //!
 //! # Blue/green embedding migration (Rag-Guide, D-09)
 //!
-//! "Never mix vector versions" (digest §4). [`EmbeddingGeneration`]
+//! "Never mix vector versions" (digest Â§4). [`EmbeddingGeneration`]
 //! models the migration as two ordinally-comparable generations: the
 //! active one every new [`crate::enrichment::EmbeddingTask`] is
 //! stamped with, and an optional next one being built in the
@@ -34,49 +34,33 @@
 //! stamped with, which is exactly the seam X06.5 owns per its file
 //! claims.
 
-use crate::enrichment::{Embedder, EnrichmentContext, NullEmbedder, WorkerPool, WorkerPoolConfig};
-use crate::queue::{Priority, QueueClosed, WeaverEvent, WeaverQueue, WeaverQueueHandle};
+use crate::enrichment::{
+    Embedder, EnrichmentContext, NullEmbedder, SharedSummaryStore, WorkerPool, WorkerPoolConfig,
+};
+use crate::owned_boundary::Retained;
+use crate::queue::{QueueSendError, WeaverEvent, WeaverQueue, WeaverQueueHandle};
 use crate::summaries::SummaryStore;
+use enforcer_domain::memory_types::{
+    EmbeddingGeneration, EmbeddingGenerationId, MemoryPriority, TaskOutcome, WeaverContentHash,
+    WeaverNodeIds, WeaverRelativePath, WorkerConcurrency,
+};
 use std::sync::{Arc, Mutex};
 
 /// The state of a blue/green embedding-version migration. `Stable`
 /// means every task is stamped with `active`; `Migrating` means a
 /// green generation is being built alongside blue -- callers building
 /// the green index must use `next`, never mix it with `active`'s
-/// vectors (Rag-Guide, digest §4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EmbeddingGeneration {
-    Stable { active: u32 },
-    Migrating { active: u32, next: u32 },
-}
-
-impl EmbeddingGeneration {
-    pub fn active(&self) -> u32 {
-        match self {
-            EmbeddingGeneration::Stable { active }
-            | EmbeddingGeneration::Migrating { active, .. } => *active,
-        }
-    }
-
-    pub fn next(&self) -> Option<u32> {
-        match self {
-            EmbeddingGeneration::Stable { .. } => None,
-            EmbeddingGeneration::Migrating { next, .. } => Some(*next),
-        }
-    }
-
-    pub fn is_migrating(&self) -> bool {
-        matches!(self, EmbeddingGeneration::Migrating { .. })
-    }
-}
-
+/// vectors (Rag-Guide, digest Â§4).
 /// Error attempting an invalid migration transition (e.g. completing a
 /// migration that was never started, or starting one that is already
 /// in flight).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum MigrationError {
     #[error("an embedding migration is already in progress (active={active}, next={next})")]
-    AlreadyMigrating { active: u32, next: u32 },
+    AlreadyMigrating {
+        active: EmbeddingGenerationId,
+        next: EmbeddingGenerationId,
+    },
     #[error("no embedding migration is in progress to complete")]
     NotMigrating,
 }
@@ -85,11 +69,12 @@ pub enum MigrationError {
 /// running worker pool, and the current embedding generation. Built via
 /// [`WeaverBuilder`] so tests can swap in [`crate::enrichment::FlakyEmbedder`]
 /// without threading extra parameters through every constructor.
+#[derive(Debug)]
 pub struct Weaver {
     queue_handle: WeaverQueueHandle,
     pool: WorkerPool,
     generation: Arc<Mutex<EmbeddingGeneration>>,
-    summaries: Arc<Mutex<SummaryStore>>,
+    summaries: SharedSummaryStore,
 }
 
 /// Builder for [`Weaver`] -- defaults to [`NullEmbedder`] and
@@ -99,10 +84,39 @@ pub struct Weaver {
 /// model download" contract.
 pub struct WeaverBuilder {
     embedder: Arc<dyn Embedder>,
-    max_concurrency: Option<usize>,
+    max_concurrency: Option<WorkerConcurrency>,
     retry: crate::queue::RetryPolicy,
-    embedding_version: u32,
-    on_outcome: Option<tokio::sync::mpsc::UnboundedSender<crate::enrichment::TaskOutcome>>,
+    embedding_version: EmbeddingGenerationId,
+    on_outcome: Option<tokio::sync::mpsc::Sender<TaskOutcome>>,
+}
+
+impl std::fmt::Debug for WeaverBuilder {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WeaverBuilder")
+            .field("embedder", &"dyn Embedder")
+            .field("max_concurrency", &self.max_concurrency)
+            .field("retry", &self.retry)
+            .field("embedding_version", &self.embedding_version)
+            .field("on_outcome", &self.on_outcome.is_some())
+            .finish()
+    }
+}
+
+/// Configured Weaver builder plus its deterministic task-outcome receiver.
+pub struct WeaverOutcomeChannel {
+    pub builder: WeaverBuilder,
+    pub outcomes: tokio::sync::mpsc::Receiver<TaskOutcome>,
+}
+
+impl std::fmt::Debug for WeaverOutcomeChannel {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WeaverOutcomeChannel")
+            .field("builder", &self.builder)
+            .field("outcomes", &"Receiver<TaskOutcome>")
+            .finish()
+    }
 }
 
 impl Default for WeaverBuilder {
@@ -111,7 +125,7 @@ impl Default for WeaverBuilder {
             embedder: Arc::new(NullEmbedder::new()),
             max_concurrency: None,
             retry: crate::queue::RetryPolicy::bounded_default(),
-            embedding_version: 1,
+            embedding_version: EmbeddingGenerationId::INITIAL,
             on_outcome: None,
         }
     }
@@ -123,7 +137,7 @@ impl WeaverBuilder {
         self
     }
 
-    pub fn with_max_concurrency(mut self, max_concurrency: usize) -> Self {
+    pub fn with_max_concurrency(mut self, max_concurrency: WorkerConcurrency) -> Self {
         self.max_concurrency = Some(max_concurrency);
         self
     }
@@ -133,25 +147,23 @@ impl WeaverBuilder {
         self
     }
 
-    pub fn with_embedding_version(mut self, version: u32) -> Self {
+    pub fn with_embedding_version(mut self, version: EmbeddingGenerationId) -> Self {
         self.embedding_version = version;
         self
     }
 
-    /// Attach a per-attempt [`crate::enrichment::TaskOutcome`] channel,
+    /// Attach a per-attempt [`TaskOutcome`] channel,
     /// returning the receiver half. Hard tests use this to `.await` a
     /// specific outcome (e.g. the retry that eventually dead-letters)
     /// instead of polling `tokio::time::sleep` in a loop -- see
     /// `tests/weaver_enrichment.rs`.
-    pub fn with_outcome_channel(
-        mut self,
-    ) -> (
-        Self,
-        tokio::sync::mpsc::UnboundedReceiver<crate::enrichment::TaskOutcome>,
-    ) {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    pub fn with_outcome_channel(mut self) -> WeaverOutcomeChannel {
+        let (tx, rx) = tokio::sync::mpsc::channel(64);
         self.on_outcome = Some(tx);
-        (self, rx)
+        WeaverOutcomeChannel {
+            builder: self,
+            outcomes: rx,
+        }
     }
 
     /// Build and start the weaver: spawns the worker pool immediately
@@ -160,16 +172,17 @@ impl WeaverBuilder {
     pub fn build(self) -> Weaver {
         let queue = WeaverQueue::new();
         let queue_handle = queue.handle();
-        let summaries = Arc::new(Mutex::new(SummaryStore::new()));
+        let summary_stores = SharedSummaryStore::shared_pair();
+        let summaries = summary_stores.primary;
+        let enrichment_summaries = summary_stores.enrichment;
         let generation = Arc::new(Mutex::new(EmbeddingGeneration::Stable {
             active: self.embedding_version,
         }));
-
-        let ctx = Arc::new(EnrichmentContext {
-            embedder: self.embedder,
-            summaries: Arc::clone(&summaries),
-            embedding_version: self.embedding_version,
-        });
+        let ctx = Arc::new(EnrichmentContext::with_shared_summaries(
+            self.embedder,
+            enrichment_summaries,
+            self.embedding_version,
+        ));
 
         let mut config = match self.max_concurrency {
             Some(max_concurrency) => WorkerPoolConfig {
@@ -182,7 +195,7 @@ impl WeaverBuilder {
         };
         config.on_outcome = self.on_outcome;
 
-        let pool = WorkerPool::spawn(queue, queue_handle.clone(), ctx, &config);
+        let pool = WorkerPool::spawn(queue, queue_handle.retained(), ctx, &config);
 
         Weaver {
             queue_handle,
@@ -203,12 +216,12 @@ impl Weaver {
     /// caller (MCP tool handler, CLI command, watcher) may hold and use
     /// this without ever waiting on enrichment.
     pub fn handle(&self) -> WeaverQueueHandle {
-        self.queue_handle.clone()
+        self.queue_handle.retained()
     }
 
     /// Enqueue a single event at its default priority (see
     /// [`crate::enrichment::default_priority`]).
-    pub fn enqueue(&self, event: WeaverEvent) -> Result<(), QueueClosed> {
+    pub fn enqueue(&self, event: WeaverEvent) -> Result<(), QueueSendError> {
         let priority = crate::enrichment::default_priority(&event);
         self.queue_handle.send(event, priority)
     }
@@ -227,45 +240,46 @@ impl Weaver {
     pub fn enqueue_index_report(
         &self,
         report: &crate::code_graph::IndexReport,
-        content_hashes: impl Fn(&str) -> String,
-        node_ids_by_path: impl Fn(&str) -> Vec<String>,
-    ) -> Result<(), QueueClosed> {
+        content_hashes: impl Fn(&WeaverRelativePath) -> WeaverContentHash,
+        node_ids_by_path: impl Fn(&WeaverRelativePath) -> WeaverNodeIds,
+    ) -> Result<(), QueueSendError> {
         for rel_path in report.changed.iter().chain(report.added.iter()) {
-            let content_hash = content_hashes(rel_path);
+            let rel_path = WeaverRelativePath::from(rel_path);
+            let content_hash = content_hashes(&rel_path);
             self.queue_handle.send(
                 WeaverEvent::FileChanged {
-                    rel_path: rel_path.clone(),
-                    content_hash: content_hash.clone(),
+                    rel_path: rel_path.retained(),
+                    content_hash: content_hash.retained(),
                 },
-                Priority::Hot,
+                MemoryPriority::Hot,
             )?;
-            for node_id in node_ids_by_path(rel_path) {
+            for node_id in node_ids_by_path(&rel_path) {
                 self.queue_handle.send(
                     WeaverEvent::NodeChanged {
                         node_id,
-                        rel_path: rel_path.clone(),
-                        content_hash: content_hash.clone(),
+                        rel_path: rel_path.retained(),
+                        content_hash: content_hash.retained(),
                     },
-                    Priority::Hot,
+                    MemoryPriority::Hot,
                 )?;
             }
         }
         for rel_path in &report.deleted {
             self.queue_handle.send(
                 WeaverEvent::FileDeleted {
-                    rel_path: rel_path.clone(),
+                    rel_path: rel_path.into(),
                 },
-                Priority::Warm,
+                MemoryPriority::Warm,
             )?;
         }
         Ok(())
     }
 
-    /// Snapshot the summary/link store (read-only; the pool keeps
-    /// writing to its own clone of the same `Arc` concurrently, so
-    /// callers observe a point-in-time snapshot, never a torn write).
-    pub fn summaries(&self) -> Arc<Mutex<SummaryStore>> {
-        Arc::clone(&self.summaries)
+    /// Run one synchronized operation against the summary/link store.
+    /// The raw lock never crosses this boundary, so callers cannot retain a
+    /// guard or couple their API to the store's synchronization primitive.
+    pub fn with_summaries<T>(&self, operation: impl FnOnce(&mut SummaryStore) -> T) -> T {
+        self.summaries.with_mut(operation)
     }
 
     pub fn embedding_generation(&self) -> EmbeddingGeneration {
@@ -276,7 +290,9 @@ impl Weaver {
         self.generation
             .lock()
             .map(|g| *g)
-            .unwrap_or(EmbeddingGeneration::Stable { active: 0 })
+            .unwrap_or(EmbeddingGeneration::Stable {
+                active: EmbeddingGenerationId::RECOVERY,
+            })
     }
 
     /// Begin a blue/green migration to `next_version`: new
@@ -285,9 +301,12 @@ impl Weaver {
     /// [`Weaver::complete_embedding_migration`] cuts over -- this call
     /// only records that a green generation is being built, matching
     /// Rag-Guide's "build parallel, shadow, compare, cut over" sequence
-    /// (digest §4); it does not itself re-embed anything (X06.4's
+    /// (digest Â§4); it does not itself re-embed anything (X06.4's
     /// concern once wired).
-    pub fn begin_embedding_migration(&self, next_version: u32) -> Result<(), MigrationError> {
+    pub fn begin_embedding_migration(
+        &self,
+        next_version: EmbeddingGenerationId,
+    ) -> Result<(), MigrationError> {
         let mut generation = self.generation.lock().unwrap_or_else(|e| e.into_inner());
         match *generation {
             EmbeddingGeneration::Stable { active } => {
@@ -309,7 +328,7 @@ impl Weaver {
     /// already re-embedded/compared recall+latency before calling this
     /// (Rag-Guide sequence; the comparison step is X06.9's benchmark
     /// harness, not this module's concern).
-    pub fn complete_embedding_migration(&self) -> Result<u32, MigrationError> {
+    pub fn complete_embedding_migration(&self) -> Result<EmbeddingGenerationId, MigrationError> {
         let mut generation = self.generation.lock().unwrap_or_else(|e| e.into_inner());
         match *generation {
             EmbeddingGeneration::Migrating { next, .. } => {

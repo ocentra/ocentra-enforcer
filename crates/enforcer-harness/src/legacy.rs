@@ -9,11 +9,13 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::config::HarnessConfig;
 use enforcer_core::error::Result;
+use enforcer_domain::config_types::HarnessConfig;
 
 /// Normalize an absolute path to a `/`-separated path relative to `root`.
 /// Returns `.` for the root itself.
+/// PROPERTY-TEST: `tests/parser_properties.rs` supplies arbitrary safe path
+/// components and asserts platform separators never escape the normalized form.
 pub fn normalize_rel(root: &Path, target: &Path) -> String {
     let relative = target.strip_prefix(root).unwrap_or(target);
     if relative.as_os_str().is_empty() {
@@ -31,7 +33,7 @@ pub fn normalize_rel(root: &Path, target: &Path) -> String {
 /// (or the configured storage dir) then the legacy `.ocentra-enforcer`
 /// root, deduped by path.
 pub fn candidate_storage_roots(repo_root: &Path, config: &HarnessConfig) -> Result<Vec<PathBuf>> {
-    let authoritative = config.storage_root(repo_root)?;
+    let authoritative = crate::config::storage_root(config, repo_root)?;
     let legacy = crate::config::legacy_storage_root(repo_root);
     let mut roots = vec![authoritative];
     if !roots.contains(&legacy) {
@@ -43,8 +45,8 @@ pub fn candidate_storage_roots(repo_root: &Path, config: &HarnessConfig) -> Resu
 #[cfg(test)]
 mod tests {
     use super::candidate_storage_roots;
-    use crate::config::HarnessConfig;
     use enforcer_core::error::Result;
+    use enforcer_domain::config_types::HarnessConfig;
 
     #[test]
     fn candidate_roots_lists_authoritative_before_legacy() -> Result<()> {

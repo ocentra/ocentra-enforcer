@@ -7,11 +7,13 @@
 
 use std::path::PathBuf;
 
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_lang_py::all_validators;
 use enforcer_validator::harness::run_fixture_parity;
 
-fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn manifest_dir() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    RepoRoot::try_from(path.as_path())
 }
 
 /// Fixture file extension for one rule's fail/pass pair. Most rules scan
@@ -41,10 +43,10 @@ fn every_registered_validator_proves_fail_and_pass_fixtures(
     for validator in &validators {
         let rule_id = validator.rule_id().to_string();
         let ext = fixture_extension(&rule_id);
-        let fail_path = format!("fixtures/{rule_id}/fail.{ext}");
-        let pass_path = format!("fixtures/{rule_id}/pass.{ext}");
+        let fail_path: RelPath = format!("fixtures/{rule_id}/fail.{ext}").parse()?;
+        let pass_path: RelPath = format!("fixtures/{rule_id}/pass.{ext}").parse()?;
 
-        run_fixture_parity(validator.as_ref(), &manifest_dir(), &fail_path, &pass_path)
+        run_fixture_parity(validator.as_ref(), &manifest_dir()?, &fail_path, &pass_path)
             .map_err(|error| format!("{rule_id}: {error}"))?;
         proven += 1;
     }
@@ -80,12 +82,9 @@ fn harness_catches_a_validator_that_never_fires() -> Result<(), Box<dyn std::err
     let broken = NeverFires {
         rule_id: "PY-1.1".parse()?,
     };
-    let outcome = run_fixture_parity(
-        &broken,
-        &manifest_dir(),
-        "fixtures/PY-1.1/fail.py",
-        "fixtures/PY-1.1/pass.py",
-    );
+    let fail_path: RelPath = "fixtures/PY-1.1/fail.py".parse()?;
+    let pass_path: RelPath = "fixtures/PY-1.1/pass.py".parse()?;
+    let outcome = run_fixture_parity(&broken, &manifest_dir()?, &fail_path, &pass_path);
     assert!(
         outcome.is_err(),
         "the harness must reject a validator that never fires on its fail fixture"

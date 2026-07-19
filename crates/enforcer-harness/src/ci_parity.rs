@@ -49,6 +49,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use enforcer_domain::findings::Finding;
+use enforcer_domain::harness_types::{HarnessStepName, HarnessStepVersion};
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
@@ -62,10 +63,10 @@ pub const CI_PARITY_RULE_ID: &str = "CI-PARITY.1";
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StepRecord {
     /// Normalized step name (trimmed; the comparison key).
-    pub name: String,
+    pub name: HarnessStepName,
     /// Pinned version string for this step's tool/action/toolchain, if
     /// the manifest declared one.
-    pub version: Option<String>,
+    pub version: Option<HarnessStepVersion>,
 }
 
 /// A normalized set of steps parsed from one source (local or CI).
@@ -91,8 +92,8 @@ impl StepManifest {
     fn version_map(&self) -> BTreeMap<&str, &str> {
         let mut map = BTreeMap::new();
         for step in &self.steps {
-            if let Some(version) = step.version.as_deref() {
-                map.entry(step.name.as_str()).or_insert(version);
+            if let Some(version) = step.version.as_ref() {
+                map.entry(step.name.as_str()).or_insert(version.as_str());
             }
         }
         map
@@ -108,11 +109,13 @@ impl StepManifest {
 /// # Errors
 /// Returns a `String` describing the JSON error the moment the text does
 /// not parse as the expected array-of-objects shape. Never panics.
+///
+/// PROPERTY-TEST: `tests/parser_properties.rs` supplies arbitrary text and
+/// asserts deterministic acceptance or rejection.
 pub fn parse_local_manifest(text: &str) -> Result<StepManifest, String> {
     #[derive(serde::Deserialize)]
     struct RawStep {
         name: String,
-        #[serde(default)]
         version: Option<String>,
     }
     let raw: Vec<RawStep> = serde_json::from_str(text)
@@ -120,11 +123,17 @@ pub fn parse_local_manifest(text: &str) -> Result<StepManifest, String> {
     Ok(StepManifest {
         steps: raw
             .into_iter()
-            .map(|r| StepRecord {
-                name: r.name.trim().to_owned(),
-                version: r.version.map(|v| v.trim().to_owned()),
+            .map(|r| {
+                let name = HarnessStepName::try_new(r.name.trim().to_owned())
+                    .map_err(|error| error.to_string())?;
+                let version = r
+                    .version
+                    .map(|value| HarnessStepVersion::try_new(value.trim().to_owned()))
+                    .transpose()
+                    .map_err(|error| error.to_string())?;
+                Ok(StepRecord { name, version })
             })
-            .collect(),
+            .collect::<Result<Vec<_>, String>>()?,
     })
 }
 
@@ -149,20 +158,21 @@ pub fn parse_local_manifest(text: &str) -> Result<StepManifest, String> {
 #[must_use]
 pub fn parse_ci_manifest(text: &str) -> StepManifest {
     let mut steps = Vec::new();
-    let mut current_name: Option<String> = None;
-    let mut current_version: Option<String> = None;
+    let mut current_name: Option<HarnessStepName> = None;
+    let mut current_version: Option<HarnessStepVersion> = None;
 
-    let flush =
-        |steps: &mut Vec<StepRecord>, name: &mut Option<String>, version: &mut Option<String>| {
-            if let Some(name) = name.take() {
-                steps.push(StepRecord {
-                    name,
-                    version: version.take(),
-                });
-            } else {
-                *version = None;
-            }
-        };
+    let flush = |steps: &mut Vec<StepRecord>,
+                 name: &mut Option<HarnessStepName>,
+                 version: &mut Option<HarnessStepVersion>| {
+        if let Some(name) = name.take() {
+            steps.push(StepRecord {
+                name,
+                version: version.take(),
+            });
+        } else {
+            *version = None;
+        }
+    };
 
     for raw_line in text.lines() {
         let line = raw_line.trim_end();
@@ -170,7 +180,7 @@ pub fn parse_ci_manifest(text: &str) -> StepManifest {
 
         if let Some(rest) = trimmed.strip_prefix("- name:") {
             flush(&mut steps, &mut current_name, &mut current_version);
-            current_name = Some(unquote(rest.trim()));
+            current_name = Some(HarnessStepName::from_manifest(&unquote(rest.trim())));
             continue;
         }
 
@@ -181,17 +191,19 @@ pub fn parse_ci_manifest(text: &str) -> StepManifest {
         if let Some(rest) = trimmed.strip_prefix("uses:") {
             let uses = unquote(rest.trim());
             if let Some((_, ref_part)) = uses.rsplit_once('@') {
-                current_version = Some(ref_part.to_owned());
+                current_version = HarnessStepVersion::try_new(ref_part.to_owned()).ok();
             }
             continue;
         }
 
         if let Some(rest) = trimmed.strip_prefix("# ci-parity:") {
             if let Some((tool, version)) = rest.trim().split_once('=') {
-                if tool.trim() == current_name.as_deref().unwrap_or_default()
+                if current_name
+                    .as_ref()
+                    .is_some_and(|name| tool.trim() == name.as_str())
                     || current_version.is_none()
                 {
-                    current_version = Some(version.trim().to_owned());
+                    current_version = HarnessStepVersion::try_new(version.trim().to_owned()).ok();
                 }
             }
             continue;
@@ -320,15 +332,16 @@ fn push_step_finding(findings: &mut Vec<Finding>, title: &str, detail: &str) {
     let rule_id: Result<RuleId, _> = CI_PARITY_RULE_ID.parse();
     let file: Result<RelPath, _> = "ci-parity/local-vs-ci-manifest".parse();
     if let (Ok(rule_id), Ok(file)) = (rule_id, file) {
-        findings.push(Finding {
+        if let Some(finding) = domain_finding!(
             rule_id,
-            severity: Severity::Error,
-            title: title.to_owned(),
-            detail: detail.to_owned(),
+            Severity::Error,
+            title.to_owned(),
+            detail.to_owned(),
             file,
-            line: 1,
-            snippet: None,
-        });
+            1,
+        ) {
+            findings.push(finding);
+        }
     }
 }
 
@@ -341,15 +354,26 @@ mod tests {
     use enforcer_domain::ids::RuleId;
     use enforcer_domain::paths::RelPath;
 
+    fn step(name: &str, version: Option<&str>) -> StepRecord {
+        StepRecord {
+            name: enforcer_domain::harness_types::HarnessStepName::from_manifest(name),
+            version: version
+                .and_then(enforcer_domain::harness_types::HarnessStepVersion::from_manifest),
+        }
+    }
+
     /// Backs the "unreachable in practice" claim in `push_step_finding`'s
     /// doc comment: both fixed literals it parses actually construct
     /// successfully today. If a future charset change to `RuleId`/
     /// `RelPath` ever breaks either, this test (not a silent
     /// dropped-finding at runtime) is what catches it.
     #[test]
-    fn ci_parity_rule_id_and_path_literals_are_valid() {
-        assert!(CI_PARITY_RULE_ID.parse::<RuleId>().is_ok());
-        assert!("ci-parity/local-vs-ci-manifest".parse::<RelPath>().is_ok());
+    fn ci_parity_rule_id_and_path_literals_are_valid() -> Result<(), Box<dyn std::error::Error>> {
+        let rule_id = CI_PARITY_RULE_ID.parse::<RuleId>()?;
+        assert_eq!(rule_id.as_str(), CI_PARITY_RULE_ID);
+        let path = "ci-parity/local-vs-ci-manifest".parse::<RelPath>()?;
+        assert_eq!(path.as_str(), "ci-parity/local-vs-ci-manifest");
+        Ok(())
     }
 
     #[test]
@@ -366,10 +390,13 @@ mod tests {
     #[test]
     fn rejects_malformed_local_manifest_text() {
         let result = parse_local_manifest("not json");
-        assert!(result.is_err());
-        if let Err(detail) = result {
-            assert!(detail.contains("not a valid JSON step array"));
-        }
+        assert_eq!(
+            result,
+            Err(
+                "local manifest is not a valid JSON step array: expected ident at line 1 column 2"
+                    .to_owned()
+            )
+        );
     }
 
     #[test]
@@ -407,26 +434,14 @@ jobs:
     fn matched_sets_pass_with_zero_findings() {
         let local = StepManifest {
             steps: vec![
-                StepRecord {
-                    name: "cargo fmt --check".to_owned(),
-                    version: None,
-                },
-                StepRecord {
-                    name: "cargo-deny".to_owned(),
-                    version: Some("0.14.0".to_owned()),
-                },
+                step("cargo fmt --check", None),
+                step("cargo-deny", Some("0.14.0")),
             ],
         };
         let ci = StepManifest {
             steps: vec![
-                StepRecord {
-                    name: "cargo fmt --check".to_owned(),
-                    version: None,
-                },
-                StepRecord {
-                    name: "cargo-deny".to_owned(),
-                    version: Some("0.14.0".to_owned()),
-                },
+                step("cargo fmt --check", None),
+                step("cargo-deny", Some("0.14.0")),
             ],
         };
         assert!(check_parity(&local, &ci).is_empty());
@@ -436,92 +451,67 @@ jobs:
     fn injected_local_only_step_fails_closed() {
         let local = StepManifest {
             steps: vec![
-                StepRecord {
-                    name: "cargo fmt --check".to_owned(),
-                    version: None,
-                },
-                StepRecord {
-                    name: "extra-local-only-step".to_owned(),
-                    version: None,
-                },
+                step("cargo fmt --check", None),
+                step("extra-local-only-step", None),
             ],
         };
         let ci = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo fmt --check".to_owned(),
-                version: None,
-            }],
+            steps: vec![step("cargo fmt --check", None)],
         };
         let findings = check_parity(&local, &ci);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("extra-local-only-step"));
         assert!(findings[0]
             .detail
+            .as_str()
+            .contains("extra-local-only-step"));
+        assert!(findings[0]
+            .detail
+            .as_str()
             .contains("is not present in the CI workflow's step set"));
     }
 
     #[test]
     fn injected_ci_only_step_fails_closed() {
         let local = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo fmt --check".to_owned(),
-                version: None,
-            }],
+            steps: vec![step("cargo fmt --check", None)],
         };
         let ci = StepManifest {
             steps: vec![
-                StepRecord {
-                    name: "cargo fmt --check".to_owned(),
-                    version: None,
-                },
-                StepRecord {
-                    name: "extra-ci-only-step".to_owned(),
-                    version: None,
-                },
+                step("cargo fmt --check", None),
+                step("extra-ci-only-step", None),
             ],
         };
         let findings = check_parity(&local, &ci);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("extra-ci-only-step"));
+        assert!(findings[0].detail.as_str().contains("extra-ci-only-step"));
         assert!(findings[0]
             .detail
+            .as_str()
             .contains("is not present in the local step manifest"));
     }
 
     #[test]
     fn injected_version_skew_fails_closed() {
         let local = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo-deny".to_owned(),
-                version: Some("0.14.0".to_owned()),
-            }],
+            steps: vec![step("cargo-deny", Some("0.14.0"))],
         };
         let ci = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo-deny".to_owned(),
-                version: Some("0.15.2".to_owned()),
-            }],
+            steps: vec![step("cargo-deny", Some("0.15.2"))],
         };
         let findings = check_parity(&local, &ci);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("0.14.0"));
-        assert!(findings[0].detail.contains("0.15.2"));
-        assert!(findings[0].title.contains("version skew"));
+        assert!(findings[0].detail.as_str().contains("0.14.0"));
+        assert!(findings[0].detail.as_str().contains("0.15.2"));
+        assert!(findings[0].title.as_str().contains("version skew"));
     }
 
     #[test]
     fn matching_versions_do_not_double_report_alongside_name_diff() {
         let local = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo-deny".to_owned(),
-                version: Some("0.14.0".to_owned()),
-            }],
+            steps: vec![step("cargo-deny", Some("0.14.0"))],
         };
         let ci = StepManifest {
-            steps: vec![StepRecord {
-                name: "cargo-deny".to_owned(),
-                version: Some("0.14.0".to_owned()),
-            }],
+            steps: vec![step("cargo-deny", Some("0.14.0"))],
         };
         assert!(check_parity(&local, &ci).is_empty());
     }
@@ -547,8 +537,8 @@ jobs:
     fn toolchain_channel_skew_is_flagged() {
         let findings = check_toolchain_channel_parity(Some("1.95.0"), Some("1.80.0"));
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("1.95.0"));
-        assert!(findings[0].detail.contains("1.80.0"));
+        assert!(findings[0].detail.as_str().contains("1.95.0"));
+        assert!(findings[0].detail.as_str().contains("1.80.0"));
     }
 
     #[test]

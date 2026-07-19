@@ -39,6 +39,7 @@ use regex::Regex;
 
 /// `CYBER-AUTH-JWT.1` — JWT `alg:"none"` acceptance and hardcoded
 /// short signing-secret detector.
+#[derive(Debug)]
 pub struct JwtSecurityValidator {
     rule_id: RuleId,
     none_algorithm: Regex,
@@ -48,7 +49,7 @@ pub struct JwtSecurityValidator {
 impl JwtSecurityValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-AUTH-JWT.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberAuthJwt.id(),
             // Matches `algorithms: ["none"]`, `algorithm: "none"`, and the
             // bare header field `alg: "none"` (including the JSON-quoted-key
             // spelling `"alg": "none"`), any quote style, optional array
@@ -58,7 +59,7 @@ impl JwtSecurityValidator {
             none_algorithm: Regex::new(
                 r#"(?i)\b(?:algorithms?|alg)\b['"]?\s*[:=]\s*\[?\s*['"]none['"]\s*\]?"#,
             )
-            .map_err(|err| DecodeError::new("cyberskillsJwtNoneAlgorithm", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsJwtNoneAlgorithm", err))?,
             // Matches `jwt.sign(payload, "secret")` / `jwt.verify(token,
             // 'key')` (and the `jsonwebtoken.` alias) where the secret
             // argument is a quoted literal of 1-15 characters (i.e. under
@@ -70,7 +71,7 @@ impl JwtSecurityValidator {
             short_hardcoded_secret: Regex::new(
                 r#"(?i)\b(?:jwt|jsonwebtoken)\.(?:sign|verify)\s*\(\s*[\w.\[\]$]+\s*,\s*['"]([^'"]{1,15})['"]"#,
             )
-            .map_err(|err| DecodeError::new("cyberskillsJwtShortSecret", err.to_string()))?,
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsJwtShortSecret", err))?,
         })
     }
 }
@@ -82,25 +83,22 @@ impl Validator for JwtSecurityValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
 
             if self.none_algorithm.is_match(line) {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "JWT verification accepts the \"none\" algorithm".to_owned(),
-                    detail: "a JWT verify/decode call (or header literal) allows \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "JWT verification accepts the \"none\" algorithm",
+                    "a JWT verify/decode call (or header literal) allows \
                              `alg`/`algorithm(s)` = \"none\", which lets an attacker strip the \
                              signature entirely and forge arbitrary claims (CVE class: JWT \
                              algorithm-none bypass). Fix: enforce an explicit allowlist of \
                              expected signing algorithms (e.g. `algorithms: [\"HS256\"]`) and \
-                             never include \"none\"."
-                        .to_owned(),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                             never include \"none\".",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
 
             if let Some(captures) = self.short_hardcoded_secret.captures(line) {
@@ -108,11 +106,10 @@ impl Validator for JwtSecurityValidator {
                     .get(1)
                     .map(|m| m.as_str().chars().count())
                     .unwrap_or(0);
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "hardcoded short JWT signing secret".to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_owned_source(
+                    (&self.rule_id, Severity::Error),
+                    "hardcoded short JWT signing secret",
+                    format!(
                         "a {secret_len}-character string literal is passed as the HMAC/JWT \
                          signing secret. A short, hardcoded secret is both brute-forceable \
                          offline (hashcat/john, mode 16500) and permanently leaked to every \
@@ -120,10 +117,9 @@ impl Validator for JwtSecurityValidator {
                          at runtime from an environment variable or secret store, never a \
                          literal in source."
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: None,
-                });
+                    input.file,
+                    (line_number, None),
+                ));
             }
         }
         findings
@@ -132,16 +128,15 @@ impl Validator for JwtSecurityValidator {
 
 #[cfg(test)]
 mod tests {
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::JwtSecurityValidator;
 
     #[test]
     fn cyberskills_auth_jwt() -> Result<(), Box<dyn std::error::Error>> {
         let validator = JwtSecurityValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "tests/fixtures/cyberskills/auth.jwt-insecure/bad/none_alg.js",
             "tests/fixtures/cyberskills/auth.jwt-insecure/good/verified.js",
         )?;

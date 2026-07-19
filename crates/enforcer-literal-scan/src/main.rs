@@ -1,11 +1,20 @@
+#[path = "boundary/cli_flag.rs"]
 mod cli_flag;
+#[path = "boundary/cli_flag_output.rs"]
 mod cli_flag_output;
+#[path = "boundary/cli_flag_scope.rs"]
 mod cli_flag_scope;
+#[path = "boundary/cli_flag_toggle.rs"]
 mod cli_flag_toggle;
+#[path = "boundary/cli_flag_value.rs"]
 mod cli_flag_value;
+#[path = "boundary/cli_mode.rs"]
 mod cli_mode;
+#[path = "boundary/cli_output.rs"]
 mod cli_output;
+#[path = "boundary/cli_parse.rs"]
 mod cli_parse;
+#[path = "boundary/cli_usage.rs"]
 mod cli_usage;
 
 use std::env;
@@ -25,12 +34,14 @@ fn main() {
         Ok(opts) => opts,
         Err(message) => fail_with_usage(&message),
     };
-    if opts.help {
+    if opts.help.is_enabled() {
         let _ = write_usage(io::stdout().lock());
         return;
     }
     let report = run_scan_or_exit(&opts);
-    print_report(&report, opts.output_format);
+    if let Err(error) = print_report(&report, opts.output_format) {
+        fail_with_usage(error);
+    }
     exit_if_failed(&report);
 }
 

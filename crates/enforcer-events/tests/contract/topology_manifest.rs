@@ -1,11 +1,11 @@
 use super::support::{test_event_for_type, TestText, OTHER_EVENT_TYPE, TEST_EVENT_TYPE};
-use enforcer_events::contract_registry::EventContractRegistry;
-use enforcer_events::ids::{
-    EventNamespace, EventType, SourceComponent, SubscriberId, TargetHandler,
+use enforcer_domain::events_types::{
+    EventNamespace, EventTopologyStatus, EventType, SourceComponent, SubscriberId, TargetHandler,
 };
+use enforcer_events::contract_registry::EventContractRegistry;
 use enforcer_events::topology::{
     EventTopologyEntry, EventTopologyFamilyVariant, EventTopologyManifest, EventTopologyPublisher,
-    EventTopologyStatus, EventTopologySubscriber,
+    EventTopologySubscriber,
 };
 use serde_json::Value;
 
@@ -176,7 +176,7 @@ fn topology_manifest_serializes_canonical_eventing_entry_keys(
         &[],
     );
 
-    let manifest_json = serde_json::to_value(&manifest)?;
+    let manifest_json = serde_json::to_value(manifest.presentation())?;
     let entry = manifest_entry(&manifest_json, TestText(TEST_EVENT_TYPE.to_owned()))?
         .as_object()
         .ok_or("manifest entry")?;
@@ -199,6 +199,10 @@ fn topology_manifest_serializes_canonical_eventing_entry_keys(
         subscriber_target.get("targetHandler"),
         Some(&Value::from(TOPOLOGY_TARGET))
     );
+
+    let response = manifest.presentation();
+    let recovered = EventTopologyManifest::try_from(response.clone())?;
+    assert_eq!(recovered.presentation(), response);
     Ok(())
 }
 
@@ -228,8 +232,8 @@ fn publisher(
     component: TestText,
 ) -> Result<EventTopologyPublisher, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologyPublisher {
-        event_type: EventType::parse(event_type.0)?,
-        source_component: SourceComponent::parse(component.0)?,
+        event_type: EventType::parse(&{ event_type.0 })?,
+        source_component: SourceComponent::parse(&{ component.0 })?,
     })
 }
 
@@ -238,8 +242,8 @@ fn subscriber(
     subscriber_id: TestText,
 ) -> Result<EventTopologySubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologySubscriber {
-        event_type: EventType::parse(event_type.0)?,
-        subscriber_id: SubscriberId::parse(subscriber_id.0)?,
+        event_type: EventType::parse(&{ event_type.0 })?,
+        subscriber_id: SubscriberId::parse(&{ subscriber_id.0 })?,
         target_handler: TargetHandler::parse(TOPOLOGY_TARGET)?,
     })
 }
@@ -249,7 +253,7 @@ fn family_variant(
 ) -> Result<EventTopologyFamilyVariant, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologyFamilyVariant {
         family: EventNamespace::parse(FAMILY_ID)?,
-        event_type: EventType::parse(event_type.0)?,
+        event_type: EventType::parse(&{ event_type.0 })?,
     })
 }
 

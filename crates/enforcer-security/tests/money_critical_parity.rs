@@ -42,7 +42,10 @@ impl ValidatorLookup for H01Lookup {
 fn h01_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error::Error>> {
     let catalog_path = manifest_dir().join("rules/money-critical.json");
     let registry: RuleRegistry = load_registry_from_files(&[catalog_path.as_path()])?;
-    assert_eq!(registry.len(), 2);
+    assert_eq!(
+        registry.count(),
+        enforcer_domain::rules_types::RuleRecordCount::from_records(0..2)
+    );
 
     let lookup = H01Lookup {
         classify: MoneyCriticalClassifyValidator::new()?,
@@ -55,7 +58,11 @@ fn h01_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error::Error>>
         .map(std::path::Path::to_path_buf)
         .ok_or("could not resolve repo root from CARGO_MANIFEST_DIR")?;
 
-    let oracle = ParityOracle::new(&registry, &repo_root, BTreeSet::new());
+    let oracle = ParityOracle::new(
+        &registry,
+        enforcer_domain::paths::RepoRoot::try_from(repo_root.as_path())?,
+        BTreeSet::new(),
+    );
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),

@@ -12,9 +12,12 @@
 //! confirms the two layers actually compose through a real
 //! `CodeGraph::index_repository` run.
 
+use enforcer_domain::memory_types::{
+    MemoryDataFlowSourceSymbolId, MemoryDataFlowTargetSymbolId, ResolutionConfidence,
+};
 use enforcer_memory::code_graph::{CallEdge, CodeGraph, Manifest};
 use enforcer_memory::data_flow::{self, DataFlowGraph};
-use enforcer_memory::resolution::{ResolutionConfidence, ResolvedCall};
+use enforcer_memory::resolution::ResolvedCall;
 use std::error::Error;
 use std::fs;
 use std::process::Command;
@@ -26,10 +29,10 @@ fn call(callee: &str, line: usize, arg_texts: Vec<&str>) -> CallEdge {
     CallEdge {
         from_file_id: "file:caller.rs".to_owned(),
         callee: callee.to_owned(),
-        line,
+        line: line.into(),
         arg_texts: arg_texts.into_iter().map(str::to_owned).collect(),
         from_symbol: Some("caller_fn".to_owned()),
-        from_symbol_line: Some(1),
+        from_symbol_line: Some(1usize.into()),
         ..CallEdge::default()
     }
 }
@@ -40,8 +43,8 @@ fn resolved(
     confidence: ResolutionConfidence,
 ) -> ResolvedCall {
     ResolvedCall {
-        from_symbol_id: from_symbol_id.map(str::to_owned),
-        candidates: candidates.into_iter().map(str::to_owned).collect(),
+        from_symbol_id: from_symbol_id.map(Into::into),
+        candidates: candidates.into_iter().map(Into::into).collect(),
         confidence,
     }
 }
@@ -147,7 +150,7 @@ fn call_with_no_enclosing_symbol_still_produces_an_edge() {
     let calls = vec![CallEdge {
         from_file_id: "file:top_level.rs".to_owned(),
         callee: "helper".to_owned(),
-        line: 3,
+        line: 3usize.into(),
         arg_texts: vec!["7".to_owned()],
         ..CallEdge::default()
     }];
@@ -203,17 +206,18 @@ fn edges_from_symbol_and_edges_to_symbol_filter_correctly() {
 
     let graph: DataFlowGraph = data_flow::materialize_from(&calls, &resolved_calls);
 
-    let from_a: Vec<_> = graph.edges_from_symbol("caller_a").collect();
+    let caller_a = MemoryDataFlowSourceSymbolId::from("caller_a");
+    let from_a: Vec<_> = graph.edges_from_symbol(&caller_a).collect();
     assert_eq!(from_a.len(), 1);
     assert_eq!(from_a[0].to_symbol_id, "sym:callee.rs:1:helper_one");
 
-    let to_helper_two: Vec<_> = graph
-        .edges_to_symbol("sym:callee.rs:2:helper_two")
-        .collect();
+    let helper_two = MemoryDataFlowTargetSymbolId::from("sym:callee.rs:2:helper_two");
+    let to_helper_two: Vec<_> = graph.edges_to_symbol(&helper_two).collect();
     assert_eq!(to_helper_two.len(), 1);
     assert_eq!(to_helper_two[0].from_symbol_id.as_deref(), Some("caller_b"));
 
-    assert!(graph.edges_from_symbol("nobody").next().is_none());
+    let nobody = MemoryDataFlowSourceSymbolId::from("nobody");
+    assert!(graph.edges_from_symbol(&nobody).next().is_none());
 }
 
 #[test]
@@ -308,6 +312,7 @@ fn caller() -> i32 {
     let data_flow_graph = data_flow::materialize(&graph);
     let helper_id = symbol_id(&graph, "helper")?;
 
+    let helper_id = MemoryDataFlowTargetSymbolId::from(helper_id);
     let edges_to_helper: Vec<_> = data_flow_graph.edges_to_symbol(&helper_id).collect();
     assert_eq!(
         edges_to_helper.len(),
@@ -370,7 +375,8 @@ fn caller() -> i32 {
 
 #[test]
 fn code_adjacency_build_inserts_a_data_flows_edge_alongside_the_calls_edge() -> TestResult {
-    use enforcer_memory::analysis::{CodeAdjacency, EdgeKind, TraceDirection};
+    use enforcer_domain::memory_types::{MemoryEdgeKind, TraceDirection};
+    use enforcer_memory::analysis::CodeAdjacency;
 
     let dir = tempdir()?;
     let file_path = dir.path().join("lib.rs");
@@ -405,7 +411,7 @@ fn caller() -> i32 {
     // between the two nodes.
     use enforcer_memory::analysis::trace::{trace_calls, TraceCallsParams};
 
-    let data_flows_only = [EdgeKind::DataFlows];
+    let data_flows_only = [MemoryEdgeKind::DataFlows];
     let data_flows_params = TraceCallsParams {
         direction: TraceDirection::Out,
         edge_types: Some(&data_flows_only),
@@ -414,11 +420,11 @@ fn caller() -> i32 {
     let data_flows_report = trace_calls(&adjacency, &graph, &caller_id, &data_flows_params);
     assert!(
         !data_flows_report.paths.is_empty(),
-        "materialize()'s DataFlowEdge must surface as a first-class EdgeKind::DataFlows edge \
+        "materialize()'s DataFlowEdge must surface as a first-class MemoryEdgeKind::DataFlows edge \
          reachable on its own, independent of the Calls edge"
     );
 
-    let calls_only = [EdgeKind::Calls];
+    let calls_only = [MemoryEdgeKind::Calls];
     let calls_params = TraceCallsParams {
         direction: TraceDirection::Out,
         edge_types: Some(&calls_only),
@@ -435,7 +441,7 @@ fn caller() -> i32 {
     // still reach the helper hop -- mirrors the baseline's
     // `mode_data_flow = {"CALLS", "DATA_FLOWS"}` allow-list
     // (src/mcp/mcp.c ~L2659).
-    let edge_types = [EdgeKind::Calls, EdgeKind::DataFlows];
+    let edge_types = [MemoryEdgeKind::Calls, MemoryEdgeKind::DataFlows];
     let params = TraceCallsParams {
         direction: TraceDirection::Out,
         edge_types: Some(&edge_types),

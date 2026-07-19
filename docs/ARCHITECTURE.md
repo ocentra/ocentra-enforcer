@@ -11,8 +11,8 @@ runtime_truth: "enforcer --help and command-specific help for the binary under t
 ```
 <!-- /ai-dense -->
 
-Ocentra Enforcer is a Rust workspace that exposes one enforcement model through
-the CLI, MCP, automation, and an optional desktop UI. The product boundary is
+Ocentra Enforcer is a Rust workspace whose validation model is currently
+exposed through the CLI, with narrower MCP and desktop control surfaces. The product boundary is
 the typed rule and finding model: callers request work, validators evaluate a
 defined scope, and the result is returned as structured findings with stable
 rule identifiers.
@@ -21,15 +21,15 @@ rule identifiers.
 
 ```mermaid
 sequenceDiagram
-  participant Client as Developer, CI, or MCP client
-  participant Boundary as CLI or MCP boundary
-  participant Router as Scope and routing
+  participant Client as Developer or CI
+  participant Boundary as CLI validation boundary
+  participant Scope as Scope resolution
   participant Engine as Rules and validators
   participant Journal as Diagnostics and proof
 
   Client->>Boundary: request a command and scope
-  Boundary->>Router: resolve policy and target
-  Router->>Engine: run applicable validators
+  Boundary->>Scope: resolve policy and target
+  Scope->>Engine: run applicable validators
   Engine->>Journal: retain compact results and artifacts
   Journal-->>Boundary: structured report
   Boundary-->>Client: verdict and actionable findings
@@ -40,13 +40,13 @@ sequenceDiagram
 | Boundary | Purpose |
 | --- | --- |
 | CLI | Stable commands, output modes, and exit codes for people and CI. |
-| MCP | Stdio tools that return compact structured results for assistants. |
+| MCP | Stdio boundary. The current Rust router wires status, coordination status and claim, and UI only. |
 | Configuration | Resolves embedded defaults and repository-level policy into an effective configuration. |
 | Rules and validators | Own rule metadata, applicability, findings, fixtures, and deterministic decisions. |
 | Language analysis | Keeps language-specific parsing and validation behind explicit crates. |
 | Harness and proof | Retains command diagnostics and reproducible evidence without making raw terminal output the primary interface. |
 | Coordination | Provides optional, external-to-product-repos state for claims and handoffs. |
-| UI | Presents the same Rust-owned state and actions; presentation code does not own enforcement logic. |
+| UI | Presents Rust-owned state where wired; presentation code does not own enforcement logic. |
 
 ## Enforcement model
 
@@ -64,8 +64,8 @@ repository rather than moving engine decisions into frontend code.
 
 - **CLI:** local and CI use through commands such as `check`, `scan`, and
   `verify`.
-- **MCP:** structured routing, checks, diagnostics, proof, and coordination
-  operations over stdio.
+- **MCP:** server status, coordination status, exact-path claim, and UI
+  launch/status over stdio. Other registered tool contracts are not wired.
 - **UI:** optional human control plane for inspecting state and invoking
   Rust-owned actions.
 
@@ -73,15 +73,22 @@ repository rather than moving engine decisions into frontend code.
 
 The command boundary supports focused repository checks and scans, named
 verification modes, a stdio MCP server, onboarding, architecture checks, and
-an optional desktop surface. Routing is deliberately separate from validation:
-the route identifies applicable policy and a smallest useful scope; validators
-then return findings for that scope.
+an optional desktop surface. The visible `plan`, `proof`, and `coordination`
+CLI groups are reserved boundaries and currently return not-wired errors.
 
 The workspace also separates human and unattended use. MCP and CI consumers
 receive compact structured results suitable for automation, while the CLI and
 desktop surface provide a human-readable control plane over the same Rust-owned
-contracts. Coordination, when enabled, is installation-level state for claims
-and handoffs rather than application state stored in a target repository.
+contracts. Coordination state, when accessed through a wired boundary, is
+installation-level state rather than application state in a target repository.
+
+The desktop currently supports project and settings persistence, scope and
+scan-target management, proof inspection, graph/search, and basic coordination
+status, messages, acknowledgements, and claims. Runs are read-only. Fix
+dispatch, adapter repair and hook installation, assurance CI gating, canonical
+Rust scan persistence, Rust-native analysis history, finding waivers, run
+execution/maintenance, and incremental memory refresh are not implemented.
+Analysis still uses the compatibility Node bridge.
 
 Consult `enforcer --help` and the command-specific help for the exact command
 contract available in the current build.

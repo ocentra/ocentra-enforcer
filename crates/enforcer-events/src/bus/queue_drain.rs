@@ -1,4 +1,5 @@
-use crate::{EventType, EventingError};
+use crate::error::EventingError;
+use enforcer_domain::events_types::EventType;
 
 use super::{DispatchMode, EventBus, QueueDrainReport};
 

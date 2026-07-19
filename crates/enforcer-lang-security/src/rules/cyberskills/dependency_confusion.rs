@@ -33,38 +33,12 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-#[derive(Debug, Default, serde::Deserialize)]
-struct PackageManifest {
-    #[serde(default)]
-    dependencies: std::collections::BTreeMap<String, String>,
-    #[serde(default, rename = "devDependencies")]
-    dev_dependencies: std::collections::BTreeMap<String, String>,
-    #[serde(default, rename = "optionalDependencies")]
-    optional_dependencies: std::collections::BTreeMap<String, String>,
-    #[serde(default, rename = "peerDependencies")]
-    peer_dependencies: std::collections::BTreeMap<String, String>,
-}
-
 /// Common organization-private naming prefixes. An UNSCOPED dependency
 /// whose name starts with one of these signals "meant to be internal-only"
 /// and, published unscoped, is a candidate for dependency-confusion
 /// takeover. This is a heuristic convention (see the module docs), not a
 /// vendor-defined list — the vendor decides claimability by a live
 /// registry probe, which h11 cannot perform.
-const INTERNAL_PREFIXES: &[&str] = &["internal-", "corp-", "private-"];
-
-fn looks_internal(name: &str) -> bool {
-    if name.starts_with('@') {
-        // Scoped packages (`@org/name`) are not claimable by an unrelated
-        // publisher on the public registry the same way an unscoped name
-        // is — scoping is npm's own dependency-confusion mitigation.
-        return false;
-    }
-    INTERNAL_PREFIXES
-        .iter()
-        .any(|prefix| name.starts_with(prefix))
-}
-
 /// Return the package actually resolved by an npm alias specifier.
 ///
 /// A dependency such as `"public-name": "npm:internal-api@^1"` downloads
@@ -75,6 +49,7 @@ fn looks_internal(name: &str) -> bool {
 /// `CYBER-DEPCONFUSION.1` — an unscoped, internal-looking dependency name
 /// in a `package.json` manifest is flagged as dependency-confusion
 /// claimable.
+#[derive(Debug)]
 pub struct DependencyConfusionClaimableValidator {
     rule_id: RuleId,
 }
@@ -82,7 +57,7 @@ pub struct DependencyConfusionClaimableValidator {
 impl DependencyConfusionClaimableValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-DEPCONFUSION.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberDependencyConfusion.id(),
         })
     }
 }
@@ -93,50 +68,20 @@ impl Validator for DependencyConfusionClaimableValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(manifest) = serde_json::from_str::<PackageManifest>(input.source) else {
+        let Some(names) =
+            crate::boundary::dependency_manifest::resolved_names(input.source.as_str())
+        else {
             return Vec::new();
         };
-        let mut names: Vec<&str> = Vec::new();
-        for map in [
-            &manifest.dependencies,
-            &manifest.dev_dependencies,
-            &manifest.optional_dependencies,
-            &manifest.peer_dependencies,
-        ] {
-            for (name, specifier) in map {
-                names.push(name);
-                if let Some(target) = specifier.strip_prefix("npm:") {
-                    // An npm alias can hide the actually resolved package:
-                    // `public-name: npm:internal-api@^1` fetches
-                    // `internal-api`. A scoped target starts with `@`; only
-                    // a later `@` is its version delimiter.
-                    let target = if target.starts_with('@') {
-                        target
-                            .rsplit_once('@')
-                            .and_then(|(name, _)| (!name.is_empty()).then_some(name))
-                            .unwrap_or(target)
-                    } else {
-                        target.split_once('@').map_or(target, |(name, _)| name)
-                    };
-                    if !target.is_empty() {
-                        names.push(target);
-                    }
-                }
-            }
-        }
-        names.sort_unstable();
-        names.dedup();
-
         let mut findings = Vec::new();
         for name in names {
-            if !looks_internal(name) {
+            if !crate::boundary::dependency_manifest::looks_internal(&name) {
                 continue;
             }
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Warning,
-                title: "dependency name is a dependency-confusion candidate (heuristic)".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_owned_source(
+                (&self.rule_id, Severity::Warning),
+                "dependency name is a dependency-confusion candidate (heuristic)",
+                format!(
                     "dependency `{name}` is unscoped and matches an internal-looking naming \
                      convention, so it is a CANDIDATE for a dependency-confusion takeover. This \
                      is a naming heuristic, not a registry-verified verdict (see h12 for the \
@@ -144,10 +89,9 @@ impl Validator for DependencyConfusionClaimableValidator {
                      (`@your-org/{name}`), or confirm the public-registry name is \
                      claimed/reserved by your org."
                 ),
-                file: input.file.clone(),
-                line: 1,
-                snippet: None,
-            });
+                input.file,
+                (1, None),
+            ));
         }
         findings
     }

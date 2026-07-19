@@ -5,7 +5,7 @@
 integration_order: "path scope -> diff scope -> workspace scope -> CI/MCP adoption"
 scoped_commands: "check/scan/verify accept paths OR --base/--head OR --all"
 verify_command: "verify combines a named mode with the same explicit scope grammar"
-mcp: "call route first, then run the smallest returned validation scope"
+mcp: "current Rust MCP wires status, coordination status and claim, and UI only"
 rules: "use the released command help and rule documentation; do not depend on a checkout-local rules path"
 release_boundary: "consumer automation must use a released binary and its tested command contract"
 ```
@@ -38,10 +38,11 @@ you install.
 
 ## MCP use
 
-For an MCP-enabled coding assistant, call the installed Enforcer MCP route
-tool first with the target root and exact files under review. Then run the
-smallest returned validation scope, inspect structured diagnostics, and repair
-reported conditions before widening the gate.
+The current Rust MCP server wires server status, coordination status,
+exact-path coordination claim, and UI launch/status. Route, scan, check,
+diagnostics, proof, and broader coordination tools may be visible in discovery
+but currently return a not-wired response. Run target validation through the
+CLI commands above until those delegates are connected.
 
 MCP coordination is optional. When enabled, its ledger and exact-file claims
 belong to the Enforcer installation, not to the target repository.
@@ -64,7 +65,7 @@ artifact may support review, but it never replaces the validation run itself.
 
 1. Keep the repository's existing guards in place.
 2. Prove Enforcer on a path scope, then a diff scope, then `--all`.
-3. Add an MCP or CI integration only after those commands work in that
+3. Add an MCP or CI integration only after its exact commands or tools work in that
    environment.
 4. Retire duplicated wrappers only after the replacement has equivalent,
    validated coverage.

@@ -29,6 +29,7 @@ use enforcer_lang_security::rules::cyberskills::cmd_injection::CommandInjectionV
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
+use enforcer_lang_security::rules::cyberskills::fileless_malware::FilelessMalwareValidator;
 use enforcer_lang_security::rules::cyberskills::github_actions::GithubActionsSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
@@ -57,28 +58,11 @@ use enforcer_lang_security::rules::cyberskills::web_ssrf::SsrfMetadataValidator;
 use enforcer_lang_security::rules::cyberskills::websocket_security::WebSocketSecurityValidator;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-#[derive(serde::Deserialize)]
-struct Case {
-    name: String,
-    input: String,
-    expect: String,
-    #[serde(default)]
-    branch: String,
-    #[serde(default)]
-    reason: String,
-}
+#[path = "support/corpus.rs"]
+mod corpus_support;
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
-fn load(corpus_file: &str) -> Result<Vec<Case>, Box<dyn std::error::Error>> {
-    let path = manifest_dir()
-        .join("tests/fixtures/cyberskills/_corpus")
-        .join(corpus_file);
-    let raw = std::fs::read_to_string(&path)
-        .map_err(|e| format!("cannot read corpus {}: {e}", path.display()))?;
-    Ok(serde_json::from_str(&raw)?)
 }
 
 /// Run every case in `corpus_file` against the whole `family` (union of
@@ -89,7 +73,7 @@ fn assert_family(
     file_name: &str,
     family: &[Box<dyn Validator>],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let cases = load(corpus_file)?;
+    let cases = corpus_support::load(&manifest_dir(), corpus_file)?;
     assert!(!cases.is_empty(), "empty corpus {corpus_file}");
     let file: RelPath = file_name.parse()?;
 
@@ -101,7 +85,9 @@ fn assert_family(
                 validator
                     .validate(ValidationInput {
                         file: &file,
-                        source: &case.input,
+                        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                            &case.input,
+                        ),
                         scope: ScanScope::Files,
                     })
                     .len()
@@ -238,7 +224,7 @@ fn corpus_web_headers() -> Result<(), Box<dyn std::error::Error>> {
     let csp = CspMissingValidator::new()?;
     let cookie = CookieSecureHttponlySamesiteValidator::new()?;
 
-    let cases = load("web_headers.json")?;
+    let cases = corpus_support::load(&manifest_dir(), "web_headers.json")?;
     assert!(!cases.is_empty(), "empty web_headers corpus");
     let file: RelPath = "response.json".parse()?;
 
@@ -271,7 +257,9 @@ fn corpus_web_headers() -> Result<(), Box<dyn std::error::Error>> {
                 validator
                     .validate(ValidationInput {
                         file: &file,
-                        source: &case.input,
+                        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                            &case.input,
+                        ),
                         scope: ScanScope::Files,
                     })
                     .len()
@@ -387,6 +375,12 @@ fn corpus_docker_daemon() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_mcp_tool_poisoning() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(McpToolPoisoningValidator::new()?)];
     assert_family("mcp_tool_poisoning.json", "tools.json", &family)
+}
+
+#[test]
+fn corpus_fileless_malware() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(FilelessMalwareValidator::new()?)];
+    assert_family("fileless_malware.json", "evidence.txt", &family)
 }
 
 #[test]

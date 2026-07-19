@@ -7,15 +7,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use enforcer_memory::artifacts::{export_graph_artifact, import_graph_artifact, GraphSnapshot};
+use enforcer_domain::memory_types::SimilarityMode;
+use enforcer_memory::artifacts::{export_graph_artifact, import_graph_artifact};
+use enforcer_memory::boundary::artifact_transport::GraphSnapshotDto;
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::graph_schema::{
     get_graph_schema, get_graph_schema_with_similarity, get_graph_schema_with_similarity_modes,
 };
 use enforcer_memory::similarity::{
     proximity_multiplier, semantically_related, similar_to, similar_to_body_shingles,
-    similar_to_identifier_tokens, tokenize_identifier, SimilarityMode,
-    SEMANTICALLY_RELATED_THRESHOLD, SIMILAR_TO_MAX_EDGES_PER_NODE, SIMILAR_TO_THRESHOLD,
+    similar_to_identifier_tokens, tokenize_identifier, SEMANTICALLY_RELATED_THRESHOLD,
+    SIMILAR_TO_MAX_EDGES_PER_NODE, SIMILAR_TO_THRESHOLD,
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
@@ -113,6 +115,7 @@ fn function_fp(graph: &CodeGraph, name: &str) -> Option<(String, usize)> {
             sym.source_body_fingerprint
                 .as_ref()
                 .and_then(|fp| fp.fp.clone().zip(fp.k))
+                .map(|(fingerprint, count)| (fingerprint.to_string(), count.get()))
         }
         _ => None,
     })
@@ -125,7 +128,10 @@ fn function_fp(graph: &CodeGraph, name: &str) -> Option<(String, usize)> {
 #[test]
 fn tokenize_identifier_splits_camel_case() {
     assert_eq!(
-        tokenize_identifier("parseJsonValue"),
+        tokenize_identifier("parseJsonValue")
+            .into_iter()
+            .map(|token| token.as_str().to_owned())
+            .collect::<Vec<_>>(),
         vec!["parse", "json", "value"]
     );
 }
@@ -133,14 +139,23 @@ fn tokenize_identifier_splits_camel_case() {
 #[test]
 fn tokenize_identifier_splits_snake_case() {
     assert_eq!(
-        tokenize_identifier("parse_json_value"),
+        tokenize_identifier("parse_json_value")
+            .into_iter()
+            .map(|token| token.as_str().to_owned())
+            .collect::<Vec<_>>(),
         vec!["parse", "json", "value"]
     );
 }
 
 #[test]
 fn tokenize_identifier_lowercases_everything() {
-    assert_eq!(tokenize_identifier("HTTPServer"), vec!["httpserver"]);
+    assert_eq!(
+        tokenize_identifier("HTTPServer")
+            .into_iter()
+            .map(|token| token.as_str().to_owned())
+            .collect::<Vec<_>>(),
+        vec!["httpserver"]
+    );
 }
 
 #[test]
@@ -162,19 +177,19 @@ fn proximity_multiplier_same_file_boosts_score() {
 #[test]
 fn proximity_multiplier_distant_paths_no_boost() {
     let boost = proximity_multiplier("src/a/x.rs", "lib/b/y.rs");
-    assert!((boost - 1.0).abs() < f64::EPSILON);
+    assert!((boost.get() - 1.0).abs() < f64::EPSILON);
 }
 
 #[test]
 fn proximity_multiplier_no_directory_components_no_boost() {
     let boost = proximity_multiplier("a.rs", "b.rs");
-    assert!((boost - 1.0).abs() < f64::EPSILON);
+    assert!((boost.get() - 1.0).abs() < f64::EPSILON);
 }
 
 #[test]
 fn proximity_multiplier_stops_at_the_first_different_path_component() {
     let boost = proximity_multiplier("src/a/widget.rs", "src/ab/widget.rs");
-    assert!((boost - 1.05).abs() < f64::EPSILON);
+    assert!((boost.get() - 1.05).abs() < f64::EPSILON);
 }
 
 // ---------------------------------------------------------------------
@@ -206,18 +221,21 @@ fn fingerprint_persists_through_artifact_roundtrip() -> TestResult {
     let expected = function_fp(&graph, "persisted_clone").ok_or("missing source fingerprint")?;
 
     let root = PathBuf::from(dir.path());
-    let snapshot = GraphSnapshot::from_code_graph(&graph);
+    let snapshot = GraphSnapshotDto::from_code_graph(&graph)?;
     export_graph_artifact(&root, &snapshot, "demo", None, "2026-07-09T00:00:00Z")?;
     let (imported, _meta) = import_graph_artifact(&root)?;
 
     let imported_fp = imported
         .symbols
         .iter()
-        .find(|symbol| symbol.name == "persisted_clone")
+        .find(|symbol| symbol.name.as_str() == "persisted_clone")
         .and_then(|symbol| symbol.source_body_fingerprint.as_ref())
         .ok_or("missing imported fingerprint")?;
-    assert_eq!(imported_fp.fp, Some(expected.0));
-    assert_eq!(imported_fp.k, Some(expected.1));
+    assert_eq!(
+        imported_fp.fp.as_ref().map(|value| value.as_str()),
+        Some(expected.0.as_str())
+    );
+    assert_eq!(imported_fp.k.map(usize::from), Some(expected.1));
     Ok(())
 }
 
@@ -238,7 +256,7 @@ fn similar_to_matches_identical_long_bodies_same_extension() -> TestResult {
         assert_eq!(edge.mode, SimilarityMode::MinHashFingerprint);
         assert!(edge.jaccard >= SIMILAR_TO_THRESHOLD);
         assert!(edge.source_id < edge.target_id);
-        assert!(edge.same_file);
+        assert!(edge.same_file.is_same_file());
     }
     Ok(())
 }
@@ -505,7 +523,7 @@ fn graph_schema_with_similarity_reports_edge_counts() -> TestResult {
             .edge_types
             .iter()
             .find(|e| e.edge_type == "SIMILAR_TO")
-            .map(|row| row.count);
+            .map(|row| row.count.get());
         assert_eq!(row_count, Some(similar.len()));
     }
     if !related.is_empty() {
@@ -513,7 +531,7 @@ fn graph_schema_with_similarity_reports_edge_counts() -> TestResult {
             .edge_types
             .iter()
             .find(|e| e.edge_type == "SEMANTICALLY_RELATED")
-            .map(|row| row.count);
+            .map(|row| row.count.get());
         assert_eq!(row_count, Some(related.len()));
     }
     Ok(())

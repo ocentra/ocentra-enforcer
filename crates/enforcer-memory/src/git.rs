@@ -14,6 +14,11 @@
 //! "index the files, but leave commit/history fields empty" rather than
 //! failing the whole run.
 
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    MemoryGitChangeCount, MemoryGitLastCommit, MemoryGitPathTouched, MemoryGitRelativePath,
+    MemoryGitWorkdir,
+};
 use git2::Repository;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -24,9 +29,9 @@ use std::process::Command;
 pub struct PathHistory {
     /// The most recent commit SHA that touched this path, if any commit
     /// has touched it yet (a brand-new untracked file has none).
-    pub last_commit: Option<String>,
+    pub last_commit: Option<MemoryGitLastCommit>,
     /// How many commits in HEAD's history have touched this path.
-    pub change_count: usize,
+    pub change_count: MemoryGitChangeCount,
 }
 
 /// Read-only git context for one repository, opened once per indexing
@@ -37,11 +42,21 @@ pub struct GitMetadata {
     /// this worktree's own working directory -- NOT the main repo's).
     /// Used only by the [`Self::compute_history_via_cli`] fallback,
     /// which shells into `git log` rooted at this directory.
-    workdir: Option<PathBuf>,
+    workdir: Option<MemoryGitWorkdir>,
     /// Cache of path -> history, populated by [`GitMetadata::history_for`]
     /// so a full-repo index does not re-walk history for every file
     /// independently more than once per path.
-    cache: HashMap<String, PathHistory>,
+    cache: HashMap<MemoryGitRelativePath, PathHistory>,
+}
+
+impl std::fmt::Debug for GitMetadata {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GitMetadata")
+            .field("workdir", &self.workdir)
+            .field("cached_paths", &self.cache.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl GitMetadata {
@@ -50,10 +65,14 @@ impl GitMetadata {
     /// indexer must still be able to run over a non-git directory (e.g.
     /// a test fixture) and simply omit git-derived fields.
     pub fn open(repo_root: &Path) -> Result<Option<Self>, git2::Error> {
-        let normalized = strip_extended_length_prefix(repo_root);
-        match Repository::discover(&normalized) {
+        let normalized =
+            strip_extended_length_prefix(&MemoryGitWorkdir::from(repo_root.to_path_buf()));
+        match Repository::discover(normalized.as_path()) {
             Ok(repo) => {
-                let workdir = repo.workdir().map(Path::to_path_buf);
+                let workdir = repo
+                    .workdir()
+                    .map(Path::to_path_buf)
+                    .map(MemoryGitWorkdir::from);
                 Ok(Some(Self {
                     repo,
                     workdir,
@@ -67,18 +86,24 @@ impl GitMetadata {
 
     /// The current HEAD commit SHA, if HEAD resolves to a commit (an
     /// empty repository with no commits yet has none).
-    pub fn head_commit(&self) -> Option<String> {
-        let head = self.repo.head().ok()?;
-        let commit = head.peel_to_commit().ok()?;
-        Some(commit.id().to_string())
+    pub fn head_commit(&self) -> Option<MemoryGitLastCommit> {
+        let head = match self.repo.head() {
+            Ok(head) => head,
+            Err(_) => return None,
+        };
+        let commit = match head.peel_to_commit() {
+            Ok(commit) => commit,
+            Err(_) => return None,
+        };
+        Some(commit.id().retained_display().into())
     }
 
     /// Last commit + change count for `rel_path` (repo-root-relative,
     /// forward-slash-normalized). Walks HEAD's history once per unique
     /// path per [`GitMetadata`] instance; results are cached.
-    pub fn history_for(&mut self, rel_path: &str) -> PathHistory {
+    pub fn history_for(&mut self, rel_path: &MemoryGitRelativePath) -> PathHistory {
         if let Some(cached) = self.cache.get(rel_path) {
-            return cached.clone();
+            return cached.retained();
         }
         let history = match self.compute_history(rel_path) {
             Ok(history) => history,
@@ -90,9 +115,11 @@ impl GitMetadata {
             // tempdir-repo fixtures every other test in this module uses);
             // this is a narrow, documented CLI fallback for that one known
             // gap, not a general replacement.
-            Err(_) => self.compute_history_via_cli(rel_path).unwrap_or_default(),
+            Err(_) => self
+                .compute_history_via_cli(rel_path)
+                .unwrap_or_else(|_| PathHistory::default()),
         };
-        self.cache.insert(rel_path.to_string(), history.clone());
+        self.cache.insert(rel_path.retained(), history.retained());
         history
     }
 
@@ -102,15 +129,18 @@ impl GitMetadata {
     /// multi-pack-index object store); `git log`'s own revision walk does
     /// not share that gap because it goes through git's full odb/midx
     /// resolution rather than libgit2's.
-    fn compute_history_via_cli(&self, rel_path: &str) -> Result<PathHistory, std::io::Error> {
-        let Some(workdir) = self.workdir.as_deref() else {
+    fn compute_history_via_cli(
+        &self,
+        rel_path: &MemoryGitRelativePath,
+    ) -> Result<PathHistory, std::io::Error> {
+        let Some(workdir) = self.workdir.as_ref().map(MemoryGitWorkdir::as_path) else {
             // A bare repository has no working directory to run `git log`
             // relative to; nothing more this fallback can do.
             return Ok(PathHistory::default());
         };
 
         let output = Command::new("git")
-            .args(["log", "--format=%H", "--follow", "--", rel_path])
+            .args(["log", "--format=%H", "--follow", "--", rel_path.as_str()])
             .current_dir(workdir)
             .output()?;
 
@@ -121,15 +151,18 @@ impl GitMetadata {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut shas = stdout.lines().filter(|line| !line.is_empty());
         let last_commit = shas.next().map(str::to_string);
-        let change_count = last_commit.is_some() as usize + shas.count();
+        let change_count = usize::from(last_commit.is_some()) + shas.count();
 
         Ok(PathHistory {
-            last_commit,
-            change_count,
+            last_commit: last_commit.map(Into::into),
+            change_count: change_count.into(),
         })
     }
 
-    fn compute_history(&self, rel_path: &str) -> Result<PathHistory, git2::Error> {
+    fn compute_history(
+        &self,
+        rel_path: &MemoryGitRelativePath,
+    ) -> Result<PathHistory, git2::Error> {
         let mut revwalk = self.repo.revwalk()?;
         revwalk.push_head()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
@@ -151,19 +184,19 @@ impl GitMetadata {
                 }
                 // Root commit: every path present in its tree counts as
                 // touched by it.
-                Err(_) => tree.get_path(Path::new(rel_path)).is_ok(),
+                Err(_) => tree.get_path(Path::new(rel_path.as_str())).is_ok().into(),
             };
-            if touched {
+            if touched.is_touched() {
                 change_count += 1;
                 if last_commit.is_none() {
-                    last_commit = Some(oid.to_string());
+                    last_commit = Some(oid.retained_display());
                 }
             }
         }
 
         Ok(PathHistory {
-            last_commit,
-            change_count,
+            last_commit: last_commit.map(Into::into),
+            change_count: change_count.into(),
         })
     }
 }
@@ -178,39 +211,44 @@ impl GitMetadata {
 ///
 /// Pure string/OsStr handling -- no new dependency, and safe to run on
 /// a path that was never prefixed in the first place (returned as-is).
-fn strip_extended_length_prefix(path: &Path) -> PathBuf {
+fn strip_extended_length_prefix(path: &MemoryGitWorkdir) -> MemoryGitWorkdir {
     const UNC_PREFIX: &str = r"\\?\UNC\";
     const VERBATIM_PREFIX: &str = r"\\?\";
 
-    let Some(text) = path.to_str() else {
+    let Some(text) = path.as_path().to_str() else {
         // Not valid UTF-8; extended-length prefixes are always ASCII,
         // so a non-UTF8 path was never prefixed. Hand it through
         // unchanged rather than lossily rewriting it.
-        return path.to_path_buf();
+        return MemoryGitWorkdir::from(path.as_path().to_path_buf());
     };
 
     if let Some(rest) = text.strip_prefix(UNC_PREFIX) {
         // `\\?\UNC\server\share\...` -> `\\server\share\...`
-        return PathBuf::from(format!(r"\\{rest}"));
+        return MemoryGitWorkdir::from(PathBuf::from(format!(r"\\{rest}")));
     }
     if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
-        return PathBuf::from(rest);
+        return MemoryGitWorkdir::from(PathBuf::from(rest));
     }
-    path.to_path_buf()
+    MemoryGitWorkdir::from(path.as_path().to_path_buf())
 }
 
-fn diff_touches_path(diff: &git2::Diff<'_>, rel_path: &str) -> bool {
-    let normalized = rel_path.replace('\\', "/");
-    diff.deltas().any(|delta| {
-        delta
-            .old_file()
-            .path()
-            .map(|path| path.to_string_lossy().replace('\\', "/") == normalized)
-            .unwrap_or(false)
-            || delta
-                .new_file()
+fn diff_touches_path(
+    diff: &git2::Diff<'_>,
+    rel_path: &MemoryGitRelativePath,
+) -> MemoryGitPathTouched {
+    let normalized = rel_path.as_str().replace('\\', "/");
+    diff.deltas()
+        .any(|delta| {
+            delta
+                .old_file()
                 .path()
                 .map(|path| path.to_string_lossy().replace('\\', "/") == normalized)
                 .unwrap_or(false)
-    })
+                || delta
+                    .new_file()
+                    .path()
+                    .map(|path| path.to_string_lossy().replace('\\', "/") == normalized)
+                    .unwrap_or(false)
+        })
+        .into()
 }

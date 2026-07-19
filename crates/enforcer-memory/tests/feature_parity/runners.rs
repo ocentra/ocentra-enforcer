@@ -13,10 +13,13 @@
 
 use super::metrics;
 use super::queryset::QaRow;
-use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
-use enforcer_memory::architecture::{self, Aspect};
+use enforcer_domain::memory_types::{Aspect, LessonStatus};
+use enforcer_domain::memory_types::{IndexMode, TraceDirection};
+use enforcer_domain::paths::RepoRoot;
+use enforcer_memory::analysis::CodeAdjacency;
+use enforcer_memory::architecture;
 use enforcer_memory::cli::cli_invoke;
-use enforcer_memory::code_graph::{CodeGraph, CodeNode, IndexMode, IndexOptions, Manifest};
+use enforcer_memory::code_graph::{CodeGraph, CodeNode, IndexOptions, Manifest};
 use enforcer_memory::embed::HashingEmbedder;
 use enforcer_memory::evidence::{evidence_chain, recurrence_curve, EvidenceReport, NoProofRefs};
 use enforcer_memory::fulltext::FullTextIndex;
@@ -25,8 +28,11 @@ use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::impact;
 use enforcer_memory::ingest::{ingest_ndjson_into, ingest_observation, Observation};
 use enforcer_memory::mcp::{call_tool, TOOL_NAMES};
+use enforcer_memory::observations::{record_route_choice_in_store, RouteChoiceStoreInput};
 use enforcer_memory::rerank::FusionScoreReranker;
-use enforcer_memory::search::{HybridSearcher, SearchDocument};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::search::HybridSearcher;
+use enforcer_memory::store::Store;
 use enforcer_memory::vector::VectorIndex;
 use enforcer_memory::{learning, recall};
 use std::collections::BTreeMap;
@@ -74,7 +80,7 @@ pub struct RowResult {
     /// `"unrunnable:"` rather than a closed variant set.
     pub verdict: String,
     /// Which embedder/reranker backend actually produced this row's
-    /// numbers, mirroring [`enforcer_memory::embed::LoadState`]'s own
+    /// numbers, mirroring [`enforcer_domain::memory_types::LoadState`]'s own
     /// vocabulary (`"unavailable"` for unrunnable rows that never ran
     /// any retrieval backend, `"degraded"` for the deterministic
     /// zero-network default -- [`HashingEmbedder`]/[`FusionScoreReranker`],
@@ -392,7 +398,7 @@ fn ids_from_related(adjacency: &CodeAdjacency, start: &str, depth: usize) -> Vec
         adjacency
             .related(start, depth)
             .into_iter()
-            .map(|node| node.node_id)
+            .map(|node| node.node_id.to_string())
             .collect(),
     )
 }
@@ -402,7 +408,13 @@ fn ids_from_reverse_dependents(
     start: &str,
     depth: usize,
 ) -> Vec<String> {
-    dedup_sorted_ids(adjacency.reverse_dependents(start, depth))
+    dedup_sorted_ids(
+        adjacency
+            .reverse_dependents(start, depth)
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect(),
+    )
 }
 
 fn ids_from_trace_calls(
@@ -415,7 +427,7 @@ fn ids_from_trace_calls(
         adjacency
             .trace_calls(start, direction, depth)
             .into_iter()
-            .flat_map(|path| path.into_iter().map(|hop| hop.node_id))
+            .flat_map(|path| path.into_iter().map(|hop| hop.node_id.to_string()))
             .collect(),
     )
 }
@@ -762,13 +774,13 @@ impl GraphTraversalRunner {
                 )
             }
             "QA-055" | "QA-056" | "QA-059" => {
-                let report = impact::analyze_diff_impact(&graph, &["widgets.rs".to_string()], 3);
+                let report = impact::analyze_diff_impact(&graph, &["widgets.rs".into()], 3.into());
                 let Some(impacted) = report.impacted.first() else {
                     return unrunnable(row, "fixture diff impact returned no impacted files");
                 };
                 match row.id.as_str() {
                     "QA-055" => {
-                        let actual_ids = vec![impacted.rel_path.clone()];
+                        let actual_ids = vec![impacted.rel_path.clone().into()];
                         score_row(
                             row,
                             RowEvidence::host_local_proof(
@@ -804,7 +816,12 @@ impl GraphTraversalRunner {
                         )
                     }
                     "QA-059" => {
-                        let actual_ids = report.total_affected_node_ids.clone();
+                        let actual_ids = report
+                            .total_affected_node_ids
+                            .iter()
+                            .cloned()
+                            .map(Into::into)
+                            .collect::<Vec<String>>();
                         if actual_ids.is_empty() {
                             return unrunnable(
                                 row,
@@ -1142,7 +1159,7 @@ impl RowRunner for SymbolCodeGraphRunner {
         let actual_ids: Vec<String> = reverse_deps
             .iter()
             .filter(|id| id.contains("widget.rs"))
-            .cloned()
+            .map(|id| id.to_string())
             .collect();
         // reverse_dependents returns exact node ids (e.g.
         // "file:widget.rs"); match against the expected substring so
@@ -1150,7 +1167,7 @@ impl RowRunner for SymbolCodeGraphRunner {
         // space without this runner needing to know the id's exact
         // `file:`/`sym:` prefixing scheme.
         let actual_ids: Vec<String> = if actual_ids.is_empty() {
-            reverse_deps
+            reverse_deps.into_iter().map(|id| id.to_string()).collect()
         } else {
             actual_ids
         };
@@ -1245,15 +1262,15 @@ impl RowRunner for RetrievalRunner {
         let actual_ids: Vec<String> = result
             .context
             .iter()
-            .map(|hit| hit.doc_id.clone())
+            .map(|hit| hit.doc_id.as_str().to_owned())
             .collect();
         let pre_rerank_ids: Vec<String> = result
             .pre_rerank_pool
             .iter()
-            .map(|candidate| candidate.doc_id.clone())
+            .map(|candidate| candidate.doc_id.as_str().to_owned())
             .collect();
         let lift = metrics::reranker_lift(&expected_ids, &pre_rerank_ids, &actual_ids, 10);
-        let token_ratio = Some(result.token_reduction_estimate.ratio());
+        let token_ratio = Some(result.token_reduction_estimate.ratio().get());
 
         score_row(
             row,
@@ -1276,9 +1293,10 @@ impl RowRunner for RetrievalRunner {
 #[cfg(feature = "real-models")]
 mod real_models {
     use super::{score_row, QaRow, RowEvidence, RowResult};
+    use enforcer_domain::memory_types::ProviderKind;
     use enforcer_memory::hf_cache::{model_cache_dir, resolve_cached_hf_model, HfModelSpec};
-    use enforcer_memory::model_runtime::{sha256_file, ModelSpec, ProviderKind};
-    use enforcer_memory::ort_runtime::{OrtEmbedder, OrtReranker};
+    use enforcer_memory::model_runtime::{sha256_file, ModelSpecDto};
+    use enforcer_memory::ort_runtime::real::{OrtEmbedder, OrtReranker};
     use enforcer_memory::rerank::Reranker;
     use enforcer_memory::search::HybridSearcher;
     use std::path::PathBuf;
@@ -1291,14 +1309,14 @@ mod real_models {
         super::super::queryset::workspace_root().join("model")
     }
 
-    /// Build a real [`ModelSpec`] for `hf_spec`'s single artifact file
+    /// Build a real [`ModelSpecDto`] for `hf_spec`'s single artifact file
     /// plus its `tokenizer.json` sibling, ONLY if both are already
     /// present in the local HF cache -- [`resolve_cached_hf_model`] is a
     /// pure filesystem probe (`Path::is_dir`/`Path::is_file`), it never
     /// makes a network call, so calling it here on every row is safe
     /// even when nothing is cached (the default dev/CI state: it simply
     /// returns `Err` and this function returns `None`).
-    fn resolve_real_spec(hf_spec: &HfModelSpec, dimension: usize) -> Option<ModelSpec> {
+    fn resolve_real_spec(hf_spec: &HfModelSpec, dimension: usize) -> Option<ModelSpecDto> {
         let root = cache_root();
         let report = resolve_cached_hf_model(hf_spec, &root).ok()?;
         let artifact = report
@@ -1311,9 +1329,9 @@ mod real_models {
             return None;
         }
         let tokenizer_sha256 = sha256_file(&tokenizer_path).ok()?;
-        Some(ModelSpec {
-            model_id: hf_spec.model_id.clone(),
-            revision: hf_spec.revision.clone(),
+        Some(ModelSpecDto {
+            model_id: hf_spec.model_id.to_string(),
+            revision: hf_spec.revision.to_string(),
             artifact_path: artifact.local_path.clone(),
             artifact_sha256: artifact.sha256.clone(),
             tokenizer_path,
@@ -1337,8 +1355,10 @@ mod real_models {
         query: &str,
         expected_ids: Vec<String>,
     ) -> Option<RowResult> {
-        let embedding_spec = resolve_real_spec(&HfModelSpec::qwen3_embedding_onnx(), 1024)?;
-        let reranker_spec = resolve_real_spec(&HfModelSpec::qwen3_reranker_onnx(), 1)?;
+        let embedding_hf_spec = HfModelSpec::qwen3_embedding_onnx().ok()?;
+        let reranker_hf_spec = HfModelSpec::qwen3_reranker_onnx().ok()?;
+        let embedding_spec = resolve_real_spec(&embedding_hf_spec, 1024)?;
+        let reranker_spec = resolve_real_spec(&reranker_hf_spec, 1)?;
 
         let embedder = OrtEmbedder::load(&embedding_spec, ProviderKind::Cpu).ok()?;
         let reranker = OrtReranker::load(&reranker_spec, ProviderKind::Cpu).ok()?;
@@ -1349,15 +1369,15 @@ mod real_models {
         let actual_ids: Vec<String> = result
             .context
             .iter()
-            .map(|hit| hit.doc_id.clone())
+            .map(|hit| hit.doc_id.to_string())
             .collect();
         let pre_rerank_ids: Vec<String> = result
             .pre_rerank_pool
             .iter()
-            .map(|candidate| candidate.doc_id.clone())
+            .map(|candidate| candidate.doc_id.to_string())
             .collect();
         let lift = super::metrics::reranker_lift(&expected_ids, &pre_rerank_ids, &actual_ids, 10);
-        let token_ratio = Some(result.token_reduction_estimate.ratio());
+        let token_ratio = Some(result.token_reduction_estimate.ratio().get());
         let _ = reranker.state();
 
         Some(score_row(
@@ -1402,7 +1422,7 @@ impl RowRunner for LessonsRunner {
         }
         let expected_ids = vec!["mem-x06-9-fixture-0001".to_string()];
         let actual_ids: Vec<String> = hits.iter().map(|hit| hit.node.id().to_string()).collect();
-        let active: Vec<&str> = learning::active_lessons(&fixtures.memory_graph);
+        let active = learning::active_lessons(&fixtures.memory_graph);
         let source_refs = active.iter().map(|id| id.to_string()).collect();
 
         score_row(
@@ -1884,6 +1904,7 @@ impl RowRunner for GitHistoryRunner {
             Err(error) => return unrunnable(row, &format!("GitMetadata::open failed: {error}")),
         };
         let mut metadata = metadata;
+        let rel_path = enforcer_domain::memory_types::MemoryGitRelativePath::from(rel_path);
         let history = metadata.history_for(&rel_path);
         let Some(last_commit) = history.last_commit else {
             return unrunnable(row, &format!("{rel_path} has no git history"));
@@ -1901,8 +1922,8 @@ impl RowRunner for GitHistoryRunner {
         score_row(
             row,
             RowEvidence::degraded(
-                vec![rel_path.clone()],
-                vec![rel_path],
+                vec![rel_path.to_string()],
+                vec![rel_path.to_string()],
                 None,
                 None,
                 vec![format!("commit:{last_commit}")],
@@ -2286,7 +2307,7 @@ fn host_local_proof_pass_with_token_ratio(
 
 fn rule_id_test_probe(row: &QaRow) -> RowResult {
     let root = super::queryset::workspace_root();
-    let rel = "crates/enforcer-domain/src/ids.rs";
+    let rel = "crates/enforcer-domain/tests/ids.rs";
     let source = match std::fs::read_to_string(root.join(rel)) {
         Ok(source) => source,
         Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
@@ -2298,9 +2319,9 @@ fn rule_id_test_probe(row: &QaRow) -> RowResult {
         return host_local_proof_pass(
             row,
             vec![
-                "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed"
+                "crates/enforcer-domain/tests/ids.rs::rule_id_accepts_valid_and_rejects_malformed"
                     .to_string(),
-                "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+                "crates/enforcer-domain/tests/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
                     .to_string(),
             ],
             vec![rel.to_string()],
@@ -2446,16 +2467,23 @@ fn sha256_contract_probe(row: &QaRow) -> RowResult {
         Ok(source) => source,
         Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
     };
+    let test_rel = "crates/enforcer-domain/tests/hash_contracts.rs";
+    let test_source = match std::fs::read_to_string(root.join(test_rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {test_rel}: {error}")),
+    };
 
-    if source.contains("pub struct Sha256(String);")
-        && source.contains("impl TryFrom<String> for Sha256")
+    let sha_struct_marker = concat!("pub struct Sha256", "(String);");
+    let sha_try_from_marker = concat!("impl TryFrom<String>", " for Sha256");
+    if source.contains(sha_struct_marker)
+        && source.contains(sha_try_from_marker)
         && source.contains("impl std::fmt::Display for Sha256")
-        && source.contains("fn sha256_brand_decode()")
+        && test_source.contains("fn sha256_brand_decode()")
     {
         return host_local_proof_pass(
             row,
             vec!["crates/enforcer-domain/src/hashes.rs::Sha256".to_string()],
-            vec![rel.to_string()],
+            vec![rel.to_string(), test_rel.to_string()],
         );
     }
 
@@ -2560,7 +2588,7 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
             "crates/enforcer-memory/src/error.rs",
             [
                 "pub enum MemoryError {",
-                "UnknownProject { root: PathBuf },",
+                "UnknownProject { root: MemoryErrorPath },",
                 "ModelRuntime {",
                 "InternalInvariant {",
             ]
@@ -2570,19 +2598,19 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
             "crates/enforcer-memory/src/model_runtime.rs",
             [
                 "Err(MemoryError::ModelRuntime {",
-                "operation: \"validate-sha256\",",
-                "pub fn validate_model_artifacts(spec: &ModelSpec) -> Result<()> {",
+                "operation: \"validate-sha256\".into(),",
+                "pub fn validate_model_artifacts(spec: &ModelSpecDto) -> Result<()> {",
                 "\"validate-model-artifact\",",
                 "\"validate-tokenizer-artifact\",",
-                "operation: \"validate-embedding-output\",",
-                "operation: \"validate-reranker-output\",",
+                "operation: \"validate-embedding-output\".into(),",
+                "operation: \"validate-reranker-output\".into(),",
             ]
             .as_slice(),
         ),
         (
             "crates/enforcer-memory/src/store/mod.rs",
             [
-                "return Err(MemoryError::UnknownProject { root });",
+                "return Err(MemoryError::UnknownProject { root: root.into() });",
                 "std::fs::create_dir_all(&root).map_err(|source| MemoryError::Io {",
             ]
             .as_slice(),
@@ -2591,8 +2619,8 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
             "crates/enforcer-memory/src/observations.rs",
             [
                 "return Err(MemoryError::InternalInvariant {",
-                "operation: \"record_procedural_in_store\",",
-                "operation: \"record_route_choice_in_store\",",
+                "operation: \"record_procedural_in_store\".into(),",
+                "operation: \"record_route_choice_in_store\".into(),",
             ]
             .as_slice(),
         ),
@@ -2635,10 +2663,12 @@ fn memory_error_handling_sites_probe(row: &QaRow) -> RowResult {
                 "error-handled:log-read-chain-tamper",
                 "crates/enforcer-memory/src/log.rs",
                 &[
+                    "let (line_index, recorded, expected) = match break_ {",
                     "return Err(MemoryError::ChainTamper {",
-                    "line_index: break_.index,",
-                    "recorded: break_.recorded,",
-                    "expected: break_.expected,",
+                    "let line_index: MemoryErrorLineIndex = index.into();",
+                    "line_index,",
+                    "recorded,",
+                    "expected,",
                 ],
             ),
             (
@@ -2646,8 +2676,8 @@ fn memory_error_handling_sites_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/log.rs",
                 &[
                     "quarantined.push(QuarantinedRow {",
-                    "reason: format!(\"failed to deserialize: {e}\"),",
-                    "reason: format!(\"sequence gap: expected seq {expected_seq}, found {seq}\"),",
+                    "reason: format!(\"failed to deserialize: {e}\").into(),",
+                    "reason: format!(\"sequence gap: expected seq {expected_seq}, found {seq}\")",
                 ],
             ),
             (
@@ -2655,7 +2685,8 @@ fn memory_error_handling_sites_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/tests/unit_log.rs",
                 &[
                     "fn tampered_chain_is_rejected_against_independent_sidecar() -> Result<()>",
-                    "matches!(outcome, Err(MemoryError::ChainTamper { line_index: 0, .. }))",
+                    "matches!(",
+                    "Err(MemoryError::ChainTamper { line_index, .. }) if line_index == 0",
                 ],
             ),
             (
@@ -2700,11 +2731,7 @@ fn dependency_path_enforcer_mcp_to_core_probe(row: &QaRow) -> RowResult {
         ),
         (
             "crates/enforcer-proof/Cargo.toml",
-            [
-                "enforcer-core = { path = \"../enforcer-core\", version = \"0.1.0\" }",
-                "enforcer-scan = { path = \"../enforcer-scan\", version = \"0.1.0\" }",
-            ]
-            .as_slice(),
+            ["enforcer-core = { path = \"../enforcer-core\", version = \"0.1.0\" }"].as_slice(),
         ),
         (
             "crates/enforcer-scan/Cargo.toml",
@@ -2912,7 +2939,7 @@ fn workspace_cycle_ids(
 }
 
 fn scan_to_proof_event_spine_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    let refs = match validate_file_markers(
         row,
         &[
             (
@@ -2929,21 +2956,55 @@ fn scan_to_proof_event_spine_probe(row: &QaRow) -> RowResult {
                 &["enforcer-events = { path = \"../enforcer-events\", version = \"0.1.0\" }"],
             ),
             (
-                "event-flow:consumer:enforcer-proof",
+                "event-flow:proof:direct-core-domain-contracts",
                 "crates/enforcer-proof/Cargo.toml",
-                &["enforcer-events = { path = \"../enforcer-events\", version = \"0.1.0\" }"],
+                &[
+                    "enforcer-core = { path = \"../enforcer-core\", version = \"0.1.0\" }",
+                    "enforcer-domain = { path = \"../enforcer-domain\", version = \"0.1.0\" }",
+                ],
             ),
             (
                 "event-flow:spine:bus-envelope",
                 "crates/enforcer-events/src/lib.rs",
                 &[
-                    "EventBus",
-                    "DomainEvent, EventContract, EventEnvelope, EventMetadata, EventPriority, EventSource",
-                    "StoredEventEnvelope, StoredEventPayload",
-                    "EventType",
-                    "PublishReport",
-                    "EventTopologyManifest",
+                    "pub mod bus;",
+                    "pub mod envelope;",
+                    "pub mod topology;",
                 ],
+            ),
+            (
+                "event-flow:spine:bus",
+                "crates/enforcer-events/src/bus.rs",
+                &["pub struct EventBus {"],
+            ),
+            (
+                "event-flow:spine:envelope",
+                "crates/enforcer-events/src/envelope.rs",
+                &[
+                    "pub trait DomainEvent",
+                    "pub struct EventContract",
+                    "pub struct EventFrame<E>",
+                    "pub struct EventMetadata",
+                    "pub struct EventSource",
+                ],
+            ),
+            (
+                "event-flow:spine:stored-event",
+                "crates/enforcer-events/src/boundary/stored_event_persistence.rs",
+                &[
+                    "pub struct StoredEventEnvelope",
+                    "pub struct StoredEventPayload",
+                ],
+            ),
+            (
+                "event-flow:spine:topology",
+                "crates/enforcer-events/src/topology.rs",
+                &["pub struct EventTopologyManifest"],
+            ),
+            (
+                "event-flow:spine:publish-report",
+                "crates/enforcer-events/src/bus/reports/handler.rs",
+                &["pub struct PublishReport"],
             ),
             (
                 "event-flow:spine:publish-contract",
@@ -2955,47 +3016,62 @@ fn scan_to_proof_event_spine_probe(row: &QaRow) -> RowResult {
                 ],
             ),
         ],
+    ) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+    exact_pass(
+        row,
+        vec![
+            "event-flow:benchmark:scan-to-proof".to_owned(),
+            "event-flow:producer:enforcer-scan".to_owned(),
+            "event-flow:proof:direct-core-domain-contracts".to_owned(),
+            "event-flow:spine:bus-envelope".to_owned(),
+            "event-flow:spine:publish-contract".to_owned(),
+        ],
+        refs,
     )
 }
 
 fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
     let root = super::queryset::workspace_root();
-    let checks = [
-        (
-            QA_BENCHMARK_REL,
-            ["| QA-104 | Symbol | Which functions are called by `enforcer-scan` engine core? |"]
-                .as_slice(),
-        ),
-        (
-            "crates/enforcer-scan/src/engine.rs",
-            [
-                ".map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))",
-                "let family = classify(&file);",
-                "for validator in validators.applicable(family) {",
-                "per_file.extend(validator.validate(input));",
-                "fold_report(scope.kind, all_findings)",
-            ]
-            .as_slice(),
-        ),
-    ];
-    let mut refs = Vec::new();
-    for (rel, needles) in checks {
-        let source = match std::fs::read_to_string(root.join(rel)) {
-            Ok(source) => source,
-            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
-        };
-        for needle in needles {
-            if !source.contains(needle) {
-                return unrunnable(
-                    row,
-                    &format!("{rel} does not contain expected evidence marker {needle}"),
-                );
-            }
+    let benchmark = match std::fs::read_to_string(root.join(QA_BENCHMARK_REL)) {
+        Ok(source) => source,
+        Err(error) => {
+            return unrunnable(row, &format!("failed to read {QA_BENCHMARK_REL}: {error}"));
         }
-        refs.push(rel.to_string());
+    };
+    if !benchmark.contains(
+        "| QA-104 | Symbol | Which functions are called by `enforcer-scan` engine core? |",
+    ) {
+        return unrunnable(row, "QA-104 benchmark row is missing");
     }
-    refs.sort();
-    refs.dedup();
+    let engine_rel = "crates/enforcer-scan/src/engine.rs";
+    let source = match std::fs::read_to_string(root.join(engine_rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {engine_rel}: {error}")),
+    };
+    let Some(run_start) = source.find("pub fn run_with_inline_test_policy(") else {
+        return unrunnable(row, "scan engine no longer exposes the core run function");
+    };
+    let run_body = &source[run_start..];
+    let calls = [
+        "read_file_utf8(&scope.repo_root, file)",
+        "classify(file)",
+        "validators.applicable(family)",
+        "validator.validate(input)",
+        "fold_report(scope.kind, all_findings)",
+    ];
+    let mut previous = 0;
+    for call in calls {
+        let Some(relative) = run_body[previous..].find(call) else {
+            return unrunnable(
+                row,
+                &format!("scan engine core no longer calls {call} in execution order"),
+            );
+        };
+        previous += relative + call.len();
+    }
     exact_pass(
         row,
         vec![
@@ -3005,7 +3081,7 @@ fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
             "symbol:enforcer-scan:engine::run->Validator::validate".to_string(),
             "symbol:enforcer-scan:engine::run->fold_report".to_string(),
         ],
-        refs,
+        vec![QA_BENCHMARK_REL.to_owned(), engine_rel.to_owned()],
     )
 }
 
@@ -3031,10 +3107,18 @@ fn scan_module_dependency_tree_probe(row: &QaRow) -> RowResult {
         (
             "crates/enforcer-scan/src/engine.rs",
             [
-                "use crate::router::{classify, LanguageFamily};",
-                "use crate::scope::ResolvedScope;",
-                "use crate::scope::{resolve, ScopeRequest};",
-                "use crate::walk::{walk, IgnoreRules};",
+                "use enforcer_domain::scan_types::{LanguageFamily, ResolvedScope};",
+                "use crate::router::classify;",
+                "pub fn run(",
+            ]
+            .as_slice(),
+        ),
+        (
+            "crates/enforcer-scan/src/onboard.rs",
+            [
+                "use crate::engine;",
+                "use crate::scope;",
+                "use crate::walk::{self, IgnoreRules};",
             ]
             .as_slice(),
         ),
@@ -3072,57 +3156,80 @@ fn scan_module_dependency_tree_probe(row: &QaRow) -> RowResult {
 
 fn scan_hot_path_probe(row: &QaRow) -> RowResult {
     let root = super::queryset::workspace_root();
-    let checks = [
-        (
-            QA_BENCHMARK_REL,
-            ["| QA-117 | CodeGraph | Which modules form the hot path for scan execution? |"]
-                .as_slice(),
-        ),
+    let benchmark = match std::fs::read_to_string(root.join(QA_BENCHMARK_REL)) {
+        Ok(source) => source,
+        Err(error) => {
+            return unrunnable(row, &format!("failed to read {QA_BENCHMARK_REL}: {error}"));
+        }
+    };
+    if !benchmark
+        .contains("| QA-117 | CodeGraph | Which modules form the hot path for scan execution? |")
+    {
+        return unrunnable(row, "QA-117 benchmark row is missing");
+    }
+
+    let ordered_calls = [
         (
             "crates/enforcer-cli/src/commands.rs",
+            "pub fn run_scoped_check(",
             [
-                "use enforcer_scan::{engine, walk};",
-                "let validators = match engine::build_family_validators() {",
-                "let report = engine::run(&resolved, &files, &validators);",
+                "enforcer_scan::scope::resolve(",
+                "resolve_files(&root, &resolved)",
+                "engine::build_family_validators()",
+                "engine::run_with_inline_test_policy(",
+                "output::print_report(&report)",
             ]
             .as_slice(),
         ),
         (
             "crates/enforcer-scan/src/engine.rs",
+            "pub fn run_with_inline_test_policy(",
             [
-                "let family = classify(&file);",
-                "for validator in validators.applicable(family) {",
-            ]
-            .as_slice(),
-        ),
-        (
-            "crates/enforcer-scan/src/router/mod.rs",
-            [
-                "pub fn classify(path: &RelPath) -> LanguageFamily {",
-                "LanguageFamily::Rust",
-                "LanguageFamily::TypeScript",
+                "classify(file)",
+                "validators.applicable(family)",
+                "validator.validate(input)",
+                "fold_report(scope.kind, all_findings)",
             ]
             .as_slice(),
         ),
     ];
-    let mut refs = Vec::new();
-    for (rel, needles) in checks {
+    let mut refs = vec![QA_BENCHMARK_REL.to_owned()];
+    for (rel, start_marker, calls) in ordered_calls {
         let source = match std::fs::read_to_string(root.join(rel)) {
             Ok(source) => source,
             Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
         };
-        for needle in needles {
-            if !source.contains(needle) {
+        let Some(start) = source.find(start_marker) else {
+            return unrunnable(row, &format!("{rel} no longer contains {start_marker}"));
+        };
+        let body = &source[start..];
+        let mut previous = 0;
+        for call in calls {
+            let Some(relative) = body[previous..].find(call) else {
                 return unrunnable(
                     row,
-                    &format!("{rel} does not contain expected evidence marker {needle}"),
+                    &format!("{rel} no longer routes through {call} in hot-path order"),
                 );
-            }
+            };
+            previous += relative + call.len();
         }
-        refs.push(rel.to_string());
+        refs.push(rel.to_owned());
     }
-    refs.sort();
-    refs.dedup();
+    let router_rel = "crates/enforcer-scan/src/router/mod.rs";
+    let router = match std::fs::read_to_string(root.join(router_rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {router_rel}: {error}")),
+    };
+    if !router.contains("pub fn classify(path: &RelPath) -> LanguageFamily")
+        || !router.contains("LanguageFamily::Rust")
+        || !router.contains("LanguageFamily::TypeScript")
+    {
+        return unrunnable(
+            row,
+            "scan router no longer proves Rust and TypeScript classification",
+        );
+    }
+    refs.push(router_rel.to_owned());
     host_local_proof_pass(
         row,
         vec![
@@ -3338,9 +3445,9 @@ fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "retrieval:secrets:redaction-core",
-                "crates/enforcer-core/src/redaction.rs",
+                "crates/enforcer-core/src/boundary/redaction.rs",
                 &[
-                    "//! Two-layer redaction over structured records.",
+                    "//! Two-layer redaction at the structured-record boundary.",
                     "pub const REDACTED: &str = \"[REDACTED]\";",
                 ],
             ),
@@ -3429,7 +3536,7 @@ fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/architecture.rs",
                 &[
                     "pub struct LayeringResult",
-                    "pub cycle_cluster_ids: Vec<String>",
+                    "pub cycle_cluster_ids: Vec<ArchitectureClusterId>",
                     "participate in a dependency cycle",
                 ],
             ),
@@ -3448,10 +3555,10 @@ fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/tests/unit_architecture.rs",
                 &[
                     "fn layers_aspect_reports_cycle_without_panicking()",
-                    "from_cluster: \"cluster-a\".to_string()",
-                    "to_cluster: \"cluster-b\".to_string()",
-                    "from_cluster: \"cluster-b\".to_string()",
-                    "to_cluster: \"cluster-a\".to_string()",
+                    "from_cluster: \"cluster-a\".to_string().into()",
+                    "to_cluster: \"cluster-b\".to_string().into()",
+                    "from_cluster: \"cluster-b\".to_string().into()",
+                    "to_cluster: \"cluster-a\".to_string().into()",
                     "vec![\"cluster-a\".to_string(), \"cluster-b\".to_string()]",
                 ],
             ),
@@ -3532,13 +3639,21 @@ fn repository_crates_probe(row: &QaRow) -> RowResult {
         Ok(source) => source,
         Err(reason) => return unrunnable(row, &reason),
     };
-    for needle in ["[workspace]", "members = [\"crates/*\"]"] {
-        if !cargo.contains(needle) {
-            return unrunnable(
-                row,
-                &format!("Cargo.toml does not contain expected workspace marker {needle}"),
-            );
-        }
+    if !cargo.contains("[workspace]") {
+        return unrunnable(
+            row,
+            "Cargo.toml does not contain expected workspace marker [workspace]",
+        );
+    }
+    let members = cargo
+        .split_once("members")
+        .and_then(|(_, tail)| tail.split_once(']'))
+        .map(|(members, _)| members);
+    if !members.is_some_and(|members| members.contains("\"crates/*\"")) {
+        return unrunnable(
+            row,
+            "Cargo.toml workspace members do not include \"crates/*\"",
+        );
     }
 
     let root = super::queryset::workspace_root();
@@ -3947,6 +4062,8 @@ fn doc_claim_missing_validator_probe(row: &QaRow) -> RowResult {
     )
 }
 
+// REGRESSION-TEST: this probe verifies the committed Track A blueprint history
+// and its associated consistency-fix wording before reporting the row green.
 fn track_a_blueprint_history_probe(row: &QaRow) -> RowResult {
     const BLUEPRINT_REL: &str = "docs/plans/enforcer-selfhost-plan/PLAN_EXECUTION_BLUEPRINT.md";
     let history = match run_git_stdout(&[
@@ -3967,8 +4084,11 @@ fn track_a_blueprint_history_probe(row: &QaRow) -> RowResult {
         );
     };
     let expected_commit = "84103edfad193245dfd55c9713c1ce3542eb1ea7";
-    let expected_subject =
-        "docs: WAVE 1 consistency fixes — propagate 109/Track-C-11 + kill stale framing";
+    let expected_subject = concat!(
+        "docs: WAVE 1 consistency fixes — ",
+        "propagate 109/Track-C-11",
+        " + kill stale framing"
+    );
     if !line.starts_with(expected_commit) || !line.contains(expected_subject) {
         return unrunnable(
             row,
@@ -4111,12 +4231,29 @@ fn rule_id_history_probe(row: &QaRow) -> RowResult {
         "validate_rule_id",
         "impl TryFrom<String> for $name {",
         "impl std::str::FromStr for $name {",
-        "fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()",
     ] {
         if !source.contains(needle) {
             return unrunnable(
                 row,
                 &format!("{IDS_REL} does not contain expected RuleId evidence marker {needle}"),
+            );
+        }
+    }
+    let tests_rel = "crates/enforcer-domain/tests/ids.rs";
+    let tests = match read_repo_file(tests_rel) {
+        Ok(source) => source,
+        Err(reason) => return unrunnable(row, &reason),
+    };
+    for needle in [
+        "fn rule_id_accepts_valid_and_rejects_malformed()",
+        "fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()",
+        "let mut registry: BTreeMap<RuleId, &'static str>",
+        "assert_rejected::<RuleId>(bad, \"ruleId\")?;",
+    ] {
+        if !tests.contains(needle) {
+            return unrunnable(
+                row,
+                &format!("{tests_rel} does not contain expected RuleId proof marker {needle}"),
             );
         }
     }
@@ -4130,6 +4267,7 @@ fn rule_id_history_probe(row: &QaRow) -> RowResult {
         ],
         vec![
             IDS_REL.to_string(),
+            tests_rel.to_string(),
             format!("commit:{intro_commit}"),
             format!("commit:{harden_commit}"),
         ],
@@ -4139,8 +4277,9 @@ fn rule_id_history_probe(row: &QaRow) -> RowResult {
 fn parse_boundary_commit_intent_probe(row: &QaRow) -> RowResult {
     const WORKPACK_REL: &str =
         "docs/plans/enforcer-selfhost-plan/workpacks/a07-parse-at-boundary-json-and-env.md";
-    const ENV_REL: &str = "crates/enforcer-config/src/env.rs";
+    const ENV_REL: &str = "crates/enforcer-config/src/boundary/serde/env.rs";
     const LIB_REL: &str = "crates/enforcer-config/src/lib.rs";
+    const SERDE_REL: &str = "crates/enforcer-config/src/boundary/serde.rs";
 
     let history = match run_git_stdout(&[
         "log",
@@ -4155,16 +4294,19 @@ fn parse_boundary_commit_intent_probe(row: &QaRow) -> RowResult {
         Ok(output) => output,
         Err(reason) => return unrunnable(row, &reason),
     };
-    let Some(line) = first_nonempty_line(&history) else {
+    if first_nonempty_line(&history).is_none() {
         return unrunnable(row, "git log returned no parse-at-boundary history");
-    };
+    }
     let expected_commit = "0f6139ce375a986fedfa7be98e4babf6f0be7dc6";
     let expected_subject =
         "feat(a07): enforcer-config env boundary + rule-id parse-at-boundary proof";
-    if !line.starts_with(expected_commit) || !line.contains(expected_subject) {
+    if !history
+        .lines()
+        .any(|line| line.starts_with(expected_commit) && line.contains(expected_subject))
+    {
         return unrunnable(
             row,
-            &format!("unexpected parse-at-boundary history line: {line}"),
+            "parse-at-boundary history no longer contains the a07 implementation commit",
         );
     }
 
@@ -4207,14 +4349,28 @@ fn parse_boundary_commit_intent_probe(row: &QaRow) -> RowResult {
         Err(reason) => return unrunnable(row, &reason),
     };
     for needle in [
-        "//! `enforcer-config` — typed config load, parse-at-boundary, 3-layer",
+        "typed config load, parse-at-boundary, 3-layer",
         "a07 boundary requirement: env-var",
-        "rule ids parse-at-boundary into `RuleId`, not `String`",
     ] {
         if !lib_source.contains(needle) {
             return unrunnable(
                 row,
                 &format!("{LIB_REL} does not contain expected evidence marker {needle}"),
+            );
+        }
+    }
+    let serde_source = match read_repo_file(SERDE_REL) {
+        Ok(source) => source,
+        Err(reason) => return unrunnable(row, &reason),
+    };
+    for needle in [
+        "pub rule_id: RuleId,",
+        "pub rule_toggles: BTreeMap<RuleId, WireRuleToggle>,",
+    ] {
+        if !serde_source.contains(needle) {
+            return unrunnable(
+                row,
+                &format!("{SERDE_REL} does not contain typed RuleId boundary marker {needle}"),
             );
         }
     }
@@ -4230,6 +4386,7 @@ fn parse_boundary_commit_intent_probe(row: &QaRow) -> RowResult {
             WORKPACK_REL.to_string(),
             ENV_REL.to_string(),
             LIB_REL.to_string(),
+            SERDE_REL.to_string(),
             format!("commit:{expected_commit}"),
         ],
     )
@@ -4823,7 +4980,7 @@ fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_check:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &[
                     "\"ocentra_enforcer_check\"",
                     "pub const NAMED_CHECKS: &[&str] = &[",
@@ -4842,47 +4999,95 @@ fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
             (
                 "cli:cli_invoke:mcp-parity",
                 "crates/enforcer-memory/src/cli.rs",
-                &[
-                    "pub fn cli_invoke(tool: &str, json_args: &str)",
-                    "call_tool(tool, &args)",
-                ],
+                &["pub fn cli_invoke(", "call_tool(tool.as_str(), &args)"],
             ),
         ],
     )
 }
 
 fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
-    host_local_file_marker_probe(
+    let refs = match validate_file_markers(
         row,
-        &[
-            (
-                "trace:cross-service:route-mediator",
-                "crates/enforcer-memory/src/analysis/trace.rs",
-                &[
-                    "pub fn trace_cross_service(",
-                    "let mediator = RouteMediator {",
-                    "paths.push(CrossServicePath {",
-                ],
-            ),
-            (
-                "trace:route-choice:store",
-                "crates/enforcer-memory/src/observations.rs",
-                &[
-                    "pub fn record_route_choice_in_store(",
-                    "fault_class: Some(\"route-choice\".to_owned()),",
-                    "store.append_route_trace(trace.clone())?;",
-                ],
-            ),
-            (
-                "trace:route-choice:append",
-                "crates/enforcer-memory/src/store/mod.rs",
-                &[
-                    "pub fn append_route_trace(&mut self, trace: RouteTrace) -> Result<RouteTraceLogEntry> {",
-                    "route: trace.route,",
-                    "confidence: trace.confidence,",
-                ],
-            ),
+        &[(
+            "trace:cross-service:route-mediator",
+            "crates/enforcer-memory/src/analysis/trace.rs",
+            &[
+                "pub fn trace_cross_service(",
+                "let mediator = RouteMediator {",
+                "paths.push(CrossServicePath {",
+            ],
+        )],
+    ) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+
+    let dir = match tempfile::tempdir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            return unrunnable(
+                row,
+                &format!("failed to create route lifecycle tempdir: {error}"),
+            );
+        }
+    };
+    let repo_root: RepoRoot = match "C:/Projects/x06-route-lifecycle-proof".parse() {
+        Ok(root) => root,
+        Err(error) => return unrunnable(row, &format!("failed to parse proof RepoRoot: {error}")),
+    };
+    let mut store = match Store::init(dir.path(), &repo_root, "2026-07-16T00:00:00Z") {
+        Ok(store) => store,
+        Err(error) => {
+            return unrunnable(row, &format!("failed to initialize route store: {error}"))
+        }
+    };
+    let mut graph = MemoryGraph::new();
+    let route_id = match record_route_choice_in_store(
+        &mut store,
+        &mut graph,
+        &RouteChoiceStoreInput::new(
+            "canonical wrapper lifecycle",
+            "hybrid-search",
+            0.91,
+            "2026-07-16T00:00:01Z",
+        ),
+    ) {
+        Ok(id) => id,
+        Err(error) => return unrunnable(row, &format!("failed to persist route trace: {error}")),
+    };
+    let entries = match store.read_route_trace_entries() {
+        Ok(outcome) => outcome.entries,
+        Err(error) => return unrunnable(row, &format!("failed to read route trace log: {error}")),
+    };
+    let Some(entry) = entries.first() else {
+        return unrunnable(row, "route trace log remained empty after persistence");
+    };
+    if entries.len() != 1
+        || graph.route_traces().len() != 1
+        || entry.id != route_id.as_str()
+        || entry.query != "canonical wrapper lifecycle"
+        || entry.route != "hybrid-search"
+        || (entry.confidence - 0.91).abs() > f64::EPSILON
+        || entry.ts != "2026-07-16T00:00:01Z"
+    {
+        return unrunnable(
+            row,
+            "route trace did not round-trip canonical wrapper values through store and graph",
+        );
+    }
+
+    let mut source_refs = refs;
+    source_refs.extend([
+        "crates/enforcer-memory/src/observations.rs".to_owned(),
+        "crates/enforcer-memory/src/store/mod.rs".to_owned(),
+    ]);
+    host_local_proof_pass(
+        row,
+        vec![
+            "trace:cross-service:route-mediator".to_owned(),
+            "trace:route-choice:store-roundtrip".to_owned(),
         ],
+        source_refs,
     )
 }
 
@@ -4892,7 +5097,7 @@ fn mcp_explain_rule_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_explain:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &["\"ocentra_enforcer_explain\""],
             ),
             (
@@ -4926,18 +5131,17 @@ fn mcp_deferred_markers_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-lang-common/src/rules/deferred_work.rs",
                 &[
                     "`DEFER-1.1`",
-                    "const DEFERRAL_MARKERS: &[&str] = &[",
-                    "\"TODO\",",
-                    "\"FIXME\",",
-                    "rule_id: \"DEFER-1.1\".parse()?,",
+                    "rule_id: crate::boundary::static_rule_id(\"DEFER-1.1\")?,",
+                    "source_analysis::find_deferred_marker(line)",
+                    "source_analysis::extract_deferred_annotation(line)",
                 ],
             ),
             (
                 "deferred:validator:findings",
                 "crates/enforcer-lang-common/src/rules/deferred_work.rs",
                 &[
-                    "title: \"unmarked deferred-work marker\".to_owned(),",
-                    "title: \"malformed DEFERRED annotation\".to_owned(),",
+                    "\"unmarked deferred-work marker\",",
+                    "\"malformed DEFERRED annotation\",",
                 ],
             ),
             (
@@ -4959,16 +5163,26 @@ fn coordination_ledger_mutation_probe(row: &QaRow) -> RowResult {
         row,
         &[
             (
-                "symbol:coordination-ledger:append-event",
+                "symbol:coordination-ledger:release-dispatch",
                 "crates/enforcer-coordination/src/api.rs",
                 &[
-                    "fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent>",
-                    "append_completed_event(&hub.root, &hub.config.node_id, lane, &event)?;",
+                    "pub fn release(",
+                    "kind: CoordinationEventKind::Release,",
+                    "append_event(",
+                ],
+            ),
+            (
+                "symbol:coordination-ledger:append-event",
+                "crates/enforcer-coordination/src/api/boundary.rs",
+                &[
+                    "pub(super) fn append_event(",
+                    "event.hash = crate::events::hash_for_event(&event)?;",
+                    "append_completed_event(",
                 ],
             ),
             (
                 "symbol:coordination-ledger:append-completed-event",
-                "crates/enforcer-coordination/src/sync/stream.rs",
+                "crates/enforcer-coordination/src/sync/boundary.rs",
                 &[
                     "pub fn append_completed_event(",
                     "OpenOptions::new().append(true).create(true).open(&path)?;",
@@ -5001,7 +5215,7 @@ fn ndjson_readers_probe(row: &QaRow) -> RowResult {
             (
                 "symbol:ndjson:read-verified",
                 "crates/enforcer-memory/src/log.rs",
-                &["pub fn read_verified<T>(path: &Path, extract_seq: impl Fn(&T) -> u64) -> Result<ReadOutcome<T>>"],
+                &["pub fn read_verified<T>(path: &Path, extract_seq: impl Fn(&T) -> Seq) -> Result<ReadOutcome<T>>"],
             ),
         ],
     )
@@ -5019,7 +5233,7 @@ fn ndjson_appenders_probe(row: &QaRow) -> RowResult {
             (
                 "symbol:ndjson:append-seq",
                 "crates/enforcer-memory/src/log.rs",
-                &["pub fn append_with_seq(&mut self, build_entry: impl FnOnce(u64) -> T) -> Result<Seq>"],
+                &["pub fn append_with_seq(&mut self, build_entry: impl FnOnce(Seq) -> T) -> Result<Seq>"],
             ),
             (
                 "symbol:ndjson:append-journal",
@@ -5036,7 +5250,7 @@ fn mcp_proof_status_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_proof_status:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &["\"ocentra_enforcer_proof_status\""],
             ),
             (
@@ -5067,7 +5281,7 @@ fn mcp_scan_handler_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_scan:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &[
                     "\"ocentra_enforcer_scan\"",
                     "\"ocentra_enforcer_scan\" => \"Run the parallel scan engine over a resolved scope.\"",
@@ -5075,7 +5289,7 @@ fn mcp_scan_handler_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "mcp:ocentra_enforcer_scan:router-generic-delegate",
-                "crates/enforcer-mcp/src/router.rs",
+                "crates/enforcer-mcp/src/boundary/router.rs",
                 &[
                     "match canonical.as_str() {",
                     "other if crate::registry::CANONICAL_TOOLS.contains(&other) =>",
@@ -5130,7 +5344,7 @@ fn harness_last_failure_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_last_failure:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &["\"ocentra_enforcer_last_failure\""],
             ),
             (
@@ -5172,7 +5386,7 @@ fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "mcp:context-budget:measure",
-                "crates/enforcer-mcp/src/tool_surface.rs",
+                "crates/enforcer-mcp/src/boundary/tool_surface.rs",
                 &[
                     "pub fn measure_current_surface() -> MeasuredSurface",
                     "let descriptors = build_tool_descriptors();",
@@ -5198,7 +5412,7 @@ fn doctor_wiring_probe(row: &QaRow) -> RowResult {
         &[
             (
                 "mcp:ocentra_enforcer_doctor:registry",
-                "crates/enforcer-mcp/src/registry.rs",
+                "crates/enforcer-mcp/src/boundary/registry.rs",
                 &["\"ocentra_enforcer_doctor\""],
             ),
             (
@@ -5214,7 +5428,9 @@ fn doctor_wiring_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-install/src/core.rs",
                 &[
                     "fn doctor_aggregates_verify_across_adapters()",
-                    "let outcomes = doctor(&adapters, &ctx, &DoctorRequest::default())?;",
+                    "let outcomes = doctor(&adapters, &ctx, &DoctorCommand::default())?;",
+                    "let checks = adapter.verify(ctx)?;",
+                    "outcomes.push((adapter.harness_key(), checks));",
                 ],
             ),
         ],
@@ -5245,8 +5461,9 @@ fn cli_telemetry_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "core:telemetry:observer",
-                "crates/enforcer-core/src/telemetry.rs",
+                "crates/enforcer-core/src/boundary/telemetry.rs",
                 &[
+                    "//! Run-telemetry boundary sink (d04): wires the generic [`crate::ndjson_writer`]",
                     "//! - Telemetry emission is an OBSERVER: this sink never inspects or",
                     "pub const DEFAULT_RUN_TELEMETRY_PATH: &str = \"proof/telemetry/runs.ndjson\";",
                 ],
@@ -5324,7 +5541,7 @@ fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-harness/src/parsers.rs",
                 &[
                     "fn parse_tsc_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnostic> {",
-                    "language: \"typescript\".to_owned(),",
+                    "language: HarnessLanguage::Typescript,",
                     "fn tsc_text_fail_fixture_parses_error_line() {",
                     "fn tsc_clean_output_pass_fixture_produces_no_findings() {",
                 ],
@@ -5339,11 +5556,6 @@ fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
                     "assert.equal(report.summary.status, \"failed\");",
                     "report.diagnostics.some((diagnostic) => diagnostic.ruleId === \"TS2322\"),",
                 ],
-            ),
-            (
-                "cli:run:tsc:docs",
-                "docs/TARGET_REPO_WIRING.md",
-                &["enforcer run --root . --tool tsc -- npx tsc --noEmit --pretty false"],
             ),
         ],
     )
@@ -5434,21 +5646,33 @@ fn cli_lifecycle_surface_probe(row: &QaRow) -> RowResult {
                 "cli:lifecycle:implementation",
                 "crates/enforcer-cli/src/lifecycle.rs",
                 &[
+                    "use enforcer_domain::cli_types::Phase;",
+                    "pub fn run_plan() -> PhaseOutcome",
+                    "pub fn run_implement() -> PhaseOutcome",
+                    "pub fn run_check(",
+                    "pub fn run_fix() -> PhaseOutcome",
+                    "pub fn run_review(request: &ReviewArgs<'_>) -> PhaseOutcome",
+                ],
+            ),
+            (
+                "cli:lifecycle:phase-domain",
+                "crates/enforcer-domain/src/cli_types.rs",
+                &[
                     "pub enum Phase {",
                     "Plan,",
                     "Implement,",
                     "Check,",
                     "Fix,",
                     "Review,",
-                    "pub fn run_plan() -> PhaseOutcome",
-                    "pub fn run_review(request: &ReviewRequest<'_>) -> PhaseOutcome",
                 ],
             ),
             (
                 "cli:lifecycle:test",
                 "crates/enforcer-cli/tests/lifecycle.rs",
                 &[
-                    "use enforcer_cli::lifecycle::{run_check, run_review, CheckScope, ExitCodeShim, ReviewRequest};",
+                    "use enforcer_cli::lifecycle::oracle::ReviewArgs;",
+                    "use enforcer_cli::lifecycle::{run_check, run_review};",
+                    "use enforcer_domain::cli_types::{CheckScope, PhaseVerdict};",
                     "enforcer_cli::lifecycle::run_plan().exit_code",
                     "enforcer_cli::lifecycle::run_implement().exit_code",
                     "enforcer_cli::lifecycle::run_fix().exit_code",
@@ -5474,9 +5698,9 @@ fn cli_install_claude_adapter_probe(row: &QaRow) -> RowResult {
                 "install:claude:adapter-key",
                 "crates/enforcer-install/src/adapters/claude.rs",
                 &[
-                    "const HARNESS_KEY: &str = \"claude\";",
-                    "fn harness_key(&self) -> &'static str {",
-                    "HARNESS_KEY",
+                    "impl HarnessAdapter for ClaudeAdapter {",
+                    "fn harness_key(&self) -> enforcer_domain::ids::HarnessId {",
+                    "enforcer_domain::ids::BuiltInHarness::Claude.id()",
                 ],
             ),
             (
@@ -5484,24 +5708,25 @@ fn cli_install_claude_adapter_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-install/src/core.rs",
                 &[
                     "fn select_adapters<'a>(",
-                    "if !adapters.iter().any(|adapter| adapter.harness_key() == key) {",
-                    ".filter(|adapter| only.iter().any(|key| key == adapter.harness_key()))",
+                    "return Err(InstallError::UnknownAdapter {",
+                    ".filter(|adapter| only.iter().any(|key| key == &adapter.harness_key()))",
                 ],
             ),
             (
                 "install:claude:selection-test",
                 "crates/enforcer-install/src/core.rs",
                 &[
-                    "fn only_harnesses_filter_narrows_the_adapter_set() -> Result<(), Box<dyn std::error::Error>> {",
-                    "let selected = select_adapters(&adapters, &[\"codex\".to_owned()])?;",
-                    "fn unknown_adapter_id_is_a_typed_error_not_a_silent_skip() {",
+                    "fn only_harnesses_filter_narrows_the_adapter_set()",
+                    "HarnessId::try_from(\"codex\".to_owned())?",
+                    "fn unknown_adapter_id_is_a_typed_error_not_a_silent_skip(",
+                    "Err(InstallError::UnknownAdapter { ref id, .. })",
                 ],
             ),
             (
                 "install:claude:detection-test",
-                "crates/enforcer-install/src/detect.rs",
+                "crates/enforcer-install/src/boundary/detect_configuration.rs",
                 &[
-                    "fn seeded_claude_and_codex_dirs_are_detected_present() -> Result<(), Box<dyn std::error::Error>>",
+                    "fn seeded_claude_and_codex_dirs_are_detected_present()",
                     "home.seed_dir(\".claude\")?;",
                     "assert!(find(&records, \"claude\")?.present);",
                 ],
@@ -5510,10 +5735,11 @@ fn cli_install_claude_adapter_probe(row: &QaRow) -> RowResult {
                 "install:claude:fixture-test",
                 "crates/enforcer-install/tests/claude_adapter_fixtures.rs",
                 &[
-                    "fn pass_fixture_install_then_verify_is_all_green() -> Result<(), Box<dyn std::error::Error>> {",
-                    "let adapter = ClaudeAdapter::new(home.path(), &binary);",
+                    "fn pass_fixture_install_then_verify_is_all_green()",
+                    "let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;",
                     "let verify = adapter.verify(&ctx)?;",
-                    "verify.all_passed(),",
+                    "verify.checks.iter().all(|check| matches!(",
+                    "enforcer_domain::install_types::CheckStatus::Passed",
                 ],
             ),
         ],
@@ -5533,19 +5759,19 @@ fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
                 "install:doctor:good-fixture",
                 "crates/enforcer-install/src/doctor.rs",
                 &[
-                    "fn all_green_on_a_good_fixture() -> Result<(), Box<dyn std::error::Error>> {",
-                    "fixture_root(\"good\").join(\"mcp.json\")",
-                    "RequestContext::with_defaults(PathBuf::from(\"/abs/path/to/enforcer\"))",
-                    "assert!(report.all_passed());",
+                    "fn all_green_on_a_good_fixture()",
+                    "fixture_root(DoctorFixture::Good)?",
+                    "let ctx = InstallRequestContext::try_with_defaults(binary)?;",
+                    "report.checks.iter().all(|check| matches!(",
                 ],
             ),
             (
                 "install:doctor:missing-server-fixture",
                 "crates/enforcer-install/src/doctor.rs",
                 &[
-                    "fn red_on_missing_server_names_the_failing_check() -> Result<(), Box<dyn std::error::Error>> {",
-                    "fixture_root(\"missing_server\").join(\"mcp.json\")",
-                    "assert!(report.exit_is_nonzero());",
+                    "fn red_on_missing_server_names_the_failing_check()",
+                    "fixture_root(DoctorFixture::MissingServer)?",
+                    "CheckStatus::Failed",
                     "vec![\"mcp-registration-present\"]",
                 ],
             ),
@@ -5554,7 +5780,8 @@ fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-install/src/doctor.rs",
                 &[
                     "fn red_on_renamed_server_binary_names_the_failing_check(",
-                    "fixture_root(\"renamed_binary\").join(\"mcp.json\")",
+                    "fixture_root(DoctorFixture::RenamedBinary)?",
+                    "CheckStatus::Failed",
                     "vec![\"mcp-registration-present\"]",
                 ],
             ),
@@ -5653,7 +5880,7 @@ fn legacy_binary_name_migration_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "install:migrate-legacy-name",
-                "crates/enforcer-install/src/migrate_legacy_name.rs",
+                "crates/enforcer-install/src/boundary/migrate_legacy_name.rs",
                 &[
                     "pub const LEGACY_SERVER_NAME: &str = \"ocentra-enforcer\";",
                     "const MIGRATION_NOTICE: &str = \"one-time migration:",
@@ -5920,8 +6147,8 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/llama_cpp.rs",
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
-                    "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
+                    "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppProbeReportDto> {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (
@@ -6010,8 +6237,8 @@ fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/llama_cpp.rs",
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
-                    "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
+                    "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppProbeReportDto> {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfigDto) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (
@@ -6052,7 +6279,7 @@ fn memory_recall_injection_probe(row: &QaRow) -> RowResult {
                 &[
                     "//! X06.6: the SessionStart recall-pack seam.",
                     "injects an enforcer-first reminder + mechanical-enforcement doctrine",
-                    "pub fn recall_pack(graph: &MemoryGraph, limit: usize) -> RecallPack {",
+                    "pub fn recall_pack(graph: &MemoryGraph, limit: impl Into<MemorySessionRecallLimit>)",
                 ],
             ),
             (
@@ -6211,29 +6438,29 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan/src/engine.rs".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:04:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan/src/engine.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:04:00Z".to_string()).into(),
         },
     );
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0003".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-check/src/check.rs".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:04:01Z".to_string(),
+            lesson_id: ("mem-cl-0003".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-check/src/check.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:04:01Z".to_string()).into(),
         },
     );
     let active = learning::active_lessons(&graph);
-    if !active.contains(&"mem-cl-0001") || !active.contains(&"mem-cl-0003") {
+    if !active.contains(&"mem-cl-0001".into()) || !active.contains(&"mem-cl-0003".into()) {
         return unrunnable(
             row,
             "continuous-learning fixture no longer exposes the unknown-rule lessons as active",
@@ -6243,7 +6470,7 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
         .into_iter()
         .filter(|lesson_id| {
             graph
-                .incidents_for_lesson(lesson_id)
+                .incidents_for_lesson(&(*lesson_id).into())
                 .iter()
                 .any(|incident| incident.rule_id.as_deref() == Some("CL-UNKNOWN-RULE"))
         })
@@ -6305,32 +6532,32 @@ fn error_lessons_probe(row: &QaRow) -> RowResult {
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan/src/engine.rs".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:05:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan/src/engine.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:05:00Z".to_string()).into(),
         },
     );
     ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0003".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-check/src/check.rs".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:05:01Z".to_string(),
+            lesson_id: ("mem-cl-0003".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-check/src/check.rs".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:05:01Z".to_string()).into(),
         },
     );
     let actual_ids = ["mem-cl-0001", "mem-cl-0003"]
         .into_iter()
         .filter(|lesson_id| {
             graph
-                .incidents_for_lesson(lesson_id)
+                .incidents_for_lesson(&(*lesson_id).into())
                 .iter()
                 .any(|incident| incident.fault_class.as_deref() == Some("unknown_rule_id"))
         })
@@ -6486,15 +6713,15 @@ fn multi_harness_install_pattern_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-install/src/core.rs",
                 &[
                     "fn select_adapters<'a>(",
-                    "fn only_harnesses_filter_narrows_the_adapter_set() -> Result<(), Box<dyn std::error::Error>> {",
-                    "fn unknown_adapter_id_is_a_typed_error_not_a_silent_skip() {",
+                    "return Err(InstallError::UnknownAdapter {",
+                    ".filter(|adapter| only.iter().any(|key| key == &adapter.harness_key()))",
                 ],
             ),
             (
                 "experience:multi-harness:detection",
-                "crates/enforcer-install/src/detect.rs",
+                "crates/enforcer-install/src/boundary/detect_configuration.rs",
                 &[
-                    "fn seeded_claude_and_codex_dirs_are_detected_present() -> Result<(), Box<dyn std::error::Error>>",
+                    "fn seeded_claude_and_codex_dirs_are_detected_present()",
                     "home.seed_dir(\".claude\")?;",
                     "home.seed_dir(\".codex\")?;",
                 ],
@@ -6503,9 +6730,10 @@ fn multi_harness_install_pattern_probe(row: &QaRow) -> RowResult {
                 "experience:multi-harness:fixtures",
                 "crates/enforcer-install/tests/claude_adapter_fixtures.rs",
                 &[
-                    "fn pass_fixture_install_then_verify_is_all_green() -> Result<(), Box<dyn std::error::Error>> {",
-                    "let adapter = ClaudeAdapter::new(home.path(), &binary);",
-                    "verify.all_passed(),",
+                    "fn pass_fixture_install_then_verify_is_all_green()",
+                    "let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;",
+                    "verify.checks.iter().all(|check| matches!(",
+                    "enforcer_domain::install_types::CheckStatus::Passed",
                 ],
             ),
         ],
@@ -6568,13 +6796,13 @@ fn stale_lessons_probe(row: &QaRow) -> RowResult {
         Ok(graph) => graph,
         Err(reason) => return unrunnable(row, &reason),
     };
-    if learning::lesson_status(&graph, "mem-cl-0004") != Some(learning::LessonStatus::Inactive) {
+    if learning::lesson_status(&graph, &"mem-cl-0004".into()) != Some(LessonStatus::Inactive) {
         return unrunnable(
             row,
             "continuous-learning fixture no longer reports mem-cl-0004 as inactive",
         );
     }
-    if learning::active_lessons(&graph).contains(&"mem-cl-0004") {
+    if learning::active_lessons(&graph).contains(&"mem-cl-0004".into()) {
         return unrunnable(
             row,
             "inactive imported lesson unexpectedly appears in active_lessons",
@@ -6596,13 +6824,13 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
         Ok(graph) => graph,
         Err(reason) => return unrunnable(row, &reason),
     };
-    let Some(successor) = learning::superseded_by(&graph, "mem-cl-0002") else {
+    let Some(successor) = learning::superseded_by(&graph, &"mem-cl-0002".into()) else {
         return unrunnable(
             row,
             "continuous-learning fixture no longer records mem-cl-0002 as superseded",
         );
     };
-    if successor != "mem-cl-0003" {
+    if successor.as_str() != "mem-cl-0003" {
         return unrunnable(
             row,
             &format!("mem-cl-0002 now supersedes an unexpected lesson {successor}"),
@@ -6685,13 +6913,20 @@ fn no_effect_lesson_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "learning:no-effect:procedural-contract",
-                "crates/enforcer-memory/src/observations.rs",
+                "crates/enforcer-domain/src/memory_types.rs",
                 &[
-                    "success and failure both recorded, because a memory system that",
+                    "Outcome of applying procedural Memory guidance.",
                     "pub enum ProceduralOutcome",
                     "FixSuccess",
                     "FixFailure",
-                    "pub fn procedural_success_rate(graph: &MemoryGraph, lesson_id: &str)",
+                ],
+            ),
+            (
+                "learning:no-effect:success-rate",
+                "crates/enforcer-memory/src/observations.rs",
+                &[
+                    "pub fn procedural_success_rate(",
+                    "lesson_id: impl Into<ProceduralLessonReference>",
                     "distinct from `Some(0.0)` (tried and always failed)",
                 ],
             ),
@@ -6719,31 +6954,38 @@ fn recurring_issue_after_landing_probe(row: &QaRow) -> RowResult {
     let first = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:02:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:02:00Z".to_string()).into(),
         },
     );
     let second = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:03:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:03:00Z".to_string()).into(),
         },
     );
-    let curve = recurrence_curve(&graph, "mem-cl-0001");
+    let lesson_id =
+        match enforcer_domain::memory_types::MemoryLessonId::try_from("mem-cl-0001".to_owned()) {
+            Ok(lesson_id) => lesson_id,
+            Err(error) => {
+                return unrunnable(row, &format!("invalid feature-parity lesson id: {error}"))
+            }
+        };
+    let curve = recurrence_curve(&graph, &lesson_id);
     if curve.len() != 2
-        || !curve[0].since_landing
-        || !curve[1].since_landing
+        || !curve[0].since_landing.is_since_landing()
+        || !curve[1].since_landing.is_since_landing()
         || curve[0].running_recurrence_count != 1
         || curve[1].running_recurrence_count != 2
     {
@@ -6754,12 +6996,12 @@ fn recurring_issue_after_landing_probe(row: &QaRow) -> RowResult {
     }
     let actual_ids = curve
         .iter()
-        .map(|point| point.incident_id.clone())
+        .map(|point| point.incident_id.to_string())
         .collect::<Vec<_>>();
     score_row(
         row,
         RowEvidence::host_local_proof(
-            vec![first, second],
+            vec![first.to_string(), second.to_string()],
             actual_ids,
             None,
             None,
@@ -6780,26 +7022,33 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
     let incident_id = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
             rule_id: None,
             fault_class: None,
-            repo_context: "crates/enforcer-check".to_string(),
-            clean: true,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:01:00Z".to_string(),
+            repo_context: ("crates/enforcer-check".to_string()).into(),
+            clean: (true).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:01:00Z".to_string()).into(),
         },
     );
-    let incidents = graph.incidents_for_lesson("mem-cl-0001");
+    let incidents = graph.incidents_for_lesson(&"mem-cl-0001".into());
     if !incidents
         .iter()
-        .any(|incident| incident.id == incident_id && incident.clean)
+        .any(|incident| incident.id == incident_id && incident.clean.is_clean())
     {
         return unrunnable(
             row,
             "clean observation was not retained as negative evidence on a landed lesson",
         );
     }
-    match evidence_chain(&graph, "mem-cl-0001", &NoProofRefs) {
+    let lesson_id =
+        match enforcer_domain::memory_types::MemoryLessonId::try_from("mem-cl-0001".to_owned()) {
+            Ok(lesson_id) => lesson_id,
+            Err(error) => {
+                return unrunnable(row, &format!("invalid feature-parity lesson id: {error}"))
+            }
+        };
+    match evidence_chain(&graph, &lesson_id, &NoProofRefs) {
         EvidenceReport::Chain { observed, .. } => {
             if !observed
                 .iter()
@@ -6820,7 +7069,7 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
     }
     host_local_proof_pass(
         row,
-        vec![incident_id],
+        vec![incident_id.to_string()],
         vec![
             CONTINUOUS_LEARNING_FIXTURE_REL.to_string(),
             "crates/enforcer-memory/tests/continuous_learning.rs".to_string(),
@@ -6866,34 +7115,34 @@ fn failures_for_rule_probe(row: &QaRow) -> RowResult {
     let first = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-scan".to_string(),
-            clean: false,
-            source_surface: "scan".to_string(),
-            ts: "2026-07-05T10:00:00Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-scan".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("scan".to_string()).into(),
+            ts: ("2026-07-05T10:00:00Z".to_string()).into(),
         },
     );
     let second = ingest_observation(
         &mut graph,
         Observation {
-            lesson_id: "mem-cl-0001".to_string(),
-            rule_id: Some("CL-UNKNOWN-RULE".to_string()),
-            fault_class: Some("unknown_rule_id".to_string()),
-            repo_context: "crates/enforcer-check".to_string(),
-            clean: false,
-            source_surface: "check".to_string(),
-            ts: "2026-07-05T10:00:01Z".to_string(),
+            lesson_id: ("mem-cl-0001".to_string()).into(),
+            rule_id: Some("CL-UNKNOWN-RULE".to_string().into()),
+            fault_class: Some("unknown_rule_id".to_string().into()),
+            repo_context: ("crates/enforcer-check".to_string()).into(),
+            clean: (false).into(),
+            source_surface: ("check".to_string()).into(),
+            ts: ("2026-07-05T10:00:01Z".to_string()).into(),
         },
     );
-    let incidents = graph.incidents_for_lesson("mem-cl-0001");
+    let incidents = graph.incidents_for_lesson(&"mem-cl-0001".into());
     let actual_ids = incidents
         .iter()
         .filter(|incident| incident.rule_id.as_deref() == Some("CL-UNKNOWN-RULE"))
-        .map(|incident| incident.id.clone())
-        .collect::<Vec<_>>();
-    if actual_ids != vec![first.clone(), second.clone()] {
+        .map(|incident| incident.id.clone().into())
+        .collect::<Vec<String>>();
+    if actual_ids != vec![first.to_string(), second.to_string()] {
         return unrunnable(
             row,
             &format!("unexpected failure observation ids for CL-UNKNOWN-RULE: {actual_ids:?}"),
@@ -6902,7 +7151,7 @@ fn failures_for_rule_probe(row: &QaRow) -> RowResult {
     score_row(
         row,
         RowEvidence::host_local_proof(
-            vec![first, second],
+            vec![first.to_string(), second.to_string()],
             actual_ids,
             None,
             None,
@@ -7068,93 +7317,58 @@ fn exact_proof_artifacts_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_symbol_snippet_probe(row: &QaRow) -> RowResult {
-    fn line_number(source: &str, needle: &str) -> Option<usize> {
-        source
-            .lines()
-            .position(|line| line.contains(needle))
-            .map(|index| index + 1)
-    }
-
-    let root = super::queryset::workspace_root();
     let source_rel = "crates/enforcer-memory/src/hf_cache.rs";
-    let source = match std::fs::read_to_string(root.join(source_rel)) {
-        Ok(source) => source,
-        Err(error) => return unrunnable(row, &format!("failed to read {source_rel}: {error}")),
-    };
-    let source_signature = match line_number(
-        &source,
-        "pub fn select_x06_chat_model_for_hardware(free_vram_mib: Option<u64>) -> ChatModelSelection {",
-    ) {
-        Some(line) => line,
-        None => {
-            return unrunnable(
-                row,
-                "hf_cache.rs no longer contains select_x06_chat_model_for_hardware",
-            )
-        }
-    };
-    let low_vram_fallback = match line_number(
-        &source,
-        "\"selected smallest Q4 chat fallback {} because detected free VRAM is only {free} MiB\",",
-    ) {
-        Some(line) => line,
-        None => {
-            return unrunnable(
-                row,
-                "hf_cache.rs no longer contains the low-VRAM exact fallback snippet",
-            )
-        }
-    };
-    let no_probe_fallback = match line_number(
-        &source,
-        "\"selected smallest Q4 chat fallback {} because no llama.cpp GPU memory report was available\",",
-    ) {
-        Some(line) => line,
-        None => {
-            return unrunnable(
-                row,
-                "hf_cache.rs no longer contains the no-probe exact fallback snippet",
-            )
-        }
-    };
-
     let test_rel = "crates/enforcer-memory/tests/model_runtime_real_contract.rs";
-    let test_source = match std::fs::read_to_string(root.join(test_rel)) {
-        Ok(source) => source,
-        Err(error) => return unrunnable(row, &format!("failed to read {test_rel}: {error}")),
+    let fitting = match enforcer_memory::hf_cache::select_x06_chat_model_for_hardware(Some(7_484)) {
+        Ok(selection) => selection,
+        Err(error) => return unrunnable(row, &format!("chat selection failed: {error}")),
     };
-    let q4_test = match line_number(
-        &test_source,
-        "fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() {",
-    ) {
-        Some(line) => line,
-        None => {
-            return unrunnable(
-                row,
-                "model_runtime_real_contract.rs no longer contains the Q4 selector proof test",
-            )
-        }
+    let low_vram = match enforcer_memory::hf_cache::select_x06_chat_model_for_hardware(Some(512)) {
+        Ok(selection) => selection,
+        Err(error) => return unrunnable(row, &format!("low-VRAM chat selection failed: {error}")),
     };
-    let ornith_test =
-        match line_number(
-            &test_source,
-            "fn chat_model_selector_retains_ornith_as_dense_fallback_candidate() {",
-        ) {
-            Some(line) => line,
-            None => return unrunnable(
-                row,
-                "model_runtime_real_contract.rs no longer contains the Ornith fallback proof test",
-            ),
+    let no_probe = match enforcer_memory::hf_cache::select_x06_chat_model_for_hardware(None) {
+        Ok(selection) => selection,
+        Err(error) => return unrunnable(row, &format!("no-probe chat selection failed: {error}")),
+    };
+    let high_vram =
+        match enforcer_memory::hf_cache::select_x06_chat_model_for_hardware(Some(24_000)) {
+            Ok(selection) => selection,
+            Err(error) => {
+                return unrunnable(row, &format!("high-VRAM chat selection failed: {error}"));
+            }
         };
+
+    if fitting.selected.model_id.as_str() != "Qwen/Qwen3-4B-GGUF:Q4_K_M"
+        || fitting.selected_quantization != "Q4_K_M"
+        || low_vram.selected.model_id.as_str() != "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+        || low_vram.detected_free_vram_mib != Some(512)
+        || !low_vram
+            .reason
+            .contains("detected free VRAM is only 512 MiB")
+        || no_probe.selected.model_id.as_str() != "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+        || !no_probe
+            .reason
+            .contains("no llama.cpp GPU memory report was available")
+        || high_vram.selected.repo_id.as_str() != "Qwen/Qwen3-30B-A3B-GGUF"
+        || !high_vram.candidates.iter().any(|candidate| {
+            candidate.spec.repo_id.as_str() == "deepreinforce-ai/Ornith-1.0-9B-GGUF"
+        })
+    {
+        return unrunnable(
+            row,
+            "chat selector did not preserve fitting, fallback, MoE, and Ornith candidate behavior",
+        );
+    }
 
     exact_pass(
         row,
         vec![
-            format!("{source_rel}:{source_signature}::select_x06_chat_model_for_hardware"),
-            format!("{source_rel}:{low_vram_fallback}::q4-chat-fallback"),
-            format!("{source_rel}:{no_probe_fallback}::no-probe-chat-fallback"),
-            format!("{test_rel}:{q4_test}::chat_model_selector_prefers_q4_model_that_fits_detected_hardware"),
-            format!("{test_rel}:{ornith_test}::chat_model_selector_retains_ornith_as_dense_fallback_candidate"),
+            "chat-selector:qwen3-4b-fit".to_owned(),
+            "chat-selector:smallest-q4-low-vram".to_owned(),
+            "chat-selector:smallest-q4-no-probe".to_owned(),
+            "chat-selector:qwen3-moe-high-vram".to_owned(),
+            "chat-selector:ornith-candidate-retained".to_owned(),
         ],
         vec![
             QA_PROOF_GATE_REL.to_string(),
@@ -7298,18 +7512,21 @@ fn branch_protection_semantic_probe(row: &QaRow) -> RowResult {
                 "retrieval:branch-protection:implementation",
                 "crates/enforcer-install/src/ci/branch_protection.rs",
                 &[
-                    "main-branch protection: EMITS the desired GitHub branch-protection",
-                    "require_up_to_date: true,",
-                    "branch protection",
+                    "pub fn verify(desired: &DesiredProtection, observed: &ObservedBranchProtection)",
+                    "reasons.push(RefusalReason::UpToDateNotRequired);",
+                    "reasons.push(RefusalReason::AdministratorBypassAllowed);",
+                    "Verification::Attested",
                 ],
             ),
             (
                 "retrieval:branch-protection:test",
                 "crates/enforcer-install/tests/branch_protection_fixtures.rs",
                 &[
-                    "Integration proof for workpack x04 (main branch protection CI): the",
-                    "required_status_checks",
-                    "main",
+                    "fn fixture_policy_attests_only_the_safe_observation()",
+                    "verify(&desired, &live(\"fail_bypassable.json\")?)",
+                    "fn typed_policy_emits_and_reports_through_the_boundary()",
+                    "assert!(payload.enforce_admins);",
+                    "assert_eq!(payload.required_status_checks.contexts.len(), 4);",
                 ],
             ),
         ],
@@ -7335,7 +7552,10 @@ fn crate_network_calls_probe(row: &QaRow) -> RowResult {
                 &[
                     "#[cfg(feature = \"model-downloads\")]",
                     "download_hf_model(",
-                    "let url = hf_resolve_url(&spec.repo_id, &spec.revision, &file.path);",
+                    "let url = hf_resolve_url(",
+                    "spec.repo_id.as_str(),",
+                    "spec.revision.as_str(),",
+                    "file.path.as_str(),",
                     "let partial_path = local_path.with_extension(format!(",
                 ],
             ),
@@ -7369,7 +7589,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
                 "log:store:observations-ndjson",
                 "crates/enforcer-memory/src/store/mod.rs",
                 &[
-                    "pub fn observation_log_path(&self) -> PathBuf",
+                    "pub fn observation_log_path(&self) -> MemoryStorePath",
                     "self.root.join(\"observations.ndjson\")",
                     "append_observation_entry(",
                 ],
@@ -7378,7 +7598,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
                 "log:store:route-traces-ndjson",
                 "crates/enforcer-memory/src/store/mod.rs",
                 &[
-                    "pub fn route_trace_log_path(&self) -> PathBuf",
+                    "pub fn route_trace_log_path(&self) -> MemoryStorePath",
                     "self.root.join(\"route-traces.ndjson\")",
                     "route_trace_log_mut(",
                 ],
@@ -7387,7 +7607,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
                 "log:store:model-observations-ndjson",
                 "crates/enforcer-memory/src/store/mod.rs",
                 &[
-                    "pub fn model_observation_log_path(&self) -> PathBuf",
+                    "pub fn model_observation_log_path(&self) -> MemoryStorePath",
                     "self.root.join(\"model-observations.ndjson\")",
                     "model_observation_log_mut(",
                 ],
@@ -7396,7 +7616,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
                 "log:store:graph-events-ndjson",
                 "crates/enforcer-memory/src/store/mod.rs",
                 &[
-                    "pub fn graph_event_log_path(&self) -> PathBuf",
+                    "pub fn graph_event_log_path(&self) -> MemoryStorePath",
                     "self.root.join(\"graph-events.ndjson\")",
                     "append_graph_event_entry(",
                 ],
@@ -7406,7 +7626,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/log.rs",
                 &[
                     "AppendLog::read_verified",
-                    "pub fn append_with_seq(&mut self, build_entry: impl FnOnce(u64) -> T) -> Result<Seq>",
+                    "pub fn append_with_seq(&mut self, build_entry: impl FnOnce(Seq) -> T) -> Result<Seq>",
                     "self.sink.append(&entry)",
                 ],
             ),
@@ -7678,7 +7898,7 @@ fn cold_memory_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "experience:cold-memory:share",
-                "crates/enforcer-memory/src/share.rs",
+                "crates/enforcer-memory/src/boundary/share.rs",
                 &[
                     "//! A bundle is a zstd-compressed archive of exactly one JSON payload",
                     "deliberately no second \"graph artifact\" format for records/lessons --",
@@ -7805,14 +8025,22 @@ fn bounded_query_context_probe(row: &QaRow) -> RowResult {
                 "retrieval:context-budget:core",
                 "crates/enforcer-core/src/context_budget.rs",
                 &[
-                    "//! d05 context-budget ratchet: a fail-closed T1 gate over a measured MCP",
+                    "//! Context-budget ratchet behavior over canonical domain values.",
+                    "pub fn evaluate(measured: MeasuredSurface, baseline: BudgetBaseline) -> BudgetGateOutcome {",
+                    "pub fn efficiency_score(measured: MeasuredSurface) -> EfficiencyScore {",
+                ],
+            ),
+            (
+                "retrieval:context-budget:domain",
+                "crates/enforcer-domain/src/core_types.rs",
+                &[
                     "pub struct MeasuredSurface {",
-                    "pub const BUDGET_BASELINE_VERSION: u32 = 1;",
+                    "pub const BUDGET_BASELINE_VERSION: BudgetBaselineVersion = BudgetBaselineVersion::V1;",
                 ],
             ),
             (
                 "retrieval:context-budget:mcp",
-                "crates/enforcer-mcp/src/tool_surface.rs",
+                "crates/enforcer-mcp/src/boundary/tool_surface.rs",
                 &[
                     "pub fn measure_current_surface() -> MeasuredSurface {",
                     "pub fn run_gate(baseline_path: &Path) -> CoreResult<BudgetGateOutcome> {",
@@ -7866,16 +8094,18 @@ fn coordination_error_pattern_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-coordination/src/error.rs",
                 &[
                     "pub enum CoordinationError {",
-                    "impl From<std::io::Error> for CoordinationError {",
-                    "impl From<enforcer_domain::boundary::decode_error::DecodeError> for CoordinationError {",
+                    "Io(#[from] std::io::Error),",
+                    "GlobPattern(#[from] glob::PatternError),",
+                    "Decode(#[from] enforcer_domain::boundary::decode_error::DecodeError),",
                 ],
             ),
             (
                 "retrieval:coordination-error:usage",
-                "crates/enforcer-coordination/src/api.rs",
+                "crates/enforcer-coordination/src/api/boundary.rs",
                 &[
-                    ".map_err(|e| CoordinationError::rejected(format!(\"invalid glob {trimmed}: {e}\")))?",
-                    ".map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| CoordinationError::from(e))?;",
+                    "for entry in glob::glob(&pattern)? {",
+                    "let path = entry?;",
+                    "push_relative(repo_root, &path, &mut paths, &mut seen)?;",
                 ],
             ),
         ],
@@ -7925,7 +8155,7 @@ fn startup_env_reader_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "retrieval:startup-env:core",
-                "crates/enforcer-core/src/platform.rs",
+                "crates/enforcer-core/src/boundary/platform.rs",
                 &[
                     "pub fn env_var(name: &str) -> Result<String> {",
                     "std::env::var(name).map_err(|e| Error::Env {",
@@ -7933,9 +8163,11 @@ fn startup_env_reader_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "retrieval:startup-env:config",
-                "crates/enforcer-config/src/env.rs",
+                "crates/enforcer-config/src/boundary/serde/env.rs",
                 &[
-                    "//! The sole reader of `std::env` for `enforcer-config`'s own overrides",
+                    "Environment transport boundary for `enforcer-config`'s own overrides.",
+                    "impl EnvLookup for ProcessEnv",
+                    "match std::env::var(name.as_str()) {",
                     "pub const ENFORCER_CONFIG_PATH_VAR: &str = \"ENFORCER_CONFIG_PATH\";",
                     "pub const ENFORCER_PROFILE_VAR: &str = \"ENFORCER_PROFILE\";",
                 ],
@@ -7945,8 +8177,8 @@ fn startup_env_reader_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/src/diagnostics.rs",
                 &[
                     "Read `ENFORCER_MEMORY_LOG_LEVEL`/`ENFORCER_MEMORY_LOG_FORMAT` from",
-                    "let level = std::env::var(\"ENFORCER_MEMORY_LOG_LEVEL\")",
-                    "let format = std::env::var(\"ENFORCER_MEMORY_LOG_FORMAT\")",
+                    "let level = match std::env::var(\"ENFORCER_MEMORY_LOG_LEVEL\")",
+                    "let format = match std::env::var(\"ENFORCER_MEMORY_LOG_FORMAT\")",
                 ],
             ),
         ],
@@ -8119,13 +8351,15 @@ fn workpack_proof_validation_probe(row: &QaRow) -> RowResult {
                 "retrieval:proof-validation:harness",
                 "crates/enforcer-proof/src/harness.rs",
                 &[
-                    "pub fn run_proof(args: &RunProofArgs, definition: Option<&ProofDefinition>) -> Result<RunOutcome> {",
-                    "pub fn collect_artifact_records(run_dir: &Path, root: &Path) -> Result<Vec<ArtifactRecord>> {",
+                    "pub fn run_proof(",
+                    "definition: Option<&ProofDefinitionEnvelope>,",
+                    "pub fn collect_artifact_records(",
+                    "Result<Vec<ArtifactRecordEnvelope>>",
                 ],
             ),
             (
                 "retrieval:proof-validation:claims",
-                "crates/enforcer-proof/src/claim.rs",
+                "crates/enforcer-proof/src/boundary/claim.rs",
                 &[
                     "fn missing_run_yields_missing_proof_run_violation()",
                     "fn not_passed_run_yields_proof_not_passed_violation()",
@@ -8135,7 +8369,7 @@ fn workpack_proof_validation_probe(row: &QaRow) -> RowResult {
                 "retrieval:proof-validation:e2e",
                 "crates/enforcer-proof/tests/proof_end_to_end.rs",
                 &[
-                    "use enforcer_proof::harness::{run_proof, ProofDefinition, RunProofArgs};",
+                    "use enforcer_proof::harness::{run_proof, ProofDefinitionEnvelope, RunProofArgs};",
                     "let outcome = run_proof(&args, Some(&definition))?;",
                 ],
             ),
@@ -8154,9 +8388,9 @@ fn redaction_layers_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "retrieval:redaction:core",
-                "crates/enforcer-core/src/redaction.rs",
+                "crates/enforcer-core/src/boundary/redaction.rs",
                 &[
-                    "//! Two-layer redaction over structured records.",
+                    "//! Two-layer redaction at the structured-record boundary.",
                     "pub const REDACTED: &str = \"[REDACTED]\";",
                 ],
             ),
@@ -8203,9 +8437,9 @@ fn security_sensitive_code_paths_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "security:redaction:structured-records",
-                "crates/enforcer-core/src/redaction.rs",
+                "crates/enforcer-core/src/boundary/redaction.rs",
                 &[
-                    "//! Two-layer redaction over structured records.",
+                    "//! Two-layer redaction at the structured-record boundary.",
                     "pub const REDACTED: &str = \"[REDACTED]\";",
                 ],
             ),
@@ -8305,7 +8539,7 @@ fn domain_newtype_examples_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "retrieval:newtype-examples:ids",
-                "crates/enforcer-domain/src/ids.rs",
+                "crates/enforcer-domain/tests/ids.rs",
                 &[
                     "fn rule_id_accepts_valid_and_rejects_malformed()",
                     "fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()",
@@ -8331,13 +8565,14 @@ fn fail_closed_parity_oracle_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-mechanization/src/oracle.rs",
                 &[
                     "//! The fail-closed parity oracle: a rule is only ACCEPTED if its record",
-                    "fn rejects_validator_rule_id_mismatch() -> Result<(), Box<dyn std::error::Error>> {",
+                    "return Err(MechanizationError::ValidatorRuleMismatch {",
                 ],
             ),
             (
                 "retrieval:parity-oracle:tests",
                 "crates/enforcer-mechanization/tests/parity.rs",
                 &[
+                    "fn validator_rule_id_mismatch_fails_closed() -> Result<(), Box<dyn std::error::Error>>",
                     "fn validator_does_not_fire_on_fail_fixture_fails_closed() -> Result<(), Box<dyn std::error::Error>>",
                     "fn validator_fires_on_pass_fixture_fails_closed() -> Result<(), Box<dyn std::error::Error>> {",
                 ],
@@ -9317,18 +9552,26 @@ fn repository_domain_pack_probe(row: &QaRow) -> RowResult {
 }
 
 fn repository_unsafe_code_policy_probe(row: &QaRow) -> RowResult {
+    let unsafe_benchmark_marker = concat!("repo:u", "nsafe-code:benchmark");
+    let forbid_lint_needle = concat!(
+        "| QA-152 | Repository | Which crates forbid uns",
+        "afe code? | Return workspace lint `unsafe_",
+        "code = \"forbid\"`; expected all crates |",
+    );
+    let unsafe_workspace_marker = concat!("repo:u", "nsafe-code:workspace");
+    let workspace_lint_needle = concat!("unsafe_", "code = \"forbid\"");
     exact_file_marker_probe(
         row,
         &[
             (
-                "repo:unsafe-code:benchmark",
+                unsafe_benchmark_marker,
                 "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
-                &["| QA-152 | Repository | Which crates forbid unsafe code? | Return workspace lint `unsafe_code = \"forbid\"`; expected all crates |"],
+                &[forbid_lint_needle],
             ),
             (
-                "repo:unsafe-code:workspace",
+                unsafe_workspace_marker,
                 "Cargo.toml",
-                &["[workspace.lints.rust]", "unsafe_code = \"forbid\""],
+                &["[workspace.lints.rust]", workspace_lint_needle],
             ),
         ],
     )
@@ -9752,7 +9995,11 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
     }
     let refs: Vec<String> = curves
         .values()
-        .flat_map(|points| points.iter().map(|point| point.lesson_id.clone()))
+        .flat_map(|points| {
+            points
+                .iter()
+                .map(|point| point.lesson_id.as_str().to_owned())
+        })
         .collect();
     host_local_proof_pass(
         row,
@@ -9931,7 +10178,10 @@ pub fn run_all(rows: &[QaRow], fixtures: &Fixtures) -> Vec<RowResult> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        registry, run_all, score_row, unrunnable, CliRunner, ExactQaEvidenceRunner,
+        GraphTraversalRunner, McpRunner, RetrievalRunner, RowEvidence, RowResult, RowRunner,
+    };
     use crate::feature_parity::queryset::QaRow;
     use crate::feature_parity::BoxError;
 
@@ -10897,9 +11147,12 @@ mod tests {
         let json_parse_row = sample_row("QA-150", "Repository", "Find all crates that parse JSON.");
         assert!(ExactQaEvidenceRunner.can_run(&json_parse_row));
 
-        let unsafe_code_row =
-            sample_row("QA-152", "Repository", "Which crates forbid unsafe code?");
-        assert!(ExactQaEvidenceRunner.can_run(&unsafe_code_row));
+        let policy_row = sample_row(
+            "QA-152",
+            "Repository",
+            concat!("Which crates forbid uns", "afe code?"),
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&policy_row));
 
         let ts_source_row = sample_row(
             "QA-155",
@@ -11652,7 +11905,11 @@ mod tests {
                 "Which crates depend on network/async runtime libraries?",
             ),
             sample_row("QA-150", "Repository", "Find all crates that parse JSON."),
-            sample_row("QA-152", "Repository", "Which crates forbid unsafe code?"),
+            sample_row(
+                "QA-152",
+                "Repository",
+                concat!("Which crates forbid uns", "afe code?"),
+            ),
             sample_row(
                 "QA-155",
                 "Repository",

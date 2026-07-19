@@ -11,12 +11,24 @@
 use std::path::Path;
 
 use enforcer_core::error::Result;
+use enforcer_domain::config_types::CrateName;
 use serde_json::{json, Value};
 
-use crate::config::HarnessConfig;
 use crate::duckdb_seam::write_duckdb_status;
 use crate::legacy::normalize_rel;
-use crate::parsers::{dedupe_diagnostics, parse_diagnostics, sort_diagnostics, HarnessDiagnostic};
+use crate::parsers::{
+    dedupe_diagnostics, parse_diagnostics, sort_diagnostics, HarnessDiagnostic,
+    HarnessDiagnosticDto,
+};
+use enforcer_domain::config_types::HarnessConfig;
+use enforcer_domain::harness_types::{
+    HarnessCapturedOutput, HarnessCommandArgument, HarnessDiagnosticMessage, HarnessDiagnosticPath,
+    HarnessDomainName, HarnessExternalRuleId, HarnessLanguage, HarnessPinned, HarnessRunFile,
+    HarnessRunId, HarnessRunStatus, HarnessSourceLine, HarnessTag, HarnessTimestamp,
+    HarnessToolName,
+};
+use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::telemetry_types::ProcessExitCode;
 
 /// Exactly the five files a completed run must have on disk.
 pub const RUN_FILES: &[&str] = &[
@@ -32,28 +44,28 @@ pub const RUN_FILES: &[&str] = &[
 /// supply the captured stdout/stderr/exit code).
 #[derive(Debug, Clone)]
 pub struct RunInput<'a> {
-    pub repo_root: &'a Path,
-    pub run_id: String,
-    pub tool: String,
-    pub language: Option<String>,
-    pub command: Vec<String>,
-    pub stdout: String,
-    pub stderr: String,
-    pub exit_code: i32,
-    pub crate_name: Option<String>,
-    pub package_name: Option<String>,
-    pub domain: Option<String>,
-    pub tags: Vec<String>,
-    pub pinned: bool,
-    pub started_at: String,
-    pub ended_at: String,
+    pub repo_root: &'a RepoRoot,
+    pub run_id: HarnessRunId,
+    pub tool: HarnessToolName,
+    pub language: Option<HarnessLanguage>,
+    pub command: Vec<HarnessCommandArgument>,
+    pub stdout: HarnessCapturedOutput,
+    pub stderr: HarnessCapturedOutput,
+    pub exit_code: ProcessExitCode,
+    pub crate_name: Option<CrateName>,
+    pub package_name: Option<CrateName>,
+    pub domain: Option<HarnessDomainName>,
+    pub tags: Vec<HarnessTag>,
+    pub pinned: HarnessPinned,
+    pub started_at: HarnessTimestamp,
+    pub ended_at: HarnessTimestamp,
 }
 
 /// Result of recording one run: whether it passed, plus the written
 /// summary and parsed diagnostics.
 #[derive(Debug, Clone)]
 pub struct RunOutcome {
-    pub ok: bool,
+    pub status: HarnessRunStatus,
     pub summary: Value,
     pub diagnostics: Vec<HarnessDiagnostic>,
 }
@@ -62,76 +74,77 @@ pub struct RunOutcome {
 /// five required files, stamp the manifest + duckdb-status, run the prune
 /// engine, and return the summary + diagnostics.
 pub fn record_run(input: &RunInput<'_>, config: &HarnessConfig) -> Result<RunOutcome> {
-    let storage_root = config.storage_root(input.repo_root)?;
-    let run_dir = storage_root.join("runs").join(&input.run_id);
+    let repo_root = Path::new(input.repo_root.as_str());
+    let storage_root = crate::config::storage_root(config, repo_root)?;
+    let run_dir = storage_root.join("runs").join(input.run_id.as_str());
     std::fs::create_dir_all(run_dir.join("raw"))?;
     std::fs::create_dir_all(storage_root.join("db"))?;
 
-    let stdout = crate::config::redact_text(&input.stdout)?;
-    let stderr = crate::config::redact_text(&input.stderr)?;
+    let stdout = crate::config::redact_text(input.stdout.as_str())?;
+    let stderr = crate::config::redact_text(input.stderr.as_str())?;
     std::fs::write(run_dir.join("raw").join("stdout.log"), &stdout)?;
     std::fs::write(run_dir.join("raw").join("stderr.log"), &stderr)?;
 
     let language = input
         .language
-        .clone()
-        .unwrap_or_else(|| crate::parsers::infer_language(&input.tool));
+        .unwrap_or_else(|| crate::parsers::infer_language(input.tool.as_str()));
 
-    let mut diagnostics = parse_diagnostics(&input.run_id, &input.tool, &stdout, &stderr);
-    if input.exit_code != 0 {
+    let mut diagnostics =
+        parse_diagnostics(input.run_id.as_str(), input.tool.as_str(), &stdout, &stderr);
+    if input.exit_code.get() != 0 {
         let tail = if !stderr.trim().is_empty() {
             &stderr
         } else {
             &stdout
         };
         let excerpt: String = tail.trim().lines().take(8).collect::<Vec<_>>().join("\n");
-        diagnostics.push(HarnessDiagnostic {
+        let mut failure = HarnessDiagnostic {
             run_id: input.run_id.clone(),
             tool: input.tool.clone(),
-            language: language.clone(),
-            severity: "error".to_owned(),
-            rule_id: "HAR-1.1".to_owned(),
-            file: ".".to_owned(),
-            line: 1,
-            message: format!("Command failed with exit code {}.", input.exit_code),
-            source: if excerpt.is_empty() {
-                None
-            } else {
-                Some(excerpt)
-            },
+            language,
+            severity: enforcer_domain::severity::Severity::Error,
+            rule_id: HarnessExternalRuleId::from_adapter("HAR-1.1"),
+            file: HarnessDiagnosticPath::from_adapter("."),
+            line: HarnessSourceLine::from_external(1),
+            message: HarnessDiagnosticMessage::from_adapter(&format!(
+                "Command failed with exit code {}.",
+                input.exit_code.get()
+            )),
+            source: None,
             fingerprint: None,
-        });
+        };
+        failure.source = (!excerpt.is_empty())
+            .then(|| enforcer_domain::harness_types::HarnessCapturedOutput::from_owned(excerpt));
+        diagnostics.push(failure);
     }
     let diagnostics = sort_diagnostics(dedupe_diagnostics(diagnostics));
 
-    let status = if input.exit_code == 0 {
-        "passed"
-    } else {
-        "failed"
-    };
+    let status = HarnessRunStatus::from_exit_code(input.exit_code);
     let mut by_severity = std::collections::BTreeMap::new();
     for d in &diagnostics {
-        *by_severity.entry(d.severity.clone()).or_insert(0i64) += 1;
+        *by_severity
+            .entry(format!("{:?}", d.severity).to_ascii_lowercase())
+            .or_insert(0i64) += 1;
     }
 
-    let duckdb_status = write_duckdb_status(input.repo_root, &storage_root)?;
+    let duckdb_status = write_duckdb_status(repo_root, &storage_root)?;
 
-    let storage_root_rel = normalize_rel(input.repo_root, &storage_root);
+    let storage_root_rel = normalize_rel(repo_root, &storage_root);
     let summary = json!({
-        "runId": input.run_id,
-        "root": input.repo_root.to_string_lossy(),
-        "tool": input.tool,
-        "language": language,
-        "crateName": input.crate_name,
-        "packageName": input.package_name,
-        "domain": input.domain,
-        "tags": input.tags,
-        "command": input.command,
-        "pinned": input.pinned,
-        "status": status,
-        "exitCode": input.exit_code,
-        "startedAt": input.started_at,
-        "endedAt": input.ended_at,
+        "runId": input.run_id.as_str(),
+        "root": input.repo_root.as_str(),
+        "tool": input.tool.as_str(),
+        "language": language.as_str(),
+        "crateName": input.crate_name.as_ref().map(CrateName::as_str),
+        "packageName": input.package_name.as_ref().map(CrateName::as_str),
+        "domain": input.domain.as_ref().map(HarnessDomainName::as_str),
+        "tags": input.tags.iter().map(HarnessTag::as_str).collect::<Vec<_>>(),
+        "command": input.command.iter().map(HarnessCommandArgument::as_str).collect::<Vec<_>>(),
+        "pinned": input.pinned.as_bool(),
+        "status": status.as_str(),
+        "exitCode": input.exit_code.get(),
+        "startedAt": input.started_at.as_str(),
+        "endedAt": input.ended_at.as_str(),
         "diagnosticCount": diagnostics.len(),
         "bySeverity": by_severity,
         "artifacts": {
@@ -144,13 +157,14 @@ pub fn record_run(input: &RunInput<'_>, config: &HarnessConfig) -> Result<RunOut
             "root": storage_root_rel,
             "retention": retention_summary_json(config),
         },
-        "duckdb": serde_json::to_value(&duckdb_status)?,
+        "duckdb": crate::duckdb_seam::status_wire_value(&duckdb_status)?,
     });
 
-    write_ndjson(&run_dir.join("diagnostics.ndjson"), &diagnostics)?;
+    let diagnostic_rows: Vec<_> = diagnostics.iter().map(HarnessDiagnosticDto::from).collect();
+    write_ndjson(&run_dir.join("diagnostics.ndjson"), &diagnostic_rows)?;
     let events = vec![
-        json!({ "type": "run-started", "runId": input.run_id, "timestamp": input.started_at, "tool": input.tool, "command": input.command }),
-        json!({ "type": "run-finished", "runId": input.run_id, "timestamp": input.ended_at, "status": status, "exitCode": input.exit_code, "diagnosticCount": diagnostics.len() }),
+        json!({ "type": "run-started", "runId": input.run_id.as_str(), "timestamp": input.started_at.as_str(), "tool": input.tool.as_str(), "command": input.command.iter().map(HarnessCommandArgument::as_str).collect::<Vec<_>>() }),
+        json!({ "type": "run-finished", "runId": input.run_id.as_str(), "timestamp": input.ended_at.as_str(), "status": status.as_str(), "exitCode": input.exit_code.get(), "diagnosticCount": diagnostics.len() }),
     ];
     write_ndjson(&run_dir.join("events.ndjson"), &events)?;
     let summary_path = run_dir.join("summary.json");
@@ -159,18 +173,21 @@ pub fn record_run(input: &RunInput<'_>, config: &HarnessConfig) -> Result<RunOut
         format!("{}\n", serde_json::to_string_pretty(&summary)?),
     )?;
 
-    let prune = crate::retention::prune_runs(input.repo_root, config)?;
+    let prune = crate::retention::prune_runs(repo_root, config)?;
     let mut summary = summary;
-    summary["pruned"] = json!(prune.removed);
+    let summary_object = summary.as_object_mut().ok_or_else(|| {
+        enforcer_core::error::Error::InvalidConfig("summary root must be an object".to_owned())
+    })?;
+    summary_object.insert("pruned".to_owned(), json!(prune.removed));
     std::fs::write(
         &summary_path,
         format!("{}\n", serde_json::to_string_pretty(&summary)?),
     )?;
 
-    write_manifest(&storage_root, &input.run_id, &summary)?;
+    write_manifest(&storage_root, input.run_id.as_str(), &summary)?;
 
     Ok(RunOutcome {
-        ok: input.exit_code == 0,
+        status,
         summary,
         diagnostics,
     })
@@ -178,10 +195,10 @@ pub fn record_run(input: &RunInput<'_>, config: &HarnessConfig) -> Result<RunOut
 
 pub(crate) fn retention_summary_json(config: &HarnessConfig) -> Value {
     json!({
-        "maxRuns": config.max_runs,
-        "maxRunsPerTool": config.max_runs_per_tool,
-        "maxFailedRuns": config.max_failed_runs,
-        "pruneAfterDays": config.prune_after_days,
+        "maxRuns": config.max_runs.map(enforcer_domain::config_types::HarnessRunLimit::get),
+        "maxRunsPerTool": config.max_runs_per_tool.map(enforcer_domain::config_types::HarnessRunLimit::get),
+        "maxFailedRuns": config.max_failed_runs.map(enforcer_domain::config_types::HarnessRunLimit::get),
+        "pruneAfterDays": config.prune_after_days.map(enforcer_domain::config_types::HarnessRetentionDays::get),
     })
 }
 
@@ -219,11 +236,14 @@ pub(crate) fn write_manifest(storage_root: &Path, run_id: &str, summary: &Value)
     } else {
         json!({ "runs": [] })
     };
-    let runs = current["runs"].as_array_mut().ok_or_else(|| {
-        enforcer_core::error::Error::InvalidConfig(
-            "ingest-manifest.json: `runs` is not an array".to_owned(),
-        )
-    })?;
+    let runs = current
+        .get_mut("runs")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| {
+            enforcer_core::error::Error::InvalidConfig(
+                "ingest-manifest.json: `runs` is not an array".to_owned(),
+            )
+        })?;
     runs.retain(|entry| entry.get("runId").and_then(Value::as_str) != Some(run_id));
     runs.push(json!({
         "runId": run_id,
@@ -307,12 +327,14 @@ fn now_iso() -> String {
 }
 
 /// Clear the entire run store: removes every candidate storage root.
-pub fn reset_runs(repo_root: &Path, config: &HarnessConfig) -> Result<Vec<String>> {
+pub fn reset_runs(repo_root: &Path, config: &HarnessConfig) -> Result<Vec<HarnessDiagnosticPath>> {
     let mut removed = Vec::new();
     for root in crate::legacy::candidate_storage_roots(repo_root, config)? {
         if root.exists() {
             std::fs::remove_dir_all(&root)?;
-            removed.push(normalize_rel(repo_root, &root));
+            removed.push(HarnessDiagnosticPath::from_adapter(&normalize_rel(
+                repo_root, &root,
+            )));
         }
     }
     Ok(removed)
@@ -320,10 +342,10 @@ pub fn reset_runs(repo_root: &Path, config: &HarnessConfig) -> Result<Vec<String
 
 /// Verify a run directory has exactly the five required files (used by the
 /// fail fixture: a run missing any of the five is rejected/repaired).
-pub fn verify_run_layout(run_dir: &Path) -> Vec<String> {
+pub fn verify_run_layout(run_dir: &Path) -> Vec<HarnessRunFile> {
     RUN_FILES
         .iter()
         .filter(|rel| !run_dir.join(rel).exists())
-        .map(|rel| (*rel).to_owned())
+        .filter_map(|rel| HarnessRunFile::try_new((*rel).to_owned()).ok())
         .collect()
 }

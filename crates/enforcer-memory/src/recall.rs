@@ -1,6 +1,6 @@
 //! The local-first, zero-network recall/evidence query surface.
 //!
-//! `recall` is a deterministic keyword matcher over node text — no
+//! `recall` is a deterministic keyword matcher over node text â€” no
 //! embeddings, no model download, no network call. It is the default
 //! (and, in this slice, only) retriever; an embedding-backed retriever
 //! can be added later behind the `embeddings` feature (see
@@ -13,6 +13,11 @@
 
 use crate::graph::{MemoryGraph, MemoryNode};
 use crate::ingest::Incident;
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::{
+    IngestLessonId, MemoryEvidenceHasT0Provenance, MemoryEvidenceLandedAt,
+    MemoryEvidenceRecurrenceCount, MemoryLessonId, MemoryRecallMatchedToken, MemoryRecallQuery,
+};
 
 /// One recall hit: the matched node plus which query tokens matched, so
 /// callers can show a "why selected" trace without needing a ranking
@@ -20,36 +25,43 @@ use crate::ingest::Incident;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecallHit<'a> {
     pub node: &'a MemoryNode,
-    pub matched_tokens: Vec<String>,
+    pub matched_tokens: Vec<MemoryRecallMatchedToken>,
 }
 
 /// Lowercase, split on non-alphanumeric boundaries, drop empty tokens.
-fn tokenize(text: &str) -> Vec<String> {
-    text.to_lowercase()
+fn tokenize(text: &MemoryRecallQuery) -> Vec<MemoryRecallMatchedToken> {
+    text.as_str()
+        .to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
         .filter(|token| !token.is_empty())
-        .map(str::to_string)
+        .map(|token| token.retained().into())
         .collect()
 }
 
 /// Deterministic keyword recall: a node matches when at least one query
 /// token appears as a substring-tokenized match in the node's
 /// searchable text. Returns hits in graph insertion order (stable,
-/// reproducible — no similarity-score ties to break arbitrarily).
+/// reproducible â€” no similarity-score ties to break arbitrarily).
 ///
 /// The anti-vacuous contract: a query whose tokens match nothing returns
-/// an EMPTY vec, never "everything" — there is no fallback-to-all-nodes
+/// an EMPTY vec, never "everything" â€” there is no fallback-to-all-nodes
 /// path in this function.
-pub fn recall<'a>(graph: &'a MemoryGraph, query: &str) -> Vec<RecallHit<'a>> {
-    let query_tokens = tokenize(query);
+pub fn recall<'a>(
+    graph: &'a MemoryGraph,
+    query: impl Into<MemoryRecallQuery>,
+) -> Vec<RecallHit<'a>> {
+    let query = query.into();
+    let query_tokens = tokenize(&query);
     if query_tokens.is_empty() {
         return Vec::new();
     }
 
     let mut hits = Vec::new();
     for node in graph.nodes() {
-        let node_tokens = tokenize(&node.searchable_text());
-        let matched: Vec<String> = query_tokens
+        let searchable_text = node.searchable_text();
+        let node_text = MemoryRecallQuery::from(searchable_text.as_str());
+        let node_tokens = tokenize(&node_text);
+        let matched: Vec<MemoryRecallMatchedToken> = query_tokens
             .iter()
             .filter(|q| node_tokens.iter().any(|n| n == *q))
             .cloned()
@@ -67,12 +79,12 @@ pub fn recall<'a>(graph: &'a MemoryGraph, query: &str) -> Vec<RecallHit<'a>> {
 /// One step of a learning-evidence chain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvidenceStep<'a> {
-    /// t0: an incident observed for this lesson (with provenance —
+    /// t0: an incident observed for this lesson (with provenance â€”
     /// the source surface and timestamp that recorded it).
     Observed(&'a Incident),
     /// t1: a durable artifact this lesson has landed in
     /// (`landedAt`/ledger `landed-at` cell).
-    Landed(String),
+    Landed(MemoryEvidenceLandedAt),
 }
 
 /// The evidence chain result for `memory evidence <lessonId>`.
@@ -81,18 +93,18 @@ pub enum EvidenceResult<'a> {
     /// Full or partial chain, with a flag for whether t0 provenance was
     /// actually found (fail-closed signal for the caller).
     Chain {
-        lesson_id: String,
+        lesson_id: MemoryLessonId,
         steps: Vec<EvidenceStep<'a>>,
         /// t2: how many incidents recorded AFTER at least one landed
-        /// artifact exists — the recurrence count since landing.
-        recurrence_since_landing: usize,
+        /// artifact exists â€” the recurrence count since landing.
+        recurrence_since_landing: MemoryEvidenceRecurrenceCount,
         /// `false` when no t0 observation with provenance was found for
-        /// this lesson — the caller must report `evidence:incomplete`,
+        /// this lesson â€” the caller must report `evidence:incomplete`,
         /// never fabricate a chain.
-        has_t0_provenance: bool,
+        has_t0_provenance: MemoryEvidenceHasT0Provenance,
     },
     /// No node in the graph is known under this lesson id at all.
-    Unknown { lesson_id: String },
+    Unknown { lesson_id: MemoryLessonId },
 }
 
 /// Walk the t0 (observed) -> t1 (landed) -> t2 (recurrence) chain for
@@ -101,18 +113,24 @@ pub enum EvidenceResult<'a> {
 /// returns a `Chain` with `has_t0_provenance = false` so the caller can
 /// report `evidence:incomplete` rather than treating an empty chain as
 /// "nothing to report".
-pub fn evidence<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> EvidenceResult<'a> {
+pub fn evidence<'a>(graph: &'a MemoryGraph, lesson_id: &MemoryLessonId) -> EvidenceResult<'a> {
     let landed_at = graph.nodes().iter().find_map(|node| match node {
-        MemoryNode::Lesson(row) if row.id == lesson_id => Some(row.landed_at.clone()),
-        MemoryNode::Record(record) if record.id() == lesson_id => record.landed_at().first().cloned(),
+        MemoryNode::Lesson(row) if row.id == lesson_id.as_str() => {
+            Some(MemoryEvidenceLandedAt::from(row.landed_at.as_str()))
+        }
+        MemoryNode::Record(record) if record.id() == lesson_id.as_str() => record
+            .landed_at()
+            .first()
+            .map(|value| MemoryEvidenceLandedAt::from(value.as_str())),
         _ => None,
     });
 
-    let incidents = graph.incidents_for_lesson(lesson_id);
+    let incident_lesson_id = IngestLessonId::from(lesson_id.as_str());
+    let incidents = graph.incidents_for_lesson(&incident_lesson_id);
 
     if landed_at.is_none() && incidents.is_empty() {
         return EvidenceResult::Unknown {
-            lesson_id: lesson_id.to_string(),
+            lesson_id: lesson_id.retained(),
         };
     }
 
@@ -138,9 +156,9 @@ pub fn evidence<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> EvidenceResult<'
     let recurrence_since_landing = if has_landed { incidents.len() } else { 0 };
 
     EvidenceResult::Chain {
-        lesson_id: lesson_id.to_string(),
+        lesson_id: lesson_id.retained(),
         steps,
-        recurrence_since_landing,
-        has_t0_provenance,
+        recurrence_since_landing: recurrence_since_landing.into(),
+        has_t0_provenance: has_t0_provenance.into(),
     }
 }

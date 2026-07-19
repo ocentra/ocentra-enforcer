@@ -64,14 +64,7 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
-/// One unconditionally-unsafe NoSQL-injection sink: a bare regex match is
-/// sufficient (no additional same-line context needed) because the pattern
-/// itself already encodes the unsanitized/interpolated shape.
-struct NoSqlSink {
-    regex: &'static str,
-    label: &'static str,
-    fix: &'static str,
-}
+use crate::boundary::pattern::{RemediationPattern, RemediationPatternSource as NoSqlSink};
 
 /// Sinks that are unsafe the moment the regex matches — the match itself
 /// proves the request-derived/interpolated shape, so no further per-line
@@ -138,9 +131,10 @@ const ALWAYS_FLAG_SINKS: &[NoSqlSink] = &[
 /// `CYBER-NOSQL-INJECT.1` — NoSQL (MongoDB-family) injection detector:
 /// unsanitized request data flowing into `$where`, a raw query-filter
 /// argument, an un-cast filter property, `$regex`, or `JSON.parse(req...)`.
+#[derive(Debug)]
 pub struct NoSqlInjectionValidator {
     rule_id: RuleId,
-    always_flag: Vec<(Regex, &'static str, &'static str)>,
+    always_flag: Vec<RemediationPattern>,
     /// A Mongo query-method call opening paren on the line — scopes the
     /// context-dependent "bare property" check below to lines that are
     /// actually shaping a query filter (as opposed to, say, a log line that
@@ -159,23 +153,24 @@ impl NoSqlInjectionValidator {
     pub fn new() -> Result<Self, DecodeError> {
         let mut always_flag = Vec::with_capacity(ALWAYS_FLAG_SINKS.len());
         for sink in ALWAYS_FLAG_SINKS {
-            let regex = Regex::new(sink.regex)
-                .map_err(|err| DecodeError::new("cyberskillsNoSqlInjectSink", err.to_string()))?;
-            always_flag.push((regex, sink.label, sink.fix));
+            always_flag.push(RemediationPattern::compile_source(
+                "cyberskillsNoSqlInjectSink",
+                sink,
+            )?);
         }
         let mongo_call_js = Regex::new(
             r"\.(?:find|findOne|findOneAndUpdate|replaceOne|updateOne|updateMany|deleteOne|deleteMany|remove|count|aggregate)\s*\(",
         )
-        .map_err(|err| DecodeError::new("cyberskillsNoSqlInjectMongoCallJs", err.to_string()))?;
+        .map_err(|err| crate::boundary::regex::decode("cyberskillsNoSqlInjectMongoCallJs", err))?;
         let bare_property_request_value =
             Regex::new(r":\s*req\.(?:body|query|params)\.[A-Za-z0-9_]+").map_err(|err| {
-                DecodeError::new(
+                crate::boundary::regex::decode(
                     "cyberskillsNoSqlInjectBarePropertyRequestValue",
-                    err.to_string(),
+                    err,
                 )
             })?;
         Ok(Self {
-            rule_id: "CYBER-NOSQL-INJECT.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberNosqlInject.id(),
             always_flag,
             mongo_call_js,
             bare_property_request_value,
@@ -190,31 +185,31 @@ impl Validator for NoSqlInjectionValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
 
             let mut matched_labels: Vec<&str> = Vec::new();
             let mut matched_fixes: Vec<&str> = Vec::new();
-            for (regex, label, fix) in &self.always_flag {
-                if regex.is_match(line) && !matched_labels.contains(label) {
-                    matched_labels.push(*label);
-                    matched_fixes.push(*fix);
+            for pattern in &self.always_flag {
+                if pattern.regex().is_match(line)
+                    && !matched_labels.contains(&pattern.label().as_str())
+                {
+                    matched_labels.push(pattern.label().as_str());
+                    matched_fixes.push(pattern.fix().as_str());
                 }
             }
             if !matched_labels.is_empty() {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Unsanitized request data flows into a MongoDB query".to_owned(),
-                    detail: format!(
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Unsanitized request data flows into a MongoDB query",
+                    format!(
                         "Line builds a MongoDB query from unsanitized request data: {}. Fix: {}.",
                         matched_labels.join(", "),
                         matched_fixes.join("; ")
                     ),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
 
             // Property-level operator injection: a Mongo query method is
@@ -222,22 +217,19 @@ impl Validator for NoSqlInjectionValidator {
             // bare (un-cast) req.body/req.query/req.params value.
             if self.mongo_call_js.is_match(line) && self.bare_property_request_value.is_match(line)
             {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Unsanitized request data flows into a MongoDB query".to_owned(),
-                    detail: "Line passes an un-cast req.body/req.query/req.params property \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "Unsanitized request data flows into a MongoDB query",
+                    "Line passes an un-cast req.body/req.query/req.params property \
                              directly as a query-filter value inside a Mongo query method call. \
                              An attacker can send an object instead of a string (e.g. \
                              {\"$gt\": \"\"} or {\"$ne\": null}) to change the query's meaning \
                              and bypass a check or match unintended documents. Fix: cast the \
                              value with String(...)/Number(...)/parseInt(...) (or otherwise \
-                             validate its type) before using it in a query filter."
-                        .to_owned(),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                             validate its type) before using it in a query filter.",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -246,22 +238,15 @@ impl Validator for NoSqlInjectionValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::NoSqlInjectionValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_nosql_injection() -> Result<(), Box<dyn std::error::Error>> {
         let validator = NoSqlInjectionValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.nosql-injection/bad/vuln.js",
             "tests/fixtures/cyberskills/web.nosql-injection/good/safe.js",
         )?;

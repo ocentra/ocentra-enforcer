@@ -117,16 +117,18 @@
       "category": "Architecture",
       "query": "Find every trait/interface implementation for this type.",
       "expectedIds": [
-        "fmt::Display"
+        "AnalysisNodeText",
+        "CrossRepoArgument"
       ],
       "actualIds": [
-        "fmt::Display"
+        "AnalysisNodeText",
+        "CrossRepoArgument"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-memory/src/analysis/query.rs"
+        "crates/enforcer-memory/src/analysis/mod.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -136,20 +138,16 @@
       "category": "Architecture",
       "query": "Find every type implementing this trait/interface.",
       "expectedIds": [
-        "ColumnRef",
-        "SkipPhase",
-        "Token"
+        "String"
       ],
       "actualIds": [
-        "ColumnRef",
-        "SkipPhase",
-        "Token"
+        "String"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-memory/src/analysis/query.rs"
+        "crates/enforcer-memory/src/analysis/mod.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -380,13 +378,11 @@
       "query": "Find the request lifecycle for this route.",
       "expectedIds": [
         "trace:cross-service:route-mediator",
-        "trace:route-choice:store",
-        "trace:route-choice:append"
+        "trace:route-choice:store-roundtrip"
       ],
       "actualIds": [
         "trace:cross-service:route-mediator",
-        "trace:route-choice:store",
-        "trace:route-choice:append"
+        "trace:route-choice:store-roundtrip"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -857,7 +853,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-cli/src/lifecycle.rs",
-        "crates/enforcer-core/src/telemetry.rs"
+        "crates/enforcer-core/src/boundary/telemetry.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -911,7 +907,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-core/src/redaction.rs",
+        "crates/enforcer-core/src/boundary/redaction.rs",
         "crates/enforcer-lang-security/src/rules/secret_scan.rs",
         "crates/enforcer-memory/src/redaction.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
@@ -982,7 +978,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-core/src/redaction.rs",
+        "crates/enforcer-core/src/boundary/redaction.rs",
         "crates/enforcer-lang-security/src/rules/secret_scan.rs",
         "crates/enforcer-memory/src/redaction.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
@@ -996,10 +992,12 @@
       "category": "Symbol",
       "query": "Find all validators for this rule id.",
       "expectedIds": [
+        "symbol:coordination-ledger:release-dispatch",
         "symbol:coordination-ledger:append-event",
         "symbol:coordination-ledger:append-completed-event"
       ],
       "actualIds": [
+        "symbol:coordination-ledger:release-dispatch",
         "symbol:coordination-ledger:append-event",
         "symbol:coordination-ledger:append-completed-event"
       ],
@@ -1008,7 +1006,8 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-coordination/src/api.rs",
-        "crates/enforcer-coordination/src/sync/stream.rs"
+        "crates/enforcer-coordination/src/api/boundary.rs",
+        "crates/enforcer-coordination/src/sync/boundary.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -1254,7 +1253,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-memory/src/share.rs",
+        "crates/enforcer-memory/src/boundary/share.rs",
         "crates/enforcer-memory/tests/federation_roundtrip.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md",
@@ -1324,10 +1323,10 @@
       "category": "Retrieval",
       "query": "Find all PENDING proof rows.",
       "expectedIds": [
-        "proof:pending-rows:69"
+        "proof:pending-rows:73"
       ],
       "actualIds": [
-        "proof:pending-rows:69"
+        "proof:pending-rows:73"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1550,17 +1549,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:5161cfc547d5",
-        "commit:40ce6c9ab886",
-        "commit:a56d35819519",
-        "commit:b25a699b2284"
+        "commit:3bdb534dd4f4",
+        "commit:d653bed1b9eb",
+        "commit:bf9e2e97a671",
+        "commit:055a67da37bc"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:5161cfc547d5",
-        "commit:40ce6c9ab886",
-        "commit:a56d35819519",
-        "commit:b25a699b2284"
+        "commit:3bdb534dd4f4",
+        "commit:d653bed1b9eb",
+        "commit:bf9e2e97a671",
+        "commit:055a67da37bc"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1568,26 +1567,26 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
-        "commit-summary:5161cfc547d5:feat(x06): G3 stage 4 — Kotlin Spring-mapping route detection",
-        "commit-summary:40ce6c9ab886:feat(x06): G3 stage 3 — real decorator/annotation extraction for 7 languages",
-        "commit-summary:a56d35819519:feat(x06): G3 stage 1 — generic INHERITS fallback + real Solidity fix",
-        "commit-summary:b25a699b2284:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:a1b4c0a7268c:test(memory): expose runtime workload admission proof",
-        "commit-summary:f518af8abf22:test(memory): reject absolute llama gguf paths",
-        "commit-summary:0c21464bc311:test(memory): reject absolute ort worker paths",
-        "commit-summary:666270342e12:feat(memory): enforce ort session execution policy",
-        "commit-summary:b89f330b277f:test(memory): expand ort provider fallback order",
-        "commit-summary:3661ec9b5377:test(memory): retain ort failure proof contract",
-        "commit-summary:061c2a6ba2d3:docs(memory): align model observation persistence contract",
-        "commit-summary:0bf1ce0ef899:feat(memory): preserve graph artifact symbol kinds",
-        "commit-summary:e8eb90bd56a1:test(memory): pin runtime isolation contract",
-        "commit-summary:597d05e7e95a:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:272862bc31c3:feat(x06): wave G2.6 — onboard Agda and FORM, closing the G2.5 audit gap",
-        "commit-summary:42b153185160:feat(memory): carry ort provider proof into worker plan",
-        "commit-summary:08c15fa3e668:feat(memory): gate ort provider acceleration by probe",
-        "commit-summary:db076adde461:feat(memory): stamp ort worker runtime proof",
-        "commit-summary:d79b49b91a58:feat(memory): derive runtime proof from contracts",
-        "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam"
+        "commit-summary:3bdb534dd4f4:refactor(domain): centralize decode error and harness id",
+        "commit-summary:d653bed1b9eb:refactor(memory): isolate graph artifact transport",
+        "commit-summary:bf9e2e97a671:test(memory): propagate record dto codec errors",
+        "commit-summary:055a67da37bc:test(memory): prove record boundary rejection and roundtrip",
+        "commit-summary:cc11f76cc4fe:refactor(memory): move record serde boundary",
+        "commit-summary:73723fe5e79c:refactor(memory): separate record wire dto from graph domain",
+        "commit-summary:048adc30056c:refactor(memory): use registry agda grammar",
+        "commit-summary:4205d1e80712:fix(memory): document analysis clone ownership",
+        "commit-summary:0a8712cd90d7:docs(memory): justify clustering ownership clones",
+        "commit-summary:f9477c3f6d80:fix(memory): reduce ingest text clones",
+        "commit-summary:a34b28190104:docs(memory): justify trace ownership copies",
+        "commit-summary:f387be37556c:fix(memory): reduce impact traversal clones",
+        "commit-summary:8954e8f31f48:docs(memory): justify vector ownership clones",
+        "commit-summary:d64357a1be33:docs(memory): justify cross-repository ownership copies",
+        "commit-summary:8aaaf17b8847:fix(memory): justify observation ownership clones",
+        "commit-summary:23b4b1e66237:fix(memory): guard cached callable indices",
+        "commit-summary:3193d4974c6a:fix(memory): validate snippet byte ranges",
+        "commit-summary:da0ea8f96764:fix(memory): guard source fingerprint ranges",
+        "commit-summary:1e48e6e074c0:refactor(memory): encapsulate artifact metadata values",
+        "commit-summary:553dac65b05f:refactor(memory): encapsulate architecture overview metrics"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1597,25 +1596,25 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
-        "churn:proof/memory/x06-rag-qa.json:75",
-        "churn:Cargo.lock:72",
+        "churn:Cargo.lock:78",
+        "churn:proof/memory/x06-rag-qa.json:76",
         "churn:proof/memory/x06-feature-parity.json:69",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:67",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:51"
       ],
       "actualIds": [
-        "churn:proof/memory/x06-rag-qa.json:75",
-        "churn:Cargo.lock:72",
+        "churn:Cargo.lock:78",
+        "churn:proof/memory/x06-rag-qa.json:76",
         "churn:proof/memory/x06-feature-parity.json:69",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:67",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:51"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "proof/memory/x06-rag-qa.json",
         "Cargo.lock",
+        "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-feature-parity.json",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
         "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
@@ -1950,17 +1949,20 @@
       "expectedIds": [
         "learning:no-effect:proof-gate",
         "learning:no-effect:procedural-contract",
+        "learning:no-effect:success-rate",
         "learning:no-effect:fixture-proof"
       ],
       "actualIds": [
         "learning:no-effect:proof-gate",
         "learning:no-effect:procedural-contract",
+        "learning:no-effect:success-rate",
         "learning:no-effect:fixture-proof"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
+        "crates/enforcer-domain/src/memory_types.rs",
         "crates/enforcer-memory/src/observations.rs",
         "crates/enforcer-memory/tests/continuous_learning.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
@@ -2166,18 +2168,18 @@
       "category": "Experience",
       "query": "Retrieve exact file snippet for this symbol.",
       "expectedIds": [
-        "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
-        "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
-        "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:217::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:276::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "chat-selector:qwen3-4b-fit",
+        "chat-selector:smallest-q4-low-vram",
+        "chat-selector:smallest-q4-no-probe",
+        "chat-selector:qwen3-moe-high-vram",
+        "chat-selector:ornith-candidate-retained"
       ],
       "actualIds": [
-        "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
-        "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
-        "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:217::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:276::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "chat-selector:qwen3-4b-fit",
+        "chat-selector:smallest-q4-low-vram",
+        "chat-selector:smallest-q4-no-probe",
+        "chat-selector:qwen3-moe-high-vram",
+        "chat-selector:ornith-candidate-retained"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2510,28 +2512,34 @@
       "category": "Symbol",
       "query": "Find all callers of `enforcer_core::error::Result` type.",
       "expectedIds": [
-        "core-result-users:enforcer-core:7",
-        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-cli:1",
+        "core-result-users:enforcer-core:10",
+        "core-result-users:enforcer-harness:14",
         "core-result-users:enforcer-mcp:1",
-        "core-result-users:enforcer-proof:6"
+        "core-result-users:enforcer-proof:9"
       ],
       "actualIds": [
-        "core-result-users:enforcer-core:7",
-        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-cli:1",
+        "core-result-users:enforcer-core:10",
+        "core-result-users:enforcer-harness:14",
         "core-result-users:enforcer-mcp:1",
-        "core-result-users:enforcer-proof:6"
+        "core-result-users:enforcer-proof:9"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
+        "crates/enforcer-cli/src/onboard.rs",
+        "crates/enforcer-core/src/boundary/platform.rs",
+        "crates/enforcer-core/src/boundary/redaction.rs",
+        "crates/enforcer-core/src/boundary/telemetry.rs",
+        "crates/enforcer-core/src/boundary/tracing_setup.rs",
         "crates/enforcer-core/src/error.rs",
         "crates/enforcer-core/src/lib.rs",
         "crates/enforcer-core/src/ndjson_writer.rs",
-        "crates/enforcer-core/src/platform.rs",
-        "crates/enforcer-core/src/redaction.rs",
-        "crates/enforcer-core/src/telemetry.rs",
-        "crates/enforcer-core/src/tracing_setup.rs",
+        "crates/enforcer-core/src/run_context/boundary.rs",
+        "crates/enforcer-core/tests/domain_records_ndjson.rs",
+        "crates/enforcer-core/tests/ndjson_writer.rs",
         "crates/enforcer-core/tests/telemetry.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
         "crates/enforcer-harness/src/config.rs",
@@ -2539,14 +2547,23 @@
         "crates/enforcer-harness/src/legacy.rs",
         "crates/enforcer-harness/src/query.rs",
         "crates/enforcer-harness/src/retention.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/concurrency_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/coverage_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/crypto_localnet_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/fuzz_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/observability_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/static_analysis_report.rs",
         "crates/enforcer-harness/src/storage.rs",
         "crates/enforcer-harness/tests/fixtures.rs",
-        "crates/enforcer-mcp/src/tool_surface.rs",
-        "crates/enforcer-proof/src/envelope.rs",
+        "crates/enforcer-mcp/src/boundary/tool_surface.rs",
+        "crates/enforcer-proof/src/boundary/claim.rs",
+        "crates/enforcer-proof/src/boundary/envelope.rs",
+        "crates/enforcer-proof/src/boundary/journal.rs",
+        "crates/enforcer-proof/src/boundary/legacy_import.rs",
+        "crates/enforcer-proof/src/boundary/project_read_model.rs",
+        "crates/enforcer-proof/src/boundary/read_model.rs",
         "crates/enforcer-proof/src/harness.rs",
-        "crates/enforcer-proof/src/journal.rs",
-        "crates/enforcer-proof/src/legacy_import.rs",
-        "crates/enforcer-proof/src/read_model.rs",
+        "crates/enforcer-proof/tests/boundary_round_trip.rs",
         "crates/enforcer-proof/tests/proof_end_to_end.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -2598,14 +2615,20 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-coordination/src/fix_loop.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/gate.rs",
+        "crates/enforcer-harness/src/security_pipeline/concurrency.rs",
+        "crates/enforcer-harness/src/security_pipeline/coverage.rs",
+        "crates/enforcer-harness/src/security_pipeline/fuzz.rs",
+        "crates/enforcer-harness/src/security_pipeline/observability.rs",
+        "crates/enforcer-harness/src/security_pipeline/observability_sampling.rs",
+        "crates/enforcer-harness/src/security_pipeline/static_analysis.rs",
         "crates/enforcer-lang-cfml/src/rules/arch.rs",
         "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
         "crates/enforcer-lang-cfml/src/rules/err.rs",
         "crates/enforcer-lang-cfml/src/rules/security.rs",
         "crates/enforcer-lang-cfml/src/rules/style.rs",
         "crates/enforcer-lang-cfml/src/rules/toolchain.rs",
+        "crates/enforcer-lang-common/src/families/bound_1.rs",
         "crates/enforcer-lang-common/src/pattern.rs",
         "crates/enforcer-lang-common/src/port_platform.rs",
         "crates/enforcer-lang-common/src/rules/change_discipline.rs",
@@ -2623,8 +2646,9 @@
         "crates/enforcer-lang-dart/src/rules/types.rs",
         "crates/enforcer-lang-dart/src/rules/widget.rs",
         "crates/enforcer-lang-iac/src/rules/spec.rs",
+        "crates/enforcer-lang-k8s/src/rules/spec.rs",
+        "crates/enforcer-lang-py/src/boundary/line_marker.rs",
         "crates/enforcer-lang-py/src/generic_scanner_slice.rs",
-        "crates/enforcer-lang-py/src/line_marker.rs",
         "crates/enforcer-lang-py/src/rules/fastapi_layered.rs",
         "crates/enforcer-lang-py/src/tests_required.rs",
         "crates/enforcer-lang-py/src/toolchain.rs",
@@ -2648,13 +2672,40 @@
         "crates/enforcer-lang-rust/src/rules/error_handling/nonexhaustive.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/safety_comment.rs",
         "crates/enforcer-lang-rust/src/rules/no_reexports.rs",
+        "crates/enforcer-lang-security/src/boundary/spec.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/auth_jwt.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_aws.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_gcp.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cmd_injection.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/dependency_confusion.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/docker_daemon.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/dockerfile_hardening.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/github_actions.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/insecure_deser.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_pod_security.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_rbac.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mcp_tool_poisoning.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/net_tls.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/nosql_injection.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/oauth_misconfig.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/path_traversal.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/proto_pollution.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/provider_credentials.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/sqli_source.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/ssti.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/tls_verify.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/type_juggle.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/waf_sqli.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/weak_crypto.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_cors.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_ssrf.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/websocket_security.rs",
         "crates/enforcer-lang-security/src/rules/secret_scan.rs",
-        "crates/enforcer-lang-security/src/rules/spec.rs",
         "crates/enforcer-lang-ts/src/rules/eslint_json.rs",
         "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
         "crates/enforcer-lang-ts/src/rules/import_boundaries.rs",
@@ -2663,23 +2714,24 @@
         "crates/enforcer-lang-ts/src/rules/test_scan.rs",
         "crates/enforcer-lang-ts/src/rules/tests_family.rs",
         "crates/enforcer-lang-ts/src/rules/toolchain.rs",
-        "crates/enforcer-literal-scan/src/bridge.rs",
-        "crates/enforcer-mechanization/src/oracle.rs",
+        "crates/enforcer-literal-scan/src/boundary/bridge.rs",
         "crates/enforcer-mechanization/src/parity.rs",
         "crates/enforcer-mechanization/src/scaffold.rs",
         "crates/enforcer-plan/src/agents_forest.rs",
         "crates/enforcer-plan/src/validator.rs",
-        "crates/enforcer-security/src/cyberskills/frontmatter_lint.rs",
+        "crates/enforcer-security/src/boundary/cyberskills/frontmatter_lint.rs",
+        "crates/enforcer-security/src/boundary/rules/economic.rs",
+        "crates/enforcer-security/src/boundary/rules/economic_invariants.rs",
+        "crates/enforcer-security/src/boundary/rules/killswitch.rs",
+        "crates/enforcer-security/src/boundary/rules/money_critical.rs",
+        "crates/enforcer-security/src/boundary/rules/no_bypass.rs",
+        "crates/enforcer-security/src/boundary/rules/rollback.rs",
+        "crates/enforcer-security/src/boundary/rules/signing.rs",
+        "crates/enforcer-security/src/boundary/rules/threat_test_mapping.rs",
+        "crates/enforcer-security/src/boundary/rules/time.rs",
         "crates/enforcer-security/src/rules/boundary.rs",
-        "crates/enforcer-security/src/rules/economic.rs",
-        "crates/enforcer-security/src/rules/economic_invariants.rs",
-        "crates/enforcer-security/src/rules/killswitch.rs",
-        "crates/enforcer-security/src/rules/money_critical.rs",
-        "crates/enforcer-security/src/rules/no_bypass.rs",
-        "crates/enforcer-security/src/rules/rollback.rs",
-        "crates/enforcer-security/src/rules/signing.rs",
-        "crates/enforcer-security/src/rules/threat_test_mapping.rs",
-        "crates/enforcer-security/src/rules/time.rs",
+        "crates/enforcer-security/src/rules/required_test_categories.rs",
+        "crates/enforcer-security/src/rules/security_test_quality.rs",
         "crates/enforcer-validator/src/harness.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -2708,8 +2760,8 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-scan/src/engine.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "crates/enforcer-scan/src/engine.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2719,18 +2771,18 @@
       "category": "Symbol",
       "query": "Find tests that directly instantiate the `RuleId` newtype.",
       "expectedIds": [
-        "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
-        "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+        "crates/enforcer-domain/tests/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
+        "crates/enforcer-domain/tests/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
       ],
       "actualIds": [
-        "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
-        "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+        "crates/enforcer-domain/tests/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
+        "crates/enforcer-domain/tests/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-domain/src/ids.rs"
+        "crates/enforcer-domain/tests/ids.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -2740,10 +2792,10 @@
       "category": "Symbol",
       "query": "What modules export `pub` API in `enforcer-mcp`?",
       "expectedIds": [
-        "symbol:enforcer-mcp:pub-mods:8"
+        "symbol:enforcer-mcp:pub-mods:10"
       ],
       "actualIds": [
-        "symbol:enforcer-mcp:pub-mods:8"
+        "symbol:enforcer-mcp:pub-mods:10"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2860,21 +2912,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-config/src/lib.rs",
-        "crates/enforcer-coordination/src/lib.rs",
         "crates/enforcer-events/src/bus/publish/flow.rs",
-        "crates/enforcer-literal-scan/src/discovery-ignore.rs",
-        "crates/enforcer-literal-scan/src/languages.rs",
-        "crates/enforcer-literal-scan/src/lexer-c-like.rs",
-        "crates/enforcer-literal-scan/src/lexer-python.rs",
-        "crates/enforcer-literal-scan/src/lexer-rust.rs",
-        "crates/enforcer-literal-scan/src/lexer.rs",
-        "crates/enforcer-literal-scan/src/lib.rs",
-        "crates/enforcer-literal-scan/src/risk-heuristics.rs",
-        "crates/enforcer-memory/src/code_graph.rs",
-        "crates/enforcer-memory/src/languages/generic.rs",
-        "crates/enforcer-memory/src/ort_runtime.rs",
-        "crates/enforcer-memory/src/search/mod.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
@@ -2894,7 +2932,8 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-domain/src/hashes.rs"
+        "crates/enforcer-domain/src/hashes.rs",
+        "crates/enforcer-domain/tests/hash_contracts.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -2930,18 +2969,12 @@
       "category": "CodeGraph",
       "query": "Which crates have cyclic dependencies?",
       "expectedIds": [
-        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install+enforcer-plan",
-        "codegraph:workspace-crate-cycle:enforcer-core+enforcer-domain",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-py+enforcer-mechanization+enforcer-scan",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-ts+enforcer-mechanization+enforcer-scan"
+        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan"
       ],
       "actualIds": [
-        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install+enforcer-plan",
-        "codegraph:workspace-crate-cycle:enforcer-core+enforcer-domain",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-py+enforcer-mechanization+enforcer-scan",
-        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-ts+enforcer-mechanization+enforcer-scan"
+        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2977,6 +3010,7 @@
       "sourceRefs": [
         "crates/enforcer-scan/src/engine.rs",
         "crates/enforcer-scan/src/lib.rs",
+        "crates/enforcer-scan/src/onboard.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
@@ -2989,14 +3023,14 @@
       "expectedIds": [
         "event-flow:benchmark:scan-to-proof",
         "event-flow:producer:enforcer-scan",
-        "event-flow:consumer:enforcer-proof",
+        "event-flow:proof:direct-core-domain-contracts",
         "event-flow:spine:bus-envelope",
         "event-flow:spine:publish-contract"
       ],
       "actualIds": [
         "event-flow:benchmark:scan-to-proof",
         "event-flow:producer:enforcer-scan",
-        "event-flow:consumer:enforcer-proof",
+        "event-flow:proof:direct-core-domain-contracts",
         "event-flow:spine:bus-envelope",
         "event-flow:spine:publish-contract"
       ],
@@ -3004,8 +3038,13 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
+        "crates/enforcer-events/src/boundary/stored_event_persistence.rs",
+        "crates/enforcer-events/src/bus.rs",
         "crates/enforcer-events/src/bus/publish.rs",
+        "crates/enforcer-events/src/bus/reports/handler.rs",
+        "crates/enforcer-events/src/envelope.rs",
         "crates/enforcer-events/src/lib.rs",
+        "crates/enforcer-events/src/topology.rs",
         "crates/enforcer-proof/Cargo.toml",
         "crates/enforcer-scan/Cargo.toml",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
@@ -3033,10 +3072,10 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
         "crates/enforcer-cli/src/commands.rs",
         "crates/enforcer-scan/src/engine.rs",
-        "crates/enforcer-scan/src/router/mod.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "crates/enforcer-scan/src/router/mod.rs"
       ],
       "verdict": "pass",
       "capabilityState": "host-local-proof"
@@ -3089,22 +3128,23 @@
       "category": "Architecture",
       "query": "Find every module that violates the rule-owns-fixture invariant.",
       "expectedIds": [
-        "arch:rule-fixture-invariant:violations:56",
+        "arch:rule-fixture-invariant:violations:81",
         "crates/enforcer-lang-cfml/src/rules/arch.rs",
-        "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
-        "crates/enforcer-lang-cfml/src/rules/err.rs"
+        "crates/enforcer-lang-cfml/src/rules/boundary.rs",
+        "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs"
       ],
       "actualIds": [
-        "arch:rule-fixture-invariant:violations:56",
+        "arch:rule-fixture-invariant:violations:81",
         "crates/enforcer-lang-cfml/src/rules/arch.rs",
-        "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
-        "crates/enforcer-lang-cfml/src/rules/err.rs"
+        "crates/enforcer-lang-cfml/src/rules/boundary.rs",
+        "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-lang-cfml/src/rules/arch.rs",
+        "crates/enforcer-lang-cfml/src/rules/boundary.rs",
         "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
         "crates/enforcer-lang-cfml/src/rules/err.rs",
         "crates/enforcer-lang-cfml/src/rules/security.rs",
@@ -3123,7 +3163,6 @@
         "crates/enforcer-lang-iac/src/rules/cloudformation.rs",
         "crates/enforcer-lang-iac/src/rules/kubernetes.rs",
         "crates/enforcer-lang-iac/src/rules/terraform.rs",
-        "crates/enforcer-lang-iac/src/rules/text_scan.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/allow_reason.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/arch_main_thin.rs",
@@ -3144,21 +3183,46 @@
         "crates/enforcer-lang-rust/src/rules/error_handling/nonexhaustive.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/safety_comment.rs",
         "crates/enforcer-lang-rust/src/rules/no_reexports.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/auth_jwt.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_aws.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_gcp.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cmd_injection.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/dependency_confusion.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/docker_daemon.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/dockerfile_hardening.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/github_actions.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/insecure_deser.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_pod_security.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_rbac.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mcp_tool_poisoning.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/net_tls.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/nosql_injection.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/oauth_misconfig.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/path_traversal.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/proto_pollution.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/provider_credentials.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/sqli_source.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/ssti.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/tls_verify.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/type_juggle.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/waf_sqli.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/weak_crypto.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_cors.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_ssrf.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/websocket_security.rs",
         "crates/enforcer-lang-security/src/rules/generic_scanner.rs",
         "crates/enforcer-lang-security/src/rules/secret_scan.rs",
-        "crates/enforcer-lang-security/src/rules/text_scan.rs",
         "crates/enforcer-lang-ts/src/rules/eslint_json.rs",
         "crates/enforcer-lang-ts/src/rules/generic_scanner.rs",
         "crates/enforcer-lang-ts/src/rules/import_boundaries.rs",
         "crates/enforcer-lang-ts/src/rules/source_scan.rs",
         "crates/enforcer-lang-ts/src/rules/test_scan.rs",
         "crates/enforcer-lang-ts/src/rules/tests_family.rs",
-        "crates/enforcer-lang-ts/src/rules/text_scan.rs",
         "crates/enforcer-lang-ts/src/rules/toolchain.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -3209,7 +3273,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-coordination/src",
-        "bounded sample: 13 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3230,7 +3294,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-mcp/src",
-        "bounded sample: 10 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3251,7 +3315,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-scan/src",
-        "bounded sample: 14 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3293,7 +3357,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-proof/src",
-        "bounded sample: 7 Rust files"
+        "bounded sample: 12 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3334,7 +3398,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-scan/src",
-        "bounded sample: 14 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3428,7 +3492,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-domain/src",
-        "bounded sample: 8 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3449,7 +3513,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-mechanization/src",
-        "bounded sample: 7 Rust files"
+        "bounded sample: 8 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3470,7 +3534,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-core/src",
-        "bounded sample: 10 Rust files"
+        "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3543,7 +3607,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-core/src",
-        "bounded sample: 10 Rust files"
+        "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3564,7 +3628,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-domain/src",
-        "bounded sample: 8 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3670,7 +3734,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-core/src",
-        "bounded sample: 10 Rust files"
+        "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3719,7 +3783,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-domain/src",
-        "bounded sample: 8 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3740,7 +3804,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-scan/src",
-        "bounded sample: 14 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3768,45 +3832,34 @@
         "crates/enforcer-cli/src/lifecycle/oracle.rs",
         "crates/enforcer-cli/src/main.rs",
         "crates/enforcer-cli/src/name.rs",
+        "crates/enforcer-cli/src/onboard.rs",
         "crates/enforcer-cli/src/output.rs",
         "crates/enforcer-cli/src/scope.rs",
         "crates/enforcer-cli/src/verify.rs",
-        "crates/enforcer-config/src/env.rs",
-        "crates/enforcer-config/src/lib.rs",
+        "crates/enforcer-config/src/boundary/serde.rs",
         "crates/enforcer-config/src/model.rs",
         "crates/enforcer-config/src/policy.rs",
-        "crates/enforcer-config/src/profiles.rs",
         "crates/enforcer-config/src/project_tie.rs",
-        "crates/enforcer-config/src/resolve.rs",
         "crates/enforcer-config/src/shape.rs",
-        "crates/enforcer-coordination/src/api.rs",
-        "crates/enforcer-coordination/src/domain.rs",
+        "crates/enforcer-coordination/src/domain/boundary.rs",
+        "crates/enforcer-coordination/src/events/boundary.rs",
         "crates/enforcer-coordination/src/events/mod.rs",
-        "crates/enforcer-coordination/src/fix_loop.rs",
-        "crates/enforcer-coordination/src/fix_loop/dispatch.rs",
-        "crates/enforcer-coordination/src/ledger.rs",
-        "crates/enforcer-coordination/src/lib.rs",
-        "crates/enforcer-coordination/src/lock/mod.rs",
+        "crates/enforcer-coordination/src/fix_loop/boundary.rs",
         "crates/enforcer-coordination/src/lock/singletons.rs",
-        "crates/enforcer-coordination/src/sync/retention.rs",
-        "crates/enforcer-coordination/src/sync/stream.rs",
+        "crates/enforcer-coordination/src/sync/boundary.rs",
+        "crates/enforcer-core/src/boundary/hash_chain.rs",
+        "crates/enforcer-core/src/boundary/platform.rs",
+        "crates/enforcer-core/src/boundary/redaction.rs",
+        "crates/enforcer-core/src/boundary/telemetry.rs",
+        "crates/enforcer-core/src/boundary/tracing_setup.rs",
         "crates/enforcer-core/src/context_budget.rs",
         "crates/enforcer-core/src/error.rs",
         "crates/enforcer-core/src/exit_codes.rs",
-        "crates/enforcer-core/src/hash_chain.rs",
-        "crates/enforcer-core/src/ndjson_writer.rs",
-        "crates/enforcer-core/src/platform.rs",
-        "crates/enforcer-core/src/redaction.rs",
-        "crates/enforcer-core/src/telemetry.rs",
-        "crates/enforcer-core/src/tracing_setup.rs",
-        "crates/enforcer-domain/src/findings.rs",
-        "crates/enforcer-domain/src/hashes.rs",
-        "crates/enforcer-domain/src/ids.rs",
-        "crates/enforcer-domain/src/paths.rs",
-        "crates/enforcer-domain/src/records.rs",
-        "crates/enforcer-domain/src/run_record.rs",
-        "crates/enforcer-domain/src/severity.rs",
-        "crates/enforcer-events/src/event.rs",
+        "crates/enforcer-core/src/run_context.rs",
+        "crates/enforcer-core/src/run_context/boundary.rs",
+        "crates/enforcer-domain/src/coordination_types.rs",
+        "crates/enforcer-domain/src/events_types.rs",
+        "crates/enforcer-domain/src/memory_types.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/gate.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/seam.rs",
@@ -3829,28 +3882,36 @@
         "crates/enforcer-install/src/adapters/opencode.rs",
         "crates/enforcer-install/src/adapters/windsurf.rs",
         "crates/enforcer-install/src/adapters/zed.rs",
-        "crates/enforcer-install/src/backup.rs",
-        "crates/enforcer-install/src/ci/branch_protection.rs",
-        "crates/enforcer-install/src/ci/github_action.rs",
-        "crates/enforcer-install/src/ci/installer_scripts.rs",
-        "crates/enforcer-install/src/ci/npm_wrapper.rs",
+        "crates/enforcer-install/src/boundary/backup_filesystem.rs",
+        "crates/enforcer-install/src/boundary/command_envelope.rs",
+        "crates/enforcer-install/src/boundary/command_plan.rs",
+        "crates/enforcer-install/src/boundary/consumer_ci.rs",
+        "crates/enforcer-install/src/boundary/detect_configuration.rs",
+        "crates/enforcer-install/src/boundary/distribution.rs",
+        "crates/enforcer-install/src/boundary/git_hooks.rs",
+        "crates/enforcer-install/src/boundary/install_requests.rs",
+        "crates/enforcer-install/src/boundary/json_wire.rs",
+        "crates/enforcer-install/src/boundary/maintenance_requests.rs",
+        "crates/enforcer-install/src/boundary/managed_block.rs",
+        "crates/enforcer-install/src/boundary/migrate_legacy_name.rs",
+        "crates/enforcer-install/src/boundary/pretooluse.rs",
+        "crates/enforcer-install/src/boundary/report.rs",
+        "crates/enforcer-install/src/boundary/request_context.rs",
+        "crates/enforcer-install/src/boundary/sessionstart.rs",
+        "crates/enforcer-install/src/ci/boundary/branch_protection.rs",
+        "crates/enforcer-install/src/ci/boundary/branch_protection_payload.rs",
+        "crates/enforcer-install/src/ci/boundary/github_action.rs",
+        "crates/enforcer-install/src/ci/boundary/installer_scripts.rs",
+        "crates/enforcer-install/src/ci/boundary/npm_wrapper.rs",
+        "crates/enforcer-install/src/ci/boundary/release_rendering.rs",
         "crates/enforcer-install/src/ci/release_pipeline.rs",
-        "crates/enforcer-install/src/cli_contract.rs",
-        "crates/enforcer-install/src/commands/plan.rs",
         "crates/enforcer-install/src/core.rs",
-        "crates/enforcer-install/src/detect.rs",
-        "crates/enforcer-install/src/distribution.rs",
         "crates/enforcer-install/src/doctor.rs",
-        "crates/enforcer-install/src/emitters/consumer_ci.rs",
-        "crates/enforcer-install/src/emitters/git_hooks.rs",
         "crates/enforcer-install/src/hooks/mod.rs",
-        "crates/enforcer-install/src/hooks/pretooluse.rs",
-        "crates/enforcer-install/src/hooks/sessionstart.rs",
-        "crates/enforcer-install/src/managed_block.rs",
-        "crates/enforcer-install/src/migrate_legacy_name.rs",
-        "crates/enforcer-install/src/report.rs",
         "crates/enforcer-lang-cfml/src/lib.rs",
         "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
+        "crates/enforcer-lang-common/src/boundary.rs",
+        "crates/enforcer-lang-common/src/families/bound_1.rs",
         "crates/enforcer-lang-common/src/pattern.rs",
         "crates/enforcer-lang-common/src/port_platform.rs",
         "crates/enforcer-lang-common/src/registry.rs",
@@ -3861,15 +3922,16 @@
         "crates/enforcer-lang-common/src/rules/size_shape.rs",
         "crates/enforcer-lang-common/src/rules/test_quality.rs",
         "crates/enforcer-lang-dart/src/lib.rs",
-        "crates/enforcer-lang-iac/src/rules/cloudformation.rs",
-        "crates/enforcer-lang-iac/src/rules/kubernetes.rs",
+        "crates/enforcer-lang-dart/src/rules/naming.rs",
+        "crates/enforcer-lang-iac/src/boundary/source_text.rs",
         "crates/enforcer-lang-iac/src/rules/registry.rs",
-        "crates/enforcer-lang-iac/src/rules/terraform.rs",
-        "crates/enforcer-lang-iac/src/rules/text_scan.rs",
-        "crates/enforcer-lang-k8s/src/rules/registry.rs",
-        "crates/enforcer-lang-k8s/src/rules/spec.rs",
+        "crates/enforcer-lang-py/src/boundary/finding.rs",
+        "crates/enforcer-lang-py/src/boundary/fixture.rs",
+        "crates/enforcer-lang-py/src/boundary/line_marker.rs",
+        "crates/enforcer-lang-py/src/boundary/mod.rs",
         "crates/enforcer-lang-py/src/lib.rs",
-        "crates/enforcer-lang-py/src/line_marker.rs",
+        "crates/enforcer-lang-rust/src/boundary/fixture.rs",
+        "crates/enforcer-lang-rust/src/boundary/mod.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/allow_reason.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/arch_main_thin.rs",
@@ -3890,65 +3952,105 @@
         "crates/enforcer-lang-rust/src/rules/error_handling/nonexhaustive.rs",
         "crates/enforcer-lang-rust/src/rules/error_handling/safety_comment.rs",
         "crates/enforcer-lang-rust/src/rules/no_reexports.rs",
+        "crates/enforcer-lang-security/src/boundary/cloud_azure.rs",
+        "crates/enforcer-lang-security/src/boundary/dependency_manifest.rs",
+        "crates/enforcer-lang-security/src/boundary/dockerfile.rs",
+        "crates/enforcer-lang-security/src/boundary/fileless.rs",
+        "crates/enforcer-lang-security/src/boundary/k8s_pod.rs",
+        "crates/enforcer-lang-security/src/boundary/k8s_rbac.rs",
+        "crates/enforcer-lang-security/src/boundary/mod.rs",
+        "crates/enforcer-lang-security/src/boundary/regex.rs",
+        "crates/enforcer-lang-security/src/boundary/spec.rs",
+        "crates/enforcer-lang-security/src/boundary/text_scan.rs",
+        "crates/enforcer-lang-security/src/boundary/web_headers.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/auth_jwt.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_aws.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
-        "crates/enforcer-lang-security/src/rules/cyberskills/dependency_confusion.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/github_actions.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/insecure_deser.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_pod_security.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/k8s_rbac.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/mcp_tool_poisoning.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/net_tls.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/nosql_injection.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/oauth_misconfig.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/path_traversal.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/proto_pollution.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/provider_credentials.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/sqli_source.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/ssti.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/tls_verify.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/type_juggle.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/waf_sqli.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/weak_crypto.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_cors.rs",
         "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/web_ssrf.rs",
+        "crates/enforcer-lang-security/src/rules/cyberskills/websocket_security.rs",
         "crates/enforcer-lang-security/src/rules/generic_scanner.rs",
         "crates/enforcer-lang-security/src/rules/registry.rs",
         "crates/enforcer-lang-security/src/rules/secret_scan.rs",
-        "crates/enforcer-lang-security/src/rules/spec.rs",
-        "crates/enforcer-lang-security/src/rules/text_scan.rs",
-        "crates/enforcer-lang-ts/src/rules/eslint_json.rs",
+        "crates/enforcer-lang-ts/src/boundary/mod.rs",
+        "crates/enforcer-lang-ts/src/boundary/source_text.rs",
         "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
         "crates/enforcer-lang-ts/src/rules/generic_scanner.rs",
         "crates/enforcer-lang-ts/src/rules/import_boundaries.rs",
         "crates/enforcer-lang-ts/src/rules/layered_frontend.rs",
         "crates/enforcer-lang-ts/src/rules/registry.rs",
         "crates/enforcer-lang-ts/src/rules/source_scan.rs",
+        "crates/enforcer-lang-ts/src/rules/spec.rs",
         "crates/enforcer-lang-ts/src/rules/test_scan.rs",
         "crates/enforcer-lang-ts/src/rules/tests_family.rs",
-        "crates/enforcer-lang-ts/src/rules/text_scan.rs",
         "crates/enforcer-lang-ts/src/rules/toolchain.rs",
-        "crates/enforcer-literal-scan/src/bridge.rs",
+        "crates/enforcer-literal-scan/src/boundary/bridge.rs",
+        "crates/enforcer-literal-scan/src/boundary/cli_flag_value.rs",
+        "crates/enforcer-literal-scan/src/boundary/cli_mode.rs",
+        "crates/enforcer-literal-scan/src/boundary/cli_parse.rs",
+        "crates/enforcer-literal-scan/src/boundary/lexer_rust_helpers.rs",
+        "crates/enforcer-literal-scan/src/boundary/risk_heuristics_secret.rs",
         "crates/enforcer-literal-scan/src/lib.rs",
-        "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
-        "crates/enforcer-mcp/src/aliases.rs",
-        "crates/enforcer-mcp/src/gate.rs",
+        "crates/enforcer-mcp/src/boundary/aliases.rs",
+        "crates/enforcer-mcp/src/boundary/fingerprint.rs",
+        "crates/enforcer-mcp/src/boundary/fingerprint_artifact.rs",
+        "crates/enforcer-mcp/src/boundary/gate.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
+        "crates/enforcer-mcp/src/boundary/router.rs",
+        "crates/enforcer-mcp/src/boundary/rpc_request.rs",
+        "crates/enforcer-mcp/src/boundary/rpc_response.rs",
+        "crates/enforcer-mcp/src/boundary/sink.rs",
+        "crates/enforcer-mcp/src/boundary/staleness_report.rs",
+        "crates/enforcer-mcp/src/boundary/tool_surface.rs",
+        "crates/enforcer-mcp/src/fingerprint.rs",
         "crates/enforcer-mcp/src/name.rs",
-        "crates/enforcer-mcp/src/registry.rs",
-        "crates/enforcer-mcp/src/router.rs",
-        "crates/enforcer-mcp/src/sink.rs",
-        "crates/enforcer-mcp/src/tool_surface.rs",
         "crates/enforcer-mcp/src/transport.rs",
-        "crates/enforcer-mechanization/src/feedback.rs",
-        "crates/enforcer-mechanization/src/feedback/classify.rs",
-        "crates/enforcer-mechanization/src/oracle.rs",
-        "crates/enforcer-mechanization/src/parity.rs",
-        "crates/enforcer-mechanization/src/scaffold.rs",
-        "crates/enforcer-memory/src/diagnostics.rs",
-        "crates/enforcer-plan/src/agents_forest.rs",
-        "crates/enforcer-plan/src/lessons.rs",
-        "crates/enforcer-plan/src/orchestrator.rs",
-        "crates/enforcer-plan/src/scaffolder.rs",
-        "crates/enforcer-plan/src/templates.rs",
+        "crates/enforcer-memory/src/analysis/query.rs",
+        "crates/enforcer-memory/src/boundary/log_schema.rs",
+        "crates/enforcer-memory/src/boundary/record.rs",
+        "crates/enforcer-plan/src/boundary/forest.rs",
+        "crates/enforcer-plan/src/boundary/lessons.rs",
+        "crates/enforcer-plan/src/boundary/validator.rs",
         "crates/enforcer-plan/src/validator.rs",
-        "crates/enforcer-proof/src/claim.rs",
-        "crates/enforcer-proof/src/envelope.rs",
+        "crates/enforcer-proof/src/boundary/claim.rs",
+        "crates/enforcer-proof/src/boundary/envelope.rs",
+        "crates/enforcer-proof/src/boundary/journal.rs",
+        "crates/enforcer-proof/src/boundary/legacy_import.rs",
+        "crates/enforcer-proof/src/boundary/project_read_model.rs",
         "crates/enforcer-proof/src/harness.rs",
-        "crates/enforcer-proof/src/journal.rs",
-        "crates/enforcer-proof/src/legacy_import.rs",
-        "crates/enforcer-proof/src/read_model.rs",
         "crates/enforcer-rules/src/loader.rs",
         "crates/enforcer-rules/src/registry.rs",
         "crates/enforcer-rules/src/rules/plan.rs",
         "crates/enforcer-rules/src/version_drift.rs",
+        "crates/enforcer-rules/src/waiver.rs",
+        "crates/enforcer-scan/src/boundary/coverage.rs",
+        "crates/enforcer-scan/src/cargo_workspace_policy.rs",
         "crates/enforcer-scan/src/coverage.rs",
         "crates/enforcer-scan/src/engine.rs",
         "crates/enforcer-scan/src/modes.rs",
-        "crates/enforcer-scan/src/outcome.rs",
+        "crates/enforcer-scan/src/onboard.rs",
         "crates/enforcer-scan/src/router/detect.rs",
         "crates/enforcer-scan/src/router/mod.rs",
         "crates/enforcer-scan/src/router/native_tie.rs",
@@ -3957,27 +4059,31 @@
         "crates/enforcer-scan/src/rules/baseline_ratchet.rs",
         "crates/enforcer-scan/src/scope.rs",
         "crates/enforcer-scan/src/walk.rs",
-        "crates/enforcer-security/src/cyberskills/frontmatter_lint.rs",
-        "crates/enforcer-security/src/cyberskills/vocab.rs",
-        "crates/enforcer-security/src/rules/boundary.rs",
-        "crates/enforcer-security/src/rules/economic.rs",
-        "crates/enforcer-security/src/rules/economic_invariants.rs",
-        "crates/enforcer-security/src/rules/killswitch.rs",
-        "crates/enforcer-security/src/rules/money_critical.rs",
-        "crates/enforcer-security/src/rules/no_bypass.rs",
-        "crates/enforcer-security/src/rules/registry.rs",
-        "crates/enforcer-security/src/rules/rollback.rs",
-        "crates/enforcer-security/src/rules/signing.rs",
-        "crates/enforcer-security/src/rules/threat_test_mapping.rs",
-        "crates/enforcer-security/src/rules/time.rs",
+        "crates/enforcer-scan/tests/fixtures/inline_test_policy/src/lib.rs",
+        "crates/enforcer-security/src/boundary/activation.rs",
+        "crates/enforcer-security/src/boundary/cyberskills/frontmatter_lint.rs",
+        "crates/enforcer-security/src/boundary/cyberskills/vocab.rs",
+        "crates/enforcer-security/src/boundary/rules/economic.rs",
+        "crates/enforcer-security/src/boundary/rules/economic_invariants.rs",
+        "crates/enforcer-security/src/boundary/rules/killswitch.rs",
+        "crates/enforcer-security/src/boundary/rules/money_critical.rs",
+        "crates/enforcer-security/src/boundary/rules/no_bypass.rs",
+        "crates/enforcer-security/src/boundary/rules/registry.rs",
+        "crates/enforcer-security/src/boundary/rules/rollback.rs",
+        "crates/enforcer-security/src/boundary/rules/signing.rs",
+        "crates/enforcer-security/src/boundary/rules/threat_test_mapping.rs",
+        "crates/enforcer-security/src/boundary/rules/time.rs",
         "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
-        "crates/enforcer-ui/src/explorer/mod.rs",
-        "crates/enforcer-ui/src/hub/mod.rs",
-        "crates/enforcer-ui/src/payload.rs",
-        "crates/enforcer-ui/src/report/mod.rs",
-        "crates/enforcer-ui/src/serve.rs",
-        "crates/enforcer-ui/src/settings/read.rs",
-        "crates/enforcer-ui/src/settings/write.rs",
+        "crates/enforcer-ui/frontend/src-tauri/src/project_settings.rs",
+        "crates/enforcer-ui/src/boundary/explorer/html.rs",
+        "crates/enforcer-ui/src/boundary/explorer/mod.rs",
+        "crates/enforcer-ui/src/boundary/hub/mod.rs",
+        "crates/enforcer-ui/src/boundary/memory_explorer/mod.rs",
+        "crates/enforcer-ui/src/boundary/payload.rs",
+        "crates/enforcer-ui/src/boundary/report/mod.rs",
+        "crates/enforcer-ui/src/boundary/serve.rs",
+        "crates/enforcer-ui/src/boundary/settings/read.rs",
+        "crates/enforcer-ui/src/boundary/settings/write.rs",
         "crates/enforcer-ui/src/ts_export.rs",
         "crates/enforcer-validator/src/doc_rule_parity.rs",
         "crates/enforcer-validator/src/harness.rs",
@@ -4013,30 +4119,16 @@
       "category": "Repository",
       "query": "Which crates re-export via `pub use` barrels?",
       "expectedIds": [
-        "repo:pub-use:workspace-scan:5-crates"
+        "repo:pub-use:workspace-scan:1-crates"
       ],
       "actualIds": [
-        "repo:pub-use:workspace-scan:5-crates"
+        "repo:pub-use:workspace-scan:1-crates"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-config/src/lib.rs",
-        "crates/enforcer-coordination/src/lib.rs",
         "crates/enforcer-events/src/bus/publish/flow.rs",
-        "crates/enforcer-literal-scan/src/discovery-ignore.rs",
-        "crates/enforcer-literal-scan/src/languages.rs",
-        "crates/enforcer-literal-scan/src/lexer-c-like.rs",
-        "crates/enforcer-literal-scan/src/lexer-python.rs",
-        "crates/enforcer-literal-scan/src/lexer-rust.rs",
-        "crates/enforcer-literal-scan/src/lexer.rs",
-        "crates/enforcer-literal-scan/src/lib.rs",
-        "crates/enforcer-literal-scan/src/risk-heuristics.rs",
-        "crates/enforcer-memory/src/code_graph.rs",
-        "crates/enforcer-memory/src/languages/generic.rs",
-        "crates/enforcer-memory/src/ort_runtime.rs",
-        "crates/enforcer-memory/src/search/mod.rs",
         "docs/ENFORCED_CHECKS.md",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -4099,93 +4191,97 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-config/src/lib.rs",
-        "crates/enforcer-config/src/model.rs",
-        "crates/enforcer-config/src/policy.rs",
-        "crates/enforcer-config/src/profiles.rs",
-        "crates/enforcer-config/src/project_tie.rs",
-        "crates/enforcer-config/src/resolve.rs",
-        "crates/enforcer-config/src/shape.rs",
-        "crates/enforcer-coordination/src/api.rs",
-        "crates/enforcer-coordination/src/domain.rs",
+        "crates/enforcer-cli/src/hook.rs",
+        "crates/enforcer-config/src/boundary/serde.rs",
+        "crates/enforcer-coordination/src/api/boundary.rs",
+        "crates/enforcer-coordination/src/events/boundary.rs",
         "crates/enforcer-coordination/src/events/mod.rs",
-        "crates/enforcer-coordination/src/sync/stream.rs",
-        "crates/enforcer-core/src/error.rs",
-        "crates/enforcer-core/src/ndjson_writer.rs",
-        "crates/enforcer-core/src/telemetry.rs",
-        "crates/enforcer-domain/src/findings.rs",
-        "crates/enforcer-domain/src/hashes.rs",
-        "crates/enforcer-domain/src/ids.rs",
-        "crates/enforcer-domain/src/paths.rs",
-        "crates/enforcer-domain/src/records.rs",
-        "crates/enforcer-domain/src/run_record.rs",
-        "crates/enforcer-domain/src/severity.rs",
-        "crates/enforcer-events/src/envelope.rs",
-        "crates/enforcer-events/src/journal/ndjson_io/recover.rs",
-        "crates/enforcer-events/src/replay/read/record.rs",
-        "crates/enforcer-events/src/request.rs",
+        "crates/enforcer-core/src/boundary/ndjson.rs",
+        "crates/enforcer-core/src/boundary/telemetry.rs",
+        "crates/enforcer-core/src/run_context/boundary.rs",
+        "crates/enforcer-domain/src/boundary/json.rs",
+        "crates/enforcer-events/src/boundary/journal_persistence.rs",
+        "crates/enforcer-events/src/boundary/request_persistence.rs",
+        "crates/enforcer-events/src/boundary/stored_event_persistence.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
         "crates/enforcer-harness/src/adapters/cyberskills/seam.rs",
         "crates/enforcer-harness/src/ci_parity.rs",
         "crates/enforcer-harness/src/duckdb_seam.rs",
         "crates/enforcer-harness/src/parsers.rs",
         "crates/enforcer-harness/src/query.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/concurrency_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/coverage_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/crypto_localnet_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/fuzz_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/observability_report.rs",
+        "crates/enforcer-harness/src/security_pipeline/adapters/static_analysis_report.rs",
         "crates/enforcer-harness/src/storage.rs",
         "crates/enforcer-install/src/adapters/antigravity.rs",
         "crates/enforcer-install/src/adapters/claude.rs",
+        "crates/enforcer-install/src/adapters/cursor.rs",
+        "crates/enforcer-install/src/adapters/gemini.rs",
         "crates/enforcer-install/src/adapters/generic.rs",
         "crates/enforcer-install/src/adapters/kilocode.rs",
         "crates/enforcer-install/src/adapters/kiro.rs",
         "crates/enforcer-install/src/adapters/windsurf.rs",
-        "crates/enforcer-install/src/ci/branch_protection.rs",
-        "crates/enforcer-install/src/ci/npm_wrapper.rs",
-        "crates/enforcer-install/src/cli_contract.rs",
-        "crates/enforcer-install/src/core.rs",
-        "crates/enforcer-install/src/detect.rs",
-        "crates/enforcer-install/src/hooks/sessionstart.rs",
-        "crates/enforcer-install/src/migrate_legacy_name.rs",
-        "crates/enforcer-install/src/report.rs",
-        "crates/enforcer-lang-cfml/src/rules/cflint_adapter.rs",
-        "crates/enforcer-lang-cfml/src/rules/toolchain.rs",
-        "crates/enforcer-lang-py/src/lib.rs",
-        "crates/enforcer-lang-py/src/toolchain.rs",
-        "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
-        "crates/enforcer-lang-security/src/rules/cyberskills/dependency_confusion.rs",
-        "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
-        "crates/enforcer-mcp/src/sink.rs",
-        "crates/enforcer-mcp/src/tool_surface.rs",
+        "crates/enforcer-install/src/adapters/zed.rs",
+        "crates/enforcer-install/src/boundary/command_envelope.rs",
+        "crates/enforcer-install/src/boundary/detect_configuration.rs",
+        "crates/enforcer-install/src/boundary/json_wire.rs",
+        "crates/enforcer-install/src/boundary/migrate_legacy_name.rs",
+        "crates/enforcer-install/src/boundary/report.rs",
+        "crates/enforcer-install/src/boundary/request_context.rs",
+        "crates/enforcer-install/src/boundary/sessionstart.rs",
+        "crates/enforcer-install/src/ci/boundary/branch_protection.rs",
+        "crates/enforcer-install/src/ci/boundary/npm_wrapper.rs",
+        "crates/enforcer-lang-cfml/src/rules/boundary.rs",
+        "crates/enforcer-lang-py/src/boundary/fixture.rs",
+        "crates/enforcer-lang-py/src/boundary/source.rs",
+        "crates/enforcer-lang-security/src/boundary/cloud_azure.rs",
+        "crates/enforcer-lang-security/src/boundary/dependency_manifest.rs",
+        "crates/enforcer-lang-security/src/boundary/fileless.rs",
+        "crates/enforcer-lang-security/src/boundary/json.rs",
+        "crates/enforcer-lang-security/src/boundary/web_headers.rs",
+        "crates/enforcer-mcp/src/boundary/fingerprint.rs",
+        "crates/enforcer-mcp/src/boundary/fingerprint_artifact.rs",
+        "crates/enforcer-mcp/src/boundary/rpc_request.rs",
+        "crates/enforcer-mcp/src/boundary/rpc_response.rs",
+        "crates/enforcer-mcp/src/boundary/sink.rs",
+        "crates/enforcer-mcp/src/boundary/staleness_report.rs",
+        "crates/enforcer-mcp/src/boundary/tool_surface.rs",
         "crates/enforcer-mcp/src/transport.rs",
-        "crates/enforcer-mechanization/src/feedback.rs",
-        "crates/enforcer-memory/src/artifacts.rs",
-        "crates/enforcer-memory/src/cli.rs",
-        "crates/enforcer-memory/src/ingest.rs",
-        "crates/enforcer-memory/src/log.rs",
+        "crates/enforcer-memory/src/boundary/artifact_transport.rs",
+        "crates/enforcer-memory/src/boundary/json.rs",
+        "crates/enforcer-memory/src/boundary/log_schema.rs",
+        "crates/enforcer-memory/src/boundary/record.rs",
+        "crates/enforcer-memory/src/boundary/share.rs",
+        "crates/enforcer-memory/src/boundary/streaming_cache.rs",
         "crates/enforcer-memory/src/mcp.rs",
-        "crates/enforcer-memory/src/model_cache.rs",
         "crates/enforcer-memory/src/model_observations.rs",
         "crates/enforcer-memory/src/observations.rs",
-        "crates/enforcer-memory/src/projects.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
-        "crates/enforcer-memory/src/share.rs",
-        "crates/enforcer-memory/src/store/manifest.rs",
-        "crates/enforcer-memory/src/streaming_cache.rs",
         "crates/enforcer-memory/src/traces.rs",
-        "crates/enforcer-plan/src/lessons.rs",
-        "crates/enforcer-proof/src/envelope.rs",
-        "crates/enforcer-proof/src/journal.rs",
-        "crates/enforcer-proof/src/legacy_import.rs",
-        "crates/enforcer-proof/src/read_model.rs",
-        "crates/enforcer-rules/src/loader.rs",
-        "crates/enforcer-rules/src/version_drift.rs",
-        "crates/enforcer-rules/src/waiver.rs",
-        "crates/enforcer-scan/src/coverage.rs",
-        "crates/enforcer-scan/src/modes.rs",
-        "crates/enforcer-scan/src/outcome.rs",
+        "crates/enforcer-plan/src/boundary/lessons.rs",
+        "crates/enforcer-proof/src/boundary/envelope.rs",
+        "crates/enforcer-proof/src/boundary/journal.rs",
+        "crates/enforcer-proof/src/boundary/legacy_import.rs",
+        "crates/enforcer-proof/src/boundary/project_read_model.rs",
+        "crates/enforcer-proof/src/harness.rs",
+        "crates/enforcer-rules/src/boundary/registry.rs",
+        "crates/enforcer-rules/src/boundary/version_drift.rs",
+        "crates/enforcer-rules/src/boundary/waiver_json.rs",
+        "crates/enforcer-scan/src/boundary/coverage.rs",
+        "crates/enforcer-scan/src/boundary/modes.rs",
         "crates/enforcer-scan/src/rules/baseline_ratchet.rs",
-        "crates/enforcer-security/src/activation.rs",
-        "crates/enforcer-security/src/rules/economic_invariants.rs",
-        "crates/enforcer-security/src/rules/threat_test_mapping.rs",
-        "crates/enforcer-ui/src/settings/write.rs",
+        "crates/enforcer-security/src/boundary/activation.rs",
+        "crates/enforcer-security/src/boundary/rules/economic_invariants.rs",
+        "crates/enforcer-security/src/boundary/rules/threat_test_mapping.rs",
+        "crates/enforcer-security/src/rules/required_test_categories/boundary.rs",
+        "crates/enforcer-ui/src/boundary/explorer/mod.rs",
+        "crates/enforcer-ui/src/boundary/hub/mod.rs",
+        "crates/enforcer-ui/src/boundary/memory_explorer/mod.rs",
+        "crates/enforcer-ui/src/boundary/report/mod.rs",
+        "crates/enforcer-ui/src/boundary/settings/write.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
@@ -4250,7 +4346,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-core/src",
-        "bounded sample: 10 Rust files"
+        "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4339,7 +4435,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-cli/src",
-        "bounded sample: 13 Rust files"
+        "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4358,7 +4454,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:256409369f63f674908f84ecc0f69c03bbb9a783"
+        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4422,7 +4518,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:be5558a2564d9d747ee77fa61c90a3c20933081f"
+        "commit:179c6ac8989988bacad50147cc039d7088d7ac00"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4576,6 +4672,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-domain/src/ids.rs",
+        "crates/enforcer-domain/tests/ids.rs",
         "commit:bbfec31e8fb5fbda903ff99e5b85f50494df5ab3",
         "commit:686846a02714f6c395e0557eed439ea7b680d1cd"
       ],
@@ -4601,8 +4698,9 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "docs/plans/enforcer-selfhost-plan/workpacks/a07-parse-at-boundary-json-and-env.md",
-        "crates/enforcer-config/src/env.rs",
+        "crates/enforcer-config/src/boundary/serde/env.rs",
         "crates/enforcer-config/src/lib.rs",
+        "crates/enforcer-config/src/boundary/serde.rs",
         "commit:0f6139ce375a986fedfa7be98e4babf6f0be7dc6"
       ],
       "verdict": "pass",
@@ -4639,24 +4737,71 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
+        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
         "lane:rust-build",
-        "created-after:2026-07-09 16:08:46 -0400",
-        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
+        "created-after:2026-07-19 00:18:13 -0400",
+        "created:crates/enforcer-domain/src/boundary/core.rs",
+        "created:crates/enforcer-domain/src/boundary/hash.rs"
       ],
       "actualIds": [
-        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
+        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
         "lane:rust-build",
-        "created-after:2026-07-09 16:08:46 -0400",
-        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
+        "created-after:2026-07-19 00:18:13 -0400",
+        "created:crates/enforcer-domain/src/boundary/core.rs",
+        "created:crates/enforcer-domain/src/boundary/hash.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
+        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
         "lane:rust-build",
-        "crates/enforcer-install/tests/git_hooks_fixtures.rs"
+        "crates/enforcer-domain/src/boundary/core.rs",
+        "crates/enforcer-domain/src/boundary/hash.rs",
+        "crates/enforcer-domain/src/boundary/json.rs",
+        "crates/enforcer-domain/src/boundary/mcp.rs",
+        "crates/enforcer-domain/src/boundary/memory_traits.rs",
+        "crates/enforcer-domain/src/boundary/records.rs",
+        "crates/enforcer-domain/src/boundary/scan.rs",
+        "crates/enforcer-domain/src/boundary/security.rs",
+        "crates/enforcer-domain/src/boundary/validation.rs",
+        "crates/enforcer-domain/src/cli_types.rs",
+        "crates/enforcer-domain/src/config_types.rs",
+        "crates/enforcer-domain/src/coordination_types.rs",
+        "crates/enforcer-domain/src/core_types.rs",
+        "crates/enforcer-domain/src/events_types.rs",
+        "crates/enforcer-domain/src/harness_types.rs",
+        "crates/enforcer-domain/src/install_types.rs",
+        "crates/enforcer-domain/src/mcp_types.rs",
+        "crates/enforcer-domain/src/mechanization_types.rs",
+        "crates/enforcer-domain/src/memory_types.rs",
+        "crates/enforcer-domain/src/plan_types.rs",
+        "crates/enforcer-domain/src/proof_types.rs",
+        "crates/enforcer-domain/src/scan_types.rs",
+        "crates/enforcer-domain/src/security_types.rs",
+        "crates/enforcer-domain/src/telemetry_types.rs",
+        "crates/enforcer-domain/src/ui_types.rs",
+        "crates/enforcer-domain/src/xtask_types.rs",
+        "crates/enforcer-domain/tests/boundary_mcp.rs",
+        "crates/enforcer-domain/tests/config_contracts.rs",
+        "crates/enforcer-domain/tests/coordination_types.rs",
+        "crates/enforcer-domain/tests/events_types.rs",
+        "crates/enforcer-domain/tests/finding_contracts.rs",
+        "crates/enforcer-domain/tests/harness_contracts.rs",
+        "crates/enforcer-domain/tests/hash_contracts.rs",
+        "crates/enforcer-domain/tests/id_catalog.rs",
+        "crates/enforcer-domain/tests/install_types.rs",
+        "crates/enforcer-domain/tests/mcp_types.rs",
+        "crates/enforcer-domain/tests/memory_types.rs",
+        "crates/enforcer-domain/tests/path_contracts.rs",
+        "crates/enforcer-domain/tests/plan_types.rs",
+        "crates/enforcer-domain/tests/record_contracts.rs",
+        "crates/enforcer-domain/tests/run_record_contracts.rs",
+        "crates/enforcer-domain/tests/scan_types.rs",
+        "crates/enforcer-domain/tests/security_types.rs",
+        "crates/enforcer-domain/tests/ui_types.rs",
+        "crates/enforcer-domain/tests/validation.rs",
+        "crates/enforcer-domain/tests/xtask_types.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4736,7 +4881,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:21"
+        "history-count:42"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5139,8 +5284,8 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
+        "crates/enforcer-install/src/boundary/detect_configuration.rs",
         "crates/enforcer-install/src/core.rs",
-        "crates/enforcer-install/src/detect.rs",
         "crates/enforcer-install/tests/claude_adapter_fixtures.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/x02-docs-refresh.md"
@@ -5211,11 +5356,13 @@
       "expectedIds": [
         "retrieval:context-budget:benchmark",
         "retrieval:context-budget:core",
+        "retrieval:context-budget:domain",
         "retrieval:context-budget:mcp"
       ],
       "actualIds": [
         "retrieval:context-budget:benchmark",
         "retrieval:context-budget:core",
+        "retrieval:context-budget:domain",
         "retrieval:context-budget:mcp"
       ],
       "recallAt5": 1.0,
@@ -5223,7 +5370,8 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-core/src/context_budget.rs",
-        "crates/enforcer-mcp/src/tool_surface.rs",
+        "crates/enforcer-domain/src/core_types.rs",
+        "crates/enforcer-mcp/src/boundary/tool_surface.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
@@ -5303,7 +5451,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-coordination/src/api.rs",
+        "crates/enforcer-coordination/src/api/boundary.rs",
         "crates/enforcer-coordination/src/error.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -5358,8 +5506,8 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-config/src/env.rs",
-        "crates/enforcer-core/src/platform.rs",
+        "crates/enforcer-config/src/boundary/serde/env.rs",
+        "crates/enforcer-core/src/boundary/platform.rs",
         "crates/enforcer-memory/src/diagnostics.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -5415,7 +5563,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-core/src/redaction.rs",
+        "crates/enforcer-core/src/boundary/redaction.rs",
         "crates/enforcer-memory/src/redaction.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -5467,7 +5615,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-proof/src/claim.rs",
+        "crates/enforcer-proof/src/boundary/claim.rs",
         "crates/enforcer-proof/src/harness.rs",
         "crates/enforcer-proof/tests/proof_end_to_end.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
@@ -5491,7 +5639,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-domain/src/ids.rs",
+        "crates/enforcer-domain/tests/ids.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
@@ -6180,8 +6328,8 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-mcp/src/registry.rs",
-        "crates/enforcer-mcp/src/router.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
+        "crates/enforcer-mcp/src/boundary/router.rs",
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
@@ -6205,7 +6353,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-mcp/src/registry.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
         "crates/enforcer-memory/src/cli.rs",
         "tests/rust-rules-mcp.test.mjs"
       ],
@@ -6230,7 +6378,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-mcp/src/registry.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
         "mcp/rust-rules-mcp-dispatch.mjs",
         "tests/rust-rules-mcp.test.mjs"
       ],
@@ -6255,7 +6403,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "crates/enforcer-mcp/src/registry.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
         "src/proof.mjs",
         "tests/rust-rules-mcp.test.mjs"
       ],
@@ -6281,7 +6429,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-harness/src/query.rs",
-        "crates/enforcer-mcp/src/registry.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
@@ -6328,7 +6476,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-mcp/context-budget-baseline.json",
-        "crates/enforcer-mcp/src/tool_surface.rs",
+        "crates/enforcer-mcp/src/boundary/tool_surface.rs",
         "crates/enforcer-mcp/tests/tool_surface.rs"
       ],
       "verdict": "pass",
@@ -6353,7 +6501,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-install/src/core.rs",
-        "crates/enforcer-mcp/src/registry.rs",
+        "crates/enforcer-mcp/src/boundary/registry.rs",
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
@@ -6395,22 +6543,19 @@
         "cli:run:dispatch",
         "cli:run:tsc:language",
         "cli:run:tsc:parser",
-        "cli:run:tsc:test",
-        "cli:run:tsc:docs"
+        "cli:run:tsc:test"
       ],
       "actualIds": [
         "cli:run:dispatch",
         "cli:run:tsc:language",
         "cli:run:tsc:parser",
-        "cli:run:tsc:test",
-        "cli:run:tsc:docs"
+        "cli:run:tsc:test"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-harness/src/parsers.rs",
-        "docs/TARGET_REPO_WIRING.md",
         "src/cli-command-dispatch.mjs",
         "src/harness.mjs",
         "tests/enforcer-harness.test.mjs"
@@ -6480,11 +6625,13 @@
       "query": "Which lifecycle commands exist and where are they implemented?",
       "expectedIds": [
         "cli:lifecycle:implementation",
+        "cli:lifecycle:phase-domain",
         "cli:lifecycle:test",
         "cli:lifecycle:workpack"
       ],
       "actualIds": [
         "cli:lifecycle:implementation",
+        "cli:lifecycle:phase-domain",
         "cli:lifecycle:test",
         "cli:lifecycle:workpack"
       ],
@@ -6494,6 +6641,7 @@
       "sourceRefs": [
         "crates/enforcer-cli/src/lifecycle.rs",
         "crates/enforcer-cli/tests/lifecycle.rs",
+        "crates/enforcer-domain/src/cli_types.rs",
         "docs/plans/enforcer-selfhost-plan/workpacks/d06-lifecycle-commands.md"
       ],
       "verdict": "pass",
@@ -6522,8 +6670,8 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-install/src/adapters/claude.rs",
+        "crates/enforcer-install/src/boundary/detect_configuration.rs",
         "crates/enforcer-install/src/core.rs",
-        "crates/enforcer-install/src/detect.rs",
         "crates/enforcer-install/tests/claude_adapter_fixtures.rs"
       ],
       "verdict": "pass",
@@ -6596,7 +6744,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-cli/src/name.rs",
-        "crates/enforcer-install/src/migrate_legacy_name.rs",
+        "crates/enforcer-install/src/boundary/migrate_legacy_name.rs",
         "proof/install/x03-rename-migration.txt"
       ],
       "verdict": "pass",

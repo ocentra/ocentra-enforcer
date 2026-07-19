@@ -20,10 +20,15 @@
 pub mod branch_protection;
 pub mod boundary {
     pub mod branch_protection;
+    pub mod branch_protection_payload;
+    pub mod branch_protection_workflow;
     pub mod release_rendering;
 }
-pub mod branch_protection_domain;
+#[path = "boundary/github_action.rs"]
 pub mod github_action;
+#[path = "boundary/installer_scripts.rs"]
 pub mod installer_scripts;
+#[path = "boundary/npm_wrapper.rs"]
 pub mod npm_wrapper;
+pub mod project_template;
 pub mod release_pipeline;

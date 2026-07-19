@@ -1,4 +1,4 @@
-use crate::EventingError;
+use crate::error::EventingError;
 
 pub(super) enum AttemptOutcome {
     Handled,

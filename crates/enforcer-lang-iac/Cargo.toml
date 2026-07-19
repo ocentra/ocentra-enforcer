@@ -9,15 +9,15 @@ description = "Per-family Validator implementations for the infrastructure-as-co
 publish = false
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-# DEPENDENCY-JUSTIFICATION: IaC validators produce the shared typed findings and
-# rule/severity values consumed by the routed scan report.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: IaC validators consume canonical rule identities,
+# paths, validation text, line numbers, and finding value types directly.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: This crate implements the shared validator trait for
 # Terraform, CloudFormation, and Kubernetes fixture parity.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

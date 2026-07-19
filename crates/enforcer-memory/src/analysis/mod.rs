@@ -30,7 +30,7 @@
 //! re-expression over enforcer's own node/edge model -- no code is
 //! copied from any harvested source (harvested-from: none; petgraph
 //! itself is the borrowed *dependency*, not borrowed *code*, per
-//! MEMORY_RETRIEVAL_BORROW_POLICY §2 TabAgentServer row: "Cargo
+//! MEMORY_RETRIEVAL_BORROW_POLICY Â§2 TabAgentServer row: "Cargo
 //! dependency CHOICES may be adopted directly").
 
 pub mod clustering;
@@ -38,6 +38,13 @@ pub mod query;
 pub mod trace;
 
 use crate::code_graph::{CodeGraph, CodeNode};
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    MemoryAnalysisContainsNode, MemoryAnalysisDegree, MemoryAnalysisDepth, MemoryAnalysisEdgeCount,
+    MemoryAnalysisNodeCount, MemoryAnalysisNodeId, MemoryAnalysisResultLimit, MemoryEdgeKind,
+    MemoryResolutionFilePath, MemoryResolutionSymbolId, ParsedCallee, ParsedModulePath,
+    ParsedSymbolName, TraceDirection,
+};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
@@ -48,54 +55,19 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// two nodes are connected (the workpack's "traversal reasoning" idea,
 /// harvested-idea-only from the MIA framework digest: "found via 2-hop:
 /// A -> implies -> B" translated to enforcer's own edge kinds).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EdgeKind {
-    /// `from` imports `to` (resolved import -> file target).
-    Imports,
-    /// `from` calls a symbol resolved to `to`.
-    Calls,
-    /// `from` declares an HTTP route (synthetic route node -> file).
-    Route,
-    /// `from` file contains symbol `to` (structural containment).
-    Contains,
-    /// X06 rich vocabulary (additive): `from` (a Class/Interface)
-    /// inherits/extends a symbol resolved to `to`.
-    Inherits,
-    /// `from` (a type) implements a trait/interface resolved to `to`.
-    Implements,
-    /// `from` (a symbol) is decorated by a symbol/macro resolved to `to`.
-    Decorates,
-    /// `from` (a symbol)'s signature references a type resolved to `to`.
-    TypeRef,
-    /// `from` (a container symbol) defines member symbol `to`.
-    Defines,
-    /// X06 core parity: `from` (a calling symbol) has a resolved call
-    /// site with at least one captured argument expression flowing into
-    /// `to` (the resolved callee) -- [`crate::data_flow`]'s
-    /// materialization of the baseline's `DATA_FLOWS` edge at the
-    /// argument-expression granularity this crate's parser layer
-    /// supports (see that module's doc comment for the full baseline
-    /// citation). Additive to, never a replacement for, the symbol-
-    /// scoped `Calls` edge [`CodeAdjacency::build`] already adds for the
-    /// same resolved call -- a `DataFlows` edge only ever exists
-    /// alongside a `Calls` edge between the same two nodes, so a
-    /// `calls`-mode trace is unaffected by this variant's existence.
-    DataFlows,
-}
-
 /// One traversal step: the edge kind plus the node id reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelatedNode {
-    pub node_id: String,
-    pub depth: usize,
-    pub via: EdgeKind,
+    pub node_id: MemoryAnalysisNodeId,
+    pub depth: MemoryAnalysisDepth,
+    pub via: MemoryEdgeKind,
 }
 
 /// A single hop in a traced call/import path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathHop {
-    pub node_id: String,
-    pub via: EdgeKind,
+    pub node_id: MemoryAnalysisNodeId,
+    pub via: MemoryEdgeKind,
 }
 
 /// One node's computed hotspot score: raw in+out degree, used as the
@@ -103,28 +75,18 @@ pub struct PathHop {
 /// degree rather than full betweenness is the right first metric here).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HotspotScore {
-    pub node_id: String,
-    pub in_degree: usize,
-    pub out_degree: usize,
+    pub node_id: MemoryAnalysisNodeId,
+    pub in_degree: MemoryAnalysisDegree,
+    pub out_degree: MemoryAnalysisDegree,
 }
 
 impl HotspotScore {
-    pub fn total_degree(&self) -> usize {
-        self.in_degree + self.out_degree
+    pub fn total_degree(&self) -> MemoryAnalysisDegree {
+        (self.in_degree.get() + self.out_degree.get()).into()
     }
 }
 
 /// Direction to traverse call/import edges in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceDirection {
-    /// Follow edges as declared (caller -> callee, importer -> imported).
-    Out,
-    /// Follow edges backwards (callee -> caller, imported -> importer).
-    In,
-    /// Follow both directions.
-    Both,
-}
-
 /// A resolved import/call adjacency view over one [`CodeGraph`]
 /// snapshot. Import module paths and call callee names are resolved to
 /// concrete file/symbol node ids on a best-effort basis (exact
@@ -132,8 +94,11 @@ pub enum TraceDirection {
 /// scope, matching `code_graph`'s own module docs); an edge whose target
 /// cannot be resolved to a node already in the graph is dropped rather
 /// than fabricating a dangling node.
+#[derive(Debug)]
 pub struct CodeAdjacency {
-    graph: DiGraph<String, EdgeKind>,
+    /// BRAND-INVARIANT: node text is copied only from canonical `CodeGraph` node ids.
+    graph: DiGraph<String, MemoryEdgeKind>,
+    /// BRAND-INVARIANT: keys are the same canonical ids owned by `graph` above.
     index_of: HashMap<String, NodeIndex>,
     /// Every function/type/test symbol's containing file id, keyed by
     /// symbol id. [`CallEdge`](crate::code_graph::CallEdge)/
@@ -143,6 +108,7 @@ pub struct CodeAdjacency {
     /// edge's source is always a *file* node, never a symbol node --
     /// see [`CodeAdjacency::trace_calls`]'s "symbol start bridging" note
     /// for why this map exists.
+    /// BRAND-INVARIANT: both keys and values come from canonical graph symbol/file ids.
     symbol_file_of: HashMap<String, String>,
 }
 
@@ -152,14 +118,16 @@ impl CodeAdjacency {
     /// repeated queries against the same snapshot should build once
     /// and reuse.
     pub fn build(graph: &CodeGraph) -> Self {
-        let mut g = DiGraph::<String, EdgeKind>::new();
+        let mut g = DiGraph::<String, MemoryEdgeKind>::new();
         let mut index_of: HashMap<String, NodeIndex> = HashMap::new();
 
         for node in graph.nodes() {
-            let id = node.id().to_string();
+            let id = node.id().retained_display();
             // CLONE-JUSTIFICATION: the adjacency map borrows its key while the graph
             // must independently own the same node id for the query session.
-            index_of.entry(id.clone()).or_insert_with(|| g.add_node(id));
+            index_of
+                .entry(id.retained())
+                .or_insert_with(|| g.add_node(id));
         }
 
         // File -> symbol containment edges (a symbol's file_id is
@@ -168,11 +136,11 @@ impl CodeAdjacency {
         for symbol in graph.symbol_nodes() {
             // CLONE-JUSTIFICATION: this lookup outlives the borrowed graph symbols and
             // therefore stores independently owned symbol and containing-file ids.
-            symbol_file_of.insert(symbol.id.clone(), symbol.file_id.clone());
+            symbol_file_of.insert(symbol.id.retained(), symbol.file_id.retained());
             if let (Some(&from), Some(&to)) =
                 (index_of.get(&symbol.file_id), index_of.get(&symbol.id))
             {
-                g.add_edge(from, to, EdgeKind::Contains);
+                g.add_edge(from, to, MemoryEdgeKind::Contains);
             }
         }
 
@@ -180,12 +148,12 @@ impl CodeAdjacency {
         // match against every known rel_path (best-effort, see struct
         // docs) -- e.g. `module_path` "fs" or "./util" matching a file
         // ending in the same stem.
-        let file_ids: Vec<(&str, NodeIndex)> = graph
+        let file_ids: Vec<(MemoryResolutionFilePath, NodeIndex)> = graph
             .file_nodes()
             .filter_map(|f| {
                 index_of
                     .get(f.id.as_str())
-                    .map(|&idx| (f.rel_path.as_str(), idx))
+                    .map(|&idx| (f.rel_path.as_str().into(), idx))
             })
             .collect();
 
@@ -193,21 +161,24 @@ impl CodeAdjacency {
             let Some(&from) = index_of.get(&import.from_file_id) else {
                 continue;
             };
-            if let Some(&to) = resolve_module_path(&import.module_path, &file_ids) {
+            if let Some(&to) = resolve_module_path(
+                &ParsedModulePath::from(import.module_path.as_str()),
+                &file_ids,
+            ) {
                 if to != from {
-                    g.add_edge(from, to, EdgeKind::Imports);
+                    g.add_edge(from, to, MemoryEdgeKind::Imports);
                 }
             }
         }
 
         // Call edges: resolve `callee` to a symbol node by exact-name
         // match (best-effort; see struct docs).
-        let symbol_ids: Vec<(&str, NodeIndex)> = graph
+        let symbol_ids: Vec<(ParsedSymbolName, NodeIndex)> = graph
             .symbol_nodes()
             .filter_map(|s| {
                 index_of
                     .get(s.id.as_str())
-                    .map(|&idx| (s.name.as_str(), idx))
+                    .map(|&idx| (s.name.as_str().into(), idx))
             })
             .collect();
 
@@ -237,8 +208,8 @@ impl CodeAdjacency {
             let single_resolved_candidate = resolved.and_then(|r| {
                 matches!(
                     r.confidence,
-                    crate::resolution::ResolutionConfidence::Resolved
-                        | crate::resolution::ResolutionConfidence::Probable
+                    enforcer_domain::memory_types::ResolutionConfidence::Resolved
+                        | enforcer_domain::memory_types::ResolutionConfidence::Probable
                 )
                 .then(|| r.candidates.first())
                 .flatten()
@@ -251,13 +222,15 @@ impl CodeAdjacency {
                         .and_then(|id| index_of.get(id))
                         .copied()
                     {
-                        g.add_edge(from_symbol, to, EdgeKind::Calls);
+                        g.add_edge(from_symbol, to, MemoryEdgeKind::Calls);
                     }
                 }
             }
 
-            if let Some(&to) = resolve_callee(&call.callee, &symbol_ids) {
-                g.add_edge(from_file, to, EdgeKind::Calls);
+            if let Some(&to) =
+                resolve_callee(&ParsedCallee::from(call.callee.as_str()), &symbol_ids)
+            {
+                g.add_edge(from_file, to, MemoryEdgeKind::Calls);
             } else if let Some(target_id) = single_resolved_candidate {
                 // The old name-based `resolve_callee` missed this call
                 // (e.g. the callee text is `self.report` and no symbol
@@ -268,7 +241,7 @@ impl CodeAdjacency {
                 // it in one hop same as it would for any other resolved
                 // callee.
                 if let Some(&to) = index_of.get(target_id.as_str()) {
-                    g.add_edge(from_file, to, EdgeKind::Calls);
+                    g.add_edge(from_file, to, MemoryEdgeKind::Calls);
                 }
             }
         }
@@ -284,7 +257,7 @@ impl CodeAdjacency {
         // captured arguments) pair, added alongside (never instead of)
         // the `Calls` edge the loop above already adds for the same
         // resolved call. A `DataFlowEdge` with no `from_symbol_id` (a
-        // module-scope call site) is skipped here -- `EdgeKind::DataFlows`
+        // module-scope call site) is skipped here -- `MemoryEdgeKind::DataFlows`
         // is defined only between two symbol nodes in this adjacency, the
         // same restriction the `Calls` symbol-scoped edge above already
         // has; the file-scoped `Calls` edge already covers that case for
@@ -297,7 +270,7 @@ impl CodeAdjacency {
                 index_of.get(from_symbol_id),
                 index_of.get(edge.to_symbol_id.as_str()),
             ) {
-                g.add_edge(from, to, EdgeKind::DataFlows);
+                g.add_edge(from, to, MemoryEdgeKind::DataFlows);
             }
         }
 
@@ -312,32 +285,41 @@ impl CodeAdjacency {
             let Some(&from) = index_of.get(edge.sub_id.as_str()) else {
                 continue;
             };
-            if let Some(&to) = resolve_callee(&edge.super_name, &symbol_ids) {
-                g.add_edge(from, to, EdgeKind::Inherits);
+            if let Some(&to) =
+                resolve_callee(&ParsedCallee::from(edge.super_name.as_str()), &symbol_ids)
+            {
+                g.add_edge(from, to, MemoryEdgeKind::Inherits);
             }
         }
         for edge in graph.implements() {
             let Some(&from) = index_of.get(edge.type_id.as_str()) else {
                 continue;
             };
-            if let Some(&to) = resolve_callee(&edge.trait_name, &symbol_ids) {
-                g.add_edge(from, to, EdgeKind::Implements);
+            if let Some(&to) =
+                resolve_callee(&ParsedCallee::from(edge.trait_name.as_str()), &symbol_ids)
+            {
+                g.add_edge(from, to, MemoryEdgeKind::Implements);
             }
         }
         for edge in graph.decorates() {
             let Some(&from) = index_of.get(edge.target_id.as_str()) else {
                 continue;
             };
-            if let Some(&to) = resolve_callee(&edge.decorator_name, &symbol_ids) {
-                g.add_edge(from, to, EdgeKind::Decorates);
+            if let Some(&to) = resolve_callee(
+                &ParsedCallee::from(edge.decorator_name.as_str()),
+                &symbol_ids,
+            ) {
+                g.add_edge(from, to, MemoryEdgeKind::Decorates);
             }
         }
         for edge in graph.type_refs() {
             let Some(&from) = index_of.get(edge.from_id.as_str()) else {
                 continue;
             };
-            if let Some(&to) = resolve_callee(&edge.type_name, &symbol_ids) {
-                g.add_edge(from, to, EdgeKind::TypeRef);
+            if let Some(&to) =
+                resolve_callee(&ParsedCallee::from(edge.type_name.as_str()), &symbol_ids)
+            {
+                g.add_edge(from, to, MemoryEdgeKind::TypeRef);
             }
         }
         for edge in graph.defines() {
@@ -345,7 +327,7 @@ impl CodeAdjacency {
                 index_of.get(edge.container_id.as_str()),
                 index_of.get(edge.member_id.as_str()),
             ) {
-                g.add_edge(from, to, EdgeKind::Defines);
+                g.add_edge(from, to, MemoryEdgeKind::Defines);
             }
         }
 
@@ -356,16 +338,20 @@ impl CodeAdjacency {
         }
     }
 
-    pub fn contains_node(&self, node_id: &str) -> bool {
-        self.index_of.contains_key(node_id)
+    pub fn contains_node(
+        &self,
+        node_id: impl Into<MemoryAnalysisNodeId>,
+    ) -> MemoryAnalysisContainsNode {
+        let node_id = node_id.into();
+        self.index_of.contains_key(node_id.as_str()).into()
     }
 
-    pub fn node_count(&self) -> usize {
-        self.graph.node_count()
+    pub fn node_count(&self) -> MemoryAnalysisNodeCount {
+        self.graph.node_count().into()
     }
 
-    pub fn edge_count(&self) -> usize {
-        self.graph.edge_count()
+    pub fn edge_count(&self) -> MemoryAnalysisEdgeCount {
+        self.graph.edge_count().into()
     }
 
     /// Bounded-depth related-node walk (BFS) from `start`, following
@@ -373,8 +359,14 @@ impl CodeAdjacency {
     /// workpack's "graph depth limit" hard test asserts nodes beyond
     /// this depth are never returned, even on a graph that connects
     /// further.
-    pub fn related(&self, start: &str, max_depth: usize) -> Vec<RelatedNode> {
-        let Some(&start_idx) = self.index_of.get(start) else {
+    pub fn related(
+        &self,
+        start: impl Into<MemoryAnalysisNodeId>,
+        max_depth: impl Into<MemoryAnalysisDepth>,
+    ) -> Vec<RelatedNode> {
+        let start = start.into();
+        let max_depth = max_depth.into();
+        let Some(&start_idx) = self.index_of.get(start.as_str()) else {
             return Vec::new();
         };
         let mut state = RelatedWalkState {
@@ -383,10 +375,12 @@ impl CodeAdjacency {
             out: Vec::new(),
         };
         state.visited.insert(start_idx);
-        state.frontier.push_back((start_idx, 0));
+        state
+            .frontier
+            .push_back((start_idx, MemoryAnalysisDepth::from(0usize)));
 
         while let Some((idx, depth)) = state.frontier.pop_front() {
-            if depth >= max_depth {
+            if depth.get() >= max_depth.get() {
                 continue;
             }
             for edge in self.graph.edges_directed(idx, Direction::Outgoing) {
@@ -405,11 +399,13 @@ impl CodeAdjacency {
     /// itself is not included as a hop.
     pub fn trace_calls(
         &self,
-        start: &str,
+        start: impl Into<MemoryAnalysisNodeId>,
         direction: TraceDirection,
-        max_depth: usize,
+        max_depth: impl Into<MemoryAnalysisDepth>,
     ) -> Vec<Vec<PathHop>> {
-        let Some(&start_idx) = self.index_of.get(start) else {
+        let start = start.into();
+        let max_depth = max_depth.into();
+        let Some(&start_idx) = self.index_of.get(start.as_str()) else {
             return Vec::new();
         };
         // Symbol-start bridging: `Calls`/`Imports` edges are recorded at
@@ -429,7 +425,7 @@ impl CodeAdjacency {
         // handling).
         let file_idx = self
             .symbol_file_of
-            .get(start)
+            .get(start.as_str())
             .and_then(|file_id| self.index_of.get(file_id))
             .copied();
 
@@ -452,14 +448,18 @@ impl CodeAdjacency {
     /// [`Self::trace_calls`] with [`TraceDirection::In`], flattened to
     /// the unique set of upstream node ids (the workpack's "reverse
     /// dependency traversal" / "upstream callers" hard requirement).
-    pub fn reverse_dependents(&self, target: &str, max_depth: usize) -> Vec<String> {
+    pub fn reverse_dependents(
+        &self,
+        target: impl Into<MemoryAnalysisNodeId>,
+        max_depth: impl Into<MemoryAnalysisDepth>,
+    ) -> Vec<MemoryAnalysisNodeId> {
         let mut seen = HashSet::new();
         for path in self.trace_calls(target, TraceDirection::In, max_depth) {
             for hop in path {
                 seen.insert(hop.node_id);
             }
         }
-        let mut out: Vec<String> = seen.into_iter().collect();
+        let mut out: Vec<MemoryAnalysisNodeId> = seen.into_iter().collect();
         out.sort();
         out
     }
@@ -471,7 +471,8 @@ impl CodeAdjacency {
     /// significant) and is exact and O(V+E) -- no sampling, no
     /// approximation -- unlike betweenness/eigenvector variants which
     /// this module does not (yet) need for the hard tests.
-    pub fn hotspots(&self, limit: usize) -> Vec<HotspotScore> {
+    pub fn hotspots(&self, limit: impl Into<MemoryAnalysisResultLimit>) -> Vec<HotspotScore> {
+        let limit = limit.into().get();
         let mut scores: Vec<HotspotScore> = self
             .graph
             .node_indices()
@@ -479,9 +480,17 @@ impl CodeAdjacency {
                 self.graph.node_weight(idx).map(|node_id| HotspotScore {
                     // CLONE-JUSTIFICATION: hotspot results escape the adjacency graph,
                     // so each result must own the node id after the graph is dropped.
-                    node_id: node_id.clone(),
-                    in_degree: self.graph.edges_directed(idx, Direction::Incoming).count(),
-                    out_degree: self.graph.edges_directed(idx, Direction::Outgoing).count(),
+                    node_id: node_id.retained().into(),
+                    in_degree: self
+                        .graph
+                        .edges_directed(idx, Direction::Incoming)
+                        .count()
+                        .into(),
+                    out_degree: self
+                        .graph
+                        .edges_directed(idx, Direction::Outgoing)
+                        .count()
+                        .into(),
                 })
             })
             .collect();
@@ -494,10 +503,15 @@ impl CodeAdjacency {
         scores
     }
 
-    fn node_ids(&self) -> impl Iterator<Item = &str> {
+    fn node_ids(&self) -> Vec<MemoryResolutionSymbolId> {
         self.graph
             .node_indices()
-            .filter_map(move |idx| self.graph.node_weight(idx).map(String::as_str))
+            .filter_map(move |idx| {
+                self.graph
+                    .node_weight(idx)
+                    .map(|node_id| MemoryResolutionSymbolId::from(node_id.as_str()))
+            })
+            .collect()
     }
 }
 
@@ -512,24 +526,34 @@ struct DfsPathState {
     on_path: HashSet<NodeIndex>,
 }
 
+trait AnalysisNodeText {
+    fn analysis_text(&self) -> MemoryResolutionSymbolId;
+}
+
+impl AnalysisNodeText for String {
+    fn analysis_text(&self) -> MemoryResolutionSymbolId {
+        MemoryResolutionSymbolId::from(self.as_str())
+    }
+}
+
 /// Depth-bounded DFS path enumeration, factored out of
 /// [`CodeAdjacency::trace_calls`] as a free function (rather than an
 /// `&self` method) so it takes the graph by explicit reference on every
 /// recursive call -- avoiding the `only_used_in_recursion` clippy lint
 /// an `&self`-recursing method would otherwise trip (this crate runs
-/// clippy with zero `#[allow(clippy::…)]`, per the workpack gate).
-fn dfs_paths(
-    graph: &DiGraph<String, EdgeKind>,
+/// clippy with zero `#[allow(clippy::â€¦)]`, per the workpack gate).
+fn dfs_paths<N: AnalysisNodeText>(
+    graph: &DiGraph<N, MemoryEdgeKind>,
     idx: NodeIndex,
     direction: TraceDirection,
-    remaining: usize,
+    remaining: MemoryAnalysisDepth,
     state: &mut DfsPathState,
 ) {
-    if remaining == 0 {
+    if remaining.get() == 0 {
         if !state.current.is_empty() {
             // CLONE-JUSTIFICATION: a completed result needs an owned path snapshot
             // before DFS backtracking mutates the working path in place.
-            state.paths.push(state.current.clone());
+            state.paths.push(state.current.retained());
         }
         return;
     }
@@ -553,10 +577,16 @@ fn dfs_paths(
                 state.current.push(PathHop {
                     // CLONE-JUSTIFICATION: the work path outlives this borrowed graph
                     // lookup and must retain the reached node id for later output.
-                    node_id: node_id.clone(),
+                    node_id: node_id.analysis_text().as_str().retained().into(),
                     via: *edge.weight(),
                 });
-                dfs_paths(graph, target, direction, remaining - 1, state);
+                dfs_paths(
+                    graph,
+                    target,
+                    direction,
+                    MemoryAnalysisDepth::from(remaining.get().saturating_sub(1)),
+                    state,
+                );
                 state.current.pop();
             }
         }
@@ -565,12 +595,15 @@ fn dfs_paths(
     if !extended && !state.current.is_empty() {
         // CLONE-JUSTIFICATION: leaf output needs an owned path snapshot before DFS
         // backtracking removes the final hop from the mutable working path.
-        state.paths.push(state.current.clone());
+        state.paths.push(state.current.retained());
     }
     state.on_path.remove(&idx);
 }
 
-fn other_end(dir: Direction, edge: &petgraph::graph::EdgeReference<'_, EdgeKind>) -> NodeIndex {
+fn other_end(
+    dir: Direction,
+    edge: &petgraph::graph::EdgeReference<'_, MemoryEdgeKind>,
+) -> NodeIndex {
     match dir {
         Direction::Outgoing => edge.target(),
         Direction::Incoming => edge.source(),
@@ -584,15 +617,15 @@ fn other_end(dir: Direction, edge: &petgraph::graph::EdgeReference<'_, EdgeKind>
 /// `#[allow]`.
 struct RelatedWalkState {
     visited: HashSet<NodeIndex>,
-    frontier: VecDeque<(NodeIndex, usize)>,
+    frontier: VecDeque<(NodeIndex, MemoryAnalysisDepth)>,
     out: Vec<RelatedNode>,
 }
 
-fn push_related(
-    graph: &DiGraph<String, EdgeKind>,
+fn push_related<N: AnalysisNodeText>(
+    graph: &DiGraph<N, MemoryEdgeKind>,
     state: &mut RelatedWalkState,
-    edge: petgraph::graph::EdgeReference<'_, EdgeKind>,
-    depth: usize,
+    edge: petgraph::graph::EdgeReference<'_, MemoryEdgeKind>,
+    depth: MemoryAnalysisDepth,
 ) {
     // `edges_directed(idx, Outgoing)` gives edges where `idx` is the
     // source; `edges_directed(idx, Incoming)` gives edges where `idx`
@@ -621,11 +654,13 @@ fn push_related(
             state.out.push(RelatedNode {
                 // CLONE-JUSTIFICATION: related-node results escape the graph borrow and
                 // therefore own the discovered node id.
-                node_id: node_id.clone(),
-                depth: depth + 1,
+                node_id: node_id.analysis_text().as_str().retained().into(),
+                depth: MemoryAnalysisDepth::from(depth.get() + 1),
                 via: *edge.weight(),
             });
-            state.frontier.push_back((other, depth + 1));
+            state
+                .frontier
+                .push_back((other, MemoryAnalysisDepth::from(depth.get() + 1)));
         }
     }
 }
@@ -636,10 +671,11 @@ fn push_related(
 /// first match in `file_ids` order (deterministic: `file_ids` is built
 /// from `CodeGraph::file_nodes()`, itself insertion-ordered).
 fn resolve_module_path<'a>(
-    module_path: &str,
-    file_ids: &'a Vec<(&'a str, NodeIndex)>,
+    module_path: &ParsedModulePath,
+    file_ids: &'a [(MemoryResolutionFilePath, NodeIndex)],
 ) -> Option<&'a NodeIndex> {
     let needle = module_path
+        .as_str()
         .trim_start_matches("./")
         .trim_start_matches("../");
     let last_segment = needle.rsplit(['/', ':', '.']).next().unwrap_or(needle);
@@ -649,9 +685,13 @@ fn resolve_module_path<'a>(
     file_ids
         .iter()
         .find(|(rel_path, _)| {
-            let stem = rel_path.rsplit('/').next().unwrap_or(rel_path);
+            let stem = rel_path
+                .as_str()
+                .rsplit('/')
+                .next()
+                .unwrap_or(rel_path.as_str());
             let stem = stem.split('.').next().unwrap_or(stem);
-            stem == last_segment || rel_path.ends_with(last_segment)
+            stem == last_segment || rel_path.as_str().ends_with(last_segment)
         })
         .map(|(_, idx)| idx)
 }
@@ -660,13 +700,17 @@ fn resolve_module_path<'a>(
 /// an exactly-matching name, or whose name is the callee's final
 /// path/method segment (`module::func` or `obj.method` -> `func`/`method`).
 fn resolve_callee<'a>(
-    callee: &str,
-    symbol_ids: &'a Vec<(&'a str, NodeIndex)>,
+    callee: &ParsedCallee,
+    symbol_ids: &'a [(ParsedSymbolName, NodeIndex)],
 ) -> Option<&'a NodeIndex> {
-    let last_segment = callee.rsplit(['.', ':']).next().unwrap_or(callee);
+    let last_segment = callee
+        .as_str()
+        .rsplit(['.', ':'])
+        .next()
+        .unwrap_or(callee.as_str());
     symbol_ids
         .iter()
-        .find(|(name, _)| *name == callee || *name == last_segment)
+        .find(|(name, _)| name.as_str() == callee.as_str() || name.as_str() == last_segment)
         .map(|(_, idx)| idx)
 }
 
@@ -682,16 +726,16 @@ fn resolve_callee<'a>(
 /// signal (in [`crate::impact`]) would both silently fail to exclude a
 /// call that only reaches a test through its containing file's Calls
 /// edge -- the exact gap this function closes for both callers.
-pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<String> {
+pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<MemoryResolutionSymbolId> {
     let mut ids = HashSet::new();
     for node in graph.nodes() {
         if let CodeNode::Test(sym) = node {
             // CLONE-JUSTIFICATION: the returned set must own test symbol ids after the
             // input graph borrow ends.
-            ids.insert(sym.id.clone());
+            ids.insert(MemoryResolutionSymbolId::from(sym.id.as_str()));
             // CLONE-JUSTIFICATION: the returned set also owns each containing file id
             // after the input graph borrow ends.
-            ids.insert(sym.file_id.clone());
+            ids.insert(MemoryResolutionSymbolId::from(sym.file_id.as_str()));
         }
     }
     ids
@@ -709,11 +753,11 @@ impl<'a> AdjacencyView<'a> {
         Self { adjacency, graph }
     }
 
-    pub(crate) fn all_node_ids(&self) -> Vec<&str> {
-        self.adjacency.node_ids().collect()
+    pub(crate) fn all_node_ids(&self) -> Vec<MemoryResolutionSymbolId> {
+        self.adjacency.node_ids()
     }
 
-    pub(crate) fn code_node(&self, id: &str) -> Option<&CodeNode> {
-        self.graph.nodes().iter().find(|n| n.id() == id)
+    pub(crate) fn code_node(&self, id: &MemoryResolutionSymbolId) -> Option<&CodeNode> {
+        self.graph.nodes().iter().find(|n| n.id() == id.as_str())
     }
 }

@@ -4,21 +4,22 @@
 //! source bans, matching the `rules/rules.json` `validator` partition.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::BuiltInPythonRule;
 use enforcer_validator::validator::Validator;
 
-use crate::line_marker::{Guard, LineMarkerValidator, WeakAssertionValidator};
+use crate::boundary::line_marker::{Guard, LineMarkerValidator, WeakAssertionValidator};
 
 /// Build every `python/test-scan`-keyed validator this crate registers.
 pub fn all() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
     Ok(vec![
         Box::new(LineMarkerValidator::new(
-            "PY-2.1".parse()?,
+            BuiltInPythonRule::Py2Rule1.id(),
             "Skipped/focused Python tests are forbidden",
             Guard::NotInCommentOrString,
             &["pytest.mark.skip", "pytest.skip(", "unittest.skip"],
         )),
         Box::new(WeakAssertionValidator::new(
-            "PY-6.2".parse()?,
+            BuiltInPythonRule::Py6Rule2.id(),
             "Weak Python assertions are forbidden",
             &["user", "result", "value"],
         )),

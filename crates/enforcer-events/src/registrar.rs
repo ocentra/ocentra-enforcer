@@ -1,17 +1,17 @@
+use enforcer_domain::events_types::RegistrarStatus;
 use std::{future::Future, mem};
 
 use crate::{
-    DomainEvent, EventBus, EventContext, EventSubscriber, EventingError, SubscriptionHandle,
-    SubscriptionReport, UnsubscribeReport,
+    bus::{
+        publisher::EventContext,
+        subscriber::{EventSubscriber, SubscriptionHandle, SubscriptionReport, UnsubscribeReport},
+        EventBus,
+    },
+    envelope::DomainEvent,
+    error::EventingError,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum RegistrarStatus {
-    #[default]
-    Active,
-    Disposed,
-}
-
+/// Event-runtime data for event registrar.
 #[derive(Default)]
 pub struct EventRegistrar {
     handles: Vec<SubscriptionHandle>,
@@ -19,10 +19,12 @@ pub struct EventRegistrar {
 }
 
 impl EventRegistrar {
+    /// Executes the new event-runtime operation.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Executes the subscribe event-runtime operation.
     pub async fn subscribe<E, F, Fut>(
         &mut self,
         bus: &EventBus,
@@ -30,7 +32,7 @@ impl EventRegistrar {
         handler: F,
     ) -> Result<SubscriptionReport, EventingError>
     where
-        E: DomainEvent,
+        E: DomainEvent + serde::de::DeserializeOwned,
         F: Fn(EventContext<E>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<(), EventingError>> + Send + 'static,
     {
@@ -46,6 +48,7 @@ impl EventRegistrar {
         Ok(report)
     }
 
+    /// Executes the dispose event-runtime operation.
     pub fn dispose(&mut self) -> RegistrarDisposeReport {
         let handles = mem::take(&mut self.handles);
         let reports = handles
@@ -56,6 +59,7 @@ impl EventRegistrar {
         RegistrarDisposeReport { reports }
     }
 
+    /// Executes the status event-runtime operation.
     pub fn status(&self) -> RegistrarStatus {
         self.status
     }
@@ -76,6 +80,7 @@ impl Drop for EventRegistrar {
     }
 }
 
+/// Event-runtime data for registrar dispose report.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RegistrarDisposeReport {
     pub reports: Vec<UnsubscribeReport>,

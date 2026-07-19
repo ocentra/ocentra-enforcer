@@ -104,39 +104,16 @@ impl Evidence {
 // ---------------------------------------------------------------------
 // Capability manifest primitives
 // ---------------------------------------------------------------------
+use enforcer_domain::install_types::{Cap, Support};
 
 /// A bounded/unbounded/unknown numeric capacity (e.g. max concurrent
 /// agents, max sub-agent nesting depth). `Unknown` is the fail-closed
 /// default — an undetectable cap is NEVER guessed as `Unbounded` or a
 /// specific bound.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Cap {
-    /// A concrete, detected upper bound.
-    Bounded(u32),
-    /// Detected as having no enforced upper bound.
-    Unbounded,
-    /// Not detectable from available evidence — fail-closed default.
-    #[default]
-    Unknown,
-}
-
 /// Whether a harness supports a binary agentic primitive (background
 /// tasks, scheduled tasks, cross-session messaging, implicit
 /// invocation). `Unknown` is the fail-closed default — an undetectable
 /// primitive is NEVER declared `Yes`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Support {
-    /// Detected as present.
-    Yes,
-    /// Detected as absent.
-    No,
-    /// Not detectable from available evidence — fail-closed default.
-    #[default]
-    Unknown,
-}
-
 /// A capability value paired with the [`Evidence`] that justifies it.
 /// Every field of [`HarnessCapabilities`] is one of these so a value is
 /// never reported without its provenance.
@@ -144,6 +121,7 @@ pub enum Support {
 #[serde(rename_all = "camelCase")]
 pub struct CapValue {
     /// The detected/declared capacity.
+    #[serde(with = "crate::boundary::install_type_wire::cap")]
     pub value: Cap,
     /// Evidence backing `value`. Empty only when `value` is the
     /// fail-closed [`Cap::Unknown`] default with no probe attempted.
@@ -167,6 +145,7 @@ impl CapValue {
 #[serde(rename_all = "camelCase")]
 pub struct SupportValue {
     /// The detected/declared support state.
+    #[serde(with = "crate::boundary::install_type_wire::support")]
     pub value: Support,
     /// Evidence backing `value`. Empty only when `value` is the
     /// fail-closed [`Support::Unknown`] default with no probe attempted.
@@ -590,9 +569,10 @@ fn codex_capability_manifest(home: Option<&Path>, fs: &dyn FsSource) -> HarnessC
 
 /// An in-memory [`EnvSource`] for unit tests — a closed, deterministic
 /// env map with no dependency on the real process environment.
-#[derive(Debug, Clone, Default)]
 // BRAND-INVARIANT: the raw map remains private and can be populated only
 // through `with`, the closed test-fixture configuration boundary.
+#[derive(Debug, Clone, Default)]
+/// An in-memory [`EnvSource`] with no process-environment dependency.
 pub struct MapEnv(BTreeMap<String, String>);
 
 impl MapEnv {
@@ -812,10 +792,10 @@ mod tests {
         let records = detect_harnesses(&env, &fs)?;
         for record in &records {
             assert!(!record.present);
-            assert!(record
-                .evidence
-                .iter()
-                .any(|e| e.observation.contains("neither HOME nor USERPROFILE")));
+            assert!(record.evidence.iter().any(|e| e
+                .observation
+                .as_str()
+                .contains("neither HOME nor USERPROFILE")));
         }
         Ok(())
     }
@@ -837,9 +817,9 @@ mod tests {
             .ok_or("present harness must carry a capability manifest")?;
 
         assert_eq!(caps.implicit_invocation.value, Support::Yes);
-        assert!(!caps.implicit_invocation.evidence.is_empty());
+        assert_eq!(caps.implicit_invocation.evidence.len(), 1);
         assert_eq!(caps.cross_session_messaging.value, Support::Yes);
-        assert!(!caps.cross_session_messaging.evidence.is_empty());
+        assert_eq!(caps.cross_session_messaging.evidence.len(), 1);
 
         // Fields with no detector yet must stay fail-closed Unknown, never
         // guessed Yes just because implicit invocation was detected.
@@ -921,17 +901,25 @@ mod tests {
         let records = detect_harnesses(&env, &fs)?;
         let codex = find(&records, "codex")?;
         let wire = serde_json::to_string(codex)?;
-        assert!(wire.contains("\"homePath\""));
-        assert!(wire.contains("\"implicitInvocation\""));
-        assert!(wire.contains("\"crossSessionMessaging\""));
+        assert!(wire.as_str().contains("\"homePath\""));
+        assert!(wire.as_str().contains("\"implicitInvocation\""));
+        assert!(wire.as_str().contains("\"crossSessionMessaging\""));
         let back: DetectedHarness = serde_json::from_str(&wire)?;
         assert_eq!(back, *codex);
         Ok(())
     }
 
     #[test]
-    fn harness_id_serde_rejects_malformed_ids() {
+    fn harness_id_serde_rejects_malformed_ids() -> Result<(), Box<dyn std::error::Error>> {
         let outcome = serde_json::from_str::<HarnessId>("\"Not Valid\"");
-        assert!(outcome.is_err());
+        let error = outcome
+            .err()
+            .ok_or("malformed harness id must be rejected")?;
+        assert!(error.is_data(), "malformed harness id must be a data error");
+        assert!(
+            error.to_string().contains("harnessId"),
+            "error must retain the rejected domain field"
+        );
+        Ok(())
     }
 }

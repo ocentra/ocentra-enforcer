@@ -13,7 +13,7 @@ fn plan_validators_report_truncated_and_empty_documents_without_panicking(
 
     let truncated = capsule.validate(ValidationInput {
         file: &file,
-        source: "<!-- agent-capsule -->",
+        source: ValidationSource::from_text("<!-- agent-capsule -->"),
         scope: ScanScope::Files,
     });
     assert_eq!(truncated.len(), 1);
@@ -24,13 +24,16 @@ fn plan_validators_report_truncated_and_empty_documents_without_panicking(
 
     let missing_headings = skeleton.validate(ValidationInput {
         file: &file,
-        source: "",
+        source: ValidationSource::from_text(""),
         scope: ScanScope::Files,
     });
     assert_eq!(missing_headings.len(), 1);
     assert_eq!(
-        missing_headings.first().map(|finding| finding.title.as_str()),
+        missing_headings
+            .first()
+            .map(|finding| finding.title.as_str()),
         Some("missing or out-of-order required heading")
     );
     Ok(())
 }
+use enforcer_domain::boundary::validation::ValidationSource;

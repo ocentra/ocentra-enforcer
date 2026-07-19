@@ -14,7 +14,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: Common validators build findings with the shared
 # core/domain contracts and load effective policy plus registered rules.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Common validators resolve canonical rule metadata

@@ -1,9 +1,15 @@
-use enforcer_memory::search::{DocumentKind, SearchDocument};
+use enforcer_domain::memory_types::DocumentKind;
+use enforcer_memory::search::document::SearchDocument;
 
 #[test]
 fn label_boost_orders_function_above_route_above_type() {
-    assert!(DocumentKind::Function.label_boost() > DocumentKind::Route.label_boost());
-    assert!(DocumentKind::Route.label_boost() > DocumentKind::Type.label_boost());
+    assert!(
+        f64::from(DocumentKind::Function.label_boost())
+            > f64::from(DocumentKind::Route.label_boost())
+    );
+    assert!(
+        f64::from(DocumentKind::Route.label_boost()) > f64::from(DocumentKind::Type.label_boost())
+    );
 }
 
 #[test]

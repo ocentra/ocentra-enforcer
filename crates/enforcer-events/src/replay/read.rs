@@ -1,4 +1,9 @@
-use crate::{EventingError, NdjsonEventJournal, ReplayFilter, ReplayMode, ReplayReadReport};
+use crate::{
+    error::EventingError,
+    journal::ndjson::NdjsonEventJournal,
+    replay::{ReplayFilter, ReplayReadReport},
+};
+use enforcer_domain::events_types::ReplayMode;
 
 #[path = "read/record.rs"]
 mod record;
@@ -7,6 +12,7 @@ mod record;
 mod runner;
 
 impl NdjsonEventJournal {
+    /// Executes the replay projection event-runtime operation.
     pub async fn replay_projection(
         &self,
         filter: ReplayFilter,
@@ -14,6 +20,7 @@ impl NdjsonEventJournal {
         self.read(filter, ReplayMode::ProjectionOnly).await
     }
 
+    /// Executes the replay action records event-runtime operation.
     pub async fn replay_action_records(
         &self,
         filter: ReplayFilter,

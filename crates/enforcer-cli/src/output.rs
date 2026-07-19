@@ -10,7 +10,8 @@
 //! report rendered here is always the complete report the engine
 //! produced.
 
-use enforcer_domain::findings::{Finding, Report};
+use enforcer_domain::findings::{Finding, FindingLine, Report, ReportOutcome};
+use enforcer_domain::install_types::HookDecision;
 use enforcer_domain::severity::Severity;
 use std::io::{self, Write};
 
@@ -40,11 +41,15 @@ fn severity_label(severity: Severity) -> &'static str {
 }
 
 fn render_finding(finding: &Finding) -> String {
+    let line = match finding.line {
+        FindingLine::Known(line) => line.to_string(),
+        FindingLine::Unspecified => "0".to_owned(),
+    };
     format!(
         "  [{}] {}:{} {} -- {}\n    {}",
         severity_label(finding.severity),
         finding.file.as_str(),
-        finding.line,
+        line,
         finding.rule_id.as_str(),
         finding.title,
         fix_hint(&finding.rule_id),
@@ -54,7 +59,7 @@ fn render_finding(finding: &Finding) -> String {
 /// Render a full [`Report`] to stdout: a one-line summary, then every
 /// finding (violations, warnings, waived) with its `Fix:` hint.
 pub fn print_report(report: &Report) {
-    if report.ok {
+    if report.ok == ReportOutcome::Clean {
         emit_stdout(&format!(
             "enforcer: no violations ({} finding(s) total).",
             report.findings.len()
@@ -98,11 +103,31 @@ pub fn print_config_error(message: &str) {
     emit_stderr(&format!("enforcer: config error: {message}"));
 }
 
+/// Emit the Claude Code `PreToolUse` permission-decision envelope. The hook
+/// command uses this JSON as the authoritative allow/deny signal; a denial
+/// also exits with the canonical violations code so hosts that ignore the
+/// structured envelope still fail closed.
+pub fn print_pretooluse_decision(decision: &HookDecision) {
+    let (permission, reason) = match decision {
+        HookDecision::Allow => ("allow", "enforcer clean".to_owned()),
+        HookDecision::AllowWithWarning { reason } => ("allow", reason.as_str().to_owned()),
+        HookDecision::Deny { reason } => ("deny", reason.as_str().to_owned()),
+    };
+    let envelope = serde_json::json!({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": permission,
+            "permissionDecisionReason": reason,
+        }
+    });
+    emit_stdout(&envelope.to_string());
+}
+
 /// Render a literal-scan [`enforcer_literal_scan::ScanReport`] to stdout.
 /// Kept in this sink module (not `commands.rs`) so the whole crate has
 /// exactly one place that ever calls `print!`/`println!`/`eprintln!`.
 pub fn print_literal_scan_report(report: &enforcer_literal_scan::ScanReport) {
-    if report.ok {
+    if matches!(report.ok, enforcer_domain::findings::ReportOutcome::Clean) {
         emit_stdout(&format!(
             "enforcer advise literals: clean ({} literal(s) scanned).",
             report.summary.literals_found
@@ -123,26 +148,45 @@ pub fn print_literal_scan_report(report: &enforcer_literal_scan::ScanReport) {
     }
 }
 
+/// Render an enforcer-memory CLI outcome through this crate's sole stdio
+/// boundary. The memory crate deliberately returns text instead of touching
+/// stdio itself; its transport semantics (including JSON mode) stay intact.
+#[cfg(feature = "full")]
+pub fn print_memory_cli_outcome(outcome: &enforcer_memory::cli::CliOutcome) {
+    if let Some(stdout) = &outcome.stdout {
+        emit_stdout(stdout.as_str());
+    }
+    if let Some(stderr) = &outcome.stderr {
+        emit_stderr(stderr.as_str());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{render_finding, write_line};
-    use enforcer_domain::findings::Finding;
+    use enforcer_domain::findings::{Finding, FindingDetail, FindingLine, FindingTitle};
     use enforcer_domain::severity::Severity;
+    use enforcer_domain::telemetry_types::SourceLine;
+    use std::num::NonZeroU32;
 
     #[test]
     fn rendered_finding_always_carries_a_fix_hint() -> Result<(), Box<dyn std::error::Error>> {
         let finding = Finding {
             rule_id: "RR-6.1".parse()?,
             severity: Severity::Error,
-            title: "unwrap() in first-party code".to_owned(),
-            detail: "d".to_owned(),
+            title: FindingTitle::new("unwrap() in first-party code".to_owned())?,
+            detail: FindingDetail::new("d".to_owned())?,
             file: "src/lib.rs".parse()?,
-            line: 3,
+            line: FindingLine::known(SourceLine::try_new(
+                NonZeroU32::new(3).ok_or("test line must be positive")?,
+            )),
             snippet: None,
         };
         let rendered = render_finding(&finding);
-        assert!(rendered.contains("Fix:"));
-        assert!(rendered.contains("RR-6.1"));
+        assert_eq!(
+            rendered,
+            "  [error] src/lib.rs:3 RR-6.1 -- unwrap() in first-party code\n    Fix: replace unwrap()/expect()/panic! with a typed Result and `?`."
+        );
         Ok(())
     }
 

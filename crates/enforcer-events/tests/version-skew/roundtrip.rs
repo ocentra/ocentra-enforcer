@@ -1,12 +1,15 @@
-use enforcer_events::envelope::{
-    DomainEvent, EventContract, EventEnvelope, EventMetadata, EventSource, StoredEventEnvelope,
-};
-use enforcer_events::error::EventingError;
-use enforcer_events::ids::{
+use enforcer_domain::events_types::{
     AggregateKey, CorrelationId, EventCustody, EventId, EventType, IdempotencyKey, RecordedAt,
     RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService, TargetHandler,
 };
-use serde::{Deserialize, Serialize};
+use enforcer_events::boundary::stored_event_persistence::{
+    StoredEventEnvelope, StoredEventEnvelopeDto,
+};
+use enforcer_events::envelope::{
+    DomainEvent, EventContract, EventFrame, EventMetadata, EventSource,
+};
+use enforcer_events::error::EventingError;
+use serde::{de::Error as _, Deserialize, Serialize};
 
 const TEST_EVENT_TYPE: &str = "eventing.version-skew.roundtrip";
 const TEST_EVENT_ID: &str = "eventing-version-skew-event-id";
@@ -30,30 +33,31 @@ impl DomainEvent for VersionedRoundtripEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             EventType::parse(TEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(TEST_AGGREGATE_KEY)
+        Ok(AggregateKey::parse(TEST_AGGREGATE_KEY)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(TEST_IDEMPOTENCY_KEY)
+        Ok(IdempotencyKey::parse(TEST_IDEMPOTENCY_KEY)?)
     }
 }
 
 #[test]
 fn stored_envelope_rejects_newer_schema_version_without_silent_decode(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let live = EventEnvelope::from_event(
+    let live = EventFrame::from_event(
         VersionedRoundtripEvent {
             label: String::from("current-contract"),
         },
         metadata()?,
     )?;
     let mut stored = live.store()?;
-    stored.contract.schema_version = SchemaVersion::new(2)?;
+    stored.contract.schema_version =
+        SchemaVersion::try_new(std::num::NonZeroU16::new(2).ok_or(EventingError::InvalidVersion)?);
 
     let error = match stored.decode::<VersionedRoundtripEvent>() {
         Err(e) => e,
@@ -69,8 +73,10 @@ fn stored_envelope_rejects_newer_schema_version_without_silent_decode(
         EventingError::ContractMismatch {
             expected: EventType::parse(TEST_EVENT_TYPE)?,
             received: EventType::parse(TEST_EVENT_TYPE)?,
-            expected_schema_version: SchemaVersion::new(1)?,
-            received_schema_version: SchemaVersion::new(2)?,
+            expected_schema_version: SchemaVersion::try_new(std::num::NonZeroU16::MIN),
+            received_schema_version: SchemaVersion::try_new(
+                std::num::NonZeroU16::new(2).ok_or(EventingError::InvalidVersion)?,
+            ),
         }
     );
     assert_eq!(
@@ -84,21 +90,23 @@ fn stored_envelope_rejects_newer_schema_version_without_silent_decode(
 #[test]
 fn stored_envelope_rejects_older_schema_version_without_silent_decode(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let live = EventEnvelope::from_event(
+    let live = EventFrame::from_event(
         VersionedRoundtripEvent {
             label: String::from("current-contract"),
         },
         metadata()?,
     )?;
     let mut stored = live.store()?;
-    stored.contract.schema_version = SchemaVersion::new(1)?;
+    stored.contract.schema_version = SchemaVersion::try_new(std::num::NonZeroU16::MIN);
 
-    let stored_json = serde_json::to_value(&stored)?;
+    let stored_json = serde_json::to_value(StoredEventEnvelopeDto::from(&stored))?;
     let mut skewed_json = stored_json;
     skewed_json["contract"]["schemaVersion"] = serde_json::Value::from(0);
 
     let error =
-        match serde_json::from_value::<StoredEventEnvelope>(skewed_json) {
+        match serde_json::from_value::<StoredEventEnvelopeDto>(skewed_json)
+            .and_then(|wire| StoredEventEnvelope::try_from(wire).map_err(serde_json::Error::custom))
+        {
             Err(e) => e,
             Ok(_) => return Err(
                 "zero stored schema version must fail during deserialize: expected Err but got Ok"

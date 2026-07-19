@@ -14,7 +14,9 @@
 //! it carries) is the single source of truth both hooks read from, so the
 //! PreToolUse deny reason and the SessionStart reminder can never drift
 //! against each other.
+#[path = "../boundary/pretooluse.rs"]
 pub mod pretooluse;
+#[path = "../boundary/sessionstart.rs"]
 pub mod sessionstart;
 
 /// Tier token embedded verbatim in [`DOCTRINE_TEXT`] — a hard/deterministic
@@ -69,9 +71,9 @@ mod tests {
 
     #[test]
     fn doctrine_text_carries_every_tier_token() {
-        assert!(DOCTRINE_TEXT.contains(TIER_T1_TOKEN));
-        assert!(DOCTRINE_TEXT.contains(TIER_T2_TOKEN));
-        assert!(DOCTRINE_TEXT.contains(TIER_T3_TOKEN));
+        assert_eq!(DOCTRINE_TEXT.match_indices(TIER_T1_TOKEN).count(), 1);
+        assert_eq!(DOCTRINE_TEXT.match_indices(TIER_T2_TOKEN).count(), 1);
+        assert_eq!(DOCTRINE_TEXT.match_indices(TIER_T3_TOKEN).count(), 1);
     }
 
     #[test]

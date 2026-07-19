@@ -1,14 +1,15 @@
-//! `iac/k8s-*` — the Kubernetes-manifest slice of the IaC rule family:
-//! IAC-1.8.
+//! Kubernetes-manifest built-in IaC detection specifications.
 
-use super::spec::{RuleSpec, TriggerKind};
+use enforcer_domain::ids::BuiltInIacRule;
 
-/// Every Kubernetes-manifest rule's static spec, in `rules/rules.json`
-/// declaration order.
-pub const SPECS: &[RuleSpec] = &[RuleSpec {
-    rule_id: "IAC-1.8",
-    title: "Kubernetes containers must not run privileged",
+use super::spec::{CommentPolicy, RuleSpec, TriggerKind};
+use crate::boundary::source_text::IacPattern;
+
+const PRIVILEGED_CONTAINER: &[IacPattern] = &[IacPattern::PrivilegedContainer];
+
+pub(crate) const SPECS: &[RuleSpec] = &[RuleSpec {
+    rule: BuiltInIacRule::KubernetesPrivilegedContainer,
     kind: TriggerKind::ForbiddenPresent,
-    needles: &["privileged: true"],
-    comment_guard: true,
+    patterns: PRIVILEGED_CONTAINER,
+    comments: CommentPolicy::Ignore,
 }];

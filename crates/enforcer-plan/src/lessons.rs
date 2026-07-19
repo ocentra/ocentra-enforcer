@@ -47,258 +47,117 @@
 //! through `enforcer_plan::lessons::*` directly.
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
 
 use enforcer_core::hash_chain::{link_digest, verify_chain};
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::core_types::ChainBreak;
 use enforcer_domain::findings::Finding;
+use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::plan_types::{
+    ArtifactRef, CapturedDate, LedgerLineIndex, LessonDomain, LessonId, LessonRoute,
+    LessonSequence, LessonText, ObservedEvidence, PlanArtifactPath, PlanCondition,
+    PlanDocumentText, PlanEmissionMode, PlanFileContent, PlanImportCount, PlanWriteOutcome,
+    RuleCandidateFixtures,
+};
 use enforcer_domain::severity::Severity;
 
+use crate::boundary::finding::build_lesson_finding as lesson_finding;
+use crate::boundary::lessons::{
+    artifact_error, decode_memory_stream_record, parse_seed_rows, render_lesson_template,
+    replace_or_append_block, LedgerLine, MemoryStreamRecord, SeedRow,
+};
+use crate::boundary::values::{artifact_path, diagnostic_detail, document_text, file_content};
 use crate::error::PlanError;
 
-// ---------------------------------------------------------------------
-// Branded ids
-// ---------------------------------------------------------------------
-
-/// Declare a branded string newtype with a validation function, serde
-/// parse-at-boundary wiring, and accessors. A crate-local copy of the same
-/// minimal contract `enforcer_domain::ids` establishes (that macro is
-/// private to its own crate) — this module's ids are `enforcer-plan`-local,
-/// not workspace-shared domain ids, so they live here rather than being
-/// smuggled into `enforcer-domain` for one feature pack.
-macro_rules! branded_string {
-    ($(#[$doc:meta])* $name:ident, $field_path:literal, $validate:path) => {
-        $(#[$doc])*
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
-        #[serde(try_from = "String", into = "String")]
-        pub struct $name(String);
-
-        impl $name {
-            /// View the validated inner value.
-            pub fn as_str(&self) -> &str {
-                &self.0
-            }
-        }
-
-        impl TryFrom<String> for $name {
-            type Error = DecodeError;
-
-            fn try_from(raw: String) -> Result<Self, DecodeError> {
-                $validate(&raw)?;
-                Ok(Self(raw))
-            }
-        }
-
-        impl std::str::FromStr for $name {
-            type Err = DecodeError;
-
-            fn from_str(raw: &str) -> Result<Self, DecodeError> {
-                Self::try_from(raw.to_owned())
-            }
-        }
-
-        impl From<$name> for String {
-            fn from(value: $name) -> String {
-                value.0
-            }
-        }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str(&self.0)
-            }
-        }
+fn seed_row_to_record(row: SeedRow) -> Result<LessonRecord, PlanError> {
+    let SeedRow {
+        id: raw_id,
+        date,
+        observed,
+        lesson,
+        landed_at: raw_landed_at,
+        ships_via,
+    } = row;
+    let landed_at = if raw_landed_at.trim().is_empty() {
+        Vec::new()
+    } else {
+        vec![ArtifactRef::try_from(format!(
+            "{}#{}",
+            "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md", raw_id
+        ))
+        .map_err(seed_decode_error)?]
     };
+    let observed = observed.parse().map_err(seed_decode_error)?;
+    let ships_via = file_content(ships_via);
+    let landed_at_text = file_content(raw_landed_at);
+    let domain = sniff_domain(&observed);
+    let routes = sniff_routes(&ships_via, &landed_at_text);
+    Ok(LessonRecord {
+        id: LessonId::try_from(raw_id).map_err(seed_decode_error)?,
+        date: date.parse().map_err(seed_decode_error)?,
+        domain,
+        observed,
+        lesson: lesson.parse().map_err(seed_decode_error)?,
+        routes,
+        landed_at,
+        supersedes_seq: None,
+    })
 }
 
-fn validate_lesson_id(raw: &str) -> Result<(), DecodeError> {
-    // e.g. `L1`, `L26`, `L11-FILL` (the seed corpus's own supersede-fill
-    // convention for a row whose `landed-at` was pending).
-    let ok = raw
-        .strip_prefix('L')
-        .and_then(|rest| {
-            let (number, suffix) = rest
-                .split_once('-')
-                .map_or((rest, None), |(number, suffix)| (number, Some(suffix)));
-            let number_is_valid = !number.is_empty() && number.chars().all(|c| c.is_ascii_digit());
-            let suffix_is_valid = suffix.is_none_or(|suffix| {
-                !suffix.is_empty()
-                    && suffix.split('-').all(|segment| {
-                        !segment.is_empty() && segment.chars().all(|c| c.is_ascii_alphanumeric())
-                    })
-            });
-            (number_is_valid && suffix_is_valid).then_some(())
-        })
-        .is_some();
-    if ok {
-        Ok(())
+fn seed_decode_error(error: DecodeError) -> PlanError {
+    PlanError::SeedDecode(error)
+}
+
+fn sniff_routes(ships_via: &PlanFileContent, landed_at: &PlanFileContent) -> Vec<LessonRoute> {
+    let haystack = format!("{} {}", ships_via.as_str(), landed_at.as_str()).to_lowercase();
+    let mut routes = Vec::new();
+    if haystack.contains("doctrine payload") || haystack.contains("c01") {
+        routes.push(LessonRoute::DoctrineBlock);
+    }
+    if haystack.contains("skill") {
+        routes.push(LessonRoute::Skill);
+    }
+    if haystack.contains("rule") || haystack.contains("d01") || haystack.contains("d-track") {
+        routes.push(LessonRoute::RuleCandidate);
+    }
+    if haystack.contains("forest") || haystack.contains("b06") {
+        routes.push(LessonRoute::ForestNode);
+    }
+    if routes.is_empty() {
+        routes.push(LessonRoute::PlanDoc);
+    }
+    routes
+}
+
+fn sniff_domain(observed: &ObservedEvidence) -> LessonDomain {
+    if observed
+        .as_str()
+        .to_lowercase()
+        .trim_start()
+        .starts_with("[code]")
+    {
+        LessonDomain::Code
     } else {
-        Err(DecodeError::new(
-            "lessonId",
-            "expected `L<number>[-SUFFIX]` (e.g. `L1`, `L26`, `L11-FILL`)",
-        ))
+        LessonDomain::Harness
     }
 }
 
-fn validate_artifact_ref(raw: &str) -> Result<(), DecodeError> {
-    let ok = !raw.is_empty() && raw.len() <= 512;
-    if ok {
-        Ok(())
-    } else {
-        Err(DecodeError::new(
-            "artifactRef",
-            "expected a non-empty landed-artifact reference (path#anchor or path)",
-        ))
-    }
-}
+// ---------------------------------------------------------------------
+// Canonical lesson records
+// ---------------------------------------------------------------------
 
-branded_string!(
-    /// Branded lesson identifier (e.g. `L1`, `L26`, `L11-FILL`).
-    LessonId,
-    "lessonId",
-    validate_lesson_id
-);
-
-branded_string!(
-    /// Branded reference to a landed artifact (a file path, optionally with
-    /// a `#anchor` naming the exact managed block/section that contains the
-    /// lesson id).
-    ArtifactRef,
-    "artifactRef",
-    validate_artifact_ref
-);
-
-/// Invalid date shapes are rejected at the persistence boundary; the empty
-/// value remains the explicit representation of a legacy stream omission.
-fn validate_captured_date(raw: &str) -> Result<(), DecodeError> {
-    let is_iso_date = raw.len() == 10
-        && raw.as_bytes().get(4) == Some(&b'-')
-        && raw.as_bytes().get(7) == Some(&b'-')
-        && raw
-            .chars()
-            .enumerate()
-            .all(|(index, character)| matches!(index, 4 | 7) || character.is_ascii_digit());
-    if raw.is_empty() || is_iso_date {
-        Ok(())
-    } else {
-        Err(DecodeError::new(
-            "capturedDate",
-            "expected an ISO-8601 YYYY-MM-DD date or an absent date from a legacy stream",
-        ))
-    }
-}
-
-fn validate_lesson_text(raw: &str) -> Result<(), DecodeError> {
-    if raw.trim().is_empty() {
-        Err(DecodeError::new(
-            "lessonText",
-            "expected non-empty lesson text",
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_observed_evidence(_: &str) -> Result<(), DecodeError> {
-    // Worker-memory imports may not carry an observation; preserve that
-    // historical boundary input as an explicit empty evidence value.
-    Ok(())
-}
-
-branded_string!(
-    /// Captured calendar date, or the explicit empty legacy-stream value.
-    CapturedDate,
-    "capturedDate",
-    validate_captured_date
-);
-
-branded_string!(
-    /// The durable lesson statement; empty lessons cannot enter the ledger.
-    LessonText,
-    "lessonText",
-    validate_lesson_text
-);
-
-branded_string!(
-    /// Observed evidence attached to a lesson capture.
-    ObservedEvidence,
-    "observedEvidence",
-    validate_observed_evidence
-);
-
+// Historical lesson brands now live in `enforcer_domain::plan_types`; this
+// module consumes those canonical types and owns only their persistence flow.
 // ---------------------------------------------------------------------
 // Record shape
 // ---------------------------------------------------------------------
 
-/// The learning thesis is DUAL-DOMAIN (`RUST_ARCHITECTURE` "The learning
-/// thesis"): orchestration/protocol lessons and coding-fault/fix-pattern
-/// lessons flow through the same loop.
-/// SERIALIZATION-DOC: this is the stable persisted vocabulary for an
-/// append-only lesson ledger. Its existing scalar representation is retained
-/// so a reader can replay historic rows without a lossy format migration.
-/// SERDE-TAG-JUSTIFICATION: this unit-only vocabulary is deliberately stored
-/// as a scalar domain name; an adjacent tag would change canonical historic
-/// ledger rows without adding information.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum LessonDomain {
-    /// An orchestration/protocol/harness lesson (mail lifecycle, claim
-    /// discipline, worktree hygiene, ...).
-    Harness,
-    /// A coding-fault/fix-pattern lesson. Routed `RuleCandidate` REQUIRES
-    /// fail/pass fixtures at landing (see [`LessonRoute::RuleCandidate`]).
-    Code,
-}
-
-/// One harness surface a lesson can ship through.
-/// SERIALIZATION-DOC: route names are durable ledger values. Keeping their
-/// scalar representation makes previous append-only records replayable.
-/// SERDE-TAG-JUSTIFICATION: this unit-only vocabulary is deliberately stored
-/// as a single stable route name; adding an adjacent tag would change the
-/// canonical bytes used by the existing hash chain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum LessonRoute {
-    /// The c01 shared install payload (`AGENTS.md`/`CLAUDE.md` managed
-    /// blocks).
-    DoctrineBlock,
-    /// A keyed section appended to the enforcer skill.
-    Skill,
-    /// A d01 scaffolder rule-candidate input stub. A `Code`-domain lesson
-    /// routed here REQUIRES fail/pass fixtures at landing — the d01 parity
-    /// oracle applies; a coding lesson without fixtures cannot land.
-    RuleCandidate,
-    /// A b06 decision-forest node fragment.
-    ForestNode,
-    /// An `EXECUTION_MODEL` §-ref. TRANSITIONAL ONLY: prose is not a
-    /// landing, so a lesson whose ONLY route is `PlanDoc` is flagged
-    /// `Severity::Warning` by [`run_doctor`], never `Severity::Error`.
-    PlanDoc,
-}
-
-impl LessonRoute {
-    /// The `templates/lesson-<kind>.tpl` file this route renders from, or
-    /// `None` for [`LessonRoute::PlanDoc`] (a plan-doc route has no
-    /// dedicated emitter template — it names an existing plan section by
-    /// convention, it does not render a new artifact).
-    pub fn template_name(self) -> Option<&'static str> {
-        match self {
-            LessonRoute::DoctrineBlock => Some("lesson-doctrine-block.tpl"),
-            LessonRoute::Skill => Some("lesson-skill.tpl"),
-            LessonRoute::RuleCandidate => Some("lesson-rule-candidate.tpl"),
-            LessonRoute::ForestNode => Some("lesson-forest-node.tpl"),
-            LessonRoute::PlanDoc => None,
-        }
-    }
-}
-
 /// One captured lesson. serde camelCase on the wire (workspace convention).
 /// SERIALIZATION-DOC: the append-only ledger serializes this exact public
 /// record; boundary decoding validates its branded values before persistence.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LessonRecord {
     /// Branded lesson id (`L1`, `L26`, `L11-FILL`, ...). Globally unique;
     /// ids never reset (L18 doctrine, applies equally to the mechanized
@@ -326,26 +185,24 @@ pub struct LessonRecord {
     /// closed on).
     // DEFAULT-JUSTIFICATION: historical append-only rows predate this
     // collection; absent data is the same as no landed artifact references.
-    #[serde(default)]
     pub landed_at: Vec<ArtifactRef>,
     /// Set on a supersede-append record: the id of the earlier record this
     /// one supersedes (same `id`, later journal position). `None` on a
     /// lesson's first capture.
     // DEFAULT-JUSTIFICATION: old rows have no supersession and must retain
     // that explicit `None` state when replayed.
-    #[serde(default)]
-    pub supersedes_seq: Option<usize>,
+    pub supersedes_seq: Option<LessonSequence>,
 }
 
 impl LessonRecord {
     /// True when every declared route has landed (or the lesson declares no
     /// routes needing a landing — i.e. every route is `PlanDoc`).
-    pub fn is_fully_landed(&self) -> bool {
+    pub fn landing_condition(&self) -> PlanCondition {
         // A captured lesson with no route has no landing plan yet. It must
         // remain pending so the CLI's pending view agrees with `run_doctor`'s
         // fail-closed treatment of an unrouted ledger row.
         if self.routes.is_empty() {
-            return false;
+            return PlanCondition::Unsatisfied;
         }
         let required_routes = self
             .routes
@@ -354,13 +211,21 @@ impl LessonRecord {
             .filter(|route| *route != LessonRoute::PlanDoc)
             .collect::<HashSet<_>>();
         let landed_artifacts = self.landed_at.iter().collect::<HashSet<_>>();
-        required_routes.len() <= landed_artifacts.len()
+        if required_routes.len() <= landed_artifacts.len() {
+            PlanCondition::Satisfied
+        } else {
+            PlanCondition::Unsatisfied
+        }
     }
 
     /// True when this lesson's only declared route(s) are `PlanDoc`
     /// (transitional-only capture, never `Severity::Error`).
-    pub fn is_plan_doc_only(&self) -> bool {
-        !self.routes.is_empty() && self.routes.iter().all(|r| *r == LessonRoute::PlanDoc)
+    pub fn plan_doc_condition(&self) -> PlanCondition {
+        if !self.routes.is_empty() && self.routes.iter().all(|r| *r == LessonRoute::PlanDoc) {
+            PlanCondition::Satisfied
+        } else {
+            PlanCondition::Unsatisfied
+        }
     }
 }
 
@@ -372,19 +237,13 @@ impl LessonRecord {
 /// in the previous line's digest. Mirrors `enforcer-proof`'s
 /// `JournalLine` shape exactly (same tamper-evidence contract), kept
 /// crate-local since `enforcer-plan` does not depend on `enforcer-proof`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-struct LedgerLine {
-    record: LessonRecord,
-    digest: String,
-}
-
 /// An append-only, hash-chained NDJSON lesson ledger at `path` (by
 /// convention `.enforce/lessons.ndjson`, but callers inject the path so
 /// tests never touch a real repo-relative location).
 #[derive(Debug)]
 pub struct LessonLedger {
-    path: PathBuf,
-    last_digest: Option<String>,
+    path: PlanArtifactPath,
+    last_digest: Option<Sha256>,
 }
 
 /// Ledger tamper detected on open or replay: a prior row's recorded digest
@@ -400,20 +259,20 @@ pub struct LessonLedger {
 )]
 pub struct LedgerTamper {
     /// Zero-based line index of the first broken link.
-    line_index: usize,
+    line_index: LedgerLineIndex,
     /// The digest recorded on the broken line.
-    recorded: String,
+    recorded: Sha256,
     /// The digest recomputed from payload + previous digest.
-    expected: String,
+    expected: Sha256,
 }
 
 impl LessonLedger {
     /// Open (or create) the ledger at `path`, verifying the existing chain
     /// (if any) before returning. Fails closed on any break — the same
     /// verify-on-open discipline `enforcer-proof`'s journal uses.
-    pub fn open(path: &Path) -> Result<Self, PlanError> {
-        let last_digest = if path.exists() {
-            let lines = read_lines(path)?;
+    pub fn open(path: PlanArtifactPath) -> Result<Self, PlanError> {
+        let last_digest = if path.as_path().exists() {
+            let lines = read_lines(&path)?;
             verify_lines(&lines)?;
             // CLONE-JUSTIFICATION: the ledger retains the terminal digest
             // after the parsed line vector is dropped, so the next append
@@ -422,10 +281,7 @@ impl LessonLedger {
         } else {
             None
         };
-        Ok(Self {
-            path: path.to_path_buf(),
-            last_digest,
-        })
+        Ok(Self { path, last_digest })
     }
 
     /// Append one NEW lesson capture. Fails if a record with the same id
@@ -434,25 +290,25 @@ impl LessonLedger {
     /// of calling `append` again for the same id).
     pub fn append(&mut self, record: LessonRecord) -> Result<(), PlanError> {
         if record.supersedes_seq.is_some() {
-            return Err(PlanError::Io {
-                path: self.path.display().to_string(),
-                reason: format!(
+            return Err(artifact_error(
+                &self.path,
+                format!(
                     "lesson `{}` declares a supersession; use supersede to create linked ledger rows",
                     record.id
                 ),
-            });
+            ));
         }
         let existing = self.list()?;
         if existing.iter().any(|r| r.id == record.id) {
             // ALLOC-JUSTIFICATION: `PlanError` owns a stable filesystem
             // location and diagnostic after this failed append returns.
-            return Err(PlanError::Io {
-                path: self.path.display().to_string(),
-                reason: format!(
+            return Err(artifact_error(
+                &self.path,
+                format!(
                     "lesson `{}` already captured; use supersede to fill in landed_at",
                     record.id
                 ),
-            });
+            ));
         }
         self.write_line(record)
     }
@@ -475,9 +331,11 @@ impl LessonLedger {
             .find(|(_, r)| r.id == *id)
             // ALLOC-JUSTIFICATION: the error crosses this lookup boundary
             // and must retain the owned ledger path and lesson identity.
-            .ok_or_else(|| PlanError::Io {
-                path: self.path.display().to_string(),
-                reason: format!("cannot supersede unknown lesson `{id}`"),
+            .ok_or_else(|| {
+                artifact_error(
+                    &self.path,
+                    format!("cannot supersede unknown lesson `{id}`"),
+                )
             })?;
         // CLONE-JUSTIFICATION: supersession writes a new immutable ledger
         // row; the verified prior row must remain unchanged in the history.
@@ -487,18 +345,16 @@ impl LessonLedger {
                 merged.landed_at.push(artifact);
             }
         }
-        merged.supersedes_seq = Some(seq);
+        merged.supersedes_seq = Some(PlanImportCount::from(seq).into());
         self.write_line(merged)
     }
 
     fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
         // ALLOC-JUSTIFICATION: canonical journal bytes and digest text outlive
         // serialization frames and are persisted as one immutable chain row.
-        let canonical = serde_json::to_vec(&record).map_err(|e| PlanError::Io {
-            path: self.path.display().to_string(),
-            reason: e.to_string(),
-        })?;
-        let digest = link_digest(self.last_digest.as_deref(), &canonical);
+        let canonical =
+            serde_json::to_vec(&record).map_err(|error| artifact_error(&self.path, error))?;
+        let digest = link_digest(self.last_digest.as_ref(), &canonical);
         // CLONE-JUSTIFICATION: the writer borrows a line while `last_digest`
         // must retain the same value for the subsequent append.
         let line = LedgerLine {
@@ -506,16 +362,11 @@ impl LessonLedger {
             digest: digest.clone(),
         };
         let mut writer: enforcer_core::ndjson_writer::NdjsonWriter<LedgerLine> =
-            enforcer_core::ndjson_writer::NdjsonWriter::open(&self.path).map_err(|e| {
-                PlanError::Io {
-                    path: self.path.display().to_string(),
-                    reason: e.to_string(),
-                }
-            })?;
-        writer.append(&line).map_err(|e| PlanError::Io {
-            path: self.path.display().to_string(),
-            reason: e.to_string(),
-        })?;
+            enforcer_core::ndjson_writer::NdjsonWriter::open(self.path.as_path())
+                .map_err(|error| artifact_error(&self.path, error))?;
+        writer
+            .append(&line)
+            .map_err(|error| artifact_error(&self.path, error))?;
         self.last_digest = Some(digest);
         Ok(())
     }
@@ -523,10 +374,10 @@ impl LessonLedger {
     /// Re-read the ledger from disk and verify-on-replay (independent of
     /// in-memory state, so a caller can re-validate a ledger another
     /// process may have appended to since it was opened).
-    pub fn verify_on_replay(&self) -> Result<usize, PlanError> {
+    pub fn verify_on_replay(&self) -> Result<PlanImportCount, PlanError> {
         let lines = read_lines(&self.path)?;
         verify_lines(&lines)?;
-        Ok(lines.len())
+        Ok(PlanImportCount::from(lines.len()))
     }
 
     /// Every record currently on disk, in append order (INCLUDING
@@ -554,16 +405,14 @@ impl LessonLedger {
     }
 }
 
-fn read_lines(path: &Path) -> Result<Vec<LedgerLine>, PlanError> {
-    if !path.exists() {
+fn read_lines(path: &PlanArtifactPath) -> Result<Vec<LedgerLine>, PlanError> {
+    if !path.as_path().exists() {
         return Ok(Vec::new());
     }
     // ALLOC-JUSTIFICATION: IO diagnostics outlive the source error and must
     // own the requested ledger path and operating-system message.
-    enforcer_core::ndjson_writer::read_all(path).map_err(|e| PlanError::Io {
-        path: path.display().to_string(),
-        reason: e.to_string(),
-    })
+    enforcer_core::ndjson_writer::read_all(path.as_path())
+        .map_err(|error| crate::boundary::lessons::artifact_error(path, error))
 }
 
 fn verify_lines(lines: &[LedgerLine]) -> Result<(), PlanError> {
@@ -573,22 +422,45 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<(), PlanError> {
         .iter()
         .map(|line| {
             serde_json::to_vec(&line.record).map_err(|error| PlanError::Io {
-                path: "lesson ledger".into(),
-                reason: format!("{error}"),
+                path: artifact_path("lesson ledger".into()),
+                reason: diagnostic_detail(format!("{error}")),
             })
         })
         .collect::<Result<_, _>>()?;
     let links = canonical
         .iter()
         .map(Vec::as_slice)
-        .zip(lines.iter().map(|line| line.digest.as_str()));
-    verify_chain(links)
-        .map_err(|break_| LedgerTamper {
-            line_index: break_.index,
-            recorded: break_.recorded,
-            expected: break_.expected,
-        })
-        .map_err(|tamper| tamper_to_plan_error(&tamper))?;
+        .zip(lines.iter().map(|line| &line.digest));
+    verify_chain(links).map_err(|chain_break| match chain_break {
+        ChainBreak::DigestMismatch {
+            index,
+            recorded,
+            expected,
+        } => {
+            let index_value: usize = index.into();
+            tamper_to_plan_error(&LedgerTamper {
+                line_index: PlanImportCount::from(index_value).into(),
+                recorded,
+                expected,
+            })
+        }
+        ChainBreak::LengthMismatch {
+            recorded_digests,
+            data_lines,
+            ..
+        } => PlanError::Io {
+            path: artifact_path("lesson ledger".into()),
+            reason: {
+                let recorded_count: usize = recorded_digests.into();
+                let data_count: usize = data_lines.into();
+                diagnostic_detail(format!(
+                    "hash-chain length mismatch: {} recorded digest(s), {} data line(s)",
+                    PlanImportCount::from(recorded_count),
+                    PlanImportCount::from(data_count)
+                ))
+            },
+        },
+    })?;
     verify_supersession_state(lines)?;
     Ok(())
 }
@@ -601,16 +473,19 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<(), PlanError> {
 fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
     for (index, line) in lines.iter().enumerate() {
         let invalid = |reason: &str| PlanError::Io {
-            path: "lesson ledger".into(),
-            reason: format!("invalid lesson supersession at line {index}: {reason}"),
+            path: artifact_path("lesson ledger".into()),
+            reason: diagnostic_detail(format!(
+                "invalid lesson supersession at line {index}: {reason}"
+            )),
         };
         let Some(prior_index) = line.record.supersedes_seq else {
             continue;
         };
-        let Some(prior) = lines.get(prior_index) else {
+        let prior_position = usize::from(PlanImportCount::from(prior_index));
+        let Some(prior) = lines.get(prior_position) else {
             return Err(invalid("references a missing prior row"));
         };
-        if prior_index >= index {
+        if prior_position >= index {
             return Err(invalid("must reference an earlier row"));
         }
         if prior.record.id != line.record.id {
@@ -623,8 +498,8 @@ fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
             .filter_map(|(candidate_index, candidate)| {
                 (candidate.record.id == line.record.id).then_some(candidate_index)
             })
-            .last();
-        if latest_prior_index != Some(prior_index) {
+            .next_back();
+        if latest_prior_index != Some(prior_position) {
             return Err(invalid(
                 "does not extend the latest prior state for its lesson",
             ));
@@ -653,8 +528,8 @@ fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
     // ALLOC-JUSTIFICATION: typed diagnostics own the tamper description once
     // the borrowed verification report is no longer available.
     PlanError::Io {
-        path: "lesson ledger".to_owned(),
-        reason: tamper.to_string(),
+        path: artifact_path("lesson ledger".into()),
+        reason: diagnostic_detail(tamper.to_string()),
     }
 }
 
@@ -664,7 +539,7 @@ fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
 
 /// `enforcer lesson add` — capture a new lesson. CLI seam for arc-22, MCP
 /// tool seam for arc-21.
-pub fn add(ledger_path: &Path, record: LessonRecord) -> Result<LessonRecord, PlanError> {
+pub fn add(ledger_path: PlanArtifactPath, record: LessonRecord) -> Result<LessonRecord, PlanError> {
     let mut ledger = LessonLedger::open(ledger_path)?;
     // CLONE-JUSTIFICATION: append consumes the persisted row while the CLI
     // contract returns the caller's original validated record.
@@ -675,17 +550,17 @@ pub fn add(ledger_path: &Path, record: LessonRecord) -> Result<LessonRecord, Pla
 /// `enforcer lesson list` — list captured lessons, optionally filtered by
 /// route or pending-only (a lesson with at least one un-landed route).
 pub fn list(
-    ledger_path: &Path,
+    ledger_path: PlanArtifactPath,
     route_filter: Option<LessonRoute>,
-    pending_only: bool,
+    pending_only: PlanCondition,
 ) -> Result<Vec<LessonRecord>, PlanError> {
     let ledger = LessonLedger::open(ledger_path)?;
     let mut records = ledger.latest()?;
     if let Some(route) = route_filter {
         records.retain(|r| r.routes.contains(&route));
     }
-    if pending_only {
-        records.retain(|r| !r.is_fully_landed());
+    if matches!(pending_only, PlanCondition::Satisfied) {
+        records.retain(|record| matches!(record.landing_condition(), PlanCondition::Unsatisfied));
     }
     Ok(records)
 }
@@ -697,9 +572,13 @@ pub fn list(
 pub trait EmitFs {
     /// Read a file's content. A missing file is `Ok(None)`; an unreadable
     /// existing path is a typed error and must never be mistaken for absence.
-    fn read(&self, path: &Path) -> Result<Option<String>, PlanError>;
+    fn read(&self, path: &PlanArtifactPath) -> Result<Option<PlanFileContent>, PlanError>;
     /// Write a file's full content (creating parent dirs as needed).
-    fn write(&mut self, path: &Path, content: &str) -> Result<(), PlanError>;
+    fn write(
+        &mut self,
+        path: &PlanArtifactPath,
+        content: &PlanFileContent,
+    ) -> Result<(), PlanError>;
 }
 
 /// A real-filesystem [`EmitFs`] implementation.
@@ -707,99 +586,47 @@ pub trait EmitFs {
 pub struct RealFs;
 
 impl EmitFs for RealFs {
-    fn read(&self, path: &Path) -> Result<Option<String>, PlanError> {
-        match std::fs::read_to_string(path) {
-            Ok(content) => Ok(Some(content)),
+    fn read(&self, path: &PlanArtifactPath) -> Result<Option<PlanFileContent>, PlanError> {
+        match std::fs::read_to_string(path.as_path()) {
+            Ok(content) => Ok(Some(file_content(content))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             // ALLOC-JUSTIFICATION: PlanError owns the failed boundary path
             // and diagnostic after the operating-system error is released.
-            Err(error) => Err(PlanError::Io {
-                path: path.display().to_string(),
-                reason: error.to_string(),
-            }),
+            Err(error) => Err(artifact_error(path, error)),
         }
     }
 
-    fn write(&mut self, path: &Path, content: &str) -> Result<(), PlanError> {
-        if let Some(parent) = path.parent() {
+    fn write(
+        &mut self,
+        path: &PlanArtifactPath,
+        content: &PlanFileContent,
+    ) -> Result<(), PlanError> {
+        if let Some(parent) = path.as_path().parent() {
             if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent).map_err(|e| PlanError::Io {
-                    path: path.display().to_string(),
-                    reason: e.to_string(),
-                })?;
+                std::fs::create_dir_all(parent).map_err(|error| artifact_error(path, error))?;
             }
         }
-        std::fs::write(path, content).map_err(|e| PlanError::Io {
-            path: path.display().to_string(),
-            reason: e.to_string(),
-        })
+        std::fs::write(path.as_path(), content.as_str())
+            .map_err(|error| artifact_error(path, error))
     }
 }
 
-/// Deterministic `{{name}}` placeholder substitution — a byte-for-byte copy
+/// Deterministic `{{name}}` token substitution — a byte-for-byte copy
 /// of the same minimal contract `crate::templates` (b03) and
 /// `crate::agents_forest` (b06) each independently established (both are
-/// private/local to their own templates): missing placeholder -> typed
+/// private/local to their own templates): missing token -> typed
 /// error, never a panic.
-fn render(template: &str, bindings: &HashMap<String, String>) -> Result<String, PlanError> {
-    // ALLOC-JUSTIFICATION: rendering performs successive substitutions and
-    // returns an owned artifact that outlives both borrowed inputs.
-    let mut result = template.to_owned();
-    for (name, value) in bindings {
-        let placeholder = format!("{{{{{name}}}}}");
-        if result.contains(&placeholder) {
-            result = result.replace(&placeholder, value);
-        }
-    }
-    if let Some(pos) = result.find("{{") {
-        if let Some(unresolved) = result.get(pos..) {
-            if let Some(end) = unresolved.find("}}") {
-                if let Some(placeholder_length) = end.checked_add(2) {
-                    if let Some(placeholder) = unresolved.get(..placeholder_length) {
-                        // ALLOC-JUSTIFICATION: the missing token is retained in the
-                        // returned diagnostic after the mutable render buffer is gone.
-                        return Err(PlanError::Io {
-                            path: "lesson template".to_owned(),
-                            reason: format!("missing placeholder: {placeholder}"),
-                        });
-                    }
-                }
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn domain_marker(domain: LessonDomain) -> &'static str {
-    match domain {
-        LessonDomain::Harness => "harness",
-        LessonDomain::Code => "code",
-    }
-}
-
-fn render_bindings(record: &LessonRecord) -> HashMap<String, String> {
-    // ALLOC-JUSTIFICATION: a rendered template needs owned substitutions
-    // after the borrowed lesson record has left this helper.
-    let mut bindings = HashMap::new();
-    bindings.insert("lesson_id".to_owned(), record.id.as_str().to_owned());
-    bindings.insert("date".to_owned(), record.date.as_str().to_owned());
-    bindings.insert("domain".to_owned(), domain_marker(record.domain).to_owned());
-    bindings.insert("observed".to_owned(), record.observed.as_str().to_owned());
-    bindings.insert("lesson".to_owned(), record.lesson.as_str().to_owned());
-    bindings
-}
-
 /// One emitter's outcome: the rendered artifact text, the target path it
 /// was (or would be) written to, and whether a write actually happened
 /// (always `false` when `dry_run` was set).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EmitOutcome {
+pub struct EmitOutcome<'a> {
     /// Target path the artifact was (or would be) written to.
-    pub path: PathBuf,
+    pub path: &'a PlanArtifactPath,
     /// Rendered artifact text.
-    pub rendered: String,
+    pub rendered: PlanDocumentText,
     /// `true` iff a write actually happened.
-    pub wrote: bool,
+    pub wrote: PlanWriteOutcome,
 }
 
 /// Render one route's template for `record` and, unless `dry_run`, append
@@ -808,89 +635,11 @@ pub struct EmitOutcome {
 /// `target_path`: if the file already exists and already carries a managed
 /// block for this exact lesson id, that block is replaced in place;
 /// otherwise the rendered block is appended.
-fn emit_route(
-    fs: &mut dyn EmitFs,
-    template: &str,
-    record: &LessonRecord,
-    target_path: &Path,
-    dry_run: bool,
-) -> Result<EmitOutcome, PlanError> {
-    let rendered = render(template, &render_bindings(record))?;
-    if dry_run {
-        return Ok(EmitOutcome {
-            path: target_path.to_path_buf(),
-            rendered,
-            wrote: false,
-        });
-    }
-    let existing = match fs.read(target_path)? {
-        Some(content) => content,
-        // ALLOC-JUSTIFICATION: the empty owned buffer is required as the
-        // replacement/append accumulator when the target is genuinely absent.
-        None => String::new(),
-    };
-    let merged = replace_or_append_block(&existing, &rendered, record.id.as_str());
-    fs.write(target_path, &merged)?;
-    Ok(EmitOutcome {
-        path: target_path.to_path_buf(),
-        rendered,
-        wrote: true,
-    })
-}
-
 /// Replace an existing managed block naming `lesson_id` in `existing` with
 /// `new_block`, or append `new_block` if no such block is present.
 /// Detection is anchored on the lesson id appearing inside an HTML-comment
 /// marker line (`<!-- ...lesson_id... -->`) so unrelated content (other
 /// lessons' blocks, hand-authored prose) is never touched.
-fn replace_or_append_block(existing: &str, new_block: &str, lesson_id: &str) -> String {
-    // ALLOC-JUSTIFICATION: managed-block matching needs an owned needle
-    // while iterating borrowed lines from the existing artifact.
-    let marker_needle = lesson_id.to_owned();
-    let open_marker_line = existing
-        .lines()
-        .find(|line| line.trim_start().starts_with("<!--") && line.contains(&marker_needle));
-    let Some(open_line) = open_marker_line else {
-        if existing.is_empty() {
-            return new_block.to_owned();
-        }
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    // Find the matching close marker (same lesson id, contains "/").
-    let lines: Vec<&str> = existing.lines().collect();
-    let Some(open_idx) = lines.iter().position(|line| *line == open_line) else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let Some(lines_from_open) = lines.get(open_idx..) else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let close_offset = lines_from_open
-        .iter()
-        .position(|line| line.trim_start().starts_with("<!-- /") && line.contains(&marker_needle))
-        .and_then(|offset| open_idx.checked_add(offset));
-    let Some(close_idx) = close_offset else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let Some(after_close_start) = close_idx.checked_add(1) else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let Some(before_open) = lines.get(..open_idx) else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let Some(after_close) = lines.get(after_close_start..) else {
-        return format!("{}\n\n{}", existing.trim_end(), new_block);
-    };
-    let mut out_lines: Vec<&str> = Vec::new();
-    out_lines.extend_from_slice(before_open);
-    for new_line in new_block.lines() {
-        out_lines.push(new_line);
-    }
-    out_lines.extend_from_slice(after_close);
-    let mut out = out_lines.join("\n");
-    out.push('\n');
-    out
-}
-
 /// Doctrine-block emitter template, embedded at compile time.
 const DOCTRINE_BLOCK_TEMPLATE: &str = include_str!("../templates/lesson-doctrine-block.tpl");
 /// Skill emitter template, embedded at compile time.
@@ -900,39 +649,92 @@ const RULE_CANDIDATE_TEMPLATE: &str = include_str!("../templates/lesson-rule-can
 /// Forest-node emitter template, embedded at compile time.
 const FOREST_NODE_TEMPLATE: &str = include_str!("../templates/lesson-forest-node.tpl");
 
+fn emit_route<'a>(
+    fs: &mut dyn EmitFs,
+    template: &PlanFileContent,
+    record: &LessonRecord,
+    target_path: &'a PlanArtifactPath,
+    mode: PlanEmissionMode,
+) -> Result<EmitOutcome<'a>, PlanError> {
+    let rendered = render_lesson_template(template.as_str(), record)?;
+    if matches!(mode, PlanEmissionMode::DryRun) {
+        return Ok(EmitOutcome {
+            path: target_path,
+            rendered: document_text(rendered),
+            wrote: PlanWriteOutcome::DryRun,
+        });
+    }
+    let existing = fs.read(target_path)?;
+    let merged = replace_or_append_block(
+        existing.as_ref().map_or("", PlanFileContent::as_str),
+        &rendered,
+        record.id.as_str(),
+    );
+    fs.write(target_path, &file_content(merged))?;
+    Ok(EmitOutcome {
+        path: target_path,
+        rendered: document_text(rendered),
+        wrote: PlanWriteOutcome::Written,
+    })
+}
+
 /// Emit the doctrine-block route (c01 shared install payload) for `record`.
-pub fn emit_doctrine_block(
+pub fn emit_doctrine_block<'a>(
     fs: &mut dyn EmitFs,
     record: &LessonRecord,
-    target_path: &Path,
-    dry_run: bool,
-) -> Result<EmitOutcome, PlanError> {
-    emit_route(fs, DOCTRINE_BLOCK_TEMPLATE, record, target_path, dry_run)
+    target_path: &'a PlanArtifactPath,
+    mode: PlanEmissionMode,
+) -> Result<EmitOutcome<'a>, PlanError> {
+    emit_route(
+        fs,
+        // ALLOC-JUSTIFICATION: the embedded template is validated into an owned canonical
+        // content value for the emitter call; the allocation is bounded by the static asset.
+        &file_content(DOCTRINE_BLOCK_TEMPLATE.to_owned()),
+        record,
+        target_path,
+        mode,
+    )
 }
 
 /// Emit the skill route (a keyed section in the enforcer skill) for
 /// `record`.
-pub fn emit_skill(
+pub fn emit_skill<'a>(
     fs: &mut dyn EmitFs,
     record: &LessonRecord,
-    target_path: &Path,
-    dry_run: bool,
-) -> Result<EmitOutcome, PlanError> {
-    emit_route(fs, SKILL_TEMPLATE, record, target_path, dry_run)
+    target_path: &'a PlanArtifactPath,
+    mode: PlanEmissionMode,
+) -> Result<EmitOutcome<'a>, PlanError> {
+    emit_route(
+        fs,
+        // ALLOC-JUSTIFICATION: the embedded template is validated into an owned canonical
+        // content value for the emitter call; the allocation is bounded by the static asset.
+        &file_content(SKILL_TEMPLATE.to_owned()),
+        record,
+        target_path,
+        mode,
+    )
 }
 
-/// Emit the rule-candidate route (a d01 scaffolder input stub) for
+/// Emit the rule-candidate route (a d01 scaffolder input record) for
 /// `record`. Callers MUST NOT treat this emission alone as "landed" for a
 /// `Code`-domain lesson — [`run_doctor`] additionally requires fail/pass
 /// fixtures to exist before a `Code`+`RuleCandidate` lesson counts as
 /// landed (see [`RuleCandidateFixtures`]).
-pub fn emit_rule_candidate(
+pub fn emit_rule_candidate<'a>(
     fs: &mut dyn EmitFs,
     record: &LessonRecord,
-    target_path: &Path,
-    dry_run: bool,
-) -> Result<EmitOutcome, PlanError> {
-    emit_route(fs, RULE_CANDIDATE_TEMPLATE, record, target_path, dry_run)
+    target_path: &'a PlanArtifactPath,
+    mode: PlanEmissionMode,
+) -> Result<EmitOutcome<'a>, PlanError> {
+    emit_route(
+        fs,
+        // ALLOC-JUSTIFICATION: the embedded template is validated into an owned canonical
+        // content value for the emitter call; the allocation is bounded by the static asset.
+        &file_content(RULE_CANDIDATE_TEMPLATE.to_owned()),
+        record,
+        target_path,
+        mode,
+    )
 }
 
 /// Emit the forest-node route (a b06 decision-forest node fragment) for
@@ -941,13 +743,21 @@ pub fn emit_rule_candidate(
 /// module does not call into `crate::agents_forest` directly — coordination
 /// is by fragment schema, not shared files (workpack "Parallel Ownership
 /// Notes").
-pub fn emit_forest_node(
+pub fn emit_forest_node<'a>(
     fs: &mut dyn EmitFs,
     record: &LessonRecord,
-    target_path: &Path,
-    dry_run: bool,
-) -> Result<EmitOutcome, PlanError> {
-    emit_route(fs, FOREST_NODE_TEMPLATE, record, target_path, dry_run)
+    target_path: &'a PlanArtifactPath,
+    mode: PlanEmissionMode,
+) -> Result<EmitOutcome<'a>, PlanError> {
+    emit_route(
+        fs,
+        // ALLOC-JUSTIFICATION: the embedded template is validated into an owned canonical
+        // content value for the emitter call; the allocation is bounded by the static asset.
+        &file_content(FOREST_NODE_TEMPLATE.to_owned()),
+        record,
+        target_path,
+        mode,
+    )
 }
 
 /// `enforcer lesson route <id>` — run every emitter implied by `record`'s
@@ -955,12 +765,12 @@ pub fn emit_forest_node(
 /// `targets` maps each non-`PlanDoc` route present in `record.routes` to
 /// the artifact path it should land at; a route with no entry in `targets`
 /// is skipped (not an error — callers may route a subset at a time).
-pub fn route(
+pub fn route<'a>(
     fs: &mut dyn EmitFs,
     record: &LessonRecord,
-    targets: &HashMap<LessonRoute, PathBuf>,
-    dry_run: bool,
-) -> Result<Vec<EmitOutcome>, PlanError> {
+    targets: &'a HashMap<LessonRoute, PlanArtifactPath>,
+    mode: PlanEmissionMode,
+) -> Result<Vec<EmitOutcome<'a>>, PlanError> {
     let mut outcomes = Vec::new();
     let mut emitted_routes = HashSet::new();
     for declared_route in &record.routes {
@@ -971,10 +781,10 @@ pub fn route(
             continue;
         };
         let outcome = match declared_route {
-            LessonRoute::DoctrineBlock => emit_doctrine_block(fs, record, target, dry_run)?,
-            LessonRoute::Skill => emit_skill(fs, record, target, dry_run)?,
-            LessonRoute::RuleCandidate => emit_rule_candidate(fs, record, target, dry_run)?,
-            LessonRoute::ForestNode => emit_forest_node(fs, record, target, dry_run)?,
+            LessonRoute::DoctrineBlock => emit_doctrine_block(fs, record, target, mode)?,
+            LessonRoute::Skill => emit_skill(fs, record, target, mode)?,
+            LessonRoute::RuleCandidate => emit_rule_candidate(fs, record, target, mode)?,
+            LessonRoute::ForestNode => emit_forest_node(fs, record, target, mode)?,
             LessonRoute::PlanDoc => continue,
         };
         outcomes.push(outcome);
@@ -986,47 +796,12 @@ pub fn route(
 // Fail-closed doctor
 // ---------------------------------------------------------------------
 
-/// Whether a `Code`-domain lesson routed `RuleCandidate` has its required
-/// fail/pass fixtures. Callers supply this (the doctor does not walk the
-/// filesystem itself for fixture discovery — that is the d01 scaffolder's
-/// concern) so the doctor stays a pure function over supplied facts,
-/// consistent with every other `Validator`-family check in this crate.
-/// The parity state of the fail/pass fixture pair required for a
-/// code-domain rule candidate. This is a closed state model rather than two
-/// independently mutable flags, so callers cannot represent an unnamed or
-/// ambiguous fixture condition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RuleCandidateFixtures {
-    /// Both required fixture classes are present.
-    Complete,
-    /// Neither required fixture class is present.
-    MissingBoth,
-    /// A failing fixture is present, but its passing counterpart is absent.
-    MissingPass,
-    /// A passing fixture is present, but its failing counterpart is absent.
-    MissingFail,
-}
-
-fn lesson_finding(rule_id: &RuleId, severity: Severity, detail: String, file: &RelPath) -> Finding {
-    // CLONE-JUSTIFICATION: findings are durable diagnostic values and must
-    // own the rule and source path after the doctor input has been released.
-    Finding {
-        rule_id: rule_id.clone(),
-        severity,
-        title: "lesson-capture doctor".to_owned(),
-        detail,
-        file: file.clone(),
-        line: 1,
-        snippet: None,
-    }
-}
-
 fn synthetic_doctor_path() -> Result<RelPath, PlanError> {
     // ALLOC-JUSTIFICATION: RelPath and the typed PlanError both own their
     // values; this fixed synthetic finding path crosses that owned boundary.
     RelPath::try_from("lessons.ndjson".to_owned()).map_err(|error| PlanError::Io {
-        path: "lesson doctor".to_owned(),
-        reason: error.to_string(),
+        path: artifact_path("lesson doctor".into()),
+        reason: diagnostic_detail(error.to_string()),
     })
 }
 
@@ -1039,14 +814,14 @@ fn synthetic_doctor_path() -> Result<RelPath, PlanError> {
 pub fn run_doctor(
     rule_id: &RuleId,
     records: &[LessonRecord],
-    landed_artifact_contents: &HashMap<ArtifactRef, String>,
+    landed_artifact_contents: &HashMap<ArtifactRef, PlanFileContent>,
     rule_candidate_fixtures: &HashMap<LessonId, RuleCandidateFixtures>,
 ) -> Result<Vec<Finding>, PlanError> {
     let mut findings = Vec::new();
     let file = synthetic_doctor_path()?;
 
     for record in records {
-        if record.is_plan_doc_only() {
+        if matches!(record.plan_doc_condition(), PlanCondition::Satisfied) {
             findings.push(lesson_finding(
                 rule_id,
                 Severity::Warning,
@@ -1075,7 +850,7 @@ pub fn run_doctor(
             .filter(|artifact_ref| {
                 landed_artifact_contents
                     .get(*artifact_ref)
-                    .is_some_and(|content| content.contains(record.id.as_str()))
+                    .is_some_and(|content| content.as_str().contains(record.id.as_str()))
             })
             .collect();
 
@@ -1142,67 +917,12 @@ pub fn run_doctor(
 // Seed-corpus import
 // ---------------------------------------------------------------------
 
-/// One row parsed from the seed ledger's markdown table.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SeedRow {
-    id: String,
-    date: String,
-    observed: String,
-    lesson: String,
-    landed_at: String,
-    ships_via: String,
-}
-
 /// Parse every `| id | date | observed | lesson | landed-at | ships-via |`
 /// table row out of one seed-ledger markdown document (the preamble
 /// `refs/orchestration-lessons.md` or a `refs/lessons/<domain>-NN.md`
 /// shard). Skips the header row and the `|---|---|...` separator row.
 /// Tolerant of blank lines between rows (the seed corpus inserts blank
 /// lines between some rows for readability).
-fn parse_seed_row(line: &str) -> Option<SeedRow> {
-    let trimmed = line.trim();
-    if !trimmed.starts_with('|') {
-        return None;
-    }
-
-    let mut cells = trimmed
-        .trim_start_matches('|')
-        .trim_end_matches('|')
-        .split('|')
-        .map(str::trim);
-    let id = cells.next()?;
-    if id == "id"
-        || id
-            .chars()
-            .all(|character| character == '-' || character == ':')
-    {
-        return None;
-    }
-    if !id.starts_with('L') {
-        return None;
-    }
-
-    let date = cells.next()?;
-    let observed = cells.next()?;
-    let lesson = cells.next()?;
-    let landed_at = cells.next()?;
-    let ships_via = cells.next()?;
-    // ALLOC-JUSTIFICATION: the parsed row owns all cells so conversion can
-    // validate them after this borrowed markdown line has been released.
-    Some(SeedRow {
-        id: id.to_owned(),
-        date: date.to_owned(),
-        observed: observed.to_owned(),
-        lesson: lesson.to_owned(),
-        landed_at: landed_at.to_owned(),
-        ships_via: ships_via.to_owned(),
-    })
-}
-
-fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
-    markdown.lines().filter_map(parse_seed_row).collect()
-}
-
 /// Map a seed row's `ships-via` free text to zero or more `LessonRoute` values
 /// by keyword sniffing (the seed corpus's `ships-via` column is prose, not
 /// a closed vocabulary — e.g. "c01 doctrine payload (worker-protocol
@@ -1210,136 +930,10 @@ fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
 /// A row matching no known keyword lands as `PlanDoc` (transitional-only —
 /// safer than silently dropping it) so [`run_doctor`] still reports it
 /// (as a `Warning`), never silently skips it.
-fn sniff_routes(ships_via: &str, landed_at: &str) -> Vec<LessonRoute> {
-    // ALLOC-JUSTIFICATION: route classification normalizes two borrowed
-    // boundary cells into one short-lived, case-insensitive search buffer.
-    let haystack = format!("{ships_via} {landed_at}").to_lowercase();
-    let mut routes = Vec::new();
-    if haystack.contains("doctrine payload") || haystack.contains("c01") {
-        routes.push(LessonRoute::DoctrineBlock);
-    }
-    if haystack.contains("skill") {
-        routes.push(LessonRoute::Skill);
-    }
-    if haystack.contains("rule") || haystack.contains("d01") || haystack.contains("d-track") {
-        routes.push(LessonRoute::RuleCandidate);
-    }
-    if haystack.contains("forest") || haystack.contains("b06") {
-        routes.push(LessonRoute::ForestNode);
-    }
-    if routes.is_empty() {
-        routes.push(LessonRoute::PlanDoc);
-    }
-    routes
-}
-
 /// Sniff a seed row's domain from its `observed` cell's explicit `[code]`
 /// / `[harness]` tag (rows L13+ per the ledger's own doctrine); rows
 /// without a tag default to `Harness` (the ledger's stated default for
 /// "the rest" of the untagged seed rows).
-fn sniff_domain(observed: &str) -> LessonDomain {
-    // ALLOC-JUSTIFICATION: case normalization is required before matching
-    // historical free-text evidence independent of the source's casing.
-    let lower = observed.to_lowercase();
-    if lower.trim_start().starts_with("[code]") {
-        LessonDomain::Code
-    } else {
-        LessonDomain::Harness
-    }
-}
-
-fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
-    // ALLOC-JUSTIFICATION: seed parsing converts borrowed table cells into
-    // independently owned, validated ledger records.
-    // CLONE-JUSTIFICATION: the imported record owns its id while the parsed
-    // seed row remains available for the remaining route and artifact fields.
-    let id = LessonId::try_from(row.id.clone()).map_err(|e: DecodeError| PlanError::Io {
-        path: "seed corpus".to_owned(),
-        reason: e.to_string(),
-    })?;
-    let landed_at = if row.landed_at.trim().is_empty() {
-        Vec::new()
-    } else {
-        vec![ArtifactRef::try_from(format!(
-            "{}#{}",
-            "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md", row.id
-        ))
-        .map_err(|e: DecodeError| PlanError::Io {
-            path: "seed corpus".to_owned(),
-            reason: e.to_string(),
-        })?]
-    };
-    Ok(LessonRecord {
-        id,
-        // CLONE-JUSTIFICATION: the durable record owns each validated cell;
-        // the parsed seed row remains borrowed for its other conversions.
-        // ALLOC-JUSTIFICATION: decode errors retain owned diagnostics after
-        // the borrowed markdown row has been released.
-        date: row
-            .date
-            .clone()
-            .parse()
-            .map_err(|error: DecodeError| PlanError::Io {
-                path: "seed corpus".to_owned(),
-                reason: error.to_string(),
-            })?,
-        domain: sniff_domain(&row.observed),
-        // CLONE-JUSTIFICATION: evidence becomes an independently owned
-        // branded field in the persisted append-only record.
-        // ALLOC-JUSTIFICATION: a validation failure must keep its owned
-        // diagnostic beyond this borrowed seed-row conversion.
-        observed: row
-            .observed
-            .clone()
-            .parse()
-            .map_err(|error: DecodeError| PlanError::Io {
-                path: "seed corpus".to_owned(),
-                reason: error.to_string(),
-            })?,
-        // CLONE-JUSTIFICATION: lesson text is persisted independently of
-        // the short-lived parsed table row.
-        // ALLOC-JUSTIFICATION: conversion errors own their message across
-        // the importer boundary.
-        lesson: row
-            .lesson
-            .clone()
-            .parse()
-            .map_err(|error: DecodeError| PlanError::Io {
-                path: "seed corpus".to_owned(),
-                reason: error.to_string(),
-            })?,
-        routes: sniff_routes(&row.ships_via, &row.landed_at),
-        landed_at,
-        supersedes_seq: None,
-    })
-}
-
-/// One NDJSON memory-stream record this importer also folds in
-/// (`memory/streams/*.ndjson`, per the x05 workpack's additional import
-/// sources note). Deliberately minimal/tolerant: only the fields this
-/// importer needs, everything else in a real memory-stream record is
-/// ignored rather than causing a decode failure.
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MemoryStreamRecord {
-    id: String,
-    // DEFAULT-JUSTIFICATION: streams are evolving boundary payloads; each
-    // optional field must decode as absent so the importer can fail closed
-    // only after it identifies an actual lesson record.
-    #[serde(default)]
-    date: Option<String>,
-    #[serde(default)]
-    domain: Option<String>,
-    #[serde(default)]
-    observed: Option<String>,
-    #[serde(default)]
-    lesson: Option<String>,
-    #[serde(default)]
-    ships_via: Option<String>,
-    #[serde(default)]
-    landed_at: Option<String>,
-}
-
 fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonRecord, PlanError>> {
     // Only fold in memory-stream records that look like a lesson capture
     // (carry both an id starting with `L`/`mem-` shape AND a lesson body) —
@@ -1359,8 +953,8 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
             raw_lesson
                 .parse()
                 .map_err(|error: DecodeError| PlanError::Io {
-                    path: "memory stream".to_owned(),
-                    reason: error.to_string(),
+                    path: artifact_path("memory stream".into()),
+                    reason: diagnostic_detail(error.to_string()),
                 })?;
         // CLONE-JUSTIFICATION: optional transport evidence becomes an owned
         // validated value while the raw DTO remains borrowed.
@@ -1370,30 +964,31 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
                 .unwrap_or_default()
                 .parse()
                 .map_err(|error: DecodeError| PlanError::Io {
-                    path: "memory stream".to_owned(),
-                    reason: error.to_string(),
+                    path: artifact_path("memory stream".into()),
+                    reason: diagnostic_detail(error.to_string()),
                 })?;
         let id: LessonId = raw.id.parse().map_err(|e: DecodeError| PlanError::Io {
-            path: "memory stream".to_owned(),
-            reason: e.to_string(),
+            path: artifact_path("memory stream".into()),
+            reason: diagnostic_detail(e.to_string()),
         })?;
         // CLONE-JUSTIFICATION: route classification needs an owned value
         // independent of the raw transport input.
-        let ships_via = raw.ships_via.clone().unwrap_or_default();
-        let landed_at_cell = raw.landed_at.clone().unwrap_or_default();
-        let landed_at = if landed_at_cell.trim().is_empty() {
+        let ships_via = file_content(raw.ships_via.clone().unwrap_or_default());
+        let landed_at_cell = file_content(raw.landed_at.clone().unwrap_or_default());
+        let landed_at = if landed_at_cell.as_str().trim().is_empty() {
             Vec::new()
         } else {
             vec![landed_at_cell
+                .as_str()
                 .parse()
                 .map_err(|e: DecodeError| PlanError::Io {
-                    path: "memory stream".to_owned(),
-                    reason: e.to_string(),
+                    path: artifact_path("memory stream".into()),
+                    reason: diagnostic_detail(e.to_string()),
                 })?]
         };
         let domain = match raw.domain.as_deref() {
             Some("code") => LessonDomain::Code,
-            _ => sniff_domain(observed.as_str()),
+            _ => sniff_domain(&observed),
         };
         Ok(LessonRecord {
             id,
@@ -1403,8 +998,8 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
                 .unwrap_or_default()
                 .parse()
                 .map_err(|error: DecodeError| PlanError::Io {
-                    path: "memory stream".to_owned(),
-                    reason: error.to_string(),
+                    path: artifact_path("memory stream".into()),
+                    reason: diagnostic_detail(error.to_string()),
                 })?,
             domain,
             observed,
@@ -1423,10 +1018,10 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ImportOutcome {
     /// Total lesson rows discovered across every source this run.
-    pub discovered: usize,
+    pub discovered: PlanImportCount,
     /// Rows newly appended to the ledger this run (0 on a repeat import
     /// over unchanged sources).
-    pub newly_appended: usize,
+    pub newly_appended: PlanImportCount,
 }
 
 /// A seed import candidate before its persisted identity is assigned. The
@@ -1455,7 +1050,9 @@ enum SeedImportSourceKind {
 /// independently addressable. Only byte-identical source records receive an
 /// ordinal suffix, because there is otherwise no semantic distinction between
 /// their source identities; reordering them preserves the same persisted ids.
-fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(), PlanError> {
+fn assign_seed_import_ids(
+    mut candidates: Vec<SeedImportCandidate>,
+) -> Result<Vec<SeedImportCandidate>, PlanError> {
     let mut label_counts: HashMap<String, usize> = HashMap::new();
     for candidate in candidates.iter() {
         // ALLOC-JUSTIFICATION: the count map owns labels while records are
@@ -1465,7 +1062,7 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
             .or_default() += 1;
     }
 
-    let mut identical_record_occurrences: HashMap<(String, String), usize> = HashMap::new();
+    let mut identical_record_occurrences = HashMap::new();
     for candidate in candidates.iter_mut() {
         // ALLOC-JUSTIFICATION: the persisted id must outlive this mutable
         // record borrow while it is used as a map key and later ledger id.
@@ -1479,8 +1076,8 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
         let payload = serde_json::to_vec(&candidate.record).map_err(|error| PlanError::Io {
             // ALLOC-JUSTIFICATION: `PlanError` owns diagnostics after the
             // fallible serialization frame has returned.
-            path: "seed corpus".to_owned(),
-            reason: error.to_string(),
+            path: artifact_path("seed corpus".into()),
+            reason: diagnostic_detail(error.to_string()),
         })?;
         // ALLOC-JUSTIFICATION: SHA-256 consumes a stable, owned byte stream
         // combining immutable source kind with the canonical record payload.
@@ -1491,33 +1088,31 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
         });
         identity_material.extend_from_slice(&payload);
         let digest = link_digest(None, &identity_material);
-        let fingerprint = digest
-            .strip_prefix("sha256:")
-            .ok_or_else(|| PlanError::Io {
-                // ALLOC-JUSTIFICATION: `PlanError` owns the structural
-                // digest diagnostic after this import call returns.
-                path: "seed corpus".to_owned(),
-                reason: "seed identity digest did not contain a SHA-256 prefix".to_owned(),
-            })?;
-        // CLONE-JUSTIFICATION: the occurrence table owns the complete stable
-        // identity while `fingerprint` remains borrowed from `digest`.
-        let occurrence = identical_record_occurrences
-            .entry((displayed_label.clone(), fingerprint.to_owned()))
-            .or_default();
-        *occurrence += 1;
-        let id = if *occurrence == 1 {
-            format!("{displayed_label}-SRC-{fingerprint}")
-        } else {
-            format!("{displayed_label}-SRC-{fingerprint}-{occurrence}")
+        let id = match identical_record_occurrences.entry((displayed_label, digest)) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                let occurrence = {
+                    let count = entry.get_mut();
+                    *count += 1;
+                    *count
+                };
+                let (label, digest) = entry.key();
+                format!("{label}-SRC-{}-{occurrence}", digest.hex())
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let (label, digest) = entry.key();
+                let id = format!("{label}-SRC-{}", digest.hex());
+                entry.insert(1);
+                id
+            }
         };
         candidate.record.id = id.parse().map_err(|error: DecodeError| PlanError::Io {
             // ALLOC-JUSTIFICATION: conversion diagnostics cross the
             // importer boundary as owned `PlanError` values.
-            path: "seed corpus".to_owned(),
-            reason: error.to_string(),
+            path: artifact_path("seed corpus".into()),
+            reason: diagnostic_detail(error.to_string()),
         })?;
     }
-    Ok(())
+    Ok(candidates)
 }
 
 /// One-shot, idempotent importer: reads the seed ledger's markdown table
@@ -1529,8 +1124,8 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
 /// over unchanged sources adds nothing (idempotent).
 pub fn import_seed_corpus(
     ledger: &mut LessonLedger,
-    seed_markdown_sources: &[String],
-    memory_stream_sources: &[String],
+    seed_markdown_sources: &[PlanFileContent],
+    memory_stream_sources: &[PlanFileContent],
 ) -> Result<ImportOutcome, PlanError> {
     let existing_ids: std::collections::HashSet<LessonId> =
         ledger.latest()?.into_iter().map(|r| r.id).collect();
@@ -1538,21 +1133,21 @@ pub fn import_seed_corpus(
     let mut candidates = Vec::new();
 
     for markdown in seed_markdown_sources {
-        for row in parse_seed_rows(markdown) {
+        for row in parse_seed_rows(markdown.as_str()) {
             candidates.push(SeedImportCandidate {
-                record: seed_row_to_record(&row)?,
+                record: seed_row_to_record(row)?,
                 source_kind: SeedImportSourceKind::Markdown,
             });
         }
     }
 
     for stream in memory_stream_sources {
-        for line in stream.lines() {
+        for line in stream.as_str().lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() {
                 continue;
             }
-            let Ok(raw) = serde_json::from_str::<MemoryStreamRecord>(trimmed) else {
+            let Ok(raw) = decode_memory_stream_record(trimmed) else {
                 continue;
             };
             let Some(result) = memory_record_to_lesson(&raw) else {
@@ -1565,13 +1160,13 @@ pub fn import_seed_corpus(
         }
     }
 
-    assign_seed_import_ids(&mut candidates)?;
-    let discovered = candidates.len();
-    let mut newly_appended = 0usize;
+    let candidates = assign_seed_import_ids(candidates)?;
+    let discovered = PlanImportCount::from(candidates.len());
+    let mut newly_appended = PlanImportCount::default();
     for candidate in candidates {
         if !existing_ids.contains(&candidate.record.id) {
             ledger.append(candidate.record)?;
-            newly_appended += 1;
+            newly_appended.increment();
         }
     }
 

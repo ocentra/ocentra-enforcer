@@ -9,13 +9,16 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use enforcer_domain::config_types::ConfigProfileName;
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Tier;
 use enforcer_security::policy_ingest::backing::BackedRuleCatalog;
 use enforcer_security::policy_ingest::error::PolicyIngestError;
 use enforcer_security::policy_ingest::map::map_to_profile;
 use enforcer_security::policy_ingest::parse::parse_spec;
-use enforcer_security::policy_ingest::spec::MechanizedProfile;
+use enforcer_security::policy_ingest::spec::{MechanizedProfile, MechanizedProfileDto};
+use proptest::{collection, prop_assert, prop_assert_eq, proptest};
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -39,8 +42,9 @@ fn policy_ingest_mapping() -> Result<(), Box<dyn std::error::Error>> {
     let file = fixture_rel_path(path)?;
 
     let parsed = parse_spec(path, &source)?;
-    let catalog = BackedRuleCatalog::track_h_snapshot();
-    let (profile, findings) = map_to_profile("money-critical-security", &parsed, &catalog, &file);
+    let catalog = BackedRuleCatalog::track_h_snapshot()?;
+    let profile_name = ConfigProfileName::try_new("money-critical-security".to_owned())?;
+    let (profile, findings) = map_to_profile(profile_name, &parsed, &catalog, &file);
 
     assert_eq!(
         profile.required_test_categories, parsed.required_test_categories,
@@ -87,6 +91,20 @@ fn policy_ingest_mapping() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn backed_rule_catalog_brands_raw_ids_at_boundary() -> Result<(), Box<dyn std::error::Error>> {
+    let rule_id = RuleId::try_from(String::from("MCM-SIGNING.1"))?;
+    assert!(matches!(
+        BackedRuleCatalog::from_raw_ids(["MCM-SIGNING.1"]),
+        Ok(catalog) if catalog.is_backed(&rule_id)
+    ));
+    assert!(matches!(
+        BackedRuleCatalog::from_raw_ids(["not a rule id"]),
+        Err(error) if error.path == "ruleId"
+    ));
+    Ok(())
+}
+
+#[test]
 fn policy_ingest_unbacked() -> Result<(), Box<dyn std::error::Error>> {
     // T2: an ingested spec asserting a rule with no mechanized backing
     // emits a Finding flagging it for mechanization (feeds d01/d08) --
@@ -96,8 +114,9 @@ fn policy_ingest_unbacked() -> Result<(), Box<dyn std::error::Error>> {
     let file = fixture_rel_path(path)?;
 
     let parsed = parse_spec(path, &source)?;
-    let catalog = BackedRuleCatalog::track_h_snapshot();
-    let (profile, findings) = map_to_profile("money-critical-security", &parsed, &catalog, &file);
+    let catalog = BackedRuleCatalog::track_h_snapshot()?;
+    let profile_name = ConfigProfileName::try_new("money-critical-security".to_owned())?;
+    let (profile, findings) = map_to_profile(profile_name, &parsed, &catalog, &file);
 
     // Two asserted rules: MCM-SIGNING.1 (backed) and
     // MCM-NOT-YET-MECHANIZED.1 (unbacked).
@@ -125,9 +144,12 @@ fn policy_ingest_unbacked() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(findings.len(), 1);
     let finding = &findings[0];
     assert_eq!(finding.rule_id.as_str(), "MCM-NOT-YET-MECHANIZED.1");
-    assert_eq!(finding.severity, enforcer_domain::severity::Severity::Warning);
     assert_eq!(
-        finding.title,
+        finding.severity,
+        enforcer_domain::severity::Severity::Warning
+    );
+    assert_eq!(
+        finding.title.as_str(),
         "policy spec asserts a rule with no mechanized backing (flagged, not enabled)"
     );
     assert_eq!(finding.snippet, None);
@@ -167,10 +189,43 @@ fn policy_ingest_malformed_rule_entry_is_rejected() {
     ));
 }
 
+proptest! {
+    #[test]
+    fn parse_spec_preserves_first_category_occurrence(
+        categories in collection::vec("[A-Za-z0-9_-]{1,16}", 0..32)
+    ) {
+        let mut source = String::from("## Required test categories\n");
+        for category in &categories {
+            source.push_str("- ");
+            source.push_str(category);
+            source.push('\n');
+        }
+
+        let mut expected = Vec::new();
+        for category in categories {
+            if !expected.contains(&category) {
+                expected.push(category);
+            }
+        }
+
+        match parse_spec("generated-categories", &source) {
+            Ok(parsed) => prop_assert_eq!(
+                parsed
+                    .required_test_categories
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>(),
+                expected
+            ),
+            Err(error) => prop_assert!(false, "generated category document failed: {error}"),
+        }
+    }
+}
+
 #[test]
 fn profile_shape() -> Result<(), Box<dyn std::error::Error>> {
     // The committed neutral profile deserializes into the typed
-    // MechanizedProfile record: rule ids + severities (tiers) +
+    // MechanizedProfileDto record: rule ids + severities (tiers) +
     // categories present, and the name carries no product/company/game
     // branding.
     let repo_root = manifest_dir()
@@ -180,9 +235,14 @@ fn profile_shape() -> Result<(), Box<dyn std::error::Error>> {
         .to_path_buf();
     let profile_path = repo_root.join("profiles/money-critical-security.json");
     let raw = std::fs::read_to_string(&profile_path)?;
-    let profile: MechanizedProfile = serde_json::from_str(&raw)?;
+    let profile_dto: MechanizedProfileDto = serde_json::from_str(&raw)?;
+    let profile = MechanizedProfile::try_from(profile_dto)?;
+    let encoded = serde_json::to_string(&MechanizedProfileDto::from(&profile))?;
+    let round_trip_dto: MechanizedProfileDto = serde_json::from_str(&encoded)?;
+    let round_trip = MechanizedProfile::try_from(round_trip_dto)?;
+    assert_eq!(round_trip, profile);
 
-    assert_eq!(profile.profile_name, "money-critical-security");
+    assert_eq!(profile.profile_name.as_str(), "money-critical-security");
     assert_eq!(profile.required_test_categories.len(), 20);
     assert_eq!(profile.invariants.len(), 10);
     assert_eq!(profile.rules.len(), 13);

@@ -8,7 +8,7 @@ use super::fixtures::{
     OTHER_SUBSCRIBER, OTHER_TARGET, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
 use crate::{DispatchMode, EventBus, EventRegistrar, EventingError, RegistrarStatus};
-use enforcer_events::bus::reports::handler::HandlerOutcome;
+use enforcer_domain::events_types::HandlerOutcome;
 
 #[tokio::test]
 async fn ordered_dispatch_serializes_same_aggregate_transitions(
@@ -57,8 +57,8 @@ async fn ordered_dispatch_serializes_same_aggregate_transitions(
     );
     let (first_report, second_report) = tokio::join!(first, second);
 
-    assert_eq!(first_report?.handled_count, 1);
-    assert_eq!(second_report?.handled_count, 1);
+    assert_eq!(crate::event_count_value(first_report?.handled_count), 1);
+    assert_eq!(crate::event_count_value(second_report?.handled_count), 1);
     assert_eq!(
         observed.lock().await.as_slice(),
         &[
@@ -68,7 +68,10 @@ async fn ordered_dispatch_serializes_same_aggregate_transitions(
             "second:end".to_string()
         ]
     );
-    assert_eq!(bus.clear_for_test().await.aggregate_gate_count, 0);
+    assert_eq!(
+        crate::event_count_value(bus.clear_for_test().await.aggregate_gate_count),
+        0
+    );
     Ok(())
 }
 
@@ -121,9 +124,12 @@ async fn ordered_dispatch_allows_different_aggregates_to_run_concurrently(
     )
     .await?;
 
-    assert_eq!(result.0?.handled_count, 1);
-    assert_eq!(result.1?.handled_count, 1);
-    assert_eq!(bus.clear_for_test().await.aggregate_gate_count, 0);
+    assert_eq!(crate::event_count_value(result.0?.handled_count), 1);
+    assert_eq!(crate::event_count_value(result.1?.handled_count), 1);
+    assert_eq!(
+        crate::event_count_value(bus.clear_for_test().await.aggregate_gate_count),
+        0
+    );
     Ok(())
 }
 
@@ -144,16 +150,24 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
                 TestText(OTHER_EVENT_TYPE.to_owned()),
             )
             .map_err(|e| EventingError::InvalidValue {
-                field: "nested_event",
-                value: e.to_string(),
+                field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                    "nested_event",
+                ),
+                value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
+                    e.to_string(),
+                ),
             })?;
             let nested_metadata = metadata_with_event_id(
                 TestText(OTHER_TARGET.to_owned()),
                 TestText("nested-publish-event-1".to_owned()),
             )
             .map_err(|e| EventingError::InvalidValue {
-                field: "nested_metadata",
-                value: e.to_string(),
+                field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                    "nested_metadata",
+                ),
+                value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
+                    e.to_string(),
+                ),
             })?;
             context
                 .publisher()
@@ -186,7 +200,7 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
         )
         .await?;
 
-    assert_eq!(report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
     assert_eq!(handled.lock().await.as_slice(), &["nested".to_string()]);
     assert_eq!(bus.journal().await.len(), 2);
     Ok(())
@@ -213,8 +227,8 @@ async fn detached_publish_returns_observable_report(
         )
         .await??;
 
-    assert_eq!(report.subscriber_count, 1);
-    assert_eq!(report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.subscriber_count), 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
     Ok(())
 }
 
@@ -233,7 +247,9 @@ async fn sync_subscriber_adapter_uses_typed_dispatch_path(
             move |context| {
                 let Ok(mut guard) = handled_clone.lock() else {
                     return Err(EventingError::EmptyValue {
-                        field: "sync_handled_lock_poisoned",
+                        field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                            "sync_handled_lock_poisoned",
+                        ),
                     });
                 };
                 guard.push(context.payload().label.clone());
@@ -253,8 +269,8 @@ async fn sync_subscriber_adapter_uses_typed_dispatch_path(
         subscription.event_type.as_str(),
         super::fixtures::TEST_EVENT_TYPE
     );
-    assert_eq!(report.subscriber_count, 1);
-    assert_eq!(report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.subscriber_count), 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
     let Ok(handled_guard) = handled.lock() else {
         return Err("sync handled lock poisoned".into());
     };
@@ -286,8 +302,8 @@ async fn panicking_handler_isolated_as_dead_letter_report(
     let dead_letters = bus.dead_letters().await;
 
     assert_eq!(report.handler_reports[0].outcome, HandlerOutcome::Panicked);
-    assert_eq!(report.handled_count, 0);
-    assert_eq!(report.dead_letter_count, 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 0);
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
     assert_eq!(
         dead_letters[0]
             .subscriber_id
@@ -335,8 +351,8 @@ async fn subscription_handle_drop_unsubscribes_handler(
         )
         .await?;
 
-    assert_eq!(report.handled_count, 1);
-    assert_eq!(second_report.subscriber_count, 0);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
+    assert_eq!(crate::event_count_value(second_report.subscriber_count), 0);
     assert_eq!(*handled.lock().await, 1);
     Ok(())
 }
@@ -377,9 +393,12 @@ async fn registrar_dispose_cancellation_removes_all_owned_subscriptions(
         .await;
 
     assert_eq!(dispose_report.reports.len(), 1);
-    assert!(dispose_report.reports[0].removed);
+    assert!(matches!(
+        dispose_report.reports[0].removal_state,
+        enforcer_domain::events_types::SubscriptionRemovalState::Removed
+    ));
     assert_eq!(registrar.status(), RegistrarStatus::Disposed);
-    assert_eq!(publish_report.subscriber_count, 0);
+    assert_eq!(crate::event_count_value(publish_report.subscriber_count), 0);
     assert!(matches!(
         subscribe_after_dispose,
         Err(EventingError::RegistrarDisposed)

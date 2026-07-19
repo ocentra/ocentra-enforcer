@@ -1,37 +1,39 @@
-use enforcer_memory::artifacts::{GraphSnapshot, GraphSymbolKindSnapshot};
+use enforcer_domain::memory_types::GraphEventKind;
+use enforcer_domain::memory_types::GraphSymbolKindSnapshot;
+use enforcer_memory::boundary::artifact_transport::GraphSnapshotDto;
+use enforcer_memory::boundary::log_schema::{GraphEventLogEntryDto, SCHEMA_VERSION};
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::error::Result;
 use enforcer_memory::ids::repo_root;
 use enforcer_memory::log::read_verified;
-use enforcer_memory::schema::{GraphEventKind, GraphEventLogEntry, SCHEMA_VERSION};
 use enforcer_memory::store::sqlite::OperationalGraph;
 use enforcer_memory::store::Store;
 use std::path::Path;
 use std::process::Command;
 
-fn node_entry(seq: u64, id: &str, kind: &str) -> GraphEventLogEntry {
-    GraphEventLogEntry {
+fn node_entry(seq: u64, id: &str, kind: &str) -> GraphEventLogEntryDto {
+    GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq,
         id: format!("evt-{seq}"),
         event: GraphEventKind::NodeAdded {
-            node_id: id.to_owned(),
-            node_kind: kind.to_owned(),
+            node_id: id.into(),
+            node_kind: kind.into(),
         },
         ts: "2026-07-04T00:00:00Z".to_owned(),
         supersedes_seq: None,
     }
 }
 
-fn edge_entry(seq: u64, from: &str, to: &str, label: &str) -> GraphEventLogEntry {
-    GraphEventLogEntry {
+fn edge_entry(seq: u64, from: &str, to: &str, label: &str) -> GraphEventLogEntryDto {
+    GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq,
         id: format!("evt-{seq}"),
         event: GraphEventKind::EdgeAdded {
-            from: from.to_owned(),
-            to: to.to_owned(),
-            label: label.to_owned(),
+            from: from.into(),
+            to: to.into(),
+            label: label.into(),
         },
         ts: "2026-07-04T00:00:00Z".to_owned(),
         supersedes_seq: None,
@@ -149,7 +151,7 @@ fn beta_test() { beta(); }
 
     let mut graph = CodeGraph::new();
     graph.index_repository(repo_dir.path(), &[file_path], &Manifest::default())?;
-    let snapshot = GraphSnapshot::from_code_graph(&graph);
+    let snapshot = GraphSnapshotDto::from_code_graph(&graph)?;
     for (name, kind) in [
         ("Widget", GraphSymbolKindSnapshot::Struct),
         ("Mode", GraphSymbolKindSnapshot::Enum),
@@ -163,13 +165,13 @@ fn beta_test() { beta(); }
             snapshot
                 .symbols
                 .iter()
-                .any(|symbol| symbol.name == name && symbol.kind == kind),
+                .any(|symbol| symbol.name.as_str() == name && symbol.kind == kind),
             "snapshot must preserve {name} as {kind:?}"
         );
     }
 
     let stores_dir = tempfile::tempdir()?;
-    let repo_root = repo_root(&repo_dir.path().to_string_lossy())?;
+    let repo_root = repo_root(&repo_dir.path().to_string_lossy().as_ref().into())?;
     let mut store = Store::init(stores_dir.path(), &repo_root, "2026-07-07T00:00:00Z")?;
     let sqlite_path = store.sqlite_path();
     let log_path = store.graph_event_log_path();
@@ -179,13 +181,13 @@ fn beta_test() { beta(); }
         let node_kind = node_kind(node).to_owned();
         store
             .graph_event_log_mut()
-            .append_with_seq(|seq| GraphEventLogEntry {
+            .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq,
+                seq: seq.into(),
                 id: format!("evt-node-{seq}"),
                 event: GraphEventKind::NodeAdded {
-                    node_id: node_id.clone(),
-                    node_kind: node_kind.clone(),
+                    node_id: node_id.clone().into(),
+                    node_kind: node_kind.clone().into(),
                 },
                 ts: "2026-07-07T00:00:00Z".to_owned(),
                 supersedes_seq: None,
@@ -195,14 +197,14 @@ fn beta_test() { beta(); }
     for edge in graph.imports() {
         store
             .graph_event_log_mut()
-            .append_with_seq(|seq| GraphEventLogEntry {
+            .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq,
+                seq: seq.into(),
                 id: format!("evt-import-{seq}"),
                 event: GraphEventKind::EdgeAdded {
-                    from: edge.from_file_id.clone(),
-                    to: edge.module_path.clone(),
-                    label: "imports".to_owned(),
+                    from: edge.from_file_id.clone().into(),
+                    to: edge.module_path.clone().into(),
+                    label: "imports".into(),
                 },
                 ts: "2026-07-07T00:00:00Z".to_owned(),
                 supersedes_seq: None,
@@ -212,14 +214,14 @@ fn beta_test() { beta(); }
     for edge in graph.calls() {
         store
             .graph_event_log_mut()
-            .append_with_seq(|seq| GraphEventLogEntry {
+            .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq,
+                seq: seq.into(),
                 id: format!("evt-call-{seq}"),
                 event: GraphEventKind::EdgeAdded {
-                    from: edge.from_file_id.clone(),
-                    to: edge.callee.clone(),
-                    label: "calls".to_owned(),
+                    from: edge.from_file_id.clone().into(),
+                    to: edge.callee.clone().into(),
+                    label: "calls".into(),
                 },
                 ts: "2026-07-07T00:00:00Z".to_owned(),
                 supersedes_seq: None,
@@ -229,14 +231,14 @@ fn beta_test() { beta(); }
     for edge in graph.routes() {
         store
             .graph_event_log_mut()
-            .append_with_seq(|seq| GraphEventLogEntry {
+            .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq,
+                seq: seq.into(),
                 id: format!("evt-route-{seq}"),
                 event: GraphEventKind::EdgeAdded {
-                    from: edge.from_file_id.clone(),
-                    to: format!("{} {}", edge.method, edge.path),
-                    label: "routes".to_owned(),
+                    from: edge.from_file_id.clone().into(),
+                    to: format!("{} {}", edge.method, edge.path).into(),
+                    label: "routes".into(),
                 },
                 ts: "2026-07-07T00:00:00Z".to_owned(),
                 supersedes_seq: None,
@@ -245,13 +247,24 @@ fn beta_test() { beta(); }
 
     drop(store);
 
-    let outcome = read_verified::<GraphEventLogEntry>(&log_path, |entry| entry.seq)?;
+    let outcome = read_verified::<GraphEventLogEntryDto>(&log_path, |entry| {
+        enforcer_domain::memory_types::Seq::from_log_position(entry.seq)
+    })?;
     let mut operational = OperationalGraph::open(&sqlite_path)?;
     operational.rebuild(&outcome.entries)?;
 
-    assert_eq!(operational.node_count()?, snapshot.node_count() as u64);
-    assert_eq!(operational.edge_count()?, snapshot.edge_count() as u64);
-    assert_eq!(operational.nodes_snapshot()?.len(), snapshot.node_count());
+    assert_eq!(
+        operational.node_count()?,
+        u64::try_from(usize::from(snapshot.node_count()))?
+    );
+    assert_eq!(
+        operational.edge_count()?,
+        u64::try_from(usize::from(snapshot.edge_count()))?
+    );
+    assert_eq!(
+        operational.nodes_snapshot()?.len(),
+        usize::from(snapshot.node_count())
+    );
 
     Ok(())
 }

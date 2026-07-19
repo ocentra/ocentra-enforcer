@@ -9,22 +9,18 @@
 //! This crate owns only the per-file detection contract and the harness
 //! that proves it.
 
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::{Finding, ScanScope};
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
 
-/// One file's source text, as a validator sees it.
-///
-/// Deliberately minimal: a validator gets the repo-relative path (for
-/// [`Finding::file`]) and the raw source text. Anything richer (parsed AST,
-/// config-derived parameters) is a concern for the lang-specific crates
-/// that build on this trait, not this base.
 #[derive(Debug, Clone, Copy)]
+#[doc = "One file's validated path, source text, and scan scope as seen by a validator."]
 pub struct ValidationInput<'a> {
     /// Repo-relative path of the file under validation.
     pub file: &'a RelPath,
     /// Raw source text of the file.
-    pub source: &'a str,
+    pub source: ValidationSource<'a>,
     /// What kind of run this validation is part of (workspace scan, single
     /// file, crate, diff). Most validators ignore this; it exists for the
     /// rare validator whose behavior legitimately depends on scan breadth.

@@ -172,7 +172,7 @@ fn clustering_refinement_uses_bounded_iterator_traversal() {
     assert_eq!(source.matches("for _ in 0..max_iterations").count(), 0);
     assert_eq!(
         source
-            .matches("std::iter::repeat(()).take(max_iterations)")
+            .matches("std::iter::repeat_n((), max_iterations)")
             .count(),
         1
     );

@@ -42,6 +42,9 @@ ts-rs = { workspace = true }
 [dev-dependencies]
 # DEPENDENCY-JUSTIFICATION: integration tests require isolated filesystem fixtures.
 tempfile = "=3.27.0"
+# DEPENDENCY-JUSTIFICATION: request parser properties prove the typed UI boundary
+# accepts the full valid input space without weakening malformed-input rejection.
+proptest = "=1.9.0"
 
 [lints]
 workspace = true

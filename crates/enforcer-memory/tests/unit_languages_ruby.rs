@@ -10,8 +10,9 @@
 //! redirect), `require`/`require_relative` IMPORTS, and DEFINES-scoped
 //! class bodies.
 
+use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_memory::languages::generic::parse_ruby;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

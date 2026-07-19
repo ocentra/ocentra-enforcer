@@ -5,11 +5,12 @@
 //! integration coverage (risk labels, ingest_traces, impact scoring)
 //! this file does not duplicate.
 
+use enforcer_domain::memory_types::{Approximation, MemoryEdgeKind, TraceDirection};
 use enforcer_memory::analysis::trace::{
-    distinct_node_ids, trace_calls, trace_cross_service, trace_data_flow, Approximation,
-    CrossServicePath, TraceCallsParams, TraceCrossServiceParams,
+    distinct_node_ids, trace_calls, trace_cross_service, trace_data_flow, CrossServicePath,
+    TraceCallsParams, TraceCrossServiceParams,
 };
-use enforcer_memory::analysis::{CodeAdjacency, EdgeKind, TraceDirection};
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -89,7 +90,7 @@ fn calls_mode_matches_underlying_trace_calls_hop_set() -> TestResult {
         "file:a.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
@@ -98,7 +99,7 @@ fn calls_mode_matches_underlying_trace_calls_hop_set() -> TestResult {
     let raw = adjacency.trace_calls("file:a.rs", TraceDirection::Out, 3);
     let mut raw_ids: BTreeSet<String> = raw
         .into_iter()
-        .flat_map(|p| p.into_iter().map(|h| h.node_id))
+        .flat_map(|p| p.into_iter().map(|h| h.node_id.to_string()))
         .collect::<BTreeSet<_>>();
     let raw_ids: Vec<String> = std::mem::take(&mut raw_ids).into_iter().collect();
 
@@ -114,7 +115,7 @@ fn calls_mode_output_is_deterministically_ordered_across_calls() -> TestResult {
 
     let params = TraceCallsParams {
         direction: TraceDirection::Out,
-        depth: 3,
+        depth: 3.into(),
         ..Default::default()
     };
     let first = trace_calls(&adjacency, &graph, "file:a.rs", &params);
@@ -143,7 +144,7 @@ fn direction_in_reaches_only_upstream_callers() -> TestResult {
         &helper_id,
         &TraceCallsParams {
             direction: TraceDirection::In,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
@@ -167,7 +168,7 @@ fn depth_bounds_the_number_of_hops_returned() -> TestResult {
         "file:a.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 1,
+            depth: 1.into(),
             ..Default::default()
         },
     );
@@ -197,8 +198,8 @@ fn include_tests_false_excludes_test_symbol_hops() -> TestResult {
         &helper_id,
         &TraceCallsParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
             ..Default::default()
         },
     );
@@ -208,8 +209,8 @@ fn include_tests_false_excludes_test_symbol_hops() -> TestResult {
         &helper_id,
         &TraceCallsParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: false,
+            depth: 3.into(),
+            include_tests: false.into(),
             ..Default::default()
         },
     );
@@ -241,12 +242,12 @@ fn data_flow_mode_follows_call_edges_and_labels_approximation() -> TestResult {
         "file:a.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
     assert_eq!(report.approximation, Approximation::CallGraphOnly);
-    assert!(!report.paths.is_empty());
+    assert!(report.paths.iter().any(|path| !path.hops.is_empty()));
     for path in &report.paths {
         for hop in &path.hops {
             assert!(
@@ -278,7 +279,7 @@ fn data_flow_mode_reaches_a_three_hop_chain() -> TestResult {
         "file:client.ts",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
+            depth: 3.into(),
             ..Default::default()
         },
     );
@@ -319,8 +320,8 @@ fn cross_service_mode_finds_producer_route_consumer_path() -> TestResult {
         "file:router.ts",
         TraceCrossServiceParams {
             direction: TraceDirection::Both,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     assert!(
@@ -357,8 +358,8 @@ fn cross_service_mode_reports_consumer_that_imports_the_producer() -> TestResult
         "file:router.ts",
         TraceCrossServiceParams {
             direction: TraceDirection::Both,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     let route_paths: Vec<&CrossServicePath> = report
@@ -385,8 +386,8 @@ fn cross_service_include_tests_false_excludes_test_consumers() -> TestResult {
         "file:router.ts",
         TraceCrossServiceParams {
             direction: TraceDirection::Both,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     let without_tests = trace_cross_service(
@@ -395,8 +396,8 @@ fn cross_service_include_tests_false_excludes_test_consumers() -> TestResult {
         "file:router.ts",
         TraceCrossServiceParams {
             direction: TraceDirection::Both,
-            depth: 3,
-            include_tests: false,
+            depth: 3.into(),
+            include_tests: false.into(),
         },
     );
     let without_has_test_consumer = without_tests
@@ -427,8 +428,8 @@ fn cross_service_direction_in_finds_route_from_a_consumers_perspective() -> Test
         "file:client.ts",
         TraceCrossServiceParams {
             direction: TraceDirection::In,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     assert!(
@@ -470,8 +471,8 @@ fn cross_service_unrelated_node_finds_no_route_in_any_direction() -> TestResult 
             "file:c.rs",
             TraceCrossServiceParams {
                 direction,
-                depth: 3,
-                include_tests: true,
+                depth: 3.into(),
+                include_tests: true.into(),
             },
         );
         assert!(
@@ -515,8 +516,8 @@ fn unknown_start_node_returns_empty_report_not_panic() -> TestResult {
         "file:does-not-exist.rs",
         TraceCrossServiceParams {
             direction: TraceDirection::Both,
-            depth: 3,
-            include_tests: true,
+            depth: 3.into(),
+            include_tests: true.into(),
         },
     );
     assert!(cross_service.paths.is_empty());
@@ -537,14 +538,14 @@ fn edge_types_filter_restricts_hop_kinds() -> TestResult {
         "file:a.rs",
         &TraceCallsParams {
             direction: TraceDirection::Out,
-            depth: 3,
-            edge_types: Some(&[EdgeKind::Calls]),
+            depth: 3.into(),
+            edge_types: Some(&[MemoryEdgeKind::Calls]),
             ..Default::default()
         },
     );
     for path in &calls_only.paths {
         for hop in &path.hops {
-            assert_eq!(hop.via, EdgeKind::Calls);
+            assert_eq!(hop.via, MemoryEdgeKind::Calls);
         }
     }
     Ok(())

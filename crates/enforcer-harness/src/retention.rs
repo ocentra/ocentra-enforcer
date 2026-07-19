@@ -8,23 +8,24 @@
 use std::path::Path;
 
 use enforcer_core::error::Result;
+use enforcer_domain::harness_types::HarnessRunId;
 use serde_json::Value;
 
-use crate::config::HarnessConfig;
 use crate::query::all_runs;
+use enforcer_domain::config_types::HarnessConfig;
 
 /// Outcome of a prune pass: the `runId`s that were removed.
 #[derive(Debug, Clone, Default)]
 pub struct PruneOutcome {
     /// Identifiers of authoritative storage runs removed by this pass.
-    pub removed: Vec<String>,
+    pub removed: Vec<HarnessRunId>,
 }
 
 /// Run the retention/prune engine over every run under both storage roots
 /// (authoritative writes only ever remove from the authoritative root —
 /// legacy runs are read-only and never pruned by this engine).
 pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutcome> {
-    let storage_root = config.storage_root(repo_root)?;
+    let storage_root = crate::config::storage_root(config, repo_root)?;
     let mut runs = all_runs(repo_root, config)?;
     // Only consider runs actually stored under the authoritative root for
     // removal — legacy-root runs are immutable history.
@@ -59,7 +60,7 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
             .unwrap_or_default()
             .to_owned();
         if let Some(max_runs) = config.max_runs {
-            if index >= max_runs {
+            if u64::try_from(index).unwrap_or(u64::MAX) >= max_runs.get() {
                 remove.insert(run_id.clone());
             }
         }
@@ -69,7 +70,10 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             if let Some(age_ms) = age_millis(started_at, now_ms) {
-                if age_ms > prune_after_days * 24 * 60 * 60 * 1000 {
+                let retention_ms = i64::try_from(prune_after_days.get())
+                    .unwrap_or(i64::MAX)
+                    .saturating_mul(24 * 60 * 60 * 1000);
+                if age_ms > retention_ms {
                     remove.insert(run_id);
                 }
             }
@@ -88,7 +92,10 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
         );
     }
 
-    let max_failed = config.max_failed_runs.unwrap_or(usize::MAX);
+    let max_failed = config
+        .max_failed_runs
+        .map(|limit| usize::try_from(limit.get()).unwrap_or(usize::MAX))
+        .unwrap_or(usize::MAX);
     for run in runs
         .iter()
         .filter(|r| r.get("status").and_then(Value::as_str) == Some("failed"))
@@ -102,7 +109,10 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
         );
     }
 
-    let max_per_tool = config.max_runs_per_tool.unwrap_or(usize::MAX);
+    let max_per_tool = config
+        .max_runs_per_tool
+        .map(|limit| usize::try_from(limit.get()).unwrap_or(usize::MAX))
+        .unwrap_or(usize::MAX);
     let mut by_tool: std::collections::HashMap<String, Vec<&Value>> =
         std::collections::HashMap::new();
     for run in &runs {
@@ -137,7 +147,7 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
         let run_dir = storage_root.join("runs").join(&run_id);
         if run_dir.exists() {
             std::fs::remove_dir_all(&run_dir)?;
-            removed.push(run_id);
+            removed.push(HarnessRunId::from_adapter(&run_id));
         }
     }
 
@@ -202,9 +212,15 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
 mod tests {
     use std::path::Path;
 
-    use crate::config::HarnessConfig;
     use crate::storage::{record_run, RunInput};
     use enforcer_core::error::{Error, Result};
+    use enforcer_domain::config_types::{HarnessConfig, HarnessRetentionDays, HarnessRunLimit};
+    use enforcer_domain::harness_types::{
+        HarnessCapturedOutput, HarnessCommandArgument, HarnessPinned, HarnessRunId,
+        HarnessTimestamp, HarnessToolName,
+    };
+    use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::telemetry_types::ProcessExitCode;
 
     fn missing(what: &str) -> Error {
         Error::InvalidConfig(format!("test fixture: expected {what}"))
@@ -217,23 +233,24 @@ mod tests {
         started_at: &str,
         config: &HarnessConfig,
     ) -> Result<()> {
+        let repo_root = RepoRoot::try_from(repo_root)?;
         record_run(
             &RunInput {
-                repo_root,
-                run_id: run_id.to_owned(),
-                tool: "cargo".to_owned(),
+                repo_root: &repo_root,
+                run_id: HarnessRunId::try_new(run_id.to_owned())?,
+                tool: HarnessToolName::try_new("cargo".to_owned())?,
                 language: None,
-                command: vec!["cargo".to_owned()],
-                stdout: String::new(),
-                stderr: String::new(),
-                exit_code,
+                command: vec![HarnessCommandArgument::try_new("cargo".to_owned())?],
+                stdout: HarnessCapturedOutput::default(),
+                stderr: HarnessCapturedOutput::default(),
+                exit_code: ProcessExitCode::new(exit_code),
                 crate_name: None,
                 package_name: None,
                 domain: None,
                 tags: vec![],
-                pinned: false,
-                started_at: started_at.to_owned(),
-                ended_at: started_at.to_owned(),
+                pinned: HarnessPinned::Unpinned,
+                started_at: HarnessTimestamp::try_new(started_at.to_owned())?,
+                ended_at: HarnessTimestamp::try_new(started_at.to_owned())?,
             },
             config,
         )?;
@@ -244,9 +261,9 @@ mod tests {
     fn max_runs_prunes_oldest_and_lists_it_in_summary_pruned() -> Result<()> {
         let dir = tempfile::TempDir::new()?;
         let config = HarnessConfig {
-            max_runs: Some(2),
-            max_runs_per_tool: Some(2),
-            max_failed_runs: Some(0),
+            max_runs: Some(HarnessRunLimit::from_value(2)),
+            max_runs_per_tool: Some(HarnessRunLimit::from_value(2)),
+            max_failed_runs: Some(HarnessRunLimit::from_value(0)),
             prune_after_days: None,
             ..HarnessConfig::default()
         };
@@ -276,29 +293,30 @@ mod tests {
     fn pinned_and_recent_failed_runs_survive_prune() -> Result<()> {
         let dir = tempfile::TempDir::new()?;
         let config = HarnessConfig {
-            max_runs: Some(1),
+            max_runs: Some(HarnessRunLimit::from_value(1)),
             max_runs_per_tool: None,
-            max_failed_runs: Some(5),
+            max_failed_runs: Some(HarnessRunLimit::from_value(5)),
             prune_after_days: None,
             ..HarnessConfig::default()
         };
+        let repo_root = RepoRoot::try_from(dir.path())?;
         record_run(
             &RunInput {
-                repo_root: dir.path(),
-                run_id: "run-pinned".to_owned(),
-                tool: "cargo".to_owned(),
+                repo_root: &repo_root,
+                run_id: HarnessRunId::try_new("run-pinned".to_owned())?,
+                tool: HarnessToolName::try_new("cargo".to_owned())?,
                 language: None,
-                command: vec!["cargo".to_owned()],
-                stdout: String::new(),
-                stderr: String::new(),
-                exit_code: 0,
+                command: vec![HarnessCommandArgument::try_new("cargo".to_owned())?],
+                stdout: HarnessCapturedOutput::default(),
+                stderr: HarnessCapturedOutput::default(),
+                exit_code: ProcessExitCode::new(0),
                 crate_name: None,
                 package_name: None,
                 domain: None,
                 tags: vec![],
-                pinned: true,
-                started_at: "2026-01-01T00:00:00Z".to_owned(),
-                ended_at: "2026-01-01T00:00:00Z".to_owned(),
+                pinned: HarnessPinned::Pinned,
+                started_at: HarnessTimestamp::try_new("2026-01-01T00:00:00Z".to_owned())?,
+                ended_at: HarnessTimestamp::try_new("2026-01-01T00:00:00Z".to_owned())?,
             },
             &config,
         )?;
@@ -326,9 +344,9 @@ mod tests {
         let dir = tempfile::TempDir::new()?;
         let config = HarnessConfig {
             max_runs: None,
-            max_runs_per_tool: Some(1),
-            max_failed_runs: Some(0),
-            prune_after_days: Some(14),
+            max_runs_per_tool: Some(HarnessRunLimit::from_value(1)),
+            max_failed_runs: Some(HarnessRunLimit::from_value(0)),
+            prune_after_days: Some(HarnessRetentionDays::from_value(14)),
             ..HarnessConfig::default()
         };
         record(dir.path(), "run-old", 0, "2020-01-01T00:00:00Z", &config)?;
@@ -361,7 +379,7 @@ mod tests {
         let runs =
             crate::query::list_runs(dir.path(), &config, &crate::query::RunQuery::default())?;
         assert!(runs.is_empty());
-        assert!(!config.storage_root(dir.path())?.exists());
+        assert!(!crate::config::storage_root(&config, dir.path())?.exists());
         Ok(())
     }
 }

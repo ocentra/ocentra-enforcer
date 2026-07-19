@@ -1,5 +1,5 @@
 import { ExternalLink, Eye, Focus, Maximize2, Network, RefreshCw, Search, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useMemo, useState, type PointerEvent, type WheelEvent } from "react";
+import { useEffect, useMemo, useState, type PointerEvent, type ReactElement, type WheelEvent } from "react";
 import { graphNodeKinds, type GraphNode, type GraphNodeKind, type GraphSourceSnippet, type ProjectGraph } from "../data/graphAdapter";
 
 const kindLabels: Record<GraphNodeKind, string> = {
@@ -19,7 +19,7 @@ const kindLabels: Record<GraphNodeKind, string> = {
   constant: "Constants",
 };
 
-export function GraphWorkspace({ graph, loading, onOpenRetrieval, onLoadSourceSnippet, onOpenIndex, onRefresh, onFocusProjection, onClearFocus }: { graph: ProjectGraph; loading: boolean; onOpenRetrieval: () => void; onLoadSourceSnippet: (node: GraphNode) => Promise<GraphSourceSnippet>; onOpenIndex: () => void; onRefresh: () => void; onFocusProjection: (query: string) => void; onClearFocus: () => void }) {
+export function GraphWorkspace({ graph, loading, onOpenRetrieval, onLoadSourceSnippet, onOpenIndex, onRefresh, onFocusProjection, onClearFocus }: { graph: ProjectGraph; loading: boolean; onOpenRetrieval: () => void; onLoadSourceSnippet: (node: GraphNode) => Promise<GraphSourceSnippet>; onOpenIndex: () => void; onRefresh: () => void; onFocusProjection: (query: string) => void; onClearFocus: () => void }): ReactElement {
   const [enabledKinds, setEnabledKinds] = useState<Set<GraphNodeKind>>(
     () => new Set(graphNodeKinds),
   );

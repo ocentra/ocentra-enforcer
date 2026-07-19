@@ -1,5 +1,6 @@
-use enforcer_events::ids::EventNamespace;
-use enforcer_events::journal::policy::{JournalPolicy, JournalSelector};
+use enforcer_domain::events_types::EventNamespace;
+use enforcer_domain::events_types::JournalSelector;
+use enforcer_events::journal::policy::JournalPolicy;
 use std::sync::Arc;
 
 use super::fixtures::{

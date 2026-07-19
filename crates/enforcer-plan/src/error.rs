@@ -5,6 +5,10 @@
 //! their own error variants here rather than inventing a second error
 //! enum, so callers of this crate see exactly one failure type.
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::LaneId;
+use enforcer_domain::plan_types::{PlanArtifactPath, PlanDiagnosticDetail, PlanImportCount};
+
 /// Failures the plan scaffolder / PLAN-* structure validators can raise.
 ///
 /// Deliberately starts minimal (I/O only). Feature packs extend this enum
@@ -14,6 +18,10 @@
 /// type.
 #[derive(Debug, thiserror::Error)]
 pub enum PlanError {
+    /// A typed lesson seed field failed validation during boundary conversion.
+    #[error("invalid lesson seed record: {0}")]
+    SeedDecode(#[from] DecodeError),
+
     /// A plan-doc or template path could not be read from disk.
     #[error("failed to read `{path}`: {reason}")]
     Io {
@@ -23,12 +31,12 @@ pub enum PlanError {
         // `enforcer_domain::paths::RelPath` (that type is for paths a
         // caller will act on, not for error-message text).
         /// Path that failed to read, rendered for the error message only.
-        path: String,
+        path: PlanArtifactPath,
         // BRAND-INVARIANT: raw display-only string, verbatim from the
         // underlying `std::io::Error`'s `Display` output; free-form
         // diagnostic text, not a structured/matched-on failure reason.
         /// Underlying I/O failure description.
-        reason: String,
+        reason: PlanDiagnosticDetail,
     },
 
     /// (b01) A caller passed a plan name that fails the `PlanName` brand
@@ -49,7 +57,7 @@ pub enum PlanError {
         // BRAND-INVARIANT: raw display-only string, verbatim from
         // `std::path::Path::display()`; error-message text only.
         /// Plan-directory path that already exists.
-        path: String,
+        path: PlanArtifactPath,
     },
 
     /// (b04) A workpack's `deps:` field references a workpack id that is
@@ -59,7 +67,7 @@ pub enum PlanError {
     GraphInvalid {
         /// Human-readable description (unknown dep id, or a cycle
         /// participant list); free-form diagnostic text, not matched on.
-        reason: String,
+        reason: PlanDiagnosticDetail,
     },
 
     /// (b04) The underlying `enforcer-coordination` claim/release/closeout
@@ -77,7 +85,7 @@ pub enum PlanError {
     )]
     IdleWithoutWatchdog {
         /// Count of lanes still in flight when the tick ended.
-        in_flight_lanes: usize,
+        in_flight_lanes: PlanImportCount,
     },
 
     /// (b04, zero-trust integration) A lane's `done` mail was rejected
@@ -87,9 +95,9 @@ pub enum PlanError {
     #[error("done-claim rejected for lane `{lane}`: {reason}")]
     DoneClaimRejected {
         /// The lane whose done-claim failed independent verification.
-        lane: String,
+        lane: LaneId,
         /// Why verification failed (free-form diagnostic text).
-        reason: String,
+        reason: PlanDiagnosticDetail,
     },
 }
 

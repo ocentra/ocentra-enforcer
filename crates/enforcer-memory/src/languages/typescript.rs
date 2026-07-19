@@ -15,8 +15,9 @@
 
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, Language, ParsedFile,
-    ReceiverHint, RouteRef, SymbolKind, SymbolRef, TypeRefRef,
+    RouteRef, SymbolKind, SymbolRef, TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// HTTP methods this extractor recognizes in route-style call
@@ -73,21 +74,21 @@ fn walk(
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
                     kind: test_or_function(&name),
-                    name: name.clone(),
-                    line,
+                    name: (name.clone()).into(),
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in preceding_decorators(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -109,29 +110,29 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 for (kind, super_name) in heritage_refs(node, src) {
                     match kind {
                         HeritageKind::Extends => out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name,
-                            line,
+                            sub_name: (name.clone()).into(),
+                            super_name: super_name.into(),
+                            line: line.into(),
                         }),
                         HeritageKind::Implements => out.implements.push(ImplementsRef {
-                            type_name: name.clone(),
-                            trait_name: super_name,
-                            line,
+                            type_name: (name.clone()).into(),
+                            trait_name: (super_name).into(),
+                            line: line.into(),
                         }),
                     }
                 }
                 for decorator_name in preceding_decorators(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -142,16 +143,16 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for (kind, super_name) in heritage_refs(node, src) {
                     if matches!(kind, HeritageKind::Extends) {
                         out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name,
-                            line,
+                            sub_name: (name.clone()).into(),
+                            super_name: super_name.into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -160,27 +161,27 @@ fn walk(
         "type_alias_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "enum_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "module" | "internal_module" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -196,21 +197,21 @@ fn walk(
                 };
                 out.symbols.push(SymbolRef {
                     kind,
-                    name: name.clone(),
-                    line,
+                    name: (name.clone()).into(),
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -239,8 +240,8 @@ fn walk(
                 let module_path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
                 if !module_path.is_empty() {
                     out.imports.push(ImportRef {
-                        module_path,
-                        line: node.start_position().row + 1,
+                        module_path: module_path.into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -250,13 +251,16 @@ fn walk(
                 let callee = function.utf8_text(src).unwrap_or("").to_string();
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee: callee.clone(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (callee.clone()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(route) = route_from_call(&callee, node, src) {
                     out.routes.push(route);
@@ -470,9 +474,9 @@ fn named_arrow_or_const_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef>
         let line = node.start_position().row + 1;
         if matches!(value.kind(), "arrow_function" | "function_expression") {
             return Some(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Lambda,
-                line,
+                line: line.into(),
             });
         }
     }
@@ -519,9 +523,9 @@ fn route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<Rout
         return None;
     }
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: call_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -551,8 +555,8 @@ fn route_from_decorator(decorator_node: Node<'_>, src: &[u8]) -> Option<RouteRef
         })
         .unwrap_or_default();
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: decorator_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (decorator_node.start_position().row + 1).into(),
     })
 }

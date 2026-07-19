@@ -21,7 +21,7 @@ use enforcer_security::rules::security_test_quality::{
     ReproducibleSeedValidator, SnapshotOnlyValidator, ThreatQualityScoreValidator,
 };
 use enforcer_validator::error::HarnessError;
-use enforcer_validator::harness::run_fixture_parity;
+use enforcer_validator::harness::run_fixture_parity as assert_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// Typed failure surface for this proof file — every fallible step maps
@@ -58,7 +58,10 @@ fn h04_rule_scaffold_parity_is_clean() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let catalog_path = manifest_dir.join("rules/security-test-quality.json");
     let registry: RuleRegistry = load_registry_from_files(&[catalog_path.as_path()])?;
-    assert_eq!(registry.len(), 9);
+    assert_eq!(
+        registry.count(),
+        enforcer_domain::rules_types::RuleRecordCount::from_records(0..9)
+    );
 
     let lookup = H04Lookup {
         family: validators()?,
@@ -70,7 +73,11 @@ fn h04_rule_scaffold_parity_is_clean() -> Result<(), ProofFailure> {
         .map(std::path::Path::to_path_buf)
         .ok_or(ProofFailure::RepoRoot)?;
 
-    let oracle = ParityOracle::new(&registry, &repo_root, BTreeSet::new());
+    let oracle = ParityOracle::new(
+        &registry,
+        enforcer_domain::paths::RepoRoot::try_from(repo_root.as_path())?,
+        BTreeSet::new(),
+    );
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),
@@ -101,11 +108,13 @@ fn nine_validators_registered_with_unique_rule_ids() -> Result<(), ProofFailure>
 fn asserts_rejection_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = AssertsRejectionValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/asserts_success_only/bad/success_only.test.ts",
-        "tests/fixtures/security_test_quality/asserts_success_only/good/rejects.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/asserts_success_only/bad/success_only.test.ts"
+            .parse()?,
+        &"tests/fixtures/security_test_quality/asserts_success_only/good/rejects.test.ts"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -114,11 +123,13 @@ fn asserts_rejection_fixture_parity() -> Result<(), ProofFailure> {
 fn mocks_for_money_logic_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = MocksForMoneyLogicValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/mocks_for_money_logic/bad/mock_money.test.ts",
-        "tests/fixtures/security_test_quality/mocks_for_money_logic/good/real_money.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/mocks_for_money_logic/bad/mock_money.test.ts"
+            .parse()?,
+        &"tests/fixtures/security_test_quality/mocks_for_money_logic/good/real_money.test.ts"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -127,11 +138,11 @@ fn mocks_for_money_logic_fixture_parity() -> Result<(), ProofFailure> {
 fn reproducible_seed_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = ReproducibleSeedValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/reproducible_seed/bad/no_seed.test.ts",
-        "tests/fixtures/security_test_quality/reproducible_seed/good/seeded.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/reproducible_seed/bad/no_seed.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/reproducible_seed/good/seeded.test.ts".parse()?,
     )?;
     Ok(())
 }
@@ -140,11 +151,11 @@ fn reproducible_seed_fixture_parity() -> Result<(), ProofFailure> {
 fn global_mutation_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = GlobalMutationValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/global_mutation/bad/shared_state.test.ts",
-        "tests/fixtures/security_test_quality/global_mutation/good/isolated.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/global_mutation/bad/shared_state.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/global_mutation/good/isolated.test.ts".parse()?,
     )?;
     Ok(())
 }
@@ -153,11 +164,13 @@ fn global_mutation_fixture_parity() -> Result<(), ProofFailure> {
 fn pass_if_deleted_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = PassIfDeletedValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/pass_if_deleted/bad/pass_if_deleted.test.ts",
-        "tests/fixtures/security_test_quality/pass_if_deleted/good/asserts_real_outcome.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/pass_if_deleted/bad/pass_if_deleted.test.ts"
+            .parse()?,
+        &"tests/fixtures/security_test_quality/pass_if_deleted/good/asserts_real_outcome.test.ts"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -166,11 +179,12 @@ fn pass_if_deleted_fixture_parity() -> Result<(), ProofFailure> {
 fn no_crash_only_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = NoCrashOnlyValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/no_crash_only/bad/no_crash_only.test.ts",
-        "tests/fixtures/security_test_quality/no_crash_only/good/asserts_specific_error.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/no_crash_only/bad/no_crash_only.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/no_crash_only/good/asserts_specific_error.test.ts"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -179,11 +193,12 @@ fn no_crash_only_fixture_parity() -> Result<(), ProofFailure> {
 fn snapshot_only_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = SnapshotOnlyValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/snapshot_only/bad/snapshot_only.test.ts",
-        "tests/fixtures/security_test_quality/snapshot_only/good/explicit_assertions.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/snapshot_only/bad/snapshot_only.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/snapshot_only/good/explicit_assertions.test.ts"
+            .parse()?,
     )?;
     Ok(())
 }
@@ -192,11 +207,11 @@ fn snapshot_only_fixture_parity() -> Result<(), ProofFailure> {
 fn threat_quality_score_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = ThreatQualityScoreValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/threat_mapping/bad/unmapped.test.ts",
-        "tests/fixtures/security_test_quality/threat_mapping/good/mapped.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/threat_mapping/bad/unmapped.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/threat_mapping/good/mapped.test.ts".parse()?,
     )?;
     Ok(())
 }
@@ -205,11 +220,11 @@ fn threat_quality_score_fixture_parity() -> Result<(), ProofFailure> {
 fn protection_removed_heuristic_fixture_parity() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let validator = ProtectionRemovedHeuristicValidator::new()?;
-    run_fixture_parity(
+    assert_fixture_parity(
         &validator,
-        &manifest_dir,
-        "tests/fixtures/security_test_quality/protection_removed/bad/no_mutation_marker.test.ts",
-        "tests/fixtures/security_test_quality/protection_removed/good/mutation_marker_present.test.ts",
+        &enforcer_domain::paths::RepoRoot::try_from(manifest_dir.as_path())?,
+        &"tests/fixtures/security_test_quality/protection_removed/bad/no_mutation_marker.test.ts".parse()?,
+        &"tests/fixtures/security_test_quality/protection_removed/good/mutation_marker_present.test.ts".parse()?,
     )?;
     Ok(())
 }
@@ -273,7 +288,9 @@ fn sec_test_quality_rule_id_property_over_corpus() -> Result<(), ProofFailure> {
         for document in &corpus {
             let findings = validator.validate(ValidationInput {
                 file: &target_path,
-                source: document,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                    document,
+                ),
                 scope: ScanScope::Files,
             });
             for finding in &findings {
@@ -283,7 +300,10 @@ fn sec_test_quality_rule_id_property_over_corpus() -> Result<(), ProofFailure> {
                     "validator {} emitted a foreign rule id",
                     validator.rule_id()
                 );
-                assert!(finding.line >= 1, "finding lines are 1-based");
+                assert!(
+                    finding.line.source_line().is_some(),
+                    "finding lines are 1-based"
+                );
             }
         }
     }

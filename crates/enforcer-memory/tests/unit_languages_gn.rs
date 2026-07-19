@@ -45,16 +45,11 @@ fn parses_fixture_build_gn_without_panicking() -> TestResult {
     let path = Path::new(FIXTURE_DIR).join("BUILD.gn");
     let src = fs::read_to_string(&path)?;
     let parsed = parse_gn(&src);
-    parsed
+    assert!(parsed
         .imports
         .iter()
-        .find(|i| i.module_path == "//build/config.gni")
-        .ok_or("expected an import for //build/config.gni")?;
-    parsed
-        .calls
-        .iter()
-        .find(|c| c.callee == "executable")
-        .ok_or("expected an executable(...) call")?;
+        .any(|i| i.module_path == "//build/config.gni"));
+    assert!(parsed.calls.iter().any(|c| c.callee == "executable"));
     Ok(())
 }
 
@@ -68,6 +63,6 @@ fn incremental_reindex_is_deterministic() {
 
 #[test]
 fn malformed_source_does_not_panic() {
-    let parsed = parse_gn("this { is not [[[ valid gn @@@");
-    let _ = parsed;
+    let source = "this { is not [[[ valid gn @@@";
+    assert_eq!(parse_gn(source), parse_gn(source));
 }

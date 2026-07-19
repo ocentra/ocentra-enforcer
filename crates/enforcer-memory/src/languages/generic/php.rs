@@ -2,7 +2,10 @@
 //!
 //! This module owns PHP declarations, attributes, routes, imports, calls, and test classification.
 
-use super::*;
+use super::{
+    child_text, parse_with_spec, walk, CallRef, Ctx, DefinesRef, FnScope, ImplementsRef, ImportRef,
+    InheritsRef, LangSpec, Node, ParsedFile, Quirks, ReceiverHint, RouteRef, SymbolKind, SymbolRef,
+};
 
 /// HTTP methods recognized in `Route::get(...)`-style static calls --
 /// same list `languages/php.rs`'s `HTTP_METHODS` const duplicates.
@@ -52,16 +55,16 @@ fn php_emit_class_heritage_edges(
             extends_test_case = true;
         }
         out.inherits.push(InheritsRef {
-            sub_name: type_name.to_string(),
-            super_name: base_name,
-            line,
+            sub_name: (type_name.to_string()).into(),
+            super_name: (base_name).into(),
+            line: line.into(),
         });
     }
     for iface_name in php_heritage_names(node, src, "implements") {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: iface_name,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (iface_name).into(),
+            line: line.into(),
         });
     }
     extends_test_case
@@ -145,9 +148,9 @@ fn php_route_from_symfony_attribute(attr: Node<'_>, src: &[u8], line: usize) -> 
     }
     let path = php_attribute_first_string_arg(attr, src).unwrap_or_default();
     Some(RouteRef {
-        method: String::new(),
-        path,
-        line,
+        method: (String::new()).into(),
+        path: path.into(),
+        line: line.into(),
     })
 }
 
@@ -203,9 +206,9 @@ fn php_route_from_scoped_call(
         })?;
     let raw = first_string.utf8_text(src).ok()?;
     Some(RouteRef {
-        method: method_name.to_uppercase(),
-        path: php_strip_string_literal(raw),
-        line: call_node.start_position().row + 1,
+        method: (method_name.to_uppercase()).into(),
+        path: (php_strip_string_literal(raw)).into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -298,8 +301,8 @@ fn php_require_include_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
                 if matches!(target.kind(), "string" | "encapsed_string") {
                     if let Ok(text) = target.utf8_text(src) {
                         return Some(ImportRef {
-                            module_path: php_strip_string_literal(text),
-                            line: node.start_position().row + 1,
+                            module_path: (php_strip_string_literal(text)).into(),
+                            line: (node.start_position().row + 1).into(),
                         });
                     }
                 }
@@ -353,9 +356,9 @@ fn php_named_closure_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
         .trim_start_matches('$')
         .to_string();
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Lambda,
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     })
 }
 
@@ -384,9 +387,9 @@ fn php_constant_from_define_call(
         return None;
     }
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Constant,
-        line: call_node.start_position().row + 1,
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -481,23 +484,23 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 php_emit_class_heritage_edges(node, src, &name, line, out);
                 for decorator_name in php_attribute_names(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 php_walk_scoped(node, src, Some(name.as_str()), out);
@@ -509,9 +512,9 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "trait_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 php_walk_scoped(node, src, Some(name.as_str()), out);
             } else {
@@ -523,22 +526,22 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for base_name in php_heritage_names(node, src, "extends") {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base_name,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (base_name).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 php_walk_scoped(node, src, Some(name.as_str()), out);
@@ -551,9 +554,9 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name_node) = node.child_by_field_name("name") {
                 if let Ok(text) = name_node.utf8_text(src) {
                     out.symbols.push(SymbolRef {
-                        name: text.to_string(),
+                        name: (text.to_string()).into(),
                         kind: SymbolKind::Module,
-                        line: node.start_position().row + 1,
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -571,15 +574,15 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                         if let Ok(text) = name_node.utf8_text(src) {
                             let line = node.start_position().row + 1;
                             out.symbols.push(SymbolRef {
-                                name: text.to_string(),
+                                name: (text.to_string()).into(),
                                 kind: SymbolKind::Constant,
-                                line,
+                                line: line.into(),
                             });
                             if let Some(container) = enclosing {
                                 out.defines.push(DefinesRef {
-                                    container_name: container.to_string(),
-                                    member_name: text.to_string(),
-                                    line,
+                                    container_name: (container.to_string()).into(),
+                                    member_name: (text.to_string()).into(),
+                                    line: line.into(),
                                 });
                             }
                         }
@@ -591,8 +594,8 @@ fn php_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "namespace_use_declaration" => {
             for path in php_namespace_use_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -669,13 +672,16 @@ fn php_call_override(
             };
             let callee = function.utf8_text(src).unwrap_or("").to_string();
             out.calls.push(CallRef {
-                callee: callee.clone(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.clone()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: php_call_arg_texts(node, src),
+                arg_texts: (php_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             if let Some(constant) = php_constant_from_define_call(&callee, node, src) {
                 out.symbols.push(constant);
@@ -691,13 +697,16 @@ fn php_call_override(
             };
             let (receiver_text, receiver_hint) = php_receiver_of_member_call(node, src);
             out.calls.push(CallRef {
-                callee: text.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (text.to_string()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: php_call_arg_texts(node, src),
+                arg_texts: (php_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -717,16 +726,20 @@ fn php_call_override(
                     }
                 });
             out.calls.push(CallRef {
-                callee,
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: callee.into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: node
                     .child_by_field_name("scope")
                     .and_then(|s| s.utf8_text(src).ok())
-                    .map(str::to_string),
+                    .map(str::to_string)
+                    .map(Into::into),
                 receiver_hint,
-                arg_texts: php_call_arg_texts(node, src),
+                arg_texts: (php_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             if let Some(route) = php_route_from_scoped_call(node, name, src) {
                 out.routes.push(route);
@@ -766,16 +779,16 @@ fn php_on_method_defined(
     }
     for type_ref in php_signature_type_refs(node, src) {
         out.type_refs.push(crate::parsers::TypeRefRef {
-            from_name: name.to_string(),
-            type_name: type_ref,
-            line,
+            from_name: (name.to_string()).into(),
+            type_name: (type_ref).into(),
+            line: line.into(),
         });
     }
     for decorator_name in &attributes {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name: decorator_name.clone(),
-            line,
+            target_name: (name.to_string()).into(),
+            decorator_name: (decorator_name.clone()).into(),
+            line: line.into(),
         });
     }
     for route in php_routes_from_attributes(node, src, line) {
@@ -791,7 +804,9 @@ pub fn php_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(php_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(php_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            php_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(php_call_override)),
     }
 }

@@ -19,7 +19,10 @@
 //! an isolated `tempfile::tempdir()` before a test touches it — these
 //! tests NEVER write into the checked-in fixture tree.
 
-use enforcer_install::report::{SkillAsset, SkillAssetManifest};
+use enforcer_domain::install_types::{
+    InstallReportText, InstallRootPath, OverwriteMode, SkillAsset, SkillAssetManifest,
+    SkillAssetPath,
+};
 use std::path::{Path, PathBuf};
 
 fn fixture_root(name: &str) -> PathBuf {
@@ -65,14 +68,17 @@ fn step1_install_skill_asset_exists_on_disk() -> Result<(), Box<dyn std::error::
         .to_path_buf();
     let manifest = SkillAssetManifest {
         assets: vec![SkillAsset {
-            skill_name: "enforcer-onboarding".to_owned(),
-            asset_path: "skills/enforcer-onboarding/SKILL.md".to_owned(),
+            name: InstallReportText::try_from("enforcer-onboarding".to_owned())?,
+            path: SkillAssetPath::from(PathBuf::from("skills/enforcer-onboarding/SKILL.md")),
         }],
         plugin_contracts: Vec::new(),
     };
     let report = enforcer_install::core::run_skill_asset_checks(&manifest, &repo_root)?;
     assert!(
-        report.all_passed(),
+        report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )),
         "expected skills/enforcer-onboarding/SKILL.md to exist, got {report:?}"
     );
     Ok(())
@@ -143,7 +149,7 @@ fn run_onboarding(root: &Path) -> Result<OnboardingOutcome, Box<dyn std::error::
     // from the same raw JSON directly to assert step 3's judgment call was
     // actually recorded on disk.
     let effective = enforcer_config::load_project_config(&config_path)?;
-    assert!(!effective.profile_name.is_empty());
+    assert!(!effective.profile_name.as_str().is_empty());
     let raw = std::fs::read_to_string(&config_path)?;
     let raw_value: serde_json::Value = serde_json::from_str(&raw)?;
     let languages: Vec<String> = raw_value["languages"]
@@ -160,16 +166,28 @@ fn run_onboarding(root: &Path) -> Result<OnboardingOutcome, Box<dyn std::error::
     // Step 5: wire CI -- apply the real c07 consumer-CI emitter's planned
     // workflow set (fresh-create path; these fixtures have no pre-existing
     // CI to integrate with).
-    let planned = enforcer_install::emitters::consumer_ci::plan(root);
+    let install_root = InstallRootPath::try_from(root.to_path_buf())?;
+    let planned = enforcer_install::emitters::consumer_ci::plan(&install_root)?;
     assert!(
         !planned.is_empty(),
         "CI wiring must plan a non-empty write set"
     );
-    let applied = enforcer_install::emitters::consumer_ci::apply(root, false)?;
-    let ci_wired = applied.iter().all(|write| write.wrote);
-    let verify_after_wire = enforcer_install::emitters::consumer_ci::verify(root);
+    let applied = enforcer_install::emitters::consumer_ci::apply(
+        &install_root,
+        OverwriteMode::PreserveExisting,
+    )?;
+    let ci_wired = applied.iter().all(|write| {
+        matches!(
+            write.outcome,
+            enforcer_domain::install_types::FileWriteOutcome::Written
+        )
+    });
+    let verify_after_wire = enforcer_install::emitters::consumer_ci::verify(&install_root)?;
     assert!(
-        verify_after_wire.iter().all(|check| check.passed),
+        verify_after_wire.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )),
         "freshly wired CI must verify clean immediately, got {verify_after_wire:?}"
     );
 
@@ -208,7 +226,9 @@ fn run_onboarding(root: &Path) -> Result<OnboardingOutcome, Box<dyn std::error::
 /// the full validator engine being wired into this crate's dev-deps.
 fn file_contains_seeded_marker(path: &Path) -> Result<bool, Box<dyn std::error::Error>> {
     let contents = std::fs::read_to_string(path)?;
-    Ok(contents.contains("seeded onboarding-verify violation"))
+    Ok(contents
+        .as_str()
+        .contains("seeded onboarding-verify violation"))
 }
 
 #[test]
@@ -247,8 +267,9 @@ fn skipping_verify_step_is_asserted_incomplete() -> Result<(), Box<dyn std::erro
     // Steps 2-5 only, deliberately stopping short of step 6.
     let config_path = root.join("ocentra-enforcer.config.json");
     let effective = enforcer_config::load_project_config(&config_path)?;
-    assert!(!effective.profile_name.is_empty());
-    enforcer_install::emitters::consumer_ci::apply(root, false)?;
+    assert!(!effective.profile_name.as_str().is_empty());
+    let install_root = InstallRootPath::try_from(root.to_path_buf())?;
+    enforcer_install::emitters::consumer_ci::apply(&install_root, OverwriteMode::PreserveExisting)?;
 
     // No seeded violation was ever introduced or observed -- this is the
     // literal shape of "skipped verify". The outcome type has no field
@@ -259,7 +280,7 @@ fn skipping_verify_step_is_asserted_incomplete() -> Result<(), Box<dyn std::erro
     // the only way to get `is_verified() == true` is to have actually run
     // the seed/detect/remove/clean sequence.
     let unverified = OnboardingOutcome {
-        languages: vec![effective.profile_name],
+        languages: vec![effective.profile_name.as_str().to_owned()],
         ci_wired: true,
         seeded_violation_detected: false,
         clean_baseline_passed: false,

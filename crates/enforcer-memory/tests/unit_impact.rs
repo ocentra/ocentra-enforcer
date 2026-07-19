@@ -1,7 +1,8 @@
+use enforcer_domain::memory_types::{DetectChangesScope, ImpactScope, RiskLevel};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::impact::{
     analyze_diff_impact, analyze_diff_impact_scoped, classify_risk_from_factors,
-    detect_changes_view, DetectChangesScope, ImpactScope, RiskFactors, RiskLevel, DEFAULT_DEPTH,
+    detect_changes_view, RiskFactors, DEFAULT_DEPTH,
 };
 use std::error::Error;
 use std::fs;
@@ -45,7 +46,7 @@ fn diff_impact_finds_transitively_affected_files() -> TestResult<()> {
     let files = vec![dir.path().join("a.rs"), dir.path().join("b.rs")];
     graph.index_repository(dir.path(), &files, &Manifest::default())?;
 
-    let report = analyze_diff_impact(&graph, &["b.rs".to_string()], 3);
+    let report = analyze_diff_impact(&graph, &["b.rs".into()], 3.into());
     assert_eq!(report.impacted.len(), 1);
     let impacted_b = &report.impacted[0];
     assert_eq!(impacted_b.rel_path, "b.rs");
@@ -70,7 +71,7 @@ fn unknown_changed_path_is_reported_with_zero_impact_not_panic() -> TestResult<(
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[dir.path().join("a.rs")], &Manifest::default())?;
 
-    let report = analyze_diff_impact(&graph, &["does-not-exist.rs".to_string()], 3);
+    let report = analyze_diff_impact(&graph, &["does-not-exist.rs".into()], 3.into());
     assert_eq!(report.impacted.len(), 1);
     assert!(report.impacted[0].affected_node_ids.is_empty());
     assert_eq!(report.impacted[0].risk, RiskLevel::Low);
@@ -99,17 +100,17 @@ fn build_risk_fixture(dir: &Path, caller_count: usize) -> TestResult<CodeGraph> 
 fn risk_classification_boundaries_are_preserved_through_public_diff_impact() -> TestResult<()> {
     let low_dir = tempfile::tempdir()?;
     let low_graph = build_risk_fixture(low_dir.path(), 0)?;
-    let low_report = analyze_diff_impact(&low_graph, &["helper.rs".to_string()], 3);
+    let low_report = analyze_diff_impact(&low_graph, &["helper.rs".into()], 3.into());
     assert_eq!(low_report.impacted[0].risk, RiskLevel::Low);
 
     let medium_dir = tempfile::tempdir()?;
     let medium_graph = build_risk_fixture(medium_dir.path(), 2)?;
-    let medium_report = analyze_diff_impact(&medium_graph, &["helper.rs".to_string()], 3);
+    let medium_report = analyze_diff_impact(&medium_graph, &["helper.rs".into()], 3.into());
     assert_eq!(medium_report.impacted[0].risk, RiskLevel::Medium);
 
     let high_dir = tempfile::tempdir()?;
     let high_graph = build_risk_fixture(high_dir.path(), 6)?;
-    let high_report = analyze_diff_impact(&high_graph, &["helper.rs".to_string()], 3);
+    let high_report = analyze_diff_impact(&high_graph, &["helper.rs".into()], 3.into());
     assert_eq!(high_report.impacted[0].risk, RiskLevel::High);
     Ok(())
 }
@@ -119,14 +120,14 @@ fn risk_classification_boundaries_are_preserved_through_public_diff_impact() -> 
 #[test]
 fn factors_high_centrality_is_high_risk_regardless_of_test_coverage() {
     let high_centrality_tested = RiskFactors {
-        centrality_degree: 10,
-        has_test_coverage: true,
-        has_downstream_route: false,
+        centrality_degree: 10.into(),
+        has_test_coverage: true.into(),
+        has_downstream_route: false.into(),
     };
     let high_centrality_untested = RiskFactors {
-        centrality_degree: 25,
-        has_test_coverage: false,
-        has_downstream_route: false,
+        centrality_degree: 25.into(),
+        has_test_coverage: false.into(),
+        has_downstream_route: false.into(),
     };
     assert_eq!(
         classify_risk_from_factors(high_centrality_tested),
@@ -141,9 +142,9 @@ fn factors_high_centrality_is_high_risk_regardless_of_test_coverage() {
 #[test]
 fn factors_leaf_node_tested_no_route_is_low_risk() {
     let leaf = RiskFactors {
-        centrality_degree: 0,
-        has_test_coverage: true,
-        has_downstream_route: false,
+        centrality_degree: 0.into(),
+        has_test_coverage: true.into(),
+        has_downstream_route: false.into(),
     };
     assert_eq!(classify_risk_from_factors(leaf), RiskLevel::Low);
 }
@@ -151,9 +152,9 @@ fn factors_leaf_node_tested_no_route_is_low_risk() {
 #[test]
 fn factors_downstream_route_without_tests_is_high_risk() {
     let untested_route = RiskFactors {
-        centrality_degree: 1,
-        has_test_coverage: false,
-        has_downstream_route: true,
+        centrality_degree: 1.into(),
+        has_test_coverage: false.into(),
+        has_downstream_route: true.into(),
     };
     assert_eq!(classify_risk_from_factors(untested_route), RiskLevel::High);
 }
@@ -161,9 +162,9 @@ fn factors_downstream_route_without_tests_is_high_risk() {
 #[test]
 fn factors_downstream_route_with_tests_is_medium_risk() {
     let tested_route = RiskFactors {
-        centrality_degree: 1,
-        has_test_coverage: true,
-        has_downstream_route: true,
+        centrality_degree: 1.into(),
+        has_test_coverage: true.into(),
+        has_downstream_route: true.into(),
     };
     assert_eq!(classify_risk_from_factors(tested_route), RiskLevel::Medium);
 }
@@ -171,9 +172,9 @@ fn factors_downstream_route_with_tests_is_medium_risk() {
 #[test]
 fn factors_untested_mid_centrality_leaf_is_medium_not_low() {
     let untested_mid = RiskFactors {
-        centrality_degree: 2,
-        has_test_coverage: false,
-        has_downstream_route: false,
+        centrality_degree: 2.into(),
+        has_test_coverage: false.into(),
+        has_downstream_route: false.into(),
     };
     assert_eq!(classify_risk_from_factors(untested_mid), RiskLevel::Medium);
 }
@@ -219,14 +220,14 @@ fn scoped_impact_detects_downstream_route_and_test_coverage() -> TestResult<()> 
 
     let report = analyze_diff_impact_scoped(
         &graph,
-        &["b.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["b.rs".into()],
+        DEFAULT_DEPTH.into(),
         ImpactScope::All,
     );
     assert_eq!(report.impacted.len(), 1);
     let impacted = &report.impacted[0];
     assert!(
-        impacted.factors.has_downstream_route,
+        impacted.factors.has_downstream_route.is_present(),
         "expected router.ts's GET /a route downstream of b.rs, got {:?}",
         impacted.factors
     );
@@ -240,8 +241,8 @@ fn scoped_impact_symbols_only_excludes_file_and_route_nodes() -> TestResult<()> 
 
     let report = analyze_diff_impact_scoped(
         &graph,
-        &["b.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["b.rs".into()],
+        DEFAULT_DEPTH.into(),
         ImpactScope::SymbolsOnly,
     );
     let impacted = &report.impacted[0];
@@ -263,8 +264,8 @@ fn scoped_impact_routes_only_returns_only_route_declaring_files() -> TestResult<
 
     let report = analyze_diff_impact_scoped(
         &graph,
-        &["b.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["b.rs".into()],
+        DEFAULT_DEPTH.into(),
         ImpactScope::RoutesOnly,
     );
     let impacted = &report.impacted[0];
@@ -286,14 +287,14 @@ fn scoped_impact_unknown_path_has_low_risk_and_no_factors() -> TestResult<()> {
 
     let report = analyze_diff_impact_scoped(
         &graph,
-        &["does-not-exist.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["does-not-exist.rs".into()],
+        DEFAULT_DEPTH.into(),
         ImpactScope::All,
     );
     assert_eq!(report.impacted.len(), 1);
     assert_eq!(report.impacted[0].risk, RiskLevel::Low);
-    assert!(!report.impacted[0].factors.has_downstream_route);
-    assert!(!report.impacted[0].factors.has_test_coverage);
+    assert!(!report.impacted[0].factors.has_downstream_route.is_present());
+    assert!(!report.impacted[0].factors.has_test_coverage.is_present());
     Ok(())
 }
 
@@ -324,8 +325,8 @@ fn detect_changes_view_matches_the_baseline_parity_shape() -> TestResult<()> {
 
     let view = detect_changes_view(
         &graph,
-        &["a.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["a.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::Symbols,
     );
     assert_eq!(view.changed_files, vec!["a.rs".to_string()]);
@@ -357,8 +358,8 @@ fn detect_changes_view_files_only_scope_leaves_impacted_symbols_empty_but_presen
 
     let view = detect_changes_view(
         &graph,
-        &["a.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["a.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::FilesOnly,
     );
     assert!(
@@ -376,11 +377,14 @@ fn detect_changes_view_impact_scope_also_populates_symbols() -> TestResult<()> {
 
     let view = detect_changes_view(
         &graph,
-        &["a.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["a.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::Impact,
     );
-    assert!(!view.impacted_symbols.is_empty());
+    assert!(view
+        .impacted_symbols
+        .iter()
+        .any(|symbol| symbol.name.as_str() == "caller"));
     Ok(())
 }
 
@@ -391,14 +395,14 @@ fn detect_changes_view_is_deterministically_ordered() -> TestResult<()> {
 
     let first = detect_changes_view(
         &graph,
-        &["a.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["a.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::Symbols,
     );
     let second = detect_changes_view(
         &graph,
-        &["a.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["a.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::Symbols,
     );
     assert_eq!(first, second);
@@ -412,8 +416,8 @@ fn detect_changes_view_unknown_file_reports_zero_symbols_not_panic() -> TestResu
 
     let view = detect_changes_view(
         &graph,
-        &["does-not-exist.rs".to_string()],
-        DEFAULT_DEPTH,
+        &["does-not-exist.rs".into()],
+        DEFAULT_DEPTH.into(),
         DetectChangesScope::Symbols,
     );
     assert_eq!(view.changed_count, 1);

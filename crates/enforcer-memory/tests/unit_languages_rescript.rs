@@ -121,7 +121,10 @@ fn extracts_decorator_as_decorates_edge() {
 fn extracts_branch_heavy_function_without_panicking() {
     let src = "let f = (x) => {\n  if x > 0 {\n    Js.log(\"positive\")\n  } else {\n    Js.log(\"non-positive\")\n  }\n  switch x {\n  | 0 => Js.log(\"zero\")\n  | _ => Js.log(\"other\")\n  }\n}\n";
     let parsed = parse_rescript(src);
-    assert!(symbol_kind(&parsed.symbols, "f").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "f"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

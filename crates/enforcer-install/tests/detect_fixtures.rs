@@ -6,7 +6,8 @@
 //! file additionally proves the on-disk fixture layout itself stays
 //! correct (a reviewer can inspect the exact bytes a fixture carries).
 
-use enforcer_install::detect::{detect_harnesses, Cap, EnvSource, MapEnv, RealFs, Support};
+use enforcer_domain::install_types::{Cap, Support};
+use enforcer_install::detect::{detect_harnesses, EnvSource, MapEnv, RealFs};
 use std::path::{Path, PathBuf};
 
 fn fixture_root(name: &str) -> PathBuf {

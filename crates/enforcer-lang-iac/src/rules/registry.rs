@@ -1,10 +1,7 @@
-//! The full IaC-family registry: every one of the 8 `IAC-*` rule ids
-//! paired with its constructed [`Validator`]. This is the single source
-//! `tests/completeness.rs` walks to prove count-parity against
-//! `rules/rules.json`'s `language == "iac"` count (8) — one entry per rule
-//! id, no orphans, no duplicates.
+//! Canonical registry for all built-in IaC validators.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::RuleId;
 use enforcer_validator::validator::Validator;
 
 use super::cloudformation;
@@ -12,54 +9,47 @@ use super::kubernetes;
 use super::spec::SpecValidator;
 use super::terraform;
 
-/// One registry row: the rule id (as the literal from its owning spec)
-/// paired with the constructed [`Validator`] trait object.
+/// One fully constructed built-in IaC validator row.
 pub struct RegistryRow {
-    /// The rule id this row proves, e.g. `IAC-1.1`.
-    pub rule_id: &'static str,
-    /// The constructed validator for this rule.
+    pub rule_id: RuleId,
     pub validator: Box<dyn Validator>,
 }
 
-/// Build every one of the 8 IaC-family rows. Fails closed (propagates the
-/// first construction error) rather than silently dropping a malformed
-/// entry — a registry that failed to build completely must not be treated
-/// as "loaded".
+impl std::fmt::Debug for RegistryRow {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RegistryRow")
+            .field("rule_id", &self.rule_id)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Build all eight built-in IaC validators or fail the complete registry.
 pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
-    let mut rows = Vec::new();
-
-    for spec in terraform::SPECS {
-        rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(SpecValidator::new(*spec)?),
-        });
-    }
-
-    for spec in cloudformation::SPECS {
-        rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(SpecValidator::new(*spec)?),
-        });
-    }
-
-    for spec in kubernetes::SPECS {
-        rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(SpecValidator::new(*spec)?),
-        });
-    }
-
-    Ok(rows)
+    terraform::SPECS
+        .iter()
+        .chain(cloudformation::SPECS)
+        .chain(kubernetes::SPECS)
+        .map(|spec| {
+            let validator = SpecValidator::new(*spec)?;
+            Ok(RegistryRow {
+                rule_id: spec.rule.id(),
+                validator: Box::new(validator),
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
+    use enforcer_domain::ids::BuiltInIacRule;
+
     use super::build_all;
 
     #[test]
-    fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
+    fn registry_builds_every_canonical_iac_rule() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert!(!rows.is_empty());
+        assert_eq!(rows.len(), BuiltInIacRule::ALL.len());
         Ok(())
     }
 }

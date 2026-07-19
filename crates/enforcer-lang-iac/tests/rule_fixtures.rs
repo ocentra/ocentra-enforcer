@@ -1,66 +1,85 @@
-use std::path::PathBuf;
-
-use enforcer_lang_iac::rules::{
-    cloudformation, kubernetes, terraform,
-    spec::{RuleSpec, SpecValidator},
-};
+use enforcer_domain::ids::BuiltInIacRule;
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_lang_iac::rules::registry::build_all;
 use enforcer_validator::harness::run_fixture_parity;
 
-fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn manifest_root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+    RepoRoot::try_from(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
 }
 
-fn spec_for(specs: &[RuleSpec], rule_id: &str) -> Result<RuleSpec, String> {
-    specs
-        .iter()
-        .find(|spec| spec.rule_id == rule_id)
-        .copied()
-        .ok_or_else(|| format!("missing IaC rule spec {rule_id}"))
-}
-
-fn assert_fixture(specs: &[RuleSpec], rule_id: &str, fail: &str, pass: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let validator = SpecValidator::new(spec_for(specs, rule_id)?)?;
-    run_fixture_parity(&validator, &manifest_dir(), fail, pass)?;
+fn assert_fixture(
+    rule: BuiltInIacRule,
+    fail: &RelPath,
+    pass: &RelPath,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rule_id = rule.id();
+    let rows = build_all()?;
+    let Some(row) = rows.iter().find(|row| row.rule_id == rule_id) else {
+        return Err(
+            std::io::Error::other(format!("missing built-in IaC validator for {rule_id}")).into(),
+        );
+    };
+    run_fixture_parity(row.validator.as_ref(), &manifest_root()?, fail, pass)?;
     Ok(())
 }
 
 #[test]
-fn cloudformation_rule_fixtures_preserve_fail_and_pass_contracts() -> Result<(), Box<dyn std::error::Error>> {
+fn cloudformation_rule_fixtures_preserve_fail_and_pass_contracts(
+) -> Result<(), Box<dyn std::error::Error>> {
     assert_fixture(
-        cloudformation::SPECS,
-        "IAC-1.4",
-        "fixtures/cloudformation/iac-1-4/fail.template.json",
-        "fixtures/cloudformation/iac-1-4/pass.template.json",
+        BuiltInIacRule::CloudFormationPublicAccess,
+        &"fixtures/cloudformation/iac-1-4/fail.template.json".parse()?,
+        &"fixtures/cloudformation/iac-1-4/pass.template.json".parse()?,
     )?;
     assert_fixture(
-        cloudformation::SPECS,
-        "IAC-1.5",
-        "fixtures/cloudformation/iac-1-5/fail.template.json",
-        "fixtures/cloudformation/iac-1-5/pass.template.json",
+        BuiltInIacRule::CloudFormationWildcardIam,
+        &"fixtures/cloudformation/iac-1-5/fail.template.json".parse()?,
+        &"fixtures/cloudformation/iac-1-5/pass.template.json".parse()?,
     )?;
     Ok(())
 }
 
 #[test]
-fn kubernetes_rule_fixture_preserves_fail_and_pass_contract() -> Result<(), Box<dyn std::error::Error>> {
+fn kubernetes_rule_fixture_preserves_fail_and_pass_contract(
+) -> Result<(), Box<dyn std::error::Error>> {
     assert_fixture(
-        kubernetes::SPECS,
-        "IAC-1.8",
-        "fixtures/kubernetes/iac-1-8/fail.k8s.yaml",
-        "fixtures/kubernetes/iac-1-8/pass.k8s.yaml",
+        BuiltInIacRule::KubernetesPrivilegedContainer,
+        &"fixtures/kubernetes/iac-1-8/fail.k8s.yaml".parse()?,
+        &"fixtures/kubernetes/iac-1-8/pass.k8s.yaml".parse()?,
     )
 }
 
 #[test]
-fn terraform_rule_fixtures_preserve_fail_and_pass_contracts() -> Result<(), Box<dyn std::error::Error>> {
-    for (rule_id, fail, pass) in [
-        ("IAC-1.1", "fixtures/terraform/iac-1-1/fail.tf", "fixtures/terraform/iac-1-1/pass.tf"),
-        ("IAC-1.2", "fixtures/terraform/iac-1-2/fail.tf", "fixtures/terraform/iac-1-2/pass.tf"),
-        ("IAC-1.3", "fixtures/terraform/iac-1-3/fail.tf", "fixtures/terraform/iac-1-3/pass.tf"),
-        ("IAC-1.6", "fixtures/terraform/iac-1-6/fail.tf", "fixtures/terraform/iac-1-6/pass.tf"),
-        ("IAC-1.7", "fixtures/terraform/iac-1-7/fail.tf", "fixtures/terraform/iac-1-7/pass.tf"),
+fn terraform_rule_fixtures_preserve_fail_and_pass_contracts(
+) -> Result<(), Box<dyn std::error::Error>> {
+    for (rule, fail, pass) in [
+        (
+            BuiltInIacRule::TerraformS3Encryption,
+            "fixtures/terraform/iac-1-1/fail.tf".parse()?,
+            "fixtures/terraform/iac-1-1/pass.tf".parse()?,
+        ),
+        (
+            BuiltInIacRule::TerraformOpenIngress,
+            "fixtures/terraform/iac-1-2/fail.tf".parse()?,
+            "fixtures/terraform/iac-1-2/pass.tf".parse()?,
+        ),
+        (
+            BuiltInIacRule::TerraformHardcodedSecrets,
+            "fixtures/terraform/iac-1-3/fail.tf".parse()?,
+            "fixtures/terraform/iac-1-3/pass.tf".parse()?,
+        ),
+        (
+            BuiltInIacRule::TerraformProviderVersion,
+            "fixtures/terraform/iac-1-6/fail.tf".parse()?,
+            "fixtures/terraform/iac-1-6/pass.tf".parse()?,
+        ),
+        (
+            BuiltInIacRule::TerraformRemoteStateEncryption,
+            "fixtures/terraform/iac-1-7/fail.tf".parse()?,
+            "fixtures/terraform/iac-1-7/pass.tf".parse()?,
+        ),
     ] {
-        assert_fixture(terraform::SPECS, rule_id, fail, pass)?;
+        assert_fixture(rule, &fail, &pass)?;
     }
     Ok(())
 }

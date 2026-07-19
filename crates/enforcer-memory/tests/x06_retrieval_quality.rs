@@ -1,12 +1,14 @@
+use enforcer_domain::memory_types::DocumentKind;
 use enforcer_memory::embed::{Embedder, HashingEmbedder};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::model_observations::{
-    ModelRuntimeObservationCandidate, ModelRuntimeObservationRecord, RerankerLiftProof,
-    RetrievalQualityProof, RouteChoiceImprovement, TokenReductionProof,
+    ModelRuntimeObservationCandidate, ModelRuntimeObservationRecordDto, RerankerLiftProofDto,
+    RetrievalQualityProofDto, RouteChoiceImprovementDto, TokenReductionProofDto,
 };
 use enforcer_memory::ranking::HardFilter;
 use enforcer_memory::rerank::FusionScoreReranker;
-use enforcer_memory::search::{DocumentKind, HybridSearcher, SearchDocument};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::search::HybridSearcher;
 use enforcer_memory::vector::{embed_documents, VectorIndex};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -49,15 +51,16 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
     let embedder = HashingEmbedder::new();
     let doc_texts: Vec<(String, String)> = corpus
         .iter()
-        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .map(|doc| (doc.id.to_string(), doc.text.to_string()))
         .collect();
     let entries = embed_documents(&embedder, &doc_texts)?;
     let vector = VectorIndex::build(&entries, embedder.model_info());
     let reranker = FusionScoreReranker::new();
     let searcher = HybridSearcher::new(&fulltext, &vector, &embedder, &reranker);
-    let filters = vec![HardFilter::new("exclude-network", |doc_id| {
-        doc_id != "unrelated:network"
-    })];
+    let filters = vec![HardFilter::from_predicate(
+        "exclude-network".into(),
+        |doc_id| (doc_id != "unrelated:network").into(),
+    )];
 
     let result = searcher.search(
         "local llama gguf cache provider fallback",
@@ -67,7 +70,7 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
     let returned: Vec<String> = result
         .context
         .iter()
-        .map(|hit| hit.doc_id.clone())
+        .map(|hit| hit.doc_id.as_str().to_owned())
         .collect();
     let expected = ["runtime:llama-cache", "learning:observations"];
     let relevant_returned = expected
@@ -82,14 +85,14 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
         "hard-filtered network document must not enter proof context"
     );
     assert!(result.token_reduction_estimate.ratio() > 0.0);
-    assert!(result.reranker_lift.is_finite());
+    assert!(result.reranker_lift.get().is_finite());
 
     let records = vec![
-        ModelRuntimeObservationRecord::new(
+        ModelRuntimeObservationRecordDto::new(
             "2026-07-05T00:00:00Z",
             "x06-retrieval-quality-fixture",
             "x06-retrieval-quality",
-            ModelRuntimeObservationCandidate::RetrievalQualityProof(RetrievalQualityProof {
+            ModelRuntimeObservationCandidate::RetrievalQualityProofDto(RetrievalQualityProofDto {
                 query_id: "x06-q-local-runtime".to_string(),
                 query: "local llama gguf cache provider fallback".to_string(),
                 route: "hybrid-fulltext-vector-rerank".to_string(),
@@ -100,47 +103,49 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
                 returned_top_k: returned.len(),
             }),
         ),
-        ModelRuntimeObservationRecord::new(
+        ModelRuntimeObservationRecordDto::new(
             "2026-07-05T00:00:00Z",
             "x06-retrieval-quality-fixture",
             "x06-retrieval-quality",
-            ModelRuntimeObservationCandidate::RerankerLiftProof(RerankerLiftProof {
+            ModelRuntimeObservationCandidate::RerankerLiftProofDto(RerankerLiftProofDto {
                 query_id: "x06-q-local-runtime".to_string(),
                 query: "local llama gguf cache provider fallback".to_string(),
                 pre_rerank_top_k: result
                     .pre_rerank_pool
                     .iter()
-                    .map(|trace| trace.doc_id.clone())
+                    .map(|trace| trace.doc_id.as_str().to_owned())
                     .collect(),
                 post_rerank_top_k: returned,
-                lift_score: result.reranker_lift,
-                improved: result.reranker_lift >= 0.0,
+                lift_score: result.reranker_lift.get(),
+                improved: result.reranker_lift.get() >= 0.0,
             }),
         ),
-        ModelRuntimeObservationRecord::new(
+        ModelRuntimeObservationRecordDto::new(
             "2026-07-05T00:00:00Z",
             "x06-retrieval-quality-fixture",
             "x06-retrieval-quality",
-            ModelRuntimeObservationCandidate::TokenReductionProof(TokenReductionProof {
+            ModelRuntimeObservationCandidate::TokenReductionProofDto(TokenReductionProofDto {
                 query_id: "x06-q-local-runtime".to_string(),
                 query: "local llama gguf cache provider fallback".to_string(),
-                naive_tokens: result.token_reduction_estimate.naive_tokens,
-                context_tokens: result.token_reduction_estimate.context_tokens,
+                naive_tokens: result.token_reduction_estimate.naive_tokens.get(),
+                context_tokens: result.token_reduction_estimate.context_tokens.get(),
             }),
         ),
-        ModelRuntimeObservationRecord::new(
+        ModelRuntimeObservationRecordDto::new(
             "2026-07-05T00:00:00Z",
             "x06-retrieval-quality-fixture",
             "x06-retrieval-quality",
-            ModelRuntimeObservationCandidate::RouteChoiceImprovement(RouteChoiceImprovement {
-                query_id: "x06-q-local-runtime".to_string(),
-                query: "local llama gguf cache provider fallback".to_string(),
-                chosen_route: "hybrid-fulltext-vector-rerank".to_string(),
-                alternative_route: "fulltext-only".to_string(),
-                chosen_route_score: recall_at_five,
-                alternative_route_score: 0.5,
-                improvement_delta: recall_at_five - 0.5,
-            }),
+            ModelRuntimeObservationCandidate::RouteChoiceImprovementDto(
+                RouteChoiceImprovementDto {
+                    query_id: "x06-q-local-runtime".to_string(),
+                    query: "local llama gguf cache provider fallback".to_string(),
+                    chosen_route: "hybrid-fulltext-vector-rerank".to_string(),
+                    alternative_route: "fulltext-only".to_string(),
+                    chosen_route_score: recall_at_five,
+                    alternative_route_score: 0.5,
+                    improvement_delta: recall_at_five - 0.5,
+                },
+            ),
         ),
     ];
 
@@ -175,8 +180,8 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
         reranker_lift["postRerankTopK"].as_array().map(Vec::len),
         Some(result.context.len())
     );
-    assert_eq!(reranker_lift["improved"], result.reranker_lift >= 0.0);
-    assert_json_number_close(&reranker_lift["liftScore"], result.reranker_lift)?;
+    assert_eq!(reranker_lift["improved"], result.reranker_lift.get() >= 0.0);
+    assert_json_number_close(&reranker_lift["liftScore"], result.reranker_lift.get())?;
 
     let token_reduction = candidates_by_kind
         .get("token-reduction-proof")
@@ -184,11 +189,11 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
     assert_eq!(token_reduction["queryId"], "x06-q-local-runtime");
     assert_eq!(
         token_reduction["naiveTokens"],
-        result.token_reduction_estimate.naive_tokens
+        result.token_reduction_estimate.naive_tokens.get()
     );
     assert_eq!(
         token_reduction["contextTokens"],
-        result.token_reduction_estimate.context_tokens
+        result.token_reduction_estimate.context_tokens.get()
     );
 
     let route_choice = candidates_by_kind

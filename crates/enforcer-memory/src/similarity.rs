@@ -96,11 +96,18 @@
 //! `SIMILAR_TO` rule and the 0.75 threshold / 10-edges-per-node cap are
 //! also reproduced exactly.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 use crate::code_graph::{CodeGraph, CodeNode, SymbolNode};
 use crate::complexity::ComplexityMetrics;
-use crate::resolution::ResolutionConfidence;
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::ResolutionConfidence;
+use enforcer_domain::memory_types::{
+    MemoryFingerprintHashCount, MemoryFingerprintValue, SimilarityEdgeBudgetAvailable,
+    SimilarityEdgeCount, SimilarityIdentifierAtom, SimilarityIdentifierLexemes,
+    SimilarityIdentifierName, SimilarityMinHashValues, SimilarityMode, SimilarityNodeId,
+    SimilarityNodePair, SimilarityPath, SimilaritySameFile, SimilarityScore,
+};
 
 /// Baseline parity: `CBM_MINHASH_JACCARD_THRESHOLD`
 /// (`simhash/minhash.h:33`).
@@ -134,18 +141,11 @@ const WEIGHT_COMPLEXITY_PROFILE: f64 = 0.30;
 /// `same_file` edge property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimilarToEdge {
-    pub source_id: String,
-    pub target_id: String,
+    pub source_id: SimilarityNodeId,
+    pub target_id: SimilarityNodeId,
     pub mode: SimilarityMode,
-    pub jaccard: f64,
-    pub same_file: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SimilarityMode {
-    MinHashFingerprint,
-    BodyShingle,
-    IdentifierToken,
+    pub jaccard: SimilarityScore,
+    pub same_file: SimilaritySameFile,
 }
 
 const MINHASH_K: usize = 64;
@@ -157,10 +157,10 @@ const MINHASH_K: usize = 64;
 /// and `same_file` mirrors the baseline's `same_file` edge property.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SemanticallyRelatedEdge {
-    pub source_id: String,
-    pub target_id: String,
-    pub score: f64,
-    pub same_file: bool,
+    pub source_id: SimilarityNodeId,
+    pub target_id: SimilarityNodeId,
+    pub score: SimilarityScore,
+    pub same_file: SimilaritySameFile,
 }
 
 /// Split an identifier into lowercase tokens on `camelCase`, `snake_case`,
@@ -168,16 +168,19 @@ pub struct SemanticallyRelatedEdge {
 /// `cbm_sem_tokenize` uses (`semantic.c:142-188`), minus its abbreviation
 /// expansion table (out of scope here; the delimiter-based split alone
 /// is the load-bearing structural signal for [`similar_to`]).
-pub fn tokenize_identifier(name: &str) -> Vec<String> {
-    let mut tokens = Vec::new();
+pub fn tokenize_identifier(
+    name: impl Into<SimilarityIdentifierName>,
+) -> SimilarityIdentifierLexemes {
+    let name = name.into();
+    let mut tokens = SimilarityIdentifierLexemes::new();
     let mut current = String::new();
-    let chars: Vec<char> = name.chars().collect();
+    let chars: Vec<char> = name.as_str().chars().collect();
     for (i, &c) in chars.iter().enumerate() {
         let is_delim = matches!(c, '.' | '/' | '_' | '-' | ' ' | '(' | ')' | ',' | ':');
         let is_camel_break = i > 0 && c.is_ascii_uppercase() && chars[i - 1].is_ascii_lowercase();
         if is_delim || is_camel_break {
             if !current.is_empty() {
-                tokens.push(std::mem::take(&mut current));
+                tokens.push(std::mem::take(&mut current).into());
             }
             if is_delim {
                 continue;
@@ -188,7 +191,7 @@ pub fn tokenize_identifier(name: &str) -> Vec<String> {
         }
     }
     if !current.is_empty() {
-        tokens.push(current);
+        tokens.push(current.into());
     }
     tokens
 }
@@ -196,7 +199,7 @@ pub fn tokenize_identifier(name: &str) -> Vec<String> {
 /// Jaccard similarity between two token multisets treated as sets
 /// (`|A ∩ B| / |A ∪ B|`); `0.0` when both sides are empty (no evidence
 /// of similarity, not vacuous certainty).
-fn jaccard(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f64 {
+fn jaccard<T: Ord>(a: &BTreeSet<T>, b: &BTreeSet<T>) -> f64 {
     if a.is_empty() && b.is_empty() {
         return 0.0;
     }
@@ -212,10 +215,11 @@ fn jaccard(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f64 {
 /// The file extension (including the leading dot), matching the
 /// baseline's `file_ext` helper (`pass_similarity.c:38-44`); empty
 /// string when `rel_path` has no dot.
-fn file_ext(rel_path: &str) -> &str {
+fn file_ext(rel_path: &SimilarityPath) -> SimilarityPath {
+    let rel_path = rel_path.as_str();
     match rel_path.rfind('.') {
-        Some(idx) => rel_path.get(idx..).unwrap_or(""),
-        None => "",
+        Some(idx) => rel_path.get(idx..).unwrap_or("").into(),
+        None => "".into(),
     }
 }
 
@@ -224,7 +228,14 @@ fn file_ext(rel_path: &str) -> &str {
 /// relative paths and scales [`PROXIMITY_MAX_BOOST`] by
 /// `shared / max(components_a, components_b)`; returns `1.0` (no boost)
 /// when either path has no directory components.
-pub fn proximity_multiplier(path_a: &str, path_b: &str) -> f64 {
+pub fn proximity_multiplier(
+    path_a: impl Into<SimilarityPath>,
+    path_b: impl Into<SimilarityPath>,
+) -> SimilarityScore {
+    let path_a = path_a.into();
+    let path_b = path_b.into();
+    let path_a = path_a.as_str();
+    let path_b = path_b.as_str();
     let shared_slashes = path_a
         .bytes()
         .zip(path_b.bytes())
@@ -235,29 +246,30 @@ pub fn proximity_multiplier(path_a: &str, path_b: &str) -> f64 {
     let total_b = path_b.matches('/').count();
     let max_total = total_a.max(total_b);
     if max_total == 0 {
-        return 1.0;
+        return 1.0.into();
     }
-    let ratio = shared_slashes as f64 / max_total as f64;
-    1.0 + (ratio * PROXIMITY_MAX_BOOST)
+    let ratio = crate::owned_boundary::usize_to_f64(shared_slashes)
+        / crate::owned_boundary::usize_to_f64(max_total);
+    (1.0 + (ratio * PROXIMITY_MAX_BOOST)).into()
 }
 
 /// One symbol's precomputed similarity inputs, gathered once per
 /// [`similar_to`]/[`semantically_related`] call rather than
 /// re-tokenizing/re-walking the call graph per pair.
 struct SymbolProfile<'g> {
-    id: &'g str,
-    rel_path: &'g str,
-    ext: &'g str,
-    name_tokens: BTreeSet<String>,
+    id: SimilarityNodeId,
+    rel_path: SimilarityPath,
+    ext: SimilarityPath,
+    name_tokens: BTreeSet<SimilarityIdentifierAtom>,
     fingerprint: Option<MinHashSignature>,
-    body_shingles: Option<&'g BTreeSet<String>>,
-    callees: HashSet<&'g str>,
+    body_shingles: Option<&'g BTreeSet<enforcer_domain::memory_types::MemoryFingerprintBodyGram>>,
+    callees: BTreeSet<SimilarityNodeId>,
     metrics: Option<ComplexityMetrics>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct MinHashSignature {
-    values: [u32; MINHASH_K],
+    values: SimilarityMinHashValues,
 }
 
 /// Whether `node` is one of the callable kinds the baseline's
@@ -281,12 +293,12 @@ fn is_callable(node: &CodeNode) -> Option<&SymbolNode> {
 
 /// Build the file-id -> rel_path lookup [`SymbolProfile`] needs, from
 /// every [`CodeNode::File`]/[`CodeNode::TextOnly`] node in `graph`.
-fn file_paths(graph: &CodeGraph) -> HashMap<&str, &str> {
+fn file_paths(graph: &CodeGraph) -> HashMap<SimilarityNodeId, SimilarityPath> {
     let mut paths = HashMap::new();
     for node in graph.nodes() {
         match node {
             CodeNode::File(file) | CodeNode::TextOnly(file) => {
-                paths.insert(file.id.as_str(), file.rel_path.as_str());
+                paths.insert(file.id.as_str().into(), file.rel_path.as_str().into());
             }
             _ => {}
         }
@@ -299,8 +311,8 @@ fn file_paths(graph: &CodeGraph) -> HashMap<&str, &str> {
 /// Ambiguous resolutions contribute every candidate (matching
 /// [`crate::resolution::ResolvedCall`]'s "never silently narrowed"
 /// contract); unresolved calls contribute nothing.
-fn callee_sets(graph: &CodeGraph) -> HashMap<&str, HashSet<&str>> {
-    let mut callees: HashMap<&str, HashSet<&str>> = HashMap::new();
+fn callee_sets(graph: &CodeGraph) -> HashMap<SimilarityNodeId, BTreeSet<SimilarityNodeId>> {
+    let mut callees: HashMap<SimilarityNodeId, BTreeSet<SimilarityNodeId>> = HashMap::new();
     for resolved in graph.resolved_calls() {
         if resolved.confidence == ResolutionConfidence::Unresolved {
             continue;
@@ -308,9 +320,9 @@ fn callee_sets(graph: &CodeGraph) -> HashMap<&str, HashSet<&str>> {
         let Some(from_id) = resolved.from_symbol_id.as_deref() else {
             continue;
         };
-        let entry = callees.entry(from_id).or_default();
+        let entry = callees.entry(from_id.into()).or_default();
         for candidate in &resolved.candidates {
-            entry.insert(candidate.as_str());
+            entry.insert(candidate.as_str().into());
         }
     }
     callees
@@ -319,22 +331,26 @@ fn callee_sets(graph: &CodeGraph) -> HashMap<&str, HashSet<&str>> {
 /// Gather every callable symbol's [`SymbolProfile`] in graph order.
 fn build_profiles<'g>(graph: &'g CodeGraph) -> Vec<SymbolProfile<'g>> {
     let paths = file_paths(graph);
-    let callees_by_symbol = callee_sets(graph);
+    let mut callees_by_symbol = callee_sets(graph);
     let mut profiles = Vec::new();
     for node in graph.nodes() {
         let Some(sym) = is_callable(node) else {
             continue;
         };
-        let rel_path = paths.get(sym.file_id.as_str()).copied().unwrap_or("");
+        let rel_path = match paths.get(&SimilarityNodeId::from(sym.file_id.as_str())) {
+            Some(path) => path.as_str().into(),
+            None => SimilarityPath::default(),
+        };
+        let ext = file_ext(&rel_path);
         let name_tokens = tokenize_identifier(&sym.name).into_iter().collect();
+        let symbol_id = SimilarityNodeId::from(sym.id.as_str());
         let callees = callees_by_symbol
-            .get(sym.id.as_str())
-            .cloned()
-            .unwrap_or_default();
+            .remove(&symbol_id)
+            .map_or_else(BTreeSet::new, std::convert::identity);
         profiles.push(SymbolProfile {
-            id: sym.id.as_str(),
+            id: symbol_id,
             rel_path,
-            ext: file_ext(rel_path),
+            ext,
             name_tokens,
             fingerprint: sym
                 .source_body_fingerprint
@@ -344,7 +360,10 @@ fn build_profiles<'g>(graph: &'g CodeGraph) -> Vec<SymbolProfile<'g>> {
                         .fp
                         .as_deref()
                         .zip(fingerprint.k)
-                        .and_then(|(fp, k)| decode_minhash_hex(fp, k))
+                        .and_then(|(fp, k)| {
+                            let hex = MemoryFingerprintValue::from(fp);
+                            decode_minhash_hex(&hex, k)
+                        })
                 }),
             body_shingles: sym
                 .source_body_fingerprint
@@ -362,9 +381,12 @@ fn build_profiles<'g>(graph: &'g CodeGraph) -> Vec<SymbolProfile<'g>> {
 /// `[0.0, 1.0]`. Returns `0.0` (no evidence of similarity) when either
 /// side has no [`ComplexityMetrics`] -- never a fabricated mid-range
 /// score for missing data.
-fn complexity_similarity(a: Option<ComplexityMetrics>, b: Option<ComplexityMetrics>) -> f64 {
+fn complexity_similarity(
+    a: Option<ComplexityMetrics>,
+    b: Option<ComplexityMetrics>,
+) -> SimilarityScore {
     let (Some(a), Some(b)) = (a, b) else {
-        return 0.0;
+        return 0.0.into();
     };
     let diffs = [
         (a.complexity, b.complexity),
@@ -375,7 +397,7 @@ fn complexity_similarity(a: Option<ComplexityMetrics>, b: Option<ComplexityMetri
     let sum_sq: f64 = diffs
         .iter()
         .map(|&(x, y)| {
-            let d = x as f64 - y as f64;
+            let d = f64::from(x.get()) - f64::from(y.get());
             d * d
         })
         .sum();
@@ -385,13 +407,21 @@ fn complexity_similarity(a: Option<ComplexityMetrics>, b: Option<ComplexityMetri
     // (e.g. complexity differing by 20) already reads as "not similar".
     const DISTANCE_SCALE: f64 = 20.0;
     let normalized = (distance / DISTANCE_SCALE).min(1.0);
-    1.0 - normalized
+    (1.0 - normalized).into()
 }
 
 /// Push `(source_id, target_id)` onto `edge_counts` bookkeeping and
 /// report whether both endpoints still have edge budget under `cap`.
-fn has_budget(edge_counts: &HashMap<&str, usize>, id: &str, cap: usize) -> bool {
-    edge_counts.get(id).copied().unwrap_or(0) < cap
+fn has_budget(
+    edge_counts: &HashMap<SimilarityNodeId, SimilarityEdgeCount>,
+    id: &SimilarityNodeId,
+    cap: SimilarityEdgeCount,
+) -> SimilarityEdgeBudgetAvailable {
+    let count = match edge_counts.get(id).copied() {
+        Some(count) => count,
+        None => SimilarityEdgeCount::from(0),
+    };
+    (count.get() < cap.get()).into()
 }
 
 /// Compute every `SIMILAR_TO` edge over `graph`'s callable symbols
@@ -404,7 +434,7 @@ fn has_budget(edge_counts: &HashMap<&str, usize>, id: &str, cap: usize) -> bool 
 /// edge properties).
 pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let profiles = build_profiles(graph);
-    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edge_counts: HashMap<SimilarityNodeId, SimilarityEdgeCount> = HashMap::new();
     let mut edges = Vec::new();
 
     for (index, a) in profiles.iter().enumerate() {
@@ -412,8 +442,9 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if a.ext != b.ext {
                 continue;
             }
-            if !has_budget(&edge_counts, a.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
-                || !has_budget(&edge_counts, b.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+            if !has_budget(&edge_counts, &a.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into()).has_budget()
+                || !has_budget(&edge_counts, &b.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into())
+                    .has_budget()
             {
                 continue;
             }
@@ -424,17 +455,17 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if j_score < SIMILAR_TO_THRESHOLD {
                 continue;
             }
-            let (source_id, target_id) = order_pair(a.id, b.id);
+            let pair = SimilarityNodePair::ordered(a.id.retained(), b.id.retained());
             let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
             edges.push(SimilarToEdge {
-                source_id,
-                target_id,
+                source_id: pair.source_id,
+                target_id: pair.target_id,
                 mode: SimilarityMode::MinHashFingerprint,
                 jaccard: j_score,
-                same_file,
+                same_file: same_file.into(),
             });
-            *edge_counts.entry(a.id).or_insert(0) += 1;
-            *edge_counts.entry(b.id).or_insert(0) += 1;
+            *edge_counts.entry(a.id.retained()).or_default() += 1;
+            *edge_counts.entry(b.id.retained()).or_default() += 1;
         }
     }
     edges
@@ -442,7 +473,7 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
 
 pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let profiles = build_profiles(graph);
-    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edge_counts: HashMap<SimilarityNodeId, SimilarityEdgeCount> = HashMap::new();
     let mut edges = Vec::new();
 
     for (index, a) in profiles.iter().enumerate() {
@@ -450,8 +481,9 @@ pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if a.ext != ".rs" || b.ext != ".rs" {
                 continue;
             }
-            if !has_budget(&edge_counts, a.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
-                || !has_budget(&edge_counts, b.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+            if !has_budget(&edge_counts, &a.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into()).has_budget()
+                || !has_budget(&edge_counts, &b.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into())
+                    .has_budget()
             {
                 continue;
             }
@@ -459,17 +491,17 @@ pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if j_score < SIMILAR_TO_THRESHOLD {
                 continue;
             }
-            let (source_id, target_id) = order_pair(a.id, b.id);
+            let pair = SimilarityNodePair::ordered(a.id.retained(), b.id.retained());
             let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
             edges.push(SimilarToEdge {
-                source_id,
-                target_id,
+                source_id: pair.source_id,
+                target_id: pair.target_id,
                 mode: SimilarityMode::IdentifierToken,
-                jaccard: j_score,
-                same_file,
+                jaccard: j_score.into(),
+                same_file: same_file.into(),
             });
-            *edge_counts.entry(a.id).or_insert(0) += 1;
-            *edge_counts.entry(b.id).or_insert(0) += 1;
+            *edge_counts.entry(a.id.retained()).or_default() += 1;
+            *edge_counts.entry(b.id.retained()).or_default() += 1;
         }
     }
     edges
@@ -477,7 +509,7 @@ pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
 
 pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let profiles = build_profiles(graph);
-    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edge_counts: HashMap<SimilarityNodeId, SimilarityEdgeCount> = HashMap::new();
     let mut edges = Vec::new();
 
     for (index, a) in profiles.iter().enumerate() {
@@ -485,8 +517,9 @@ pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if a.ext != b.ext {
                 continue;
             }
-            if !has_budget(&edge_counts, a.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
-                || !has_budget(&edge_counts, b.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+            if !has_budget(&edge_counts, &a.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into()).has_budget()
+                || !has_budget(&edge_counts, &b.id, SIMILAR_TO_MAX_EDGES_PER_NODE.into())
+                    .has_budget()
             {
                 continue;
             }
@@ -497,17 +530,17 @@ pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             if j_score < SIMILAR_TO_THRESHOLD {
                 continue;
             }
-            let (source_id, target_id) = order_pair(a.id, b.id);
+            let pair = SimilarityNodePair::ordered(a.id.retained(), b.id.retained());
             let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
             edges.push(SimilarToEdge {
-                source_id,
-                target_id,
+                source_id: pair.source_id,
+                target_id: pair.target_id,
                 mode: SimilarityMode::BodyShingle,
-                jaccard: j_score,
-                same_file,
+                jaccard: j_score.into(),
+                same_file: same_file.into(),
             });
-            *edge_counts.entry(a.id).or_insert(0) += 1;
-            *edge_counts.entry(b.id).or_insert(0) += 1;
+            *edge_counts.entry(a.id.retained()).or_default() += 1;
+            *edge_counts.entry(b.id.retained()).or_default() += 1;
         }
     }
     edges
@@ -523,7 +556,7 @@ pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
 /// breakdown and honest-scope-reduction rationale.
 pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
     let profiles = build_profiles(graph);
-    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edge_counts: HashMap<SimilarityNodeId, SimilarityEdgeCount> = HashMap::new();
     let mut edges = Vec::new();
 
     for (index, a) in profiles.iter().enumerate() {
@@ -531,20 +564,27 @@ pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
             if a.ext != b.ext {
                 continue;
             }
-            if !has_budget(&edge_counts, a.id, SEMANTICALLY_RELATED_MAX_EDGES_PER_NODE)
-                || !has_budget(&edge_counts, b.id, SEMANTICALLY_RELATED_MAX_EDGES_PER_NODE)
+            if !has_budget(
+                &edge_counts,
+                &a.id,
+                SEMANTICALLY_RELATED_MAX_EDGES_PER_NODE.into(),
+            )
+            .has_budget()
+                || !has_budget(
+                    &edge_counts,
+                    &b.id,
+                    SEMANTICALLY_RELATED_MAX_EDGES_PER_NODE.into(),
+                )
+                .has_budget()
             {
                 continue;
             }
-            let callee_overlap = jaccard(
-                &a.callees.iter().map(|s| s.to_string()).collect(),
-                &b.callees.iter().map(|s| s.to_string()).collect(),
-            );
+            let callee_overlap = jaccard(&a.callees, &b.callees);
             let complexity_score = complexity_similarity(a.metrics, b.metrics);
 
             let fp_jaccard = match (a.fingerprint, b.fingerprint) {
                 (Some(a_fp), Some(b_fp)) => minhash_jaccard(&a_fp, &b_fp),
-                _ => 0.0,
+                _ => 0.0.into(),
             };
             if fp_jaccard >= SIMILAR_TO_THRESHOLD {
                 continue;
@@ -554,60 +594,60 @@ pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
 
             let mut score = WEIGHT_NAME_TOKENS * name_jaccard
                 + WEIGHT_SHARED_CALLEES * callee_overlap
-                + WEIGHT_COMPLEXITY_PROFILE * complexity_score;
-            score *= proximity_multiplier(a.rel_path, b.rel_path);
+                + WEIGHT_COMPLEXITY_PROFILE * complexity_score.get();
+            score *= proximity_multiplier(a.rel_path.retained(), b.rel_path.retained()).get();
             score = score.clamp(0.0, 1.0);
 
             if score < SEMANTICALLY_RELATED_THRESHOLD {
                 continue;
             }
 
-            let (source_id, target_id) = order_pair(a.id, b.id);
+            let pair = SimilarityNodePair::ordered(a.id.retained(), b.id.retained());
             let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
             edges.push(SemanticallyRelatedEdge {
-                source_id,
-                target_id,
-                score,
-                same_file,
+                source_id: pair.source_id,
+                target_id: pair.target_id,
+                score: score.into(),
+                same_file: same_file.into(),
             });
-            *edge_counts.entry(a.id).or_insert(0) += 1;
-            *edge_counts.entry(b.id).or_insert(0) += 1;
+            *edge_counts.entry(a.id.retained()).or_default() += 1;
+            *edge_counts.entry(b.id.retained()).or_default() += 1;
         }
     }
     edges
 }
 
-fn decode_minhash_hex(hex: &str, k: usize) -> Option<MinHashSignature> {
-    if k != MINHASH_K || hex.len() != MINHASH_K * 8 {
+fn decode_minhash_hex(
+    hex: &MemoryFingerprintValue,
+    k: MemoryFingerprintHashCount,
+) -> Option<MinHashSignature> {
+    if k.get() != MINHASH_K || hex.as_str().len() != MINHASH_K * 8 {
         return None;
     }
     let mut values = [0u32; MINHASH_K];
-    for (idx, chunk) in hex.as_bytes().chunks_exact(8).enumerate() {
-        let raw = std::str::from_utf8(chunk).ok()?;
+    for (idx, chunk) in hex.as_str().as_bytes().chunks_exact(8).enumerate() {
+        let Ok(raw) = std::str::from_utf8(chunk) else {
+            return None;
+        };
         let value = values.get_mut(idx)?;
-        *value = u32::from_str_radix(raw, 16).ok()?;
+        let Ok(decoded) = u32::from_str_radix(raw, 16) else {
+            return None;
+        };
+        *value = decoded;
     }
-    Some(MinHashSignature { values })
+    Some(MinHashSignature {
+        values: SimilarityMinHashValues::from_array(values),
+    })
 }
 
-fn minhash_jaccard(a: &MinHashSignature, b: &MinHashSignature) -> f64 {
+fn minhash_jaccard(a: &MinHashSignature, b: &MinHashSignature) -> SimilarityScore {
     let matches = a
         .values
+        .as_array()
         .iter()
-        .zip(b.values.iter())
+        .zip(b.values.as_array().iter())
         .filter(|(lhs, rhs)| lhs == rhs)
         .count();
-    matches as f64 / MINHASH_K as f64
-}
-
-/// Order two ids as `(min, max)` by string comparison -- this module's
-/// stand-in for the baseline's `source_id < target_id` int64-comparison
-/// dedup rule (`pass_similarity.c:206`), adapted to this crate's string
-/// symbol ids.
-fn order_pair<'a>(a: &'a str, b: &'a str) -> (String, String) {
-    if a <= b {
-        (a.to_string(), b.to_string())
-    } else {
-        (b.to_string(), a.to_string())
-    }
+    (crate::owned_boundary::usize_to_f64(matches) / crate::owned_boundary::usize_to_f64(MINHASH_K))
+        .into()
 }

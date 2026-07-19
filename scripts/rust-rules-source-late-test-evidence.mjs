@@ -1,4 +1,4 @@
-import { addViolation, escapeRegExp, firstLineMatching } from "./rust-rules-path-core.mjs";
+import { addViolation, escapeRegExp, firstLineMatching, maskRustCode } from "./rust-rules-path-core.mjs";
 import { rustCommentText } from "./rust-rules-rust-comment-text.mjs";
 import { applyParserEvidenceRules } from "./rust-rules-source-test-evidence-parser-rules.mjs";
 import { crateEvidenceCacheRecord } from "./rust-rules-source-test-evidence-cache.mjs";
@@ -6,11 +6,17 @@ import { crateEvidenceSources } from "./rust-rules-source-test-evidence-files.mj
 import { nearestCargoRoot } from "./rust-rules-source-test-evidence-paths.mjs";
 import {
   hasPropertyEvidence,
+} from "./rust-rules-source-test-evidence-properties.mjs";
+import { propertyEvidenceTargets } from "./rust-rules-source-test-evidence-property-targets.mjs";
+import {
   propertyTestBodies,
   registeredPropertyTargetBodies,
-} from "./rust-rules-source-test-evidence-properties.mjs";
+} from "./rust-rules-source-test-evidence-property-bodies.mjs";
 import { hasConversionRejectionEvidence } from "./rust-rules-source-test-evidence-unit-body-conversion-evidence.mjs";
 import { rustTestBodies } from "./rust-rules-source-test-evidence-unit-body-collection.mjs";
+import {
+  parserTestBodiesByTarget,
+} from "./rust-rules-source-test-evidence-unit-body-parser-proof.mjs";
 import {
   roundTripDecoderDescriptors,
   roundTripFactoryDescriptors,
@@ -24,16 +30,22 @@ function createEvidenceContext(root, filePath, source, crateEvidenceCache) {
   const record = crateEvidenceCacheRecord(crateEvidenceCache, cargoRoot);
   if (record?.context) return record.context;
   const sources = crateEvidenceSources(root, filePath, source, crateEvidenceCache);
+  const maskedSources = sources.map(maskRustCode);
+  const rustBodies = sources.map((evidenceSource, index) => rustTestBodies(evidenceSource, maskedSources[index]));
+  const propertyBodies = sources.map((evidenceSource, index) => propertyTestBodies(evidenceSource, maskedSources[index]));
+  const registeredBodies = sources.map(registeredPropertyTargetBodies);
   const context = {
     sources,
-    rustTestBodies: sources.map(rustTestBodies),
-    roundTripHelpers: sources.flatMap(roundTripHelperDescriptors),
-    roundTripFactories: sources.flatMap(roundTripFactoryDescriptors),
-    roundTripDecoders: sources.flatMap(roundTripDecoderDescriptors),
-    roundTripValueProducers: sources.flatMap(roundTripValueProducerDescriptors),
-    roundTripPersistence: sources.flatMap(roundTripPersistenceDescriptors),
-    propertyBodies: sources.map(propertyTestBodies),
-    registeredBodies: sources.map(registeredPropertyTargetBodies),
+    rustTestBodies: rustBodies,
+    parserTestBodiesByTarget: parserTestBodiesByTarget(rustBodies),
+    roundTripHelpers: sources.flatMap((evidenceSource, index) => roundTripHelperDescriptors(evidenceSource, maskedSources[index])),
+    roundTripFactories: sources.flatMap((evidenceSource, index) => roundTripFactoryDescriptors(evidenceSource, maskedSources[index])),
+    roundTripDecoders: sources.flatMap((evidenceSource, index) => roundTripDecoderDescriptors(evidenceSource, maskedSources[index])),
+    roundTripValueProducers: sources.flatMap((evidenceSource, index) => roundTripValueProducerDescriptors(evidenceSource, maskedSources[index])),
+    roundTripPersistence: sources.flatMap((evidenceSource, index) => roundTripPersistenceDescriptors(evidenceSource, maskedSources[index])),
+    propertyBodies,
+    registeredBodies,
+    ...propertyEvidenceTargets(sources, propertyBodies, registeredBodies),
   };
   if (record) record.context = context;
   return context;
@@ -98,6 +110,7 @@ export function applyProofEvidenceRules(context) {
         context.source,
         context.proofEvidenceCache,
       );
+  context.evidenceContext = evidenceContext;
   const enrichedContext = { ...context, evidenceContext };
   applyParserEvidenceRules(enrichedContext);
   applyConversionAndRegressionEvidence(enrichedContext);

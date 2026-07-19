@@ -25,7 +25,7 @@
 
 use clap::Args;
 use enforcer_core::error::Result as CoreResult;
-use enforcer_core::exit_codes::ExitCode;
+use enforcer_domain::core_types::ExitCode;
 use enforcer_domain::paths::RepoRoot;
 
 use crate::output;
@@ -83,7 +83,7 @@ pub fn run_onboard(args: &OnboardArgs) -> ExitCode {
 mod tests {
     use super::{resolve_repo_root, run_onboard, OnboardArgs};
     use enforcer_core::error::{Error as CoreError, Result as CoreResult};
-    use enforcer_core::exit_codes::ExitCode;
+    use enforcer_domain::core_types::ExitCode;
     use enforcer_domain::paths::RepoRoot;
 
     #[test]

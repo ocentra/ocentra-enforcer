@@ -1,10 +1,11 @@
 //! External ledger materialization contract tests.
 
-use enforcer_coordination::events::HubEvent;
+use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
+use enforcer_domain::coordination_types::ClaimPath;
 
-fn claim_event(id: &str, writer: &str, lane: &str, paths: &[&str]) -> HubEvent {
-    HubEvent {
+fn claim_event(id: &str, writer: &str, lane: &str, paths: &[&str]) -> HubEventResponse {
+    HubEventResponse {
         id: id.into(),
         schema: 1,
         hub: "hub".into(),
@@ -38,7 +39,7 @@ fn claim_event(id: &str, writer: &str, lane: &str, paths: &[&str]) -> HubEvent {
     }
 }
 
-fn release_event(id: &str, writer: &str, lane: &str, paths: &[&str]) -> HubEvent {
+fn release_event(id: &str, writer: &str, lane: &str, paths: &[&str]) -> HubEventResponse {
     let mut event = claim_event(id, writer, lane, paths);
     event.kind = "release".into();
     event
@@ -54,9 +55,10 @@ fn claim_then_release_clears_the_active_claim() {
 }
 
 #[test]
-fn unreleased_claim_remains_active() {
+fn unreleased_claim_remains_active() -> Result<(), Box<dyn std::error::Error>> {
     let events = vec![claim_event("evt1", "node.laneA", "laneA", &["src/lib.rs"])];
     let claims = active_claims(&events);
     assert_eq!(claims.len(), 1);
-    assert_eq!(claims[0].paths, vec!["src/lib.rs".to_owned()]);
+    assert_eq!(claims[0].paths, vec![ClaimPath::parse("src/lib.rs")?]);
+    Ok(())
 }

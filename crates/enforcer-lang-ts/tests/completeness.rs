@@ -53,13 +53,13 @@ fn registry_covers_every_typescript_rule_id_with_no_orphans_and_no_duplicates(
     let mut seen = BTreeSet::new();
     for row in &rows {
         assert!(
-            seen.insert(row.rule_id.to_owned()),
+            seen.insert(row.rule_id().to_owned()),
             "duplicate registry row for rule id `{}`",
-            row.rule_id
+            row.rule_id()
         );
     }
 
-    let registry_ids: BTreeSet<String> = rows.iter().map(|row| row.rule_id.to_owned()).collect();
+    let registry_ids: BTreeSet<String> = rows.iter().map(|row| row.rule_id().to_string()).collect();
 
     let orphan_catalog_ids: Vec<_> = catalog_ids.difference(&registry_ids).collect();
     assert!(

@@ -12,5 +12,4 @@ pub mod source_scan;
 pub mod spec;
 pub mod test_scan;
 pub mod tests_family;
-pub mod text_scan;
 pub mod toolchain;

@@ -9,6 +9,8 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use crate::boundary::finding::{from_source, SourceFinding, FIRST_SOURCE_LINE};
+
 const RULE_ID: &str = "TS-5.2";
 
 /// `typescript/eslint-json` validator for TS-5.2.
@@ -33,7 +35,7 @@ impl EslintJsonValidator {
     /// `tests/eslint_json.rs` fixture proves invalid ESLint wiring is rejected.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: RULE_ID.parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id(RULE_ID)?,
         })
     }
 }
@@ -44,24 +46,27 @@ impl Validator for EslintJsonValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let has_typescript_eslint = input.source.contains("typescript-eslint");
-        let has_json_format =
-            input.source.contains("--format json") || input.source.contains("\"json\"");
+        let has_typescript_eslint = input.source.as_str().contains("typescript-eslint");
+        let has_json_format = input.source.as_str().contains("--format json")
+            || input.source.as_str().contains("\"json\"");
         if has_typescript_eslint && has_json_format {
             return Vec::new();
         }
-        vec![Finding {
-            // CLONE-JUSTIFICATION: each finding owns its rule identifier so it remains valid after this validator is dropped.
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            // ALLOC-JUSTIFICATION: findings cross the validator boundary and
-            // deliberately own stable diagnostic text.
-            title: "ESLint JSON diagnostics must pass".to_owned(),
-            detail: "ESLint wiring must use typescript-eslint and emit --format json".to_owned(),
-            // CLONE-JUSTIFICATION: findings must own the input file identity because the input is borrowed.
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }]
+        from_source(
+            &self.rule_id,
+            input.file,
+            SourceFinding {
+                severity: Severity::Error,
+                title: "ESLint JSON diagnostics must pass",
+                // ALLOC-JUSTIFICATION: the canonical Finding owns diagnostic
+                // detail after this borrowed validator invocation returns.
+                detail: "ESLint wiring must use typescript-eslint and emit --format json"
+                    .to_owned(),
+                line: FIRST_SOURCE_LINE,
+                snippet: None,
+            },
+        )
+        .into_iter()
+        .collect()
     }
 }

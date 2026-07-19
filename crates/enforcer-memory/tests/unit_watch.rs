@@ -5,6 +5,8 @@
 //! second reindex request is replaced with a `Result`-returning
 //! assertion here).
 
+use enforcer_domain::memory_types::MemoryWatchPath;
+use enforcer_memory::boundary::watch::ReindexRequest;
 use enforcer_memory::watch::{
     adaptive_poll_interval, git_head_changed, is_relevant_event, Watcher,
 };
@@ -14,6 +16,21 @@ use std::fs;
 use std::time::Duration;
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+#[test]
+fn reindex_request_maps_to_canonical_paths() -> TestResult {
+    let request = ReindexRequest {
+        paths: vec![std::path::PathBuf::from("src/lib.rs").into()],
+    };
+    let canonical_paths: Vec<MemoryWatchPath> = request.into();
+    assert_eq!(
+        canonical_paths[0].as_path(),
+        std::path::Path::new("src/lib.rs")
+    );
+    let empty_paths: Vec<MemoryWatchPath> = ReindexRequest { paths: Vec::new() }.into();
+    assert!(empty_paths.is_empty());
+    Ok(())
+}
 
 #[test]
 fn adaptive_poll_interval_matches_baseline_formula() {
@@ -35,7 +52,7 @@ fn watcher_detects_a_file_change_and_emits_exactly_one_debounced_request() -> Te
     // events (create, modify, maybe metadata) that must collapse to
     // ONE ReindexRequest.
     let file_path = dir.path().join("a.rs");
-    fs::write(&file_path, "fn a() {}\n")?;
+    fs::write(&file_path, "fn a() { let _ = 1; }\n")?;
     fs::write(&file_path, "fn a() { /* changed */ }\n")?;
 
     let request = watcher
@@ -68,7 +85,7 @@ fn watcher_returns_none_on_deadline_with_no_events() -> TestResult {
 #[test]
 fn git_head_changed_is_false_for_a_non_git_directory() -> TestResult {
     let dir = tempfile::tempdir()?;
-    assert!(!git_head_changed(dir.path(), None));
+    assert!(!bool::from(git_head_changed(dir.path(), None)));
     Ok(())
 }
 

@@ -1,11 +1,11 @@
+use enforcer_memory::boundary::log_schema::{ObservationLogEntryDto, SCHEMA_VERSION};
 use enforcer_memory::error::Result;
-use enforcer_memory::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use enforcer_memory::store::analytics::{
     AnalyticsReadModel, InProcessAnalytics, RepoContextCounts,
 };
 
-fn entry(seq: u64, repo_context: &str, clean: bool) -> ObservationLogEntry {
-    ObservationLogEntry {
+fn entry(seq: u64, repo_context: &str, clean: bool) -> ObservationLogEntryDto {
+    ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq,
         id: format!("obs-{seq:04}"),
@@ -37,14 +37,14 @@ fn aggregates_deterministically_grouped_and_sorted() -> Result<()> {
         counts,
         vec![
             RepoContextCounts {
-                repo_context: "crates/a".to_owned(),
-                clean: 2,
-                findings: 1,
+                repo_context: "crates/a".to_owned().into(),
+                clean: 2.into(),
+                findings: 1.into(),
             },
             RepoContextCounts {
-                repo_context: "crates/b".to_owned(),
-                clean: 1,
-                findings: 0,
+                repo_context: "crates/b".to_owned().into(),
+                clean: 1.into(),
+                findings: 0.into(),
             },
         ]
     );

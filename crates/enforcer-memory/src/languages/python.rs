@@ -4,9 +4,10 @@
 //! route decorators.
 
 use crate::parsers::{
-    CallRef, DecoratesRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, RouteRef,
-    SymbolKind, SymbolRef,
+    CallRef, DecoratesRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind,
+    SymbolRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 const HTTP_METHODS: &[&str] = &["get", "post", "put", "patch", "delete", "options", "head"];
@@ -70,15 +71,15 @@ fn walk(
                     test_or_function(&name)
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -100,15 +101,15 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 for base in base_class_names(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (base).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -121,17 +122,17 @@ fn walk(
             }
             for (target, decorator) in decorators_on(node, src) {
                 out.decorates.push(DecoratesRef {
-                    target_name: target,
-                    decorator_name: decorator,
-                    line: node.start_position().row + 1,
+                    target_name: (target).into(),
+                    decorator_name: (decorator).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "import_statement" => {
             for path in dotted_names_under(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -139,8 +140,8 @@ fn walk(
             if let Some(module_node) = node.child_by_field_name("module_name") {
                 if let Ok(module) = module_node.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: module.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (module.to_string()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -149,13 +150,16 @@ fn walk(
             if let Some(function) = node.child_by_field_name("function") {
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee: function.utf8_text(src).unwrap_or("").to_string(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (function.utf8_text(src).unwrap_or("").to_string()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
             }
         }
@@ -316,9 +320,9 @@ fn named_lambda_binding(expr_stmt: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
     }
     let name = left.utf8_text(src).ok()?.to_string();
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Lambda,
-        line: expr_stmt.start_position().row + 1,
+        line: (expr_stmt.start_position().row + 1).into(),
     })
 }
 
@@ -388,9 +392,9 @@ fn route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<RouteRef
             continue;
         }
         return Some(RouteRef {
-            method,
-            path,
-            line: decorated_node.start_position().row + 1,
+            method: method.into(),
+            path: path.into(),
+            line: (decorated_node.start_position().row + 1).into(),
         });
     }
     None

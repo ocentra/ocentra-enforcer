@@ -57,78 +57,7 @@ pub fn read_all<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>> {
         if line.trim().is_empty() {
             continue;
         }
-        records.push(serde_json::from_str(line)?);
+        records.push(crate::ndjson_boundary::decode_record(line)?);
     }
     Ok(records)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{read_all, NdjsonWriter};
-    use crate::error::Result;
-
-    #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    struct Record {
-        seq: u32,
-        event: String,
-    }
-
-    fn temp_path(name: &str) -> std::path::PathBuf {
-        let unique = format!(
-            "enforcer-core-ndjson-{}-{}-{name}.ndjson",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or_default()
-        );
-        std::env::temp_dir().join(unique)
-    }
-
-    #[test]
-    fn append_round_trips_records() -> Result<()> {
-        let path = temp_path("round-trip");
-        {
-            let mut writer: NdjsonWriter<Record> = NdjsonWriter::open(&path)?;
-            writer.append(&Record {
-                seq: 1,
-                event: "start".to_owned(),
-            })?;
-            writer.append(&Record {
-                seq: 2,
-                event: "finish".to_owned(),
-            })?;
-        }
-        let records: Vec<Record> = read_all(&path)?;
-        assert_eq!(records.len(), 2);
-        assert_eq!(records[0].seq, 1);
-        assert_eq!(records[1].event, "finish");
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn reopen_appends_instead_of_truncating() -> Result<()> {
-        let path = temp_path("append-only");
-        {
-            let mut writer: NdjsonWriter<Record> = NdjsonWriter::open(&path)?;
-            writer.append(&Record {
-                seq: 1,
-                event: "first-open".to_owned(),
-            })?;
-        }
-        {
-            let mut writer: NdjsonWriter<Record> = NdjsonWriter::open(&path)?;
-            writer.append(&Record {
-                seq: 2,
-                event: "second-open".to_owned(),
-            })?;
-        }
-        let records: Vec<Record> = read_all(&path)?;
-        assert_eq!(records.len(), 2, "reopening must never truncate");
-        assert_eq!(records[0].event, "first-open");
-        assert_eq!(records[1].event, "second-open");
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
 }

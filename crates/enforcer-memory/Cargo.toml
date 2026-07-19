@@ -25,15 +25,17 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"], optional = true }
 ndarray = { version = "0.17", default-features = false, optional = true }
 ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "download-binaries", "copy-dylibs", "tracing", "tls-native", "api-24"], optional = true }
-# DEPENDENCY-JUSTIFICATION: Optional ORT-backed retrieval tokenizes query text
-# before embedding or reranking it; no tokenizer is loaded by default.
-tokenizers = { version = "0.23.1", default-features = false, features = ["onig"], optional = true }
-# NATIVE-DEPENDENCY-JUSTIFICATION: The bundled SQLite binding gives the local
-# read model a reproducible Windows-compatible build with no system SQLite DLL.
+# DEPENDENCY-JUSTIFICATION: Optional ORT-backed retrieval needs a pure-Rust
+# reader for Hugging Face tokenizer.json assets. rten-text implements the BPE,
+# normalization, and pre-tokenization pipeline without tokenizers' unmaintained
+# paste dependency or a native regex engine; no tokenizer is loaded by default.
+rten-text = { version = "0.24.0", default-features = false, optional = true }
 # SQLite operational graph/read model. `bundled` vendors and statically
 # links SQLite's C sources at build time so the crate has zero system
 # dependency (no "sqlite3.dll not found" on a bare Windows box).
-rusqlite = { version = "0.31", features = ["bundled"] }
+# NATIVE-DEPENDENCY-JUSTIFICATION: Bundled SQLite makes the local read model
+# reproducible on Windows without requiring a system SQLite DLL.
+rusqlite = { version = "0.31", default-features = false, features = ["bundled"] }
 # DuckDB analytics read model, OPT-IN ONLY. The `duckdb` crate's own
 # `bundled` build compiles a large C++ amalgamation and has been
 # unreliable/slow on Windows in this workspace's CI history; the default
@@ -413,7 +415,7 @@ regex = "=1.12.4"
 # JSON-RPC message types) rather than re-implementing framing here --
 # that module carries no business logic and does not pull this crate
 # into arc-21's tool surface, stdio sink, or stale-write gate.
-enforcer-mcp = { path = "../enforcer-mcp" }
+enforcer-mcp = { version = "0.1.0", path = "../enforcer-mcp" }
 # X06.7 (D-12, DEFAULT) filesystem watcher: native OS filesystem events
 # (inotify/FSEvents/ReadDirectoryChangesW) as the primary signal, with an
 # adaptive-polling fallback (src/watch.rs) for environments where native
@@ -603,7 +605,7 @@ tree-sitter-clojure = "0.1"
 # source for their corresponding generic structural extractors.
 tree-sitter-qmljs = "0.3"
 arborium-rescript = "2.18"
-tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
+tree-sitter-squirrel-local = { workspace = true }
 # Language-parity wave G2.2a: Ada/Apex/Crystal structural extractors
 # (see languages/generic.rs's `parse_ada`/`parse_apex`/`parse_crystal`).
 # `tree-sitter-sfapex`/`tree-sitter-ada` below were first landed as a
@@ -648,8 +650,8 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 #   tree-sitter-crystal`, which returns only an unrelated "Crystal
 #   Reports formula language" decoy crate, `wicked-estate-tree-sitter-
 #   crystal-formula` -- the same finding the G2.2f courtesy note above
-#   independently confirmed) -- bound via a `git` dependency pinned to a
-#   specific commit instead (source repo: github.com/crystal-lang-tools/
+#   independently confirmed) -- vendored from a specific commit instead
+#   (source repo: github.com/crystal-lang-tools/
 #   tree-sitter-crystal -- EXACT copyright-line match, "Gabriel Holodak",
 #   against this crate's own vendored `internal/cbm/vendored/grammars/
 #   crystal/LICENSE`, confirming this is the identical grammar lineage
@@ -657,10 +659,9 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 #   a real, well-formed `tree-sitter-language`-based crate
 #   (`bindings/rust/{lib,build}.rs`, depends on `tree-sitter-language =
 #   "0.1"` at runtime same as every other grammar here) -- it simply has
-#   never been pushed to the crates.io registry, so this is "option 1, a
-#   maintained crate exists" sourced via git rather than "option 2,
-#   hand-vendor the C source and write a bespoke build.rs" the earlier
-#   courtesy note raised as the fallback (the crate's own upstream
+#   never been pushed to the crates.io registry, so its exact upstream
+#   Cargo package source is retained locally rather than replaced with a
+#   bespoke wrapper (the crate's own upstream
 #   build.rs/lib.rs are used unmodified, so no bespoke build.rs was
 #   actually needed). Pinned to commit 50ca9e6 (the tip at the time of
 #   this wave) for reproducibility; verified to compile and parse cleanly
@@ -676,7 +677,7 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 # source for their corresponding generic structural extractors.
 tree-sitter-sfapex = "3.0.0"
 tree-sitter-ada = "0.1"
-tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter-crystal", rev = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49" }
+tree-sitter-crystal = { workspace = true }
 # Language-parity wave G2.3e: Starlark/Templ/Typst/WGSL structural
 # extractors (see languages/generic.rs's `parse_starlark`/`parse_templ`/
 # `parse_typst`/`parse_wgsl`). Sway/Wolfram (this same wave) have NO
@@ -778,10 +779,10 @@ tree-sitter-slang = "0.3"
 # own repo, Apache-2.0, pinned commit `9b7845c`, ABI 14; Wolfram:
 # LumaKernel's own repo, MIT, ABI 13, cross-checked symbol-table-exact
 # against this crate's own vendored C baseline copy).
-tree-sitter-sway-local = { path = "vendor/tree-sitter-sway-local" }
+tree-sitter-sway-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Wolfram grammar parses Wolfram source
 # for the generic structural extractor.
-tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
+tree-sitter-wolfram-local = { workspace = true }
 # COURTESY FIX (found by the G2.3e worker, not that worker's own language
 # assignment -- landed here only because `languages/generic.rs` already
 # referenced these crates' `LANGUAGE`/`language()` paths unconditionally
@@ -799,7 +800,8 @@ tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
 #   `[dev-dependencies]` `tree-sitter = "^0.26.3"` entry is a test-only
 #   dependency, not a runtime-binding constraint.
 # - `tree-sitter-vim` 0.4.0: the ONE exception in this group -- its own
-#   `Cargo.toml` declares `tree-sitter = ">=0.21.0"` as a normal (non-dev)
+#   `Cargo.toml` declares an unbounded lower-bound requirement on the
+#   tree-sitter core as a normal (non-dev)
 #   dependency, an older-style direct `tree_sitter::Language`-returning
 #   binding rather than the `tree-sitter-language` shim every other crate
 #   here uses. Unlike the `~0.20.x`/`<0.21` UPPER-BOUNDED pins this
@@ -809,6 +811,9 @@ tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
 #   dependency graph -- confirmed by an actual `cargo check` succeeding
 #   with this exact line added, not merely assumed from the version range
 #   alone.
+# NATIVE-DEPENDENCY-JUSTIFICATION: tree-sitter-cmake links its generated C
+# grammar through the crate build script; it is required by the CMake parser
+# adapter and remains on the compatible published minor line above.
 tree-sitter-cmake = "0.7"
 # DEPENDENCY-JUSTIFICATION: These Make, Fortran, Vim, and Puppet grammar bindings
 # parse source for their corresponding generic structural extractors.
@@ -834,14 +839,14 @@ tree-sitter-elm = "5.9"
 # `cargo build` against this workspace's MSVC toolchain. This is an
 # upstream packaging bug specific to that one crate's `build.rs`, NOT a
 # tree-sitter ABI incompatibility (that crate's own `[dependencies]`
-# `tree-sitter = ">=0.21.0"` requirement has no upper bound, the same
+# unbounded lower-bound requirement has no upper bound, the same
 # ABI-range-agnostic shape as `tree-sitter-vim`'s own entry above -- the
 # grammar's own generated `parser.c`/`scanner.c` parse correctly once
 # compiled through a working `cc::Build` invocation, confirmed by a real
 # parse-tree dump against this vendored copy) -- see
 # `vendor/tree-sitter-scss-local/src/lib.rs`'s own doc comment for the
 # full finding.
-tree-sitter-scss-local = { path = "vendor/tree-sitter-scss-local" }
+tree-sitter-scss-local = { workspace = true }
 # Language-parity wave G2.3c: Bicep/Nickel/Jsonnet/CFScript structural
 # extractors (see languages/generic.rs's `parse_bicep`/`parse_nickel`/
 # `parse_jsonnet`/`parse_cfscript`). All four verified end-to-end (real
@@ -921,12 +926,12 @@ tree-sitter-cfml = "0.26"
 # ABI error) against this workspace's `tree-sitter = "0.25"` core before
 # being added here (ABI 14/14/13/14 respectively, all within the 13-15
 # compatible range).
-tree-sitter-bitbake-local = { path = "vendor/tree-sitter-bitbake-local" }
+tree-sitter-bitbake-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored Cairo, FunC, and Move grammar bindings
 # parse source for their corresponding structural extractors.
-tree-sitter-cairo-local = { path = "vendor/tree-sitter-cairo-local" }
-tree-sitter-func-local = { path = "vendor/tree-sitter-func-local" }
-tree-sitter-move-local = { path = "vendor/tree-sitter-move-local" }
+tree-sitter-cairo-local = { workspace = true }
+tree-sitter-func-local = { workspace = true }
+tree-sitter-move-local = { workspace = true }
 # Language-parity wave G2.3d: Hare/HLSL/ISPC/Just/Magma/NASM/Pony/
 # PureScript structural extractors (see languages/generic.rs's
 # `parse_hare`/`parse_hlsl`/`parse_ispc`/`parse_just`/`parse_magma`/
@@ -945,18 +950,18 @@ tree-sitter-move-local = { path = "vendor/tree-sitter-move-local" }
 #   genuine `tree-sitter-cpp` fork) and the real top-level-`cbuffer`-block
 #   parse-gap finding this wave documents as an accepted grammar
 #   limitation.
-# - `tree-sitter-purescript` 0.3.0 (git, tag `v0.3.0`,
-#   `postsolar/tree-sitter-purescript`) and `tree-sitter-magma` (git, rev
+# - `tree-sitter-purescript` 0.3.0 (vendored from tag `v0.3.0`,
+#   `postsolar/tree-sitter-purescript`) and `tree-sitter-magma` (vendored from rev
 #   `75b31f4695261967c7aa87d552d69805dc03c77b`,
 #   `edgarcosta/tree-sitter-magma`) are BOTH real, well-formed
 #   `tree-sitter-language`-based crates that simply have never been
 #   pushed to crates.io at all (confirmed via direct crates.io API
 #   searches returning zero results for either) -- the same "option 1, a
-#   maintained crate exists" git-dependency sourcing this workspace's own
-#   `tree-sitter-crystal` dependency (G2.2a) already established as
-#   precedent, rather than vendoring their C sources by hand (unnecessary
-#   when the upstream repo's own `bindings/rust/{lib,build}.rs` already
-#   work correctly against this workspace's core). See
+#   maintained crate exists" sourcing this workspace's own
+#   `tree-sitter-crystal` dependency (G2.2a) established as precedent.
+#   Their exact upstream Cargo package sources, including
+#   `bindings/rust/{lib,build}.rs`, are retained locally and work
+#   correctly against this workspace's core. See
 #   `LangSpec::purescript`'s/`LangSpec::magma`'s own doc comments for the
 #   real baseline-array corrections both required (PureScript's
 #   `module_types`; Magma's `call_types`/`module_types`/`import_types` --
@@ -993,15 +998,15 @@ tree-sitter-hlsl = "0.2"
 # DEPENDENCY-JUSTIFICATION: These Just, PureScript, and Magma grammar bindings
 # parse source for their corresponding generic structural extractors.
 tree-sitter-just = "0.2"
-tree-sitter-purescript = { git = "https://github.com/postsolar/tree-sitter-purescript", tag = "v0.3.0" }
-tree-sitter-magma = { git = "https://github.com/edgarcosta/tree-sitter-magma", rev = "75b31f4695261967c7aa87d552d69805dc03c77b" }
+tree-sitter-purescript = { workspace = true }
+tree-sitter-magma = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored Hare, ISPC, Pony, and NASM grammars
 # parse source for their corresponding generic structural extractors.
-tree-sitter-hare-local = { path = "vendor/tree-sitter-hare-local" }
-tree-sitter-ispc-local = { path = "vendor/tree-sitter-ispc-local" }
-tree-sitter-pony-local = { path = "vendor/tree-sitter-pony-local" }
+tree-sitter-hare-local = { workspace = true }
+tree-sitter-ispc-local = { workspace = true }
+tree-sitter-pony-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored NASM grammar parses NASM source for the generic structural extractor.
-tree-sitter-nasm-local = { path = "vendor/tree-sitter-nasm-local" }
+tree-sitter-nasm-local = { workspace = true }
 
 # Language-parity wave G2.3b: COBOL/Common Lisp/Lean/TLA+/Verilog/VHDL/
 # SystemVerilog structural extractors (see languages/generic.rs's
@@ -1162,7 +1167,7 @@ tree-sitter-vhdl = "1.4"
 # DEPENDENCY-JUSTIFICATION: These SystemVerilog and vendored COBOL bindings parse
 # source for their corresponding generic structural extractors.
 tree-sitter-systemverilog = "0.3"
-tree-sitter-cobol-local = { path = "vendor/tree-sitter-cobol-local" }
+tree-sitter-cobol-local = { workspace = true }
 # Emacs Lisp (Wilfred/tree-sitter-elisp) -- a real crates.io grammar,
 # same `tree-sitter-language` ABI-stable shim pattern as every other
 # grammar dependency in this file.
@@ -1174,13 +1179,13 @@ tree-sitter-elisp = "1.6"
 # directly via `cargo check`'s own "failed to select a version for
 # `cc`" error naming this exact conflict. See
 # `vendor/tree-sitter-capnp-local/src/lib.rs` for the full rationale.
-tree-sitter-capnp-local = { path = "vendor/tree-sitter-capnp-local" }
+tree-sitter-capnp-local = { workspace = true }
 # Smithy and Pine Script -- vendored crates already prepared by earlier
 # G2.4c/G2.4e workers but never wired into this dependency list.
-tree-sitter-smithy-local = { path = "vendor/tree-sitter-smithy-local" }
+tree-sitter-smithy-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Pine grammar parses Pine source for the
 # generic structural extractor.
-tree-sitter-pine-local = { path = "vendor/tree-sitter-pine-local" }
+tree-sitter-pine-local = { workspace = true }
 # Language-parity wave G2.4d redo: MATLAB/Luau/Kconfig have real
 # crates.io grammar crates (confirmed compiling clean against this
 # workspace's `tree-sitter = "0.25"` core); Teal/Meson/Fennel have no
@@ -1195,12 +1200,12 @@ tree-sitter-matlab = "1.3.0"
 # parse source for their corresponding generic structural extractors.
 tree-sitter-luau = "1.2.0"
 tree-sitter-kconfig = "1.3.0"
-tree-sitter-teal-local = { path = "vendor/tree-sitter-teal-local" }
+tree-sitter-teal-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Meson grammar parses Meson source for the generic structural extractor.
-tree-sitter-meson-local = { path = "vendor/tree-sitter-meson-local" }
+tree-sitter-meson-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Fennel grammar parses Fennel source for
 # the generic structural extractor.
-tree-sitter-fennel-local = { path = "vendor/tree-sitter-fennel-local" }
+tree-sitter-fennel-local = { workspace = true }
 # Language-parity wave G2.4a: AWK/Fish/Zsh/Tcl/Scheme/Racket (Tier-1).
 # `arborium-awk` is part of the same `bearcove/arborium` tree-sitter-
 # grammar-bundle family this crate already depends on for ReScript/
@@ -1217,8 +1222,10 @@ arborium-awk = "2.18"
 # workspace's `tree-sitter = "0.25"` core. `tree-sitter-prisma-io` is
 # likewise the real name for victorhqc/tree-sitter-prisma's grammar --
 # the plain `tree-sitter-prisma` crate name is a different, ABI-
-# incompatible grammar. `tree-sitter-pkl` has no crates.io release at
-# all; pinned via git to a specific commit of `apple/tree-sitter-pkl`.
+# incompatible grammar. The exact `apple/tree-sitter-pkl` commit is
+# vendored locally under an Ocentra-only package identity so Cargo and
+# security tooling cannot confuse it with the malicious crates.io
+# package that previously occupied the upstream name.
 tree-sitter-hcl = "1.1"
 # DEPENDENCY-JUSTIFICATION: These Nix, Sequel, Protocol Buffers, and Prisma
 # grammar bindings parse source for their corresponding generic extractors.
@@ -1229,7 +1236,7 @@ tree-sitter-proto = "0.4"
 tree-sitter-prisma-io = "1.6"
 # DEPENDENCY-JUSTIFICATION: These Pkl, Fish, Zsh, and Tcl grammar bindings parse
 # source for their corresponding generic structural extractors.
-tree-sitter-pkl = { git = "https://github.com/apple/tree-sitter-pkl", rev = "5893fb5dc832ea51a9bff3f84462528c766ecd7d" }
+tree-sitter-pkl = { workspace = true }
 tree-sitter-fish = "3.6"
 tree-sitter-zsh = "0.63"
 # DEPENDENCY-JUSTIFICATION: The Tcl grammar binding parses Tcl source for the generic structural extractor.
@@ -1256,8 +1263,8 @@ tree-sitter-racket = "0.24"
 tree-sitter-devicetree = "0.15"
 # DEPENDENCY-JUSTIFICATION: These vendored Go-template and Smali grammar bindings
 # parse source for their corresponding generic structural extractors.
-tree-sitter-gotemplate-local = { path = "vendor/tree-sitter-gotemplate-local" }
-tree-sitter-smali-local = { path = "vendor/tree-sitter-smali-local" }
+tree-sitter-gotemplate-local = { workspace = true }
+tree-sitter-smali-local = { workspace = true }
 # Thrift and LLVM TableGen -- vendored (`tree-sitter-thrift`/
 # `tree-sitter-tablegen` both hard-pin `tree-sitter = "~0.20.9"` as a
 # normal build-time dependency, the same ABI/dependency-graph conflict
@@ -1265,10 +1272,10 @@ tree-sitter-smali-local = { path = "vendor/tree-sitter-smali-local" }
 # document). Vendor crates prepared by an earlier G2.4c worker but
 # never wired into this dependency list. Language-parity wave
 # G2.4c-redo.
-tree-sitter-thrift-local = { path = "vendor/tree-sitter-thrift-local" }
+tree-sitter-thrift-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored TableGen grammar parses TableGen source
 # for the generic structural extractor.
-tree-sitter-tablegen-local = { path = "vendor/tree-sitter-tablegen-local" }
+tree-sitter-tablegen-local = { workspace = true }
 # WIT and LLVM IR -- real crates.io crates, both confirmed (via a real
 # scratch-crate build against this workspace's own `tree-sitter =
 # "0.25"` core) to resolve cleanly with no version conflict, unlike
@@ -1313,14 +1320,14 @@ tree-sitter-jsdoc = "0.25"
 # DEPENDENCY-JUSTIFICATION: These JSON and vendored GN, Go module, and Git ignore
 # grammar bindings parse source for their corresponding extractors.
 tree-sitter-json = "0.24"
-tree-sitter-gn-local = { path = "vendor/tree-sitter-gn-local" }
-tree-sitter-gomod-local = { path = "vendor/tree-sitter-gomod-local" }
+tree-sitter-gn-local = { workspace = true }
+tree-sitter-gomod-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Git ignore grammar parses ignore files for the generic structural extractor.
-tree-sitter-gitignore-local = { path = "vendor/tree-sitter-gitignore-local" }
+tree-sitter-gitignore-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored Hyprlang and Janet grammar bindings
 # parse source for their corresponding generic structural extractors.
-tree-sitter-hyprlang-local = { path = "vendor/tree-sitter-hyprlang-local" }
-tree-sitter-janet-local = { path = "vendor/tree-sitter-janet-local" }
+tree-sitter-hyprlang-local = { workspace = true }
+tree-sitter-janet-local = { workspace = true }
 # Wave G2.5c (Tier-0, final language-parity batch): JSON5, KDL, Linker
 # Script, Liquid, Markdown, Mermaid, PO, Properties, Regex. Properties
 # (0.3.0) and Regex (0.25.0) are real crates.io crates, both
@@ -1338,17 +1345,17 @@ tree-sitter-properties = "0.3"
 # DEPENDENCY-JUSTIFICATION: These Regex and vendored JSON5, KDL, LinkerScript,
 # and Liquid grammar bindings parse source for their corresponding extractors.
 tree-sitter-regex = "0.25"
-tree-sitter-json5-local = { path = "vendor/tree-sitter-json5-local" }
-tree-sitter-kdl-local = { path = "vendor/tree-sitter-kdl-local" }
+tree-sitter-json5-local = { workspace = true }
+tree-sitter-kdl-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored LinkerScript grammar parses linker scripts for the generic structural extractor.
-tree-sitter-linkerscript-local = { path = "vendor/tree-sitter-linkerscript-local" }
+tree-sitter-linkerscript-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored Liquid, Markdown, Mermaid, and PO
 # grammar bindings parse source for their corresponding extractors.
-tree-sitter-liquid-local = { path = "vendor/tree-sitter-liquid-local" }
-tree-sitter-markdown-local = { path = "vendor/tree-sitter-markdown-local" }
-tree-sitter-mermaid-local = { path = "vendor/tree-sitter-mermaid-local" }
+tree-sitter-liquid-local = { workspace = true }
+tree-sitter-markdown-local = { workspace = true }
+tree-sitter-mermaid-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored PO grammar parses gettext PO files for the generic structural extractor.
-tree-sitter-po-local = { path = "vendor/tree-sitter-po-local" }
+tree-sitter-po-local = { workspace = true }
 # Wave G2.5d (Tier-0, final language-parity batch): Requirements, RON,
 # reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
 # structural extractors (see languages/generic.rs's `parse_requirements`/
@@ -1382,9 +1389,9 @@ tree-sitter-yaml = "0.7"
 # bindings parse source for their corresponding generic structural extractors.
 tree-sitter-svelte-next = "0.1"
 tree-sitter-vue-next = "0.1"
-tree-sitter-ron-local = { path = "vendor/tree-sitter-ron-local" }
+tree-sitter-ron-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored SSH-config grammar parses SSH config for the generic structural extractor.
-tree-sitter-sshclientconfig-local = { path = "vendor/tree-sitter-sshclientconfig-local" }
+tree-sitter-sshclientconfig-local = { workspace = true }
 # Wave G2.5a (Tier-0): Assembly, Astro, Beancount, BibTeX, Blade, CSS,
 # CSV, Diff, Dockerfile, DotEnv, gitattributes structural extractors
 # (see languages/generic.rs's `parse_assembly`/`parse_astro`/
@@ -1411,47 +1418,35 @@ tree-sitter-asm = "0.24"
 # bindings parse source for their corresponding generic structural extractors.
 tree-sitter-css = "0.25"
 tree-sitter-diff = "0.1"
-tree-sitter-astro-local = { path = "vendor/tree-sitter-astro-local" }
+tree-sitter-astro-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Beancount grammar parses Beancount source for the generic structural extractor.
-tree-sitter-beancount-local = { path = "vendor/tree-sitter-beancount-local" }
+tree-sitter-beancount-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored BibTeX, Blade, CSV, and Dockerfile
 # grammar bindings parse source for their corresponding extractors.
-tree-sitter-bibtex-local = { path = "vendor/tree-sitter-bibtex-local" }
-tree-sitter-blade-local = { path = "vendor/tree-sitter-blade-local" }
-tree-sitter-csv-local = { path = "vendor/tree-sitter-csv-local" }
+tree-sitter-bibtex-local = { workspace = true }
+tree-sitter-blade-local = { workspace = true }
+tree-sitter-csv-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: The vendored Dockerfile grammar parses Dockerfiles for the generic structural extractor.
-tree-sitter-dockerfile-local = { path = "vendor/tree-sitter-dockerfile-local" }
+tree-sitter-dockerfile-local = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: These vendored DotEnv and Git attributes grammar
 # bindings parse source for their corresponding generic extractors.
-tree-sitter-dotenv-local = { path = "vendor/tree-sitter-dotenv-local" }
-tree-sitter-gitattributes-local = { path = "vendor/tree-sitter-gitattributes-local" }
+tree-sitter-dotenv-local = { workspace = true }
+tree-sitter-gitattributes-local = { workspace = true }
 # Wave G2.6: Agda and FORM, found missing during G2.5 closeout (they were
 # marked "done" in an earlier progress-doc roster but never actually had a
 # `LangSpec`, extractor, or dispatch wiring). Neither has a maintained
 tree-sitter-agda = "=1.3.3"
 # DEPENDENCY-JUSTIFICATION: The vendored FORM grammar parses FORM source for the
 # generic structural extractor.
-tree-sitter-form-local = { path = "vendor/tree-sitter-form-local" }
+tree-sitter-form-local = { workspace = true }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Property tests generate adversarial parser inputs and
+# prove every registered parser/normalizer contract remains total.
+proptest = "1.7.0"
 # DEPENDENCY-JUSTIFICATION: Integration tests create isolated temporary fixture
 # repositories and filesystem state.
 tempfile = "3.27.0"
-# tests/weaver_enrichment.rs hashes real fixture file content (rather
-# than an inline synthetic string) to build realistic
-# `WeaverEvent::{NodeChanged,FileChanged}` content hashes; integration
-# tests are separate compilation units from the crate's own
-# `[dependencies]`, so this must be declared again here even though the
-# library already depends on `sha2`.
-sha2 = { workspace = true }
-# tests/federation_roundtrip.rs generates ed25519 keypairs the same way
-# src/share.rs's and src/federation.rs's own unit tests do; same
-# "integration tests are a separate compilation unit" reason as `sha2`
-# above.
-ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std", "rand_core"] }
-# DEPENDENCY-JUSTIFICATION: Federation integration tests supply OS-backed entropy
-# to generate the Ed25519 keypairs exercised by their fixtures.
-rand_core = { version = "0.6", features = ["getrandom"] }
 
 [features]
 default = []
@@ -1465,7 +1460,7 @@ duckdb-analytics = ["duckdb"]
 # X06 model-runtime harvest: real ORT-backed Qwen-class embedder/reranker
 # contracts. NOT part of `default`; default gates stay deterministic,
 # zero-network, and provider-unavailable unless explicitly enabled.
-ort-models = ["dep:ndarray", "dep:ort", "dep:tokenizers"]
+ort-models = ["dep:ndarray", "dep:ort", "dep:rten-text"]
 # Explicit-network Hugging Face download/cache path. Never enabled by
 # default; proof runners must opt in deliberately.
 model-downloads = ["dep:reqwest"]

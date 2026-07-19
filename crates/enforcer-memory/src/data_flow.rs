@@ -74,14 +74,14 @@
 //! [`crate::code_graph::CallEdge::arg_texts`], producing one
 //! [`DataFlowEdge`] per call that has both a resolved target and at
 //! least one captured argument expression -- a call with zero arguments
-//! or with [`crate::resolution::ResolutionConfidence::Unresolved`]
+//! or with [`enforcer_domain::memory_types::ResolutionConfidence::Unresolved`]
 //! produces no edge (never a fabricated empty/guessed one).
 //! [`edges_from_symbol`] and [`edges_to_symbol`] index the result by
 //! caller/callee for [`crate::analysis::trace`] (or any other caller) to
 //! look up without re-scanning the whole edge list per query.
 //!
 //! [`crate::analysis::CodeAdjacency::build`] also calls [`materialize`]
-//! directly and inserts one [`crate::analysis::EdgeKind::DataFlows`]
+//! directly and inserts one [`enforcer_domain::memory_types::MemoryEdgeKind::DataFlows`]
 //! edge per [`DataFlowEdge`] that has a known `from_symbol_id`
 //! (alongside, never instead of, the `Calls` edge it already adds for
 //! the same resolved call) -- so a `trace_path` caller that requests
@@ -91,7 +91,12 @@
 //! metadata.
 
 use crate::code_graph::{CallEdge, CodeGraph};
-use crate::resolution::{self, ResolutionConfidence, ResolvedCall};
+use crate::owned_boundary::Retained;
+use crate::resolution::{self, ResolvedCall};
+use enforcer_domain::memory_types::{
+    GraphSourceLine, MemoryDataFlowArgumentExpression, MemoryDataFlowSourceSymbolId,
+    MemoryDataFlowTargetSymbolId, ResolutionConfidence,
+};
 use std::collections::HashMap;
 
 /// One materialized data-flow edge: a call site's captured argument
@@ -107,7 +112,7 @@ pub struct DataFlowEdge {
     /// module-scope call site -- kept rather than dropping the edge,
     /// since the argument data is still real even without a caller
     /// symbol id.
-    pub from_symbol_id: Option<String>,
+    pub from_symbol_id: Option<MemoryDataFlowSourceSymbolId>,
     /// The resolved target symbol id this call's arguments flow into.
     /// Never one of [`ResolvedCall::candidates`] picked arbitrarily when
     /// there is more than one -- an [`ResolutionConfidence::Ambiguous`]
@@ -115,7 +120,7 @@ pub struct DataFlowEdge {
     /// [`materialize`]), each carrying the same `argument_exprs`, so a
     /// consumer sees every real possibility rather than a silently
     /// narrowed guess.
-    pub to_symbol_id: String,
+    pub to_symbol_id: MemoryDataFlowTargetSymbolId,
     /// How confident [`resolution::resolve`] is in `to_symbol_id`,
     /// carried straight through so a consumer can filter on it exactly
     /// like [`ResolvedCall::confidence`] itself.
@@ -123,11 +128,11 @@ pub struct DataFlowEdge {
     /// The call site's argument expressions, in written order, straight
     /// from [`CallEdge::arg_texts`] -- the baseline's `caller_args`
     /// analog (see module docs).
-    pub argument_exprs: Vec<String>,
+    pub argument_exprs: Vec<MemoryDataFlowArgumentExpression>,
     /// The call site's source line ([`CallEdge::line`]), so a consumer
     /// can locate the edge back to its originating call without
     /// re-zipping against [`CodeGraph::calls`].
-    pub line: usize,
+    pub line: GraphSourceLine,
 }
 
 /// The full result of one [`materialize`] pass: every [`DataFlowEdge`]
@@ -148,22 +153,22 @@ impl DataFlowGraph {
     /// `symbol_id`, in [`Self::edges`] order.
     pub fn edges_from_symbol<'a>(
         &'a self,
-        symbol_id: &'a str,
+        symbol_id: &'a MemoryDataFlowSourceSymbolId,
     ) -> impl Iterator<Item = &'a DataFlowEdge> {
         self.edges
             .iter()
-            .filter(move |edge| edge.from_symbol_id.as_deref() == Some(symbol_id))
+            .filter(move |edge| edge.from_symbol_id.as_ref() == Some(symbol_id))
     }
 
     /// Every edge whose [`DataFlowEdge::to_symbol_id`] equals
     /// `symbol_id`, in [`Self::edges`] order.
     pub fn edges_to_symbol<'a>(
         &'a self,
-        symbol_id: &'a str,
+        symbol_id: &'a MemoryDataFlowTargetSymbolId,
     ) -> impl Iterator<Item = &'a DataFlowEdge> {
         self.edges
             .iter()
-            .filter(move |edge| edge.to_symbol_id == symbol_id)
+            .filter(move |edge| &edge.to_symbol_id == symbol_id)
     }
 }
 
@@ -202,10 +207,17 @@ pub fn materialize_from(calls: &[CallEdge], resolved: &[ResolvedCall]) -> DataFl
         }
         for candidate in &resolved_call.candidates {
             edges.push(DataFlowEdge {
-                from_symbol_id: resolved_call.from_symbol_id.clone(),
-                to_symbol_id: candidate.clone(),
+                from_symbol_id: resolved_call
+                    .from_symbol_id
+                    .as_ref()
+                    .map(|id| id.as_str().into()),
+                to_symbol_id: candidate.as_str().into(),
                 confidence: resolved_call.confidence,
-                argument_exprs: call.arg_texts.clone(),
+                argument_exprs: call
+                    .arg_texts
+                    .iter()
+                    .map(|argument| argument.as_str().into())
+                    .collect(),
                 line: call.line,
             });
         }
@@ -229,12 +241,16 @@ pub fn materialize_fresh(graph: &CodeGraph) -> DataFlowGraph {
 /// a caller (e.g. [`crate::analysis::trace`]) that wants "what argument
 /// expressions has anyone ever passed into this symbol" without walking
 /// [`DataFlowGraph::edges_to_symbol`] once per hop.
-pub fn argument_exprs_by_target(data_flow: &DataFlowGraph) -> HashMap<&str, Vec<&str>> {
-    let mut by_target: HashMap<&str, Vec<&str>> = HashMap::new();
+pub fn argument_exprs_by_target(
+    data_flow: &DataFlowGraph,
+) -> HashMap<MemoryDataFlowTargetSymbolId, Vec<&MemoryDataFlowArgumentExpression>> {
+    let mut by_target = HashMap::new();
     for edge in data_flow.edges() {
-        let exprs = by_target.entry(edge.to_symbol_id.as_str()).or_default();
+        let exprs = by_target
+            .entry(edge.to_symbol_id.retained())
+            .or_insert_with(Vec::new);
         for arg in &edge.argument_exprs {
-            exprs.push(arg.as_str());
+            exprs.push(arg);
         }
     }
     by_target

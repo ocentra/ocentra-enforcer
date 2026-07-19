@@ -42,13 +42,14 @@ use std::path::{Path, PathBuf};
 
 use enforcer_domain::findings::Report;
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::scan_types::{Outcome, ScanValidatorCount, ScopeRequest};
+use enforcer_domain::xtask_types::{ToolchainMode, ToolchainOutcome, XtaskFailureDetail};
 use enforcer_scan::coverage::{Coverage, TargetOutcome};
-use enforcer_scan::outcome::Outcome;
 use enforcer_scan::rules::baseline_ratchet::{
-    load_baseline, write_baseline, Baseline, BaselineGateOutcome, BaselineKey,
+    load_baseline, write_baseline, Baseline, BaselineGateOutcome, BaselineLocation,
     BaselineRatchetValidator,
 };
-use enforcer_scan::scope::{self, ScopeRequest};
+use enforcer_scan::scope;
 use enforcer_scan::{engine, walk};
 
 pub mod boundary;
@@ -63,7 +64,7 @@ pub struct DogfoodError {
     // BRAND-INVARIANT: always the rendered message of the one underlying
     // config/decode/io failure this value wraps (see `from_display`);
     // display-only, never re-parsed or matched on downstream.
-    detail: String,
+    detail: XtaskFailureDetail,
 }
 
 impl DogfoodError {
@@ -72,24 +73,10 @@ impl DogfoodError {
     pub fn from_display(source: impl std::fmt::Display) -> Self {
         // ALLOC-JUSTIFICATION: the wrapped error is consumed here; one
         // owned rendering is required for this error to be 'static.
-        let detail = source.to_string();
+        let detail = XtaskFailureDetail::try_new(source.to_string())
+            .unwrap_or_else(|_| XtaskFailureDetail::invalid_rendering());
         Self { detail }
     }
-}
-
-/// Whether a dogfood run also spawns the `cargo fmt`/`clippy`/`deny`/
-/// `audit` subprocesses. A closed domain enum instead of a raw flag so
-/// call sites read as domain language.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc = "Closed toolchain-inclusion signal; see the note above."]
-pub enum ToolchainMode {
-    /// Run the full toolchain alongside the rust-rule scan (the
-    /// standalone CI posture).
-    Include,
-    /// Skip the toolchain subprocesses (the nested-under-`cargo test`
-    /// posture -- those checks are first-class CI steps of their own; see
-    /// `crates/enforcer-cli/tests/self_enforce.rs` module docs).
-    Skip,
 }
 
 /// The rust-rule-scan half of the dogfood loop: the engine run over
@@ -117,7 +104,7 @@ pub struct DogfoodOutcome {
     /// The baseline-gated rust-rule scan result.
     pub rust_rule_scan: RustRuleScanResult,
     /// The toolchain steps, when run.
-    pub toolchain: Option<boundary::ToolchainOutcome>,
+    pub toolchain: Option<ToolchainOutcome>,
 }
 
 /// Walk `repo_root` under the workspace's own config-declared ignore
@@ -179,7 +166,7 @@ pub fn run_rust_rule_scan(
         // CLONE-JUSTIFICATION: the coverage record owns its path key; the
         // walked list stays borrowed for the scan below.
         file: entry.clone(),
-        outcome: Outcome::ran(1),
+        outcome: Outcome::ran(ScanValidatorCount::try_new(std::num::NonZeroUsize::MIN)),
     }));
     coverage
         .require_nonzero_ran()
@@ -218,7 +205,12 @@ pub fn write_baseline_snapshot(
 ) -> Result<Baseline, DogfoodError> {
     let crate_files = walk_crate_files(repo_root)?;
     let report = scan_crates(repo_root, &crate_files)?;
-    let baseline = Baseline::from_known(report.violations.iter().map(BaselineKey::for_violation));
+    let baseline = Baseline::from_known(
+        report
+            .violations
+            .iter()
+            .map(BaselineLocation::for_violation),
+    );
     write_baseline(baseline_store, &baseline).map_err(DogfoodError::from_display)?;
     Ok(baseline)
 }
@@ -251,6 +243,7 @@ pub fn run_dogfood(
 #[cfg(test)]
 mod tests {
     use super::{run_rust_rule_scan, write_baseline_snapshot};
+    use enforcer_domain::findings::ReportOutcome;
     use crate::boundary::testkit::{
         clean_body, second_violating_body, seed, seed_config, violating_body,
     };
@@ -277,10 +270,10 @@ mod tests {
         let result =
             run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
         assert!(
-            !result.gate.passes(),
+            matches!(result.gate.passes(), ReportOutcome::Violations),
             "an unbaselined violation must fail closed against an absent baseline"
         );
-        assert!(result.coverage.ran_count > 0);
+        assert!(!result.coverage.ran_count().is_zero());
         Ok(())
     }
 
@@ -300,7 +293,7 @@ mod tests {
         let covered =
             run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
         assert!(
-            covered.gate.passes(),
+            matches!(covered.gate.passes(), ReportOutcome::Clean),
             "a violation already recorded in the baseline must not re-trip the gate"
         );
 
@@ -314,7 +307,7 @@ mod tests {
         let grown =
             run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
         assert!(
-            !grown.gate.passes(),
+            matches!(grown.gate.passes(), ReportOutcome::Violations),
             "a NEW violation beyond the committed baseline must fail closed"
         );
         Ok(())
@@ -374,7 +367,7 @@ mod tests {
         let result =
             run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
         assert!(
-            result.gate.passes(),
+            matches!(result.gate.passes(), ReportOutcome::Clean),
             "an ignored fixtures/ path must never contribute a violation"
         );
         Ok(())

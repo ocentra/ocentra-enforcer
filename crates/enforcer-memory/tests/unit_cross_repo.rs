@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 use std::fs;
 
+use enforcer_domain::memory_types::{CrossHttpMatchKind, CrossRepoProtocol};
 use enforcer_memory::code_graph::{CallEdge, CodeGraph, RouteEdge};
-use enforcer_memory::cross_repo::{match_cross_repo, CrossHttpMatchKind, CrossRepoProtocol};
+use enforcer_memory::cross_repo::match_cross_repo;
 use enforcer_memory::mcp::dispatch_tool;
 use serde_json::json;
 
@@ -12,7 +13,7 @@ fn graph_with_route(method: &str, path: &str) -> CodeGraph {
         from_file_id: "file:server.rs".to_owned(),
         method: method.to_owned(),
         path: path.to_owned(),
-        line: 10,
+        line: 10.into(),
     });
     graph
 }
@@ -22,7 +23,7 @@ fn graph_with_call(callee: &str, url_literal: &str) -> CodeGraph {
     graph.push_call_for_test(CallEdge {
         from_file_id: "file:client.ts".to_owned(),
         callee: callee.to_owned(),
-        line: 20,
+        line: 20.into(),
         arg_texts: vec![format!("\"{url_literal}\"")],
         ..CallEdge::default()
     });
@@ -34,7 +35,7 @@ fn graph_with_channel_call(callee: &str, topic: &str) -> CodeGraph {
     graph.push_call_for_test(CallEdge {
         from_file_id: "file:worker.ts".to_owned(),
         callee: callee.to_owned(),
-        line: 30,
+        line: 30.into(),
         arg_texts: vec![format!("\"{topic}\"")],
         ..CallEdge::default()
     });
@@ -46,7 +47,7 @@ fn graph_with_literal_call(callee: &str, literal: &str) -> CodeGraph {
     graph.push_call_for_test(CallEdge {
         from_file_id: "file:protocol.ts".to_owned(),
         callee: callee.to_owned(),
-        line: 40,
+        line: 40.into(),
         arg_texts: vec![format!("\"{literal}\"")],
         ..CallEdge::default()
     });
@@ -58,7 +59,7 @@ fn matching_route_and_call_produces_exactly_one_cross_http_edge() {
     let current = graph_with_call("axios.get", "http://api.example.com/widgets");
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -84,13 +85,13 @@ fn static_backtick_url_literal_is_matched() {
     current.push_call_for_test(CallEdge {
         from_file_id: "file:client.ts".to_owned(),
         callee: "axios.get".to_owned(),
-        line: 20,
+        line: 20.into(),
         arg_texts: vec!["`/widgets`".to_owned()],
         ..CallEdge::default()
     });
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -103,7 +104,7 @@ fn absolute_url_with_root_path_is_matched() {
     let current = graph_with_call("axios.get", "https://api.example.com/");
     let target = graph_with_route("GET", "/");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -116,7 +117,7 @@ fn matching_route_declarations_produce_route_declaration_cross_http_edge() {
     let current = graph_with_route("GET", "/widgets");
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -133,7 +134,7 @@ fn route_declarations_match_templated_paths_and_wildcard_methods() {
     let current = graph_with_route("ANY", "/widgets/42");
     let target = graph_with_route("GET", "/widgets/{id}");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -151,7 +152,7 @@ fn matching_publish_subscribe_topics_increment_cross_channel() {
     let current = graph_with_channel_call("events.publish", "widgets.created");
     let target = graph_with_channel_call("bus.subscribe", "widgets.created");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -166,7 +167,7 @@ fn matching_async_broker_topics_increment_cross_async_calls() {
     let current = graph_with_literal_call("pubsub.publish", "widgets.async");
     let target = graph_with_literal_call("pubsub.subscribe", "widgets.async");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -186,7 +187,7 @@ fn matching_grpc_client_to_registered_service_increments_cross_grpc_calls() {
     let current = graph_with_literal_call("pb.NewWidgetServiceClient.GetWidget", "ignored");
     let target = graph_with_literal_call("grpcServer.addService", "WidgetService/GetWidget");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -200,7 +201,7 @@ fn matching_graphql_operation_increments_cross_graphql_calls() {
     let current = graph_with_literal_call("graphqlClient.request", "query GetWidget { widget }");
     let target = graph_with_literal_call("graphqlSchema.resolver", "GetWidget");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -217,7 +218,7 @@ fn matching_trpc_procedure_increments_cross_trpc_calls() {
     let current = graph_with_literal_call("trpc.widget.byId.query", "ignored");
     let target = graph_with_literal_call("router.query", "widget.byId");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -231,7 +232,7 @@ fn mismatched_method_does_not_match() {
     let current = graph_with_call("axios.post", "/widgets");
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -244,7 +245,7 @@ fn verbless_fetch_matches_any_method_on_matching_path() {
     let current = graph_with_call("fetch", "/widgets");
     let target = graph_with_route("POST", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -260,7 +261,7 @@ fn no_match_produces_zero_counts_not_an_error() {
     let current = graph_with_call("axios.get", "/nope");
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -275,8 +276,8 @@ fn wildcard_target_style_multiple_projects_all_scanned() {
     let target_b = graph_with_route("GET", "/widgets");
     let target_c = graph_with_route("GET", "/other");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target_b);
-    targets.insert("service-c".to_owned(), &target_c);
+    targets.insert("service-b".into(), &target_b);
+    targets.insert("service-c".into(), &target_c);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -302,13 +303,13 @@ fn non_literal_url_argument_is_not_matched() {
     current.push_call_for_test(CallEdge {
         from_file_id: "file:client.ts".to_owned(),
         callee: "axios.get".to_owned(),
-        line: 1,
+        line: 1.into(),
         arg_texts: vec!["urlVariable".to_owned()],
         ..CallEdge::default()
     });
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -321,7 +322,7 @@ fn interpolated_channel_topics_are_not_matched_as_static_cross_repo_evidence() {
     current.push_call_for_test(CallEdge {
         from_file_id: "file:publisher.ts".to_owned(),
         callee: "eventBus.publish".to_owned(),
-        line: 20,
+        line: 20.into(),
         arg_texts: vec!["`orders.${tenant}`".to_owned()],
         ..CallEdge::default()
     });
@@ -329,12 +330,12 @@ fn interpolated_channel_topics_are_not_matched_as_static_cross_repo_evidence() {
     target.push_call_for_test(CallEdge {
         from_file_id: "file:consumer.ts".to_owned(),
         callee: "eventBus.subscribe".to_owned(),
-        line: 30,
+        line: 30.into(),
         arg_texts: vec!["`orders.${tenant}`".to_owned()],
         ..CallEdge::default()
     });
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -347,7 +348,7 @@ fn trailing_slash_is_ignored_when_matching_paths() {
     let current = graph_with_call("axios.get", "/widgets/");
     let target = graph_with_route("GET", "/widgets");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -359,7 +360,7 @@ fn concrete_client_path_matches_templated_route() {
     let current = graph_with_call("axios.get", "/widgets/42");
     let target = graph_with_route("GET", "/widgets/:id");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -379,7 +380,7 @@ fn full_url_normalization_ignores_query_and_fragment() {
     );
     let target = graph_with_route("GET", "/widgets/{id}");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -392,7 +393,7 @@ fn literal_url_remains_distinct_additive_evidence_for_templated_routes() {
     let current = graph_with_call("fetch", "https://api.example.com/widgets/42?expand=true");
     let target = graph_with_route("POST", "/widgets/{id}");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -410,7 +411,7 @@ fn route_any_method_accepts_baseline_http_client_match() {
     let current = graph_with_call("axios.delete", "/widgets/42");
     let target = graph_with_route("ANY", "/widgets/{id}");
     let mut targets = BTreeMap::new();
-    targets.insert("service-b".to_owned(), &target);
+    targets.insert("service-b".into(), &target);
 
     let report = match_cross_repo("service-a", &current, &targets);
 
@@ -419,20 +420,18 @@ fn route_any_method_accepts_baseline_http_client_match() {
 }
 
 #[test]
-fn cross_repo_mode_accepts_snake_case_wire_aliases() {
-    let server_dir = tempfile::tempdir().expect("server tempdir");
-    let client_dir = tempfile::tempdir().expect("client tempdir");
+fn cross_repo_mode_accepts_snake_case_wire_aliases() -> Result<(), Box<dyn std::error::Error>> {
+    let server_dir = tempfile::tempdir()?;
+    let client_dir = tempfile::tempdir()?;
 
     fs::write(
         server_dir.path().join("server.ts"),
         "const app = { get(_path: string, _handler: () => void) {} };\nfunction showWidget() {}\napp.get(\"/widgets/:id\", showWidget);\n",
-    )
-    .expect("write server fixture");
+    )?;
     fs::write(
         client_dir.path().join("client.ts"),
         "import axios from \"axios\";\nexport function fetchWidget() { return axios.get(\"https://api.example.com/widgets/42?expand=true#details\"); }\n",
-    )
-    .expect("write client fixture");
+    )?;
 
     let result = dispatch_tool(
         "index_repository",
@@ -449,23 +448,23 @@ fn cross_repo_mode_accepts_snake_case_wire_aliases() {
     assert_eq!(result["cross_http_calls"].as_u64(), Some(1));
     assert_eq!(result["total_cross_edges"].as_u64(), Some(1));
     assert_eq!(result["cross_literal_url_calls"].as_u64(), Some(0));
+    Ok(())
 }
 
 #[test]
-fn literal_fetch_is_reported_as_extension_not_baseline_http_count() {
-    let server_dir = tempfile::tempdir().expect("server tempdir");
-    let client_dir = tempfile::tempdir().expect("client tempdir");
+fn literal_fetch_is_reported_as_extension_not_baseline_http_count(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let server_dir = tempfile::tempdir()?;
+    let client_dir = tempfile::tempdir()?;
 
     fs::write(
         server_dir.path().join("server.ts"),
         "const app = { get(_path: string, _handler: () => void) {} };\nfunction showWidget() {}\napp.get(\"/widgets/{id}\", showWidget);\n",
-    )
-    .expect("write server fixture");
+    )?;
     fs::write(
         client_dir.path().join("client.ts"),
         "export function fetchWidget() { return fetch(\"https://api.example.com/widgets/42?expand=true\"); }\n",
-    )
-    .expect("write client fixture");
+    )?;
 
     let result = dispatch_tool(
         "index_repository",
@@ -485,4 +484,5 @@ fn literal_fetch_is_reported_as_extension_not_baseline_http_count() {
         result["total_cross_edges_including_extensions"].as_u64(),
         Some(1)
     );
+    Ok(())
 }

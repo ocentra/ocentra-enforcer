@@ -4,17 +4,19 @@
 ```yaml
 product: native Rust repository-enforcement engine
 entrypoints: "enforcer CLI | enforcer serve (MCP stdio) | optional Tauri UI"
-core_model: "typed rules + deterministic validators -> structured findings and proof"
+core_model: "typed rules + deterministic validators -> structured findings"
 scopes: "check/scan/verify: paths | git diff (--base/--head) | --all; verify also selects a named mode"
-workflow: "route or choose the smallest scope -> repair findings -> widen validation"
+workflow: "choose the smallest check/scan/verify scope -> repair findings -> widen validation"
 implementation: "Rust workspace; TypeScript is presentation-only in the optional UI"
 ```
 <!-- /ai-dense -->
 
-Ocentra Enforcer is a native Rust enforcement engine for local development,
-CI, and MCP-enabled coding assistants. It makes repository policy executable:
-the same rule system can route work, scan a scope, retain compact diagnostics,
-record proof, and coordinate parallel contributors.
+Ocentra Enforcer is a native Rust enforcement engine for local development
+and CI, with an MCP control boundary for coding assistants. It makes
+repository policy executable:
+the same rule system can scan a scope and return structured findings through
+the native CLI. Additional proof, diagnostics, and coordination engines exist
+in the workspace, but not every engine is wired to every public boundary yet.
 
 The goal is straightforward: code should be accepted because deterministic
 checks support it, not because a person or agent remembered every convention.
@@ -23,22 +25,22 @@ checks support it, not because a person or agent remembered every convention.
 
 - A Rust CLI and MCP stdio server from one codebase.
 - Typed rule records with documented IDs, validators, fixtures, and findings.
-- File, crate, workspace, and diff-oriented validation scopes.
+- File, directory, workspace, and diff-oriented validation scopes.
 - Native Rust validation plus structural validation for TypeScript/JavaScript,
   Python, Dart, CFML, configuration, CI, dependencies, and generated files.
-- Compact, durable run diagnostics and proof artifacts.
-- Optional coordination for exact-file claims, handoffs, and parallel work.
-- An optional Tauri control plane; the CLI and MCP surfaces remain standalone.
+- Library support for durable run diagnostics, proof artifacts, and
+  coordination, with public-boundary availability documented below.
+- An optional Tauri control plane; the CLI remains standalone.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Developer, CI, or MCP client"] --> B["CLI / MCP boundary"]
+  A["Developer or CI"] --> B["CLI validation boundary"]
   B --> C["Routing and scope"]
   C --> D["Typed rule registry"]
   D --> E["Native validators and tool adapters"]
-  E --> F["Structured findings and proof"]
+  E --> F["Structured findings"]
   F --> G["Accept, repair, or escalate"]
 ```
 
@@ -78,24 +80,36 @@ cargo run -p enforcer-cli -- check --help
 cargo run -p enforcer-cli -- serve --help
 ```
 
-The current CLI surface is `check`, `scan`, `serve`, `ui`, `verify`, `advise`,
-`architecture`, and `onboard`. `check`, `scan`, and `verify` accept one
+The current CLI surface is `check`, `scan`, `serve`, `ui`, `install`, `plan`,
+`proof`, `coordination` (alias `ledger`), `verify`, `advise`, `architecture`,
+and `onboard`. `check`, `scan`, and `verify` accept one
 explicit scope: paths, a `--base`/`--head` diff pair, or `--all`; `verify`
 also selects a named verification mode. Use `--help` as the source of truth
 for the build you are running.
 
+`install` is currently a no-argument, user-level operation that registers the
+native binary with all supported harness adapters and runs its internal health
+check. The visible `plan`, `proof`, and `coordination` command groups are
+reserved boundaries and currently return a not-wired error.
+
+The Rust MCP server currently executes four tool families: server status,
+coordination status, exact-path coordination claim, and UI launch/status.
+Other tools may appear in MCP discovery as registered contracts, but they
+currently return a structured not-wired error and must not be used as product
+capabilities.
+
 ## Typical workflow
 
-1. For MCP work, route the request through the installed Enforcer MCP tool;
-   for CLI work, choose an explicit scope with `check` or `scan`.
+1. Choose an explicit CLI scope with `check`, `scan`, or `verify`.
 2. Run the smallest meaningful validation scope.
 3. Read compact diagnostics and repair the reported condition.
-4. Record or inspect proof for work that requires reproducible evidence.
+4. Retain the command output or report required by the repository's current
+   evidence process; the native proof command is not wired yet.
 5. Run the wider local or CI gate before accepting the change.
 
-For repositories wired to Enforcer, start with a route before reading broad
-rule documentation. This keeps automated work scoped to the code and policy
-that actually apply.
+For repositories wired to the frozen Node compatibility service, its route
+tool may still be used according to that service's own documentation. The
+current Rust CLI and MCP server do not expose a working route operation.
 
 ## Documentation
 
@@ -104,7 +118,6 @@ that actually apply.
 - [Target repository wiring](docs/TARGET_REPO_WIRING.md)
 - [MCP and harness setup](docs/CODEX_SETUP.md)
 - [Coordination model](docs/COORDINATION.md)
-- [Proof system](docs/PROOF_SYSTEM_DESIGN.md)
 - [Release policy](docs/RELEASE_POLICY.md)
 
 Internal planning material is intentionally kept under `docs/plans/`; it is

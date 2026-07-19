@@ -59,7 +59,33 @@
 //! `enforcer_harness::parsers::missing_tool_skip`) rather than an ad-hoc
 //! shell-out — this crate does not itself shell out to any external tool.
 
-pub mod cyberskills;
+#[path = "boundary/activation.rs"]
 pub mod activation;
+macro_rules! canonical_finding {
+    {
+        rule_id: $rule_id:expr,
+        severity: $severity:expr,
+        title: $title:expr,
+        detail: $detail:expr,
+        file: $file:expr,
+        line: $line:expr,
+        snippet: $snippet:expr $(,)?
+    } => {{
+        let rule_id = $rule_id;
+        let file = $file;
+        let snippet: Option<String> = $snippet;
+        crate::boundary::finding::from_source(
+            (&rule_id, $severity),
+            $title,
+            $detail,
+            &file,
+            ($line, snippet.as_deref()),
+        )
+        .into_iter()
+    }};
+}
+
+mod boundary;
+pub mod cyberskills;
 pub mod policy_ingest;
 pub mod rules;

@@ -18,9 +18,11 @@
 
 use enforcer_core::error::Result;
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::harness_types::{
+    HarnessDiagnosticMessage, HarnessExternalRuleId, HarnessReproductionSeed,
+};
 
 use crate::security_pipeline::fuzz::{FuzzFailure, FuzzOutcome};
-use crate::security_pipeline::seam::{EngineDetailText, EngineRuleLabel, SeedText};
 
 /// Raw wire shape of one recorded property/fuzz report.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -102,11 +104,14 @@ fn failure_from_record(record: FailureRecord) -> Result<FuzzFailure> {
             )
             .into());
         }
-        Some(raw_seed) => Some(SeedText(raw_seed)),
+        Some(raw_seed) => Some(HarnessReproductionSeed::from_adapter(raw_seed)?),
     };
     Ok(FuzzFailure {
-        property: EngineRuleLabel(record.property),
+        property: HarnessExternalRuleId::try_new(record.property)?,
         seed,
-        counterexample: record.counterexample.map(EngineDetailText),
+        counterexample: record
+            .counterexample
+            .map(HarnessDiagnosticMessage::try_new)
+            .transpose()?,
     })
 }

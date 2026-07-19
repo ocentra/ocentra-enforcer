@@ -39,4 +39,5 @@
 //! its owning validator and fixture pair, and is the single source the
 //! count-parity completeness test in `tests/completeness.rs` walks.
 
+pub(crate) mod boundary;
 pub mod rules;

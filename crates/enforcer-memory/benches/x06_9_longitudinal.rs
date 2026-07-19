@@ -27,18 +27,41 @@
 //! `print_stdout` lint targets) so a real measurement is still printed
 //! without an `#[allow(...)]`.
 
+use enforcer_domain::memory_types::DocumentKind;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::embed::{Embedder, HashingEmbedder};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::rerank::FusionScoreReranker;
-use enforcer_memory::search::{DocumentKind, HybridSearcher, SearchDocument};
+use enforcer_memory::search::document::SearchDocument;
+use enforcer_memory::search::HybridSearcher;
 use enforcer_memory::vector::{embed_documents, VectorIndex};
-use std::error::Error;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
-type BoxError = Box<dyn Error>;
+#[derive(Debug, thiserror::Error)]
+enum BenchError {
+    #[error("benchmark I/O failed: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("repository indexing failed: {0}")]
+    Index(#[from] enforcer_memory::code_graph::IndexError),
+    #[error("memory operation failed: {0}")]
+    Memory(#[from] enforcer_memory::error::MemoryError),
+    #[error("git command failed: git {args:?}")]
+    GitCommand { args: &'static [&'static str] },
+    #[error("index added {actual} files; expected {expected}")]
+    AddedCount { expected: usize, actual: usize },
+    #[error("incremental no-op index reported changes")]
+    UnexpectedIncrementalChanges,
+    #[error("cannot compute percentile for an empty sample")]
+    EmptyPercentile,
+    #[error("percentile index {index} exceeds sample length {len}")]
+    PercentileIndex { index: usize, len: usize },
+    #[error("retrieval query returned no context: {query}")]
+    EmptyRetrievalContext { query: &'static str },
+}
+
+type BenchResult<T> = Result<T, BenchError>;
 
 /// A small, deterministic synthetic repo generated in-memory (no
 /// filesystem fixture needed -- every file's content is a pure function
@@ -61,13 +84,13 @@ fn synthetic_repo_files(n: usize) -> Vec<(String, String)> {
         .collect()
 }
 
-fn run_git(dir: &std::path::Path, args: &[&str]) -> Result<(), BoxError> {
+fn run_git(dir: &std::path::Path, args: &'static [&'static str]) -> BenchResult<()> {
     let status = std::process::Command::new("git")
         .args(args)
         .current_dir(dir)
         .status()?;
     if !status.success() {
-        return Err(format!("git {args:?} failed").into());
+        return Err(BenchError::GitCommand { args });
     }
     Ok(())
 }
@@ -79,7 +102,7 @@ fn run_git(dir: &std::path::Path, args: &[&str]) -> Result<(), BoxError> {
 fn materialize_repo(
     dir: &std::path::Path,
     files: &[(String, String)],
-) -> Result<Vec<PathBuf>, BoxError> {
+) -> BenchResult<Vec<PathBuf>> {
     run_git(dir, &["init", "--quiet"])?;
     run_git(dir, &["config", "user.email", "bench@example.com"])?;
     run_git(dir, &["config", "user.name", "Bench"])?;
@@ -116,7 +139,7 @@ struct RetrievalLatencySample {
     p95_ms: f64,
 }
 
-fn run_sample(file_count: usize) -> Result<BenchSample, BoxError> {
+fn run_sample(file_count: usize) -> BenchResult<BenchSample> {
     let dir = tempfile::tempdir()?;
     let files = synthetic_repo_files(file_count);
     let paths = materialize_repo(dir.path(), &files)?;
@@ -126,11 +149,10 @@ fn run_sample(file_count: usize) -> Result<BenchSample, BoxError> {
     let (manifest, report) = graph.index_repository(dir.path(), &paths, &Manifest::default())?;
     let full_index_ms = start.elapsed().as_secs_f64() * 1000.0;
     if report.added.len() != file_count {
-        return Err(format!(
-            "expected {file_count} added files, got {}",
-            report.added.len()
-        )
-        .into());
+        return Err(BenchError::AddedCount {
+            expected: file_count,
+            actual: report.added.len(),
+        });
     }
 
     let start = Instant::now();
@@ -140,7 +162,7 @@ fn run_sample(file_count: usize) -> Result<BenchSample, BoxError> {
         || !report2.added.is_empty()
         || !report2.changed.is_empty()
     {
-        return Err("incremental no-op re-index unexpectedly reported changes".into());
+        return Err(BenchError::UnexpectedIncrementalChanges);
     }
 
     Ok(BenchSample {
@@ -155,7 +177,7 @@ fn synthetic_search_corpus(file_count: usize) -> Vec<SearchDocument> {
         .map(|i| {
             let id = format!("sym:gen_{i:04}.rs:1:gen_{i:04}");
             let previous = if i == 0 {
-                "root function".to_owned()
+                String::from("root function")
             } else {
                 format!("calls gen_{:04}", i - 1)
             };
@@ -170,28 +192,42 @@ fn synthetic_search_corpus(file_count: usize) -> Vec<SearchDocument> {
         .collect()
 }
 
-fn percentile(sorted: &[f64], quantile: f64) -> Result<f64, BoxError> {
+fn percentile(sorted: &[f64], quantile: f64) -> BenchResult<f64> {
     if sorted.is_empty() {
-        return Err("cannot compute percentile for empty sample".into());
+        return Err(BenchError::EmptyPercentile);
     }
     let last = sorted.len() - 1;
-    let index = ((last as f64) * quantile).ceil() as usize;
+    let index = quantile_index(last, quantile);
     sorted
         .get(index.min(last))
         .copied()
-        .ok_or_else(|| "percentile index out of bounds".into())
+        .ok_or(BenchError::PercentileIndex {
+            index,
+            len: sorted.len(),
+        })
+}
+
+fn quantile_index(last: usize, quantile: f64) -> usize {
+    // CAST-JUSTIFICATION: benchmark quantiles intentionally project a bounded
+    // sample index through f64 and use Rust's saturating float-to-usize cast.
+    ((last as f64) * quantile).ceil() as usize
 }
 
 fn run_retrieval_latency_sample(
     tier: &'static str,
     file_count: usize,
-) -> Result<RetrievalLatencySample, BoxError> {
+) -> BenchResult<RetrievalLatencySample> {
     let corpus = synthetic_search_corpus(file_count);
     let fulltext = FullTextIndex::build(&corpus)?;
     let embedder = HashingEmbedder::new();
     let doc_texts: Vec<(String, String)> = corpus
         .iter()
-        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .map(|doc| {
+            (
+                String::from(doc.id.as_str()),
+                String::from(doc.text.as_str()),
+            )
+        })
         .collect();
     let entries = embed_documents(&embedder, &doc_texts)?;
     let vector = VectorIndex::build(&entries, embedder.model_info());
@@ -207,9 +243,9 @@ fn run_retrieval_latency_sample(
     let mut latencies = Vec::new();
     for query in queries.iter().cycle().take(20) {
         let start = Instant::now();
-        let result = searcher.search(query, &corpus, &[])?;
+        let result = searcher.search(*query, &corpus, &[])?;
         if result.context.is_empty() {
-            return Err(format!("retrieval query {query:?} returned no context").into());
+            return Err(BenchError::EmptyRetrievalContext { query });
         }
         latencies.push(start.elapsed().as_secs_f64() * 1000.0);
     }
@@ -222,7 +258,7 @@ fn run_retrieval_latency_sample(
     })
 }
 
-fn main() -> Result<(), BoxError> {
+fn main() -> BenchResult<()> {
     let mut stdout = std::io::stdout();
     // Deterministic corpus sizes -- the longitudinal §3 "index rebuild
     // time vs incremental update time" tiers this bench is the hook

@@ -61,13 +61,13 @@ export function ProjectSetupWorkspace({
   onNavigate,
 }: {
   project: Project;
-  settings?: ProjectSettings;
+  settings?: ProjectSettings | undefined;
   settingsLoading: boolean;
   settingsError: string;
-  scanScopeSettings?: ScanScopeSettings;
+  scanScopeSettings?: ScanScopeSettings | undefined;
   scanScopeSettingsLoading: boolean;
   scanScopeSettingsError: string;
-  proofSnapshot?: ProofSnapshot;
+  proofSnapshot?: ProofSnapshot | undefined;
   proofLoading: boolean;
   proofError: string;
   onNavigate: (workspace: WorkspaceKey, settingsTab?: SettingsTab) => void;
@@ -195,5 +195,6 @@ export function ProjectSetupWorkspace({
 
 function SetupLifecycleCard({ card, onNavigate }: { card: SetupCard; onNavigate: (workspace: WorkspaceKey, settingsTab?: SettingsTab) => void }) {
   const Icon = card.icon;
-  return <article className={card.wide ? "setup-card wide" : "setup-card"}><div className="setup-card-head"><Icon size={18} /><span><strong>{card.title}</strong><em className={card.tone}>{card.state}</em></span></div><p>{card.detail}</p>{card.action && <button className="setup-card-action" onClick={() => onNavigate(card.action!.workspace, card.action!.settingsTab)}>{card.action.label}<ArrowUpRight size={15} /></button>}</article>;
+  const action = card.action;
+  return <article className={card.wide ? "setup-card wide" : "setup-card"}><div className="setup-card-head"><Icon size={18} /><span><strong>{card.title}</strong><em className={card.tone}>{card.state}</em></span></div><p>{card.detail}</p>{action && <button className="setup-card-action" onClick={() => onNavigate(action.workspace, action.settingsTab)}>{action.label}<ArrowUpRight size={15} /></button>}</article>;
 }

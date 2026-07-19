@@ -52,7 +52,8 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_lang_common::registry::all`.
 
-pub mod error;
+mod boundary;
+mod error;
 pub mod families;
 pub mod pattern;
 pub mod port_platform;

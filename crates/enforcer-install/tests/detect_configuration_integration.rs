@@ -1,7 +1,7 @@
 //! External proof for the harness-configuration detection boundary.
 
-use enforcer_domain::ids::HarnessId;
-use enforcer_install::detect::{detect_harnesses, MapEnv, RealFs, Support};
+use enforcer_domain::{ids::HarnessId, install_types::Support};
+use enforcer_install::detect::{detect_harnesses, MapEnv, RealFs};
 use std::fs;
 
 #[test]

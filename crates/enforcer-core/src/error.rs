@@ -25,8 +25,10 @@ pub enum Error {
     #[error("environment variable `{name}` unavailable: {reason}")]
     Env {
         /// Variable name that failed to resolve.
+        /// BRAND-INVARIANT: exact process environment key supplied at the I/O boundary.
         name: String,
         /// Why it failed (missing, not unicode, ...).
+        /// BRAND-INVARIANT: diagnostic text supplied by `std::env::VarError`.
         reason: String,
     },
 
@@ -60,15 +62,10 @@ mod tests {
 
     #[test]
     fn json_error_converts_into_shared_error() -> super::Result<()> {
-        let bad = serde_json::from_str::<serde_json::Value>("{not json");
-        let json_err = match bad {
-            Ok(_) => {
-                return Err(Error::InvalidConfig(
-                    "fixture unexpectedly parsed".to_owned(),
-                ))
-            }
-            Err(e) => e,
-        };
+        let json_err = serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "invalid JSON fixture",
+        ));
         let err: Error = json_err.into();
         assert!(matches!(err, Error::Json(_)));
         Ok(())
@@ -82,9 +79,10 @@ mod tests {
         assert_eq!(err.reason, "not a known rule id");
         assert_eq!(err.input_hint.as_deref(), Some("RULE-???"));
         let shared: Error = err.into();
-        let rendered = shared.to_string();
-        assert!(rendered.contains("config.rules[3].id"));
-        assert!(rendered.contains("not a known rule id"));
+        assert_eq!(
+            shared.to_string(),
+            "decode/validation failed at `config.rules[3].id`: not a known rule id"
+        );
     }
 
     #[test]

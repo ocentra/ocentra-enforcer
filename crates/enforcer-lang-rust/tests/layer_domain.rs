@@ -10,7 +10,7 @@ fn validate_domain_source(source: &str) -> Result<Vec<enforcer_domain::findings:
         .map_err(|error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string())?;
     Ok(validator.validate(ValidationInput {
         file: &file,
-        source,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
         scope: ScanScope::Files,
     }))
 }

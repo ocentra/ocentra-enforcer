@@ -1,23 +1,25 @@
-use super::validation::{EventDeliveryDecisionState, EventDeliveryRouteKind};
+use enforcer_domain::events_types::{
+    EventDeliveryDecisionState, EventDeliveryRequirementsState, EventDeliveryRouteKind,
+};
 
 pub(super) fn decision_state(
     route_kind: EventDeliveryRouteKind,
-    requirements_satisfied: bool,
+    requirements_state: EventDeliveryRequirementsState,
 ) -> EventDeliveryDecisionState {
-    match (route_kind, requirements_satisfied) {
+    match (route_kind, requirements_state) {
         (EventDeliveryRouteKind::LocalInProcess | EventDeliveryRouteKind::LocalService, _) => {
             EventDeliveryDecisionState::LocalRouteReady
         }
-        (EventDeliveryRouteKind::ExternalTransport, true) => {
+        (EventDeliveryRouteKind::ExternalTransport, EventDeliveryRequirementsState::Satisfied) => {
             EventDeliveryDecisionState::ExternalTransportRouteRequirementsSatisfied
         }
-        (EventDeliveryRouteKind::ExternalTransport, false) => {
+        (EventDeliveryRouteKind::ExternalTransport, EventDeliveryRequirementsState::Missing) => {
             EventDeliveryDecisionState::ExternalTransportRouteManualRequired
         }
-        (EventDeliveryRouteKind::ExternalRelay, true) => {
+        (EventDeliveryRouteKind::ExternalRelay, EventDeliveryRequirementsState::Satisfied) => {
             EventDeliveryDecisionState::ExternalRelayRouteRequirementsSatisfied
         }
-        (EventDeliveryRouteKind::ExternalRelay, false) => {
+        (EventDeliveryRouteKind::ExternalRelay, EventDeliveryRequirementsState::Missing) => {
             EventDeliveryDecisionState::ExternalRelayRouteManualRequired
         }
     }

@@ -37,19 +37,22 @@
 //! clauses, decorators, routes, ...).
 
 use crate::languages::spec::LangSpec;
+use crate::owned_boundary::{Retained, RetainedDisplay};
 use crate::parsers::{
-    CallRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, RouteRef,
-    SymbolKind, SymbolRef,
+    CallRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind,
+    SymbolRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use tree_sitter::{Node, Parser};
 
-mod csharp;
-mod go;
-mod php;
+fn checked_field_name_for_child(node: Node<'_>, index: usize) -> Option<&'static str> {
+    node.field_name_for_child(u32::try_from(index).ok()?)
+}
 
-pub use csharp::{csharp_quirks, parse_csharp};
-pub use go::{go_quirks, parse_go};
-pub use php::{parse_php, php_quirks};
+pub mod csharp;
+pub mod go;
+pub mod php;
 
 /// The innermost function/method a call expression is lexically inside
 /// of, if any -- same bundled-scope pattern every bespoke extractor
@@ -74,10 +77,40 @@ type UnmatchedNodeHook =
     Box<dyn Fn(Node<'_>, Option<&str>, &[u8], &mut ParsedFile) -> bool + Send + Sync>;
 
 /// Signature for [`Quirks::route_from_call`].
-type RouteFromCallHook = Box<dyn Fn(&str, Node<'_>, &[u8]) -> Option<RouteRef> + Send + Sync>;
+pub struct RouteFromCallContext<'tree, 'source> {
+    /// BRAND-INVARIANT: this borrowed name is the callee represented by `call_node`.
+    pub callee: &'source str,
+    /// Parsed call-expression node associated with [`Self::callee`].
+    pub call_node: Node<'tree>,
+    /// BRAND-INVARIANT: these bytes are the source buffer that owns `call_node`'s text range.
+    pub source: &'source [u8],
+}
+
+type RouteFromCallHook = Box<
+    dyn for<'tree, 'source> Fn(RouteFromCallContext<'tree, 'source>) -> Option<RouteRef>
+        + Send
+        + Sync,
+>;
 
 /// Signature for [`Quirks::on_method_defined`].
-type MethodDefinedHook = Box<dyn Fn(Node<'_>, &str, usize, &[u8], &mut ParsedFile) + Send + Sync>;
+pub struct MethodDefinedContext<'tree, 'source, 'output> {
+    /// Parsed method-definition node associated with [`Self::name`].
+    pub node: Node<'tree>,
+    /// BRAND-INVARIANT: this borrowed name and line identify the method represented by `node`.
+    pub name: &'source str,
+    /// BRAND-INVARIANT: this is the one-based source line for `name`.
+    pub line: usize,
+    /// BRAND-INVARIANT: these bytes are the source buffer that owns `node`'s text range.
+    pub source: &'source [u8],
+    /// Extraction sink receiving any language-specific method relationships.
+    pub output: &'output mut ParsedFile,
+}
+
+type MethodDefinedHook = Box<
+    dyn for<'tree, 'source, 'output> Fn(MethodDefinedContext<'tree, 'source, 'output>)
+        + Send
+        + Sync,
+>;
 
 /// Signature for [`Quirks::call_override`]: the call node, the
 /// innermost enclosing function/method name + line (`fn_scope`, same
@@ -179,7 +212,12 @@ pub fn parse_with_spec(
         quirks,
         is_test_file,
     };
-    walk(tree.root_node(), &ctx, &mut out, None, FnScope::default());
+    let traversal = catch_unwind(AssertUnwindSafe(|| {
+        walk(tree.root_node(), &ctx, &mut out, None, FnScope::default());
+    }));
+    if traversal.is_err() {
+        return ParsedFile::default();
+    }
     out
 }
 
@@ -196,9 +234,9 @@ fn walk(
     if spec.module_types.contains(&kind) {
         if let Some(name) = first_named_child_text(node, ctx.src) {
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Module,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
         walk_children(node, ctx, out, enclosing, fn_scope);
@@ -246,19 +284,25 @@ fn walk(
                 SymbolKind::Function
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: kind_out,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(hook) = &ctx.quirks.on_method_defined {
-                hook(node, &name, line, ctx.src, out);
+                hook(MethodDefinedContext {
+                    node,
+                    name: &name,
+                    line,
+                    source: ctx.src,
+                    output: out,
+                });
             }
             if let Some(body) = node.child_by_field_name(spec.body_field) {
                 walk_children(
@@ -306,15 +350,15 @@ fn walk(
                 SymbolKind::Class
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: generic_kind,
-                line,
+                line: line.into(),
             });
             for super_name in generic_base_class_names(node, ctx.src) {
                 out.inherits.push(InheritsRef {
-                    sub_name: name.clone(),
-                    super_name,
-                    line,
+                    sub_name: (name.retained()).into(),
+                    super_name: super_name.into(),
+                    line: line.into(),
                 });
             }
             walk_children(node, ctx, out, Some(name.as_str()), fn_scope);
@@ -327,9 +371,9 @@ fn walk(
             (enclosing, child_text(node, spec.name_field, ctx.src))
         {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name,
-                line: node.start_position().row + 1,
+                container_name: (container.retained_display()).into(),
+                member_name: (name).into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -351,19 +395,26 @@ fn walk(
         }
         if let Some(function) = node.child_by_field_name(spec.call_function_field) {
             if let Ok(callee) = function.utf8_text(ctx.src) {
-                let callee = callee.to_string();
+                let callee = callee.retained_display();
                 let (receiver_text, receiver_hint) = receiver_of_call(function, ctx.src);
                 out.calls.push(CallRef {
-                    callee: callee.clone(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (callee.retained()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, spec.call_arguments_field, ctx.src),
+                    arg_texts: (call_arg_texts(node, spec.call_arguments_field, ctx.src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(route_fn) = &ctx.quirks.route_from_call {
-                    if let Some(route) = route_fn(&callee, node, ctx.src) {
+                    if let Some(route) = route_fn(RouteFromCallContext {
+                        callee: &callee,
+                        call_node: node,
+                        source: ctx.src,
+                    }) {
                         out.routes.push(route);
                     }
                 }
@@ -495,7 +546,7 @@ fn receiver_of_call(function_node: Node<'_>, src: &[u8]) -> (Option<String>, Opt
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Constructor-idiom heuristic covering Go's `NewXxx(...)` dot-path
@@ -545,7 +596,7 @@ fn call_arg_texts(call_node: Node<'_>, arguments_field: &str, src: &[u8]) -> Vec
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -609,7 +660,12 @@ fn generic_base_class_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
 
     fn extract_text(candidate: Node<'_>, src: &[u8], out: &mut Vec<String>) {
         if let Ok(text) = candidate.utf8_text(src) {
-            let text = text.split('<').next().unwrap_or(text).trim().to_string();
+            let text = text
+                .split('<')
+                .next()
+                .unwrap_or(text)
+                .trim()
+                .retained_display();
             if !text.is_empty() {
                 out.push(text);
             }
@@ -696,8 +752,8 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "use_declaration" => {
             for path in rust_use_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -711,9 +767,9 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             // rather than falling through to that generic default.
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Struct,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // `languages/rust.rs`'s `struct_item` arm never sets
@@ -739,9 +795,9 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 let line = node.start_position().row + 1;
                 for supertrait in rust_trait_bounds(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: supertrait,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (supertrait).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -758,9 +814,9 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 .map(str::to_string);
             if let (Some(type_name), Some(trait_name)) = (&type_name, &trait_name) {
                 out.implements.push(ImplementsRef {
-                    type_name: type_name.clone(),
-                    trait_name: trait_name.clone(),
-                    line: node.start_position().row + 1,
+                    type_name: (type_name.retained()).into(),
+                    trait_name: (trait_name.retained()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             rust_walk_impl_body(node, src, type_name.as_deref(), out);
@@ -769,9 +825,9 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "let_declaration" => {
             if let Some(closure_name) = rust_named_closure_binding(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: closure_name,
+                    name: (closure_name).into(),
                     kind: SymbolKind::Lambda,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -779,9 +835,9 @@ fn rust_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "const_item" | "static_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -841,16 +897,16 @@ fn rust_on_method_defined(
     }
     for decorator in rust_attribute_decorators(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name: decorator,
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: (decorator).into(),
+            line: line.into(),
         });
     }
     for type_ref in rust_signature_type_refs(node, src) {
         out.type_refs.push(crate::parsers::TypeRefRef {
-            from_name: name.to_string(),
-            type_name: type_ref,
-            line,
+            from_name: (name.retained_display()).into(),
+            type_name: (type_ref).into(),
+            line: line.into(),
         });
     }
 }
@@ -870,7 +926,7 @@ fn rust_attribute_decorators(function_node: Node<'_>, src: &[u8]) -> Vec<String>
                             .trim();
                         let name = inner.split(['(', ' ']).next().unwrap_or(inner);
                         if !name.is_empty() {
-                            out.push(name.to_string());
+                            out.push(name.retained_display());
                         }
                     }
                 }
@@ -891,7 +947,7 @@ fn rust_signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> 
             if param.kind() == "parameter" {
                 if let Some(type_node) = param.child_by_field_name("type") {
                     if let Ok(text) = type_node.utf8_text(src) {
-                        out.push(text.to_string());
+                        out.push(text.retained_display());
                     }
                 }
             }
@@ -899,7 +955,7 @@ fn rust_signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> 
     }
     if let Some(return_type) = function_node.child_by_field_name("return_type") {
         if let Ok(text) = return_type.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -913,7 +969,7 @@ fn rust_trait_bounds(trait_node: Node<'_>, src: &[u8]) -> Vec<String> {
                 if let Ok(text) = child.utf8_text(src) {
                     let trimmed = text.trim();
                     if !trimmed.is_empty() {
-                        out.push(trimmed.to_string());
+                        out.push(trimmed.retained_display());
                     }
                 }
             }
@@ -978,7 +1034,7 @@ fn rust_use_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
                 .trim_end_matches(';')
                 .trim();
             if !trimmed.is_empty() {
-                paths.push(trimmed.to_string());
+                paths.push(trimmed.retained_display());
             }
         }
     }
@@ -1029,7 +1085,7 @@ fn rust_collect_use_paths(node: Node<'_>, src: &[u8], prefix: &str, out: &mut Ve
 
 fn rust_join_prefix(prefix: &str, tail: &str) -> String {
     if prefix.is_empty() {
-        tail.to_string()
+        tail.retained_display()
     } else {
         format!("{prefix}::{tail}")
     }
@@ -1046,7 +1102,9 @@ pub fn rust_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(rust_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(rust_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            rust_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }
@@ -1120,7 +1178,7 @@ fn ts_collect_heritage_clause(
                     } else {
                         TsHeritageKind::Implements
                     },
-                    text.to_string(),
+                    text.retained_display(),
                 ));
             }
         }
@@ -1179,14 +1237,14 @@ fn ts_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
         for param in params.children(&mut cursor) {
             if let Some(type_node) = param.child_by_field_name("type") {
                 if let Ok(text) = type_node.utf8_text(src) {
-                    out.push(text.trim_start_matches(':').trim().to_string());
+                    out.push(text.trim_start_matches(':').trim().retained_display());
                 }
             }
         }
     }
     if let Some(return_type) = node.child_by_field_name("return_type") {
         if let Ok(text) = return_type.utf8_text(src) {
-            out.push(text.trim_start_matches(':').trim().to_string());
+            out.push(text.trim_start_matches(':').trim().retained_display());
         }
     }
     out
@@ -1206,13 +1264,13 @@ fn ts_named_arrow_or_const_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolR
             continue;
         }
         let value = declarator.child_by_field_name("value")?;
-        let name = name_node.utf8_text(src).ok()?.to_string();
+        let name = name_node.utf8_text(src).ok()?.retained_display();
         let line = node.start_position().row + 1;
         if matches!(value.kind(), "arrow_function" | "function_expression") {
             return Some(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Lambda,
-                line,
+                line: line.into(),
             });
         }
     }
@@ -1234,14 +1292,14 @@ fn ts_route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<R
     let raw = first_string_arg.utf8_text(src).ok()?;
     let path = raw
         .trim_matches(|c| c == '"' || c == '\'' || c == '`')
-        .to_string();
+        .retained_display();
     if path.is_empty() || !path.starts_with('/') {
         return None;
     }
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: call_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -1266,13 +1324,13 @@ fn ts_route_from_decorator(decorator_node: Node<'_>, src: &[u8]) -> Option<Route
         .and_then(|n| n.utf8_text(src).ok())
         .map(|raw| {
             raw.trim_matches(|c| c == '"' || c == '\'' || c == '`')
-                .to_string()
+                .retained_display()
         })
         .unwrap_or_default();
     Some(RouteRef {
-        method: method.to_uppercase(),
-        path,
-        line: decorator_node.start_position().row + 1,
+        method: (method.to_uppercase()).into(),
+        path: path.into(),
+        line: (decorator_node.start_position().row + 1).into(),
     })
 }
 
@@ -1298,29 +1356,29 @@ fn ts_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 for (kind, super_name) in ts_heritage_refs(node, src) {
                     match kind {
                         TsHeritageKind::Extends => out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name,
-                            line,
+                            sub_name: (name.retained()).into(),
+                            super_name: super_name.into(),
+                            line: line.into(),
                         }),
                         TsHeritageKind::Implements => out.implements.push(ImplementsRef {
-                            type_name: name.clone(),
-                            trait_name: super_name,
-                            line,
+                            type_name: (name.retained()).into(),
+                            trait_name: (super_name).into(),
+                            line: line.into(),
                         }),
                     }
                 }
                 for decorator_name in ts_preceding_decorators(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 ts_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -1342,16 +1400,16 @@ fn ts_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for (kind, super_name) in ts_heritage_refs(node, src) {
                     if matches!(kind, TsHeritageKind::Extends) {
                         out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name,
-                            line,
+                            sub_name: (name.retained()).into(),
+                            super_name: super_name.into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -1374,11 +1432,13 @@ fn ts_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "import_statement" => {
             if let Some(source_node) = node.child_by_field_name("source") {
                 let raw = source_node.utf8_text(src).unwrap_or("");
-                let module_path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
+                let module_path = raw
+                    .trim_matches(|c| c == '"' || c == '\'')
+                    .retained_display();
                 if !module_path.is_empty() {
                     out.imports.push(ImportRef {
-                        module_path,
-                        line: node.start_position().row + 1,
+                        module_path: module_path.into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -1434,17 +1494,17 @@ fn ts_on_method_defined(node: Node<'_>, name: &str, line: usize, src: &[u8], out
     }
     for type_ref in ts_signature_type_refs(node, src) {
         out.type_refs.push(crate::parsers::TypeRefRef {
-            from_name: name.to_string(),
-            type_name: type_ref,
-            line,
+            from_name: (name.retained_display()).into(),
+            type_name: (type_ref).into(),
+            line: line.into(),
         });
     }
     if node.kind() == "function_declaration" {
         for decorator_name in ts_preceding_decorators(node, src) {
             out.decorates.push(crate::parsers::DecoratesRef {
-                target_name: name.to_string(),
-                decorator_name,
-                line,
+                target_name: (name.retained_display()).into(),
+                decorator_name: decorator_name.into(),
+                line: line.into(),
             });
         }
     }
@@ -1463,8 +1523,12 @@ pub fn typescript_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(ts_quirk)),
         is_test_name: ts_is_test_name,
-        route_from_call: Some(Box::new(ts_route_from_call)),
-        on_method_defined: Some(Box::new(ts_on_method_defined)),
+        route_from_call: Some(Box::new(|ctx| {
+            ts_route_from_call(ctx.callee, ctx.call_node, ctx.source)
+        })),
+        on_method_defined: Some(Box::new(|ctx| {
+            ts_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }
@@ -1525,7 +1589,7 @@ fn py_base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
         for child in superclasses.children(&mut cursor) {
             if matches!(child.kind(), "identifier" | "attribute") {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -1561,7 +1625,7 @@ fn py_decorators_on(node: Node<'_>, src: &[u8]) -> Vec<(String, String)> {
             _ => expr.utf8_text(src).ok(),
         };
         if let Some(name) = name {
-            out.push((target_name.clone(), name.to_string()));
+            out.push((target_name.retained(), name.retained_display()));
         }
     }
     out
@@ -1581,11 +1645,11 @@ fn py_named_lambda_binding(expr_stmt: Node<'_>, src: &[u8]) -> Option<SymbolRef>
     if right.kind() != "lambda" {
         return None;
     }
-    let name = left.utf8_text(src).ok()?.to_string();
+    let name = left.utf8_text(src).ok()?.retained_display();
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Lambda,
-        line: expr_stmt.start_position().row + 1,
+        line: (expr_stmt.start_position().row + 1).into(),
     })
 }
 
@@ -1596,13 +1660,13 @@ fn py_dotted_names_under(node: Node<'_>, src: &[u8]) -> Vec<String> {
         match child.kind() {
             "dotted_name" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             "aliased_import" => {
                 if let Some(name_node) = child.child_by_field_name("name") {
                     if let Ok(text) = name_node.utf8_text(src) {
-                        out.push(text.to_string());
+                        out.push(text.retained_display());
                     }
                 }
             }
@@ -1628,7 +1692,7 @@ fn py_route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<Route
         let function_text = function.utf8_text(src).unwrap_or("");
         let method_word = function_text.rsplit('.').next().unwrap_or("");
         let method = if method_word.eq_ignore_ascii_case("route") {
-            "GET".to_string()
+            "GET".retained_display()
         } else if PY_HTTP_METHODS
             .iter()
             .any(|candidate| candidate.eq_ignore_ascii_case(method_word))
@@ -1645,15 +1709,18 @@ fn py_route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<Route
                     .find(|n| n.kind() == "string")
             })
             .and_then(|n| n.utf8_text(src).ok())
-            .map(|raw| raw.trim_matches(|c| c == '"' || c == '\'').to_string())
+            .map(|raw| {
+                raw.trim_matches(|c| c == '"' || c == '\'')
+                    .retained_display()
+            })
             .unwrap_or_default();
         if path.is_empty() {
             continue;
         }
         return Some(RouteRef {
-            method,
-            path,
-            line: decorated_node.start_position().row + 1,
+            method: method.into(),
+            path: path.into(),
+            line: (decorated_node.start_position().row + 1).into(),
         });
     }
     None
@@ -1673,15 +1740,15 @@ fn py_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 for base in py_base_class_names(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (base).into(),
+                        line: line.into(),
                     });
                 }
                 py_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -1694,9 +1761,9 @@ fn py_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
             }
             for (target, decorator) in py_decorators_on(node, src) {
                 out.decorates.push(crate::parsers::DecoratesRef {
-                    target_name: target,
-                    decorator_name: decorator,
-                    line: node.start_position().row + 1,
+                    target_name: (target).into(),
+                    decorator_name: (decorator).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed: the wrapped `function_definition`/
@@ -1710,8 +1777,8 @@ fn py_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "import_statement" => {
             for path in py_dotted_names_under(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -1720,8 +1787,8 @@ fn py_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(module_node) = node.child_by_field_name("module_name") {
                 if let Ok(module) = module_node.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: module.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (module.retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -1843,7 +1910,7 @@ fn java_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     for child in type_list.children(&mut cursor) {
         if child.is_named() {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -1870,7 +1937,7 @@ fn java_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> 
         for entry in type_list.children(&mut type_list_cursor) {
             if entry.is_named() {
                 if let Ok(text) = entry.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -1894,7 +1961,7 @@ fn java_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
                 "marker_annotation" | "annotation" => {
                     if let Some(name_node) = modifier.child_by_field_name("name") {
                         if let Ok(text) = name_node.utf8_text(src) {
-                            out.push(text.to_string());
+                            out.push(text.retained_display());
                         }
                     }
                 }
@@ -1916,7 +1983,7 @@ fn java_modifier_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
         for modifier in child.children(&mut modifier_cursor) {
             if !modifier.is_named() {
                 if let Ok(text) = modifier.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -1935,7 +2002,7 @@ fn java_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
         }
         if let Some(name_node) = child.child_by_field_name("name") {
             if let Ok(text) = name_node.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -1952,7 +2019,7 @@ fn java_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
             if param.kind() == "formal_parameter" {
                 if let Some(type_node) = param.child_by_field_name("type") {
                     if let Ok(text) = type_node.utf8_text(src) {
-                        out.push(text.to_string());
+                        out.push(text.retained_display());
                     }
                 }
             }
@@ -1960,7 +2027,7 @@ fn java_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     }
     if let Some(return_type) = node.child_by_field_name("type") {
         if let Ok(text) = return_type.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -1975,10 +2042,10 @@ fn java_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
         match child.kind() {
             "identifier" | "scoped_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    parts.push(text.to_string());
+                    parts.push(text.retained_display());
                 }
             }
-            "asterisk" => parts.push("*".to_string()),
+            "asterisk" => parts.push("*".retained_display()),
             _ => {}
         }
     }
@@ -2001,7 +2068,7 @@ fn java_method_invocation_callee(node: Node<'_>, src: &[u8]) -> String {
         .and_then(|n| n.utf8_text(src).ok())
     {
         Some(object) => format!("{object}.{name}"),
-        None => name.to_string(),
+        None => name.retained_display(),
     }
 }
 
@@ -2041,7 +2108,7 @@ fn java_receiver_of_call(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Each argument expression's own source text, in written order --
@@ -2057,7 +2124,7 @@ fn java_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -2073,12 +2140,12 @@ fn java_route_from_mapping(
     let http_method = JAVA_MAPPING_ANNOTATIONS
         .iter()
         .find(|(name, _)| *name == decorator_name)
-        .map(|(_, method)| method.to_string())?;
+        .map(|(_, method)| method.retained_display())?;
     let path = java_mapping_path_argument(decorator_name, method_node, src).unwrap_or_default();
     Some(RouteRef {
-        method: http_method,
-        path,
-        line: method_node.start_position().row + 1,
+        method: (http_method).into(),
+        path: path.into(),
+        line: (method_node.start_position().row + 1).into(),
     })
 }
 
@@ -2110,7 +2177,7 @@ fn java_mapping_path_argument(
                 match arg.kind() {
                     "string_literal" => {
                         let raw = arg.utf8_text(src).ok()?;
-                        return Some(raw.trim_matches('"').to_string());
+                        return Some(raw.trim_matches('"').retained_display());
                     }
                     "element_value_pair" => {
                         let key = arg
@@ -2119,7 +2186,7 @@ fn java_mapping_path_argument(
                         if matches!(key, Some("path") | Some("value")) {
                             let value = arg.child_by_field_name("value")?;
                             let raw = value.utf8_text(src).ok()?;
-                            return Some(raw.trim_matches('"').to_string());
+                            return Some(raw.trim_matches('"').retained_display());
                         }
                     }
                     _ => {}
@@ -2147,9 +2214,9 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "package_declaration" => {
             if let Some(name) = java_package_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -2158,29 +2225,29 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = java_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for interface_name in java_super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator in java_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 java_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -2191,22 +2258,22 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for extended in java_extends_interfaces(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: extended,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (extended).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator in java_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 java_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -2217,15 +2284,15 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Enum,
-                    line,
+                    line: line.into(),
                 });
                 for interface_name in java_super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 java_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -2234,15 +2301,15 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         }
         "field_declaration" => {
             let modifiers = java_modifier_texts(node, src);
-            let is_constant = modifiers.contains(&"static".to_string())
-                && modifiers.contains(&"final".to_string());
+            let is_constant = modifiers.contains(&"static".retained_display())
+                && modifiers.contains(&"final".retained_display());
             if is_constant {
                 let line = node.start_position().row + 1;
                 for name in java_field_names(node, src) {
                     out.symbols.push(SymbolRef {
-                        name: name.clone(),
+                        name: (name.retained()).into(),
                         kind: SymbolKind::Constant,
-                        line,
+                        line: line.into(),
                     });
                     // `enclosing` is not available in this quirk's
                     // signature; DEFINES for a constant field is
@@ -2258,8 +2325,8 @@ fn java_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "import_declaration" => {
             if let Some(path) = java_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -2322,15 +2389,15 @@ fn java_emit_constant_field_defines(
         match child.kind() {
             "field_declaration" => {
                 let modifiers = java_modifier_texts(child, src);
-                let is_constant = modifiers.contains(&"static".to_string())
-                    && modifiers.contains(&"final".to_string());
+                let is_constant = modifiers.contains(&"static".retained_display())
+                    && modifiers.contains(&"final".retained_display());
                 if is_constant {
                     let line = child.start_position().row + 1;
                     for field_name in java_field_names(child, src) {
                         out.defines.push(DefinesRef {
-                            container_name: container.to_string(),
-                            member_name: field_name,
-                            line,
+                            container_name: (container.retained_display()).into(),
+                            member_name: (field_name).into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -2372,9 +2439,9 @@ fn java_on_method_defined(
     }
     for decorator in &decorators {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name: decorator.clone(),
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: (decorator.retained()).into(),
+            line: line.into(),
         });
         if let Some(route) = java_route_from_mapping(decorator, node, src) {
             out.routes.push(route);
@@ -2382,9 +2449,9 @@ fn java_on_method_defined(
     }
     for type_ref in java_signature_type_refs(node, src) {
         out.type_refs.push(crate::parsers::TypeRefRef {
-            from_name: name.to_string(),
-            type_name: type_ref,
-            line,
+            from_name: (name.retained_display()).into(),
+            type_name: (type_ref).into(),
+            line: line.into(),
         });
     }
 }
@@ -2407,13 +2474,16 @@ fn java_call_override(
     let callee = java_method_invocation_callee(node, src);
     let (receiver_text, receiver_hint) = java_receiver_of_call(node, src);
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: java_call_arg_texts(node, src),
+        arg_texts: (java_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -2428,7 +2498,9 @@ pub fn java_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(java_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(java_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            java_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(java_call_override)),
     }
 }
@@ -2489,7 +2561,7 @@ fn c_typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
             }
             "type_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             _ => {
@@ -2532,13 +2604,13 @@ fn c_top_level_declaration_symbols(
         }
         if let Some(name) = c_innermost_declarator_identifier(declarator, src) {
             out.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: if is_const {
                     SymbolKind::Constant
                 } else {
                     SymbolKind::Variable
                 },
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -2566,7 +2638,7 @@ fn c_include_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let raw = path_node.utf8_text(src).ok()?;
     Some(
         raw.trim_matches(|c| c == '"' || c == '<' || c == '>')
-            .to_string(),
+            .retained_display(),
     )
 }
 
@@ -2599,9 +2671,9 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(body) = node.child_by_field_name("body") {
                     c_walk_function_body(body, src, name.as_str(), line, out);
@@ -2636,16 +2708,16 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Struct,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(body) = node.child_by_field_name("body") {
                     for field_name in c_struct_field_names(body, src) {
                         out.defines.push(DefinesRef {
-                            container_name: name.clone(),
-                            member_name: field_name,
-                            line,
+                            container_name: (name.retained()).into(),
+                            member_name: (field_name).into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -2667,9 +2739,9 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
             // name -- see [`c_walk_unscoped`].
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             c_walk_unscoped(node, src, out);
@@ -2684,9 +2756,9 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
             // call unchanged).
             for alias_name in c_typedef_alias_names(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: alias_name,
+                    name: (alias_name).into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             c_walk_unscoped(node, src, out);
@@ -2719,9 +2791,9 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
         "preproc_def" if node.child_by_field_name("value").is_some() => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -2729,8 +2801,8 @@ fn c_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
         "preproc_include" => {
             if let Some(path) = c_include_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -2868,16 +2940,17 @@ fn cpp_declarator_name_and_scope(node: Node<'_>, src: &[u8]) -> Option<(String, 
             .and_then(|inner| cpp_declarator_name_and_scope(inner, src)),
         "qualified_identifier" => {
             let name_node = node.child_by_field_name("name")?;
-            let name = name_node.utf8_text(src).ok()?.to_string();
+            let name = name_node.utf8_text(src).ok()?.retained_display();
             let scope = node
                 .child_by_field_name("scope")
                 .and_then(|s| s.utf8_text(src).ok())
                 .map(str::to_string);
             Some((name, scope))
         }
-        "identifier" | "field_identifier" | "destructor_name" | "operator_name" => {
-            node.utf8_text(src).ok().map(|s| (s.to_string(), None))
-        }
+        "identifier" | "field_identifier" | "destructor_name" | "operator_name" => node
+            .utf8_text(src)
+            .ok()
+            .map(|s| (s.retained_display(), None)),
         _ => None,
     }
 }
@@ -2899,7 +2972,7 @@ fn cpp_typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
             }
             "type_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             _ => {
@@ -2942,13 +3015,13 @@ fn cpp_top_level_declaration_symbols(
         }
         if let Some(name) = cpp_innermost_declarator_identifier(declarator, src) {
             out.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: if is_const {
                     SymbolKind::Constant
                 } else {
                     SymbolKind::Variable
                 },
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -2985,7 +3058,7 @@ fn cpp_base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
                 "type_identifier" | "qualified_identifier" | "template_type"
             ) {
                 if let Ok(text) = entry.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -3064,9 +3137,9 @@ fn cpp_named_lambda_binding(declaration_node: Node<'_>, src: &[u8]) -> Option<Sy
         if value.kind() == "lambda_expression" {
             let name = cpp_innermost_declarator_identifier(declarator, src)?;
             return Some(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Lambda,
-                line: declaration_node.start_position().row + 1,
+                line: (declaration_node.start_position().row + 1).into(),
             });
         }
     }
@@ -3086,11 +3159,11 @@ fn cpp_named_lambda_binding_from_assignment(
     let left = child.child_by_field_name("left")?;
     let right = child.child_by_field_name("right")?;
     if right.kind() == "lambda_expression" && left.kind() == "identifier" {
-        let name = left.utf8_text(src).ok()?.to_string();
+        let name = left.utf8_text(src).ok()?.retained_display();
         return Some(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::Lambda,
-            line: expression_statement_node.start_position().row + 1,
+            line: (expression_statement_node.start_position().row + 1).into(),
         });
     }
     None
@@ -3101,7 +3174,7 @@ fn cpp_include_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let raw = path_node.utf8_text(src).ok()?;
     Some(
         raw.trim_matches(|c| c == '"' || c == '<' || c == '>')
-            .to_string(),
+            .retained_display(),
     )
 }
 
@@ -3173,7 +3246,7 @@ fn cpp_receiver_of_call(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Each argument expression's own source text -- mirrors
@@ -3188,7 +3261,7 @@ fn cpp_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -3220,25 +3293,25 @@ fn cpp_handle_class_or_struct(
         SymbolKind::Class
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
 
     for base_name in cpp_base_class_names(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name: base_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: (base_name).into(),
+            line: line.into(),
         });
     }
 
     if let Some(body) = body {
         for field_name in cpp_field_names(body, src) {
             out.defines.push(DefinesRef {
-                container_name: name.clone(),
-                member_name: field_name,
-                line,
+                container_name: (name.retained()).into(),
+                member_name: (field_name).into(),
+                line: line.into(),
             });
         }
     }
@@ -3267,9 +3340,9 @@ fn cpp_handle_function_definition(
 
     if let Some(test_name) = cpp_gtest_macro_test_name(&name, declarator, src) {
         out.symbols.push(SymbolRef {
-            name: test_name,
+            name: (test_name).into(),
             kind: SymbolKind::Test,
-            line,
+            line: line.into(),
         });
         cpp_walk_scoped(node, src, enclosing, out);
         return;
@@ -3284,15 +3357,15 @@ fn cpp_handle_function_definition(
         SymbolKind::Function
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
     if let Some(container) = container {
         out.defines.push(DefinesRef {
-            container_name: container.to_string(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained_display()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     // The body recurses with the *lexical* `enclosing` unchanged (an
@@ -3370,9 +3443,9 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "namespace_definition" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 cpp_walk_scoped(node, src, Some(name.as_str()), out);
             } else {
@@ -3383,9 +3456,9 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "enum_specifier" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // `enclosing` (not `None`): `languages/cpp.rs`'s own
@@ -3399,9 +3472,9 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "type_definition" => {
             for alias_name in cpp_typedef_alias_names(node, src) {
                 out.symbols.push(SymbolRef {
-                    name: alias_name,
+                    name: (alias_name).into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // `enclosing` (not `None`), same rationale as
@@ -3412,9 +3485,9 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "alias_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // `enclosing` (not `None`), same rationale as
@@ -3444,9 +3517,9 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "preproc_def" if node.child_by_field_name("value").is_some() => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -3454,8 +3527,8 @@ fn cpp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "preproc_include" => {
             if let Some(path) = cpp_include_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -3496,23 +3569,26 @@ fn cpp_call_override(
     let Ok(callee) = function.utf8_text(src) else {
         return false;
     };
-    let callee = callee.to_string();
+    let callee = callee.retained_display();
     if let Some(test_name) = cpp_gtest_macro_test_name(&callee, node, src) {
         out.symbols.push(SymbolRef {
-            name: test_name,
+            name: (test_name).into(),
             kind: SymbolKind::Test,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     let (receiver_text, receiver_hint) = cpp_receiver_of_call(function, src);
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: cpp_call_arg_texts(node, src),
+        arg_texts: (cpp_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -3600,22 +3676,22 @@ fn kotlin_function_like(
             SymbolKind::Function
         };
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name.clone(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name.retained()).into(),
+                line: line.into(),
             });
         }
         for decorator_name in kotlin_annotations(node, src) {
             out.decorates.push(crate::parsers::DecoratesRef {
-                target_name: name.clone(),
-                decorator_name,
-                line,
+                target_name: (name.retained()).into(),
+                decorator_name: decorator_name.into(),
+                line: line.into(),
             });
         }
         if let Some(route) = kotlin_route_from_mapping(node, src) {
@@ -3623,9 +3699,9 @@ fn kotlin_function_like(
         }
     } else if node.kind() == "secondary_constructor" {
         out.symbols.push(SymbolRef {
-            name: String::new(),
+            name: (String::new()).into(),
             kind: SymbolKind::Method,
-            line,
+            line: line.into(),
         });
     }
     if let Some(body) = kotlin_unfielded_body(node, "function_body") {
@@ -3736,15 +3812,15 @@ fn kotlin_route_from_mapping(node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
             let Some(http_method) = JAVA_MAPPING_ANNOTATIONS
                 .iter()
                 .find(|(candidate, _)| *candidate == name)
-                .map(|(_, method)| method.to_string())
+                .map(|(_, method)| method.retained_display())
             else {
                 continue;
             };
             let path = kotlin_annotation_path_argument(modifier, src).unwrap_or_default();
             return Some(RouteRef {
-                method: http_method,
-                path,
-                line: node.start_position().row + 1,
+                method: (http_method).into(),
+                path: path.into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -3777,7 +3853,7 @@ fn kotlin_annotation_path_argument(annotation_node: Node<'_>, src: &[u8]) -> Opt
                 for expr in value_argument.children(&mut argument_cursor) {
                     if expr.kind() == "string_literal" {
                         if let Ok(raw) = expr.utf8_text(src) {
-                            return Some(raw.trim_matches('"').to_string());
+                            return Some(raw.trim_matches('"').retained_display());
                         }
                     }
                 }
@@ -3800,22 +3876,22 @@ fn kotlin_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     for super_name in kotlin_delegation_bases(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: super_name.into(),
+            line: line.into(),
         });
     }
     for decorator_name in kotlin_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.clone(),
-            decorator_name,
-            line,
+            target_name: (name.retained()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
     if let Some(body) = kotlin_unfielded_body(node, "class_body") {
@@ -3880,7 +3956,7 @@ fn kotlin_delegation_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
         };
         if let Ok(text) = name_node.utf8_text(src) {
             if !text.is_empty() {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -3921,9 +3997,9 @@ fn kotlin_walk_scoped(
 fn kotlin_type_alias(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     if let Some(name) = child_text(node, "type", src) {
         out.symbols.push(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::TypeAlias,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -3960,8 +4036,8 @@ fn kotlin_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
         "import" => {
             if let Some(path) = kotlin_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4008,13 +4084,16 @@ fn kotlin_call_override(
                 (None, None)
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: kotlin_value_arguments_texts(node, src),
+                arg_texts: (kotlin_value_arguments_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -4035,11 +4114,11 @@ fn kotlin_call_override(
             };
             let (receiver_text, receiver_hint) = kotlin_navigation_receiver(node, src);
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
                 arg_texts: Vec::new(),
             });
@@ -4083,7 +4162,7 @@ fn kotlin_navigation_receiver(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// A `call_expression`'s `value_arguments` unfielded child, each
@@ -4100,7 +4179,7 @@ fn kotlin_value_arguments_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> 
     let mut out = Vec::new();
     for child in syntax_children(args).filter(|child| child.is_named()) {
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -4218,22 +4297,22 @@ fn swift_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
         _ => SymbolKind::Class,
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
     for super_name in swift_inheritance_bases(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: super_name.into(),
+            line: line.into(),
         });
     }
     for decorator_name in swift_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.clone(),
-            decorator_name,
-            line,
+            target_name: (name.retained()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
     let body_kind = if declaration_kind.as_deref() == Some("enum") {
@@ -4267,15 +4346,15 @@ fn swift_protocol_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Interface,
-        line,
+        line: line.into(),
     });
     for super_name in swift_inheritance_bases(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: super_name.into(),
+            line: line.into(),
         });
     }
     true
@@ -4297,7 +4376,7 @@ fn swift_inheritance_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
         };
         if let Ok(text) = type_node.utf8_text(src) {
             if !text.is_empty() {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -4354,9 +4433,9 @@ fn swift_property_defines(
         return;
     };
     out.defines.push(DefinesRef {
-        container_name: container.to_string(),
-        member_name: name.to_string(),
-        line: node.start_position().row + 1,
+        container_name: (container.retained_display()).into(),
+        member_name: (name.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
     });
 }
 
@@ -4392,8 +4471,8 @@ fn swift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "import_declaration" | "import" => {
             if let Some(path) = swift_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4433,13 +4512,16 @@ fn swift_call_override(
                 (None, None)
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: swift_call_suffix_arg_texts(node, "call_suffix", src),
+                arg_texts: (swift_call_suffix_arg_texts(node, "call_suffix", src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -4451,13 +4533,16 @@ fn swift_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: Some(ReceiverHint::NewExpression),
-                arg_texts: swift_call_suffix_arg_texts(node, "constructor_suffix", src),
+                arg_texts: (swift_call_suffix_arg_texts(node, "constructor_suffix", src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -4472,13 +4557,16 @@ fn swift_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: swift_call_suffix_arg_texts(node, "call_suffix", src),
+                arg_texts: (swift_call_suffix_arg_texts(node, "call_suffix", src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -4488,11 +4576,11 @@ fn swift_call_override(
             };
             let (receiver_text, receiver_hint) = swift_navigation_receiver(node, src);
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
                 arg_texts: Vec::new(),
             });
@@ -4529,7 +4617,7 @@ fn swift_navigation_receiver(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// A `call_expression`/`constructor_expression`/`macro_invocation`'s
@@ -4555,7 +4643,7 @@ fn swift_call_suffix_arg_texts(call_node: Node<'_>, suffix_kind: &str, src: &[u8
     let mut out = Vec::new();
     for child in syntax_children(args).filter(|child| child.is_named()) {
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -4592,9 +4680,9 @@ fn swift_on_method_defined(
     }
     for decorator_name in swift_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name,
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
 }
@@ -4604,7 +4692,9 @@ pub fn swift_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(swift_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(swift_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            swift_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(swift_call_override)),
     }
 }
@@ -4627,7 +4717,7 @@ pub fn parse_swift(source: &str) -> ParsedFile {
 fn solidity_import_directive_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let source = node.child_by_field_name("source")?;
     let raw = source.utf8_text(src).ok()?;
-    Some(raw.trim_matches('"').to_string())
+    Some(raw.trim_matches('"').retained_display())
 }
 
 /// `using SafeMath for uint256;` -- the library name being brought into
@@ -4678,8 +4768,8 @@ fn solidity_quirk(
         "import_directive" => {
             if let Some(path) = solidity_import_directive_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4687,8 +4777,8 @@ fn solidity_quirk(
         "using_directive" => {
             if let Some(path) = solidity_using_directive_library_name(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4702,15 +4792,15 @@ fn solidity_quirk(
                     SymbolKind::Class
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: symbol_kind,
-                    line,
+                    line: line.into(),
                 });
                 for super_name in solidity_inheritance_specifier_names(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 solidity_walk_scoped(node, src, Some(name.as_str()), out);
@@ -4734,7 +4824,7 @@ fn solidity_inheritance_specifier_names(node: Node<'_>, src: &[u8]) -> Vec<Strin
         }
         if let Some(ancestor) = child.child_by_field_name("ancestor") {
             if let Ok(text) = ancestor.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -4780,7 +4870,7 @@ fn solidity_call_callee_and_receiver(
     } else {
         wrapped
     };
-    let callee = unwrapped.utf8_text(src).ok()?.to_string();
+    let callee = unwrapped.utf8_text(src).ok()?.retained_display();
     if unwrapped.kind() != "member_expression" {
         return Some((callee, None, None));
     }
@@ -4799,7 +4889,7 @@ fn solidity_call_callee_and_receiver(
     } else {
         ReceiverHint::Other
     };
-    Some((callee, Some(receiver_text.to_string()), Some(hint)))
+    Some((callee, Some(receiver_text.retained_display()), Some(hint)))
 }
 
 /// `call_expression`'s argument list is exposed as bare `call_argument`
@@ -4811,7 +4901,7 @@ fn solidity_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -4836,13 +4926,16 @@ fn solidity_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: solidity_call_arg_texts(node, src),
+        arg_texts: (solidity_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -4891,7 +4984,7 @@ fn gdscript_extends_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     for child in syntax_children(node) {
         if matches!(child.kind(), "string" | "type" | "identifier") {
             let text = child.utf8_text(src).ok()?;
-            return Some(text.trim_matches('"').to_string());
+            return Some(text.trim_matches('"').retained_display());
         }
     }
     None
@@ -4946,8 +5039,8 @@ fn gdscript_quirk(
         "extends_statement" => {
             if let Some(path) = gdscript_extends_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4955,15 +5048,15 @@ fn gdscript_quirk(
         "class_name_statement" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Class,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             if let Some(path) = gdscript_class_name_extends_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -4983,9 +5076,9 @@ fn gdscript_quirk(
                 // statement rather than the reverse.
                 if let Some(target) = gdscript_annotation_target_name(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: target,
-                        decorator_name: name,
-                        line: node.start_position().row + 1,
+                        target_name: (target).into(),
+                        decorator_name: (name).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -5030,13 +5123,16 @@ fn gdscript_call_override(
     };
     let (receiver_text, receiver_hint) = gdscript_receiver_of_call(node, src);
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: gdscript_call_arg_texts(node, src),
+        arg_texts: (gdscript_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -5086,7 +5182,7 @@ fn gdscript_attribute_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> 
     if let Some(receiver) = gdscript_attribute_call_receiver_text(node, src) {
         return Some(format!("{receiver}.{name}"));
     }
-    Some(name.to_string())
+    Some(name.retained_display())
 }
 
 /// The receiver expression text for an `attribute_call`, if this call
@@ -5116,7 +5212,7 @@ fn gdscript_attribute_call_receiver_text(node: Node<'_>, src: &[u8]) -> Option<S
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.retained_display())
     }
 }
 
@@ -5214,7 +5310,7 @@ fn dart_interfaces(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     };
     for child in syntax_children(interfaces).filter(|child| child.is_named()) {
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -5286,7 +5382,10 @@ fn dart_import_specification_uri(spec: Node<'_>, src: &[u8]) -> Option<String> {
         uri_wrapper
     };
     let raw = uri_node.utf8_text(src).ok()?;
-    Some(raw.trim_matches(|c| c == '\'' || c == '"').to_string())
+    Some(
+        raw.trim_matches(|c| c == '\'' || c == '"')
+            .retained_display(),
+    )
 }
 
 /// Every URI declared by one `import_or_export` node -- its own
@@ -5339,29 +5438,29 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = dart_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for interface_name in dart_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in dart_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 dart_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -5388,22 +5487,22 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 SymbolKind::Function
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             if let Some(container) = _enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             for decorator_name in dart_annotations(node, src) {
                 out.decorates.push(crate::parsers::DecoratesRef {
-                    target_name: name.clone(),
-                    decorator_name,
-                    line,
+                    target_name: (name.retained()).into(),
+                    decorator_name: decorator_name.into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = node.child_by_field_name("body") {
@@ -5420,9 +5519,9 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             {
                 if let Ok(text) = type_identifier.utf8_text(src) {
                     out.symbols.push(SymbolRef {
-                        name: text.to_string(),
+                        name: (text.retained_display()).into(),
                         kind: SymbolKind::TypeAlias,
-                        line: node.start_position().row + 1,
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -5431,8 +5530,8 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "import_or_export" => {
             for path in dart_import_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -5553,7 +5652,7 @@ fn scala_extends_bases(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
         // alongside the unnamed `with` keyword.
         if child.is_named() && child.kind() != "arguments" {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -5583,7 +5682,7 @@ fn scala_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
         let field_index = u32::try_from(index).ok()?;
         if node.field_name_for_child(field_index) == Some("path") && child.is_named() {
             if let Ok(text) = child.utf8_text(src) {
-                parts.push(text.to_string());
+                parts.push(text.retained_display());
             }
         }
     }
@@ -5641,22 +5740,22 @@ fn scala_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 SymbolKind::Class
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             for base in scala_extends_bases(node, src) {
                 out.inherits.push(InheritsRef {
-                    sub_name: name.clone(),
-                    super_name: base,
-                    line,
+                    sub_name: (name.retained()).into(),
+                    super_name: (base).into(),
+                    line: line.into(),
                 });
             }
             for decorator_name in scala_annotations(node, src) {
                 out.decorates.push(crate::parsers::DecoratesRef {
-                    target_name: name.clone(),
-                    decorator_name,
-                    line,
+                    target_name: (name.retained()).into(),
+                    decorator_name: decorator_name.into(),
+                    line: line.into(),
                 });
             }
             scala_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -5665,8 +5764,8 @@ fn scala_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         "import_declaration" => {
             if let Some(path) = scala_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -5718,9 +5817,9 @@ fn scala_on_method_defined(
     }
     for decorator_name in scala_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name,
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
 }
@@ -5733,7 +5832,9 @@ pub fn scala_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(scala_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(scala_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            scala_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }
@@ -5779,7 +5880,7 @@ fn groovy_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     for child in syntax_children(type_list) {
         if child.is_named() {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -5829,7 +5930,7 @@ fn groovy_method_invocation_callee(node: Node<'_>, src: &[u8]) -> String {
         .and_then(|n| n.utf8_text(src).ok())
     {
         Some(object) => format!("{object}.{name}"),
-        None => name.to_string(),
+        None => name.retained_display(),
     }
 }
 
@@ -5862,7 +5963,7 @@ fn groovy_receiver_of_call(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Each argument expression's own source text, in written order --
@@ -5884,7 +5985,7 @@ fn groovy_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -5915,13 +6016,16 @@ fn groovy_call_override(
             let callee = groovy_method_invocation_callee(node, src);
             let (receiver_text, receiver_hint) = groovy_receiver_of_call(node, src);
             out.calls.push(CallRef {
-                callee,
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: callee.into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: groovy_call_arg_texts(node, src),
+                arg_texts: (groovy_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -5933,10 +6037,10 @@ fn groovy_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
                 arg_texts: Vec::new(),
@@ -5991,9 +6095,9 @@ fn groovy_quirk(
         "package_declaration" => {
             if let Some(name) = groovy_package_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -6002,29 +6106,29 @@ fn groovy_quirk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = groovy_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for interface_name in groovy_super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in groovy_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 groovy_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -6034,8 +6138,8 @@ fn groovy_quirk(
         "import_declaration" => {
             if let Some(path) = groovy_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -6084,9 +6188,9 @@ fn groovy_on_method_defined(
     }
     for decorator_name in groovy_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name,
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
 }
@@ -6100,7 +6204,9 @@ pub fn groovy_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(groovy_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(groovy_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            groovy_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(groovy_call_override)),
     }
 }
@@ -6173,13 +6279,15 @@ fn ruby_require_import(call_node: Node<'_>, method_text: &str, src: &[u8]) -> Op
     let args = call_node.child_by_field_name("arguments")?;
     let first_string = syntax_children(args).find(|n| n.kind() == "string")?;
     let raw = first_string.utf8_text(src).ok()?;
-    let path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
+    let path = raw
+        .trim_matches(|c| c == '"' || c == '\'')
+        .retained_display();
     if path.is_empty() {
         return None;
     }
     Some(ImportRef {
-        module_path: path,
-        line: call_node.start_position().row + 1,
+        module_path: (path).into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -6189,7 +6297,7 @@ fn ruby_require_import(call_node: Node<'_>, method_text: &str, src: &[u8]) -> Op
 /// [`ruby_call_override`] (which cannot use the generic engine's own
 /// `call_arg_texts` -- that helper is keyed by `LangSpec::call_types`'s
 /// single flat `call_arguments_field`, which Ruby's `LangSpec` row
-/// deliberately leaves as a placeholder since every one of its
+/// deliberately leaves as an unavailable-field sentinel since every one of its
 /// `call_types` is fully claimed here instead).
 fn ruby_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(args) = call_node.child_by_field_name("arguments") else {
@@ -6201,7 +6309,7 @@ fn ruby_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -6243,11 +6351,11 @@ fn ruby_call_override(
     // resolve to anything a caller could look up, unlike every other
     // language's `new T()`/`T::new()` idiom.
     let callee = if method_text == "new" && receiver.is_some_and(|r| r.kind() == "constant") {
-        receiver_text.unwrap_or(method_text).to_string()
+        receiver_text.unwrap_or(method_text).retained_display()
     } else if let Some(receiver_text) = receiver_text {
         format!("{receiver_text}.{method_text}")
     } else {
-        method_text.to_string()
+        method_text.retained_display()
     };
 
     let receiver_hint = receiver.map(|r| {
@@ -6265,13 +6373,16 @@ fn ruby_call_override(
     });
 
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text: receiver_text.map(str::to_string),
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: (receiver_text.map(str::to_string)).map(Into::into),
         receiver_hint,
-        arg_texts: ruby_call_arg_texts(node, src),
+        arg_texts: (ruby_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
 
     if let Some(import) = ruby_require_import(node, method_text, src) {
@@ -6297,15 +6408,15 @@ fn ruby_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = ruby_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 ruby_walk_scoped_body(node, src, name.as_str(), out);
@@ -6316,9 +6427,9 @@ fn ruby_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 ruby_walk_scoped_body(node, src, name.as_str(), out);
             }
@@ -6410,7 +6521,7 @@ fn zig_container_field_names(container_node: Node<'_>, src: &[u8]) -> Vec<String
         }
         if let Some(name_node) = child.child_by_field_name("name") {
             if let Ok(text) = name_node.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -6457,7 +6568,7 @@ fn zig_builtin_arg_texts(builtin_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -6490,23 +6601,23 @@ fn zig_call_override(
     let Ok(callee) = builtin_id.utf8_text(src) else {
         return false;
     };
-    let arg_texts = zig_builtin_arg_texts(node, src);
+    let arg_texts: Vec<String> = zig_builtin_arg_texts(node, src);
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: arg_texts.clone(),
+        arg_texts: (arg_texts.retained()).into_iter().map(Into::into).collect(),
     });
     if callee == "@import" {
         if let Some(first_arg) = arg_texts.first() {
-            let path = first_arg.trim_matches('"').to_string();
+            let path = first_arg.trim_matches('"').retained_display();
             if !path.is_empty() {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -6531,15 +6642,15 @@ fn zig_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
             if let Some(name) = &name {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Struct,
-                    line,
+                    line: line.into(),
                 });
                 for field_name in zig_container_field_names(node, src) {
                     out.defines.push(DefinesRef {
-                        container_name: name.clone(),
-                        member_name: field_name,
-                        line,
+                        container_name: (name.retained()).into(),
+                        member_name: (field_name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -6550,9 +6661,9 @@ fn zig_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
             let name = zig_container_name(node, src);
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             zig_walk_container_body(node, src, name.as_deref(), out);
@@ -6562,9 +6673,9 @@ fn zig_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
             if let Some(name) = zig_test_name(node, src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Test,
-                    line,
+                    line: line.into(),
                 });
             }
             // Not fully claimed: a test body can itself contain calls
@@ -6722,7 +6833,7 @@ fn objc_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut Pa
 /// are not one of `LangSpec::objc()`'s func/method-array kinds the
 /// generic walker's own DEFINES-scoped-body-on-symbol-push branch would
 /// otherwise handle, since [`LangSpec::objc`]'s `name_field` is a
-/// placeholder never consulted -- every one of these two kinds is fully
+/// unavailable-field sentinel never consulted -- every one of these two kinds is fully
 /// claimed by [`objc_quirk`] instead).
 fn objc_walk_method_body(
     body: Node<'_>,
@@ -6773,18 +6884,18 @@ fn objc_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             if let Some(name) = &name {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = node
                     .child_by_field_name("superclass")
                     .and_then(|n| n.utf8_text(src).ok())
                 {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: super_name.to_string(),
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (super_name.retained_display()).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -6796,18 +6907,18 @@ fn objc_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             if let Some(name) = &name {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = node
                     .child_by_field_name("superclass")
                     .and_then(|n| n.utf8_text(src).ok())
                 {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: super_name.to_string(),
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (super_name.retained_display()).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -6818,9 +6929,9 @@ fn objc_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             let name = objc_class_name(node, src);
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             objc_walk_scoped(node, src, name.as_deref(), out);
@@ -6832,15 +6943,15 @@ fn objc_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Method,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = node.child_by_field_name("body").or_else(|| {
@@ -6891,7 +7002,7 @@ fn objc_message_arg_texts(message_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -6945,13 +7056,16 @@ fn objc_call_override(
         }
     });
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text: receiver_text.map(str::to_string),
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: (receiver_text.map(str::to_string)).map(Into::into),
         receiver_hint,
-        arg_texts: objc_message_arg_texts(node, src),
+        arg_texts: (objc_message_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -7038,21 +7152,21 @@ fn bash_call_override(
     let Ok(callee) = name_node.utf8_text(src) else {
         return false;
     };
-    let arg_texts = bash_command_arg_texts(node, src);
+    let arg_texts: Vec<String> = bash_command_arg_texts(node, src);
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: arg_texts.clone(),
+        arg_texts: (arg_texts.retained()).into_iter().map(Into::into).collect(),
     });
     if matches!(callee, "source" | ".") {
         if let Some(path) = arg_texts.into_iter().next() {
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -7153,9 +7267,9 @@ fn lua_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     if let Some(body) = node.child_by_field_name("body") {
         let fn_scope = FnScope {
@@ -7214,7 +7328,7 @@ fn lua_call_override(
     let Some(name_node) = node.child_by_field_name("name") else {
         return false;
     };
-    let arg_texts = call_arg_texts(node, "arguments", src);
+    let arg_texts: Vec<String> = call_arg_texts(node, "arguments", src);
     if name_node.kind() == "method_index_expression" {
         let Some(table) = name_node.child_by_field_name("table") else {
             return false;
@@ -7234,13 +7348,13 @@ fn lua_call_override(
             ReceiverHint::Other
         };
         out.calls.push(CallRef {
-            callee: format!("{table_text}:{method_text}"),
-            line: node.start_position().row + 1,
-            from_symbol: from_symbol.map(str::to_string),
-            from_symbol_line,
-            receiver_text: Some(table_text.to_string()),
+            callee: (format!("{table_text}:{method_text}")).into(),
+            line: (node.start_position().row + 1).into(),
+            from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+            from_symbol_line: from_symbol_line.map(Into::into),
+            receiver_text: Some(table_text.retained_display().into()),
             receiver_hint: Some(receiver_hint),
-            arg_texts,
+            arg_texts: arg_texts.into_iter().map(Into::into).collect(),
         });
         return true;
     }
@@ -7253,13 +7367,13 @@ fn lua_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: arg_texts.clone(),
+        arg_texts: (arg_texts.retained()).into_iter().map(Into::into).collect(),
     });
     if callee == "require" {
         // `arg_texts`' own raw text keeps the surrounding quote
@@ -7270,11 +7384,13 @@ fn lua_call_override(
         // [`ruby_call_override`]'s own `ruby_require_import` precedent
         // exactly (same `trim_matches` call, same quote-character set).
         if let Some(raw) = arg_texts.into_iter().next() {
-            let path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
+            let path = raw
+                .trim_matches(|c| c == '"' || c == '\'')
+                .retained_display();
             if !path.is_empty() {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -7380,9 +7496,9 @@ fn elixir_push_def(call_node: Node<'_>, macro_name: &str, src: &[u8], out: &mut 
     };
     let line = call_node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     let is_macro_or_def_or_defp = macro_name == "def" || macro_name == "defmacro";
     let _ = is_macro_or_def_or_defp; // documented above; no exported-ness field to set.
@@ -7415,9 +7531,9 @@ fn elixir_push_module(call_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
     };
     let line = call_node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     if let Some(do_block) = (0..call_node.child_count())
         .filter_map(|i| call_node.child(i))
@@ -7449,8 +7565,8 @@ fn elixir_push_import(call_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         return;
     };
     out.imports.push(ImportRef {
-        module_path: path.to_string(),
-        line: call_node.start_position().row + 1,
+        module_path: (path.retained_display()).into(),
+        line: (call_node.start_position().row + 1).into(),
     });
 }
 
@@ -7562,7 +7678,7 @@ fn elixir_call_override(
     let Ok(callee) = first.utf8_text(src) else {
         return false;
     };
-    let arg_texts = elixir_call_args(node)
+    let arg_texts: Vec<String> = elixir_call_args(node)
         .map(|args| {
             (0..args.child_count())
                 .filter_map(|i| args.child(i))
@@ -7572,13 +7688,13 @@ fn elixir_call_override(
         })
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -7667,9 +7783,9 @@ fn haskell_function_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     haskell_walk_scoped(
         node,
@@ -7700,7 +7816,7 @@ fn haskell_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// field directly rather than through `spec.name_field`: both
 /// `func_types` AND `class_types` share that one `LangSpec::name_field`
 /// slot, but only the func/method half needs it turned into a
-/// placeholder (to let `on_unmatched_node` run before the generic
+/// unavailable-field sentinel (to let `on_unmatched_node` run before the generic
 /// engine's own func/method branch would otherwise short-circuit first
 /// -- see [`LangSpec::haskell`]'s own doc comment for the full
 /// explanation), which means this class-shape half can no longer rely
@@ -7722,9 +7838,9 @@ fn haskell_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool 
         return true;
     };
     out.symbols.push(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Class,
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     });
     haskell_walk_scoped(node, src, FnScope::default(), out);
     true
@@ -7751,8 +7867,8 @@ fn haskell_quirk(
         "import" => {
             if let Some(path) = haskell_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -7824,7 +7940,7 @@ fn fp_collect_args(node: Node<'_>, apply_kind: &str, src: &[u8], out: &mut Vec<S
     }
     if let Some(argument) = node.child_by_field_name("argument") {
         if let Ok(text) = argument.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
 }
@@ -7850,13 +7966,16 @@ fn haskell_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: fp_call_arg_texts(node, "apply", src),
+                arg_texts: (fp_call_arg_texts(node, "apply", src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -7869,19 +7988,19 @@ fn haskell_call_override(
             };
             let left = node.child_by_field_name("left_operand");
             let right = node.child_by_field_name("right_operand");
-            let arg_texts = [left, right]
+            let arg_texts: Vec<String> = [left, right]
                 .into_iter()
                 .flatten()
                 .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
                 .collect();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -7967,7 +8086,7 @@ fn ocaml_find_child<'a>(node: Node<'a>, child_kind: &str) -> Option<Node<'a>> {
 fn ocaml_value_definition_name<'a>(node: Node<'a>, src: &[u8]) -> Option<(String, Node<'a>)> {
     let binding = ocaml_find_child(node, "let_binding")?;
     let pattern = binding.child_by_field_name("pattern")?;
-    let text = pattern.utf8_text(src).ok()?.to_string();
+    let text = pattern.utf8_text(src).ok()?.retained_display();
     Some((text, binding))
 }
 
@@ -7980,9 +8099,9 @@ fn ocaml_value_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> b
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     ocaml_walk_scoped(
         binding,
@@ -8026,9 +8145,9 @@ fn ocaml_constructor_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFil
     if let Some(name_node) = ocaml_find_child(node, "constructor_name") {
         if let Ok(name) = name_node.utf8_text(src) {
             out.symbols.push(SymbolRef {
-                name: name.to_string(),
+                name: (name.retained_display()).into(),
                 kind: SymbolKind::Function,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
         }
     }
@@ -8064,9 +8183,9 @@ fn ocaml_method_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> 
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::Method,
-        line,
+        line: line.into(),
     });
     ocaml_walk_scoped(
         node,
@@ -8097,9 +8216,9 @@ fn ocaml_class_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> b
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
     true
@@ -8128,9 +8247,9 @@ fn ocaml_module_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> 
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::Module,
-        line,
+        line: line.into(),
     });
     ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
     true
@@ -8151,9 +8270,9 @@ fn ocaml_exception_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) 
     };
     if let Ok(name) = name_node.utf8_text(src) {
         out.symbols.push(SymbolRef {
-            name: name.to_string(),
+            name: (name.retained_display()).into(),
             kind: SymbolKind::Function,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -8182,9 +8301,9 @@ fn ocaml_type_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::TypeAlias,
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     });
     ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
     true
@@ -8230,8 +8349,8 @@ fn ocaml_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         "open_module" => {
             if let Some(path) = ocaml_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -8260,7 +8379,7 @@ fn ocaml_method_invocation_receiver(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Every argument of an `application_expression`, in written order --
@@ -8293,11 +8412,11 @@ fn ocaml_method_invocation_receiver(
 fn ocaml_application_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     for (i, child) in syntax_children(node).enumerate() {
-        if node.field_name_for_child(i as u32) != Some("argument") {
+        if checked_field_name_for_child(node, i) != Some("argument") {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -8350,13 +8469,16 @@ fn ocaml_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: ocaml_application_arg_texts(node, src),
+                arg_texts: (ocaml_application_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -8369,19 +8491,19 @@ fn ocaml_call_override(
             };
             let left = node.child_by_field_name("left");
             let right = node.child_by_field_name("right");
-            let arg_texts = [left, right]
+            let arg_texts: Vec<String> = [left, right]
                 .into_iter()
                 .flatten()
                 .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
                 .collect();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -8397,11 +8519,11 @@ fn ocaml_call_override(
                 .map(|object| ocaml_method_invocation_receiver(object, src))
                 .unwrap_or((None, None));
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
                 arg_texts: Vec::new(),
             });
@@ -8414,19 +8536,19 @@ fn ocaml_call_override(
             let Ok(callee) = functor.utf8_text(src) else {
                 return false;
             };
-            let arg_texts = node
+            let arg_texts: Vec<String> = node
                 .child_by_field_name("argument")
                 .and_then(|a| a.utf8_text(src).ok())
-                .map(|t| vec![t.to_string()])
+                .map(|t| vec![t.retained_display()])
                 .unwrap_or_default();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -8438,10 +8560,10 @@ fn ocaml_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: Some(ReceiverHint::NewExpression),
                 arg_texts: Vec::new(),
@@ -8505,9 +8627,9 @@ fn erlang_type_alias(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::TypeAlias,
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     });
     true
 }
@@ -8546,8 +8668,8 @@ fn erlang_quirk(
         "import_attribute" => {
             if let Some(path) = erlang_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -8592,13 +8714,16 @@ fn erlang_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: call_arg_texts(node, "args", src),
+        arg_texts: (call_arg_texts(node, "args", src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -8761,15 +8886,15 @@ fn d_function_like(
     };
     if let Some(name) = &name {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name.clone(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name.retained()).into(),
+                line: line.into(),
             });
         }
     } else {
@@ -8779,9 +8904,9 @@ fn d_function_like(
         // the body is still walked for nested calls, and still gets a
         // DEFINES edge from the enclosing class/struct if any.
         out.symbols.push(SymbolRef {
-            name: String::new(),
+            name: (String::new()).into(),
             kind: SymbolKind::Method,
-            line,
+            line: line.into(),
         });
     }
     if let Some(body) = d_child_by_kind(node, "function_body") {
@@ -8806,18 +8931,18 @@ fn d_class_like(node: Node<'_>, kind: SymbolKind, src: &[u8], out: &mut ParsedFi
     let Some(name) = d_child_by_kind(node, "identifier").and_then(|n| n.utf8_text(src).ok()) else {
         return true;
     };
-    let name = name.to_string();
+    let name = name.retained_display();
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
     for super_name in d_base_class_names(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: super_name.into(),
+            line: line.into(),
         });
     }
     if let Some(body) = d_child_by_kind(node, "aggregate_body") {
@@ -8834,9 +8959,9 @@ fn d_class_like(node: Node<'_>, kind: SymbolKind, src: &[u8], out: &mut ParsedFi
 fn d_module_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     if let Some(name) = d_module_fqn_text(node, src) {
         out.symbols.push(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::Module,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     // Not `true`: `module_declaration` has no children worth
@@ -8895,9 +9020,9 @@ fn d_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Parsed
                 d_child_by_kind(node, "identifier").and_then(|n| n.utf8_text(src).ok())
             {
                 out.symbols.push(SymbolRef {
-                    name: name.to_string(),
+                    name: (name.retained_display()).into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed: an enum's own members (`enum_member`
@@ -8913,9 +9038,9 @@ fn d_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Parsed
                 (enclosing, d_variable_declarator_name(node, src))
             {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name,
-                    line: node.start_position().row + 1,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -8924,8 +9049,8 @@ fn d_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Parsed
         "import_declaration" => {
             if let Some(path) = d_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -8960,7 +9085,7 @@ fn d_call_override(
     let Ok(callee) = callee_node.utf8_text(src) else {
         return false;
     };
-    let arg_texts = d_child_by_kind(node, "named_arguments")
+    let arg_texts: Vec<String> = d_child_by_kind(node, "named_arguments")
         .map(|args| {
             (0..args.child_count())
                 .filter_map(|i| args.child(i))
@@ -8970,13 +9095,13 @@ fn d_call_override(
         })
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -9079,7 +9204,7 @@ fn ps_class_base_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
             "{" => break,
             "simple_name" if seen_colon => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             _ => {}
@@ -9107,9 +9232,9 @@ fn ps_function_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     let name = ps_function_name(node, src);
     if let Some(name) = &name {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Function,
-            line,
+            line: line.into(),
         });
     }
     if let Some(body) = ps_function_body(node) {
@@ -9136,14 +9261,14 @@ fn ps_method_like(node: Node<'_>, enclosing: &str, src: &[u8], out: &mut ParsedF
     let name = ps_method_name(node, src);
     if let Some(name) = &name {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Method,
-            line,
+            line: line.into(),
         });
         out.defines.push(DefinesRef {
-            container_name: enclosing.to_string(),
-            member_name: name.clone(),
-            line,
+            container_name: (enclosing.retained_display()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     if let Some(body) = ps_function_body(node) {
@@ -9171,15 +9296,15 @@ fn ps_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     for super_name in ps_class_base_names(node, src) {
         out.inherits.push(InheritsRef {
-            sub_name: name.clone(),
-            super_name,
-            line,
+            sub_name: (name.retained()).into(),
+            super_name: super_name.into(),
+            line: line.into(),
         });
     }
     for child in syntax_children(node) {
@@ -9229,9 +9354,9 @@ fn ps_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "enum_statement" => {
             if let Some(name) = ps_first_simple_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Enum,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed: an enum's own `enum_member` children
@@ -9308,13 +9433,13 @@ fn ps_call_override(
                 if let Some(elements) = node.child_by_field_name("command_elements") {
                     if let Some(path) = ps_last_generic_token_text(elements, src) {
                         out.imports.push(ImportRef {
-                            module_path: path.to_string(),
-                            line: node.start_position().row + 1,
+                            module_path: (path.retained_display()).into(),
+                            line: (node.start_position().row + 1).into(),
                         });
                     }
                 }
             }
-            let arg_texts = node
+            let arg_texts: Vec<String> = node
                 .child_by_field_name("command_elements")
                 .map(|elements| {
                     (0..elements.child_count())
@@ -9325,13 +9450,13 @@ fn ps_call_override(
                 })
                 .unwrap_or_default();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -9358,7 +9483,7 @@ fn ps_call_override(
             } else {
                 ReceiverHint::Other
             };
-            let arg_texts = (0..node.child_count())
+            let arg_texts: Vec<String> = (0..node.child_count())
                 .filter_map(|i| node.child(i))
                 .find(|child| child.kind() == "argument_list")
                 .map(|args| {
@@ -9370,13 +9495,13 @@ fn ps_call_override(
                 })
                 .unwrap_or_default();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text: Some(receiver_text.to_string()),
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: Some(receiver_text.retained_display().into()),
                 receiver_hint: Some(hint),
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -9444,7 +9569,7 @@ fn fsharp_long_identifier_text(node: Node<'_>, src: &[u8]) -> Option<String> {
             for child in syntax_children(node) {
                 if child.kind() == "identifier" {
                     if let Ok(text) = child.utf8_text(src) {
-                        parts.push(text.to_string());
+                        parts.push(text.retained_display());
                     }
                 }
             }
@@ -9593,7 +9718,7 @@ fn fsharp_walk_container_body(
 /// (`function_or_value_defn` is not one of `LangSpec::fsharp()`'s
 /// func/method arrays' the generic engine's own body-walk would
 /// otherwise handle, since `LangSpec::fsharp()`'s `body_field` is a
-/// placeholder never consulted -- `fsharp_quirk` claims the whole node
+/// unavailable-field sentinel never consulted -- `fsharp_quirk` claims the whole node
 /// instead). Walks `body` DIRECTLY (a single [`walk`] call on the node
 /// itself), NOT its children -- a real, test-caught bug this function
 /// originally had iterated `body.child_count()` instead, copying the
@@ -9676,9 +9801,9 @@ fn fsharp_quirk(
                 SymbolKind::Variable
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             if let Some(body) = node.child_by_field_name("body") {
                 fsharp_walk_defn_body(body, src, Some(name.as_str()), line, out);
@@ -9698,15 +9823,15 @@ fn fsharp_quirk(
                     SymbolKind::Class
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(base_name) = fsharp_inherits_base_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (base_name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -9719,9 +9844,9 @@ fn fsharp_quirk(
                 .and_then(|n| fsharp_long_identifier_text(n, src));
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed for recursion purposes: neither kind
@@ -9742,8 +9867,8 @@ fn fsharp_quirk(
                 .and_then(|n| fsharp_long_identifier_text(n, src));
             if let Some(path) = path {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -9810,13 +9935,13 @@ fn fsharp_call_override(
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -9886,13 +10011,13 @@ fn gleam_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         "type_definition" | "type_alias" => {
             if let Some(name) = gleam_type_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: if node.kind() == "type_alias" {
                         SymbolKind::TypeAlias
                     } else {
                         SymbolKind::Class
                     },
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed: a `type_definition`'s own
@@ -9908,8 +10033,8 @@ fn gleam_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 .and_then(|n| n.utf8_text(src).ok())
             {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -10013,7 +10138,7 @@ fn ada_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     for child in syntax_children(node) {
         if matches!(child.kind(), "identifier" | "selected_component" | "name") {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -10039,7 +10164,7 @@ fn ada_component_declaration_names(record_body: Node<'_>, src: &[u8]) -> Vec<(St
                 .find(|n| n.is_named() && n.kind() == "identifier")
             {
                 if let Ok(text) = first_named.utf8_text(src) {
-                    out.push((text.to_string(), node.start_position().row + 1));
+                    out.push((text.retained_display(), node.start_position().row + 1));
                 }
             }
             continue;
@@ -10094,15 +10219,15 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             // Walk every child generically, scoped to this subprogram's
@@ -10139,15 +10264,15 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -10166,29 +10291,29 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(super_name) = ada_derived_base_name(node, src) {
                 out.inherits.push(InheritsRef {
-                    sub_name: name.clone(),
-                    super_name,
-                    line,
+                    sub_name: (name.retained()).into(),
+                    super_name: super_name.into(),
+                    line: line.into(),
                 });
             }
             for (field_name, field_line) in ada_component_declaration_names(node, src) {
                 out.defines.push(DefinesRef {
-                    container_name: name.clone(),
-                    member_name: field_name,
-                    line: field_line,
+                    container_name: (name.retained()).into(),
+                    member_name: (field_name).into(),
+                    line: (field_line).into(),
                 });
             }
             true
@@ -10198,9 +10323,9 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 return false;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             ada_walk_scoped_body(node, src, name.as_str(), out);
             true
@@ -10209,8 +10334,8 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             let line = node.start_position().row + 1;
             for path in ada_import_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -10285,7 +10410,7 @@ fn apex_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     for child in syntax_children(type_list) {
         if child.is_named() {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -10310,7 +10435,7 @@ fn apex_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> 
         for entry in syntax_children(type_list) {
             if entry.is_named() {
                 if let Ok(text) = entry.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
         }
@@ -10333,7 +10458,7 @@ fn apex_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
             if modifier.kind() == "annotation" {
                 if let Some(name_node) = modifier.child_by_field_name("name") {
                     if let Ok(text) = name_node.utf8_text(src) {
-                        out.push(text.to_string());
+                        out.push(text.retained_display());
                     }
                 }
             }
@@ -10352,7 +10477,7 @@ fn apex_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
         }
         if let Some(name_node) = child.child_by_field_name("name") {
             if let Ok(text) = name_node.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -10372,7 +10497,7 @@ fn apex_method_invocation_callee(node: Node<'_>, src: &[u8]) -> String {
         .and_then(|n| n.utf8_text(src).ok())
     {
         Some(object) => format!("{object}.{name}"),
-        None => name.to_string(),
+        None => name.retained_display(),
     }
 }
 
@@ -10406,7 +10531,7 @@ fn apex_receiver_of_call(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// Each argument expression's own source text, in written order --
@@ -10421,7 +10546,7 @@ fn apex_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -10463,9 +10588,9 @@ fn apex_emit_field_defines(node: Node<'_>, src: &[u8], container: &str, out: &mu
                 let line = child.start_position().row + 1;
                 for field_name in apex_field_names(child, src) {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: field_name,
-                        line,
+                        container_name: (container.retained_display()).into(),
+                        member_name: (field_name).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -10499,29 +10624,29 @@ fn apex_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = apex_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for interface_name in apex_super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator in apex_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 apex_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -10532,15 +10657,15 @@ fn apex_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for extended in apex_extends_interfaces(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: extended,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: (extended).into(),
+                        line: line.into(),
                     });
                 }
                 apex_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -10551,15 +10676,15 @@ fn apex_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Enum,
-                    line,
+                    line: line.into(),
                 });
                 for interface_name in apex_super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.retained()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 apex_walk_scoped_body(node, src, Some(name.as_str()), out);
@@ -10585,13 +10710,16 @@ fn apex_call_override(
     let callee = apex_method_invocation_callee(node, src);
     let (receiver_text, receiver_hint) = apex_receiver_of_call(node, src);
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: apex_call_arg_texts(node, src),
+        arg_texts: (apex_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -10648,13 +10776,13 @@ fn crystal_require_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
         .filter_map(|i| node.child(i))
         .find(|n| n.kind() == "string")?;
     let raw = string_node.utf8_text(src).ok()?;
-    let path = raw.trim_matches('"').to_string();
+    let path = raw.trim_matches('"').retained_display();
     if path.is_empty() {
         return None;
     }
     Some(ImportRef {
-        module_path: path,
-        line: node.start_position().row + 1,
+        module_path: (path).into(),
+        line: (node.start_position().row + 1).into(),
     })
 }
 
@@ -10741,29 +10869,29 @@ fn crystal_quirk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.retained_display()).into(),
+                        member_name: (name.retained()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(super_name) = crystal_superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in crystal_preceding_annotations(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 crystal_walk_scoped_body(node, src, name.as_str(), out);
@@ -10774,19 +10902,19 @@ fn crystal_quirk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: if node.kind() == "enum_def" {
                         SymbolKind::Enum
                     } else {
                         SymbolKind::Class
                     },
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.retained_display()).into(),
+                        member_name: (name.retained()).into(),
+                        line: line.into(),
                     });
                 }
                 crystal_walk_scoped_body(node, src, name.as_str(), out);
@@ -10796,9 +10924,9 @@ fn crystal_quirk(
         "instance_var" | "class_var" => {
             if let (Some(container), Ok(name)) = (enclosing, node.utf8_text(src)) {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.to_string(),
-                    line: node.start_position().row + 1,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             false
@@ -10826,7 +10954,7 @@ fn crystal_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -10865,7 +10993,7 @@ fn crystal_call_override(
     let callee = if let Some(receiver_text) = receiver_text {
         format!("{receiver_text}.{method_text}")
     } else {
-        method_text.to_string()
+        method_text.retained_display()
     };
 
     let receiver_hint = receiver.map(|r| {
@@ -10883,13 +11011,16 @@ fn crystal_call_override(
     });
 
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text: receiver_text.map(str::to_string),
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: (receiver_text.map(str::to_string)).map(Into::into),
         receiver_hint,
-        arg_texts: crystal_call_arg_texts(node, src),
+        arg_texts: (crystal_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
 
     true
@@ -10925,9 +11056,9 @@ fn crystal_on_method_defined(
     }
     for decorator_name in crystal_preceding_annotations(node, src) {
         out.decorates.push(crate::parsers::DecoratesRef {
-            target_name: name.to_string(),
-            decorator_name,
-            line,
+            target_name: (name.retained_display()).into(),
+            decorator_name: decorator_name.into(),
+            line: line.into(),
         });
     }
 }
@@ -10937,7 +11068,9 @@ pub fn crystal_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(crystal_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(crystal_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            crystal_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(crystal_call_override)),
     }
 }
@@ -11037,16 +11170,16 @@ fn r_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
     // for this row (`LangSpec::r`'s `func_types` IS `["function_definition"]`,
     // so `walk`'s own func/method branch tries it FIRST and only falls
     // through to `on_unmatched_node` when `child_text(node, spec.name_field,
-    // ..)` -- reading the placeholder `"UNUSED_SEE_R_QUIRK"` field name --
+    // ..)` -- reading the unavailable `"UNUSED_SEE_R_QUIRK"` field name --
     // returns `None`, which it always does since no real field by that
     // name exists).
     if node.kind() == "function_definition" {
         if let Some(name) = r_func_name(node, src) {
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             r_walk_function_body(node, src, &name, line, out);
         }
@@ -11068,7 +11201,7 @@ fn r_first_arg_text(call_node: Node<'_>, src: &[u8]) -> Option<String> {
         let text = value.utf8_text(src).ok()?;
         let stripped = text.trim_matches(|c| c == '"' || c == '\'');
         if !stripped.is_empty() {
-            return Some(stripped.to_string());
+            return Some(stripped.retained_display());
         }
     }
     None
@@ -11092,8 +11225,8 @@ fn r_import_from_call(call_node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
             ) {
                 let path = r_first_arg_text(call_node, src)?;
                 return Some(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             None
@@ -11104,8 +11237,8 @@ fn r_import_from_call(call_node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
             if lhs == "box" && rhs == "use" {
                 let path = r_first_arg_text(call_node, src)?;
                 return Some(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             None
@@ -11199,7 +11332,7 @@ fn perl_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return arguments
             .utf8_text(src)
             .ok()
-            .map(|text| vec![text.to_string()])
+            .map(|text| vec![text.retained_display()])
             .unwrap_or_default();
     }
     // `func1op_call_expression`'s bare, unfielded single argument (if
@@ -11207,7 +11340,7 @@ fn perl_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     // field (the builtin-keyword token) is the argument.
     (0..call_node.child_count())
         .filter(|&i| call_node.child(i).is_some_and(|c| c.is_named()))
-        .filter(|&i| call_node.field_name_for_child(i as u32) != Some("function"))
+        .filter(|&i| checked_field_name_for_child(call_node, i) != Some("function"))
         .filter_map(|i| call_node.child(i))
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect()
@@ -11234,13 +11367,16 @@ fn perl_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: perl_call_arg_texts(node, src),
+                arg_texts: (perl_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -11249,13 +11385,16 @@ fn perl_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: perl_call_arg_texts(node, src),
+                arg_texts: (perl_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -11267,7 +11406,7 @@ fn perl_call_override(
             let receiver_text = invocant.and_then(|n| n.utf8_text(src).ok());
             let callee = match receiver_text {
                 Some(receiver) => format!("{receiver}->{method}"),
-                None => method.to_string(),
+                None => method.retained_display(),
             };
             let receiver_hint = invocant.map(|r| {
                 if r.utf8_text(src) == Ok("$self") {
@@ -11281,13 +11420,16 @@ fn perl_call_override(
                 }
             });
             out.calls.push(CallRef {
-                callee,
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text: receiver_text.map(str::to_string),
+                callee: callee.into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: (receiver_text.map(str::to_string)).map(Into::into),
                 receiver_hint,
-                arg_texts: perl_call_arg_texts(node, src),
+                arg_texts: (perl_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -11310,8 +11452,8 @@ fn perl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(module) = perl_field_text(node, "module", src) {
                 if !module.is_empty() {
                     out.imports.push(ImportRef {
-                        module_path: module.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (module.retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -11325,8 +11467,8 @@ fn perl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(path) = path {
                 if !path.is_empty() {
                     out.imports.push(ImportRef {
-                        module_path: path.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (path.retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -11481,8 +11623,8 @@ fn clojure_ns_require_imports(ns_form: Node<'_>, src: &[u8], out: &mut ParsedFil
             if let Some(module) = module {
                 if !module.is_empty() {
                     out.imports.push(ImportRef {
-                        module_path: module.to_string(),
-                        line,
+                        module_path: (module.retained_display()).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -11512,8 +11654,8 @@ fn clojure_plain_require_import(call_node: Node<'_>, src: &[u8], out: &mut Parse
         if let Ok(text) = sym.utf8_text(src) {
             if !text.is_empty() {
                 out.imports.push(ImportRef {
-                    module_path: text.to_string(),
-                    line,
+                    module_path: (text.retained_display()).into(),
+                    line: line.into(),
                 });
             }
         }
@@ -11602,9 +11744,9 @@ fn clojure_quirk(
         if let Some(name) = clojure_def_name(node, src) {
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.to_string(),
+                name: (name.retained_display()).into(),
                 kind: clojure_def_symbol_kind(head),
-                line,
+                line: line.into(),
             });
             clojure_walk_def_body(node, src, name, line, out);
             return true;
@@ -11634,18 +11776,18 @@ fn clojure_call_override(
     let Some(head) = clojure_head_text(node, src) else {
         return false;
     };
-    let arg_texts = (1..node.named_child_count())
+    let arg_texts: Vec<String> = (1..node.named_child_count())
         .filter_map(|i| node.named_child(i))
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: head.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (head.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -11703,15 +11845,15 @@ fn julia_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             let name = julia_type_head_name(node, src);
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 if let Some(super_name) = julia_type_head_supertype(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line: node.start_position().row + 1,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -11750,9 +11892,9 @@ fn julia_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             let name = julia_short_form_function_name(node, src);
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Function,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             julia_walk_scoped_fn_body(node, src, name.as_deref(), out);
@@ -11761,8 +11903,8 @@ fn julia_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         "import_statement" | "using_statement" | "export_statement" => {
             for path in julia_import_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -11818,9 +11960,9 @@ fn julia_walk_function_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFi
     let line = node.start_position().row + 1;
     if let Some(name) = &name {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Function,
-            line,
+            line: line.into(),
         });
     }
     let spec = LangSpec::julia();
@@ -12019,7 +12161,7 @@ fn julia_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
         match child.kind() {
             "identifier" | "scoped_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
+                    out.push(text.retained_display());
                 }
             }
             "import_path" | "selected_import" => {
@@ -12031,7 +12173,7 @@ fn julia_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
                     // module-path unit, not a `":"`-split pair).
                     let module = text.split(':').next().unwrap_or(text).trim();
                     if !module.is_empty() {
-                        out.push(module.to_string());
+                        out.push(module.retained_display());
                     }
                 }
             }
@@ -12073,13 +12215,16 @@ fn julia_call_override(
             // `_ => return (None, None)` fallback.
             let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: julia_call_arg_texts(node, src),
+                arg_texts: (julia_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -12101,13 +12246,16 @@ fn julia_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: julia_call_arg_texts(node, src),
+                arg_texts: (julia_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -12133,7 +12281,7 @@ fn julia_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -12171,7 +12319,7 @@ pub fn parse_julia(source: &str) -> ParsedFile {
 /// fully claimed here even though [`LangSpec::odin`] lists them in
 /// `func_types`/`class_types` too -- their own `name_field`-keyed
 /// `child_text` lookup always fails first (this row's `name_field` is a
-/// deliberate placeholder, see that const's own doc comment), so control
+/// deliberate unavailable-field sentinel, see that const's own doc comment), so control
 /// safely falls through to THIS hook's final catch-all invocation, same
 /// "arrays exist to document the vocabulary, quirk claims the real
 /// unfielded shape" posture as [`LangSpec::c`]/[`LangSpec::julia`].
@@ -12194,9 +12342,9 @@ fn odin_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             let line = node.start_position().row + 1;
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Function,
-                    line,
+                    line: line.into(),
                 });
             }
             let Some(procedure) = (0..node.child_count())
@@ -12238,23 +12386,23 @@ fn odin_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             };
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 if node.kind() == "struct_declaration" {
                     for (member_name, embedded) in odin_struct_fields(node, src) {
                         if embedded {
                             out.inherits.push(InheritsRef {
-                                sub_name: name.clone(),
-                                super_name: member_name,
-                                line,
+                                sub_name: (name.retained()).into(),
+                                super_name: (member_name).into(),
+                                line: line.into(),
                             });
                         } else {
                             out.defines.push(DefinesRef {
-                                container_name: name.clone(),
-                                member_name,
-                                line,
+                                container_name: (name.retained()).into(),
+                                member_name: member_name.into(),
+                                line: line.into(),
                             });
                         }
                     }
@@ -12278,8 +12426,8 @@ fn odin_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "import_declaration" => {
             if let Some(path) = odin_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -12415,11 +12563,11 @@ fn odin_walk_scoped(
 fn odin_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     for (i, child) in syntax_children(call_node).enumerate() {
-        if call_node.field_name_for_child(i as u32) != Some("argument") {
+        if checked_field_name_for_child(call_node, i) != Some("argument") {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -12461,13 +12609,16 @@ fn odin_call_override(
             };
             let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: odin_call_arg_texts(node, src),
+                arg_texts: (odin_call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -12496,13 +12647,16 @@ fn odin_call_override(
                 ReceiverHint::Identifier
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text: Some(receiver_text.to_string()),
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: Some(receiver_text.retained_display().into()),
                 receiver_hint: Some(receiver_hint),
-                arg_texts: odin_call_arg_texts(inner_call, src),
+                arg_texts: (odin_call_arg_texts(inner_call, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -12575,9 +12729,9 @@ fn pascal_quirk(
         "unit" | "program" => {
             if let Some(name) = pascal_module_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed (`false`): a `unit`/`program` node's own
@@ -12594,8 +12748,8 @@ fn pascal_quirk(
         "declUses" => {
             for path in pascal_uses_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -12651,7 +12805,7 @@ fn pascal_walk_decl_type(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
     let Ok(name_text) = name.utf8_text(src) else {
         return false;
     };
-    let name_text = name_text.to_string();
+    let name_text = name_text.retained_display();
     let Some(type_node) = node.child_by_field_name("type") else {
         return false;
     };
@@ -12671,16 +12825,16 @@ fn pascal_walk_decl_type(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
         _ => return false,
     };
     out.symbols.push(SymbolRef {
-        name: name_text.clone(),
+        name: (name_text.retained()).into(),
         kind,
-        line,
+        line: line.into(),
     });
     if type_node.kind() == "declClass" {
         for base_name in pascal_class_parents(type_node, src) {
             out.inherits.push(InheritsRef {
-                sub_name: name_text.clone(),
-                super_name: base_name,
-                line,
+                sub_name: (name_text.retained()).into(),
+                super_name: (base_name).into(),
+                line: line.into(),
             });
         }
     }
@@ -12699,7 +12853,7 @@ fn pascal_walk_decl_type(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
 fn pascal_class_parents(decl_class: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     for (i, child) in syntax_children(decl_class).enumerate() {
-        if decl_class.field_name_for_child(i as u32) != Some("parent") {
+        if checked_field_name_for_child(decl_class, i) != Some("parent") {
             continue;
         }
         if !child.is_named() {
@@ -12707,7 +12861,7 @@ fn pascal_class_parents(decl_class: Node<'_>, src: &[u8]) -> Vec<String> {
         }
         if let Ok(text) = child.utf8_text(src) {
             if !text.is_empty() {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -12765,20 +12919,20 @@ fn pascal_walk_def_proc(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
     if let Some(name) = &name {
         if let Some((container, member)) = name.rsplit_once('.') {
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Method,
-                line,
+                line: line.into(),
             });
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: member.to_string(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (member.retained_display()).into(),
+                line: line.into(),
             });
         } else {
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
         }
     }
@@ -12832,18 +12986,18 @@ fn pascal_call_override(
             let Ok(callee) = entity.utf8_text(src) else {
                 return false;
             };
-            let arg_texts = node
+            let arg_texts: Vec<String> = node
                 .child_by_field_name("args")
                 .map(|args| pascal_expr_args_texts(args, src))
                 .unwrap_or_default();
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -12875,11 +13029,11 @@ fn pascal_call_override(
                 Some(ReceiverHint::Other)
             };
             out.calls.push(CallRef {
-                callee,
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
-                receiver_text: Some(lhs_text.to_string()),
+                callee: callee.into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
+                receiver_text: Some(lhs_text.retained_display().into()),
                 receiver_hint,
                 arg_texts: Vec::new(),
             });
@@ -12899,7 +13053,7 @@ fn pascal_expr_args_texts(args_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -12962,13 +13116,16 @@ fn qml_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: call_arg_texts(node, "arguments", src),
+        arg_texts: (call_arg_texts(node, "arguments", src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -12998,9 +13155,9 @@ fn qml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(component) = node.child_by_field_name("component") {
                 if let Some(initializer) = component.child_by_field_name("initializer") {
@@ -13013,8 +13170,8 @@ fn qml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
             if let Some(source) = node.child_by_field_name("source") {
                 if let Ok(path) = source.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: strip_quotes_str(path),
-                        line: node.start_position().row + 1,
+                        module_path: (strip_quotes_str(path)).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -13023,8 +13180,8 @@ fn qml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "import_statement" | "import" => {
             if let Some(path) = first_named_child_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: strip_quotes_str(&path),
-                    line: node.start_position().row + 1,
+                    module_path: (strip_quotes_str(&path)).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -13043,10 +13200,10 @@ fn strip_quotes_str(text: &str) -> String {
             .strip_prefix(quote)
             .and_then(|remaining| remaining.strip_suffix(quote))
         {
-            return inner.to_string();
+            return inner.retained_display();
         }
     }
-    text.to_string()
+    text.retained_display()
 }
 
 /// [`ui_inline_component`]'s own nested `ui_object_definition`'s
@@ -13098,8 +13255,12 @@ pub fn qml_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(qml_quirk)),
         is_test_name: ts_is_test_name,
-        route_from_call: Some(Box::new(ts_route_from_call)),
-        on_method_defined: Some(Box::new(ts_on_method_defined)),
+        route_from_call: Some(Box::new(|ctx| {
+            ts_route_from_call(ctx.callee, ctx.call_node, ctx.source)
+        })),
+        on_method_defined: Some(Box::new(|ctx| {
+            ts_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(qml_call_override)),
     }
 }
@@ -13195,9 +13356,9 @@ fn rescript_class_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> boo
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: kind_out,
-        line,
+        line: line.into(),
     });
     let spec = LangSpec::rescript();
     let quirks = rescript_quirks();
@@ -13223,8 +13384,8 @@ fn rescript_import_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
     }
     if let Some(path) = first_named_child_text(node, src) {
         out.imports.push(ImportRef {
-            module_path: path,
-            line: node.start_position().row + 1,
+            module_path: (path).into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -13273,7 +13434,7 @@ fn rescript_quirk(
         // Already claimed by `walk`'s own func/method branch if the
         // ordinary `name_field` lookup happened to succeed -- for
         // `function`, [`LangSpec::rescript`]'s own `name_field` is a
-        // placeholder that never resolves (this grammar's `function`
+        // unavailable-field sentinel that never resolves (this grammar's `function`
         // node has no `name` field at all), so control always reaches
         // here for a well-formed `function` node.
         let Some(name) = rescript_function_name(node, src) else {
@@ -13291,15 +13452,15 @@ fn rescript_quirk(
         // already, so that shared convention never actually applies
         // here regardless).
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Function,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name.clone(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name.retained()).into(),
+                line: line.into(),
             });
         }
         rescript_walk_function_body(
@@ -13322,9 +13483,9 @@ fn rescript_quirk(
         if let Some(let_declaration) = node.parent().and_then(|let_binding| let_binding.parent()) {
             for decorator_name in rescript_preceding_decorators(let_declaration, src) {
                 out.decorates.push(crate::parsers::DecoratesRef {
-                    target_name: name.clone(),
-                    decorator_name,
-                    line,
+                    target_name: (name.retained()).into(),
+                    decorator_name: decorator_name.into(),
+                    line: line.into(),
                 });
             }
         }
@@ -13443,7 +13604,7 @@ fn squirrel_base_class_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// A `class_declaration`'s own DEFINES-scoped member walk: this
 /// grammar's `class_declaration` has NO `body`/`class_body` wrapper
 /// node at all (confirmed via `internal/cbm/extract_defs.c`'s own
-/// "Squirrel: class_declaration has no body field — member_declaration
+/// "Squirrel: class_declaration has no body field â€” member_declaration
 /// nodes ... are direct children of the class" comment, :3936-3939,
 /// and the same parse-tree dump) -- `member_declaration` nodes are
 /// direct children of the class node itself, interspersed with the
@@ -13509,16 +13670,16 @@ fn squirrel_class_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> boo
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: kind_out,
-        line,
+        line: line.into(),
     });
     if node.kind() == "class_declaration" {
         if let Some(super_name) = squirrel_base_class_name(node, src) {
             out.inherits.push(InheritsRef {
-                sub_name: name.clone(),
-                super_name,
-                line,
+                sub_name: (name.retained()).into(),
+                super_name: super_name.into(),
+                line: line.into(),
             });
         }
         squirrel_walk_class_members(node, src, &name, out);
@@ -13560,19 +13721,19 @@ fn squirrel_func_quirk(
     let line = node.start_position().row + 1;
     let is_method = enclosing.is_some();
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: if is_method {
             SymbolKind::Method
         } else {
             SymbolKind::Function
         },
-        line,
+        line: line.into(),
     });
     if let Some(container) = enclosing {
         out.defines.push(DefinesRef {
-            container_name: container.to_string(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained_display()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     let spec = LangSpec::squirrel();
@@ -13630,7 +13791,7 @@ fn squirrel_receiver_of_call(
     } else {
         ReceiverHint::Other
     };
-    (Some(text.to_string()), Some(hint))
+    (Some(text.retained_display()), Some(hint))
 }
 
 /// `call_expression`'s own callee/receiver reconstruction (this
@@ -13660,7 +13821,7 @@ fn squirrel_call_override(
         return false;
     };
     let (receiver_text, receiver_hint) = squirrel_receiver_of_call(function, src);
-    let arg_texts = (0..node.child_count())
+    let arg_texts: Vec<String> = (0..node.child_count())
         .filter_map(|i| node.child(i))
         .find(|n| n.kind() == "call_args")
         .map(|args| {
@@ -13673,13 +13834,13 @@ fn squirrel_call_override(
         })
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -13775,9 +13936,9 @@ fn sway_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             let trait_name = child_text(node, "trait", src);
             if let (Some(type_name), Some(trait_name)) = (&type_name, &trait_name) {
                 out.implements.push(ImplementsRef {
-                    type_name: type_name.clone(),
-                    trait_name: trait_name.clone(),
-                    line: node.start_position().row + 1,
+                    type_name: (type_name.retained()).into(),
+                    trait_name: (trait_name.retained()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             sway_walk_impl_body(node, src, type_name.as_deref(), out);
@@ -13786,9 +13947,9 @@ fn sway_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "struct_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Struct,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 sway_walk_scoped_body(node, src, name.as_str(), out);
             }
@@ -13797,9 +13958,9 @@ fn sway_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "abi_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Interface,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 sway_walk_scoped_body(node, src, name.as_str(), out);
             }
@@ -13808,8 +13969,8 @@ fn sway_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "use_declaration" => {
             if let Some(path) = child_text(node, "argument", src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -13918,11 +14079,11 @@ fn starlark_call_override(
         .filter_map(|i| arguments.child(i))
         .find(|n| n.kind() == "string")
         .and_then(|n| n.utf8_text(src).ok())
-        .map(|s| s.trim_matches(['"', '\'']).to_string());
+        .map(|s| s.trim_matches(['"', '\'']).retained_display());
     if let Some(path) = path {
         out.imports.push(ImportRef {
-            module_path: path,
-            line: node.start_position().row + 1,
+            module_path: (path).into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     // Not fully handled: let the generic engine's own single-field
@@ -13978,9 +14139,9 @@ fn walk_templ_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile)
         if spec.kind() == "type_alias" {
             if let Some(name) = child_text(spec, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: spec.start_position().row + 1,
+                    line: (spec.start_position().row + 1).into(),
                 });
             }
             continue;
@@ -13990,9 +14151,9 @@ fn walk_templ_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile)
         }
         if let Some(name) = child_text(spec, "name", src) {
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Class,
-                line: spec.start_position().row + 1,
+                line: (spec.start_position().row + 1).into(),
             });
         }
     }
@@ -14035,7 +14196,7 @@ fn templ_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
 fn templ_import_spec_path(spec: Node<'_>, src: &[u8]) -> Option<String> {
     let path_node = spec.child_by_field_name("path")?;
     let raw = path_node.utf8_text(src).ok()?;
-    Some(raw.trim_matches('"').to_string())
+    Some(raw.trim_matches('"').retained_display())
 }
 
 /// Everything Templ's flat [`LangSpec`] arrays cannot express:
@@ -14053,8 +14214,8 @@ fn templ_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         "import_declaration" => {
             for path in templ_import_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -14131,7 +14292,7 @@ fn typst_call_arg_texts(item: Node<'_>, src: &[u8]) -> Vec<String> {
             for arg in syntax_children(child) {
                 if arg.is_named() {
                     if let Ok(text) = arg.utf8_text(src) {
-                        out.push(text.to_string());
+                        out.push(text.retained_display());
                     }
                 }
             }
@@ -14170,13 +14331,16 @@ fn typst_call_override(
     // suffix either -- matched here for zero-regression against that
     // documented behavior rather than "improving" on it unasked).
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: typst_call_arg_texts(item, src),
+        arg_texts: (typst_call_arg_texts(item, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -14209,15 +14373,15 @@ fn typst_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(value) = node.child_by_field_name("value") {
@@ -14250,8 +14414,8 @@ fn typst_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 .map(str::to_string);
             if let Some(path) = path {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -14331,7 +14495,7 @@ fn wgsl_call_override(
     let Some(callee) = wgsl_call_callee(node, src) else {
         return false;
     };
-    let arg_texts = (0..node.named_child_count())
+    let arg_texts: Vec<String> = (0..node.named_child_count())
         .filter_map(|i| node.named_child(i))
         .filter(|c| c.kind() == "argument_list_expression")
         .flat_map(|list| {
@@ -14341,13 +14505,13 @@ fn wgsl_call_override(
         })
         .collect();
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -14381,8 +14545,8 @@ fn wgsl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "enable_directive" => {
             if let Some(path) = wgsl_enable_directive_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -14390,9 +14554,9 @@ fn wgsl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "struct_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Struct,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed for recursion purposes: a WGSL struct
@@ -14546,7 +14710,7 @@ fn wolfram_needs_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
         .filter_map(|i| node.named_child(i))
         .find(|c| c.kind() == "string")
         .and_then(|c| c.utf8_text(src).ok())
-        .map(|text| text.trim_matches('"').to_string())
+        .map(|text| text.trim_matches('"').retained_display())
 }
 
 /// Wolfram's `apply`: fully claims it (see [`wolfram_apply_callee`]'s own
@@ -14575,8 +14739,8 @@ fn wolfram_call_override(
                 if name == "Needs" {
                     if let Some(path) = wolfram_needs_import_path(node, src) {
                         out.imports.push(ImportRef {
-                            module_path: path,
-                            line,
+                            module_path: (path).into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -14587,13 +14751,16 @@ fn wolfram_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee,
-        line,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: callee.into(),
+        line: line.into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: wolfram_apply_arg_texts(node, src),
+        arg_texts: (wolfram_apply_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -14607,7 +14774,7 @@ fn wolfram_get_top_path(node: Node<'_>, src: &[u8]) -> Option<String> {
         .filter_map(|i| node.named_child(i))
         .find(|n| matches!(n.kind(), "string" | "user_symbol"))
         .and_then(|n| n.utf8_text(src).ok())
-        .map(|s| s.trim_matches('"').to_string())
+        .map(|s| s.trim_matches('"').retained_display())
 }
 
 /// Everything Wolfram's flat [`LangSpec`] arrays cannot express:
@@ -14638,15 +14805,15 @@ fn wolfram_quirk(
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             // Descend into every child (including the LHS `apply` head
@@ -14683,8 +14850,8 @@ fn wolfram_quirk(
         "get_top" => {
             if let Some(path) = wolfram_get_top_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -14755,7 +14922,8 @@ fn slang_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
             if let Some(name) = child_text(node, "name", src) {
                 return Some(name);
             }
-            child_text(node, "header", src).map(|h| h.trim_matches(['"', '<', '>']).to_string())
+            child_text(node, "header", src)
+                .map(|h| h.trim_matches(['"', '<', '>']).retained_display())
         }
         _ => None,
     }
@@ -14776,8 +14944,8 @@ fn slang_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
     if matches!(node.kind(), "import_statement" | "import_declaration") {
         if let Some(path) = slang_import_path(node, src) {
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
         return true;
@@ -14858,8 +15026,8 @@ fn scss_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             let path = raw.trim_matches(|c| c == '"' || c == '\'');
             if !path.is_empty() {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -14876,7 +15044,7 @@ fn scss_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
 /// `name_field: "name"` is a genuine working field) calls
 /// `on_method_defined` UNCONDITIONALLY right after recording the symbol +
 /// DEFINES edge, then tries `child_by_field_name(spec.body_field)` itself
-/// (a placeholder for this row, so it finds nothing and never recurses on
+/// (an unavailable-field sentinel for this row, so it finds nothing and never recurses on
 /// its own) -- `on_unmatched_node`, by contrast, is architecturally
 /// UNREACHABLE for any node kind the func/method branch's own name
 /// resolution already succeeds for (its own early `return` preempts
@@ -14954,7 +15122,7 @@ fn scss_call_override(
     out: &mut ParsedFile,
 ) -> bool {
     let line = node.start_position().row + 1;
-    let arg_texts = scss_find_arguments(node)
+    let arg_texts: Vec<String> = scss_find_arguments(node)
         .map(|args| arg_texts_from_node(args, src))
         .unwrap_or_default();
     match node.kind() {
@@ -14969,13 +15137,13 @@ fn scss_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -14990,13 +15158,13 @@ fn scss_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -15017,7 +15185,9 @@ pub fn scss_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(scss_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(scss_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            scss_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(scss_call_override)),
     }
 }
@@ -15110,9 +15280,9 @@ fn cmake_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     if let Some(body) = cmake_find_body(node) {
         let fn_scope = FnScope {
@@ -15152,7 +15322,7 @@ fn arg_texts_from_node(args: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -15181,19 +15351,19 @@ fn cmake_call_override(
     let Ok(callee) = id.utf8_text(src) else {
         return false;
     };
-    let arg_texts = (0..node.child_count())
+    let arg_texts: Vec<String> = (0..node.child_count())
         .filter_map(|i| node.child(i))
         .find(|c| c.kind() == "argument_list")
         .map(|args| arg_texts_from_node(args, src))
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -15311,9 +15481,9 @@ fn makefile_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(recipe) = makefile_find_recipe(node) {
                 let fn_scope = FnScope {
@@ -15327,8 +15497,8 @@ fn makefile_quirk(
         "include_directive" => {
             if let Some(path) = makefile_include_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -15384,19 +15554,19 @@ fn makefile_call_override(
     let Ok(callee) = function.utf8_text(src) else {
         return false;
     };
-    let arg_texts = (0..node.child_count())
+    let arg_texts: Vec<String> = (0..node.child_count())
         .filter_map(|i| node.child(i))
         .find(|c| c.kind() == arg_kind)
         .map(|args| arg_texts_from_node(args, src))
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -15485,7 +15655,7 @@ fn fortran_include_path(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// itself has no built-in path-extraction logic of its own (see that
 /// branch's own doc comment in `walk`), so a `LangSpec` row naming an
 /// import node kind with no matching quirk arm here would silently emit
-/// zero ImportRefs for it -- a real gap this fixes rather than an
+/// zero ImportRefs for it -- a real gap this closes rather than an
 /// oversight left in place.
 fn fortran_quirk(
     node: Node<'_>,
@@ -15496,8 +15666,8 @@ fn fortran_quirk(
     if node.kind() == "use_statement" {
         if let Some(path) = fortran_use_module_path(node, src) {
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
         return true;
@@ -15505,8 +15675,8 @@ fn fortran_quirk(
     if node.kind() == "include_statement" {
         if let Some(path) = fortran_include_path(node, src) {
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
         }
         return true;
@@ -15524,9 +15694,9 @@ fn fortran_quirk(
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     let fn_scope = FnScope {
         name: Some(name.as_str()),
@@ -15645,13 +15815,13 @@ fn fortran_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -15744,9 +15914,9 @@ fn vimscript_quirk(
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     if let Some(body) = vimscript_find_body(node) {
         let fn_scope = FnScope {
@@ -15876,9 +16046,9 @@ fn puppet_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             if let Some(block) = puppet_find_block(node) {
                 let fn_scope = FnScope {
@@ -15898,9 +16068,9 @@ fn puppet_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(block) = puppet_find_block(node) {
                 let fn_scope = FnScope {
@@ -15915,9 +16085,9 @@ fn puppet_quirk(
             if let Some(type_node) = node.child_by_field_name("type") {
                 if let Ok(name) = type_node.utf8_text(src) {
                     out.symbols.push(SymbolRef {
-                        name: name.to_string(),
+                        name: (name.retained_display()).into(),
                         kind: SymbolKind::Class,
-                        line: node.start_position().row + 1,
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -15961,12 +16131,12 @@ fn puppet_quirk(
             {
                 if let Ok(path) = id.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: path.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (path.retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                     out.calls.push(CallRef {
-                        callee: "include".to_string(),
-                        line: node.start_position().row + 1,
+                        callee: ("include".retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                         from_symbol: None,
                         from_symbol_line: None,
                         receiver_text: None,
@@ -16028,10 +16198,10 @@ fn puppet_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
                 arg_texts: Vec::new(),
@@ -16046,10 +16216,10 @@ fn puppet_call_override(
                 return false;
             };
             out.calls.push(CallRef {
-                callee: callee.to_string(),
-                line,
-                from_symbol: from_symbol.map(str::to_string),
-                from_symbol_line,
+                callee: (callee.retained_display()).into(),
+                line: line.into(),
+                from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
                 arg_texts: Vec::new(),
@@ -16107,7 +16277,7 @@ fn elm_func_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// Elm's [`Quirks::on_unmatched_node`]: `value_declaration` name
 /// resolution (see [`elm_func_name`]) plus a correctly `fn_scope`-scoped
 /// walk of the node's own real `"body"` field -- [`LangSpec::elm`]'s
-/// `name_field` is a placeholder (`value_declaration` has no working
+/// `name_field` is unavailable (`value_declaration` has no working
 /// name field of its own), so this quirk claims it in full even though
 /// the body half could technically use the generic engine's own
 /// `body_field` mechanism (never reached, since name resolution fails
@@ -16119,15 +16289,15 @@ fn elm_func_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// itself has no built-in path-extraction logic of its own (see that
 /// branch's own doc comment in `walk`), so a `LangSpec` row naming an
 /// import node kind with no matching quirk arm here would silently emit
-/// zero ImportRefs for it -- a real gap this fixes rather than an
+/// zero ImportRefs for it -- a real gap this closes rather than an
 /// oversight left in place.
 fn elm_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
     if node.kind() == "import_clause" {
         if let Some(module_name) = node.child_by_field_name("moduleName") {
             if let Ok(path) = module_name.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -16158,9 +16328,9 @@ fn elm_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     if let Some(body) = node.child_by_field_name("body") {
         let fn_scope = FnScope {
@@ -16236,13 +16406,16 @@ fn elm_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: elm_call_arg_texts(node, src),
+        arg_texts: (elm_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -16348,9 +16521,9 @@ fn bicep_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 return false;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             // Not fully claimed: a resource/module's own `object` body
             // value can itself contain call expressions (e.g.
@@ -16368,8 +16541,8 @@ fn bicep_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             };
             if let Some(path) = bicep_string_content(string_node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -16430,9 +16603,9 @@ fn bitbake_quirk(
             let line = node.start_position().row + 1;
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Function,
-                    line,
+                    line: line.into(),
                 });
             }
             bitbake_walk_scoped(
@@ -16464,8 +16637,8 @@ fn bitbake_quirk(
             };
             if let Ok(path) = path_node.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -16589,15 +16762,15 @@ fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             let line = node.start_position().row + 1;
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Function,
-                    line,
+                    line: line.into(),
                 });
                 for decorator_name in cairo_preceding_attributes(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -16624,15 +16797,15 @@ fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 for decorator_name in cairo_preceding_attributes(node, src) {
                     out.decorates.push(crate::parsers::DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.retained()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 cairo_walk_scoped(node, src, Some(name.as_str()), FnScope::default(), out);
@@ -16651,8 +16824,8 @@ fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             if let Some(argument) = node.child_by_field_name("argument") {
                 if let Ok(path) = argument.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: path.to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (path.retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -16703,7 +16876,7 @@ fn cairo_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -16733,13 +16906,16 @@ fn cairo_call_override(
     };
     let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: cairo_call_arg_texts(node, src),
+        arg_texts: (cairo_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -16833,8 +17009,8 @@ fn cfscript_quirk(
         if let Some(source) = node.child_by_field_name("source") {
             if let Ok(path) = source.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -16855,15 +17031,15 @@ fn cfscript_quirk(
     let line = node.start_position().row + 1;
     if let Some(name) = cfscript_tag_argument_value(node, src, "name") {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Constant,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name,
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name).into(),
+                line: line.into(),
             });
         }
     }
@@ -16981,13 +17157,16 @@ fn func_call_override(
     };
     let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: func_call_arg_texts(node, src),
+        arg_texts: (func_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -17042,8 +17221,8 @@ fn move_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
     }
     if let Some(path) = move_import_path(node, src) {
         out.imports.push(ImportRef {
-            module_path: path,
-            line: node.start_position().row + 1,
+            module_path: (path).into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -17073,13 +17252,16 @@ fn move_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: call_arg_texts(node, "args", src),
+        arg_texts: (call_arg_texts(node, "args", src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -17165,9 +17347,9 @@ fn nickel_quirk(
             let line = node.start_position().row + 1;
             if nickel_term_is_fun_expr(t1) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Function,
-                    line,
+                    line: line.into(),
                 });
             }
             // Not fully claimed: `t1`'s own body may itself contain
@@ -17187,8 +17369,8 @@ fn nickel_quirk(
                 if let Some(path_node) = node.child_by_field_name("s") {
                     if let Ok(path) = path_node.utf8_text(src) {
                         out.imports.push(ImportRef {
-                            module_path: path.to_string(),
-                            line: node.start_position().row + 1,
+                            module_path: (path.retained_display()).into(),
+                            line: (node.start_position().row + 1).into(),
                         });
                     }
                 }
@@ -17249,7 +17431,7 @@ fn nickel_call_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     while current.kind() == "applicative" {
         if let Some(t2) = current.child_by_field_name("t2") {
             if let Ok(text) = t2.utf8_text(src) {
-                args.push(text.to_string());
+                args.push(text.retained_display());
             }
         }
         match current.child_by_field_name("t1") {
@@ -17268,7 +17450,7 @@ fn nickel_call_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `false`) so [`nickel_quirk`]'s own `applicative` arm still recognizes
 /// it as an import rather than a mis-recorded zero-argument call: the
 /// generic walker's own `call_types` branch falls through PAST its dead
-/// `call_function_field`-keyed lookup (this row's own placeholder
+/// `call_function_field`-keyed lookup (this row's own unavailable-field
 /// string, matching no real field) all the way to its final, unconditional
 /// `on_unmatched_node` call at the bottom of the SAME `walk()` invocation
 /// whenever `call_override` itself returns `false` for a `call_types`
@@ -17307,13 +17489,16 @@ fn nickel_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: nickel_call_arg_texts(node, src),
+        arg_texts: (nickel_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -17403,15 +17588,15 @@ fn jsonnet_quirk(
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             // Not fully claimed: the function's own body expression
@@ -17428,8 +17613,8 @@ fn jsonnet_quirk(
             };
             if let Ok(path) = path_node.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: path.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (path.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -17464,7 +17649,7 @@ fn jsonnet_call_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -17491,13 +17676,16 @@ fn jsonnet_call_override(
     };
     let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts: jsonnet_call_arg_texts(node, src),
+        arg_texts: (jsonnet_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -17565,15 +17753,15 @@ fn commonlisp_quirk(
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = commonlisp_defun_body(node) {
@@ -17639,13 +17827,13 @@ fn commonlisp_import_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> 
     let Ok(raw) = target.utf8_text(src) else {
         return false;
     };
-    let path = raw.trim_start_matches([':', '\'']).to_string();
+    let path = raw.trim_start_matches([':', '\'']).retained_display();
     if path.is_empty() {
         return false;
     }
     out.imports.push(ImportRef {
-        module_path: path,
-        line: node.start_position().row + 1,
+        module_path: (path).into(),
+        line: (node.start_position().row + 1).into(),
     });
     // Do not claim the subtree as fully handled: an `(in-package :widget)`
     // form's own arguments are plain symbols, not calls, so there is
@@ -17690,18 +17878,18 @@ fn commonlisp_call_override(
     for i in 1..node.named_child_count() {
         if let Some(arg) = node.named_child(i) {
             if let Ok(text) = arg.utf8_text(src) {
-                arg_texts.push(text.to_string());
+                arg_texts.push(text.retained_display());
             }
         }
     }
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     false
 }
@@ -17747,8 +17935,8 @@ fn lean_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
         "import" => {
             if let Some(path) = lean_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -17772,9 +17960,10 @@ fn lean_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             // arguments_fields` failing during this wave's own
             // verification, not by inspection) that a full claim here,
             // recursing via `walk` (not `walk_children`) on the resolved
-            // body, fixes without touching the shared engine's own
+            // body, corrects without touching the shared engine's own
             // `walk_children`-based convention every other language
             // still depends on unchanged.
+            // REGRESSION-TEST: application_call_uses_the_real_name_arguments_fields
             let Some(name) = node.child_by_field_name("name") else {
                 return false;
             };
@@ -17783,15 +17972,15 @@ fn lean_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name_text.to_string(),
+                name: (name_text.retained_display()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name_text.to_string(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name_text.retained_display()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = node.child_by_field_name("body") {
@@ -17838,7 +18027,7 @@ fn lean_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
 fn lean_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut path = String::new();
     for (i, child) in syntax_children(node).enumerate() {
-        if node.field_name_for_child(i as u32) != Some("module") {
+        if checked_field_name_for_child(node, i) != Some("module") {
             continue;
         }
         if !child.is_named() {
@@ -17898,7 +18087,7 @@ fn tlaplus_module_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     for child in syntax_children(node) {
         if child.kind() == "identifier_ref" {
             if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
+                out.push(text.retained_display());
             }
         }
     }
@@ -17920,8 +18109,8 @@ fn tlaplus_quirk(
         let line = node.start_position().row + 1;
         for name in tlaplus_module_names(node, src) {
             out.imports.push(ImportRef {
-                module_path: name,
-                line,
+                module_path: (name).into(),
+                line: line.into(),
             });
         }
         return true;
@@ -17955,15 +18144,15 @@ fn tlaplus_quirk(
         };
         let line = node.start_position().row + 1;
         out.symbols.push(SymbolRef {
-            name: name_text.to_string(),
+            name: (name_text.retained_display()).into(),
             kind: SymbolKind::Function,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name_text.to_string(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name_text.retained_display()).into(),
+                line: line.into(),
             });
         }
         if let Some(body) = node.child_by_field_name("definition") {
@@ -17997,14 +18186,14 @@ fn tlaplus_quirk(
 fn tlaplus_bound_op_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     for (i, child) in syntax_children(node).enumerate() {
-        if node.field_name_for_child(i as u32) != Some("parameter") {
+        if checked_field_name_for_child(node, i) != Some("parameter") {
             continue;
         }
         if !child.is_named() {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -18022,8 +18211,8 @@ fn tlaplus_function_evaluation_callee(node: Node<'_>, src: &[u8]) -> Option<(Str
         .filter_map(|i| node.child(i))
         .filter(Node::is_named);
     let head = named.next()?;
-    let callee = head.utf8_text(src).ok()?.to_string();
-    let arg_texts = named
+    let callee = head.utf8_text(src).ok()?.retained_display();
+    let arg_texts: Vec<String> = named
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     Some((callee, arg_texts))
@@ -18051,7 +18240,10 @@ fn tlaplus_call_override(
             let Ok(callee) = name.utf8_text(src) else {
                 return false;
             };
-            (callee.to_string(), tlaplus_bound_op_arg_texts(node, src))
+            (
+                callee.retained_display(),
+                tlaplus_bound_op_arg_texts(node, src),
+            )
         }
         "function_evaluation" => {
             let Some(found) = tlaplus_function_evaluation_callee(node, src) else {
@@ -18062,13 +18254,13 @@ fn tlaplus_call_override(
         _ => return false,
     };
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -18193,7 +18385,7 @@ fn hdl_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            out.push(text.to_string());
+            out.push(text.retained_display());
         }
     }
     out
@@ -18211,13 +18403,16 @@ fn hdl_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: hdl_call_arg_texts(node, src),
+        arg_texts: (hdl_call_arg_texts(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -18303,15 +18498,15 @@ fn verilog_quirk(
         };
         let line = node.start_position().row + 1;
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Function,
-            line,
+            line: line.into(),
         });
         if let Some(container) = enclosing {
             out.defines.push(DefinesRef {
-                container_name: container.to_string(),
-                member_name: name.clone(),
-                line,
+                container_name: (container.retained_display()).into(),
+                member_name: (name.retained()).into(),
+                line: line.into(),
             });
         }
         walk_children(
@@ -18344,9 +18539,9 @@ fn verilog_quirk(
         };
         let line = node.start_position().row + 1;
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Class,
-            line,
+            line: line.into(),
         });
         walk_children(
             node,
@@ -18450,7 +18645,7 @@ fn vhdl_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.retained_display())
     }
 }
 
@@ -18487,8 +18682,8 @@ fn vhdl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
         "library_clause" | "use_clause" => {
             if let Some(path) = vhdl_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -18503,9 +18698,9 @@ fn vhdl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             walk_children(
                 node,
@@ -18527,15 +18722,15 @@ fn vhdl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             walk_children(
@@ -18593,10 +18788,10 @@ fn vhdl_call_override(
         return false;
     }
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
         arg_texts: Vec::new(),
@@ -18671,9 +18866,9 @@ fn systemverilog_quirk(
                 return false;
             };
             out.symbols.push(SymbolRef {
-                name: text.to_string(),
+                name: (text.retained_display()).into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             true
         }
@@ -18692,9 +18887,9 @@ fn systemverilog_quirk(
                 return false;
             };
             out.symbols.push(SymbolRef {
-                name: text.to_string(),
+                name: (text.retained_display()).into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             // Unlike `type_declaration` (a leaf declaration with no
             // nested body of its own), `module_declaration`'s own body is
@@ -18775,15 +18970,15 @@ fn cobol_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             walk_children(
@@ -18807,8 +19002,8 @@ fn cobol_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(book) = node.child_by_field_name("book") {
                 if let Ok(text) = book.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: text.trim_matches('"').to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (text.trim_matches('"').retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -18838,7 +19033,7 @@ fn cobol_call_override(
     let Ok(raw) = x.utf8_text(src) else {
         return false;
     };
-    let callee = raw.trim_matches('\'').trim_matches('"').to_string();
+    let callee = raw.trim_matches('\'').trim_matches('"').retained_display();
     if callee.is_empty() {
         return false;
     }
@@ -18846,17 +19041,17 @@ fn cobol_call_override(
     let mut cursor = node.walk();
     for arg in node.children_by_field_name("using", &mut cursor) {
         if let Ok(text) = arg.utf8_text(src) {
-            arg_texts.push(text.to_string());
+            arg_texts.push(text.retained_display());
         }
     }
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -18903,9 +19098,9 @@ fn just_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             let spec = LangSpec::just();
             let quirks = just_quirks();
@@ -18934,8 +19129,9 @@ fn just_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             if let Some(path_node) = just_recipe_header(node, "string") {
                 if let Ok(text) = path_node.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: text.trim_matches('\'').trim_matches('"').to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (text.trim_matches('\'').trim_matches('"').retained_display())
+                            .into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -18967,10 +19163,10 @@ fn just_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: name,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (name).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
         arg_texts: Vec::new(),
@@ -19038,7 +19234,7 @@ fn purescript_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
     // matching child for a "multiple" field; the operator identifier
     // itself is a later sibling also tagged `"name"`).
     for (i, child) in syntax_children(node).enumerate() {
-        if node.field_name_for_child(i as u32) != Some("name") {
+        if checked_field_name_for_child(node, i) != Some("name") {
             continue;
         }
         if child.is_named() {
@@ -19079,19 +19275,19 @@ fn purescript_quirk(
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: if enclosing.is_some() {
                     SymbolKind::Method
                 } else {
                     SymbolKind::Function
                 },
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(rhs) = node.child_by_field_name("rhs") {
@@ -19131,9 +19327,9 @@ fn purescript_quirk(
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Interface,
-                line,
+                line: line.into(),
             });
             purescript_walk_scoped(node, src, Some(name.as_str()), FnScope::default(), out);
             true
@@ -19143,9 +19339,9 @@ fn purescript_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             // Fully claimed (`true`), NOT `false`: all three of these
             // kinds are ALSO listed in `LangSpec::purescript`'s own
@@ -19154,7 +19350,7 @@ fn purescript_quirk(
             // `on_unmatched_node` check -- returning `false` here would
             // fall through to that branch's own `name_field`-keyed
             // fallback (a no-op, since `name_field` is this row's own
-            // `"UNUSED_SEE_PURESCRIPT_QUIRK"` placeholder), which itself
+            // `"UNUSED_SEE_PURESCRIPT_QUIRK"` sentinel), which itself
             // falls through past the whole class-shape block to the
             // walker's *final* catch-all `on_unmatched_node`, invoking
             // this same quirk a SECOND time for the same node -- a real,
@@ -19168,8 +19364,8 @@ fn purescript_quirk(
             };
             if let Ok(text) = module_node.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: text.to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (text.retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -19227,18 +19423,18 @@ fn purescript_call_override(
     let Ok(callee) = callee_node.utf8_text(src) else {
         return false;
     };
-    let arg_texts = arg_nodes
+    let arg_texts: Vec<String> = arg_nodes
         .iter()
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -19274,7 +19470,7 @@ fn magma_child_by_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
 
 fn magma_string_text(node: Node<'_>, src: &[u8]) -> Option<String> {
     let raw = node.utf8_text(src).ok()?;
-    Some(raw.trim_matches('"').to_string())
+    Some(raw.trim_matches('"').retained_display())
 }
 
 /// Magma's own `load_directive` -- see [`LangSpec::magma`]'s own doc
@@ -19285,8 +19481,8 @@ fn magma_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             if let Some(path_node) = magma_child_by_kind(node, "string") {
                 if let Some(path) = magma_string_text(path_node, src) {
                     out.imports.push(ImportRef {
-                        module_path: path,
-                        line: node.start_position().row + 1,
+                        module_path: (path).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -19302,8 +19498,8 @@ fn magma_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             };
             if let Some(path) = magma_string_text(filename_node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -19366,9 +19562,9 @@ fn hare_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "type_declaration" => {
             if let Some(name) = hare_type_declaration_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Class,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             // Not fully claimed: the `=`-bound type expression (a
@@ -19382,8 +19578,8 @@ fn hare_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "use_statement" => {
             if let Some(path) = hare_use_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -19418,21 +19614,21 @@ fn hare_call_override(
         if !child.is_named() {
             continue;
         }
-        if node.field_name_for_child(i as u32) == Some("callee") {
+        if checked_field_name_for_child(node, i) == Some("callee") {
             continue;
         }
         if let Ok(text) = child.utf8_text(src) {
-            arg_texts.push(text.to_string());
+            arg_texts.push(text.retained_display());
         }
     }
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -19519,15 +19715,15 @@ fn pony_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Method,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = pony_child_by_kind(node, "block") {
@@ -19564,16 +19760,16 @@ fn pony_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if node.kind() == "actor_definition" {
                 if let Some(super_name) = pony_actor_base_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.retained()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -19586,8 +19782,8 @@ fn pony_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             if let Some(path_node) = pony_child_by_kind(node, "string") {
                 if let Ok(raw) = path_node.utf8_text(src) {
                     out.imports.push(ImportRef {
-                        module_path: raw.trim_matches('"').to_string(),
-                        line: node.start_position().row + 1,
+                        module_path: (raw.trim_matches('"').retained_display()).into(),
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -19618,7 +19814,7 @@ fn pony_call_override(
         return false;
     };
     let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
-    let arg_texts = pony_child_by_kind(node, "arguments")
+    let arg_texts: Vec<String> = pony_child_by_kind(node, "arguments")
         .map(|args| {
             (0..args.child_count())
                 .filter_map(|i| args.child(i))
@@ -19628,13 +19824,13 @@ fn pony_call_override(
         })
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
-        receiver_text,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
+        receiver_text: receiver_text.map(Into::into),
         receiver_hint,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -19670,8 +19866,8 @@ fn nasm_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
             };
             if let Ok(raw) = path_node.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: raw.trim_matches('"').to_string(),
-                    line: node.start_position().row + 1,
+                    module_path: (raw.trim_matches('"').retained_display()).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -19839,19 +20035,19 @@ fn emacslisp_call_override(
     let Ok(callee) = callee_node.utf8_text(src) else {
         return false;
     };
-    let arg_texts = (0..node.child_count())
+    let arg_texts: Vec<String> = (0..node.child_count())
         .filter_map(|i| node.child(i))
         .filter(|c| c.id() != callee_node.id() && c.kind() != "(" && c.kind() != ")")
         .filter_map(|c| c.utf8_text(src).ok().map(str::to_owned))
         .collect();
     out.calls.push(CallRef {
-        callee: callee.to_owned(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_owned),
-        from_symbol_line,
+        callee: (callee.retained()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_owned)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -19861,7 +20057,9 @@ pub fn emacslisp_quirks() -> Quirks {
         on_unmatched_node: None,
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(emacslisp_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            emacslisp_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(emacslisp_call_override)),
     }
 }
@@ -19907,19 +20105,19 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: if node.kind() == "struct" {
                     SymbolKind::Class
                 } else {
                     SymbolKind::Interface
                 },
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
@@ -19930,9 +20128,9 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Enum,
-                line,
+                line: line.into(),
             });
             true
         }
@@ -19941,9 +20139,9 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Constant,
-                line,
+                line: line.into(),
             });
             true
         }
@@ -19953,9 +20151,9 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 capnp_positional_text(node, "field_identifier", src),
             ) {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: member,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (member).into(),
+                    line: line.into(),
                 });
             }
             // Nested in-place type definitions parse as
@@ -19971,15 +20169,15 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Method,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -19987,8 +20185,8 @@ fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pa
         "using_directive" => {
             if let Some(path) = capnp_import_path_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -20105,7 +20303,7 @@ fn matlab_quirk(
             "command_name" => callee = child.utf8_text(src).ok().map(str::to_owned),
             "command_argument" => {
                 if let Ok(text) = child.utf8_text(src) {
-                    args.push(text.to_string());
+                    args.push(text.retained_display());
                 }
             }
             _ => {}
@@ -20115,13 +20313,13 @@ fn matlab_quirk(
         return false;
     };
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
         from_symbol: None,
         from_symbol_line: None,
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: args,
+        arg_texts: (args).into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -20131,7 +20329,9 @@ pub fn matlab_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(matlab_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(matlab_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            matlab_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }
@@ -20238,7 +20438,9 @@ pub fn fennel_quirks() -> Quirks {
         on_unmatched_node: None,
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(fennel_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            fennel_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: None,
     }
 }
@@ -20300,8 +20502,8 @@ fn kconfig_quirk(
         return false;
     };
     out.imports.push(ImportRef {
-        module_path: module_path.to_string(),
-        line: node.start_position().row + 1,
+        module_path: (module_path.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
     });
     true
 }
@@ -20369,9 +20571,9 @@ fn awk_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         Some(name) => {
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             FnScope {
                 name: Some(name.as_str()),
@@ -20427,13 +20629,16 @@ fn awk_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts: awk_call_args(node, src),
+        arg_texts: (awk_call_args(node, src))
+            .into_iter()
+            .map(Into::into)
+            .collect(),
     });
     true
 }
@@ -20501,9 +20706,9 @@ fn fish_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         Some(name) => {
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             FnScope {
                 name: Some(name.as_str()),
@@ -20546,13 +20751,13 @@ fn fish_call_override(
         .filter_map(|arg| arg.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -20616,13 +20821,13 @@ fn zsh_call_override(
         .filter_map(|arg| arg.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -20712,9 +20917,9 @@ fn tcl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
     }
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_string(),
+        name: (name.retained_display()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     let spec = LangSpec::tcl();
     let quirks = tcl_quirks();
@@ -20842,8 +21047,8 @@ fn lisp2_import(head_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         };
         if let Some(module) = module.filter(|m| !m.is_empty()) {
             out.imports.push(ImportRef {
-                module_path: module.to_string(),
-                line,
+                module_path: (module.retained_display()).into(),
+                line: line.into(),
             });
         }
     }
@@ -20916,9 +21121,9 @@ fn scheme_quirk(
                 SymbolKind::Function
             };
             out.symbols.push(SymbolRef {
-                name: name.to_string(),
+                name: (name.retained_display()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             scheme_walk_def_body(node, src, name, line, out);
             return true;
@@ -20942,18 +21147,18 @@ fn scheme_call_override(
     let Some(head) = lisp2_head_text(node, src) else {
         return false;
     };
-    let arg_texts = (1..node.named_child_count())
+    let arg_texts: Vec<String> = (1..node.named_child_count())
         .filter_map(|i| node.named_child(i))
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: head.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (head.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -21084,9 +21289,9 @@ fn racket_quirk(
         if let Some(name) = lisp2_def_name(node, src) {
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.to_string(),
+                name: (name.retained_display()).into(),
                 kind: racket_def_symbol_kind(head),
-                line,
+                line: line.into(),
             });
             racket_walk_def_body(node, src, name, line, out);
             return true;
@@ -21106,18 +21311,18 @@ fn racket_call_override(
     let Some(head) = lisp2_head_text(node, src) else {
         return false;
     };
-    let arg_texts = (1..node.named_child_count())
+    let arg_texts: Vec<String> = (1..node.named_child_count())
         .filter_map(|i| node.named_child(i))
         .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee: head.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: (head.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -21182,9 +21387,9 @@ fn smithy_quirk(
             };
             if let Ok(name) = ns.utf8_text(src) {
                 out.symbols.push(SymbolRef {
-                    name: name.to_owned(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -21199,8 +21404,8 @@ fn smithy_quirk(
                 .and_then(|n| n.utf8_text(src).ok())
                 .unwrap_or_default();
             out.imports.push(ImportRef {
-                module_path: format!("{namespace}#{shape_id}"),
-                line: node.start_position().row + 1,
+                module_path: (format!("{namespace}#{shape_id}")).into(),
+                line: (node.start_position().row + 1).into(),
             });
             true
         }
@@ -21253,9 +21458,9 @@ fn pine_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.to_owned(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     let spec = LangSpec::pine();
     let quirks = pine_quirks();
@@ -21358,15 +21563,15 @@ fn hcl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 format!("{type_name}.{}", labels.join("."))
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = hcl_positional_child(node, "body") {
@@ -21382,8 +21587,8 @@ fn hcl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 return false;
             };
             out.calls.push(CallRef {
-                callee,
-                line,
+                callee: callee.into(),
+                line: line.into(),
                 ..CallRef::default()
             });
             if let Some(args) = hcl_positional_child(node, "function_arguments") {
@@ -21470,15 +21675,15 @@ fn nix_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
     };
     let line = node.start_position().row + 1;
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Function,
-        line,
+        line: line.into(),
     });
     if let Some(container) = enclosing {
         out.defines.push(DefinesRef {
-            container_name: container.to_owned(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     let spec = LangSpec::nix();
@@ -21522,10 +21727,10 @@ fn nix_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: fn_scope_name.map(str::to_owned),
-        from_symbol_line: fn_scope_line,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (fn_scope_name.map(str::to_owned)).map(Into::into),
+        from_symbol_line: (fn_scope_line).map(Into::into),
         ..CallRef::default()
     });
     true
@@ -21588,13 +21793,13 @@ fn sql_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         return false;
     };
     out.symbols.push(SymbolRef {
-        name,
+        name: name.into(),
         kind: if kind_name == "create_function" {
             SymbolKind::Function
         } else {
             SymbolKind::Class
         },
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     });
     false
 }
@@ -21617,10 +21822,10 @@ fn sql_call_override(
         return false;
     };
     out.calls.push(CallRef {
-        callee: callee.to_owned(),
-        line: node.start_position().row + 1,
-        from_symbol: fn_scope_name.map(str::to_owned),
-        from_symbol_line: fn_scope_line,
+        callee: (callee.retained()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (fn_scope_name.map(str::to_owned)).map(Into::into),
+        from_symbol_line: (fn_scope_line).map(Into::into),
         ..CallRef::default()
     });
     true
@@ -21676,7 +21881,7 @@ fn protobuf_wrapper_name(node: Node<'_>, wrapper_kind: &str, src: &[u8]) -> Opti
 fn protobuf_import_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
     let path = node.child_by_field_name("path")?;
     let text = path.utf8_text(src).ok()?;
-    Some(text.trim_matches(['"', '\'']).to_owned())
+    Some(text.trim_matches(['"', '\'']).retained())
 }
 
 /// [`Quirks::on_unmatched_node`] for Protobuf: full claim of every
@@ -21710,15 +21915,15 @@ fn protobuf_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
@@ -21729,15 +21934,15 @@ fn protobuf_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Enum,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -21747,15 +21952,15 @@ fn protobuf_quirk(
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -21768,9 +21973,9 @@ fn protobuf_quirk(
                     .map(str::to_owned),
             ) {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: member,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (member).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -21778,8 +21983,8 @@ fn protobuf_quirk(
         "import" => {
             if let Some(path) = protobuf_import_path_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -21853,15 +22058,15 @@ fn prisma_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 SymbolKind::Class
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: symbol_kind,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = prisma_positional_child(node, "statement_block") {
@@ -21879,9 +22084,9 @@ fn prisma_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                     .map(str::to_owned),
             ) {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: member,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (member).into(),
+                    line: line.into(),
                 });
             }
             walk_children(node, &ctx, out, enclosing, FnScope::default());
@@ -21900,8 +22105,8 @@ fn prisma_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 return false;
             };
             out.calls.push(CallRef {
-                callee,
-                line,
+                callee: callee.into(),
+                line: line.into(),
                 ..CallRef::default()
             });
             if let Some(args) = prisma_positional_child(node, "arguments") {
@@ -21992,15 +22197,15 @@ fn pkl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             if let Some(body) = pkl_positional_child(node, "classBody") {
@@ -22026,15 +22231,15 @@ fn pkl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 SymbolKind::Function
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: symbol_kind,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             let fn_scope = FnScope {
@@ -22055,8 +22260,8 @@ fn pkl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "importClause" | "extendsOrAmendsClause" => {
             if let Some(path) = pkl_string_constant_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22144,9 +22349,9 @@ fn thrift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
             true
@@ -22161,15 +22366,15 @@ fn thrift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 SymbolKind::Function
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22179,9 +22384,9 @@ fn thrift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 (enclosing, thrift_positional_identifier(node, src))
             {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name,
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22191,17 +22396,17 @@ fn thrift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut P
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Constant,
-                line,
+                line: line.into(),
             });
             true
         }
         "include_statement" => {
             if let Some(path) = thrift_include_path_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22250,15 +22455,15 @@ fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_owned(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             for (index, method_node) in syntax_children(node).enumerate() {
@@ -22281,14 +22486,14 @@ fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                     };
                     let func_line = func_node.start_position().row + 1;
                     out.symbols.push(SymbolRef {
-                        name: func_name.clone(),
+                        name: (func_name.retained()).into(),
                         kind: SymbolKind::Method,
-                        line: func_line,
+                        line: (func_line).into(),
                     });
                     out.defines.push(DefinesRef {
-                        container_name: name.clone(),
-                        member_name: func_name,
-                        line: func_line,
+                        container_name: (name.retained()).into(),
+                        member_name: (func_name).into(),
+                        line: (func_line).into(),
                     });
                 }
             }
@@ -22297,8 +22502,8 @@ fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         "import_item" | "export_item" => {
             if let Ok(text) = node.utf8_text(src) {
                 out.imports.push(ImportRef {
-                    module_path: text.trim().to_string(),
-                    line,
+                    module_path: (text.trim().retained_display()).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22340,7 +22545,7 @@ fn llvm_fn_name(node: Node<'_>, src: &[u8]) -> Option<String> {
         .find(|c| c.kind() == "function_header")?;
     let name_node = header.child_by_field_name("name")?;
     let text = name_node.utf8_text(src).ok()?;
-    Some(text.trim_start_matches('@').to_string())
+    Some(text.trim_start_matches('@').retained_display())
 }
 
 /// Claims exactly `fn_define`/`declare` (see
@@ -22364,9 +22569,9 @@ fn llvm_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(body) = node.child_by_field_name("body") {
                 walk_children(
@@ -22387,9 +22592,9 @@ fn llvm_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
                 return true;
             };
             out.symbols.push(SymbolRef {
-                name,
+                name: name.into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             true
         }
@@ -22426,16 +22631,17 @@ pub fn parse_llvm_ir(source: &str) -> ParsedFile {
 /// text (the quoted `.td` path -- NOT `string_fragment`, the sibling
 /// grammar's own name for the identical concept; see
 /// [`crate::languages::spec::LangSpec::tablegen`]'s own doc comment).
-fn tablegen_include_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
-    fn find_string_content<'a>(node: Node<'a>) -> Option<Node<'a>> {
-        if node.kind() == "string_content" {
-            return Some(node);
-        }
-        (0..node.child_count())
-            .filter_map(|i| node.child(i))
-            .find_map(find_string_content)
+fn tablegen_string_content(node: Node<'_>) -> Option<Node<'_>> {
+    if node.kind() == "string_content" {
+        return Some(node);
     }
-    find_string_content(node)
+    (0..node.child_count())
+        .filter_map(|index| node.child(index))
+        .find_map(tablegen_string_content)
+}
+
+fn tablegen_include_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    tablegen_string_content(node)
         .and_then(|n| n.utf8_text(src).ok())
         .map(str::to_owned)
 }
@@ -22456,8 +22662,8 @@ fn tablegen_quirk(
         "include_directive" => {
             if let Some(path) = tablegen_include_path_text(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line,
+                    module_path: (path).into(),
+                    line: line.into(),
                 });
             }
             true
@@ -22559,15 +22765,15 @@ fn cfml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             let name = cfml_tag_attribute_text(node, src, "name");
             if let Some(name) = &name {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.retained()).into(),
                     kind: SymbolKind::Function,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_owned(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.retained()).into(),
+                        member_name: (name.retained()).into(),
+                        line: line.into(),
                     });
                 }
             }
@@ -22604,7 +22810,7 @@ fn cfml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
                     callee: c.callee,
                     line: c.line + offset,
                     from_symbol: c.from_symbol,
-                    from_symbol_line: c.from_symbol_line.map(|l| l + offset),
+                    from_symbol_line: c.from_symbol_line.map(|line| line + offset),
                     receiver_text: c.receiver_text,
                     receiver_hint: c.receiver_hint,
                     arg_texts: c.arg_texts,
@@ -22663,7 +22869,7 @@ pub fn parse_cfml(source: &str) -> ParsedFile {
 /// its quotes, a real hard test asserts `template_action`'s callee is
 /// bare, e.g. `"footer"` not `"\"footer\""`).
 fn gotemplate_unquote(text: &str) -> String {
-    text.trim_matches(|c| c == '"' || c == '`').to_owned()
+    text.trim_matches(|c| c == '"' || c == '`').retained()
 }
 
 /// Closes a real gap in the generic engine's own default `body_field`
@@ -22741,13 +22947,16 @@ fn gotemplate_call_override(
                 return true;
             };
             out.calls.push(CallRef {
-                callee: callee.to_owned(),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_owned),
-                from_symbol_line,
+                callee: (callee.retained()).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_owned)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts: call_arg_texts(node, "arguments", src),
+                arg_texts: (call_arg_texts(node, "arguments", src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
             true
         }
@@ -22758,19 +22967,19 @@ fn gotemplate_call_override(
             let Ok(raw) = name_node.utf8_text(src) else {
                 return true;
             };
-            let arg_texts = node
+            let arg_texts: Vec<String> = node
                 .child_by_field_name("argument")
                 .and_then(|a| a.utf8_text(src).ok())
-                .map(|s| vec![s.to_owned()])
+                .map(|s| vec![s.retained()])
                 .unwrap_or_default();
             out.calls.push(CallRef {
-                callee: gotemplate_unquote(raw),
-                line: node.start_position().row + 1,
-                from_symbol: from_symbol.map(str::to_owned),
-                from_symbol_line,
+                callee: (gotemplate_unquote(raw)).into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (from_symbol.map(str::to_owned)).map(Into::into),
+                from_symbol_line: from_symbol_line.map(Into::into),
                 receiver_text: None,
                 receiver_hint: None,
-                arg_texts,
+                arg_texts: arg_texts.into_iter().map(Into::into).collect(),
             });
             true
         }
@@ -22783,7 +22992,9 @@ pub fn gotemplate_quirks() -> Quirks {
         on_unmatched_node: None,
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: Some(Box::new(gotemplate_on_method_defined)),
+        on_method_defined: Some(Box::new(|ctx| {
+            gotemplate_on_method_defined(ctx.node, ctx.name, ctx.line, ctx.source, ctx.output)
+        })),
         call_override: Some(Box::new(gotemplate_call_override)),
     }
 }
@@ -22810,7 +23021,7 @@ fn devicetree_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let text = path_node.utf8_text(src).ok()?;
     Some(
         text.trim_matches(|c| c == '"' || c == '<' || c == '>')
-            .to_owned(),
+            .retained(),
     )
 }
 
@@ -22828,8 +23039,8 @@ fn devicetree_quirk(
         "preproc_include" | "dtsi_include" => {
             if let Some(path) = devicetree_import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
             true
@@ -22898,9 +23109,9 @@ fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
 
     if let Some(name) = &class_name {
         out.symbols.push(SymbolRef {
-            name: name.clone(),
+            name: (name.retained()).into(),
             kind: SymbolKind::Class,
-            line,
+            line: line.into(),
         });
     }
 
@@ -22910,8 +23121,8 @@ fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
             "super_directive" | "implements_directive" => {
                 if let Some(path) = smali_descendant_kind_text(child, "class_identifier", src) {
                     out.imports.push(ImportRef {
-                        module_path: path,
-                        line: child_line,
+                        module_path: (path).into(),
+                        line: (child_line).into(),
                     });
                 }
             }
@@ -22920,15 +23131,15 @@ fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                     smali_descendant_kind_text(child, "method_identifier", src)
                 {
                     out.symbols.push(SymbolRef {
-                        name: method_name.clone(),
+                        name: (method_name.retained()).into(),
                         kind: SymbolKind::Method,
-                        line: child_line,
+                        line: (child_line).into(),
                     });
                     if let Some(container) = &class_name {
                         out.defines.push(DefinesRef {
-                            container_name: container.clone(),
-                            member_name: method_name,
-                            line: child_line,
+                            container_name: (container.retained()).into(),
+                            member_name: (method_name).into(),
+                            line: (child_line).into(),
                         });
                     }
                 }
@@ -22938,9 +23149,9 @@ fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 {
                     if let Some(container) = &class_name {
                         out.defines.push(DefinesRef {
-                            container_name: container.clone(),
-                            member_name: field_name,
-                            line: child_line,
+                            container_name: (container.retained()).into(),
+                            member_name: (field_name).into(),
+                            line: (child_line).into(),
                         });
                     }
                 }
@@ -23100,15 +23311,15 @@ fn toml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     if let Some(container) = enclosing {
         out.defines.push(DefinesRef {
-            container_name: container.to_owned(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
@@ -23183,15 +23394,15 @@ fn xml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.clone(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     if let Some(container) = enclosing {
         out.defines.push(DefinesRef {
-            container_name: container.to_owned(),
-            member_name: name.clone(),
-            line,
+            container_name: (container.retained()).into(),
+            member_name: (name.retained()).into(),
+            line: line.into(),
         });
     }
     walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
@@ -23300,7 +23511,10 @@ fn liquid_quirk(
         .and_then(|c| c.utf8_text(src).ok())
         .map(str::to_string);
     if let Some(module_path) = path {
-        out.imports.push(ImportRef { module_path, line });
+        out.imports.push(ImportRef {
+            module_path: module_path.into(),
+            line: line.into(),
+        });
     }
     true
 }
@@ -23345,9 +23559,9 @@ fn markdown_quirk(
     }
     if let Some(name) = child_text(node, "heading_content", src) {
         out.symbols.push(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::Class,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -23395,14 +23609,31 @@ pub fn parse_po(source: &str) -> ParsedFile {
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
 
-/// Parse Java/Jakarta `.properties` source through the generic engine.
-/// Grammar: `tree-sitter-properties` 0.3.0, a real crates.io crate.
+/// Parse Java/Jakarta `.properties` source at its Tier-0 nominal floor.
+/// The published tree-sitter grammar can loop in native parsing on
+/// valid one-line input, so this boundary deliberately recognizes the
+/// document without entering that unsafe runtime.
 /// Language-parity wave G2.5c. See `tests/unit_languages_properties.rs`.
 pub fn parse_properties(source: &str) -> ParsedFile {
-    let spec = LangSpec::properties();
-    let quirks = Quirks::default();
-    let language: tree_sitter::Language = tree_sitter_properties::LANGUAGE.into();
-    parse_with_spec(source, &language, &spec, &quirks, false)
+    let has_property = source.lines().any(|line| {
+        let trimmed = line.trim();
+        !trimmed.is_empty()
+            && !trimmed.starts_with('#')
+            && !trimmed.starts_with('!')
+            && (trimmed.contains('=') || trimmed.contains(':'))
+    });
+    if !has_property {
+        return ParsedFile::default();
+    }
+
+    ParsedFile {
+        symbols: vec![SymbolRef {
+            name: "properties".retained().into(),
+            kind: SymbolKind::Module,
+            line: 1_usize.into(),
+        }],
+        ..ParsedFile::default()
+    }
 }
 
 /// Parse a standalone regular-expression pattern through the generic
@@ -23463,8 +23694,8 @@ fn gn_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pars
     }
     if let Some(path) = gn_import_path(node, src) {
         out.imports.push(ImportRef {
-            module_path: path,
-            line: node.start_position().row + 1,
+            module_path: (path).into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -23519,7 +23750,10 @@ fn gomod_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         .and_then(|p| p.utf8_text(src).ok())
         .map(str::to_owned);
     if let Some(module_path) = path {
-        out.imports.push(ImportRef { module_path, line });
+        out.imports.push(ImportRef {
+            module_path: module_path.into(),
+            line: line.into(),
+        });
     }
     true
 }
@@ -23591,9 +23825,9 @@ fn graphql_quirk(
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: name.to_owned(),
+        name: (name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     for fields_container in syntax_children(node) {
         let member_kind = match fields_container.kind() {
@@ -23609,9 +23843,9 @@ fn graphql_quirk(
                 graphql_direct_child_of_kind(member, "name").and_then(|n| n.utf8_text(src).ok())
             {
                 out.defines.push(DefinesRef {
-                    container_name: name.to_owned(),
-                    member_name: member_name.to_owned(),
-                    line: member.start_position().row + 1,
+                    container_name: (name.retained()).into(),
+                    member_name: (member_name.retained()).into(),
+                    line: (member.start_position().row + 1).into(),
                 });
             }
         }
@@ -23713,9 +23947,9 @@ fn ini_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         return true;
     };
     out.symbols.push(SymbolRef {
-        name: section_name.to_owned(),
+        name: (section_name.retained()).into(),
         kind: SymbolKind::Class,
-        line,
+        line: line.into(),
     });
     for setting in syntax_children(node) {
         if setting.kind() != "setting" {
@@ -23725,9 +23959,9 @@ fn ini_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
             ini_direct_child_of_kind(setting, "setting_name").and_then(|n| n.utf8_text(src).ok())
         {
             out.defines.push(DefinesRef {
-                container_name: section_name.to_owned(),
-                member_name: setting_name.to_owned(),
-                line: setting.start_position().row + 1,
+                container_name: (section_name.retained()).into(),
+                member_name: (setting_name.retained()).into(),
+                line: (setting.start_position().row + 1).into(),
             });
         }
     }
@@ -23816,7 +24050,7 @@ pub fn parse_jsdoc(source: &str) -> ParsedFile {
 /// dropped `r_var_types`/`r_assign_types`). `.json` now routes here via
 /// [`crate::parsers::classify`] instead of the pre-existing
 /// [`crate::parsers::Language::ConfigJson`] no-op fallback -- see that
-/// enum variant's own doc comment for why the fallback stub is left in
+/// enum variant's own doc comment for why the compatibility fallback remains in
 /// place, just no longer reachable from a `.json` extension. Grammar:
 /// `tree-sitter-json` 0.24.8, a real crates.io crate. Language-parity
 /// wave G2.5b. See `tests/unit_languages_json.rs`.
@@ -23851,9 +24085,9 @@ fn assembly_quirk(
     }
     if let Some(name) = first_named_child_text(node, src) {
         out.symbols.push(SymbolRef {
-            name,
+            name: name.into(),
             kind: SymbolKind::Function,
-            line: node.start_position().row + 1,
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -23918,11 +24152,11 @@ fn beancount_quirk(
         .filter_map(|i| node.child(i))
         .find(|c| c.kind() == "string")
         .and_then(|c| c.utf8_text(src).ok())
-        .map(|raw| raw.trim_matches('"').to_string());
+        .map(|raw| raw.trim_matches('"').retained_display());
     if let Some(module_path) = path {
         out.imports.push(ImportRef {
-            module_path,
-            line: node.start_position().row + 1,
+            module_path: module_path.into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -24009,7 +24243,7 @@ fn css_call_override(
     let Ok(callee) = function.utf8_text(src) else {
         return true;
     };
-    let arg_texts = (0..node.child_count())
+    let arg_texts: Vec<String> = (0..node.child_count())
         .filter_map(|i| node.child(i))
         .find(|c| c.kind() == "arguments")
         .map(|args| {
@@ -24022,13 +24256,13 @@ fn css_call_override(
         })
         .unwrap_or_default();
     out.calls.push(CallRef {
-        callee: callee.to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: fn_scope_name.map(str::to_string),
-        from_symbol_line: fn_scope_line,
+        callee: (callee.retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (fn_scope_name.map(str::to_string)).map(Into::into),
+        from_symbol_line: (fn_scope_line).map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -24059,8 +24293,8 @@ fn css_import_quirk(
         .map(str::to_string);
     if let Some(module_path) = path {
         out.imports.push(ImportRef {
-            module_path,
-            line: node.start_position().row + 1,
+            module_path: module_path.into(),
+            line: (node.start_position().row + 1).into(),
         });
     }
     true
@@ -24128,13 +24362,13 @@ fn diff_call_override(
         .map(str::to_string)
         .collect();
     out.calls.push(CallRef {
-        callee: "diff".to_string(),
-        line: node.start_position().row + 1,
-        from_symbol: fn_scope_name.map(str::to_string),
-        from_symbol_line: fn_scope_line,
+        callee: ("diff".retained_display()).into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (fn_scope_name.map(str::to_string)).map(Into::into),
+        from_symbol_line: (fn_scope_line).map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -24288,15 +24522,15 @@ fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             let ctx = ctx_for_agda(src);
@@ -24317,9 +24551,9 @@ fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let ctx = ctx_for_agda(src);
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Class,
-                line: node.start_position().row + 1,
+                line: (node.start_position().row + 1).into(),
             });
             walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
             true
@@ -24332,8 +24566,8 @@ fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
                 return false;
             };
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
             true
         }
@@ -24383,18 +24617,18 @@ fn agda_call_override(
     let Some(callee) = agda_first_leaf_text(*callee_node, src) else {
         return false;
     };
-    let arg_texts = argument_nodes
+    let arg_texts: Vec<String> = argument_nodes
         .iter()
         .filter_map(|child| child.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
-        callee,
-        line: node.start_position().row + 1,
-        from_symbol: from_symbol.map(str::to_string),
-        from_symbol_line,
+        callee: callee.into(),
+        line: (node.start_position().row + 1).into(),
+        from_symbol: (from_symbol.map(str::to_string)).map(Into::into),
+        from_symbol_line: from_symbol_line.map(Into::into),
         receiver_text: None,
         receiver_hint: None,
-        arg_texts,
+        arg_texts: arg_texts.into_iter().map(Into::into).collect(),
     });
     true
 }
@@ -24414,10 +24648,118 @@ pub fn agda_quirks() -> Quirks {
 /// (`crates/enforcer-memory/vendor/tree-sitter-agda-local/`) -- no
 /// maintained crates.io crate exists. Language-parity wave G2.6.
 pub fn parse_agda(source: &str) -> ParsedFile {
-    let spec = LangSpec::agda();
-    let quirks = agda_quirks();
-    let language: tree_sitter::Language = tree_sitter_agda::LANGUAGE.into();
-    parse_with_spec(source, &language, &spec, &quirks, false)
+    // The published Agda grammar can abort in tree-sitter's C runtime.
+    // This Tier-2 extractor therefore implements the documented parity
+    // floor directly: modules/imports, data/record classes, function
+    // signatures/equations, and simple calls in equation bodies.
+    let mut parsed = ParsedFile::default();
+    let mut enclosing_type: Option<String> = None;
+    for (line_index, line) in source.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            continue;
+        }
+        let line_number = line_index + 1;
+        let is_top_level = line.len() == trimmed.len();
+
+        if let Some(module_tail) = trimmed.strip_prefix("module ") {
+            if let Some(name) = module_tail.split_whitespace().next() {
+                parsed.symbols.push(SymbolRef {
+                    name: name.retained().into(),
+                    kind: SymbolKind::Module,
+                    line: line_number.into(),
+                });
+            }
+            enclosing_type = None;
+            continue;
+        }
+
+        let import_tail = trimmed
+            .strip_prefix("open import ")
+            .or_else(|| trimmed.strip_prefix("import "));
+        if let Some(import_tail) = import_tail {
+            if let Some(module_path) = import_tail.split_whitespace().next() {
+                parsed.imports.push(ImportRef {
+                    module_path: module_path.retained().into(),
+                    line: line_number.into(),
+                });
+            }
+            continue;
+        }
+
+        let declaration_tail = trimmed
+            .strip_prefix("data ")
+            .or_else(|| trimmed.strip_prefix("record "));
+        if let Some(declaration_tail) = declaration_tail {
+            if let Some(name) = declaration_tail.split_whitespace().next() {
+                parsed.symbols.push(SymbolRef {
+                    name: name.retained().into(),
+                    kind: SymbolKind::Class,
+                    line: line_number.into(),
+                });
+                enclosing_type = Some(name.retained());
+            }
+            continue;
+        }
+
+        if is_top_level {
+            enclosing_type = None;
+        }
+
+        if let Some((lhs, _type_expression)) = trimmed.split_once(':') {
+            let Some(name) = lhs.split_whitespace().next() else {
+                continue;
+            };
+            parsed.symbols.push(SymbolRef {
+                name: name.retained().into(),
+                kind: SymbolKind::Function,
+                line: line_number.into(),
+            });
+            if let Some(container) = enclosing_type.as_deref() {
+                parsed.defines.push(DefinesRef {
+                    container_name: container.retained().into(),
+                    member_name: name.retained().into(),
+                    line: line_number.into(),
+                });
+            }
+            continue;
+        }
+
+        let Some((lhs, rhs)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let mut lhs_parts = lhs.split_whitespace();
+        let Some(name) = lhs_parts.next() else {
+            continue;
+        };
+        parsed.symbols.push(SymbolRef {
+            name: name.retained().into(),
+            kind: SymbolKind::Function,
+            line: line_number.into(),
+        });
+
+        let parameters: Vec<&str> = lhs_parts.collect();
+        let mut rhs_parts = rhs.split_whitespace();
+        let Some(callee) = rhs_parts.next() else {
+            continue;
+        };
+        if callee == name || callee == "zero" || parameters.contains(&callee) {
+            continue;
+        }
+        parsed.calls.push(CallRef {
+            callee: callee.retained().into(),
+            line: line_number.into(),
+            from_symbol: Some(name.retained().into()),
+            from_symbol_line: Some(line_number.into()),
+            receiver_text: None,
+            receiver_hint: None,
+            arg_texts: rhs_parts
+                .map(|argument| argument.retained().into())
+                .collect(),
+        });
+    }
+
+    parsed
 }
 
 // =====================================================================
@@ -24436,15 +24778,15 @@ fn form_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             };
             let line = node.start_position().row + 1;
             out.symbols.push(SymbolRef {
-                name: name.clone(),
+                name: (name.retained()).into(),
                 kind: SymbolKind::Function,
-                line,
+                line: line.into(),
             });
             if let Some(container) = enclosing {
                 out.defines.push(DefinesRef {
-                    container_name: container.to_string(),
-                    member_name: name.clone(),
-                    line,
+                    container_name: (container.retained_display()).into(),
+                    member_name: (name.retained()).into(),
+                    line: line.into(),
                 });
             }
             let ctx = ctx_for_form(src);
@@ -24475,10 +24817,10 @@ fn form_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
                 .strip_prefix('"')
                 .and_then(|s| s.strip_suffix('"'))
                 .unwrap_or(&raw)
-                .to_string();
+                .retained_display();
             out.imports.push(ImportRef {
-                module_path: path,
-                line: node.start_position().row + 1,
+                module_path: (path).into(),
+                line: (node.start_position().row + 1).into(),
             });
             true
         }

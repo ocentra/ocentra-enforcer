@@ -30,37 +30,31 @@
 //! check inspects only the body of an `enum` block; the symbol-DI check
 //! looks only at constructor-parameter type annotations.
 
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::text_scan::{is_comment_only_line, lines};
+use crate::boundary::finding::{from_source, SourceFinding};
+use crate::boundary::source_analysis::{
+    import_target, in_router_layer, is_symbol_di_token, layered_imported_feature,
+    member_has_string_initializer, owning_feature,
+};
+use crate::boundary::source_text::{lines, source_line_role, SourceLineRole};
 
 /// The per-call-site shape of a [`Finding`], everything EXCEPT the
 /// `rule_id`/`file` (which come from the validator/input themselves).
-/// Mirrors `frontend_react::FindingSpec` — bundled into one struct to keep
+/// Uses the shared source-boundary observation bundle to keep
 /// [`finding`]'s arity under the workspace's `clippy::too_many_arguments`
 /// gate.
-struct FindingSpec<'a> {
-    severity: Severity,
-    title: &'a str,
-    detail: String,
-    line: u32,
-    snippet: Option<String>,
-}
-
 /// Build one [`Finding`] with this module's common shape.
-fn finding(rule_id: &RuleId, input: &ValidationInput<'_>, spec: FindingSpec<'_>) -> Finding {
-    Finding {
-        rule_id: rule_id.clone(),
-        severity: spec.severity,
-        title: spec.title.to_owned(),
-        detail: spec.detail,
-        file: input.file.clone(),
-        line: spec.line,
-        snippet: spec.snippet,
-    }
+fn finding(
+    rule_id: &RuleId,
+    input: &ValidationInput<'_>,
+    spec: SourceFinding<'_>,
+) -> Result<Finding, DecodeError> {
+    from_source(rule_id, input.file, spec)
 }
 
 /// Extract the quoted module path of an `import`/`export ... from "..."`
@@ -68,21 +62,6 @@ fn finding(rule_id: &RuleId, input: &ValidationInput<'_>, spec: FindingSpec<'_>)
 /// statement. Mirrors `frontend_react::import_target`/
 /// `import_boundaries::import_target` (arc-07 precedent) rather than
 /// re-deriving its own parse.
-fn import_target(line: &str) -> Option<&str> {
-    let trimmed = line.trim_start();
-    if !trimmed.starts_with("import ") && !trimmed.starts_with("export ") {
-        return None;
-    }
-    let (_, rest) = trimmed.split_once(" from ")?;
-    let quote = rest.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let quoted = rest.strip_prefix(quote)?;
-    let (target, _) = quoted.split_once(quote)?;
-    Some(target)
-}
-
 /// FRONT-01 / `LFE-1.1` — no repository/data access inside the router
 /// layer (`no-repo-in-router`, T1): a `router(s)/**` file importing or
 /// instantiating a `*Repository` symbol directly is flagged; a router that
@@ -90,6 +69,8 @@ fn import_target(line: &str) -> Option<&str> {
 /// guard: only fires when the CURRENT file's own path sits under a
 /// `router`/`routers` directory, mirroring `fastapi_layered::in_layer` +
 /// `NoRepoInRoutersValidator` (the exact same doctrine rule, TS-side).
+#[derive(Debug)]
+#[doc = "Router repository-access validator."]
 pub struct NoRepoInRouterValidator {
     rule_id: RuleId,
 }
@@ -98,19 +79,12 @@ impl NoRepoInRouterValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "LFE-1.1".parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id("LFE-1.1")?,
         })
     }
 }
 
 /// True when `path` has a `router/` or `routers/` path segment.
-fn in_router_layer(path: &str) -> bool {
-    path.contains("/router/")
-        || path.contains("/routers/")
-        || path.starts_with("router/")
-        || path.starts_with("routers/")
-}
-
 impl Validator for NoRepoInRouterValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
@@ -118,20 +92,21 @@ impl Validator for NoRepoInRouterValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_router_layer(path) {
+        if !in_router_layer(input.file) {
             return Vec::new();
         }
         for line in lines(input.source) {
-            if is_comment_only_line(line.text) {
+            if source_line_role(line.text) == SourceLineRole::CommentOnly {
                 continue;
             }
-            let references_repo = line.text.contains("Repository(")
-                || (import_target(line.text).is_some() && line.text.contains("Repository"));
+            let references_repo = line.text.as_str().contains("Repository(")
+                || (import_target(line.text.as_str()).is_some()
+                    && line.text.as_str().contains("Repository"));
             if references_repo {
-                return vec![finding(
+                return finding(
                     &self.rule_id,
                     &input,
-                    FindingSpec {
+                    SourceFinding {
                         severity: Severity::Error,
                         title: "layered: router references a Repository symbol",
                         detail: format!(
@@ -142,9 +117,11 @@ impl Validator for NoRepoInRouterValidator {
                             line.number
                         ),
                         line: line.number,
-                        snippet: Some(line.text.trim().to_owned()),
+                        snippet: Some(line.text.as_str().trim()),
                     },
-                )];
+                )
+                .into_iter()
+                .collect();
             }
         }
         Vec::new()
@@ -160,6 +137,8 @@ impl Validator for NoRepoInRouterValidator {
 /// `frontend_react::NoFetchInUseEffectValidator` (FE-STATE-1.2) — the same
 /// doctrine rule, restated here as its own registry-backed d12 entry per
 /// ADBP_PARITY_MATRIX's FRONT-02 row.
+#[derive(Debug)]
+#[doc = "Layered frontend effect-fetch validator."]
 pub struct NoFetchInUseEffectValidator {
     rule_id: RuleId,
 }
@@ -168,7 +147,7 @@ impl NoFetchInUseEffectValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "LFE-1.2".parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id("LFE-1.2")?,
         })
     }
 }
@@ -183,37 +162,40 @@ impl Validator for NoFetchInUseEffectValidator {
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let all_lines: Vec<_> = lines(input.source).collect();
         let mut in_effect = false;
-        let mut effect_start_line = 0u32;
+        let mut effect_start_line = None;
         for line in &all_lines {
-            if line.text.contains("useEffect(") {
+            if line.text.as_str().contains("useEffect(") {
                 in_effect = true;
-                effect_start_line = line.number;
+                effect_start_line = Some(line.number);
                 continue;
             }
             if in_effect {
-                if is_comment_only_line(line.text) {
+                if source_line_role(line.text) == SourceLineRole::CommentOnly {
                     continue;
                 }
-                if FETCH_MARKERS.iter().any(|m| line.text.contains(m)) {
-                    return vec![finding(
+                if FETCH_MARKERS.iter().any(|m| line.text.as_str().contains(m)) {
+                    return finding(
                         &self.rule_id,
                         &input,
-                        FindingSpec {
+                        SourceFinding {
                             severity: Severity::Error,
                             title: "layered: fetch/axios data-loading inside useEffect",
                             detail: format!(
-                                "line {}: `useEffect` (opened line {effect_start_line}) performs \
+                                "line {}: `useEffect` (opened line {}) performs \
                                  a `fetch(`/`axios.` call directly for data-loading; use a query \
                                  hook (`useQuery({{queryKey, queryFn}})`) instead of a raw effect \
                                  fetch.",
-                                line.number
+                                line.number,
+                                effect_start_line.unwrap_or(line.number)
                             ),
                             line: line.number,
-                            snippet: Some(line.text.trim().to_owned()),
+                            snippet: Some(line.text.as_str().trim()),
                         },
-                    )];
+                    )
+                    .into_iter()
+                    .collect();
                 }
-                if line.text.contains("}, [") {
+                if line.text.as_str().contains("}, [") {
                     in_effect = false;
                 }
             }
@@ -224,36 +206,11 @@ impl Validator for NoFetchInUseEffectValidator {
 
 /// Parse `features/<name>/...` out of a repo-relative path, returning
 /// `<name>`, if the path has that shape.
-fn owning_feature(path: &str) -> Option<&str> {
-    let (_, rest) = path.split_once("features/")?;
-    let (feature, _) = rest.split_once('/')?;
-    (!feature.is_empty()).then_some(feature)
-}
-
 /// Parse `@/features/<name>/...` (or a relative `../<name>/...` /
 /// `../../features/<name>/...`) out of an import target, returning
 /// `<name>`, if the import has that shape. Also recognizes the bare
 /// relative-crossing shape `../<name>/internal/...` used by
 /// ADBP_PARITY_MATRIX's FRONT-03 example (`../otherFeature/internal/x`).
-fn imported_feature(target: &str) -> Option<&str> {
-    if let Some((_, rest)) = target.split_once("@/features/") {
-        let feature = rest.split('/').next()?;
-        if !feature.is_empty() {
-            return Some(feature);
-        }
-    }
-    if let Some(stripped) = target.strip_prefix("../") {
-        // A relative import that both crosses up a directory AND reaches
-        // into another feature's `internal/` sub-path — a bare `../sibling`
-        // (no deeper segment) does NOT count as a feature-internals reach.
-        let (name, rest_after_name) = stripped.split_once('/')?;
-        if !name.is_empty() && rest_after_name.contains("internal/") {
-            return Some(name);
-        }
-    }
-    None
-}
-
 /// FRONT-03 / `LFE-1.3` — feature-boundary imports (`feature-boundaries`,
 /// T1): a `features/<a>/**` file importing `@/features/<b>/...` (or a
 /// relative `../<b>/internal/...`) — a DIFFERENT feature slice — is
@@ -264,6 +221,8 @@ fn imported_feature(target: &str) -> Option<&str> {
 /// `frontend_react::FeatureBoundaryValidator` (FE-ARCH-1.3), restated here
 /// as its own registry-backed d12 entry per ADBP_PARITY_MATRIX's FRONT-03
 /// row (deep-import shape, not just the `@/` alias shape).
+#[derive(Debug)]
+#[doc = "Layered frontend feature-boundary validator."]
 pub struct FeatureBoundariesValidator {
     rule_id: RuleId,
 }
@@ -272,7 +231,7 @@ impl FeatureBoundariesValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "LFE-1.3".parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id("LFE-1.3")?,
         })
     }
 }
@@ -283,22 +242,22 @@ impl Validator for FeatureBoundariesValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Some(own_feature) = owning_feature(input.file.as_str()) else {
+        let Some(own_feature) = owning_feature(input.file) else {
             return Vec::new();
         };
         for line in lines(input.source) {
-            if is_comment_only_line(line.text) {
+            if source_line_role(line.text) == SourceLineRole::CommentOnly {
                 continue;
             }
-            let Some(target) = import_target(line.text) else {
+            let Some(target) = import_target(line.text.as_str()) else {
                 continue;
             };
-            if let Some(other_feature) = imported_feature(target) {
+            if let Some(other_feature) = layered_imported_feature(target) {
                 if other_feature != own_feature {
-                    return vec![finding(
+                    return finding(
                         &self.rule_id,
                         &input,
-                        FindingSpec {
+                        SourceFinding {
                             severity: Severity::Error,
                             title: "layered: cross-feature deep import",
                             detail: format!(
@@ -310,9 +269,11 @@ impl Validator for FeatureBoundariesValidator {
                                 line.number
                             ),
                             line: line.number,
-                            snippet: Some(line.text.trim().to_owned()),
+                            snippet: Some(line.text.as_str().trim()),
                         },
-                    )];
+                    )
+                    .into_iter()
+                    .collect();
                 }
             }
         }
@@ -326,6 +287,8 @@ impl Validator for FeatureBoundariesValidator {
 /// { Red = 'red' }`) stays clean. Whole-block signal: scans from an `enum
 /// Name {` opener to its closing `}` and flags the first member with no
 /// `= '...'`/`= "..."` string-literal initializer.
+#[derive(Debug)]
+#[doc = "TypeScript string-enum validator."]
 pub struct StrEnumOnlyValidator {
     rule_id: RuleId,
 }
@@ -334,7 +297,7 @@ impl StrEnumOnlyValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "LFE-1.4".parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id("LFE-1.4")?,
         })
     }
 }
@@ -342,16 +305,6 @@ impl StrEnumOnlyValidator {
 /// True when a (trimmed) enum-body line's member initializer, if any, is a
 /// single/double-quoted string literal. A member with NO initializer at all
 /// (implicit numeric) also fails this check.
-fn member_has_string_initializer(text: &str) -> bool {
-    let Some((_, rhs)) = text.split_once('=') else {
-        // No initializer at all -> implicit numeric member.
-        return false;
-    };
-    let rhs = rhs.trim().trim_end_matches(',');
-    (rhs.starts_with('\'') && rhs.ends_with('\'') && rhs.len() >= 2)
-        || (rhs.starts_with('"') && rhs.ends_with('"') && rhs.len() >= 2)
-}
-
 impl Validator for StrEnumOnlyValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
@@ -361,7 +314,7 @@ impl Validator for StrEnumOnlyValidator {
         let all_lines: Vec<_> = lines(input.source).collect();
         let mut in_enum = false;
         for line in &all_lines {
-            let trimmed = line.text.trim_start();
+            let trimmed = line.text.as_str().trim_start();
             if !in_enum && (trimmed.starts_with("enum ") || trimmed.starts_with("export enum ")) {
                 in_enum = true;
                 continue;
@@ -373,14 +326,18 @@ impl Validator for StrEnumOnlyValidator {
                 in_enum = false;
                 continue;
             }
-            if trimmed.is_empty() || is_comment_only_line(trimmed) {
+            if trimmed.is_empty()
+                || source_line_role(
+                    enforcer_domain::boundary::validation::ValidationSource::from_text(trimmed),
+                ) == SourceLineRole::CommentOnly
+            {
                 continue;
             }
             if !member_has_string_initializer(trimmed) {
-                return vec![finding(
+                return finding(
                     &self.rule_id,
                     &input,
-                    FindingSpec {
+                    SourceFinding {
                         severity: Severity::Error,
                         title: "layered: enum member is numeric/implicit, not string-valued",
                         detail: format!(
@@ -391,9 +348,11 @@ impl Validator for StrEnumOnlyValidator {
                             trimmed.trim_end_matches(',')
                         ),
                         line: line.number,
-                        snippet: Some(trimmed.trim_end_matches(',').to_owned()),
+                        snippet: Some(trimmed.trim_end_matches(',')),
                     },
-                )];
+                )
+                .into_iter()
+                .collect();
             }
         }
         Vec::new()
@@ -409,6 +368,8 @@ impl Validator for StrEnumOnlyValidator {
 /// / `@inject(Symbol...)`) stays clean. Position guard: only fires on
 /// `@inject(...)`-decorated constructor parameters, not every class
 /// reference in the file.
+#[derive(Debug)]
+#[doc = "Symbol-level dependency-injection validator."]
 pub struct SymbolLevelDiValidator {
     rule_id: RuleId,
 }
@@ -417,7 +378,7 @@ impl SymbolLevelDiValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "LFE-1.5".parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id("LFE-1.5")?,
         })
     }
 }
@@ -425,16 +386,6 @@ impl SymbolLevelDiValidator {
 /// True when `token` reads as a symbol/interface DI token rather than a
 /// concrete, `new`-able class: an interface-convention `I`-prefixed name
 /// (`IFoo`), a `*Token`/`*Symbol` suffix, or a `Symbol(...)` call/reference.
-fn is_symbol_di_token(token: &str) -> bool {
-    let token = token.trim();
-    token.starts_with("Symbol")
-        || token.ends_with("Token")
-        || token.ends_with("Symbol")
-        || (token.starts_with('I')
-            && token.len() > 1
-            && token.chars().nth(1).is_some_and(char::is_uppercase))
-}
-
 impl Validator for SymbolLevelDiValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
@@ -442,10 +393,10 @@ impl Validator for SymbolLevelDiValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         for line in lines(input.source) {
-            if is_comment_only_line(line.text) {
+            if source_line_role(line.text) == SourceLineRole::CommentOnly {
                 continue;
             }
-            let trimmed = line.text.trim_start();
+            let trimmed = line.text.as_str().trim_start();
             let Some((_, rest)) = trimmed.split_once("@inject(") else {
                 continue;
             };
@@ -453,10 +404,10 @@ impl Validator for SymbolLevelDiValidator {
                 continue;
             };
             if !is_symbol_di_token(token) {
-                return vec![finding(
+                return finding(
                     &self.rule_id,
                     &input,
-                    FindingSpec {
+                        SourceFinding {
                         severity: Severity::Error,
                         title: "layered: DI token is a concrete class, not a symbol/interface",
                         detail: format!(
@@ -467,9 +418,11 @@ impl Validator for SymbolLevelDiValidator {
                             line.number
                         ),
                         line: line.number,
-                        snippet: Some(line.text.trim().to_owned()),
+                        snippet: Some(line.text.as_str().trim()),
                     },
-                )];
+                )
+                .into_iter()
+                .collect();
             }
         }
         Vec::new()
@@ -493,15 +446,13 @@ pub fn validators(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use crate::boundary::test_fixtures::run_fixture_parity;
 
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::*;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
+    use super::{
+        validators, FeatureBoundariesValidator, NoFetchInUseEffectValidator,
+        NoRepoInRouterValidator, StrEnumOnlyValidator, SymbolLevelDiValidator, ValidationInput,
+        Validator,
+    };
 
     #[test]
     fn five_validators_registered_with_unique_rule_ids(
@@ -521,7 +472,6 @@ mod tests {
         let validator = NoRepoInRouterValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/layered_frontend/no_repo_in_router/routers/fail.ts",
             "tests/fixtures/layered_frontend/no_repo_in_router/routers/pass.ts",
         )?;
@@ -533,7 +483,6 @@ mod tests {
         let validator = NoFetchInUseEffectValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/layered_frontend/no_fetch_in_use_effect/fail.tsx",
             "tests/fixtures/layered_frontend/no_fetch_in_use_effect/pass.tsx",
         )?;
@@ -545,7 +494,6 @@ mod tests {
         let validator = FeatureBoundariesValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/layered_frontend/feature_boundaries/features/checkout/fail.ts",
             "tests/fixtures/layered_frontend/feature_boundaries/features/checkout/pass.ts",
         )?;
@@ -557,7 +505,6 @@ mod tests {
         let validator = StrEnumOnlyValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/layered_frontend/str_enum_only/fail.ts",
             "tests/fixtures/layered_frontend/str_enum_only/pass.ts",
         )?;
@@ -569,7 +516,6 @@ mod tests {
         let validator = SymbolLevelDiValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/layered_frontend/symbol_level_di/fail.ts",
             "tests/fixtures/layered_frontend/symbol_level_di/pass.ts",
         )?;
@@ -584,13 +530,14 @@ mod tests {
     fn lfe_feature_boundaries_own_feature_import_is_exempt(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let validator = FeatureBoundariesValidator::new()?;
-        let rel =
-            "tests/fixtures/layered_frontend/feature_boundaries/features/checkout/own_feature_import.ts";
-        let source = std::fs::read_to_string(manifest_dir().join(rel))?;
-        let file: enforcer_domain::paths::RelPath = rel.parse()?;
+        let root = crate::boundary::test_fixtures::fixture_root()?;
+        let file = crate::boundary::test_fixtures::fixture_path(
+            "tests/fixtures/layered_frontend/feature_boundaries/features/checkout/own_feature_import.ts",
+        )?;
+        let source = std::fs::read_to_string(root.resolve(&file))?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(

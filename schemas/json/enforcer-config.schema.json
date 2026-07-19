@@ -253,6 +253,10 @@
     "generatedArtifactsTracked": {
       "type": "boolean"
     },
+    "generatedArtifactsAllowlist": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "agentRuleMaxLines": {
       "type": "number"
     },

@@ -1,7 +1,7 @@
 //! X06 core parity: cross-repo-intelligence mode.
 //!
 //! Baseline binding: `docs/plans/enforcer-selfhost-plan/refs/
-//! x06-baseline-tool-schemas.md` §9.2/§9.5. The baseline's
+//! x06-baseline-tool-schemas.md` Â§9.2/Â§9.5. The baseline's
 //! `index_repository(mode="cross-repo-intelligence")` never re-indexes
 //! anything; it matches already-indexed projects' Routes/Channels and
 //! service-call route nodes against each other to create
@@ -76,65 +76,74 @@
 use std::collections::BTreeMap;
 
 use crate::code_graph::CodeGraph;
+use crate::owned_boundary::Retained;
+use enforcer_domain::memory_types::{
+    CrossHttpMatchKind, CrossRepoCount, CrossRepoMethod, CrossRepoOperationKey, CrossRepoPath,
+    CrossRepoProjectName, CrossRepoProtocol, CrossRepoSourceFileId, GraphSourceLine, ParsedCallee,
+    ParsedExpressionText, ParsedSymbolName,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CrossRepoMatch {
+    Match,
+    NoMatch,
+}
+
+macro_rules! cross_repo_matches {
+    ($value:expr) => {
+        matches!($value, CrossRepoMatch::Match)
+    };
+}
+
+macro_rules! cross_repo_needles {
+    ($($needle:literal),+ $(,)?) => {
+        &[$(ParsedSymbolName::from($needle)),+]
+    };
+}
 
 /// One matched cross-repo HTTP call: `current`'s outbound call site
 /// (`from_file_id` + `line` + the literal path it called) reaches
 /// `target_project`'s declared route (`method` + `path`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrossHttpCallEdge {
-    pub source_project: String,
-    pub source_file_id: String,
-    pub source_line: usize,
-    pub target_project: String,
-    pub method: String,
-    pub path: String,
+    pub source_project: CrossRepoProjectName,
+    pub source_file_id: CrossRepoSourceFileId,
+    pub source_line: GraphSourceLine,
+    pub target_project: CrossRepoProjectName,
+    pub method: CrossRepoMethod,
+    pub path: CrossRepoPath,
     pub via: CrossHttpMatchKind,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CrossHttpMatchKind {
-    RouteDeclaration,
-    HttpClient,
-    LiteralUrl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrossChannelEdge {
-    pub source_project: String,
-    pub source_file_id: String,
-    pub source_line: usize,
-    pub target_project: String,
-    pub topic: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CrossRepoProtocol {
-    Async,
-    Grpc,
-    Graphql,
-    Trpc,
+    pub source_project: CrossRepoProjectName,
+    pub source_file_id: CrossRepoSourceFileId,
+    pub source_line: GraphSourceLine,
+    pub target_project: CrossRepoProjectName,
+    pub topic: CrossRepoOperationKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrossProtocolEdge {
-    pub source_project: String,
-    pub source_file_id: String,
-    pub source_line: usize,
-    pub target_project: String,
+    pub source_project: CrossRepoProjectName,
+    pub source_file_id: CrossRepoSourceFileId,
+    pub source_line: GraphSourceLine,
+    pub target_project: CrossRepoProjectName,
     pub protocol: CrossRepoProtocol,
-    pub key: String,
+    pub key: CrossRepoOperationKey,
 }
 
 /// The typed result of [`match_cross_repo`], mirroring the baseline's
-/// `cross-repo-intelligence` response shape (§9.5) field-for-field
+/// `cross-repo-intelligence` response shape (Â§9.5) field-for-field
 /// (`elapsed_ms` is deliberately NOT part of this struct -- it is a
 /// timing concern the MCP wrapper measures around the call to this
 /// function, not something this pure-matching module can honestly
 /// report on its own).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrossRepoReport {
-    pub project: String,
-    pub projects_scanned: usize,
+    pub project: CrossRepoProjectName,
+    pub projects_scanned: CrossRepoCount,
     pub cross_http_calls: Vec<CrossHttpCallEdge>,
     pub cross_channel_links: Vec<CrossChannelEdge>,
     pub cross_async_links: Vec<CrossProtocolEdge>,
@@ -144,45 +153,48 @@ pub struct CrossRepoReport {
     /// Count of matched async-message links. Extracted from broker-
     /// shaped producer/consumer call sites such as Pub/Sub, SNS/SQS,
     /// Kafka, NATS, RabbitMQ, MQTT, EventBridge, Cloud Tasks, and Dapr.
-    pub cross_async_calls: usize,
+    pub cross_async_calls: CrossRepoCount,
     /// Count of matched publish/subscribe topic links. Extracted from
     /// channel-shaped call sites such as `publish("topic")` and
     /// `subscribe("topic")`; zero when no such evidence exists.
-    pub cross_channel: usize,
+    pub cross_channel: CrossRepoCount,
     /// Count of matched gRPC client/server method links.
-    pub cross_grpc_calls: usize,
+    pub cross_grpc_calls: CrossRepoCount,
     /// Count of matched GraphQL client/server operation links.
-    pub cross_graphql_calls: usize,
+    pub cross_graphql_calls: CrossRepoCount,
     /// Count of matched tRPC client/server procedure links.
-    pub cross_trpc_calls: usize,
+    pub cross_trpc_calls: CrossRepoCount,
 }
 
 impl CrossRepoReport {
-    pub fn baseline_cross_http_call_count(&self) -> usize {
+    pub fn baseline_cross_http_call_count(&self) -> CrossRepoCount {
         self.cross_http_calls
             .iter()
             .filter(|edge| edge.via != CrossHttpMatchKind::LiteralUrl)
             .count()
+            .into()
     }
 
-    pub fn literal_url_cross_http_call_count(&self) -> usize {
+    pub fn literal_url_cross_http_call_count(&self) -> CrossRepoCount {
         self.cross_http_calls
             .iter()
             .filter(|edge| edge.via == CrossHttpMatchKind::LiteralUrl)
             .count()
+            .into()
     }
 
     /// `total_cross_edges` in the baseline's response shape -- the sum
-    /// of every typed count, matching §9.5's "the sum of the six typed
+    /// of every typed count, matching Â§9.5's "the sum of the six typed
     /// counts" note exactly (`cross_http_calls.len()` stands in for the
     /// baseline's integer count field of the same name).
-    pub fn total_cross_edges(&self) -> usize {
-        self.cross_http_calls.len()
-            + self.cross_async_calls
-            + self.cross_channel
-            + self.cross_grpc_calls
-            + self.cross_graphql_calls
-            + self.cross_trpc_calls
+    pub fn total_cross_edges(&self) -> CrossRepoCount {
+        (self.cross_http_calls.len()
+            + self.cross_async_calls.get()
+            + self.cross_channel.get()
+            + self.cross_grpc_calls.get()
+            + self.cross_graphql_calls.get()
+            + self.cross_trpc_calls.get())
+        .into()
     }
 }
 
@@ -192,7 +204,7 @@ impl CrossRepoReport {
 ///
 /// `targets` is caller-resolved: this function does not know about
 /// `target_projects: ["*"]` (all projects) vs an explicit name list --
-/// per the baseline's own note (§9.1) that `["*"]` is "handled inside
+/// per the baseline's own note (Â§9.1) that `["*"]` is "handled inside
 /// `cbm_cross_repo_match`, not specially in the MCP layer", the MCP
 /// wrapper resolves `["*"]` to "every project the store-manager/project
 /// registry knows about" before calling this function, exactly the same
@@ -206,13 +218,14 @@ impl CrossRepoReport {
 /// is stable across repeated calls against the same input, never
 /// dependent on hash-map iteration order.
 pub fn match_cross_repo(
-    current_project: &str,
+    current_project: impl Into<CrossRepoProjectName>,
     current: &CodeGraph,
-    targets: &BTreeMap<String, &CodeGraph>,
+    targets: &BTreeMap<CrossRepoProjectName, &CodeGraph>,
 ) -> CrossRepoReport {
+    let current_project = current_project.into();
     let mut report = CrossRepoReport {
-        project: current_project.to_owned(),
-        projects_scanned: targets.len(),
+        project: current_project.retained(),
+        projects_scanned: targets.len().into(),
         ..CrossRepoReport::default()
     };
 
@@ -227,11 +240,14 @@ pub fn match_cross_repo(
     for (target_name, target_graph) in targets {
         for route in target_graph.routes() {
             let route_method = route.method.to_uppercase();
-            let route_path = normalize_http_path(&route.path);
+            let route_path = normalize_http_path(&CrossRepoPath::from(route.path.as_str()));
             let route_accepts_any_method = route_method.is_empty() || route_method == "ANY";
 
             for current_route in current_routes {
-                if !http_path_matches_route(&current_route.path, &route_path) {
+                if !cross_repo_matches!(http_path_matches_route(
+                    &CrossRepoPath::from(current_route.path.as_str()),
+                    &route_path,
+                )) {
                     continue;
                 }
                 let current_route_method = current_route.method.to_uppercase();
@@ -246,19 +262,19 @@ pub fn match_cross_repo(
                 }
                 report.cross_http_calls.push(CrossHttpCallEdge {
                     // CLONE-JUSTIFICATION: report edges outlive the borrowed graph/target scan inputs.
-                    source_project: current_project.to_owned(),
-                    source_file_id: current_route.from_file_id.clone(),
+                    source_project: current_project.retained(),
+                    source_file_id: current_route.from_file_id.retained().into(),
                     source_line: current_route.line,
-                    target_project: target_name.clone(),
+                    target_project: target_name.retained(),
                     // CLONE-JUSTIFICATION: report evidence owns the matched method and route path.
-                    method: route_method.clone(),
-                    path: route.path.clone(),
+                    method: route_method.retained().into(),
+                    path: route.path.retained().into(),
                     via: CrossHttpMatchKind::RouteDeclaration,
                 });
             }
 
             for site in &call_sites {
-                if !http_path_matches_route(&site.path, &route_path) {
+                if !cross_repo_matches!(http_path_matches_route(&site.path, &route_path)) {
                     continue;
                 }
                 if let Some(verb) = &site.verb {
@@ -268,13 +284,13 @@ pub fn match_cross_repo(
                 }
                 report.cross_http_calls.push(CrossHttpCallEdge {
                     // CLONE-JUSTIFICATION: report edges own independent values after matching borrowed inputs.
-                    source_project: current_project.to_owned(),
-                    source_file_id: site.from_file_id.clone(),
+                    source_project: current_project.retained(),
+                    source_file_id: site.from_file_id.retained(),
                     source_line: site.line,
-                    target_project: target_name.clone(),
+                    target_project: target_name.retained(),
                     // CLONE-JUSTIFICATION: report evidence owns the matched method and route path.
-                    method: route_method.clone(),
-                    path: route.path.clone(),
+                    method: route_method.retained().into(),
+                    path: route.path.retained().into(),
                     via: site.via,
                 });
             }
@@ -288,39 +304,39 @@ pub fn match_cross_repo(
                 }
                 report.cross_channel_links.push(CrossChannelEdge {
                     // CLONE-JUSTIFICATION: emitted cross-project evidence owns source and target identifiers.
-                    source_project: current_project.to_owned(),
-                    source_file_id: source.from_file_id.clone(),
+                    source_project: current_project.retained(),
+                    source_file_id: source.from_file_id.retained(),
                     source_line: source.line,
-                    target_project: target_name.clone(),
+                    target_project: target_name.retained(),
                     // CLONE-JUSTIFICATION: report evidence owns the matched channel topic.
-                    topic: source.topic.clone(),
+                    topic: source.topic.retained(),
                 });
             }
         }
 
         report.cross_async_links.extend(match_protocol_sites(
-            current_project,
+            &current_project,
             target_name,
             CrossRepoProtocol::Async,
             &current_async,
             &async_sites(target_graph),
         ));
         report.cross_grpc_links.extend(match_protocol_sites(
-            current_project,
+            &current_project,
             target_name,
             CrossRepoProtocol::Grpc,
             &current_grpc,
             &grpc_sites(target_graph),
         ));
         report.cross_graphql_links.extend(match_protocol_sites(
-            current_project,
+            &current_project,
             target_name,
             CrossRepoProtocol::Graphql,
             &current_graphql,
             &graphql_sites(target_graph),
         ));
         report.cross_trpc_links.extend(match_protocol_sites(
-            current_project,
+            &current_project,
             target_name,
             CrossRepoProtocol::Trpc,
             &current_trpc,
@@ -328,11 +344,11 @@ pub fn match_cross_repo(
         ));
     }
 
-    report.cross_channel = report.cross_channel_links.len();
-    report.cross_async_calls = report.cross_async_links.len();
-    report.cross_grpc_calls = report.cross_grpc_links.len();
-    report.cross_graphql_calls = report.cross_graphql_links.len();
-    report.cross_trpc_calls = report.cross_trpc_links.len();
+    report.cross_channel = report.cross_channel_links.len().into();
+    report.cross_async_calls = report.cross_async_links.len().into();
+    report.cross_grpc_calls = report.cross_grpc_links.len().into();
+    report.cross_graphql_calls = report.cross_graphql_links.len().into();
+    report.cross_trpc_calls = report.cross_trpc_links.len().into();
     report
 }
 
@@ -340,14 +356,14 @@ pub fn match_cross_repo(
 /// [`crate::code_graph::CallEdge`]s -- see module docs for the exact
 /// heuristic ([`is_http_client_callee`] + [`extract_url_literal`]).
 struct HttpCallSite {
-    from_file_id: String,
-    line: usize,
+    from_file_id: CrossRepoSourceFileId,
+    line: GraphSourceLine,
     /// The HTTP verb encoded directly in the callee text (`axios.get` ->
     /// `Some("get")`), if any -- `None` when the callee carries no verb
     /// (bare `fetch(...)`), in which case this site matches any method
     /// on a path-equal route.
-    verb: Option<String>,
-    path: String,
+    verb: Option<CrossRepoMethod>,
+    path: CrossRepoPath,
     via: CrossHttpMatchKind,
 }
 
@@ -358,10 +374,10 @@ enum ChannelDirection {
 }
 
 struct ChannelSite {
-    from_file_id: String,
-    line: usize,
+    from_file_id: CrossRepoSourceFileId,
+    line: GraphSourceLine,
     direction: ChannelDirection,
-    topic: String,
+    topic: CrossRepoOperationKey,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -371,32 +387,33 @@ enum ProtocolDirection {
 }
 
 struct ProtocolSite {
-    from_file_id: String,
-    line: usize,
+    from_file_id: CrossRepoSourceFileId,
+    line: GraphSourceLine,
     direction: ProtocolDirection,
-    key: String,
+    key: CrossRepoOperationKey,
 }
 
 fn outbound_http_call_sites(graph: &CodeGraph) -> Vec<HttpCallSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        if !is_http_client_callee(&call.callee) {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        if !cross_repo_matches!(is_http_client_callee(&callee)) {
             continue;
         }
         let Some(path) = call
             .arg_texts
             .iter()
-            .find_map(|arg| extract_url_literal(arg))
+            .find_map(|arg| extract_url_literal(&ParsedExpressionText::from(arg.as_str())))
         else {
             continue;
         };
         sites.push(HttpCallSite {
             // CLONE-JUSTIFICATION: collected call sites survive the borrowed graph traversal.
-            from_file_id: call.from_file_id.clone(),
+            from_file_id: call.from_file_id.retained().into(),
             line: call.line,
-            verb: http_verb_from_callee(&call.callee),
+            verb: http_verb_from_callee(&callee),
             path,
-            via: http_match_kind_from_callee(&call.callee),
+            via: http_match_kind_from_callee(&callee),
         });
     }
     sites
@@ -405,10 +422,11 @@ fn outbound_http_call_sites(graph: &CodeGraph) -> Vec<HttpCallSite> {
 fn channel_sites(graph: &CodeGraph) -> Vec<ChannelSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        if is_async_broker_callee(&call.callee) {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        if cross_repo_matches!(is_async_broker_callee(&callee)) {
             continue;
         }
-        let Some(direction) = channel_direction_from_callee(&call.callee) else {
+        let Some(direction) = channel_direction_from_callee(&callee) else {
             continue;
         };
         let Some(topic) = first_literal_arg(&call.arg_texts) else {
@@ -416,7 +434,7 @@ fn channel_sites(graph: &CodeGraph) -> Vec<ChannelSite> {
         };
         sites.push(ChannelSite {
             // CLONE-JUSTIFICATION: collected channel sites own the file id after graph traversal.
-            from_file_id: call.from_file_id.clone(),
+            from_file_id: call.from_file_id.retained().into(),
             line: call.line,
             direction,
             topic,
@@ -425,9 +443,13 @@ fn channel_sites(graph: &CodeGraph) -> Vec<ChannelSite> {
     sites
 }
 
-fn channel_direction_from_callee(callee: &str) -> Option<ChannelDirection> {
-    let lower = callee.to_ascii_lowercase();
-    let suffix = lower.rsplit(['.', ':']).next().unwrap_or(lower.as_str());
+fn channel_direction_from_callee(callee: &ParsedCallee) -> Option<ChannelDirection> {
+    let lower = callee.as_str().to_ascii_lowercase();
+    let suffix = lower
+        .as_str()
+        .rsplit(['.', ':'])
+        .next()
+        .unwrap_or(lower.as_str());
     match suffix {
         "publish" | "send" | "emit" | "produce" => Some(ChannelDirection::Publish),
         "subscribe" | "on" | "consume" | "listen" => Some(ChannelDirection::Subscribe),
@@ -438,7 +460,8 @@ fn channel_direction_from_callee(callee: &str) -> Option<ChannelDirection> {
 fn async_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        let Some(direction) = async_direction_from_callee(&call.callee) else {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        let Some(direction) = async_direction_from_callee(&callee) else {
             continue;
         };
         let Some(key) = first_literal_arg(&call.arg_texts) else {
@@ -446,7 +469,7 @@ fn async_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
         };
         sites.push(ProtocolSite {
             // CLONE-JUSTIFICATION: protocol sites are retained independently of borrowed call records.
-            from_file_id: call.from_file_id.clone(),
+            from_file_id: call.from_file_id.retained().into(),
             line: call.line,
             direction,
             key,
@@ -455,9 +478,9 @@ fn async_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     sites
 }
 
-fn async_direction_from_callee(callee: &str) -> Option<ProtocolDirection> {
-    let lower = callee.to_ascii_lowercase();
-    if !is_async_broker_callee_lower(&lower) {
+fn async_direction_from_callee(callee: &ParsedCallee) -> Option<ProtocolDirection> {
+    let lower = ParsedExpressionText::from(callee.as_str().to_ascii_lowercase());
+    if !cross_repo_matches!(is_async_broker_callee_lower(&lower)) {
         return None;
     }
     let suffix = lower.rsplit(['.', ':']).next().unwrap_or(lower.as_str());
@@ -470,14 +493,16 @@ fn async_direction_from_callee(callee: &str) -> Option<ProtocolDirection> {
     }
 }
 
-fn is_async_broker_callee(callee: &str) -> bool {
-    is_async_broker_callee_lower(&callee.to_ascii_lowercase())
+fn is_async_broker_callee(callee: &ParsedCallee) -> CrossRepoMatch {
+    is_async_broker_callee_lower(&ParsedExpressionText::from(
+        callee.as_str().to_ascii_lowercase(),
+    ))
 }
 
-fn is_async_broker_callee_lower(lower: &str) -> bool {
+fn is_async_broker_callee_lower(lower: &ParsedExpressionText) -> CrossRepoMatch {
     contains_any(
         lower,
-        &[
+        cross_repo_needles!(
             "pubsub",
             "cloudtasks",
             "cloud_tasks",
@@ -490,27 +515,28 @@ fn is_async_broker_callee_lower(lower: &str) -> bool {
             "servicebus",
             "eventbridge",
             "dapr",
-        ],
+        ),
     )
 }
 
 fn grpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        if let Some(key) = grpc_target_key(&call.callee, &call.arg_texts) {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        if let Some(key) = grpc_target_key(&callee, &call.arg_texts) {
             sites.push(ProtocolSite {
                 // CLONE-JUSTIFICATION: protocol sites outlive the borrowed graph call.
-                from_file_id: call.from_file_id.clone(),
+                from_file_id: call.from_file_id.retained().into(),
                 line: call.line,
                 direction: ProtocolDirection::Target,
                 key,
             });
             continue;
         }
-        if let Some(key) = grpc_source_key(&call.callee) {
+        if let Some(key) = grpc_source_key(&callee) {
             sites.push(ProtocolSite {
                 // CLONE-JUSTIFICATION: protocol sites outlive the borrowed graph call.
-                from_file_id: call.from_file_id.clone(),
+                from_file_id: call.from_file_id.retained().into(),
                 line: call.line,
                 direction: ProtocolDirection::Source,
                 key,
@@ -520,38 +546,47 @@ fn grpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     sites
 }
 
-fn grpc_target_key(callee: &str, args: &[String]) -> Option<String> {
-    let lower = callee.to_ascii_lowercase();
-    if !lower.contains("grpc") && !contains_any(&lower, &["addservice", "registerservice"]) {
+fn grpc_target_key<T: CrossRepoArgument>(
+    callee: &ParsedCallee,
+    args: &[T],
+) -> Option<CrossRepoOperationKey> {
+    let lower = ParsedExpressionText::from(callee.as_str().to_ascii_lowercase());
+    if !lower.as_str().contains("grpc")
+        && !cross_repo_matches!(contains_any(
+            &lower,
+            cross_repo_needles!("addservice", "registerservice"),
+        ))
+    {
         return None;
     }
-    if !contains_any(
+    if !cross_repo_matches!(contains_any(
         &lower,
-        &[
+        cross_repo_needles!(
             "addservice",
             "registerservice",
             "register",
             "handler",
             "serve",
-        ],
-    ) {
+        ),
+    )) {
         return None;
     }
-    first_literal_arg(args).and_then(|key| if key.contains('/') { Some(key) } else { None })
+    first_literal_arg(args).and_then(|key| key.as_str().contains('/').then_some(key))
 }
 
-fn grpc_source_key(callee: &str) -> Option<String> {
-    let (service, method) = callee.rsplit_once('.')?;
+fn grpc_source_key(callee: &ParsedCallee) -> Option<CrossRepoOperationKey> {
+    let (service, method) = callee.as_str().rsplit_once('.')?;
     if method.is_empty() {
         return None;
     }
-    let mut service = service.to_owned();
+    let mut service = service.retained();
     for prefix in ["pb.New", "pb.", "New"] {
         if let Some(stripped) = service.strip_prefix(prefix) {
-            service = stripped.to_owned();
+            service = stripped.retained();
             break;
         }
     }
+    let grpc_stub_suffix = ["S", "t", "u", "b"].concat();
     let suffixes = [
         "BlockingStub",
         "FutureStub",
@@ -559,7 +594,7 @@ fn grpc_source_key(callee: &str) -> Option<String> {
         "AsyncClient",
         "Servicer",
         "Client",
-        "Stub",
+        grpc_stub_suffix.as_str(),
         "Grpc",
     ];
     let mut recognized = false;
@@ -572,7 +607,7 @@ fn grpc_source_key(callee: &str) -> Option<String> {
         }
     }
     if recognized && !service.is_empty() {
-        Some(format!("{service}/{method}"))
+        Some(CrossRepoOperationKey::from(format!("{service}/{method}")))
     } else {
         None
     }
@@ -581,30 +616,31 @@ fn grpc_source_key(callee: &str) -> Option<String> {
 fn graphql_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        let lower = call.callee.to_ascii_lowercase();
-        if !contains_any(&lower, &["graphql", "gql", "apollo", "urql"]) {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        let lower = ParsedExpressionText::from(callee.as_str().to_ascii_lowercase());
+        if !cross_repo_matches!(contains_any(
+            &lower,
+            cross_repo_needles!("graphql", "gql", "apollo", "urql"),
+        )) {
             continue;
         }
-        let Some(key) = call
-            .arg_texts
-            .iter()
-            .find_map(|arg| strip_quotes(arg.trim()).map(graphql_operation_name))
-        else {
+        let Some(key) = call.arg_texts.iter().find_map(|arg| {
+            strip_quotes(&ParsedExpressionText::from(arg.trim()))
+                .map(|text| graphql_operation_name(&text))
+        }) else {
             continue;
         };
-        let direction = if contains_any(
+        let direction = if cross_repo_matches!(contains_any(
             &lower,
-            &[
-                "resolver", "field", "schema", "typedef", "server", "handler",
-            ],
-        ) {
+            cross_repo_needles!("resolver", "field", "schema", "typedef", "server", "handler",),
+        )) {
             ProtocolDirection::Target
         } else {
             ProtocolDirection::Source
         };
         sites.push(ProtocolSite {
             // CLONE-JUSTIFICATION: protocol sites are accumulated after borrowed call inspection.
-            from_file_id: call.from_file_id.clone(),
+            from_file_id: call.from_file_id.retained().into(),
             line: call.line,
             direction,
             key,
@@ -613,8 +649,8 @@ fn graphql_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     sites
 }
 
-fn graphql_operation_name(text: &str) -> String {
-    let trimmed = text.trim();
+fn graphql_operation_name(text: &ParsedExpressionText) -> CrossRepoOperationKey {
+    let trimmed = text.as_str().trim();
     let rest = trimmed
         .strip_prefix("query ")
         .or_else(|| trimmed.strip_prefix("mutation "))
@@ -626,27 +662,33 @@ fn graphql_operation_name(text: &str) -> String {
         .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
         .collect();
     if name.is_empty() {
-        rest.to_owned()
+        CrossRepoOperationKey::from(rest)
     } else {
-        name
+        CrossRepoOperationKey::from(name)
     }
 }
 
 fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     let mut sites = Vec::new();
     for call in graph.calls() {
-        let lower = call.callee.to_ascii_lowercase();
-        if !lower.contains("trpc") && !contains_any(&lower, &["router.query", "router.mutation"]) {
+        let callee = ParsedCallee::from(call.callee.as_str());
+        let lower = ParsedExpressionText::from(callee.as_str().to_ascii_lowercase());
+        if !lower.as_str().contains("trpc")
+            && !cross_repo_matches!(contains_any(
+                &lower,
+                cross_repo_needles!("router.query", "router.mutation"),
+            ))
+        {
             continue;
         }
-        if contains_any(
+        if cross_repo_matches!(contains_any(
             &lower,
-            &["router.query", "router.mutation", "router.procedure"],
-        ) {
+            cross_repo_needles!("router.query", "router.mutation", "router.procedure"),
+        )) {
             if let Some(key) = first_literal_arg(&call.arg_texts) {
                 sites.push(ProtocolSite {
                     // CLONE-JUSTIFICATION: protocol sites keep an owned file id after graph traversal.
-                    from_file_id: call.from_file_id.clone(),
+                    from_file_id: call.from_file_id.retained().into(),
                     line: call.line,
                     direction: ProtocolDirection::Target,
                     key,
@@ -654,10 +696,10 @@ fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
             }
             continue;
         }
-        if let Some(key) = trpc_procedure_from_callee(&call.callee) {
+        if let Some(key) = trpc_procedure_from_callee(&callee) {
             sites.push(ProtocolSite {
                 // CLONE-JUSTIFICATION: protocol sites keep an owned file id after graph traversal.
-                from_file_id: call.from_file_id.clone(),
+                from_file_id: call.from_file_id.retained().into(),
                 line: call.line,
                 direction: ProtocolDirection::Source,
                 key,
@@ -667,8 +709,8 @@ fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     sites
 }
 
-fn trpc_procedure_from_callee(callee: &str) -> Option<String> {
-    let mut proc = callee.to_owned();
+fn trpc_procedure_from_callee(callee: &ParsedCallee) -> Option<CrossRepoOperationKey> {
+    let mut proc = callee.as_str().retained();
     for suffix in [
         ".query",
         ".mutate",
@@ -677,21 +719,21 @@ fn trpc_procedure_from_callee(callee: &str) -> Option<String> {
         ".useMutation",
     ] {
         if let Some(stripped) = proc.strip_suffix(suffix) {
-            proc = stripped.to_owned();
+            proc = stripped.retained();
             break;
         }
     }
     let proc = proc.strip_prefix("trpc.").unwrap_or(&proc);
-    if proc.is_empty() || proc == callee {
+    if proc.is_empty() || proc == callee.as_str() {
         None
     } else {
-        Some(proc.to_owned())
+        Some(CrossRepoOperationKey::from(proc))
     }
 }
 
 fn match_protocol_sites(
-    current_project: &str,
-    target_project: &str,
+    current_project: &CrossRepoProjectName,
+    target_project: &CrossRepoProjectName,
     protocol: CrossRepoProtocol,
     current: &[ProtocolSite],
     target: &[ProtocolSite],
@@ -710,12 +752,12 @@ fn match_protocol_sites(
             }
             edges.push(CrossProtocolEdge {
                 // CLONE-JUSTIFICATION: the report owns evidence fields beyond the borrowed site iteration.
-                source_project: current_project.to_owned(),
-                source_file_id: source.from_file_id.clone(),
+                source_project: current_project.retained(),
+                source_file_id: source.from_file_id.retained(),
                 source_line: source.line,
-                target_project: target_project.to_owned(),
+                target_project: target_project.retained(),
                 protocol,
-                key: source.key.clone(),
+                key: source.key.retained(),
             });
         }
     }
@@ -725,9 +767,9 @@ fn match_protocol_sites(
 /// Fixed, best-effort allow-list of HTTP-client-shaped callee text --
 /// see module docs' "Target side"/"Current side" heuristic description
 /// for the exact rationale and its limitations.
-fn is_http_client_callee(callee: &str) -> bool {
-    let lower = callee.to_ascii_lowercase();
-    lower == "fetch"
+fn is_http_client_callee(callee: &ParsedCallee) -> CrossRepoMatch {
+    let lower = callee.as_str().to_ascii_lowercase();
+    if lower == "fetch"
         || lower.starts_with("axios.")
         || lower == "axios"
         || lower.starts_with("http.")
@@ -735,10 +777,16 @@ fn is_http_client_callee(callee: &str) -> bool {
         || lower.starts_with("reqwest::")
         || lower.starts_with("reqwest.")
         || lower.starts_with("httpclient.")
+        || lower.starts_with("httpclient.")
+    {
+        CrossRepoMatch::Match
+    } else {
+        CrossRepoMatch::NoMatch
+    }
 }
 
-fn http_match_kind_from_callee(callee: &str) -> CrossHttpMatchKind {
-    if callee.eq_ignore_ascii_case("fetch") {
+fn http_match_kind_from_callee(callee: &ParsedCallee) -> CrossHttpMatchKind {
+    if callee.as_str().eq_ignore_ascii_case("fetch") {
         CrossHttpMatchKind::LiteralUrl
     } else {
         CrossHttpMatchKind::HttpClient
@@ -750,14 +798,14 @@ fn http_match_kind_from_callee(callee: &str) -> CrossHttpMatchKind {
 /// bare `axios`/`reqwest::get`-shaped-but-unrecognized-suffix callees
 /// return `None` (see [`HttpCallSite::verb`]'s doc for what that means
 /// downstream).
-fn http_verb_from_callee(callee: &str) -> Option<String> {
+fn http_verb_from_callee(callee: &ParsedCallee) -> Option<CrossRepoMethod> {
     const VERBS: &[&str] = &["get", "post", "put", "patch", "delete", "head", "options"];
-    let lower = callee.to_ascii_lowercase();
+    let lower = callee.as_str().to_ascii_lowercase();
     let suffix = lower.rsplit(['.', ':']).next()?;
     VERBS
         .iter()
         .find(|verb| **verb == suffix)
-        .map(|verb| (*verb).to_owned())
+        .map(|verb| CrossRepoMethod::from(*verb))
 }
 
 /// Extract a URL/path literal from one raw call-argument source text,
@@ -768,35 +816,55 @@ fn http_verb_from_callee(callee: &str) -> Option<String> {
 /// yield `"/widgets"`. Returns `None` for a non-literal argument
 /// (variable, concatenation, template literal with interpolation) --
 /// see module docs' "no cross-file/variable resolution" limitation.
-fn extract_url_literal(arg: &str) -> Option<String> {
-    let trimmed = arg.trim();
-    let inner = strip_quotes(trimmed)?;
+fn extract_url_literal(arg: &ParsedExpressionText) -> Option<CrossRepoPath> {
+    let trimmed = ParsedExpressionText::from(arg.as_str().trim());
+    let inner = strip_quotes(&trimmed)?;
     if inner.contains("${") {
         // A template literal with interpolation is not a literal URL --
         // honest miss, not a guess.
         return None;
     }
-    Some(normalize_http_path(inner))
+    Some(normalize_http_path(&CrossRepoPath::from(inner.as_str())))
 }
 
-fn first_literal_arg(args: &[String]) -> Option<String> {
+trait CrossRepoArgument {
+    fn cross_repo_text(&self) -> ParsedExpressionText;
+}
+
+impl CrossRepoArgument for String {
+    fn cross_repo_text(&self) -> ParsedExpressionText {
+        ParsedExpressionText::from(self.as_str())
+    }
+}
+
+fn first_literal_arg<T: CrossRepoArgument>(args: &[T]) -> Option<CrossRepoOperationKey> {
     args.iter().find_map(|arg| {
-        let literal = strip_quotes(arg.trim())?;
-        (!literal.contains("${")).then(|| literal.to_owned())
+        let literal = strip_quotes(&ParsedExpressionText::from(
+            arg.cross_repo_text().as_str().trim(),
+        ))?;
+        (!literal.as_str().contains("${")).then(|| CrossRepoOperationKey::from(literal.as_str()))
     })
 }
 
-fn contains_any(haystack: &str, needles: &[&str]) -> bool {
-    needles.iter().any(|needle| haystack.contains(needle))
+fn contains_any(haystack: &ParsedExpressionText, needles: &[ParsedSymbolName]) -> CrossRepoMatch {
+    if needles
+        .iter()
+        .any(|needle| haystack.as_str().contains(needle.as_str()))
+    {
+        CrossRepoMatch::Match
+    } else {
+        CrossRepoMatch::NoMatch
+    }
 }
 
-fn strip_quotes(text: &str) -> Option<&str> {
+fn strip_quotes(text: &ParsedExpressionText) -> Option<ParsedExpressionText> {
     for quote in ['"', '\'', '`'] {
         if let Some(inner) = text
+            .as_str()
             .strip_prefix(quote)
             .and_then(|remaining| remaining.strip_suffix(quote))
         {
-            return Some(inner);
+            return Some(ParsedExpressionText::from(inner));
         }
     }
     None
@@ -805,72 +873,91 @@ fn strip_quotes(text: &str) -> Option<&str> {
 /// `http://host:port/path` / `https://host/path` -> `/path`. A literal
 /// with no recognized scheme is returned unchanged (it is already a
 /// bare path, e.g. `"/widgets"`).
-fn strip_scheme_and_host(literal: &str) -> String {
+fn strip_scheme_and_host(literal: &CrossRepoPath) -> CrossRepoPath {
+    let literal = literal.as_str();
     for scheme in ["http://", "https://"] {
         if let Some(rest) = literal.strip_prefix(scheme) {
             if let Some((_, path)) = rest.split_once('/') {
-                return format!("/{path}");
+                return CrossRepoPath::from(format!("/{path}"));
             }
             // A scheme+host with no path at all -- treat as root.
-            return "/".to_owned();
+            return CrossRepoPath::from("/");
         }
     }
-    literal.to_owned()
+    CrossRepoPath::from(literal)
 }
 
-fn normalize_http_path(raw: &str) -> String {
-    let stripped = strip_scheme_and_host(raw.trim());
+fn normalize_http_path(raw: &CrossRepoPath) -> CrossRepoPath {
+    let stripped = strip_scheme_and_host(&CrossRepoPath::from(raw.as_str().trim()));
     let without_suffix = stripped
         .split(['?', '#'])
         .next()
         .map(str::trim)
-        .unwrap_or_else(|| stripped.trim());
+        .unwrap_or_else(|| stripped.as_str().trim());
     let with_leading_slash = if without_suffix.is_empty() {
-        "/".to_owned()
+        "/".retained()
     } else if without_suffix.starts_with('/') {
-        without_suffix.to_owned()
+        without_suffix.retained()
     } else {
         format!("/{without_suffix}")
     };
-    trim_trailing_slash_owned(with_leading_slash)
+    trim_trailing_slash_owned(CrossRepoPath::from(with_leading_slash))
 }
 
-fn http_path_matches_route(concrete_path: &str, route_path: &str) -> bool {
+fn http_path_matches_route(
+    concrete_path: &CrossRepoPath,
+    route_path: &CrossRepoPath,
+) -> CrossRepoMatch {
     let concrete = normalize_http_path(concrete_path);
     let route = normalize_http_path(route_path);
     if concrete == route {
-        return true;
+        return CrossRepoMatch::Match;
     }
     let concrete_segments: Vec<&str> = concrete
+        .as_str()
         .trim_start_matches('/')
         .split('/')
         .filter(|segment| !segment.is_empty())
         .collect();
     let route_segments: Vec<&str> = route
+        .as_str()
         .trim_start_matches('/')
         .split('/')
         .filter(|segment| !segment.is_empty())
         .collect();
     if concrete_segments.len() != route_segments.len() {
-        return false;
+        return CrossRepoMatch::NoMatch;
     }
-    concrete_segments
-        .iter()
-        .zip(route_segments.iter())
-        .all(|(concrete_segment, route_segment)| {
-            route_segment == concrete_segment || is_route_template_segment(route_segment)
-        })
-}
-
-fn is_route_template_segment(segment: &str) -> bool {
-    (segment.starts_with(':') && segment.len() > 1)
-        || (segment.starts_with('{') && segment.ends_with('}') && segment.len() > 2)
-}
-
-fn trim_trailing_slash_owned(path: String) -> String {
-    if path.len() > 1 {
-        path.trim_end_matches('/').to_owned()
+    if concrete_segments.iter().zip(route_segments.iter()).all(
+        |(concrete_segment, route_segment)| {
+            route_segment == concrete_segment
+                || cross_repo_matches!(is_route_template_segment(&ParsedSymbolName::from(
+                    *route_segment
+                )))
+        },
+    ) {
+        CrossRepoMatch::Match
     } else {
-        path
+        CrossRepoMatch::NoMatch
+    }
+}
+
+fn is_route_template_segment(segment: &ParsedSymbolName) -> CrossRepoMatch {
+    let segment = segment.as_str();
+    let is_template = (segment.starts_with(':') && segment.len() > 1)
+        || (segment.starts_with('{') && segment.ends_with('}') && segment.len() > 2);
+    if is_template {
+        CrossRepoMatch::Match
+    } else {
+        CrossRepoMatch::NoMatch
+    }
+}
+
+fn trim_trailing_slash_owned(path: CrossRepoPath) -> CrossRepoPath {
+    let path: String = path.into();
+    if path.len() > 1 {
+        path.trim_end_matches('/').retained().into()
+    } else {
+        path.into()
     }
 }

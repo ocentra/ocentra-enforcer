@@ -15,13 +15,13 @@
 //! `unwrap`/`expect`/`panic!` for assertions, matching d17's proof-row
 //! contract ("unwrap under `#[cfg(test)]` stays clean").
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Attribute, ExprMethodCall, ImplItemFn, Item, ItemFn, ItemMod, TraitItemFn};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::{RulePredicateResult, RustTestNestingDepth};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
@@ -48,6 +48,7 @@ pub mod nonexhaustive;
 pub mod safety_comment;
 
 /// The `T1-RUSTERR.1` d17 rust-error-handling `Validator`.
+#[derive(Debug)]
 pub struct ErrorHandlingValidator {
     rule_id: RuleId,
 }
@@ -58,7 +59,7 @@ impl ErrorHandlingValidator {
     /// [`super::no_reexports::NoReexportsValidator::new`]).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "T1-RUSTERR.1".parse()?,
+            rule_id: BuiltInRustRule::ErrorHandling.id(),
         })
     }
 }
@@ -69,15 +70,15 @@ impl Validator for ErrorHandlingValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
 
         let mut visitor = ErrorHandlingVisitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
-            test_depth: 0,
+            test_depth: RustTestNestingDepth::default(),
         };
         visitor.visit_file(&file);
         visitor.findings
@@ -91,55 +92,47 @@ const BANNED_METHODS: &[&str] = &["unwrap", "expect"];
 /// code.
 const BANNED_MACROS: &[&str] = &["panic", "todo", "unimplemented", "dbg"];
 
-struct ErrorHandlingVisitor {
-    rule_id: RuleId,
-    file: RelPath,
+struct ErrorHandlingVisitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
     findings: Vec<Finding>,
     /// Depth of nesting inside a `#[cfg(test)]` module or `#[test]`
     /// function. Non-zero means the current position is exempt.
-    test_depth: usize,
+    test_depth: RustTestNestingDepth,
 }
 
-impl ErrorHandlingVisitor {
-    fn line_of<S: Spanned>(&self, spanned: &S) -> u32 {
-        let line = spanned.span().start().line;
-        if line == 0 {
-            1
-        } else {
-            u32::try_from(line).unwrap_or(u32::MAX)
-        }
-    }
-
-    fn push(&mut self, line: u32, marker: &str) {
-        self.findings.push(Finding {
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            title: format!("rust-error-handling: `{marker}` in first-party code"),
-            detail: format!(
+impl ErrorHandlingVisitor<'_> {
+    fn push(&mut self, line: enforcer_domain::telemetry_types::SourceLine, marker: &str) {
+        let Ok(finding) = crate::boundary::finding::from_source(
+            (self.rule_id, Severity::Error),
+            format!("rust-error-handling: `{marker}` in first-party code"),
+            format!(
                 "Fix: replace `{marker}` with a typed `Result`/`Option` propagation \
                  (`?` + `.with_context(...)`, or a matched fallback); `{marker}` is only \
                  permitted under `#[cfg(test)]` / `#[test]`."
             ),
-            file: self.file.clone(),
+            self.file,
             line,
-            snippet: None,
-        });
+        ) else {
+            return;
+        };
+        self.findings.push(finding);
     }
 
-    fn enter_test_scope(&mut self, is_test: bool, body: impl FnOnce(&mut Self)) {
-        if is_test {
-            self.test_depth += 1;
+    fn enter_test_scope(&mut self, is_test: RulePredicateResult, body: impl FnOnce(&mut Self)) {
+        if is_test == RulePredicateResult::Matched {
+            self.test_depth.enter();
         }
         body(self);
-        if is_test {
-            self.test_depth -= 1;
+        if is_test == RulePredicateResult::Matched {
+            self.test_depth.exit();
         }
     }
 }
 
 /// True when the attribute list carries `#[cfg(test)]` or `#[test]`.
-fn attrs_mark_test(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| {
+fn attrs_mark_test(attrs: &[Attribute]) -> RulePredicateResult {
+    if attrs.iter().any(|attr| {
         if attr.path().is_ident("test") {
             return true;
         }
@@ -156,10 +149,14 @@ fn attrs_mark_test(attrs: &[Attribute]) -> bool {
             return found;
         }
         false
-    })
+    }) {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
+    }
 }
 
-impl<'ast> Visit<'ast> for ErrorHandlingVisitor {
+impl<'ast> Visit<'ast> for ErrorHandlingVisitor<'_> {
     fn visit_item_mod(&mut self, item: &'ast ItemMod) {
         let is_test = attrs_mark_test(&item.attrs);
         self.enter_test_scope(is_test, |v| visit::visit_item_mod(v, item));
@@ -185,11 +182,10 @@ impl<'ast> Visit<'ast> for ErrorHandlingVisitor {
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast ExprMethodCall) {
-        if self.test_depth == 0 {
-            let method = call.method.to_string();
-            if BANNED_METHODS.contains(&method.as_str()) {
-                let line = self.line_of(call);
-                self.push(line, &method);
+        if self.test_depth.state() == RulePredicateResult::NotMatched {
+            if let Some(method) = BANNED_METHODS.iter().find(|method| call.method == **method) {
+                let line = crate::boundary::finding::source_line(call);
+                self.push(line, method);
             }
         }
         visit::visit_expr_method_call(self, call);
@@ -201,12 +197,11 @@ impl<'ast> Visit<'ast> for ErrorHandlingVisitor {
         // item context) — covering `visit_expr_macro` SEPARATELY would
         // double-count `dbg!(x)` (visited as both an `ExprMacro` node and
         // the `Macro` it wraps), so this is the single point of truth.
-        if self.test_depth == 0 {
+        if self.test_depth.state() == RulePredicateResult::NotMatched {
             if let Some(segment) = mac.path.segments.last() {
-                let name = segment.ident.to_string();
-                if BANNED_MACROS.contains(&name.as_str()) {
-                    let line = self.line_of(mac);
-                    self.push(line, &name);
+                if let Some(name) = BANNED_MACROS.iter().find(|name| segment.ident == **name) {
+                    let line = crate::boundary::finding::source_line(mac);
+                    self.push(line, name);
                 }
             }
         }
@@ -216,16 +211,11 @@ impl<'ast> Visit<'ast> for ErrorHandlingVisitor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
 
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_fixture_parity;
     use enforcer_validator::validator::Validator;
 
     use super::ErrorHandlingValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn fires_on_unwrap_in_first_party_and_silent_on_result_propagation(
@@ -233,7 +223,6 @@ mod tests {
         let validator = ErrorHandlingValidator::new()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/error-handling/fail_unwrap.rs",
             "fixtures/error-handling/pass_result_propagation.rs",
         )?;
@@ -252,10 +241,11 @@ mod tests {
                        assert_eq!(v, 1);\n\
                        }\n\
                        }\n";
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(
@@ -273,10 +263,11 @@ mod tests {
                        fn b() { todo!(); }\n\
                        fn c() { unimplemented!(); }\n\
                        fn d(x: i32) -> i32 { dbg!(x) }\n";
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert_eq!(findings.len(), 4);
@@ -287,12 +278,15 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         let validator = ErrorHandlingValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file: enforcer_domain::paths::RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: "this is not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());

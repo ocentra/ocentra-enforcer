@@ -32,7 +32,10 @@ fn adr_roundtrip_via_serde_shape_is_stable() {
         .with_linked_node("file:a.rs");
     assert_eq!(adr.id, "adr-002");
     assert_eq!(adr.title, "title");
-    assert_eq!(adr.sections.get("s").map(String::as_str), Some("body"));
+    assert_eq!(
+        adr.sections.get("s").map(|body| body.as_str()),
+        Some("body")
+    );
     assert_eq!(adr.linked_node_ids, vec!["file:a.rs".to_string()]);
 }
 
@@ -82,8 +85,8 @@ fn get_document_on_never_stored_project_is_no_adr_with_empty_content() {
     assert_eq!(
         doc,
         AdrDocument {
-            content: String::new(),
-            no_adr: true,
+            content: String::new().into(),
+            no_adr: true.into(),
         }
     );
 }
@@ -97,7 +100,7 @@ fn update_document_then_get_document_roundtrips_whole_markdown() {
 
     let doc = store.get_document("proj-a");
     assert_eq!(doc.content, markdown);
-    assert!(!doc.no_adr);
+    assert!(!doc.no_adr.is_no_document());
 }
 
 #[test]
@@ -105,7 +108,7 @@ fn update_document_overwrite_is_wholesale_not_a_merge() {
     let mut store = AdrStore::new();
     store.update_document("proj-a", "## PURPOSE\nfirst draft\n");
     let previous = store.update_document("proj-a", "## PURPOSE\nsecond draft\n");
-    assert_eq!(previous, Some("## PURPOSE\nfirst draft\n".to_string()));
+    assert_eq!(previous.as_deref(), Some("## PURPOSE\nfirst draft\n"),);
 
     let doc = store.get_document("proj-a");
     assert_eq!(doc.content, "## PURPOSE\nsecond draft\n");

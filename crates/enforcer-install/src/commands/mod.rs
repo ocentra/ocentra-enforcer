@@ -10,4 +10,5 @@
 //! re-export barrel) so its owned `plan` module has somewhere to live. A
 //! future command emitter adds its own `pub mod` line here without
 //! touching this one.
+#[path = "../boundary/command_plan.rs"]
 pub mod plan;

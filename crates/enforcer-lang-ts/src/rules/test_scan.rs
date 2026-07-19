@@ -12,27 +12,16 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::text_scan::{is_comment_only_line, lines};
+use crate::boundary::finding::{from_source, SourceFinding};
+use crate::boundary::source_analysis::{has_skip_or_only_suite_modifier, has_weak_assertion};
+
+use crate::boundary::source_text::{lines, source_line_role, SourceLineRole};
 
 const RULE_ID: &str = "TS-3.1";
 
-fn has_skip_or_only_suite_modifier(text: &str) -> bool {
-    for base in ["describe", "test", "it"] {
-        for suffix in [".skip(", ".only(", ".todo("] {
-            let needle = format!("{base}{suffix}");
-            if text.contains(&needle) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn has_weak_assertion(text: &str) -> bool {
-    text.contains("expect(true).toBe(true)") || text.contains(".toBeTruthy()")
-}
-
 /// `typescript/test-scan` validator for TS-3.1.
+#[derive(Debug)]
+#[doc = "TypeScript test-quality validator."]
 pub struct TestScanValidator {
     rule_id: RuleId,
 }
@@ -43,7 +32,7 @@ impl TestScanValidator {
     /// `tests/completeness.rs`).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: RULE_ID.parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id(RULE_ID)?,
         })
     }
 }
@@ -56,22 +45,26 @@ impl Validator for TestScanValidator {
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
         for line in lines(input.source) {
-            if is_comment_only_line(line.text) {
+            if source_line_role(line.text) == SourceLineRole::CommentOnly {
                 continue;
             }
-            if has_skip_or_only_suite_modifier(line.text) || has_weak_assertion(line.text) {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "Skipped/focused JavaScript tests are forbidden".to_owned(),
-                    detail: format!(
-                        "line {} skips/focuses a suite or asserts weakly",
-                        line.number
-                    ),
-                    file: input.file.clone(),
-                    line: line.number,
-                    snippet: Some(line.text.trim().to_owned()),
-                });
+            if has_skip_or_only_suite_modifier(line.text.as_str())
+                || has_weak_assertion(line.text.as_str())
+            {
+                findings.extend(from_source(
+                    &self.rule_id,
+                    input.file,
+                    SourceFinding {
+                        severity: Severity::Error,
+                        title: "Skipped/focused JavaScript tests are forbidden",
+                        detail: format!(
+                            "line {} skips/focuses a suite or asserts weakly",
+                            line.number
+                        ),
+                        line: line.number,
+                        snippet: Some(line.text.as_str().trim()),
+                    },
+                ));
             }
         }
         findings
@@ -81,15 +74,13 @@ impl Validator for TestScanValidator {
 #[cfg(test)]
 mod tests {
     use super::TestScanValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
+    use crate::boundary::test_fixtures::run_fixture_parity;
 
     #[test]
     fn fires_on_skip_and_stays_silent_on_clean_test() -> Result<(), Box<dyn std::error::Error>> {
         let validator = TestScanValidator::new()?;
         run_fixture_parity(
             &validator,
-            &PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "fixtures/test-scan/ts-3-1/fail.test.ts",
             "fixtures/test-scan/ts-3-1/pass.test.ts",
         )?;

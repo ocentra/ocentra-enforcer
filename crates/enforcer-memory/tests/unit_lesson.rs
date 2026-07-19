@@ -17,7 +17,7 @@ fn parses_header_and_separator_are_skipped() {
 }
 
 #[test]
-fn ignores_prose_lines() {
+fn parse_ledger_rejects_invalid_malformed_prose_rows() {
     let text = "This is prose with a | pipe | in it but not a real row\n";
     let rows = parse_ledger(text);
     assert!(rows.is_empty());

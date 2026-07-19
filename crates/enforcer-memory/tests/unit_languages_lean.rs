@@ -129,6 +129,14 @@ fn malformed_source_does_not_panic() {
 }
 
 #[test]
+fn malformed_unicode_source_does_not_panic() {
+    let source = "3\u{1b}⤸:\u{b}{`\"\rLѭ¡+\u{46c64}\u{cf078}\u{b}{\u{85a78}𠟄Ѩ\u{a1447}.\0\"\\Ð&'%Y\t'`*\u{1b}?\u{c06a9}\u{7661a};/\u{feff}`¬\u{7f}%E\0s\r\u{76b7c}\u{7f}\u{be2a3}-\r娠\r\u{6c6bd}\"=\u{9d471}-\r\u{1b}須\u{b}Ⱥ0u\u{9f52b}M";
+    let parsed = parse_lean(source);
+    assert!(parsed.symbols.is_empty(), "{:?}", parsed.symbols);
+    assert!(parsed.calls.is_empty(), "{:?}", parsed.calls);
+}
+
+#[test]
 fn fixture_file_parses_without_panic() -> TestResult {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join(FIXTURE_DIR).join("widget.lean");

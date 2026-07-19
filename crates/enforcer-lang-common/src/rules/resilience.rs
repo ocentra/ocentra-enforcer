@@ -23,50 +23,15 @@
 //! per-language AST parse — this crate has no tree-sitter/AST dependency
 //! for Python/Dart/CFML/TS/Rust targets.
 
+use crate::boundary::source_analysis;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-/// The fixed parts of one rule's finding: its id, severity, and title.
-/// Bundled so the per-call-site `finding()` helper stays under clippy's
-/// `too_many_arguments` limit (mirrors [`crate::rules::fsm::FindingSpec`]
-/// and [`crate::rules::size_shape::FindingSpec`]).
-struct FindingSpec<'a> {
-    rule_id: &'a RuleId,
-    severity: Severity,
-    title: &'a str,
-}
-
-/// Build a [`Finding`] for one of this module's validators.
-fn finding(
-    spec: &FindingSpec<'_>,
-    detail: String,
-    input: &ValidationInput<'_>,
-    line: u32,
-) -> Finding {
-    Finding {
-        rule_id: spec.rule_id.clone(),
-        severity: spec.severity,
-        title: spec.title.to_owned(),
-        detail,
-        file: input.file.clone(),
-        line,
-        snippet: None,
-    }
-}
-
 /// Find the 1-based line number of the first line containing `marker`, or
 /// `1` if the caller wants a whole-file finding with no more specific
 /// anchor.
-fn first_line_containing(source: &str, marker: &str) -> Option<u32> {
-    source
-        .lines()
-        .enumerate()
-        .find(|(_, line)| line.contains(marker))
-        .map(|(idx, _)| (idx as u32).saturating_add(1))
-}
-
 /// Markers that identify a "trust-boundary" function signature: the
 /// candidate surface [`FailureModeTestValidator`] enumerates failure modes
 /// for. Deliberately permissive across languages (mirrors this crate's
@@ -103,6 +68,7 @@ const FAILURE_MODE_TEST_MARKERS: &[&str] = &[
 /// trust-boundary function with no companion failure-mode test in the same
 /// file fires a [`Finding`]. A trust-boundary function paired with at least
 /// one recognized failure-mode test marker is silent.
+#[derive(Debug)]
 pub struct FailureModeTestValidator {
     rule_id: RuleId,
 }
@@ -113,7 +79,7 @@ impl FailureModeTestValidator {
     /// crate).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RESIL-FAILURE-MODE-TEST.1".parse()?,
+            rule_id: crate::boundary::static_rule_id("RESIL-FAILURE-MODE-TEST.1")?,
         })
     }
 }
@@ -127,22 +93,20 @@ impl Validator for FailureModeTestValidator {
         let Some(marker) = TRUST_BOUNDARY_MARKERS
             .iter()
             .copied()
-            .find(|marker| input.source.contains(marker))
+            .find(|marker| input.source.as_str().contains(marker))
         else {
             return Vec::new();
         };
         let has_failure_mode_test = FAILURE_MODE_TEST_MARKERS
             .iter()
-            .any(|test_marker| input.source.contains(test_marker));
+            .any(|test_marker| input.source.as_str().contains(test_marker));
         if has_failure_mode_test {
             return Vec::new();
         }
-        vec![finding(
-            &FindingSpec {
-                rule_id: &self.rule_id,
-                severity: Severity::Error,
-                title: "resilience: trust-boundary change has no failure-mode test obligation met",
-            },
+        vec![finding!(
+            &self.rule_id,
+            Severity::Error,
+            "resilience: trust-boundary change has no failure-mode test obligation met",
             format!(
                 "found trust-boundary marker `{marker}` with no companion failure-mode test \
                  (expected one of the recognized test markers, e.g. `test_rejects_invalid`, \
@@ -150,7 +114,7 @@ impl Validator for FailureModeTestValidator {
                  a test asserting each is handled before this passes review."
             ),
             &input,
-            first_line_containing(input.source, marker).unwrap_or(1),
+            source_analysis::first_line_containing(input.source.as_str(), marker).unwrap_or(1),
         )]
     }
 }
@@ -185,6 +149,7 @@ const ATOMIC_WRITE_FIRE_THRESHOLD: f64 = 1.0;
 /// is fixed at `0.7` for this text-level heuristic (a real AST/call-graph
 /// pass could raise it) — both score and confidence are reported in
 /// `[0.0, 1.0]`.
+#[derive(Debug)]
 pub struct AtomicWriteValidator {
     rule_id: RuleId,
 }
@@ -198,7 +163,7 @@ impl AtomicWriteValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RESIL-ATOMIC-WRITE.1".parse()?,
+            rule_id: crate::boundary::static_rule_id("RESIL-ATOMIC-WRITE.1")?,
         })
     }
 }
@@ -212,26 +177,24 @@ impl Validator for AtomicWriteValidator {
         let Some(marker) = TRUNCATE_WRITE_MARKERS
             .iter()
             .copied()
-            .find(|marker| input.source.contains(marker))
+            .find(|marker| input.source.as_str().contains(marker))
         else {
             return Vec::new();
         };
         let mut score = 1.0_f64;
         if ATOMIC_WRITE_GUARD_MARKERS
             .iter()
-            .any(|guard| input.source.contains(guard))
+            .any(|guard| input.source.as_str().contains(guard))
         {
             score -= 1.0;
         }
         if score < ATOMIC_WRITE_FIRE_THRESHOLD {
             return Vec::new();
         }
-        vec![finding(
-            &FindingSpec {
-                rule_id: &self.rule_id,
-                severity: Severity::Warning,
-                title: "resilience: write path may lack atomic write + rollback",
-            },
+        vec![finding!(
+            &self.rule_id,
+            Severity::Warning,
+            "resilience: write path may lack atomic write + rollback",
             format!(
                 "found truncate-then-write marker `{marker}` with no atomic temp-file+rename (or \
                  equivalent) guard anywhere in this file (score {score:.1} >= threshold \
@@ -240,7 +203,7 @@ impl Validator for AtomicWriteValidator {
                  not block."
             ),
             &input,
-            first_line_containing(input.source, marker).unwrap_or(1),
+            source_analysis::first_line_containing(input.source.as_str(), marker).unwrap_or(1),
         )]
     }
 }
@@ -285,6 +248,7 @@ const IO_TIMEOUT_CONFIDENCE: f64 = 0.6;
 /// `0.6` (lower than [`AtomicWriteValidator`]'s, since a bare-call marker
 /// is a weaker signal than a truncate-write marker) — both score and
 /// confidence are reported in `[0.0, 1.0]`.
+#[derive(Debug)]
 pub struct IoTimeoutValidator {
     rule_id: RuleId,
 }
@@ -293,7 +257,7 @@ impl IoTimeoutValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RESIL-IO-TIMEOUT.1".parse()?,
+            rule_id: crate::boundary::static_rule_id("RESIL-IO-TIMEOUT.1")?,
         })
     }
 }
@@ -307,26 +271,24 @@ impl Validator for IoTimeoutValidator {
         let Some(marker) = EXTERNAL_IO_MARKERS
             .iter()
             .copied()
-            .find(|marker| input.source.contains(marker))
+            .find(|marker| input.source.as_str().contains(marker))
         else {
             return Vec::new();
         };
         let mut score = 1.0_f64;
         if IO_TIMEOUT_GUARD_MARKERS
             .iter()
-            .any(|guard| input.source.contains(guard))
+            .any(|guard| input.source.as_str().contains(guard))
         {
             score -= 1.0;
         }
         if score < IO_TIMEOUT_FIRE_THRESHOLD {
             return Vec::new();
         }
-        vec![finding(
-            &FindingSpec {
-                rule_id: &self.rule_id,
-                severity: Severity::Warning,
-                title: "resilience: external I/O call may lack a timeout/retry guard",
-            },
+        vec![finding!(
+            &self.rule_id,
+            Severity::Warning,
+            "resilience: external I/O call may lack a timeout/retry guard",
             format!(
                 "found bare external I/O marker `{marker}` with no timeout/retry guard anywhere \
                  in this file (score {score:.1} >= threshold {IO_TIMEOUT_FIRE_THRESHOLD:.1}, \
@@ -334,7 +296,7 @@ impl Validator for IoTimeoutValidator {
                  indefinitely on a stalled peer. This is advisory and does not block."
             ),
             &input,
-            first_line_containing(input.source, marker).unwrap_or(1),
+            source_analysis::first_line_containing(input.source.as_str(), marker).unwrap_or(1),
         )]
     }
 }
@@ -352,15 +314,15 @@ pub fn validators(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use crate::boundary::{manifest_dir, run_fixture_parity};
+    use enforcer_domain::severity::Severity;
+    use enforcer_validator::validator::{ValidationInput, Validator};
 
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::*;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
+    use super::{
+        validators, AtomicWriteValidator, FailureModeTestValidator, IoTimeoutValidator,
+        ATOMIC_WRITE_CONFIDENCE, ATOMIC_WRITE_FIRE_THRESHOLD, IO_TIMEOUT_CONFIDENCE,
+        IO_TIMEOUT_FIRE_THRESHOLD,
+    };
 
     #[test]
     fn three_validators_registered_with_unique_rule_ids(
@@ -422,11 +384,13 @@ mod tests {
     fn smells_never_carry_blocking_severity() -> Result<(), Box<dyn std::error::Error>> {
         let atomic = AtomicWriteValidator::new()?;
         let timeout = IoTimeoutValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file = crate::boundary::static_rel_path("crates/x/src/lib.rs")?;
 
         let atomic_findings = atomic.validate(ValidationInput {
             file: &file,
-            source: "fn save() { fs::write(\"x\", data)?; }\n",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "fn save() { fs::write(\"x\", data)?; }\n",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(!atomic_findings.is_empty(), "fixture assumption failed");
@@ -436,7 +400,9 @@ mod tests {
 
         let timeout_findings = timeout.validate(ValidationInput {
             file: &file,
-            source: "async fn ping() { reqwest::get(\"http://x\").await?; }\n",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "async fn ping() { reqwest::get(\"http://x\").await?; }\n",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(!timeout_findings.is_empty(), "fixture assumption failed");
@@ -451,10 +417,12 @@ mod tests {
     #[test]
     fn required_test_obligation_is_blocking() -> Result<(), Box<dyn std::error::Error>> {
         let validator = FailureModeTestValidator::new()?;
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file = crate::boundary::static_rel_path("crates/x/src/lib.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "pub fn handle(req: Request) -> Response { todo!() }\n",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "pub fn handle(req: Request) -> Response { todo!() }\n",
+            ),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(!findings.is_empty(), "fixture assumption failed");
@@ -484,12 +452,12 @@ mod tests {
     #[test]
     fn clean_source_with_no_markers_is_silent_across_all_three(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let file = crate::boundary::static_rel_path("crates/x/src/lib.rs")?;
         let source = "fn add(a: i32, b: i32) -> i32 { a + b }\n";
         for v in validators()? {
             let findings = v.validate(ValidationInput {
                 file: &file,
-                source,
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
                 scope: enforcer_domain::findings::ScanScope::Files,
             });
             assert!(

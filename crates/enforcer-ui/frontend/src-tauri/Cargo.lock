@@ -892,7 +892,6 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 name = "enforcer-config"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "serde",
  "serde_json",
@@ -903,7 +902,6 @@ dependencies = [
 name = "enforcer-coordination"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-events",
  "enforcer-validator",
@@ -918,6 +916,7 @@ dependencies = [
 name = "enforcer-core"
 version = "0.1.0"
 dependencies = [
+ "enforcer-domain",
  "regex",
  "serde",
  "serde_json",
@@ -931,9 +930,10 @@ dependencies = [
 name = "enforcer-domain"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "serde",
+ "serde_json",
  "sha2",
+ "thiserror 1.0.69",
  "ts-rs",
 ]
 
@@ -942,10 +942,12 @@ name = "enforcer-events"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "enforcer-domain",
  "futures",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -968,7 +970,6 @@ dependencies = [
 name = "enforcer-install"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-mcp",
  "serde",
@@ -983,7 +984,6 @@ name = "enforcer-lang-common"
 version = "0.1.0"
 dependencies = [
  "enforcer-config",
- "enforcer-core",
  "enforcer-domain",
  "enforcer-rules",
  "enforcer-validator",
@@ -996,30 +996,22 @@ dependencies = [
 name = "enforcer-lang-iac"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "enforcer-lang-k8s"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
- "enforcer-lang-common",
  "enforcer-validator",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "enforcer-lang-py"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
  "serde_json",
@@ -1029,7 +1021,6 @@ dependencies = [
 name = "enforcer-lang-rust"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
  "proc-macro2",
@@ -1040,7 +1031,6 @@ dependencies = [
 name = "enforcer-lang-security"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
  "regex",
@@ -1053,7 +1043,6 @@ dependencies = [
 name = "enforcer-lang-ts"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
  "serde",
@@ -1064,7 +1053,6 @@ dependencies = [
 name = "enforcer-literal-scan"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
 ]
@@ -1103,6 +1091,7 @@ dependencies = [
  "enforcer-mcp",
  "git2",
  "notify",
+ "ocentra-tree-sitter-pkl",
  "petgraph",
  "rand_core",
  "regex",
@@ -1114,7 +1103,7 @@ dependencies = [
  "tokio",
  "tree-sitter",
  "tree-sitter-ada",
- "tree-sitter-agda-local",
+ "tree-sitter-agda",
  "tree-sitter-asm",
  "tree-sitter-astro-local",
  "tree-sitter-bash",
@@ -1205,7 +1194,6 @@ dependencies = [
  "tree-sitter-pascal",
  "tree-sitter-php",
  "tree-sitter-pine-local",
- "tree-sitter-pkl",
  "tree-sitter-po-local",
  "tree-sitter-pony-local",
  "tree-sitter-powershell",
@@ -1268,11 +1256,8 @@ version = "0.1.0"
 dependencies = [
  "enforcer-core",
  "enforcer-domain",
- "enforcer-events",
- "enforcer-scan",
  "serde",
  "serde_json",
- "sha2",
  "thiserror 1.0.69",
 ]
 
@@ -1316,7 +1301,6 @@ dependencies = [
 name = "enforcer-security"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-validator",
  "proc-macro2",
@@ -1370,7 +1354,6 @@ dependencies = [
 name = "enforcer-validator"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "enforcer-domain",
  "enforcer-rules",
  "thiserror 1.0.69",
@@ -2920,6 +2903,14 @@ dependencies = [
  "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation",
+]
+
+[[package]]
+name = "ocentra-tree-sitter-pkl"
+version = "0.21.0"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
 ]
 
 [[package]]
@@ -4645,8 +4636,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-agda-local"
-version = "0.1.0"
+name = "tree-sitter-agda"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79170741bc75a42d93a69f7e2d39bece006bea602af30650f7f323645094d693"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -4820,7 +4813,6 @@ dependencies = [
 [[package]]
 name = "tree-sitter-crystal"
 version = "0.0.1"
-source = "git+https://github.com/crystal-lang-tools/tree-sitter-crystal?rev=50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49#50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -5348,7 +5340,6 @@ dependencies = [
 [[package]]
 name = "tree-sitter-magma"
 version = "0.1.0"
-source = "git+https://github.com/edgarcosta/tree-sitter-magma?rev=75b31f4695261967c7aa87d552d69805dc03c77b#75b31f4695261967c7aa87d552d69805dc03c77b"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -5494,15 +5485,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter-pkl"
-version = "0.21.0"
-source = "git+https://github.com/apple/tree-sitter-pkl?rev=5893fb5dc832ea51a9bff3f84462528c766ecd7d#5893fb5dc832ea51a9bff3f84462528c766ecd7d"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
 name = "tree-sitter-po-local"
 version = "0.1.0"
 dependencies = [
@@ -5571,7 +5553,6 @@ dependencies = [
 [[package]]
 name = "tree-sitter-purescript"
 version = "0.3.0"
-source = "git+https://github.com/postsolar/tree-sitter-purescript?tag=v0.3.0#f541f95ffd6852fbbe88636317c613285bc105af"
 dependencies = [
  "cc",
  "tree-sitter-language",

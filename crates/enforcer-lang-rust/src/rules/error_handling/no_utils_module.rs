@@ -12,7 +12,7 @@
 //! count — matching the workpack's "T1 on the banned name" half exactly.
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -27,6 +27,7 @@ const BANNED_BASENAMES: &[&str] = &[
 ];
 
 /// The `RUST-NO-UTILS-MODULE` `Validator`.
+#[derive(Debug)]
 pub struct NoUtilsModuleValidator {
     rule_id: RuleId,
 }
@@ -36,7 +37,7 @@ impl NoUtilsModuleValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-NO-UTILS-MODULE".parse()?,
+            rule_id: BuiltInRustRule::NoUtilsModule.id(),
         })
     }
 }
@@ -58,19 +59,20 @@ impl Validator for NoUtilsModuleValidator {
         let Some(basename) = banned_basename(input.file) else {
             return Vec::new();
         };
-        vec![Finding {
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            title: format!("catch-all module name `{basename}` is banned"),
-            detail: format!(
+        let Ok(finding) = crate::boundary::finding::from_source(
+            (&self.rule_id, Severity::Error),
+            format!("catch-all module name `{basename}` is banned"),
+            format!(
                 "Fix: rename this module to a responsibility-named module (e.g. \
                  `path_normalize.rs`) instead of the catch-all dumping-ground name \
                  `{basename}`; split by what each function actually does."
             ),
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }]
+            input.file,
+            crate::boundary::finding::first_source_line(),
+        ) else {
+            return Vec::new();
+        };
+        vec![finding]
     }
 }
 
@@ -97,10 +99,10 @@ mod tests {
     fn fires_on_banned_basename() -> Result<(), Box<dyn std::error::Error>> {
         let validator = NoUtilsModuleValidator::new()?;
         let source = read_fixture("fixtures/no-utils-module/fail_banned_name.rs")?;
-        let file: RelPath = "crates/x/src/utils.rs".parse()?;
+        let file: RelPath = crate::boundary::fixture::source_file("crates/x/src/utils.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         assert_eq!(findings.len(), 1);
@@ -112,10 +114,11 @@ mod tests {
     fn silent_on_responsibility_named_module() -> Result<(), Box<dyn std::error::Error>> {
         let validator = NoUtilsModuleValidator::new()?;
         let source = read_fixture("fixtures/no-utils-module/pass_named_module.rs")?;
-        let file: RelPath = "crates/x/src/path_normalize.rs".parse()?;
+        let file: RelPath =
+            crate::boundary::fixture::source_file("crates/x/src/path_normalize.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         assert!(findings.is_empty());

@@ -15,7 +15,7 @@ import { ProjectSettingsWorkspace, type SettingsTab } from "./components/Project
 import { ProofWorkspace } from "./components/ProofWorkspace";
 import { AssuranceWorkspace, type SecurityProfilePayload } from "./components/AssuranceWorkspace";
 import { RuleCatalogWorkspace } from "./components/RuleCatalogWorkspace";
-import { appData, type Project } from "./data/enforcerAppData";
+import { appData, type Project, type UiMaybe } from "./data/enforcerAppData";
 import { invokeDesktop } from "./data/desktopClient";
 import { displayFindings, emptyReport, type EnforcerReport } from "./data/reportAdapter";
 import { graphFromNative, unavailableGraph, type GraphFocus, type GraphNode, type GraphSourceSnippet, type NativeGraphPayload, type ProjectGraph } from "./data/graphAdapter";
@@ -41,14 +41,14 @@ type ProjectInspectionPayload = {
   branch?: string;
   detectedLanguages: string[];
 };
-type GraphSearchPayload = { total: number; hasMore: boolean; query: string; projectScope: string; results: Array<{ nodeId: string; name: string; qualifiedName: string; label: string; filePath: string; evidenceKind: "code-graph" | "learning-memory" | "proof-artifact"; rank?: string }> };
+type GraphSearchResponse = { total: number; hasMore: boolean; query: string; projectScope: string; results: Array<{ nodeId: string; name: string; qualifiedName: string; label: string; filePath: string; evidenceKind: "code-graph" | "learning-memory" | "proof-artifact"; rank?: string }> };
 type ProofArtifactPayload = { path: string; modifiedAt: string; bytes: number };
 type ProjectProofSnapshot = {
   proofRoot: string;
-  currentGit: { commit?: string; branch?: string; dirty?: boolean };
-  journal: { path: string; state: "missing" | "verified" | "invalid"; recordCount: number; latestEventType?: string; latestProofId?: string; latestTimestamp?: string; error?: string };
-  runs: Array<{ path: string; proofRun?: { proofId: string; runId: string; title: string; capability: string; status: "passed" | "failed" | "manual-required" | "unavailable"; endedAt: string; pinned: boolean; diagnosticCount: number; artifacts: Array<{ path: string; byteLength: number }> }; freshness: "current" | "stale" | "unavailable" | "invalid"; artifacts: { declared: number; present: number; missing: number; totalBytes: number }; parseError?: string }>;
-  claim: { registryPath: string; state: "unconfigured" | "invalid-registry" | "no-required-proofs" | "ready" | "blocked"; requiredProofIds: string[]; claim?: { accepted: Array<{ proofId: string; runId: string }>; violations: Array<{ proofId: string; code: string; message: string }> }; error?: string };
+  currentGit: { commit: UiMaybe<string>; branch: UiMaybe<string>; dirty: UiMaybe<boolean> };
+  journal: { path: string; state: "missing" | "verified" | "invalid"; recordCount: number; latestEventType: UiMaybe<string>; latestProofId: UiMaybe<string>; latestTimestamp: UiMaybe<string>; error: UiMaybe<string> };
+  runs: Array<{ path: string; proofRun: UiMaybe<{ proofId: string; runId: string; title: string; capability: string; status: "passed" | "failed" | "manual-required" | "unavailable"; endedAt: string; pinned: boolean; diagnosticCount: number; artifacts: Array<{ path: string; byteLength: number }> }>; freshness: "current" | "stale" | "unavailable" | "invalid"; artifacts: { declared: number; present: number; missing: number; totalBytes: number }; parseError: UiMaybe<string> }>;
+  claim: { registryPath: string; state: "unconfigured" | "invalid-registry" | "no-required-proofs" | "ready" | "blocked"; requiredProofIds: string[]; claim: UiMaybe<{ accepted: Array<{ proofId: string; runId: string }>; violations: Array<{ proofId: string; code: string; message: string }> }>; error: UiMaybe<string> };
 };
 type ScanScopeSettingsPayload = { sourcePath: string; exists: boolean; profileName: string; ignoreDirs: string[]; ignoreFileGlobs: string[] };
 type ProjectDiscoveryPayload = { projects: Project[]; discoveredCount: number; mainRoot: string };
@@ -216,7 +216,7 @@ export function App(): ReactElement {
   const [harnessDiscovery, setHarnessDiscovery] = useState<HarnessDiscoveryPayload>();
   const [harnessDiscoveryLoading, setHarnessDiscoveryLoading] = useState(false);
   const [harnessDiscoveryError, setHarnessDiscoveryError] = useState("");
-  const [memorySearch, setMemorySearch] = useState<GraphSearchPayload>();
+  const [memorySearch, setMemorySearch] = useState<GraphSearchResponse>();
   const [memorySearchLoading, setMemorySearchLoading] = useState(false);
   const [memorySearchError, setMemorySearchError] = useState("");
   const [proofArtifacts, setProofArtifacts] = useState<ProofArtifactPayload[]>([]);
@@ -623,7 +623,7 @@ export function App(): ReactElement {
     setMemorySearchLoading(true);
     setMemorySearchError("");
     try {
-      setMemorySearch(await invokeDesktop<GraphSearchPayload>("search_memory_graph", { root: selectedProject.root, query }));
+      setMemorySearch(await invokeDesktop<GraphSearchResponse>("search_memory_graph", { root: selectedProject.root, query }));
     } catch (error) {
       setMemorySearchError(String(error));
       setMemorySearch(undefined);

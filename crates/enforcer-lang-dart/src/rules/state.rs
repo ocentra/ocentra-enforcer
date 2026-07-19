@@ -6,14 +6,16 @@
 //! `DART-INITSTATE-1.1` (scored: data fetch in `initState`).
 
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::boundary::validation::ValidationMarker;
+use enforcer_domain::ids::{BuiltInDartRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-use super::support::{finding, first_line_containing, FindingSpec};
+use super::support::{first_line_containing, FindingSpec};
 
 /// `DART-STATE-1.1` — no `ChangeNotifier` in new code (Riverpod
 /// `Notifier`/`AsyncNotifier` supersedes it).
+#[derive(Debug)]
 pub struct NoChangeNotifierValidator {
     rule_id: RuleId,
 }
@@ -21,7 +23,7 @@ pub struct NoChangeNotifierValidator {
 impl NoChangeNotifierValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-STATE-1.1".parse()?,
+            rule_id: BuiltInDartRule::NoChangeNotifier.id(),
         })
     }
 }
@@ -32,18 +34,20 @@ impl Validator for NoChangeNotifierValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "extends ChangeNotifier") else {
+        let Some(line) = first_line_containing(
+            input.source,
+            ValidationMarker::from_static("extends ChangeNotifier"),
+        ) else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "ChangeNotifier used in new code",
+                rule: BuiltInDartRule::NoChangeNotifier,
             },
             "class extends `ChangeNotifier` — new code must use a Riverpod 2.x \
-             `Notifier`/`AsyncNotifier` instead."
-                .to_owned(),
+             `Notifier`/`AsyncNotifier` instead.",
             &input,
             line,
         )]
@@ -52,6 +56,7 @@ impl Validator for NoChangeNotifierValidator {
 
 /// `DART-RIVERPOD-1.1` — Riverpod 2.x `NotifierProvider` required; ban
 /// legacy 1.x `StateNotifierProvider`.
+#[derive(Debug)]
 pub struct LegacyStateNotifierProviderValidator {
     rule_id: RuleId,
 }
@@ -59,7 +64,7 @@ pub struct LegacyStateNotifierProviderValidator {
 impl LegacyStateNotifierProviderValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-RIVERPOD-1.1".parse()?,
+            rule_id: BuiltInDartRule::LegacyStateNotifierProvider.id(),
         })
     }
 }
@@ -70,18 +75,20 @@ impl Validator for LegacyStateNotifierProviderValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "StateNotifierProvider") else {
+        let Some(line) = first_line_containing(
+            input.source,
+            ValidationMarker::from_static("StateNotifierProvider"),
+        ) else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Error,
-                title: "legacy StateNotifierProvider used",
+                rule: BuiltInDartRule::LegacyStateNotifierProvider,
             },
             "`StateNotifierProvider` is legacy Riverpod 1.x — use a `NotifierProvider` (Riverpod \
-             2.x) instead."
-                .to_owned(),
+             2.x) instead.",
             &input,
             line,
         )]
@@ -90,6 +97,7 @@ impl Validator for LegacyStateNotifierProviderValidator {
 
 /// `DART-STATE-1.2` — no `ref.read` inside `build()`; use `ref.watch` so
 /// the widget rebuilds on provider change.
+#[derive(Debug)]
 pub struct RefReadInBuildValidator {
     rule_id: RuleId,
 }
@@ -97,7 +105,7 @@ pub struct RefReadInBuildValidator {
 impl RefReadInBuildValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-STATE-1.2".parse()?,
+            rule_id: BuiltInDartRule::RefReadInBuild.id(),
         })
     }
 }
@@ -108,17 +116,21 @@ impl Validator for RefReadInBuildValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(build_start) = first_line_containing(input.source, " build(") else {
+        let Some(build_start) =
+            first_line_containing(input.source, ValidationMarker::from_static(" build("))
+        else {
             return Vec::new();
         };
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
         let mut depth: i64 = 0;
         let mut opened = false;
-        for (idx, line) in lines
-            .iter()
-            .enumerate()
-            .skip((build_start as usize).saturating_sub(1))
-        {
+        // BRAND-INVARIANT: SourceLine is positive and one-based; this checked
+        // conversion creates only the zero-based iterator offset.
+        for (idx, line) in lines.iter().enumerate().skip(
+            usize::try_from(build_start.value().get())
+                .unwrap_or(usize::MAX)
+                .saturating_sub(1),
+        ) {
             for ch in line.chars() {
                 if ch == '{' {
                     depth += 1;
@@ -128,17 +140,16 @@ impl Validator for RefReadInBuildValidator {
                 }
             }
             if line.contains("ref.read(") {
-                return vec![finding(
+                return vec![finding!(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
-                        title: "ref.read used inside build()",
+                        rule: BuiltInDartRule::RefReadInBuild,
                     },
                     "`ref.read(...)` is called inside `build()` — use `ref.watch(...)` so the \
-                     widget rebuilds when the provider changes."
-                        .to_owned(),
+                     widget rebuilds when the provider changes.",
                     &input,
-                    (idx as u32).saturating_add(1),
+                    idx.saturating_add(1),
                 )];
             }
             if opened && depth <= 0 {
@@ -152,6 +163,7 @@ impl Validator for RefReadInBuildValidator {
 /// `DART-STATE-1.3` (scored) — a detail widget's `build()` mutates a
 /// list provider directly (`ref.read(listProvider.notifier).update(...)`)
 /// instead of emitting an event/navigating back with a result.
+#[derive(Debug)]
 pub struct DetailMutatesListProviderValidator {
     rule_id: RuleId,
 }
@@ -159,7 +171,7 @@ pub struct DetailMutatesListProviderValidator {
 impl DetailMutatesListProviderValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-STATE-1.3".parse()?,
+            rule_id: BuiltInDartRule::DetailMutatesListProvider.id(),
         })
     }
 }
@@ -170,20 +182,21 @@ impl Validator for DetailMutatesListProviderValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(line) = first_line_containing(input.source, "listProvider.notifier).update(")
-        else {
+        let Some(line) = first_line_containing(
+            input.source,
+            ValidationMarker::from_static("listProvider.notifier).update("),
+        ) else {
             return Vec::new();
         };
-        vec![finding(
+        vec![finding!(
             &FindingSpec {
                 rule_id: &self.rule_id,
                 severity: Severity::Warning,
-                title: "detail widget mutates a list provider directly (scored)",
+                rule: BuiltInDartRule::DetailMutatesListProvider,
             },
             "a detail widget mutates a list provider directly via \
              `ref.read(listProvider.notifier).update(...)` — emit an event or navigate back with \
-             a result instead of reaching into shared list state."
-                .to_owned(),
+             a result instead of reaching into shared list state.",
             &input,
             line,
         )]
@@ -193,6 +206,7 @@ impl Validator for DetailMutatesListProviderValidator {
 /// `DART-INITSTATE-1.1` (scored) — a data fetch kicked off from
 /// `initState` (`fetch().then(...)` inside `initState`) instead of a
 /// provider/`FutureBuilder`.
+#[derive(Debug)]
 pub struct DataFetchInInitStateValidator {
     rule_id: RuleId,
 }
@@ -200,7 +214,7 @@ pub struct DataFetchInInitStateValidator {
 impl DataFetchInInitStateValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "DART-INITSTATE-1.1".parse()?,
+            rule_id: BuiltInDartRule::DataFetchInInitState.id(),
         })
     }
 }
@@ -211,17 +225,21 @@ impl Validator for DataFetchInInitStateValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<enforcer_domain::findings::Finding> {
-        let Some(init_start) = first_line_containing(input.source, "initState(") else {
+        let Some(init_start) =
+            first_line_containing(input.source, ValidationMarker::from_static("initState("))
+        else {
             return Vec::new();
         };
-        let lines: Vec<&str> = input.source.lines().collect();
+        let lines: Vec<&str> = input.source.as_str().lines().collect();
         let mut depth: i64 = 0;
         let mut opened = false;
-        for (idx, line) in lines
-            .iter()
-            .enumerate()
-            .skip((init_start as usize).saturating_sub(1))
-        {
+        // BRAND-INVARIANT: SourceLine is positive and one-based; this checked
+        // conversion creates only the zero-based iterator offset.
+        for (idx, line) in lines.iter().enumerate().skip(
+            usize::try_from(init_start.value().get())
+                .unwrap_or(usize::MAX)
+                .saturating_sub(1),
+        ) {
             for ch in line.chars() {
                 if ch == '{' {
                     depth += 1;
@@ -231,17 +249,16 @@ impl Validator for DataFetchInInitStateValidator {
                 }
             }
             if line.contains(".then(") {
-                return vec![finding(
+                return vec![finding!(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Warning,
-                        title: "data fetch kicked off from initState (scored)",
+                        rule: BuiltInDartRule::DataFetchInInitState,
                     },
                     "`initState` kicks off a data fetch with `.then(...)` — use a provider or \
-                     `FutureBuilder` to drive the fetch instead of an imperative side-effect."
-                        .to_owned(),
+                     `FutureBuilder` to drive the fetch instead of an imperative side-effect.",
                     &input,
-                    (idx as u32).saturating_add(1),
+                    idx.saturating_add(1),
                 )];
             }
             if opened && depth <= 0 {

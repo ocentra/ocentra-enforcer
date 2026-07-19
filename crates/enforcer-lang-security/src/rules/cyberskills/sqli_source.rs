@@ -36,7 +36,7 @@
 //! 1. an f-string containing `{` and a SQL keyword,
 //! 2. `+` string concatenation with a SQL keyword present,
 //! 3. the `%` string-formatting operator applied directly after a SQL
-//!    string literal (the unsafe `"... %s" % var` form, as opposed to the
+//!    string literal (the insecure `"... %s" % var` form, as opposed to the
 //!    safe `execute(sql, params)` two-argument form),
 //! 4. `.format(` chained directly onto a SQL string literal,
 //! 5. a JS/Node template literal containing `${` and a SQL keyword.
@@ -59,6 +59,7 @@ use regex::Regex;
 /// assembled via f-string/template-literal interpolation, `+`
 /// concatenation, `%` string formatting, or `.format()`, rather than
 /// passed as a bound parameter.
+#[derive(Debug)]
 pub struct SqlInjectionSourceValidator {
     rule_id: RuleId,
     sink: Regex,
@@ -76,29 +77,29 @@ impl SqlInjectionSourceValidator {
         // `knex.raw(`, ...). Capture group 1 is the (lazily matched, single
         // paren depth) argument text.
         let sink = Regex::new(r"\.(?:execute|executemany|raw|query)\s*\((.*?)\)")
-            .map_err(|err| DecodeError::new("cyberskillsSqliSourceSink", err.to_string()))?;
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsSqliSourceSink", err))?;
         // Word-bounded so `UPDATE_COUNTER` or `FROMAGE` do not match.
         let keyword = Regex::new(r"(?i)\b(?:SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|UNION|DROP)\b")
-            .map_err(|err| DecodeError::new("cyberskillsSqliSourceKeyword", err.to_string()))?;
+            .map_err(|err| crate::boundary::regex::decode("cyberskillsSqliSourceKeyword", err))?;
         let fstring_prefix = Regex::new(r#"^[fF]["']"#).map_err(|err| {
-            DecodeError::new("cyberskillsSqliSourceFstringPrefix", err.to_string())
+            crate::boundary::regex::decode("cyberskillsSqliSourceFstringPrefix", err)
         })?;
         // A quote immediately (modulo whitespace) followed by the `%`
-        // operator: the unsafe `"... %s" % var` shape. A `%s` placeholder
+        // operator: the insecure `"... %s" % var` shape. A `%s` format token
         // living INSIDE the string (before its closing quote) never
         // matches this, and neither does the safe two-argument
         // `execute(sql, (params,))` call (a comma, not `%`, follows the
         // closing quote there).
         let percent_after_quote = Regex::new(r#"["']\s*%\s*"#).map_err(|err| {
-            DecodeError::new("cyberskillsSqliSourcePercentAfterQuote", err.to_string())
+            crate::boundary::regex::decode("cyberskillsSqliSourcePercentAfterQuote", err)
         })?;
         // A quote immediately (modulo whitespace) followed by `.format(`:
         // `"...".format(var)` chained straight onto the SQL literal.
         let dot_format_after_quote = Regex::new(r#"["']\s*\.\s*format\s*\("#).map_err(|err| {
-            DecodeError::new("cyberskillsSqliSourceDotFormatAfterQuote", err.to_string())
+            crate::boundary::regex::decode("cyberskillsSqliSourceDotFormatAfterQuote", err)
         })?;
         Ok(Self {
-            rule_id: "CYBER-SQLI-SOURCE.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberSqliSource.id(),
             sink,
             keyword,
             fstring_prefix,
@@ -115,7 +116,7 @@ impl Validator for SqlInjectionSourceValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             let Some(captures) = self.sink.captures(line) else {
                 continue;
@@ -152,11 +153,10 @@ impl Validator for SqlInjectionSourceValidator {
                 continue;
             }
 
-            findings.push(Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "SQL query built by unsafe string construction".to_owned(),
-                detail: format!(
+            findings.extend(crate::boundary::finding::from_source(
+                (&self.rule_id, Severity::Error),
+                "SQL query built by insecure string construction",
+                format!(
                     "A DB sink call assembles its SQL argument via: {}. An attacker-controlled \
                      value spliced directly into SQL text can change the statement's meaning. \
                      Fix: use a parameterized query / prepared statement (placeholders such as \
@@ -164,10 +164,9 @@ impl Validator for SqlInjectionSourceValidator {
                      of splicing a variable into the SQL string.",
                     matched_labels.join(", ")
                 ),
-                file: input.file.clone(),
-                line: line_number,
-                snippet: Some(line.to_owned()),
-            });
+                input.file,
+                (line_number, Some(line)),
+            ));
         }
         findings
     }
@@ -175,22 +174,15 @@ impl Validator for SqlInjectionSourceValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::SqlInjectionSourceValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn cyberskills_sqli_source() -> Result<(), Box<dyn std::error::Error>> {
         let validator = SqlInjectionSourceValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/web.sql-injection-source/bad/vuln.py",
             "tests/fixtures/cyberskills/web.sql-injection-source/good/safe.py",
         )?;

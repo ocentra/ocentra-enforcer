@@ -24,7 +24,13 @@
 
 use crate::graph::MemoryGraph;
 use crate::ingest::Incident;
+use crate::owned_boundary::Retained;
 use crate::recall::EvidenceResult;
+use enforcer_domain::memory_types::{
+    IngestIncidentId, MemoryEvidenceHasT0Provenance, MemoryEvidenceIncomplete,
+    MemoryEvidenceLandedAt, MemoryEvidenceProofRef, MemoryEvidenceRecurrenceCount,
+    MemoryEvidenceSinceLanding, MemoryLessonId,
+};
 
 /// A caller-supplied lookup from a landing reference (e.g. `"commit
 /// abc123"`, `"arc-16 finding"`) to zero or more enforcer-proof journal
@@ -38,7 +44,7 @@ pub trait ProofRefLookup {
     /// `landed_at_ref`. An empty vec is a legitimate answer (no journal
     /// entry found) -- it is NOT an error, it just means this element of
     /// the chain will report `proof_refs: []`.
-    fn lookup(&self, landed_at_ref: &str) -> Vec<String>;
+    fn lookup(&self, landed_at_ref: &MemoryEvidenceLandedAt) -> Vec<MemoryEvidenceProofRef>;
 }
 
 /// A no-op lookup that always returns no proof refs -- the default for
@@ -50,7 +56,7 @@ pub trait ProofRefLookup {
 pub struct NoProofRefs;
 
 impl ProofRefLookup for NoProofRefs {
-    fn lookup(&self, _landed_at_ref: &str) -> Vec<String> {
+    fn lookup(&self, _landed_at_ref: &MemoryEvidenceLandedAt) -> Vec<MemoryEvidenceProofRef> {
         Vec::new()
     }
 }
@@ -66,8 +72,8 @@ pub struct ObservedIncident<'a> {
 /// [`ProofRefLookup`] attached for that landing reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LandedArtifact {
-    pub landed_at: String,
-    pub proof_refs: Vec<String>,
+    pub landed_at: MemoryEvidenceLandedAt,
+    pub proof_refs: Vec<MemoryEvidenceProofRef>,
 }
 
 /// The full evidence report for one lesson id: t0 observations, t1
@@ -77,14 +83,14 @@ pub struct LandedArtifact {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvidenceReport<'a> {
     Chain {
-        lesson_id: String,
+        lesson_id: MemoryLessonId,
         observed: Vec<ObservedIncident<'a>>,
         landed: Vec<LandedArtifact>,
-        recurrence_since_landing: usize,
-        has_t0_provenance: bool,
+        recurrence_since_landing: MemoryEvidenceRecurrenceCount,
+        has_t0_provenance: MemoryEvidenceHasT0Provenance,
     },
     Unknown {
-        lesson_id: String,
+        lesson_id: MemoryLessonId,
     },
 }
 
@@ -93,14 +99,15 @@ impl<'a> EvidenceReport<'a> {
     /// missing -- the fail-closed signal the caller must report as
     /// `evidence:incomplete` rather than treating an empty chain as
     /// "nothing wrong".
-    pub fn is_incomplete(&self) -> bool {
+    pub fn is_incomplete(&self) -> MemoryEvidenceIncomplete {
         matches!(
             self,
             EvidenceReport::Chain {
-                has_t0_provenance: false,
+                has_t0_provenance,
                 ..
-            }
+            } if !has_t0_provenance.has_t0_provenance()
         )
+        .into()
     }
 }
 
@@ -109,13 +116,15 @@ impl<'a> EvidenceReport<'a> {
 /// t1 landing with proof refs from `proof_refs`.
 pub fn evidence_chain<'a>(
     graph: &'a MemoryGraph,
-    lesson_id: &str,
+    lesson_id: &MemoryLessonId,
     proof_refs: &impl ProofRefLookup,
 ) -> EvidenceReport<'a> {
     match crate::recall::evidence(graph, lesson_id) {
-        EvidenceResult::Unknown { lesson_id } => EvidenceReport::Unknown { lesson_id },
+        EvidenceResult::Unknown { .. } => EvidenceReport::Unknown {
+            lesson_id: lesson_id.retained(),
+        },
         EvidenceResult::Chain {
-            lesson_id,
+            lesson_id: _,
             steps,
             recurrence_since_landing,
             has_t0_provenance,
@@ -137,7 +146,7 @@ pub fn evidence_chain<'a>(
                 }
             }
             EvidenceReport::Chain {
-                lesson_id,
+                lesson_id: lesson_id.retained(),
                 observed,
                 landed,
                 recurrence_since_landing,
@@ -160,29 +169,30 @@ pub fn evidence_chain<'a>(
 /// (t0 baseline), not recurrence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecurrencePoint {
-    pub incident_id: String,
-    pub since_landing: bool,
-    pub running_recurrence_count: usize,
+    pub incident_id: IngestIncidentId,
+    pub since_landing: MemoryEvidenceSinceLanding,
+    pub running_recurrence_count: MemoryEvidenceRecurrenceCount,
 }
 
 /// Compute the recurrence curve for `lesson_id`. Fail-closed: if the
 /// lesson has no landing evidence at all, every point has
 /// `since_landing = false` and the running count stays 0 -- recurrence
 /// is only ever counted against a real landing, never assumed.
-pub fn recurrence_curve(graph: &MemoryGraph, lesson_id: &str) -> Vec<RecurrencePoint> {
+pub fn recurrence_curve(graph: &MemoryGraph, lesson_id: &MemoryLessonId) -> Vec<RecurrencePoint> {
     let has_landing = graph.nodes().iter().any(|node| match node {
         crate::graph::MemoryNode::Lesson(row) => {
-            row.id == lesson_id && !row.landed_at.trim().is_empty()
+            row.id == lesson_id.as_str() && !row.landed_at.trim().is_empty()
         }
         crate::graph::MemoryNode::Record(record) => {
-            record.id() == lesson_id && record.landed_at().iter().any(|l| !l.trim().is_empty())
+            record.id() == lesson_id.as_str()
+                && record.landed_at().iter().any(|l| !l.trim().is_empty())
         }
         crate::graph::MemoryNode::Incident(_) => false,
     });
 
     let mut running = 0usize;
     graph
-        .incidents_for_lesson(lesson_id)
+        .incidents_for_lesson(&lesson_id.as_str().into())
         .into_iter()
         .map(|incident| {
             let since_landing = has_landing;
@@ -190,9 +200,9 @@ pub fn recurrence_curve(graph: &MemoryGraph, lesson_id: &str) -> Vec<RecurrenceP
                 running += 1;
             }
             RecurrencePoint {
-                incident_id: incident.id.clone(),
-                since_landing,
-                running_recurrence_count: running,
+                incident_id: incident.id.retained(),
+                since_landing: since_landing.into(),
+                running_recurrence_count: running.into(),
             }
         })
         .collect()

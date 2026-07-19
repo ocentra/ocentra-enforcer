@@ -361,7 +361,7 @@ impl Base for Thing {}
             .labels
             .iter()
             .find(|l| l.label == name)
-            .map(|l| l.count)
+            .map(|l| l.count.get())
             .unwrap_or(0)
     };
     let edge = |name: &str| -> usize {
@@ -369,7 +369,7 @@ impl Base for Thing {}
             .edge_types
             .iter()
             .find(|e| e.edge_type == name)
-            .map(|e| e.count)
+            .map(|e| e.count.get())
             .unwrap_or(0)
     };
 

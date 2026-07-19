@@ -54,9 +54,9 @@
 //! modules directly, e.g. `enforcer_plan::validator::PlanParallelSafety`.
 
 pub mod agents_forest;
+mod boundary;
 pub mod error;
 pub mod lessons;
 pub mod orchestrator;
 pub mod scaffolder;
-pub mod templates;
 pub mod validator;

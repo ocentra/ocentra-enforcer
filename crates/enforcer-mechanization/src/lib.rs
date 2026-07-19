@@ -36,6 +36,30 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_mechanization::oracle::accept_rule`.
 
+macro_rules! mechanization_finding {
+    ($rule_id:expr, $title:expr, $detail:expr, $file:expr $(,)?) => {{
+        match (
+            $title.parse::<enforcer_domain::findings::FindingTitle>(),
+            $detail.parse::<enforcer_domain::findings::FindingDetail>(),
+        ) {
+            (Ok(title), Ok(detail)) => Some(enforcer_domain::findings::Finding {
+                rule_id: $rule_id,
+                severity: enforcer_domain::severity::Severity::Error,
+                title,
+                detail,
+                file: $file,
+                line: enforcer_domain::findings::FindingLine::known(
+                    enforcer_domain::telemetry_types::SourceLine::try_new(
+                        std::num::NonZeroU32::MIN,
+                    ),
+                ),
+                snippet: None,
+            }),
+            _ => None,
+        }
+    }};
+}
+
 pub mod error;
 pub mod feedback;
 pub mod oracle;

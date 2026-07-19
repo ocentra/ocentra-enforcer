@@ -40,15 +40,20 @@ mod tests {
     #[test]
     fn known_family_gets_a_specific_hint() -> Result<(), Box<dyn std::error::Error>> {
         let hint = fix_hint(&rule("RR-6.1")?);
-        assert!(hint.starts_with("Fix:"));
-        assert!(hint.contains("unwrap"));
+        assert_eq!(
+            hint,
+            "Fix: replace unwrap()/expect()/panic! with a typed Result and `?`."
+        );
         Ok(())
     }
 
     #[test]
     fn unknown_family_still_gets_a_terse_fallback_hint() -> Result<(), Box<dyn std::error::Error>> {
         let hint = fix_hint(&rule("RR-99.1")?);
-        assert!(hint.starts_with("Fix:"));
+        assert_eq!(
+            hint,
+            "Fix: see the rule detail above; no CLI flag suppresses this finding."
+        );
         Ok(())
     }
 

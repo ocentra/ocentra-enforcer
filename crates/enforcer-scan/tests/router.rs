@@ -4,15 +4,17 @@
 //! through [`enforcer_scan::walk::walk`], [`enforcer_scan::router::detect`],
 //! [`enforcer_scan::router::scope`], and
 //! [`enforcer_scan::router::plan::build_route_plan`], asserting the emitted
-//! [`enforcer_scan::router::plan::RoutePlanDto`] matches what each fixture's
+//! [`enforcer_scan::router::plan::RoutePlanResponse`] matches what each fixture's
 //! name promises. Fixtures assert on the emitted plan, never on side
 //! effects (T1 deterministic, no network, no native-tool invocation).
 
 use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
-use enforcer_scan::router::detect::DetectedLanguage;
-use enforcer_scan::router::plan::{build_route_plan, RoutePlanDto, RoutePlanScope, RulePack};
-use enforcer_scan::router::scope::RouteScope;
+use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
+use enforcer_scan::boundary::router::{
+    NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
+};
+use enforcer_scan::router::plan::build_route_plan;
 use enforcer_scan::walk::{walk, IgnoreRules};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -77,7 +79,10 @@ fn mixed_repo_routes_rust_and_ts_packs_and_native_tools() -> Result<(), Box<dyn 
         "mixed repositories must route both language packs plus the cross-cutting packs"
     );
     assert_eq!(
-        plan.native_tools.iter().map(|route| route.tool).collect::<Vec<_>>(),
+        plan.native_tools
+            .iter()
+            .map(|route| route.tool)
+            .collect::<Vec<_>>(),
         vec![WireNativeTool::Cargo, WireNativeTool::Tsc],
         "mixed repositories must attach the native tool for each detected language"
     );
@@ -148,10 +153,10 @@ fn crate_scope_narrows_to_single_crate_not_repo_wide() -> Result<(), Box<dyn std
     let root = fixture_root("crate_scope");
     let paths = walked_paths(&root)?;
     let tie = tie_for(&root)?;
-    let scope = RouteScope::Crate("crates/inner".to_owned());
+    let scope = RouteScope::Crate("crates/inner".parse()?);
     let plan = build_route_plan(&paths, &scope, &tie);
 
-    assert_eq!(plan.scope, RoutePlanScope::Crate("crates/inner".to_owned()));
+    assert_eq!(plan.scope, RouteScope::Crate("crates/inner".parse()?));
     assert_eq!(plan.languages, vec![DetectedLanguage::Rust]);
     assert!(
         !plan.languages.contains(&DetectedLanguage::TypeScript),
@@ -235,11 +240,22 @@ fn route_plan_is_data_driven_and_round_trips_through_json() -> Result<(), Box<dy
 
     // Core contract: serialize -> deserialize is the identity on a plan.
     let json = serde_json::to_string(&plan)?;
-    let restored: RoutePlanDto = serde_json::from_str(&json)?;
+    let restored: RoutePlanResponse = serde_json::from_str(&json)?;
     assert_eq!(
         plan, restored,
-        "a RoutePlanDto must survive a serde_json round-trip byte-for-byte-equivalently"
+        "a RoutePlanResponse must survive a serde_json round-trip byte-for-byte-equivalently"
     );
+    let original_native: &NativeToolRouteResponse = plan
+        .native_tools
+        .first()
+        .ok_or("route plan must retain its first native tool")?;
+    let restored_native: &NativeToolRouteResponse = restored
+        .native_tools
+        .first()
+        .ok_or("round-trip route plan must retain its first native tool")?;
+    let round_trip_tie: &RouteTieResponse = &restored_native.tie;
+    assert_eq!(restored_native, original_native);
+    assert_eq!(round_trip_tie, &original_native.tie);
 
     // Wire-shape contract the Tauri UI depends on: a flat, self-describing
     // JSON object with a discriminated scope and camelCase id tokens.
@@ -303,11 +319,20 @@ fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std:
     ];
 
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/router");
-    let on_disk: BTreeSet<String> = std::fs::read_dir(&fixtures_dir)?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .collect();
+    let mut on_disk = BTreeSet::new();
+    for entry in std::fs::read_dir(&fixtures_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().into_string().map_err(|value| {
+            format!(
+                "router fixture directory name is not valid UTF-8: {}",
+                value.to_string_lossy()
+            )
+        })?;
+        on_disk.insert(name);
+    }
     let declared: BTreeSet<String> = DECLARED_CASES.iter().map(|c| (*c).to_owned()).collect();
     assert_eq!(
         on_disk, declared,
@@ -323,7 +348,7 @@ fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std:
         let tie = tie_for(&root)?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
         let json = serde_json::to_string(&plan).map_err(|e| format!("{case}: serialize: {e}"))?;
-        let restored: RoutePlanDto =
+        let restored: RoutePlanResponse =
             serde_json::from_str(&json).map_err(|e| format!("{case}: deserialize: {e}"))?;
         assert_eq!(
             plan, restored,

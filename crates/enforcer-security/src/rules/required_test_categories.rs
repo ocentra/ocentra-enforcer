@@ -161,7 +161,7 @@ rule_validator!(
 /// The `REQ-TESTCAT-SEVEN.1` detection body: flag any mapped unit whose
 /// category coverage is incomplete.
 fn check_seven_categories(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
-    let Some(record) = boundary::parse_record(input.source) else {
+    let Some(record) = boundary::parse_record(input.source.as_str()) else {
         return Vec::new();
     };
 
@@ -172,7 +172,7 @@ fn check_seven_categories(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<
             continue;
         }
         let line = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
-        findings.push(Finding {
+        findings.extend(canonical_finding! {
             // CLONE-JUSTIFICATION: every Finding owns its RuleId; the
             // validator keeps its own parsed id for the next file.
             rule_id: rule_id.clone(),
@@ -191,7 +191,7 @@ fn check_seven_categories(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<
             // CLONE-JUSTIFICATION: Finding::file owns its RelPath; the
             // input's borrowed path outlives only this call.
             file: input.file.clone(),
-            line,
+            line: line,
             snippet: None,
         });
     }
@@ -201,7 +201,7 @@ fn check_seven_categories(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<
 /// The `REQ-TESTCAT-MAP.1` detection body: flag any classified unit that
 /// resolves to zero category-tagged tests.
 fn check_unit_resolution(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<Finding> {
-    let Some(record) = boundary::parse_record(input.source) else {
+    let Some(record) = boundary::parse_record(input.source.as_str()) else {
         return Vec::new();
     };
 
@@ -211,7 +211,7 @@ fn check_unit_resolution(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<F
             continue;
         }
         let line = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
-        findings.push(Finding {
+        findings.extend(canonical_finding! {
             // CLONE-JUSTIFICATION: every Finding owns its RuleId; the
             // validator keeps its own parsed id for the next file.
             rule_id: rule_id.clone(),
@@ -229,7 +229,7 @@ fn check_unit_resolution(rule_id: &RuleId, input: &ValidationInput<'_>) -> Vec<F
             // CLONE-JUSTIFICATION: Finding::file owns its RelPath; the
             // input's borrowed path outlives only this call.
             file: input.file.clone(),
-            line,
+            line: line,
             snippet: None,
         });
     }

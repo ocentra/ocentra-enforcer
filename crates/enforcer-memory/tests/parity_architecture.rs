@@ -21,7 +21,8 @@
 //! subdirectories -- the existing flat `copy_fixtures` helper other
 //! X06 integration tests use does not need to change.
 
-use enforcer_memory::architecture::{self, Aspect, EntryPointKind};
+use enforcer_domain::memory_types::{Aspect, EntryPointKind, LayerCategory};
+use enforcer_memory::architecture;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use std::error::Error;
 use std::fs;
@@ -143,18 +144,26 @@ fn all_aspect_populates_every_section_at_once() -> TestResult {
     let graph = build_fixture_graph(dir.path())?;
 
     let report = architecture::build_report(&graph, &[Aspect::All], None, 20, 30);
-    assert!(report.overview.is_some());
-    assert!(report.structure.is_some());
-    assert!(report.dependencies.is_some());
-    assert!(report.routes.is_some());
-    assert!(report.languages.is_some());
-    assert!(report.packages.is_some());
-    assert!(report.entry_points.is_some());
-    assert!(report.hotspots.is_some());
-    assert!(report.boundaries.is_some());
-    assert!(report.layers.is_some());
-    assert!(report.file_tree.is_some());
-    assert!(report.clusters.is_some());
+    assert!(matches!(
+        report,
+        architecture::ArchitectureReport {
+            overview: Some(_),
+            structure: Some(_),
+            dependencies: Some(_),
+            routes: Some(_),
+            languages: Some(_),
+            packages: Some(_),
+            entry_points: Some(_),
+            hotspots: Some(_),
+            hotspot_entries: Some(_),
+            boundaries: Some(_),
+            layers: Some(_),
+            layer_classification: Some(_),
+            file_tree: Some(_),
+            clusters: Some(_),
+            cluster_cohesion: Some(_),
+        }
+    ));
     Ok(())
 }
 
@@ -165,8 +174,13 @@ fn path_prefix_scopes_structure_to_the_matching_crate_only() -> TestResult {
     let dir = tempfile::tempdir()?;
     let graph = build_fixture_graph(dir.path())?;
 
-    let report =
-        architecture::build_report(&graph, &[Aspect::Structure], Some("crates/core/"), 20, 30);
+    let report = architecture::build_report(
+        &graph,
+        &[Aspect::Structure],
+        Some("crates/core/".into()),
+        20,
+        30,
+    );
     let structure = report.structure.ok_or("expected structure section")?;
     assert!(
         !structure.is_empty(),
@@ -177,8 +191,13 @@ fn path_prefix_scopes_structure_to_the_matching_crate_only() -> TestResult {
         "expected only crates/core to appear under its own path prefix, got {structure:?}"
     );
 
-    let report_api =
-        architecture::build_report(&graph, &[Aspect::Structure], Some("crates/api/"), 20, 30);
+    let report_api = architecture::build_report(
+        &graph,
+        &[Aspect::Structure],
+        Some("crates/api/".into()),
+        20,
+        30,
+    );
     let structure_api = report_api.structure.ok_or("expected structure section")?;
     assert!(structure_api.iter().all(|s| s.name == "crates/api"));
     Ok(())
@@ -198,8 +217,13 @@ fn path_scope_does_not_include_a_sibling_with_a_shared_text_prefix() -> TestResu
 
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[core, corex], &Manifest::default())?;
-    let report =
-        architecture::build_report(&graph, &[Aspect::Structure], Some("crates/core"), 20, 30);
+    let report = architecture::build_report(
+        &graph,
+        &[Aspect::Structure],
+        Some("crates/core".into()),
+        20,
+        30,
+    );
     let structure = report.structure.ok_or("expected structure section")?;
 
     assert_eq!(structure.len(), 1, "{structure:?}");
@@ -215,7 +239,7 @@ fn path_prefix_scopes_legacy_hotspots_to_requested_files() -> TestResult {
     let report = architecture::build_report(
         &graph,
         &[Aspect::Overview, Aspect::Hotspots],
-        Some("crates/core/"),
+        Some("crates/core/".into()),
         20,
         30,
     );
@@ -258,7 +282,6 @@ fn layers_place_core_at_or_before_api_on_the_acyclic_fixture() -> TestResult {
         "the fixture's api->core dependency is acyclic; expected no cycle cluster ids, got {:?}",
         layering.cycle_cluster_ids
     );
-    assert!(!layering.layers.is_empty());
 
     let clusters = report.clusters.ok_or("expected clusters section")?;
     let core_cluster = clusters
@@ -286,7 +309,7 @@ fn layers_place_core_at_or_before_api_on_the_acyclic_fixture() -> TestResult {
                 .layers
                 .iter()
                 .find(|l| l.cluster_ids.iter().any(|id| id == cluster_id))
-                .map(|l| l.index)
+                .map(|l| usize::from(l.index))
         };
         let core_layer = layer_of(&core_cluster.id).ok_or("core cluster missing a layer")?;
         let api_layer = layer_of(&api_cluster.id).ok_or("api cluster missing a layer")?;
@@ -436,18 +459,19 @@ fn hotspot_entries_use_calls_fan_in_not_total_degree() -> TestResult {
     let report = architecture::build_report(&graph, &[Aspect::Hotspots], None, 20, 30);
     // Both shapes present at once: back-compat total-degree AND the
     // new baseline-aligned fan-in-only ranking.
-    assert!(report.hotspots.is_some());
+    let _hotspots = report.hotspots.ok_or("expected hotspots section")?;
     let entries = report
         .hotspot_entries
         .ok_or("expected hotspot_entries section")?;
     // core's `load` is called from api's main.rs -- fan_in >= 1.
-    let load_entry = entries.iter().find(|e| e.name == "load");
-    if let Some(load) = load_entry {
-        assert!(
-            load.fan_in >= 1,
-            "load should have at least one CALLS in-edge"
-        );
-    }
+    let load = entries
+        .iter()
+        .find(|entry| entry.name == "load")
+        .ok_or("expected load in hotspot entries")?;
+    assert!(
+        load.fan_in >= 1,
+        "load should have at least one CALLS in-edge"
+    );
     Ok(())
 }
 
@@ -468,7 +492,7 @@ fn layer_classification_categorizes_the_fixture_sections() -> TestResult {
         .iter()
         .find(|c| c.name == "crates/api")
         .ok_or("expected a crates/api classification")?;
-    assert_eq!(api.layer, architecture::LayerCategory::Api);
+    assert_eq!(api.layer, LayerCategory::Api);
     Ok(())
 }
 
@@ -483,7 +507,9 @@ fn cluster_cohesion_accompanies_the_clusters_aspect() -> TestResult {
     let cohesion = report
         .cluster_cohesion
         .ok_or("expected cluster_cohesion section")?;
-    assert!(!cohesion.is_empty());
+    assert!(cohesion
+        .iter()
+        .any(|entry| (0.0..=1.0).contains(&entry.cohesion)));
     for entry in &cohesion {
         assert!((0.0..=1.0).contains(&entry.cohesion));
     }

@@ -36,13 +36,14 @@ pub mod queryset;
 pub mod runners;
 pub mod tool_diff;
 
+use enforcer_domain::memory_types::DocumentKind;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::embed::{Embedder, HashingEmbedder};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::ingest;
 use enforcer_memory::rerank::FusionScoreReranker;
-use enforcer_memory::search::{DocumentKind, SearchDocument};
+use enforcer_memory::search::document::SearchDocument;
 use enforcer_memory::vector::{embed_documents, VectorIndex};
 use runners::Fixtures;
 use std::error::Error;
@@ -152,7 +153,7 @@ pub fn build_fixtures() -> Result<Fixtures, BoxError> {
     let embedder = HashingEmbedder::new();
     let doc_texts: Vec<(String, String)> = search_corpus
         .iter()
-        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .map(|doc| (doc.id.to_string(), doc.text.to_string()))
         .collect();
     let entries = embed_documents(&embedder, &doc_texts)?;
     let vector = VectorIndex::build(&entries, embedder.model_info());
@@ -171,7 +172,7 @@ pub fn build_fixtures() -> Result<Fixtures, BoxError> {
 
 #[cfg(test)]
 mod fixture_tests {
-    use super::*;
+    use super::{build_fixtures, BoxError};
 
     type TestResult = Result<(), BoxError>;
 
@@ -181,11 +182,15 @@ mod fixture_tests {
         assert!(!fixtures.code_graph.nodes().is_empty());
         assert_eq!(fixtures.search_corpus.len(), 3);
         let hits = enforcer_memory::recall::recall(&fixtures.memory_graph, "parse boundary lesson");
-        let mut recalled_ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
+        let mut recalled_ids: Vec<String> =
+            hits.iter().map(|hit| hit.node.id().to_string()).collect();
         recalled_ids.sort_unstable();
         assert_eq!(
             recalled_ids,
-            vec!["mem-x06-9-fixture-0001", "mem-x06-9-fixture-0002"]
+            vec![
+                "mem-x06-9-fixture-0001".to_owned(),
+                "mem-x06-9-fixture-0002".to_owned()
+            ]
         );
         Ok(())
     }

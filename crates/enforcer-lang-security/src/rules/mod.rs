@@ -6,5 +6,3 @@ pub mod cyberskills;
 pub mod generic_scanner;
 pub mod registry;
 pub mod secret_scan;
-pub mod spec;
-pub mod text_scan;

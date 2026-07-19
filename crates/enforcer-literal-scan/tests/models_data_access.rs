@@ -2,7 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use enforcer_literal_scan::{run_scan, CliOptions, RiskCategory};
+use enforcer_domain::scan_types::LiteralRiskCategory as RiskCategory;
+use enforcer_literal_scan::{run_scan, CliOptions};
 
 fn test_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
@@ -37,9 +38,9 @@ fn model_labels_remain_stable_for_a_secret_finding() -> Result<(), Box<dyn std::
         format!("export const token = \"{token}\";\n"),
     )?;
     let opts = CliOptions {
-        root: root.clone(),
-        include_low: true,
-        min_score: 0,
+        root: root.clone().into(),
+        include_low: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
         ..CliOptions::default()
     };
 
@@ -49,19 +50,25 @@ fn model_labels_remain_stable_for_a_secret_finding() -> Result<(), Box<dyn std::
         .iter()
         .find(|finding| finding.category == RiskCategory::SecretLike)
         .ok_or("expected the secret fixture to produce a hard finding")?;
-    assert_eq!(finding.rule_id, "SEC-2.10");
+    assert_eq!(finding.rule_id.as_str(), "SEC-2.10");
 
     let json_line = report
         .to_json_lines()
         .into_iter()
-        .find(|line| line.contains("\"ruleId\":\"SEC-2.10\""))
+        .find(|line| line.as_str().contains("\"ruleId\":\"SEC-2.10\""))
         .ok_or("expected the secret finding in JSON-lines output")?;
-    assert_eq!(json_string_field(&json_line, "fileRole")?, "unknown");
     assert_eq!(
-        json_string_field(&json_line, "literalKind")?,
+        json_string_field(json_line.as_str(), "fileRole")?,
+        "unknown"
+    );
+    assert_eq!(
+        json_string_field(json_line.as_str(), "literalKind")?,
         "import-specifier"
     );
-    assert_eq!(json_string_field(&json_line, "category")?, "secret-like");
+    assert_eq!(
+        json_string_field(json_line.as_str(), "category")?,
+        "secret-like"
+    );
 
     fs::remove_dir_all(root)?;
     Ok(())

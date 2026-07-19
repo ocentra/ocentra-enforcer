@@ -4,21 +4,112 @@
 //! model inference and they never claim parity from the deterministic
 //! fallback.
 
+use enforcer_domain::memory_types::ProviderKind;
+use enforcer_domain::memory_types::{
+    LocalRuntimeAcceleration, LocalRuntimeArtifactKind, LocalRuntimeKind, ModelTask,
+    OrtWorkerLifecycleAction, OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState,
+    RuntimeAdmission, RuntimeExecutionIsolation, RuntimeManagedCapability, RuntimeOwnershipMode,
+    RuntimeRequestProtocol, RuntimeWorkload, SourcePolicy,
+};
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_command,
     ort_worker_execution_plan, ort_worker_execution_plan_with_provider_resolution,
     provider_from_env_value, provider_order, resolve_ort_provider, runtime_backend_contract,
     validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
-    LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
-    OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeExecutionIsolation, RuntimeManagedCapability, RuntimeOwnershipMode,
-    RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    LocalRuntimeArtifactDto, LocalRuntimeCandidateDto, LocalRuntimeControlPlaneDto,
+    LocalRuntimeFixture, OrtProviderResolutionDto, OrtWorkerExecutionPlanDto,
+    OrtWorkerLifecycleTransitionDto, RuntimeArbitrationDecisionDto, REQUIRED_MANAGED_CAPABILITIES,
 };
-use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
+use enforcer_memory::model_runtime::ModelSpecDto;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
+use std::fmt::Debug;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn runtime_arbitration_dto_domain_boundary_conversions_round_trip() -> TestResult {
+    let decision = RuntimeArbitrationDecisionDto {
+        active: RuntimeActivityState::Idle,
+        requested: RuntimeWorkload::Chat,
+        admission: RuntimeAdmission::Admit,
+        reason: "idle runtime admits chat".to_owned(),
+    };
+    let wire = serde_json::to_vec(&decision)?;
+    let restored: RuntimeArbitrationDecisionDto = serde_json::from_slice(&wire)?;
+    assert_eq!(RuntimeAdmission::from(restored), RuntimeAdmission::Admit);
+    Ok(())
+}
+
+fn assert_json_round_trip<T>(value: &T) -> Result<(), serde_json::Error>
+where
+    T: Serialize + DeserializeOwned + PartialEq + Debug,
+{
+    let encoded = serde_json::to_vec(value)?;
+    let decoded = serde_json::from_slice::<T>(&encoded)?;
+    assert_eq!(&decoded, value);
+    Ok(())
+}
+
+#[test]
+fn local_runtime_dto_shapes_round_trip_through_json() -> TestResult {
+    assert_json_round_trip(&RuntimeArbitrationDecisionDto {
+        active: RuntimeActivityState::Idle,
+        requested: RuntimeWorkload::Chat,
+        admission: RuntimeAdmission::Admit,
+        reason: "idle runtime admits chat".to_owned(),
+    })?;
+    let provider_resolution = OrtProviderResolutionDto {
+        requested_provider: ProviderKind::Cpu,
+        resolved_provider: ProviderKind::Cpu,
+        available_providers: vec![ProviderKind::Cpu],
+        provider_probe_passed: true,
+        downgrade_reason: None,
+    };
+    assert_json_round_trip(&provider_resolution)?;
+    let plan = OrtWorkerExecutionPlanDto {
+        executable_path: "enforcer-ort-worker".into(),
+        task: OrtWorkerTask::Embedding,
+        provider: ProviderKind::Cpu,
+        provider_resolution,
+        timeout_ms: 1_000,
+        ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+        request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
+        external_server_allowed: false,
+        port_binding_allowed: false,
+        kill_on_timeout: true,
+        env: vec![("MODEL_PATH".to_owned(), "model.onnx".to_owned())],
+    };
+    assert_json_round_trip(&plan)?;
+    assert_json_round_trip(&OrtWorkerLifecycleTransitionDto {
+        before: OrtWorkerLifecycleState::Idle,
+        action: OrtWorkerLifecycleAction::Load,
+        after: OrtWorkerLifecycleState::Loading,
+        activity: RuntimeActivityState::Loading,
+        ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+        request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
+        kill_on_timeout: true,
+        reason: "load requested".to_owned(),
+    })?;
+    let artifact = LocalRuntimeArtifactDto {
+        kind: LocalRuntimeArtifactKind::Model,
+        path: "model.onnx".into(),
+        sha256: Some("00".repeat(32)),
+        size_bytes: Some(128),
+    };
+    assert_json_round_trip(&artifact)?;
+    assert_json_round_trip(&LocalRuntimeCandidateDto {
+        backend: LocalRuntimeKind::OnnxOrt,
+        task: ModelTask::Embedding,
+        model_id: "local/model".to_owned(),
+        acceleration: LocalRuntimeAcceleration::Cpu,
+        source_policy: SourcePolicy::LocalCache,
+        artifacts: vec![artifact],
+    })?;
+    assert_json_round_trip(&LocalRuntimeControlPlaneDto::onnx_ort_managed())?;
+    Ok(())
+}
 
 #[test]
 fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
@@ -240,9 +331,9 @@ fn invalid_output_is_rejected_by_the_fixture_validator() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-output",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-output"
     ));
     Ok(())
 }
@@ -267,17 +358,17 @@ fn deterministic_fallback_cannot_be_claimed_as_parity() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-fixture",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-fixture"
     ));
     Ok(())
 }
 
 #[test]
 fn x06_runtime_control_plane_accepts_managed_llama_and_ort() -> TestResult {
-    let llama = LocalRuntimeControlPlane::llama_cpp_managed();
-    let ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    let llama = LocalRuntimeControlPlaneDto::llama_cpp_managed();
+    let ort = LocalRuntimeControlPlaneDto::onnx_ort_managed();
 
     validate_control_plane(&llama)?;
     validate_control_plane(&ort)?;
@@ -300,7 +391,7 @@ fn x06_runtime_control_plane_accepts_managed_llama_and_ort() -> TestResult {
 
 #[test]
 fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
-    let err = match validate_control_plane(&LocalRuntimeControlPlane::externally_owned_server(
+    let err = match validate_control_plane(&LocalRuntimeControlPlaneDto::externally_owned_server(
         LocalRuntimeKind::LlamaCpp,
     )) {
         Ok(()) => return Err("external server ownership should not pass parity control".into()),
@@ -310,16 +401,16 @@ fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-control-plane",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-control-plane"
     ));
     Ok(())
 }
 
 #[test]
 fn x06_runtime_control_plane_rejects_backend_wrong_ownership_mode() -> TestResult {
-    let mut ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    let mut ort = LocalRuntimeControlPlaneDto::onnx_ort_managed();
     ort.ownership = RuntimeOwnershipMode::EnforcerInProcess;
     let err = match validate_control_plane(&ort) {
         Ok(()) => return Err("ORT in-process ownership should not pass parity control".into()),
@@ -328,12 +419,12 @@ fn x06_runtime_control_plane_rejects_backend_wrong_ownership_mode() -> TestResul
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-control-plane",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-control-plane"
     ));
 
-    let mut llama = LocalRuntimeControlPlane::llama_cpp_managed();
+    let mut llama = LocalRuntimeControlPlaneDto::llama_cpp_managed();
     llama.ownership = RuntimeOwnershipMode::EnforcerIsolatedWorker;
     let err = match validate_control_plane(&llama) {
         Ok(()) => {
@@ -344,16 +435,16 @@ fn x06_runtime_control_plane_rejects_backend_wrong_ownership_mode() -> TestResul
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-control-plane",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-control-plane"
     ));
     Ok(())
 }
 
 #[test]
 fn x06_runtime_control_plane_rejects_missing_managed_capability() -> TestResult {
-    let mut control = LocalRuntimeControlPlane::llama_cpp_managed();
+    let mut control = LocalRuntimeControlPlaneDto::llama_cpp_managed();
     control
         .managed_capabilities
         .retain(|capability| *capability != RuntimeManagedCapability::ChatHistoryPolicy);
@@ -366,9 +457,9 @@ fn x06_runtime_control_plane_rejects_missing_managed_capability() -> TestResult 
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-local-runtime-control-plane",
+            operation,
             ..
-        }
+        } if operation == "validate-local-runtime-control-plane"
     ));
     Ok(())
 }
@@ -424,7 +515,7 @@ fn runtime_arbitration_chat_queues_background_work() {
 
 #[test]
 fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResult {
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -485,7 +576,7 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
 
 #[test]
 fn ort_worker_plan_rejects_absolute_model_or_tokenizer_paths_before_spawn() -> TestResult {
-    let absolute_model = ModelSpec::qwen3_embedding(
+    let absolute_model = ModelSpecDto::qwen3_embedding(
         "C:/Users/sujan/model/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -512,7 +603,7 @@ fn ort_worker_plan_rejects_absolute_model_or_tokenizer_paths_before_spawn() -> T
         "unexpected absolute model path error: {model_error}"
     );
 
-    let absolute_tokenizer = ModelSpec::qwen3_embedding(
+    let absolute_tokenizer = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "/home/sujan/model/qwen/tokenizer.json",
@@ -543,7 +634,7 @@ fn ort_worker_plan_rejects_absolute_model_or_tokenizer_paths_before_spawn() -> T
 
 #[test]
 fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() -> TestResult {
-    let spec = ModelSpec::qwen3_reranker(
+    let spec = ModelSpecDto::qwen3_reranker(
         "model/hf/qwen-reranker/model.onnx",
         "abc123",
         "model/hf/qwen-reranker/tokenizer.json",
@@ -615,7 +706,7 @@ fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() ->
 
 #[test]
 fn ort_worker_plan_downgrades_unprobed_acceleration_before_child_spawn() -> TestResult {
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -699,7 +790,7 @@ fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
 
 #[test]
 fn ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned() -> TestResult {
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -777,7 +868,7 @@ fn ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned() -> TestR
 
 #[test]
 fn ort_worker_lifecycle_timeout_kill_requires_owned_plan() -> TestResult {
-    let spec = ModelSpec::qwen3_reranker(
+    let spec = ModelSpecDto::qwen3_reranker(
         "model/hf/qwen-reranker/model.onnx",
         "abc123",
         "model/hf/qwen-reranker/tokenizer.json",
@@ -817,16 +908,16 @@ fn ort_worker_lifecycle_timeout_kill_requires_owned_plan() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-ort-worker-execution-plan",
+            operation,
             ..
-        }
+        } if operation == "validate-ort-worker-execution-plan"
     ));
     Ok(())
 }
 
 #[test]
 fn ort_worker_lifecycle_rejects_invalid_transition() -> TestResult {
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -853,16 +944,16 @@ fn ort_worker_lifecycle_rejects_invalid_transition() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "transition-ort-worker-lifecycle",
+            operation,
             ..
-        }
+        } if operation == "transition-ort-worker-lifecycle"
     ));
     Ok(())
 }
 
 #[test]
 fn ort_worker_plan_rejects_external_http_or_port_binding() -> TestResult {
-    let spec = ModelSpec::qwen3_embedding(
+    let spec = ModelSpecDto::qwen3_embedding(
         "model/hf/qwen/model.onnx",
         "abc123",
         "model/hf/qwen/tokenizer.json",
@@ -884,9 +975,9 @@ fn ort_worker_plan_rejects_external_http_or_port_binding() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-ort-worker-execution-plan",
+            operation,
             ..
-        }
+        } if operation == "validate-ort-worker-execution-plan"
     ));
 
     plan.request_protocol = RuntimeRequestProtocol::EnforcerWorkerEnv;
@@ -898,16 +989,16 @@ fn ort_worker_plan_rejects_external_http_or_port_binding() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "validate-ort-worker-execution-plan",
+            operation,
             ..
-        }
+        } if operation == "validate-ort-worker-execution-plan"
     ));
     Ok(())
 }
 
 #[test]
 fn ort_worker_plan_rejects_zero_timeout() -> TestResult {
-    let spec = ModelSpec::qwen3_reranker(
+    let spec = ModelSpecDto::qwen3_reranker(
         "model/hf/qwen-reranker/model.onnx",
         "abc123",
         "model/hf/qwen-reranker/tokenizer.json",
@@ -928,9 +1019,9 @@ fn ort_worker_plan_rejects_zero_timeout() -> TestResult {
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
-            operation: "build-ort-worker-execution-plan",
+            operation,
             ..
-        }
+        } if operation == "build-ort-worker-execution-plan"
     ));
     Ok(())
 }
@@ -1060,7 +1151,7 @@ fn checked_in_ort_provider_policy_proof_matches_resolver_contract() -> TestResul
 fn assert_provider_example(
     example: &Value,
     case: &str,
-    resolution: &enforcer_memory::local_runtime::OrtProviderResolution,
+    resolution: &enforcer_memory::local_runtime::OrtProviderResolutionDto,
 ) {
     assert_eq!(example["case"], case);
     assert_eq!(

@@ -1,8 +1,9 @@
+use enforcer_domain::memory_types::EdgeProvenance;
 use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::store::Store;
 use enforcer_memory::traces::{
-    ingest_trace_records_into_store, replay_trace_records_from_store, EdgeProvenance, TraceRecord,
+    ingest_trace_records_into_store, replay_trace_records_from_store, TraceRecord,
     TraceRecordStoreBatch, TraceStore,
 };
 use std::error::Error;
@@ -56,9 +57,9 @@ fn ingest_annotates_an_existing_parsed_edge_with_runtime_count() -> TestResult {
     store.ingest(
         &graph,
         &[TraceRecord {
-            caller: "file:a.rs".to_string(),
-            callee: "helper".to_string(),
-            count: 5,
+            caller: "file:a.rs".to_string().into(),
+            callee: "helper".to_string().into(),
+            count: 5.into(),
         }],
     );
 
@@ -96,9 +97,9 @@ fn ingest_creates_a_runtime_only_edge_when_no_parsed_edge_exists() -> TestResult
     store.ingest(
         &graph,
         &[TraceRecord {
-            caller: caller_id.clone(),
-            callee: helper_id.clone(),
-            count: 3,
+            caller: caller_id.clone().into(),
+            callee: helper_id.clone().into(),
+            count: 3.into(),
         }],
     );
 
@@ -118,9 +119,9 @@ fn reingesting_the_same_batch_sums_counts() -> TestResult {
     let graph = build_fixture_graph(dir.path())?;
 
     let batch = vec![TraceRecord {
-        caller: "file:a.rs".to_string(),
-        callee: "helper".to_string(),
-        count: 4,
+        caller: "file:a.rs".to_string().into(),
+        callee: "helper".to_string().into(),
+        count: 4.into(),
     }];
 
     let mut store = TraceStore::new();
@@ -145,9 +146,9 @@ fn reset_then_reingest_replaces_counts() -> TestResult {
     let graph = build_fixture_graph(dir.path())?;
 
     let batch = vec![TraceRecord {
-        caller: "file:a.rs".to_string(),
-        callee: "helper".to_string(),
-        count: 10,
+        caller: "file:a.rs".to_string().into(),
+        callee: "helper".to_string().into(),
+        count: 10.into(),
     }];
 
     let mut store = TraceStore::new();
@@ -174,23 +175,23 @@ fn unknown_caller_or_callee_is_recorded_not_dropped() -> TestResult {
         &graph,
         &[
             TraceRecord {
-                caller: "sym:does-not-exist.rs:1:ghost".to_string(),
-                callee: "helper".to_string(),
-                count: 1,
+                caller: "sym:does-not-exist.rs:1:ghost".to_string().into(),
+                callee: "helper".to_string().into(),
+                count: 1.into(),
             },
             TraceRecord {
-                caller: "file:a.rs".to_string(),
-                callee: "sym:does-not-exist.rs:1:ghost".to_string(),
-                count: 1,
+                caller: "file:a.rs".to_string().into(),
+                callee: "sym:does-not-exist.rs:1:ghost".to_string().into(),
+                count: 1.into(),
             },
         ],
     );
 
     assert_eq!(store.unresolved().len(), 2);
-    assert!(store.unresolved()[0].unresolved_caller);
-    assert!(!store.unresolved()[0].unresolved_callee);
-    assert!(!store.unresolved()[1].unresolved_caller);
-    assert!(store.unresolved()[1].unresolved_callee);
+    assert!(store.unresolved()[0].unresolved_caller.is_unresolved());
+    assert!(!store.unresolved()[0].unresolved_callee.is_unresolved());
+    assert!(!store.unresolved()[1].unresolved_caller.is_unresolved());
+    assert!(store.unresolved()[1].unresolved_callee.is_unresolved());
 
     // Neither malformed record should have been merged into edges().
     let edges = store.edges(&graph);
@@ -210,14 +211,14 @@ fn ingest_is_deterministically_ordered_by_caller_then_callee() -> TestResult {
         &graph,
         &[
             TraceRecord {
-                caller: "file:a.rs".to_string(),
-                callee: "zzz-unknown".to_string(),
-                count: 1,
+                caller: "file:a.rs".to_string().into(),
+                callee: "zzz-unknown".to_string().into(),
+                count: 1.into(),
             },
             TraceRecord {
-                caller: "file:a.rs".to_string(),
-                callee: "helper".to_string(),
-                count: 1,
+                caller: "file:a.rs".to_string().into(),
+                callee: "helper".to_string().into(),
+                count: 1.into(),
             },
         ],
     );
@@ -247,9 +248,9 @@ fn runtime_trace_records_append_to_store_and_replay_projection() -> TestResult {
     let root: RepoRoot = "C:/Projects/x06-trace-store".parse()?;
     let mut store = Store::init(stores_dir.path(), &root, "2026-07-04T00:00:00Z")?;
     let batch = vec![TraceRecord {
-        caller: "file:a.rs".to_string(),
-        callee: "helper".to_string(),
-        count: 7,
+        caller: "file:a.rs".to_string().into(),
+        callee: "helper".to_string().into(),
+        count: 7.into(),
     }];
 
     let mut trace_store = TraceStore::new();

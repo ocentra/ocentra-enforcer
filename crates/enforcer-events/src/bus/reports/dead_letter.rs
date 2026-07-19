@@ -1,8 +1,13 @@
-use serde::{Deserialize, Serialize};
+use enforcer_domain::events_types::{
+    AggregateKey, CorrelationId, DeadLetterReason, EventErrorField, EventErrorReason, EventId,
+    EventType, IdempotencyKey, SchemaVersion, SubscriberId, TargetHandler,
+};
+use std::num::NonZeroU16;
 
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use crate::{
-    AggregateKey, CorrelationId, DomainEvent, EventContract, EventId, EventType, EventingError,
-    IdempotencyKey, SchemaVersion, StoredEventEnvelope, SubscriberId, TargetHandler,
+    envelope::{DomainEvent, EventContract},
+    error::EventingError,
 };
 
 const DEAD_LETTER_RECORDED_EVENT_TYPE: &str = "eventing.dead_letter.recorded";
@@ -10,10 +15,18 @@ const DEAD_LETTER_RECORDED_SCHEMA_VERSION: u16 = 1;
 const DEAD_LETTER_IDEMPOTENCY_PREFIX: &str = "dead-letter";
 const DEAD_LETTER_IDEMPOTENCY_SEPARATOR: &str = "-";
 
+/// Executes the dead letter recorded event type event-runtime operation.
 pub fn dead_letter_recorded_event_type() -> Result<EventType, EventingError> {
-    EventType::parse(DEAD_LETTER_RECORDED_EVENT_TYPE)
+    // ALLOC-JUSTIFICATION: the validated event type is retained by the dead-letter contract.
+    EventType::try_new(DEAD_LETTER_RECORDED_EVENT_TYPE.to_owned()).map_err(|_decode_error| {
+        EventingError::invalid_value(
+            EventErrorField::from_diagnostic("event_type"),
+            EventErrorReason::from_diagnostic(DEAD_LETTER_RECORDED_EVENT_TYPE),
+        )
+    })
 }
 
+/// Event-runtime data for dead letter.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DeadLetter {
     pub envelope: StoredEventEnvelope,
@@ -36,7 +49,7 @@ impl DeadLetter {
             subscriber_id: Some(report.subscriber_id.clone()),
             // CLONE-JUSTIFICATION: the dead-letter journal retains the target handler independently of the handler report.
             target_handler: Some(report.target_handler.clone()),
-            reason: report.outcome.dead_letter_reason(),
+            reason: super::handler::dead_letter_reason(report.outcome),
             error,
         })
     }
@@ -56,6 +69,7 @@ impl DeadLetter {
         }
     }
 
+    /// Executes the as event event-runtime operation.
     pub fn as_event(&self) -> DeadLetterEvent {
         DeadLetterEvent {
             // CLONE-JUSTIFICATION: the published domain event must own the original event id beyond this borrowed journal entry.
@@ -73,38 +87,8 @@ impl DeadLetter {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DeadLetterReason {
-    HandlerFailed,
-    HandlerTimedOut,
-    HandlerDeadlineExpired,
-    HandlerPanicked,
-    NoSubscriber,
-    QueueOverflow,
-    QueueExpired,
-    DeadlineExpired,
-    Shutdown,
-}
-
-impl DeadLetterReason {
-    pub(crate) fn idempotency_label(self) -> &'static str {
-        match self {
-            Self::HandlerFailed => "handler-failed",
-            Self::HandlerTimedOut => "handler-timed-out",
-            Self::HandlerDeadlineExpired => "handler-deadline-expired",
-            Self::HandlerPanicked => "handler-panicked",
-            Self::NoSubscriber => "no-subscriber",
-            Self::QueueOverflow => "queue-overflow",
-            Self::QueueExpired => "queue-expired",
-            Self::DeadlineExpired => "deadline-expired",
-            Self::Shutdown => "shutdown",
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Event-runtime data for dead letter event.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeadLetterEvent {
     pub original_event_id: EventId,
     pub original_event_type: EventType,
@@ -118,12 +102,21 @@ impl DomainEvent for DeadLetterEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             dead_letter_recorded_event_type()?,
-            SchemaVersion::new(DEAD_LETTER_RECORDED_SCHEMA_VERSION)?,
+            SchemaVersion::try_new(
+                NonZeroU16::new(DEAD_LETTER_RECORDED_SCHEMA_VERSION)
+                    .ok_or(EventingError::InvalidVersion)?,
+            ),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(self.original_event_id.as_str())
+        // ALLOC-JUSTIFICATION: the aggregate key is retained independently of the source event id.
+        AggregateKey::try_new(self.original_event_id.as_str().to_owned()).map_err(|_decode_error| {
+            EventingError::invalid_value(
+                EventErrorField::from_diagnostic("aggregate_key"),
+                EventErrorReason::from_diagnostic(self.original_event_id.as_str()),
+            )
+        })
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
@@ -131,7 +124,26 @@ impl DomainEvent for DeadLetterEvent {
         value.push_str(DEAD_LETTER_IDEMPOTENCY_SEPARATOR);
         value.push_str(self.original_event_id.as_str());
         value.push_str(DEAD_LETTER_IDEMPOTENCY_SEPARATOR);
-        value.push_str(self.reason.idempotency_label());
-        IdempotencyKey::parse(value)
+        value.push_str(match self.reason {
+            DeadLetterReason::HandlerFailed => "handler-failed",
+            DeadLetterReason::HandlerTimedOut => "handler-timed-out",
+            DeadLetterReason::HandlerDeadlineExpired => "handler-deadline-expired",
+            DeadLetterReason::HandlerPanicked => "handler-panicked",
+            DeadLetterReason::NoSubscriber => "no-subscriber",
+            DeadLetterReason::QueueOverflow => "queue-overflow",
+            DeadLetterReason::QueueExpired => "queue-expired",
+            DeadLetterReason::DeadlineExpired => "deadline-expired",
+            DeadLetterReason::Shutdown => "shutdown",
+        });
+        // CLONE-JUSTIFICATION: parsing consumes its candidate while failure reporting preserves the exact rejected key.
+        // CLONE-JUSTIFICATION: validation consumes the candidate while diagnostics retain it on failure.
+        IdempotencyKey::try_new(value.clone()).map_err(|_decode_error| {
+            EventingError::invalid_value(
+                EventErrorField::from_diagnostic("idempotency_key"),
+                EventErrorReason::from_diagnostic(value),
+            )
+        })
     }
 }
+// INVALID-INPUT-TEST: dead-letter contract tests reject malformed event and
+// idempotency identities before publication.

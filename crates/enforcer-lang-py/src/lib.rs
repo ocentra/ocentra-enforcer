@@ -5,7 +5,7 @@
 //! Implements every `language == "python"` rule from `rules/rules.json`
 //! (61 rules across the PY-1..PY-6 prefixes) against
 //! `enforcer-validator`'s [`enforcer_validator::validator::Validator`]
-//! trait. Each rule is a [`line_marker::LineMarkerValidator`] entry or a
+//! trait. Each rule is a boundary line-marker validator entry or a
 //! small dedicated struct (toolchain-diagnostics / manifest-shape /
 //! required-coverage validators), grouped by the `rules/rules.json`
 //! `validator` field into modules:
@@ -29,11 +29,11 @@
 //!   `crates/enforcer-rules/rules/fastapi-layered.json` catalog, NOT via
 //!   [`all_validators`]/the 61-count registry-coverage test below.
 //!
-//! [`line_marker`] is the shared line-scan engine [`source_scan`] and
+//! The boundary line-marker scanner is the shared line-scan engine [`source_scan`] and
 //! [`test_scan`] build their entries on; it exists specifically to dodge
 //! the mem-arc-06-0002 double-dispatch gotcha (an AST/line visitor fires
 //! for every occurrence of a marker regardless of syntactic position) by
-//! guarding each marker match to the position ([`line_marker::Guard`]) the
+//! guarding each marker match to the required source position.
 //! rule's intent actually requires.
 //!
 //! This crate does NOT own: the `Validator` trait or fixture/parity
@@ -45,7 +45,6 @@
 //! modules directly, e.g. `enforcer_lang_py::source_scan::all`.
 
 pub mod generic_scanner_slice;
-pub mod line_marker;
 pub mod rules;
 pub mod source_scan;
 pub mod test_scan;
@@ -78,47 +77,12 @@ mod registry_coverage {
     //! not silently passing.
 
     use std::collections::BTreeSet;
-    use std::path::PathBuf;
 
     use crate::all_validators;
 
-    /// Repo-relative path from this crate's manifest dir up to the
-    /// workspace-root `rules/rules.json` catalog.
-    fn rules_json_path() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
-            .join("rules/rules.json")
-    }
-
-    /// Every `ruleId` in `rules/rules.json` whose `"language"` is
-    /// `"python"`, parsed with plain `serde_json::Value` indexing (this
-    /// crate does not depend on the legacy catalog's full typed shape --
-    /// only `id`/`language` are read here).
-    fn python_rule_ids_from_catalog() -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
-        let raw = std::fs::read_to_string(rules_json_path())?;
-        let parsed: serde_json::Value = serde_json::from_str(&raw)?;
-        let rules = parsed
-            .get("rules")
-            .and_then(serde_json::Value::as_array)
-            .ok_or("rules/rules.json missing top-level `rules` array")?;
-        let mut ids = BTreeSet::new();
-        for rule in rules {
-            let language = rule.get("language").and_then(serde_json::Value::as_str);
-            if language != Some("python") {
-                continue;
-            }
-            let id = rule
-                .get("id")
-                .and_then(serde_json::Value::as_str)
-                .ok_or("python rule record missing `id`")?;
-            ids.insert(id.to_owned());
-        }
-        Ok(ids)
-    }
-
     #[test]
     fn every_python_rule_id_has_a_registered_validator() -> Result<(), Box<dyn std::error::Error>> {
-        let catalog_ids = python_rule_ids_from_catalog()?;
+        let catalog_ids = crate::boundary::fixture::python_catalog_rule_ids()?;
         assert_eq!(
             catalog_ids.len(),
             61,
@@ -126,9 +90,9 @@ mod registry_coverage {
         );
 
         let validators = all_validators()?;
-        let registered_ids: BTreeSet<String> = validators
+        let registered_ids: BTreeSet<_> = validators
             .iter()
-            .map(|validator| validator.rule_id().to_string())
+            .map(|validator| validator.rule_id().clone())
             .collect();
 
         assert_eq!(
@@ -137,13 +101,13 @@ mod registry_coverage {
             "a RuleId was registered by more than one validator in this crate"
         );
 
-        let missing: Vec<&String> = catalog_ids.difference(&registered_ids).collect();
+        let missing: Vec<_> = catalog_ids.difference(&registered_ids).collect();
         assert!(
             missing.is_empty(),
             "python ruleIds with no registered enforcer-lang-py validator: {missing:?}"
         );
 
-        let extra: Vec<&String> = registered_ids.difference(&catalog_ids).collect();
+        let extra: Vec<_> = registered_ids.difference(&catalog_ids).collect();
         assert!(
             extra.is_empty(),
             "enforcer-lang-py registered a RuleId not present as language==python in rules.json: {extra:?}"
@@ -157,3 +121,4 @@ mod registry_coverage {
         Ok(())
     }
 }
+pub(crate) mod boundary;

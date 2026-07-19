@@ -110,7 +110,10 @@ fn main() void = {
 };
 "#;
     let parsed = parse_hare(src);
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]
@@ -128,7 +131,10 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         symbol_kind(&parsed.symbols, "animal"),
         Some(&SymbolKind::Class)
     );
-    assert!(symbol_kind(&parsed.symbols, "main").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "main"),
+        Some(&SymbolKind::Function)
+    );
     let paths: Vec<&str> = parsed
         .imports
         .iter()

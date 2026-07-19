@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 
 /// Whether the baseline binary is available to drive at all, and if
 /// not, why. Mirrors the capability-state doctrine already used by
-/// `enforcer_memory::embed::LoadState` (D-03) -- never silently
+/// `enforcer_domain::memory_types::LoadState` (D-03) -- never silently
 /// upgraded to "installed" if the probe did not actually succeed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaselineState {
@@ -149,12 +149,8 @@ impl BaselineAdapter for CodebaseMemoryMcpAdapter {
 /// there is no "synthetic" constructor, matching this module's
 /// anti-fabrication doctrine.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct CliCallResult {
-    pub tool: String,
-    pub request_json: String,
     pub stdout: String,
-    pub stderr: String,
     pub exit_success: bool,
     pub latency_ms: f64,
 }
@@ -247,10 +243,7 @@ impl CliDriver {
         let latency_ms = duration_to_ms(start.elapsed());
 
         Ok(CliCallResult {
-            tool: tool.to_string(),
-            request_json: request_json.to_string(),
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
             exit_success: output.status.success(),
             latency_ms,
         })
@@ -263,7 +256,11 @@ fn duration_to_ms(duration: Duration) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        BaselineAdapter, BaselineState, CliCallResult, CliDriver, CliDriverError,
+        CodebaseMemoryMcpAdapter,
+    };
+    use std::path::PathBuf;
 
     #[test]
     fn probe_reports_not_installed_for_a_binary_name_guaranteed_absent() {
@@ -325,10 +322,7 @@ mod tests {
     fn parsed_json_takes_the_last_json_line_skipping_log_prefixes(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let result = CliCallResult {
-            tool: "list_projects".to_string(),
-            request_json: "{}".to_string(),
             stdout: "level=info msg=mem.init budget_mb=16106\n{\"projects\":[]}".to_string(),
-            stderr: String::new(),
             exit_success: true,
             latency_ms: 1.0,
         };
@@ -340,10 +334,7 @@ mod tests {
     #[test]
     fn parsed_json_is_none_for_pure_log_output_never_fabricates_a_value() {
         let result = CliCallResult {
-            tool: "index_repository".to_string(),
-            request_json: "{}".to_string(),
             stdout: "level=info msg=mem.init budget_mb=16106\nrepo_path is required".to_string(),
-            stderr: String::new(),
             exit_success: false,
             latency_ms: 1.0,
         };

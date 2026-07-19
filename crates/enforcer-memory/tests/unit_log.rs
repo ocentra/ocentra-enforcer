@@ -1,6 +1,7 @@
+use enforcer_domain::memory_types::Seq;
+use enforcer_memory::boundary::log_schema::{ObservationLogEntryDto, SCHEMA_VERSION};
 use enforcer_memory::error::{MemoryError, Result};
 use enforcer_memory::log::{read_verified, AppendLog};
-use enforcer_memory::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use std::path::{Path, PathBuf};
 
 fn temp_path(name: &str) -> PathBuf {
@@ -22,22 +23,22 @@ fn cleanup(path: &Path) {
 
 fn read_file(path: &Path) -> Result<String> {
     std::fs::read_to_string(path).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+        path: path.to_path_buf().into(),
         source,
     })
 }
 
 fn write_file(path: &Path, content: &str) -> Result<()> {
     std::fs::write(path, content).map_err(|source| MemoryError::Io {
-        path: path.to_path_buf(),
+        path: path.to_path_buf().into(),
         source,
     })
 }
 
-fn sample(seq: u64) -> ObservationLogEntry {
-    ObservationLogEntry {
+fn sample(seq: Seq) -> ObservationLogEntryDto {
+    ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
+        seq: seq.into(),
         id: format!("obs-{seq:04}"),
         lesson_id: "L1".to_owned(),
         rule_id: None,
@@ -56,14 +57,15 @@ fn sample(seq: u64) -> ObservationLogEntry {
 fn append_assigns_gap_free_seq_and_reads_back() -> Result<()> {
     let path = temp_path("append");
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
         let s0 = log.append_with_seq(sample)?;
         let s1 = log.append_with_seq(sample)?;
-        assert_eq!(s0.0, 0);
-        assert_eq!(s1.0, 1);
-        assert_eq!(log.high_watermark(), 2);
+        assert_eq!(u64::from(s0), 0);
+        assert_eq!(u64::from(s1), 1);
+        assert_eq!(log.high_watermark(), Seq::from_log_position(2));
     }
-    let outcome = read_verified::<ObservationLogEntry>(&path, |e| e.seq)?;
+    let outcome =
+        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
     assert_eq!(outcome.entries.len(), 2);
     assert!(outcome.quarantined.is_empty());
     cleanup(&path);
@@ -74,7 +76,7 @@ fn append_assigns_gap_free_seq_and_reads_back() -> Result<()> {
 fn supersede_records_the_relation_without_deleting_the_earlier_row() -> Result<()> {
     let path = temp_path("supersede");
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
         log.append_with_seq(sample)?;
         log.append_with_seq(|seq| {
             let mut e = sample(seq);
@@ -83,7 +85,8 @@ fn supersede_records_the_relation_without_deleting_the_earlier_row() -> Result<(
             e
         })?;
     }
-    let outcome = read_verified::<ObservationLogEntry>(&path, |e| e.seq)?;
+    let outcome =
+        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
     assert_eq!(outcome.entries.len(), 2, "supersede appends, never deletes");
     assert_eq!(outcome.entries[1].supersedes_seq, Some(0));
     assert!(outcome.entries[0].clean);
@@ -96,12 +99,12 @@ fn supersede_records_the_relation_without_deleting_the_earlier_row() -> Result<(
 fn corrupt_row_is_quarantined_not_dropped_silently() -> Result<()> {
     let path = temp_path("corrupt-row");
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
         log.append_with_seq(sample)?;
         log.append_with_seq(sample)?;
     }
     // Corrupt line 1 (0-indexed) so it no longer deserializes as
-    // ObservationLogEntry, but leave its recorded chain digest intact
+    // ObservationLogEntryDto, but leave its recorded chain digest intact
     // -- this must be caught by seq/shape validation, and since the
     // corruption trips the chain (payload changed under a fixed
     // digest), verification fails closed as a tamper, which is
@@ -111,13 +114,14 @@ fn corrupt_row_is_quarantined_not_dropped_silently() -> Result<()> {
     // structurally-odd-but-still-chain-valid row: a duplicate seq.
     cleanup(&path);
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
-        log.append_with_seq(|_seq| sample(0))?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
+        log.append_with_seq(|_seq| sample(Seq::GENESIS))?;
         // Force a duplicate/gapped seq by writing seq=0 again instead
         // of the log-assigned value.
-        log.append_with_seq(|_seq| sample(0))?;
+        log.append_with_seq(|_seq| sample(Seq::GENESIS))?;
     }
-    let outcome = read_verified::<ObservationLogEntry>(&path, |e| e.seq)?;
+    let outcome =
+        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
     assert_eq!(
         outcome.entries.len(),
         1,
@@ -144,7 +148,7 @@ fn tampered_chain_is_rejected_against_independent_sidecar() -> Result<()> {
     // (tampered) data file.
     let path = temp_path("tamper");
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
         log.append_with_seq(sample)?;
         log.append_with_seq(sample)?;
     }
@@ -160,9 +164,12 @@ fn tampered_chain_is_rejected_against_independent_sidecar() -> Result<()> {
     let sidecar_after = read_file(&enforcer_core::telemetry::chain_sidecar_path(&path))?;
     assert_eq!(sidecar_before, sidecar_after);
 
-    let outcome = read_verified::<ObservationLogEntry>(&path, |e| e.seq);
+    let outcome = read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq));
     assert!(
-        matches!(outcome, Err(MemoryError::ChainTamper { line_index: 0, .. })),
+        matches!(
+            outcome,
+            Err(MemoryError::ChainTamper { line_index, .. }) if line_index == 0
+        ),
         "expected ChainTamper at line 0, got {outcome:?}"
     );
     cleanup(&path);
@@ -182,23 +189,24 @@ fn malformed_json_row_is_quarantined() -> Result<()> {
     // valid JSON but wrong types).
     let path = temp_path("malformed-json");
     {
-        let mut log: AppendLog<ObservationLogEntry> = AppendLog::open(&path)?;
+        let mut log: AppendLog<ObservationLogEntryDto> = AppendLog::open(&path)?;
         log.append_with_seq(sample)?;
     }
     // Simulate a corrupt data file whose sidecar was rebuilt to
     // match (models e.g. an offline repair tool that resyncs the
     // sidecar but leaves row-shape corruption for the row-level
     // quarantine path to catch).
-    write_file(&path, "{\"not\":\"a valid ObservationLogEntry\"}\n")?;
+    write_file(&path, "{\"not\":\"a valid ObservationLogEntryDto\"}\n")?;
     let digest = enforcer_core::hash_chain::link_digest(
         None,
-        "{\"not\":\"a valid ObservationLogEntry\"}".as_bytes(),
+        "{\"not\":\"a valid ObservationLogEntryDto\"}".as_bytes(),
     );
     write_file(
         &enforcer_core::telemetry::chain_sidecar_path(&path),
         &format!("{digest}\n"),
     )?;
-    let outcome = read_verified::<ObservationLogEntry>(&path, |e| e.seq)?;
+    let outcome =
+        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
     assert!(outcome.entries.is_empty());
     assert_eq!(outcome.quarantined.len(), 1);
     assert!(outcome.quarantined[0]

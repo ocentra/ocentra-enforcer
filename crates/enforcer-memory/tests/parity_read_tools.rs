@@ -6,12 +6,11 @@
 //! byte-exact snippet extraction are meaningless without real files on
 //! disk, so this test does not mock the filesystem or git).
 
+use enforcer_domain::memory_types::{CodeSearchMode, FreshnessState};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::code_search::{search_code, SearchError, SearchMode, SearchQuery};
+use enforcer_memory::code_search::{search_code, SearchError, SearchQuery};
 use enforcer_memory::graph_schema::get_graph_schema;
-use enforcer_memory::projects::{
-    delete_project, index_status, list_projects, FreshnessState, ProjectsError,
-};
+use enforcer_memory::projects::{delete_project, index_status, list_projects, ProjectsError};
 use enforcer_memory::snippet::{get_code_snippet, SnippetError};
 use enforcer_memory::store::Store;
 use sha2::{Digest, Sha256};
@@ -82,12 +81,12 @@ fn hash_hex(bytes: &[u8]) -> String {
     out
 }
 
-fn search_query(pattern: &str, mode: SearchMode) -> SearchQuery<'_> {
+fn search_query(pattern: &str, mode: CodeSearchMode) -> SearchQuery<'_> {
     SearchQuery {
-        pattern,
+        pattern: pattern.into(),
         mode,
-        context_lines: 0,
-        limit: 0,
+        context_lines: 0.into(),
+        limit: 0.into(),
     }
 }
 
@@ -100,8 +99,8 @@ fn snippet_is_byte_exact_hash_equal_to_an_independent_file_slice() -> TestResult
     let snippet = get_code_snippet(&graph, dir.path(), "service.rs::helper", false)?;
 
     let raw = fs::read(dir.path().join("service.rs"))?;
-    let independent_slice = &raw[snippet.start_byte..snippet.end_byte];
-    assert_eq!(snippet.bytes, independent_slice);
+    let independent_slice = &raw[snippet.start_byte.get()..snippet.end_byte.get()];
+    assert_eq!(snippet.bytes.as_slice(), independent_slice);
     assert_eq!(snippet.sha256, hash_hex(independent_slice));
     Ok(())
 }
@@ -138,9 +137,9 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
     let (_dir, graph) = indexed_fixture_repo()?;
 
     let schema = get_graph_schema(&graph);
-    assert_eq!(schema.total_nodes(), graph.nodes().len());
+    assert_eq!(usize::from(schema.total_nodes()), graph.nodes().len());
     assert_eq!(
-        schema.total_edges(),
+        usize::from(schema.total_edges()),
         graph.imports().len() + graph.calls().len() + graph.routes().len()
     );
 
@@ -151,7 +150,7 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
     // src/graph_schema.rs's own unit tests pin precisely; this
     // integration test only re-confirms the ordering invariant holds
     // end-to-end against the fixture repo).
-    let counts: Vec<usize> = schema.labels.iter().map(|l| l.count).collect();
+    let counts: Vec<usize> = schema.labels.iter().map(|l| l.count.get()).collect();
     let mut sorted_desc = counts.clone();
     sorted_desc.sort_unstable_by(|a, b| b.cmp(a));
     assert_eq!(
@@ -171,7 +170,7 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
 
     // edge_types must obey the same descending-by-count ordering as
     // labels (module docs' "same ordering guarantee").
-    let edge_counts: Vec<usize> = schema.edge_types.iter().map(|e| e.count).collect();
+    let edge_counts: Vec<usize> = schema.edge_types.iter().map(|e| e.count.get()).collect();
     let mut edge_sorted_desc = edge_counts.clone();
     edge_sorted_desc.sort_unstable_by(|a, b| b.cmp(a));
     assert_eq!(
@@ -188,8 +187,12 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
 fn search_code_enriches_hits_with_containing_symbol_and_ranks_by_inbound_degree() -> TestResult {
     let (dir, graph) = indexed_fixture_repo()?;
 
-    let outcome = search_code(&graph, dir.path(), &search_query("value", SearchMode::Full))?;
-    assert!(outcome.total_matches >= 1);
+    let outcome = search_code(
+        &graph,
+        dir.path(),
+        &search_query("value", CodeSearchMode::Full),
+    )?;
+    assert!(outcome.total_matches.get() >= 1);
     assert!(outcome
         .hits
         .iter()
@@ -202,7 +205,7 @@ fn search_code_enriches_hits_with_containing_symbol_and_ranks_by_inbound_degree(
         .iter()
         .find(|h| h.containing_symbol.as_deref() == Some("helper"))
         .ok_or("expected a hit inside helper")?;
-    assert!(helper_hit.structural_rank >= 2, "{:?}", helper_hit);
+    assert!(helper_hit.structural_rank.get() >= 2, "{:?}", helper_hit);
     Ok(())
 }
 
@@ -213,22 +216,25 @@ fn search_code_modes_compact_full_files_are_distinct() -> TestResult {
     let files_mode = search_code(
         &graph,
         dir.path(),
-        &search_query("helper", SearchMode::Files),
+        &search_query("helper", CodeSearchMode::Files),
     )?;
     assert!(files_mode.hits.is_empty());
-    assert!(files_mode.files.contains(&"service.rs".to_string()));
+    assert!(files_mode.files.iter().any(|path| path == "service.rs"));
 
     let full_mode = search_code(
         &graph,
         dir.path(),
         &SearchQuery {
-            pattern: "helper",
-            mode: SearchMode::Full,
-            context_lines: 1,
-            limit: 0,
+            pattern: "helper".into(),
+            mode: CodeSearchMode::Full,
+            context_lines: 1.into(),
+            limit: 0.into(),
         },
     )?;
-    assert!(!full_mode.hits.is_empty());
+    assert!(full_mode
+        .hits
+        .iter()
+        .any(|hit| hit.containing_symbol.as_deref() == Some("helper")));
     Ok(())
 }
 
@@ -240,7 +246,7 @@ fn search_code_reports_unreadable_files_never_silently_skips() -> TestResult {
     let outcome = search_code(
         &graph,
         dir.path(),
-        &search_query("helper", SearchMode::Full),
+        &search_query("helper", CodeSearchMode::Full),
     )?;
     assert!(outcome
         .unreadable_files
@@ -255,7 +261,7 @@ fn search_code_invalid_pattern_is_a_typed_error() -> TestResult {
     let outcome = search_code(
         &graph,
         dir.path(),
-        &search_query("(unterminated[", SearchMode::Full),
+        &search_query("(unterminated[", CodeSearchMode::Full),
     );
     assert!(matches!(outcome, Err(SearchError::InvalidPattern { .. })));
     Ok(())
@@ -275,15 +281,10 @@ fn temp_stores_dir(name: &str) -> PathBuf {
     std::env::temp_dir().join(unique)
 }
 
-fn parse_repo_root(raw: &str) -> enforcer_domain::paths::RepoRoot {
-    raw.parse()
-        .unwrap_or_else(|_| unreachable!("test literal {raw:?} must parse as a RepoRoot"))
-}
-
 #[test]
 fn projects_list_status_delete_round_trip() -> TestResult {
     let stores_dir = temp_stores_dir("roundtrip");
-    let root = parse_repo_root("C:/Projects/parity-roundtrip");
+    let root: enforcer_domain::paths::RepoRoot = "C:/Projects/parity-roundtrip".parse()?;
     let store = Store::init(&stores_dir, &root, "2026-07-05T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
     drop(store);

@@ -14,6 +14,7 @@
 //! trusted to prove it about the rest of x06.
 
 use super::runners::RowResult;
+use enforcer_domain::memory_types::MemoryProofPrefixStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -25,7 +26,7 @@ use std::path::Path;
 /// executed it (or `None` for unrunnable rows -- no runner claimed
 /// them).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QaProofRow {
+pub struct QaProofRowDto {
     pub id: String,
     pub category: String,
     pub query: String,
@@ -53,7 +54,7 @@ pub struct QaProofRow {
     pub capability_state: String,
 }
 
-impl From<&RowResult> for QaProofRow {
+impl From<&RowResult> for QaProofRowDto {
     fn from(result: &RowResult) -> Self {
         Self {
             id: result.id.clone(),
@@ -80,7 +81,7 @@ impl From<&RowResult> for QaProofRow {
 /// an unrunnable row is counted in `rows_total` and `rows_unrunnable`,
 /// never in `rows_green`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct QaProofDocument {
+pub struct QaProofDocumentDto {
     #[serde(rename = "schemaVersion")]
     pub schema_version: u32,
     pub status: String,
@@ -98,14 +99,14 @@ pub struct QaProofDocument {
     pub rows_failed: usize,
     #[serde(rename = "rowsUnrunnable")]
     pub rows_unrunnable: usize,
-    pub rows: Vec<QaProofRow>,
+    pub rows: Vec<QaProofRowDto>,
 }
 
 /// Build the `x06-rag-qa.json` document from a full set of executed
 /// [`RowResult`]s. Counts are recomputed from the rows themselves, not
 /// carried separately, so `rows_total == rows.len()` is a structural
 /// invariant rather than something a caller could drift out of sync.
-pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
+pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocumentDto {
     let rows_green = results.iter().filter(|r| r.is_green()).count();
     let rows_green_real = results
         .iter()
@@ -126,7 +127,7 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
     } else {
         "incomplete"
     };
-    QaProofDocument {
+    QaProofDocumentDto {
         schema_version: 1,
         status: status.to_owned(),
         rows_total: results.len(),
@@ -136,7 +137,7 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
         rows_green_degraded,
         rows_failed,
         rows_unrunnable,
-        rows: results.iter().map(QaProofRow::from).collect(),
+        rows: results.iter().map(QaProofRowDto::from).collect(),
     }
 }
 
@@ -162,31 +163,11 @@ pub const REQUIRED_PREFIXES: &[&str] = &[
     "LRN", "FED", "DIA", "SEC", "TOK", "MOD", "DOG",
 ];
 
-/// One matrix prefix's status. `NotYetWired` is this SKELETON pass's
-/// honest default for every prefix except QA (which this harness itself
-/// computes from real row results) -- later x06 subpacks report their
-/// own prefix status into this same rollup shape once their proof
-/// artifacts land; see the mission brief's "expect mostly red/pending
-/// today; that is CORRECT."
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum PrefixStatus {
-    Green,
-    Red,
-    Pending,
-}
-
-impl PrefixStatus {
-    fn is_green(self) -> bool {
-        matches!(self, PrefixStatus::Green)
-    }
-}
-
 /// One row of the `proof/memory/x06-feature-parity.json` matrix.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MatrixPrefixRow {
+pub struct MatrixPrefixRowDto {
     pub prefix: String,
-    pub status: PrefixStatus,
+    pub status: MemoryProofPrefixStatus,
     #[serde(rename = "testName", skip_serializing_if = "Option::is_none")]
     pub test_name: Option<String>,
     #[serde(rename = "artifactPath")]
@@ -204,11 +185,11 @@ pub struct MatrixPrefixRow {
 /// `retrievalImprovementCurvePresent`, `tokenReductionMedianAtLeast10x`,
 /// `exactArtifactMismatchCount`, `externalModelProviderUsed`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FeatureParityDocument {
+pub struct FeatureParityDocumentDto {
     #[serde(rename = "schemaVersion")]
     pub schema_version: u32,
     pub status: String,
-    pub prefixes: Vec<MatrixPrefixRow>,
+    pub prefixes: Vec<MatrixPrefixRowDto>,
     #[serde(rename = "allMatrixPrefixesGreen")]
     pub all_matrix_prefixes_green: bool,
     #[serde(rename = "qaRowsTotal")]
@@ -253,9 +234,9 @@ pub struct FeatureParityDocument {
 /// property this module exists to guarantee (a caller cannot simply
 /// pass `true` while a prefix is red).
 pub fn build_feature_parity_document(
-    prefix_statuses: &BTreeMap<&'static str, MatrixPrefixRow>,
+    prefix_statuses: &BTreeMap<&'static str, MatrixPrefixRowDto>,
     qa_results: &[RowResult],
-) -> FeatureParityDocument {
+) -> FeatureParityDocumentDto {
     for required in REQUIRED_PREFIXES {
         assert!(
             prefix_statuses.contains_key(required),
@@ -263,7 +244,7 @@ pub fn build_feature_parity_document(
         );
     }
 
-    let prefixes: Vec<MatrixPrefixRow> = REQUIRED_PREFIXES
+    let prefixes: Vec<MatrixPrefixRowDto> = REQUIRED_PREFIXES
         .iter()
         .map(|prefix| prefix_statuses[prefix].clone())
         .collect();
@@ -314,7 +295,7 @@ pub fn build_feature_parity_document(
         "incomplete"
     };
 
-    FeatureParityDocument {
+    FeatureParityDocumentDto {
         schema_version: 1,
         status: status.to_owned(),
         prefixes,
@@ -339,9 +320,14 @@ pub fn build_feature_parity_document(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        build_feature_parity_document, build_qa_proof_document, FeatureParityDocumentDto,
+        MatrixPrefixRowDto, QaProofDocumentDto, QaProofRowDto, REQUIRED_PREFIXES,
+    };
     use crate::feature_parity::queryset::QaRow;
-    use crate::feature_parity::runners::unrunnable;
+    use crate::feature_parity::runners::{unrunnable, RowResult};
+    use enforcer_domain::memory_types::MemoryProofPrefixStatus;
+    use std::collections::BTreeMap;
 
     fn sample_row(id: &str) -> QaRow {
         QaRow {
@@ -377,15 +363,15 @@ mod tests {
         result
     }
 
-    fn all_green_prefixes() -> BTreeMap<&'static str, MatrixPrefixRow> {
+    fn all_green_prefixes() -> BTreeMap<&'static str, MatrixPrefixRowDto> {
         REQUIRED_PREFIXES
             .iter()
             .map(|prefix| {
                 (
                     *prefix,
-                    MatrixPrefixRow {
+                    MatrixPrefixRowDto {
                         prefix: prefix.to_string(),
-                        status: PrefixStatus::Green,
+                        status: MemoryProofPrefixStatus::Green,
                         test_name: Some("fake_test".to_string()),
                         artifact_path: format!("proof/memory/x06-{prefix}.json"),
                         failure_reason: None,
@@ -393,6 +379,37 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn proof_dtos_round_trip_through_the_persisted_json_contract() -> Result<(), serde_json::Error>
+    {
+        let row = QaProofRowDto::from(&green_result("QA-001"));
+        let encoded = serde_json::to_vec(&row)?;
+        let decoded: QaProofRowDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(decoded, row);
+
+        let document = build_qa_proof_document(&[green_result("QA-001")]);
+        let encoded = serde_json::to_vec(&document)?;
+        let decoded: QaProofDocumentDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(decoded, document);
+
+        let prefix = MatrixPrefixRowDto {
+            prefix: "QA".to_owned(),
+            status: MemoryProofPrefixStatus::Green,
+            test_name: Some("qa_contract".to_owned()),
+            artifact_path: "proof/memory/x06-rag-qa.json".to_owned(),
+            failure_reason: None,
+        };
+        let encoded = serde_json::to_vec(&prefix)?;
+        let decoded: MatrixPrefixRowDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(decoded, prefix);
+
+        let document = build_feature_parity_document(&all_green_prefixes(), &[]);
+        let encoded = serde_json::to_vec(&document)?;
+        let decoded: FeatureParityDocumentDto = serde_json::from_slice(&encoded)?;
+        assert_eq!(decoded, document);
+        Ok(())
     }
 
     #[test]
@@ -466,9 +483,9 @@ mod tests {
         // Flip exactly one prefix (QA, this harness's own area) to Red.
         prefixes.insert(
             "QA",
-            MatrixPrefixRow {
+            MatrixPrefixRowDto {
                 prefix: "QA".to_string(),
-                status: PrefixStatus::Red,
+                status: MemoryProofPrefixStatus::Red,
                 test_name: Some("x06_9_qa_gate".to_string()),
                 artifact_path: "proof/memory/x06-rag-qa.json".to_string(),
                 failure_reason: Some("QA-002 unrunnable: no wired runner".to_string()),
@@ -487,9 +504,9 @@ mod tests {
         let mut prefixes = all_green_prefixes();
         prefixes.insert(
             "WVR",
-            MatrixPrefixRow {
+            MatrixPrefixRowDto {
                 prefix: "WVR".to_string(),
-                status: PrefixStatus::Pending,
+                status: MemoryProofPrefixStatus::Pending,
                 test_name: None,
                 artifact_path: "proof/memory/x06-weaver.json".to_string(),
                 failure_reason: Some("not yet emitted by X06.5/X06.9".to_string()),
@@ -504,9 +521,9 @@ mod tests {
         let mut prefixes = all_green_prefixes();
         prefixes.insert(
             "CLI",
-            MatrixPrefixRow {
+            MatrixPrefixRowDto {
                 prefix: "CLI".to_string(),
-                status: PrefixStatus::Pending,
+                status: MemoryProofPrefixStatus::Pending,
                 test_name: None,
                 artifact_path: "proof/memory/x06-cli.json".to_string(),
                 failure_reason: Some("CLI proof not emitted yet".to_string()),
@@ -514,9 +531,9 @@ mod tests {
         );
         prefixes.insert(
             "LRN",
-            MatrixPrefixRow {
+            MatrixPrefixRowDto {
                 prefix: "LRN".to_string(),
-                status: PrefixStatus::Red,
+                status: MemoryProofPrefixStatus::Red,
                 test_name: Some("x06_learning_curve_followup".to_string()),
                 artifact_path: "proof/memory/x06-learning-curve.json".to_string(),
                 failure_reason: Some("longitudinal recurrence curve not proven".to_string()),
@@ -535,11 +552,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "missing required TEST_MATRIX prefix")]
-    fn rollup_panics_on_a_missing_required_prefix_rather_than_silently_omitting_it() {
+    fn rollup_rejects_a_missing_required_prefix_rather_than_silently_omitting_it(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut prefixes = all_green_prefixes();
         prefixes.remove("DOG");
-        let _ = build_feature_parity_document(&prefixes, &[]);
+        let outcome = std::panic::catch_unwind(|| build_feature_parity_document(&prefixes, &[]));
+        let payload = match outcome {
+            Err(payload) => payload,
+            Ok(_) => return Err("missing prefix must reject the rollup".into()),
+        };
+        let message = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+        assert!(
+            message.is_some_and(|value| value.starts_with("missing required TEST_MATRIX prefix"))
+        );
+        Ok(())
     }
 
     #[test]
@@ -549,14 +578,14 @@ mod tests {
         // evidence exists. Current checked-in X06 proof is green, but
         // this guard keeps future migrations from reintroducing
         // fabricated aggregate green by silently skipping prefixes.
-        let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
+        let mut prefixes: BTreeMap<&'static str, MatrixPrefixRowDto> = REQUIRED_PREFIXES
             .iter()
             .map(|prefix| {
                 (
                     *prefix,
-                    MatrixPrefixRow {
+                    MatrixPrefixRowDto {
                         prefix: prefix.to_string(),
-                        status: PrefixStatus::Pending,
+                        status: MemoryProofPrefixStatus::Pending,
                         test_name: None,
                         artifact_path: format!("proof/memory/x06-{prefix}.json"),
                         failure_reason: Some(
@@ -568,9 +597,9 @@ mod tests {
             .collect();
         prefixes.insert(
             "QA",
-            MatrixPrefixRow {
+            MatrixPrefixRowDto {
                 prefix: "QA".to_string(),
-                status: PrefixStatus::Red,
+                status: MemoryProofPrefixStatus::Red,
                 test_name: Some("x06_9_qa_gate".to_string()),
                 artifact_path: "proof/memory/x06-rag-qa.json".to_string(),
                 failure_reason: Some(

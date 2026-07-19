@@ -98,7 +98,11 @@ mod tests {
     }
 
     #[test]
-    fn unknown_language_is_an_error() {
-        assert!(ArchitectureLanguage::from_str("cobol").is_err());
+    fn unknown_language_is_an_error() -> Result<(), Box<dyn std::error::Error>> {
+        let error = ArchitectureLanguage::from_str("cobol")
+            .err()
+            .ok_or("must reject cobol")?;
+        assert_eq!(error.to_string(), "Unknown architecture language: cobol");
+        Ok(())
     }
 }

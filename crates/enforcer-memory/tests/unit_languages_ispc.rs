@@ -84,7 +84,10 @@ export void updateAll(uniform float pos[], uniform int n) {
 }
 "#;
     let parsed = parse_ispc(src);
-    assert!(symbol_kind(&parsed.symbols, "updateAll").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "updateAll"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]
@@ -98,7 +101,10 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         "{:?}",
         parsed.symbols
     );
-    assert!(symbol_kind(&parsed.symbols, "updateAll").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "updateAll"),
+        Some(&SymbolKind::Function)
+    );
     assert_eq!(
         symbol_kind(&parsed.symbols, "Particle"),
         Some(&SymbolKind::Struct)

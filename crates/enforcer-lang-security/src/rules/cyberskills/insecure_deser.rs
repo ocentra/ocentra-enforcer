@@ -43,15 +43,9 @@ use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
-/// One always-unsafe deserialization sink: pattern, human label, and a
-/// language-appropriate fix hint.
-struct DeserSink {
-    regex: &'static str,
-    label: &'static str,
-    fix: &'static str,
-}
+use crate::boundary::pattern::{RemediationPattern, RemediationPatternSource as DeserSink};
 
-/// Sinks that are unsafe unconditionally (no safe-argument spelling exists
+/// Sinks that are dangerous unconditionally (no safe-argument spelling exists
 /// for them, per the vendor skill's own workflow steps).
 const ALWAYS_UNSAFE_SINKS: &[DeserSink] = &[
     DeserSink {
@@ -98,44 +92,43 @@ const ALWAYS_UNSAFE_SINKS: &[DeserSink] = &[
     DeserSink {
         regex: r"\bBinaryFormatter\b",
         label: ".NET BinaryFormatter",
-        fix: "BinaryFormatter is unsafe by design and deprecated by Microsoft; use \
+        fix: "BinaryFormatter is insecure by design and deprecated by Microsoft; use \
               System.Text.Json or another data-only serializer",
     },
 ];
 
 /// `CYBER-DESERIALIZE.1` — insecure deserialization sink detector across
 /// Python, Ruby, PHP, Java, and .NET.
+#[derive(Debug)]
 pub struct InsecureDeserializationValidator {
     rule_id: RuleId,
-    always_unsafe: Vec<(Regex, &'static str, &'static str)>,
+    dangerous_sinks: Vec<RemediationPattern>,
     python_yaml_load: Regex,
     yaml_safe_loader_guard: Regex,
 }
 
 impl InsecureDeserializationValidator {
     pub fn new() -> Result<Self, DecodeError> {
-        let mut always_unsafe = Vec::with_capacity(ALWAYS_UNSAFE_SINKS.len());
+        let mut dangerous_sinks = Vec::with_capacity(ALWAYS_UNSAFE_SINKS.len());
         for sink in ALWAYS_UNSAFE_SINKS {
-            let regex = Regex::new(sink.regex)
-                .map_err(|err| DecodeError::new("cyberskillsInsecureDeserSink", err.to_string()))?;
-            always_unsafe.push((regex, sink.label, sink.fix));
+            dangerous_sinks.push(RemediationPattern::compile_source(
+                "cyberskillsInsecureDeserSink",
+                sink,
+            )?);
         }
         Ok(Self {
-            rule_id: "CYBER-DESERIALIZE.1".parse()?,
-            always_unsafe,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberDeserialize.id(),
+            dangerous_sinks,
             // `yaml.load(` (lowercase module, as in `import yaml`). Deliberately
             // does NOT match `yaml.safe_load(` — the substring after `yaml.` in
             // that spelling is `safe_load(`, not `load(`.
             python_yaml_load: Regex::new(r"\byaml\.load\s*\(").map_err(|err| {
-                DecodeError::new("cyberskillsInsecureDeserYamlLoad", err.to_string())
+                crate::boundary::regex::decode("cyberskillsInsecureDeserYamlLoad", err)
             })?,
             // Same-line guard: `Loader=yaml.SafeLoader` / `Loader=SafeLoader`
             // (any spacing/quoting) is PyYAML's documented safe-loading idiom.
             yaml_safe_loader_guard: Regex::new(r"\bSafeLoader\b").map_err(|err| {
-                DecodeError::new(
-                    "cyberskillsInsecureDeserYamlSafeLoaderGuard",
-                    err.to_string(),
-                )
+                crate::boundary::regex::decode("cyberskillsInsecureDeserYamlSafeLoaderGuard", err)
             })?,
         })
     }
@@ -148,46 +141,43 @@ impl Validator for InsecureDeserializationValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
 
-            for (regex, label, fix) in &self.always_unsafe {
-                if regex.is_match(line) {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "insecure deserialization sink".to_owned(),
-                        detail: format!(
+            for pattern in &self.dangerous_sinks {
+                if pattern.regex().is_match(line) {
+                    let label = pattern.label().as_str();
+                    let fix = pattern.fix().as_str();
+                    findings.extend(crate::boundary::finding::from_source(
+                        (&self.rule_id, Severity::Error),
+                        "insecure deserialization sink",
+                        format!(
                             "{label} deserializes its input without any integrity or type \
                              check, letting an attacker who controls the serialized payload \
                              achieve remote code execution via a gadget chain (see OWASP \
                              A08:2021 — Software and Data Integrity Failures). Fix: {fix}."
                         ),
-                        file: input.file.clone(),
-                        line: line_number,
-                        snippet: Some(line.to_owned()),
-                    });
+                        input.file,
+                        (line_number, Some(line)),
+                    ));
                 }
             }
 
-            // Python `yaml.load(...)` is unsafe UNLESS the same line carries a
+            // Python `yaml.load(...)` is dangerous UNLESS the same line carries a
             // SafeLoader guard (`yaml.safe_load(` / `Loader=yaml.SafeLoader`).
             if self.python_yaml_load.is_match(line) && !self.yaml_safe_loader_guard.is_match(line) {
-                findings.push(Finding {
-                    rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
-                    title: "insecure deserialization sink".to_owned(),
-                    detail: "Python yaml.load() without a SafeLoader can construct \
+                findings.extend(crate::boundary::finding::from_source(
+                    (&self.rule_id, Severity::Error),
+                    "insecure deserialization sink",
+                    "Python yaml.load() without a SafeLoader can construct \
                              arbitrary Python objects from the input document (PyYAML's \
                              own documented attack payload is \
                              `!!python/object/apply:os.system [...]`), letting an attacker \
                              who controls the YAML document achieve remote code execution. \
-                             Fix: use yaml.safe_load(...) or pass Loader=yaml.SafeLoader."
-                        .to_owned(),
-                    file: input.file.clone(),
-                    line: line_number,
-                    snippet: Some(line.to_owned()),
-                });
+                             Fix: use yaml.safe_load(...) or pass Loader=yaml.SafeLoader.",
+                    input.file,
+                    (line_number, Some(line)),
+                ));
             }
         }
         findings
@@ -196,16 +186,15 @@ impl Validator for InsecureDeserializationValidator {
 
 #[cfg(test)]
 mod tests {
-    use enforcer_validator::harness::run_fixture_parity;
+    use crate::boundary::fixture::run_manifest_fixture_parity;
 
     use super::InsecureDeserializationValidator;
 
     #[test]
     fn cyberskills_insecure_deser() -> Result<(), Box<dyn std::error::Error>> {
         let validator = InsecureDeserializationValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "tests/fixtures/cyberskills/web.insecure-deserialization/bad/deser.py",
             "tests/fixtures/cyberskills/web.insecure-deserialization/good/safe.py",
         )?;

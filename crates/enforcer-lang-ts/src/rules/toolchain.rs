@@ -19,80 +19,43 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-/// One toolchain rule: a required marker OR a forbidden marker (exactly
-/// one is `Some`), checked over the whole file text.
-struct ToolchainSpec {
-    rule_id: &'static str,
-    title: &'static str,
-    /// Fires when this substring is ABSENT.
-    required_marker: Option<&'static str>,
-    /// Fires when this substring is PRESENT.
-    forbidden_marker: Option<&'static str>,
-}
+use crate::boundary::finding::{from_source, SourceFinding, FIRST_SOURCE_LINE};
+use crate::boundary::toolchain_policy::ToolchainRule;
 
-const SPECS: &[ToolchainSpec] = &[
-    ToolchainSpec {
-        rule_id: "TS-5.1",
-        title: "TypeScript compiler checks must pass",
-        required_marker: Some("tsc --noEmit"),
-        forbidden_marker: None,
-    },
-    ToolchainSpec {
-        rule_id: "TS-7.1",
-        title: "TypeScript strict mode is required",
-        required_marker: None,
-        forbidden_marker: Some("strict: false"),
-    },
-    ToolchainSpec {
-        rule_id: "TS-7.12",
-        title: "npm ci is required in CI",
-        required_marker: Some("npm ci"),
-        forbidden_marker: None,
-    },
-    ToolchainSpec {
-        rule_id: "TS-7.13",
-        title: "ESLint must enforce unsafe TypeScript rules",
-        required_marker: Some("no-floating-promises"),
-        forbidden_marker: None,
-    },
-];
-
-/// One [`Validator`] per [`ToolchainSpec`], selected by `spec_index` into
-/// [`SPECS`].
+/// One validator per canonical toolchain-rule variant.
+#[derive(Debug)]
+#[doc = "TypeScript toolchain policy validator."]
 pub struct ToolchainValidator {
     rule_id: RuleId,
-    spec_index: usize,
+    rule: ToolchainRule,
 }
 
 impl ToolchainValidator {
     fn new_for(
-        spec_index: usize,
+        rule: ToolchainRule,
     ) -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
-        let rule_id: RuleId = SPECS[spec_index].rule_id.parse()?;
-        Ok(Self {
-            rule_id,
-            spec_index,
-        })
+        let rule_id = crate::boundary::rule_spec::decode_rule_id(rule.rule_id())?;
+        Ok(Self { rule_id, rule })
     }
 
     /// TS-5.1.
     pub fn ts_5_1() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
-        Self::new_for(0)
+        Self::new_for(ToolchainRule::Ts5_1)
     }
 
     /// TS-7.1.
     pub fn ts_7_1() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
-        Self::new_for(1)
+        Self::new_for(ToolchainRule::Ts7_1)
     }
 
     /// TS-7.12.
     pub fn ts_7_12() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
-        Self::new_for(2)
+        Self::new_for(ToolchainRule::Ts7_12)
     }
 
     /// TS-7.13.
     pub fn ts_7_13() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
-        Self::new_for(3)
+        Self::new_for(ToolchainRule::Ts7_13)
     }
 }
 
@@ -102,43 +65,35 @@ impl Validator for ToolchainValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let spec = &SPECS[self.spec_index];
-        let fires = match (spec.required_marker, spec.forbidden_marker) {
-            (Some(required), None) => !input.source.contains(required),
-            (None, Some(forbidden)) => input.source.contains(forbidden),
-            _ => false,
-        };
-        if !fires {
+        if !self.rule.fires(input.source.as_str()) {
             return Vec::new();
         }
-        vec![Finding {
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            title: spec.title.to_owned(),
-            detail: format!("toolchain policy `{}` violated", spec.rule_id),
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }]
+        from_source(
+            &self.rule_id,
+            input.file,
+            SourceFinding {
+                severity: Severity::Error,
+                title: self.rule.title(),
+                detail: format!("toolchain policy `{}` violated", self.rule.rule_id()),
+                line: FIRST_SOURCE_LINE,
+                snippet: None,
+            },
+        )
+        .into_iter()
+        .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::ToolchainValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
+    use crate::boundary::test_fixtures::run_fixture_parity;
 
     #[test]
     fn ts_5_1_requires_tsc_no_emit_wiring() -> Result<(), Box<dyn std::error::Error>> {
         let validator = ToolchainValidator::ts_5_1()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/toolchain/ts-5-1/fail.json",
             "fixtures/toolchain/ts-5-1/pass.json",
         )?;
@@ -150,7 +105,6 @@ mod tests {
         let validator = ToolchainValidator::ts_7_1()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/toolchain/ts-7-1/fail.json",
             "fixtures/toolchain/ts-7-1/pass.json",
         )?;
@@ -162,7 +116,6 @@ mod tests {
         let validator = ToolchainValidator::ts_7_12()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/toolchain/ts-7-12/fail.yml",
             "fixtures/toolchain/ts-7-12/pass.yml",
         )?;
@@ -174,7 +127,6 @@ mod tests {
         let validator = ToolchainValidator::ts_7_13()?;
         run_fixture_parity(
             &validator,
-            &manifest_dir(),
             "fixtures/toolchain/ts-7-13/fail.json",
             "fixtures/toolchain/ts-7-13/pass.json",
         )?;

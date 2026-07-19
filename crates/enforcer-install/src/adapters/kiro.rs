@@ -20,24 +20,26 @@
 //! a relative path cannot resolve from an arbitrary repo cwd
 //! (RUST_ARCHITECTURE.md "Global-install scope contract").
 
+//! BOUNDARY-INVARIANT: adapter configuration is normalized before install decisions.
+//!
 use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
 use crate::backup::backup_before_write;
-use crate::cli_contract::RequestContext;
 use crate::core::HarnessAdapter;
 use crate::error::{InstallError, InstallResult};
-use crate::report::{
-    AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange, VerifyCheck,
-    VerifyReport,
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::install_types::ArtifactKind;
+use enforcer_domain::install_types::{
+    AppliedInstallChange, ApplyResult, ChangeDisposition, CheckStatus, CheckSubject, InstallReport,
+    InstallReportText, InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
+use enforcer_domain::install_types::{InstallBinaryPath, InstallRequestContext, InstallRootPath};
 use enforcer_domain::paths::RepoRoot;
 use enforcer_mcp::name::SERVER_NAME;
 
 /// This adapter's registration key, matching [`crate::report::HarnessKey`].
-const HARNESS_KEY: &str = "kiro";
-
 /// The Kiro [`HarnessAdapter`]. Rooted at a `home` directory (the parent
 /// of `.kiro/settings/mcp.json`) and a `binary_path` fixed at
 /// construction, so `plan`/`apply`/`verify` all compute against the exact
@@ -45,26 +47,29 @@ const HARNESS_KEY: &str = "kiro";
 /// instead of the real `~`.
 #[derive(Debug, Clone)]
 pub struct KiroAdapter {
-    home: PathBuf,
-    binary_path: PathBuf,
+    home: InstallRootPath,
+    binary_path: InstallBinaryPath,
 }
 
 impl KiroAdapter {
     /// Build an adapter rooted at `home`, registering `binary_path` as the
     /// MCP server command.
-    #[must_use]
-    pub fn new(home: impl Into<PathBuf>, binary_path: impl Into<PathBuf>) -> Self {
-        Self {
-            home: home.into(),
-            binary_path: binary_path.into(),
-        }
+    pub fn try_new(home: PathBuf, binary_path: PathBuf) -> Result<Self, DecodeError> {
+        Ok(Self {
+            home: InstallRootPath::try_from(home)?,
+            binary_path: InstallBinaryPath::try_from(binary_path)?,
+        })
     }
 
     /// `~/.kiro/settings/mcp.json` — the native Kiro MCP registry, per
     /// the workpack's reference-format table.
     #[must_use]
     pub fn config_path(&self) -> PathBuf {
-        self.home.join(".kiro").join("settings").join("mcp.json")
+        self.home
+            .as_path()
+            .join(".kiro")
+            .join("settings")
+            .join("mcp.json")
     }
 
     fn io_err(path: &Path, e: impl std::fmt::Display) -> InstallError {
@@ -144,13 +149,13 @@ impl KiroAdapter {
 }
 
 impl HarnessAdapter for KiroAdapter {
-    fn harness_key(&self) -> &'static str {
-        HARNESS_KEY
+    fn harness_key(&self) -> enforcer_domain::ids::HarnessId {
+        enforcer_domain::ids::BuiltInHarness::Kiro.id()
     }
 
-    fn plan(&self, ctx: &RequestContext) -> InstallResult<InstallReport> {
+    fn plan(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
         let existing = self.read_config()?;
-        let desired = Self::desired_entry(&self.binary_path);
+        let desired = Self::desired_entry(self.binary_path.as_path());
         if Self::entry_matches(&existing, &desired) {
             return Ok(InstallReport {
                 planned_changes: vec![],
@@ -160,16 +165,20 @@ impl HarnessAdapter for KiroAdapter {
         let config_path = self.config_path();
         let is_update = config_path.is_file();
         Ok(InstallReport {
-            planned_changes: vec![PlannedChange {
-                harness: HARNESS_KEY.to_owned(),
+            planned_changes: vec![PlannedInstallChange {
+                harness: self.harness_key(),
                 kind: ArtifactKind::McpRegistration,
                 path: Self::repo_root(&config_path)?,
-                description: format!(
+                description: InstallReportText::try_from(format!(
                     "upsert mcpServers[\"{SERVER_NAME}\"] in ~/.kiro/settings/mcp.json \
                      (user/global scope), binary_path={}",
-                    ctx.binary_path.display()
-                ),
-                is_update,
+                    ctx.binary_path.as_path().display()
+                ))?,
+                disposition: if is_update {
+                    ChangeDisposition::Update
+                } else {
+                    ChangeDisposition::Create
+                },
             }],
             warnings: vec![],
         })
@@ -185,59 +194,64 @@ impl HarnessAdapter for KiroAdapter {
             let backup_path = backup_before_write(&target)?;
 
             let mut existing = self.read_config()?;
-            Self::merge_mcp_server(&mut existing, Self::desired_entry(&self.binary_path));
+            Self::merge_mcp_server(
+                &mut existing,
+                Self::desired_entry(self.binary_path.as_path()),
+            );
             self.write_config(&existing)?;
 
-            applied.push(AppliedChange {
+            applied.push(AppliedInstallChange {
                 change: change.clone(),
-                succeeded: true,
+                status: CheckStatus::Passed,
                 backup_path: backup_path.map(|p| Self::repo_root(&p)).transpose()?,
             });
         }
         Ok(ApplyResult { applied })
     }
 
-    fn verify(&self, ctx: &RequestContext) -> InstallResult<VerifyReport> {
+    fn verify(&self, ctx: &InstallRequestContext) -> InstallResult<InstallVerifyReport> {
         let root = self.read_config()?;
         let entry = root.get("mcpServers").and_then(|s| s.get(SERVER_NAME));
         let check = match entry {
-            None => VerifyCheck {
-                harness: HARNESS_KEY.to_owned(),
-                name: "mcp-registration-present".to_owned(),
-                passed: false,
-                detail: format!(
+            None => InstallVerifyCheck {
+                subject: CheckSubject::Harness(self.harness_key()),
+                name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                status: CheckStatus::Failed,
+                detail: InstallReportText::try_from(format!(
                     "mcpServers.{SERVER_NAME} missing from `{}`",
                     self.config_path().display()
-                ),
+                ))?,
             },
             Some(entry) => {
                 let command = entry.get("command").and_then(Value::as_str);
-                let expected = ctx.binary_path.display().to_string();
+                let expected = ctx.binary_path.as_path().display().to_string();
                 match command {
-                    Some(c) if c == expected => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "mcp-registration-present".to_owned(),
-                        passed: true,
-                        detail: String::new(),
+                    Some(c) if c == expected => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                        status: CheckStatus::Passed,
+                        detail: InstallReportText::try_from(String::new())?,
                     },
-                    Some(c) => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "mcp-registration-present".to_owned(),
-                        passed: false,
-                        detail: format!(
+                    Some(c) => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                        status: CheckStatus::Failed,
+                        detail: InstallReportText::try_from(format!(
                             "mcpServers.{SERVER_NAME}.command = `{c}`, expected `{expected}`"
-                        ),
+                        ))?,
                     },
-                    None => VerifyCheck {
-                        harness: HARNESS_KEY.to_owned(),
-                        name: "mcp-registration-present".to_owned(),
-                        passed: false,
-                        detail: format!("mcpServers.{SERVER_NAME} has no `command` field"),
+                    None => InstallVerifyCheck {
+                        subject: CheckSubject::Harness(self.harness_key()),
+                        name: InstallReportText::try_from("mcp-registration-present".to_owned())?,
+                        status: CheckStatus::Failed,
+                        detail: InstallReportText::try_from(format!(
+                            "mcpServers.{SERVER_NAME} has no `command` field"
+                        ))?,
                     },
                 }
             }
         };
-        Ok(VerifyReport {
+        Ok(InstallVerifyReport {
             checks: vec![check],
         })
     }
@@ -245,18 +259,24 @@ impl HarnessAdapter for KiroAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{InstallError, KiroAdapter, SERVER_NAME};
+    use crate::core::HarnessAdapter;
+    use enforcer_domain::boundary::decode_error::DecodeError;
+    use enforcer_domain::install_types::InstallRequestContext;
+    use serde_json::Value;
     use std::fs;
+    use std::path::Path;
 
-    fn ctx(binary: &Path) -> RequestContext {
-        RequestContext::with_defaults(binary.to_path_buf())
+    fn ctx(binary: &Path) -> Result<InstallRequestContext, DecodeError> {
+        InstallRequestContext::try_with_defaults(binary.to_path_buf())
     }
 
     #[test]
     fn harness_key_is_kiro() -> Result<(), Box<dyn std::error::Error>> {
         let home = tempfile::tempdir()?;
-        let adapter = KiroAdapter::new(home.path(), home.path().join("enforcer"));
-        assert_eq!(adapter.harness_key(), "kiro");
+        let adapter =
+            KiroAdapter::try_new(home.path().to_path_buf(), home.path().join("enforcer"))?;
+        assert_eq!(adapter.harness_key().as_str(), "kiro");
         Ok(())
     }
 
@@ -264,21 +284,30 @@ mod tests {
     fn fresh_install_apply_then_verify_all_green() -> Result<(), Box<dyn std::error::Error>> {
         let home = tempfile::tempdir()?;
         let binary = home.path().join("bin").join("enforcer");
-        let adapter = KiroAdapter::new(home.path(), &binary);
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
 
-        let plan = adapter.plan(&ctx(&binary))?;
-        assert!(!plan.is_noop());
+        let plan = adapter.plan(&ctx(&binary)?)?;
+        assert_eq!(plan.planned_changes.len(), 1);
         let applied = adapter.apply(&plan)?;
-        assert!(applied.all_succeeded());
+        assert!(applied.applied.iter().all(|change| matches!(
+            change.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
 
-        let verify = adapter.verify(&ctx(&binary))?;
+        let verify = adapter.verify(&ctx(&binary)?)?;
         assert!(
-            verify.all_passed(),
+            verify.checks.iter().all(|check| matches!(
+                check.status,
+                enforcer_domain::install_types::CheckStatus::Passed
+            )),
             "expected all checks to pass: {verify:?}"
         );
 
-        let second_plan = adapter.plan(&ctx(&binary))?;
-        assert!(second_plan.is_noop(), "second apply must be idempotent");
+        let second_plan = adapter.plan(&ctx(&binary)?)?;
+        assert!(
+            second_plan.planned_changes.is_empty(),
+            "second apply must be idempotent"
+        );
         Ok(())
     }
 
@@ -286,9 +315,9 @@ mod tests {
     fn second_apply_is_byte_identical() -> Result<(), Box<dyn std::error::Error>> {
         let home = tempfile::tempdir()?;
         let binary = home.path().join("bin").join("enforcer");
-        let adapter = KiroAdapter::new(home.path(), &binary);
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
 
-        let plan = adapter.plan(&ctx(&binary))?;
+        let plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&plan)?;
         let first_bytes = fs::read(adapter.config_path())?;
 
@@ -316,8 +345,8 @@ mod tests {
             }))?,
         )?;
 
-        let adapter = KiroAdapter::new(home.path(), &binary);
-        let plan = adapter.plan(&ctx(&binary))?;
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&plan)?;
 
         let written: Value = serde_json::from_str(&fs::read_to_string(adapter.config_path())?)?;
@@ -337,12 +366,15 @@ mod tests {
     fn verify_fails_when_entry_missing_or_renamed() -> Result<(), Box<dyn std::error::Error>> {
         let home = tempfile::tempdir()?;
         let binary = home.path().join("bin").join("enforcer");
-        let adapter = KiroAdapter::new(home.path(), &binary);
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
 
-        let report = adapter.verify(&ctx(&binary))?;
-        assert!(!report.all_passed());
+        let report = adapter.verify(&ctx(&binary)?)?;
+        assert!(!report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
 
-        let plan = adapter.plan(&ctx(&binary))?;
+        let plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&plan)?;
         let mut root = adapter.read_config()?;
         if let Some(servers) = root.get_mut("mcpServers").and_then(Value::as_object_mut) {
@@ -351,9 +383,12 @@ mod tests {
             }
         }
         adapter.write_config(&root)?;
-        let report = adapter.verify(&ctx(&binary))?;
-        assert!(!report.all_passed());
-        assert_eq!(report.checks[0].name, "mcp-registration-present");
+        let report = adapter.verify(&ctx(&binary)?)?;
+        assert!(!report.checks.iter().all(|check| matches!(
+            check.status,
+            enforcer_domain::install_types::CheckStatus::Passed
+        )));
+        assert_eq!(report.checks[0].name.as_str(), "mcp-registration-present");
         Ok(())
     }
 
@@ -364,8 +399,8 @@ mod tests {
         let config_dir = home.path().join(".kiro").join("settings");
         fs::create_dir_all(&config_dir)?;
         fs::write(config_dir.join("mcp.json"), "{ not valid json")?;
-        let adapter = KiroAdapter::new(home.path(), &binary);
-        let result = adapter.plan(&ctx(&binary));
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let result = adapter.plan(&ctx(&binary)?);
         assert!(matches!(result, Err(InstallError::MalformedConfig { .. })));
         Ok(())
     }
@@ -377,8 +412,8 @@ mod tests {
         let config_dir = home.path().join(".kiro").join("settings");
         fs::create_dir_all(&config_dir)?;
         fs::write(config_dir.join("mcp.json"), "{ not valid json")?;
-        let adapter = KiroAdapter::new(home.path(), &binary);
-        let result = adapter.verify(&ctx(&binary));
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let result = adapter.verify(&ctx(&binary)?);
         assert!(matches!(result, Err(InstallError::MalformedConfig { .. })));
         Ok(())
     }
@@ -387,11 +422,11 @@ mod tests {
     fn never_writes_the_legacy_ocentra_enforcer_key() -> Result<(), Box<dyn std::error::Error>> {
         let home = tempfile::tempdir()?;
         let binary = home.path().join("bin").join("enforcer");
-        let adapter = KiroAdapter::new(home.path(), &binary);
-        let plan = adapter.plan(&ctx(&binary))?;
+        let adapter = KiroAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
+        let plan = adapter.plan(&ctx(&binary)?)?;
         adapter.apply(&plan)?;
         let written = fs::read_to_string(adapter.config_path())?;
-        assert!(!written.contains("ocentra-enforcer"));
+        assert!(!written.as_str().contains("ocentra-enforcer"));
         Ok(())
     }
 }

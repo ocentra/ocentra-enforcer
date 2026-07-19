@@ -1,0 +1,14 @@
+FILELESS MALWARE ANALYSIS REPORT
+Incident: INC-2026-0001
+Attack Type: Fileless
+
+INITIAL ACCESS
+Vector: Phishing
+LOLBin Chain: WINWORD.EXE -> powershell.exe
+
+PERSISTENCE MECHANISM
+Consumer: Updater
+Command: powershell.exe -enc REDACTED
+
+EXTRACTED IOCs
+MITRE ATT&CK: T1059.001

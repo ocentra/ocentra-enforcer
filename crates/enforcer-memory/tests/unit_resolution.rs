@@ -7,9 +7,11 @@
 //! `CallRef` fields end-to-end, not just `resolution::resolve` in
 //! isolation.
 
-use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
+use enforcer_domain::memory_types::ResolutionConfidence;
+use enforcer_domain::memory_types::TraceDirection;
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::resolution::{self, ResolutionConfidence};
+use enforcer_memory::resolution::{self};
 use std::error::Error;
 use std::fs;
 use std::path::Path;

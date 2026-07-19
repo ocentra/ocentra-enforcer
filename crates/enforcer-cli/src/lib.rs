@@ -43,14 +43,14 @@
 //! MCP round trip.
 //!
 //! # Exit-code taxonomy
-//! [`enforcer_core::exit_codes::ExitCode`] is the entire contract: a rule
-//! violation is [`enforcer_core::exit_codes::ExitCode::Violations`] (1); a
-//! clap usage error is [`enforcer_core::exit_codes::ExitCode::UsageError`]
+//! [`enforcer_domain::core_types::ExitCode`] is the entire contract: a rule
+//! violation is [`enforcer_domain::core_types::ExitCode::Violations`] (1); a
+//! clap usage error is [`enforcer_domain::core_types::ExitCode::UsageError`]
 //! (2); a bad/missing config is
-//! [`enforcer_core::exit_codes::ExitCode::ConfigError`] (78); an internal
+//! [`enforcer_domain::core_types::ExitCode::ConfigError`] (78); an internal
 //! bug (panic, I/O failure, decode failure not attributable to the
 //! scanned project) is
-//! [`enforcer_core::exit_codes::ExitCode::InternalError`] (70). [`main`]
+//! [`enforcer_domain::core_types::ExitCode::InternalError`] (70). [`main`]
 //! (`src/main.rs`) installs a panic hook so no bare panic ever escapes to
 //! an ambiguous OS-level abort; every panic is reported through the
 //! internal-error class, pointing at the enforcer itself, never coerced
@@ -65,6 +65,7 @@ pub mod architecture;
 pub mod cli;
 pub mod commands;
 pub mod fix_hints;
+pub mod hook;
 pub mod lifecycle;
 pub mod name;
 pub mod onboard;

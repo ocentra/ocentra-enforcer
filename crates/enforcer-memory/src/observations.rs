@@ -22,65 +22,45 @@
 //! never-mutate-in-place discipline: outcomes and route traces are
 //! FACTS ABOUT PAST EVENTS, never edited once recorded.
 
-use serde::{Deserialize, Serialize};
-
+use crate::boundary::log_schema::{
+    ObservationLogEntryDto, ProceduralRecordDto, RouteTraceDto, SCHEMA_VERSION,
+};
 use crate::error::{MemoryError, Result};
 use crate::graph::MemoryGraph;
-use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
+use crate::owned_boundary::Retained;
 use crate::store::Store;
+use enforcer_domain::memory_types::{
+    MemoryObservationReplayCount, MemoryObservationSearchText, MemoryObservationTimestamp,
+    ProceduralDetail, ProceduralLessonReference, ProceduralOutcome, ProceduralRecordId,
+    ProceduralSuccessRate, RetrievalRoute, RouteConfidence, RouteTraceId, RouteTraceQuery,
+};
 
 /// One procedural-memory record: the outcome of attempting to apply a
 /// lesson's fix or retrieval guidance. Both success AND failure are
 /// first-class -- a procedural memory that only ever records success
 /// cannot distinguish "this always works" from "this was only tried
 /// once and got lucky".
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProceduralRecord {
-    pub id: String,
-    pub lesson_id: String,
+    pub id: ProceduralRecordId,
+    pub lesson_id: ProceduralLessonReference,
     pub outcome: ProceduralOutcome,
     /// Free-text detail: what was attempted (e.g. "applied fix from
     /// mem-a-0001: return existing identity on re-init").
-    pub detail: String,
-    pub ts: String,
+    pub detail: ProceduralDetail,
+    pub ts: MemoryObservationTimestamp,
 }
 
 /// Whether applying a lesson's guidance succeeded or failed this time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ProceduralOutcome {
-    RetrievalSuccess,
-    RetrievalFailure,
-    FixSuccess,
-    FixFailure,
-}
-
-impl ProceduralOutcome {
-    pub fn is_success(self) -> bool {
-        matches!(
-            self,
-            ProceduralOutcome::RetrievalSuccess | ProceduralOutcome::FixSuccess
-        )
-    }
-
-    fn as_str(self) -> &'static str {
-        match self {
-            ProceduralOutcome::RetrievalSuccess => "retrieval-success",
-            ProceduralOutcome::RetrievalFailure => "retrieval-failure",
-            ProceduralOutcome::FixSuccess => "fix-success",
-            ProceduralOutcome::FixFailure => "fix-failure",
-        }
-    }
-}
-
 impl ProceduralRecord {
-    pub fn searchable_text(&self) -> String {
+    pub fn searchable_text(&self) -> MemoryObservationSearchText {
         format!(
             "{} {} {}",
             self.lesson_id,
             self.outcome.as_str(),
             self.detail
         )
+        .into()
     }
 }
 
@@ -90,57 +70,49 @@ impl ProceduralRecord {
 /// data (never inferred after the fact) so a later audit of "should
 /// this query have used a different route" has ground truth to compare
 /// against.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RouteTrace {
-    pub id: String,
-    pub query: String,
+    pub id: RouteTraceId,
+    pub query: RouteTraceQuery,
     /// Which retrieval route answered this query, e.g. `"recall"`,
     /// `"evidence"`, `"code_graph"` -- free text naming the module/query
     /// path actually taken, not a closed enum, because the set of
     /// routes grows as later x06 subpacks (X06.4 retriever, X06.3 graph
     /// algorithms) add more query surfaces this crate cannot enumerate
     /// today.
-    pub route: String,
+    pub route: RetrievalRoute,
     /// Confidence in `[0.0, 1.0]`. Not a probability calibrated against
     /// any model -- this slice has no learned scorer -- but a
     /// deterministic signal the caller supplies (e.g. "1.0 if recall
     /// returned a non-empty hit set, 0.0 otherwise") so route-choice
     /// quality is at least comparable across queries.
-    pub confidence: f64,
-    pub ts: String,
+    pub confidence: RouteConfidence,
+    pub ts: MemoryObservationTimestamp,
 }
 
 impl RouteTrace {
-    pub fn searchable_text(&self) -> String {
-        format!("{} {}", self.query, self.route)
+    pub fn searchable_text(&self) -> MemoryObservationSearchText {
+        format!("{} {}", self.query, self.route).into()
     }
 }
 
 /// Preserve the route-confidence domain at every ingestion and replay
 /// boundary. Public record fields and historical NDJSON can otherwise carry
 /// non-finite values, for which `f64::clamp` alone is not sufficient.
-fn normalize_confidence(confidence: f64) -> f64 {
-    if confidence.is_finite() {
-        confidence.clamp(0.0, 1.0)
-    } else {
-        0.0
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProceduralStoreInput {
-    pub lesson_id: String,
+    pub lesson_id: ProceduralLessonReference,
     pub outcome: ProceduralOutcome,
-    pub detail: String,
-    pub ts: String,
+    pub detail: ProceduralDetail,
+    pub ts: MemoryObservationTimestamp,
 }
 
 impl ProceduralStoreInput {
     pub fn new(
-        lesson_id: impl Into<String>,
+        lesson_id: impl Into<ProceduralLessonReference>,
         outcome: ProceduralOutcome,
-        detail: impl Into<String>,
-        ts: impl Into<String>,
+        detail: impl Into<ProceduralDetail>,
+        ts: impl Into<MemoryObservationTimestamp>,
     ) -> Self {
         Self {
             lesson_id: lesson_id.into(),
@@ -153,23 +125,23 @@ impl ProceduralStoreInput {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RouteChoiceStoreInput {
-    pub query: String,
-    pub route: String,
-    pub confidence: f64,
-    pub ts: String,
+    pub query: RouteTraceQuery,
+    pub route: RetrievalRoute,
+    pub confidence: RouteConfidence,
+    pub ts: MemoryObservationTimestamp,
 }
 
 impl RouteChoiceStoreInput {
     pub fn new(
-        query: impl Into<String>,
-        route: impl Into<String>,
-        confidence: f64,
-        ts: impl Into<String>,
+        query: impl Into<RouteTraceQuery>,
+        route: impl Into<RetrievalRoute>,
+        confidence: impl Into<RouteConfidence>,
+        ts: impl Into<MemoryObservationTimestamp>,
     ) -> Self {
         Self {
             query: query.into(),
             route: route.into(),
-            confidence,
+            confidence: confidence.into(),
             ts: ts.into(),
         }
     }
@@ -179,15 +151,15 @@ impl RouteChoiceStoreInput {
 /// assigned id.
 pub fn record_procedural(
     graph: &mut MemoryGraph,
-    lesson_id: impl Into<String>,
+    lesson_id: impl Into<ProceduralLessonReference>,
     outcome: ProceduralOutcome,
-    detail: impl Into<String>,
-    ts: impl Into<String>,
-) -> String {
-    let id = format!("proc-{:04}", graph.procedural_records().len());
+    detail: impl Into<ProceduralDetail>,
+    ts: impl Into<MemoryObservationTimestamp>,
+) -> ProceduralRecordId {
+    let id: ProceduralRecordId = format!("proc-{:04}", graph.procedural_records().len()).into();
     let record = ProceduralRecord {
         // CLONE-JUSTIFICATION: the record is consumed by graph ingestion while the caller receives its id.
-        id: id.clone(),
+        id: id.retained(),
         lesson_id: lesson_id.into(),
         outcome,
         detail: detail.into(),
@@ -201,23 +173,23 @@ pub fn record_procedural_in_store(
     store: &mut Store,
     graph: &mut MemoryGraph,
     input: &ProceduralStoreInput,
-) -> Result<String> {
-    let mut assigned_id = String::new();
+) -> Result<ProceduralRecordId> {
+    let mut assigned_id = ProceduralRecordId::default();
     let mut assigned_record: Option<ProceduralRecord> = None;
     store.append_observation_entry(|seq| {
         let id = format!("proc-{seq:04}");
         // CLONE-JUSTIFICATION: the append closure retains the returned id while the observation entry owns its id.
-        assigned_id = id.clone();
+        assigned_id = id.retained().into();
         let record = ProceduralRecord {
             // CLONE-JUSTIFICATION: the procedural record and observation entry are independent durable records.
-            id: id.clone(),
+            id: id.retained().into(),
             // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
-            lesson_id: input.lesson_id.clone(),
+            lesson_id: input.lesson_id.retained(),
             outcome: input.outcome,
             // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
-            detail: input.detail.clone(),
+            detail: input.detail.retained(),
             // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
-            ts: input.ts.clone(),
+            ts: input.ts.retained(),
         };
         let payload = serde_json::json!({
             "id": &record.id,
@@ -227,33 +199,35 @@ pub fn record_procedural_in_store(
             "ts": &record.ts,
         });
         assigned_record = Some(record);
-        ObservationLogEntry {
+        ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq,
+            seq: seq.into(),
             id,
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            lesson_id: input.lesson_id.clone(),
+            lesson_id: input.lesson_id.as_str().retained(),
             rule_id: None,
-            fault_class: Some(input.outcome.as_str().to_owned()),
+            fault_class: Some(input.outcome.as_str().retained()),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            repo_context: input.detail.clone(),
+            repo_context: input.detail.as_str().retained(),
             clean: input.outcome.is_success(),
-            source_surface: "procedural-memory".to_owned(),
+            source_surface: "procedural-memory".retained(),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            ts: input.ts.clone(),
+            ts: input.ts.as_str().retained(),
             supersedes_seq: None,
-            payload_kind: Some("procedural-memory".to_owned()),
+            payload_kind: Some("procedural-memory".retained()),
             payload: Some(payload),
         }
     })?;
     let Some(record) = assigned_record else {
         return Err(MemoryError::InternalInvariant {
-            operation: "record_procedural_in_store",
-            reason: "append did not assign a procedural record".to_owned(),
+            operation: "record_procedural_in_store".into(),
+            reason: "append did not assign a procedural record"
+                .retained()
+                .into(),
         });
     };
     // CLONE-JUSTIFICATION: store append consumes one record while graph ingestion consumes the other.
-    store.append_procedural(record.clone())?;
+    store.append_procedural(record.retained())?;
     graph.ingest_procedural(record);
     Ok(assigned_id)
 }
@@ -264,18 +238,18 @@ pub fn record_procedural_in_store(
 /// nonsensical confidence.
 pub fn record_route_choice(
     graph: &mut MemoryGraph,
-    query: impl Into<String>,
-    route: impl Into<String>,
-    confidence: f64,
-    ts: impl Into<String>,
-) -> String {
-    let id = format!("route-{:04}", graph.route_traces().len());
+    query: impl Into<RouteTraceQuery>,
+    route: impl Into<RetrievalRoute>,
+    confidence: impl Into<RouteConfidence>,
+    ts: impl Into<MemoryObservationTimestamp>,
+) -> RouteTraceId {
+    let id: RouteTraceId = format!("route-{:04}", graph.route_traces().len()).into();
     let trace = RouteTrace {
         // CLONE-JUSTIFICATION: the trace is consumed by graph ingestion while the caller receives its id.
-        id: id.clone(),
+        id: id.retained(),
         query: query.into(),
         route: route.into(),
-        confidence: normalize_confidence(confidence),
+        confidence: confidence.into(),
         ts: ts.into(),
     };
     graph.ingest_route_trace(trace);
@@ -286,23 +260,23 @@ pub fn record_route_choice_in_store(
     store: &mut Store,
     graph: &mut MemoryGraph,
     input: &RouteChoiceStoreInput,
-) -> Result<String> {
-    let mut assigned_id = String::new();
+) -> Result<RouteTraceId> {
+    let mut assigned_id = RouteTraceId::default();
     let mut assigned_trace: Option<RouteTrace> = None;
     store.append_observation_entry(|seq| {
         let id = format!("route-{seq:04}");
         // CLONE-JUSTIFICATION: the append closure retains the returned id while the observation entry owns its id.
-        assigned_id = id.clone();
+        assigned_id = id.retained().into();
         let trace = RouteTrace {
             // CLONE-JUSTIFICATION: the route trace and observation entry are independent durable records.
-            id: id.clone(),
+            id: id.retained().into(),
             // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
-            query: input.query.clone(),
+            query: input.query.retained(),
             // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
-            route: input.route.clone(),
-            confidence: normalize_confidence(input.confidence),
+            route: input.route.retained(),
+            confidence: input.confidence,
             // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
-            ts: input.ts.clone(),
+            ts: input.ts.retained(),
         };
         let payload = serde_json::json!({
             "id": &trace.id,
@@ -312,32 +286,32 @@ pub fn record_route_choice_in_store(
             "ts": &trace.ts,
         });
         assigned_trace = Some(trace);
-        ObservationLogEntry {
+        ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq,
+            seq: seq.into(),
             id,
-            lesson_id: String::new(),
+            lesson_id: ProceduralLessonReference::default().into(),
             rule_id: None,
-            fault_class: Some("route-choice".to_owned()),
+            fault_class: Some("route-choice".retained()),
             // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
-            repo_context: input.query.clone(),
+            repo_context: input.query.as_str().retained(),
             clean: true,
-            source_surface: "route-choice".to_owned(),
+            source_surface: "route-choice".retained(),
             // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
-            ts: input.ts.clone(),
+            ts: input.ts.as_str().retained(),
             supersedes_seq: None,
-            payload_kind: Some("route-choice".to_owned()),
+            payload_kind: Some("route-choice".retained()),
             payload: Some(payload),
         }
     })?;
     let Some(trace) = assigned_trace else {
         return Err(MemoryError::InternalInvariant {
-            operation: "record_route_choice_in_store",
-            reason: "append did not assign a route trace".to_owned(),
+            operation: "record_route_choice_in_store".into(),
+            reason: "append did not assign a route trace".retained().into(),
         });
     };
     // CLONE-JUSTIFICATION: store append consumes one trace while graph ingestion consumes the other.
-    store.append_route_trace(trace.clone())?;
+    store.append_route_trace(trace.retained())?;
     graph.ingest_route_trace(trace);
     Ok(assigned_id)
 }
@@ -345,32 +319,26 @@ pub fn record_route_choice_in_store(
 pub fn replay_procedural_and_routes_from_store(
     store: &Store,
     graph: &mut MemoryGraph,
-) -> Result<usize> {
+) -> Result<MemoryObservationReplayCount> {
     let mut count = replay_procedural_from_native_log(store, graph)?;
-    count += replay_route_traces_from_native_log(store, graph)?;
-    count += replay_procedural_and_routes_from_legacy_observation_log(store, graph)?;
+    count += replay_route_traces_from_native_log(store, graph)?.get();
+    count += replay_procedural_and_routes_from_legacy_observation_log(store, graph)?.get();
     Ok(count)
 }
 
-fn replay_procedural_from_native_log(store: &Store, graph: &mut MemoryGraph) -> Result<usize> {
+fn replay_procedural_from_native_log(
+    store: &Store,
+    graph: &mut MemoryGraph,
+) -> Result<MemoryObservationReplayCount> {
     let outcome = store.read_procedural_entries()?;
-    let mut count = 0;
+    let mut count = MemoryObservationReplayCount::default();
     for entry in outcome.entries {
         let record = ProceduralRecord {
-            id: entry.id,
-            lesson_id: entry.lesson_id,
-            outcome: match entry.outcome {
-                crate::schema::ProceduralOutcomeWire::RetrievalSuccess => {
-                    ProceduralOutcome::RetrievalSuccess
-                }
-                crate::schema::ProceduralOutcomeWire::RetrievalFailure => {
-                    ProceduralOutcome::RetrievalFailure
-                }
-                crate::schema::ProceduralOutcomeWire::FixSuccess => ProceduralOutcome::FixSuccess,
-                crate::schema::ProceduralOutcomeWire::FixFailure => ProceduralOutcome::FixFailure,
-            },
-            detail: entry.detail,
-            ts: entry.ts,
+            id: entry.id.into(),
+            lesson_id: entry.lesson_id.into(),
+            outcome: entry.outcome,
+            detail: entry.detail.into(),
+            ts: entry.ts.into(),
         };
         if !graph
             .procedural_records()
@@ -384,16 +352,19 @@ fn replay_procedural_from_native_log(store: &Store, graph: &mut MemoryGraph) -> 
     Ok(count)
 }
 
-fn replay_route_traces_from_native_log(store: &Store, graph: &mut MemoryGraph) -> Result<usize> {
+fn replay_route_traces_from_native_log(
+    store: &Store,
+    graph: &mut MemoryGraph,
+) -> Result<MemoryObservationReplayCount> {
     let outcome = store.read_route_trace_entries()?;
-    let mut count = 0;
+    let mut count = MemoryObservationReplayCount::default();
     for entry in outcome.entries {
         let trace = RouteTrace {
-            id: entry.id,
-            query: entry.query,
-            route: entry.route,
-            confidence: normalize_confidence(entry.confidence),
-            ts: entry.ts,
+            id: entry.id.into(),
+            query: entry.query.into(),
+            route: entry.route.into(),
+            confidence: RouteConfidence::normalized(entry.confidence),
+            ts: entry.ts.into(),
         };
         if !graph
             .route_traces()
@@ -410,21 +381,23 @@ fn replay_route_traces_from_native_log(store: &Store, graph: &mut MemoryGraph) -
 fn replay_procedural_and_routes_from_legacy_observation_log(
     store: &Store,
     graph: &mut MemoryGraph,
-) -> Result<usize> {
+) -> Result<MemoryObservationReplayCount> {
     let outcome = store.read_observation_entries()?;
-    let mut count = 0;
+    let mut count = MemoryObservationReplayCount::default();
     for entry in outcome.entries {
         match (entry.payload_kind.as_deref(), entry.payload) {
             (Some("procedural-memory"), Some(payload)) => {
-                let record: ProceduralRecord = serde_json::from_value(payload)?;
+                let record: ProceduralRecord =
+                    serde_json::from_value::<ProceduralRecordDto>(payload)?.into();
                 if !graph.procedural_records().iter().any(|r| r.id == record.id) {
                     graph.ingest_procedural(record);
                     count += 1;
                 }
             }
             (Some("route-choice"), Some(payload)) => {
-                let mut trace: RouteTrace = serde_json::from_value(payload)?;
-                trace.confidence = normalize_confidence(trace.confidence);
+                let mut trace: RouteTrace =
+                    serde_json::from_value::<RouteTraceDto>(payload)?.into();
+                trace.confidence = RouteConfidence::normalized(trace.confidence.get());
                 if !graph.route_traces().iter().any(|r| r.id == trace.id) {
                     graph.ingest_route_trace(trace);
                     count += 1;
@@ -439,7 +412,11 @@ fn replay_procedural_and_routes_from_legacy_observation_log(
 /// Success rate (successes / total) for a lesson's procedural history.
 /// `None` when no procedural record exists yet for this lesson --
 /// distinct from `Some(0.0)` (tried and always failed).
-pub fn procedural_success_rate(graph: &MemoryGraph, lesson_id: &str) -> Option<f64> {
+pub fn procedural_success_rate(
+    graph: &MemoryGraph,
+    lesson_id: impl Into<ProceduralLessonReference>,
+) -> Option<ProceduralSuccessRate> {
+    let lesson_id = lesson_id.into();
     let records: Vec<&ProceduralRecord> = graph
         .procedural_records()
         .iter()
@@ -449,5 +426,5 @@ pub fn procedural_success_rate(graph: &MemoryGraph, lesson_id: &str) -> Option<f
         return None;
     }
     let successes = records.iter().filter(|r| r.outcome.is_success()).count();
-    Some(successes as f64 / records.len() as f64)
+    ProceduralSuccessRate::from_counts(successes, records.len())
 }

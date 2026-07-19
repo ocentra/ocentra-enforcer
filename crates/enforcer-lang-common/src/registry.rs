@@ -4,18 +4,18 @@
 //! [`crate::port_platform::PortabilityValidator`]. `all()` is this crate's
 //! single entry point for "every validator I own"; the count-parity test
 //! (`tests/parity.rs`) asserts its length plus rule-id set against
-//! `rules/rules.json` minus the SEC-2 family delegated to arc-10.
+//! `rules/rules.json` minus the SEC-2 family delegated to arc-10 and the
+//! standalone ARCH-1.16 UI-coupling rule.
 //!
-//! `families::arch_1` contributes 16 rows (not 15) as of `ARCH-1.16`
-//! (`Presentation/UI cannot call business logic directly`), bringing the
-//! family-module total to 249 and the grand total (with `PORT-1.1`) to 250.
+//! `families::arch_1` contributes the 15 generic architecture rows. The
+//! standalone `ARCH-1.16` UI-coupling check is intentionally not part of this
+//! generic marker registry, bringing the family-module total to 248 and the
+//! grand total (with `PORT-1.1`) to 249.
 
 use enforcer_domain::ids::RuleId;
-use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::Validator;
 
 use crate::families;
-use crate::pattern::PatternValidator;
 use crate::port_platform::{DeclaredScope, PortabilityValidator};
 
 /// Push one [`PatternValidator`] into `out`, decoding `rule_id` at the call
@@ -24,20 +24,15 @@ use crate::port_platform::{DeclaredScope, PortabilityValidator};
 /// count-parity test in `tests/parity.rs` catches the resulting gap by
 /// comparing against `rules.json`, keeping this crate `unwrap`/`expect`-free
 /// per workspace lint policy while still failing the build loudly on drift.
-pub fn reg(
+fn append_validators(
     out: &mut Vec<Box<dyn Validator>>,
-    rule_id: &str,
-    title: &'static str,
-    severity: Severity,
-    marker: &'static str,
+    validators: Result<
+        Vec<Box<dyn Validator>>,
+        enforcer_domain::boundary::decode_error::DecodeError,
+    >,
 ) {
-    if let Ok(id) = rule_id.parse::<RuleId>() {
-        out.push(Box::new(PatternValidator::new(
-            id,
-            title,
-            severity,
-            [marker],
-        )));
+    if let Ok(validators) = validators {
+        out.extend(validators);
     }
 }
 
@@ -51,35 +46,35 @@ pub fn reg(
 /// `EffectiveConfig::supported_platforms` verbatim).
 pub fn all(port_scope: DeclaredScope) -> Vec<Box<dyn Validator>> {
     let mut v: Vec<Box<dyn Validator>> = Vec::new();
-    v.extend(families::ai_1::validators());
-    v.extend(families::arch_1::validators());
-    v.extend(families::bound_1::validators());
-    v.extend(families::cfg_1::validators());
-    v.extend(families::ci_1::validators());
-    v.extend(families::contract_1::validators());
-    v.extend(families::dep_1::validators());
-    v.extend(families::doc_1::validators());
-    v.extend(families::docenf_1::validators());
-    v.extend(families::enf_1::validators());
-    v.extend(families::enf_2::validators());
-    v.extend(families::gen_1::validators());
-    v.extend(families::gen_2::validators());
-    v.extend(families::har_1::validators());
-    v.extend(families::har_2::validators());
-    v.extend(families::lit_1::validators());
-    v.extend(families::mcp_1::validators());
-    v.extend(families::npm_1::validators());
-    v.extend(families::proof_1::validators());
-    v.extend(families::repo_1::validators());
-    v.extend(families::sbom_1::validators());
-    v.extend(families::scan_1::validators());
-    v.extend(families::scan_2::validators());
-    v.extend(families::sec_1::validators());
-    v.extend(families::src_1::validators());
-    v.extend(families::src_2::validators());
-    v.extend(families::test_1::validators());
-    v.extend(families::test_2::validators());
-    v.extend(families::waiver_1::validators());
+    append_validators(&mut v, families::ai_1::validators());
+    append_validators(&mut v, families::arch_1::validators());
+    append_validators(&mut v, families::bound_1::validators());
+    append_validators(&mut v, families::cfg_1::validators());
+    append_validators(&mut v, families::ci_1::validators());
+    append_validators(&mut v, families::contract_1::validators());
+    append_validators(&mut v, families::dep_1::validators());
+    append_validators(&mut v, families::doc_1::validators());
+    append_validators(&mut v, families::docenf_1::validators());
+    append_validators(&mut v, families::enf_1::validators());
+    append_validators(&mut v, families::enf_2::validators());
+    append_validators(&mut v, families::gen_1::validators());
+    append_validators(&mut v, families::gen_2::validators());
+    append_validators(&mut v, families::har_1::validators());
+    append_validators(&mut v, families::har_2::validators());
+    append_validators(&mut v, families::lit_1::validators());
+    append_validators(&mut v, families::mcp_1::validators());
+    append_validators(&mut v, families::npm_1::validators());
+    append_validators(&mut v, families::proof_1::validators());
+    append_validators(&mut v, families::repo_1::validators());
+    append_validators(&mut v, families::sbom_1::validators());
+    append_validators(&mut v, families::scan_1::validators());
+    append_validators(&mut v, families::scan_2::validators());
+    append_validators(&mut v, families::sec_1::validators());
+    append_validators(&mut v, families::src_1::validators());
+    append_validators(&mut v, families::src_2::validators());
+    append_validators(&mut v, families::test_1::validators());
+    append_validators(&mut v, families::test_2::validators());
+    append_validators(&mut v, families::waiver_1::validators());
     if let Ok(port_id) = "PORT-1.1".parse::<RuleId>() {
         v.push(Box::new(PortabilityValidator::new(port_id, port_scope)));
     }
@@ -93,11 +88,10 @@ mod tests {
 
     #[test]
     fn all_returns_the_expected_total_validator_count() {
-        // 249 PatternValidator rows (29 families, incl. ARCH-1.16) + 1
-        // PORT-1.1 = 250, the count-parity target (270 language==common
-        // rules minus the 20 SEC-2 rows delegated to arc-10 per the
-        // workpack's SEC-2 decision).
-        assert_eq!(all(DeclaredScope::Undeclared).len(), 250);
+        // 248 PatternValidator rows (29 families, excluding standalone
+        // ARCH-1.16) + 1 PORT-1.1 = 249: the 270 common catalog rows minus
+        // the 20 SEC-2 rows delegated to arc-10 and standalone ARCH-1.16.
+        assert_eq!(all(DeclaredScope::Undeclared).len(), 249);
     }
 
     #[test]
@@ -109,6 +103,6 @@ mod tests {
             let id = validator.rule_id().to_string();
             assert!(seen.insert(id.clone()), "duplicate ruleId `{id}`");
         }
-        assert_eq!(seen.len(), 250);
+        assert_eq!(seen.len(), 249);
     }
 }

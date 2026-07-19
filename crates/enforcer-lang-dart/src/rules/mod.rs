@@ -13,6 +13,51 @@
 //! records in `crates/enforcer-rules/rules/dart-advisory.json`, not as
 //! Rust code in this module tree.
 
+macro_rules! finding {
+    ($spec:expr, $detail:literal, $input:expr, $line:expr $(,)?) => {{
+        let spec = $spec;
+        let Ok(title) = spec.rule.finding_title() else {
+            return Vec::new();
+        };
+        let Ok(detail) = $detail.parse::<enforcer_domain::findings::FindingDetail>() else {
+            return Vec::new();
+        };
+        let Some(source_line) = $crate::rules::support::into_source_line($line) else {
+            return Vec::new();
+        };
+        enforcer_domain::findings::Finding {
+            rule_id: Clone::clone(spec.rule_id),
+            severity: spec.severity,
+            title,
+            detail,
+            file: Clone::clone($input.file),
+            line: enforcer_domain::findings::FindingLine::known(source_line),
+            snippet: None,
+        }
+    }};
+    ($spec:expr, $detail:expr, $input:expr, $line:expr $(,)?) => {{
+        let spec = $spec;
+        let Ok(title) = spec.rule.finding_title() else {
+            return Vec::new();
+        };
+        let Ok(detail) = enforcer_domain::findings::FindingDetail::new($detail) else {
+            return Vec::new();
+        };
+        let Some(source_line) = $crate::rules::support::into_source_line($line) else {
+            return Vec::new();
+        };
+        enforcer_domain::findings::Finding {
+            rule_id: Clone::clone(spec.rule_id),
+            severity: spec.severity,
+            title,
+            detail,
+            file: Clone::clone($input.file),
+            line: enforcer_domain::findings::FindingLine::known(source_line),
+            snippet: None,
+        }
+    }};
+}
+
 pub mod arch;
 pub mod err;
 pub mod naming;

@@ -9,7 +9,11 @@
 
 use crate::lesson::LessonRow;
 use crate::observations::{ProceduralRecord, RouteTrace};
-use crate::record::{MemoryRecord, RecordKind};
+use crate::record::MemoryRecord;
+use enforcer_domain::memory_types::{
+    IngestLessonId, MemoryGraphEmpty, MemoryGraphNodeCount, MemoryGraphNodeId,
+    MemoryGraphSearchText, RecordKind,
+};
 
 /// One node in the memory graph: either an ingested memory record, a
 /// lesson-ledger row, or an observation recorded through the
@@ -23,20 +27,20 @@ pub enum MemoryNode {
 
 impl MemoryNode {
     /// Stable node id, used for dedup and `landedAt`/evidence lookups.
-    pub fn id(&self) -> &str {
+    pub fn id(&self) -> MemoryGraphNodeId {
         match self {
-            MemoryNode::Record(record) => record.id(),
-            MemoryNode::Lesson(lesson) => &lesson.id,
-            MemoryNode::Incident(incident) => &incident.id,
+            MemoryNode::Record(record) => record.id().into(),
+            MemoryNode::Lesson(lesson) => lesson.id.as_str().into(),
+            MemoryNode::Incident(incident) => incident.id.as_str().into(),
         }
     }
 
     /// Text exposed to the deterministic keyword recall matcher.
-    pub fn searchable_text(&self) -> String {
+    pub fn searchable_text(&self) -> MemoryGraphSearchText {
         match self {
-            MemoryNode::Record(record) => record.searchable_text(),
-            MemoryNode::Lesson(lesson) => lesson.searchable_text(),
-            MemoryNode::Incident(incident) => incident.searchable_text(),
+            MemoryNode::Record(record) => record.searchable_text().into(),
+            MemoryNode::Lesson(lesson) => lesson.searchable_text().as_str().into(),
+            MemoryNode::Incident(incident) => incident.searchable_text().as_str().into(),
         }
     }
 }
@@ -106,12 +110,12 @@ impl MemoryGraph {
         &self.nodes
     }
 
-    pub fn len(&self) -> usize {
-        self.nodes.len()
+    pub fn len(&self) -> MemoryGraphNodeCount {
+        self.nodes.len().into()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+    pub fn is_empty(&self) -> MemoryGraphEmpty {
+        self.nodes.is_empty().into()
     }
 
     /// Every `lesson`-kind memory record plus every ledger row — the
@@ -125,11 +129,16 @@ impl MemoryGraph {
     }
 
     /// All incidents whose `landed_at` or free text references `lesson_id`.
-    pub fn incidents_for_lesson(&self, lesson_id: &str) -> Vec<&crate::ingest::Incident> {
+    pub fn incidents_for_lesson(
+        &self,
+        lesson_id: &IngestLessonId,
+    ) -> Vec<&crate::ingest::Incident> {
         self.nodes
             .iter()
             .filter_map(|node| match node {
-                MemoryNode::Incident(incident) if incident.lesson_id == lesson_id => Some(incident),
+                MemoryNode::Incident(incident) if &incident.lesson_id == lesson_id => {
+                    Some(incident)
+                }
                 _ => None,
             })
             .collect()

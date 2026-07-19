@@ -6,17 +6,15 @@
 //! it).
 //!
 //! This module never constructs its own native-mode defaults: every
-//! [`NativeToolRouteDto`] carries the tie f03 already resolved (falling back
+//! [`NativeToolRouteResponse`] carries the tie f03 already resolved (falling back
 //! to `Augment`/`Scoped` through [`ResolvedProjectTie::tie`] when the
 //! project's `.enforce/config` is silent), so f05 and f03 never disagree
 //! about a tool's effective mode.
 
+use crate::boundary::router::NativeToolRouteResponse;
 use enforcer_config::project_tie::ResolvedProjectTie;
-use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
-use enforcer_domain::config_types::{NativeTool, ResolvedNativeTie};
-use serde::{Deserialize, Serialize};
-
-use super::detect::DetectedLanguage;
+use enforcer_domain::config_types::NativeTool;
+use enforcer_domain::scan_types::DetectedLanguage;
 
 /// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
 /// proves this nested DTO round-trips as part of its enclosing route plan.
@@ -24,50 +22,14 @@ use super::detect::DetectedLanguage;
 /// A serializable projection of [`ResolvedNativeTie`]
 /// (mode + scope, no borrowed state) — the tie type itself does not derive
 /// `Serialize`/`Deserialize` (it is an internal resolver output, not a
-/// wire type), so [`NativeToolRouteDto`] carries this flat mirror instead of
+/// wire type), so [`NativeToolRouteResponse`] carries this flat mirror instead of
 /// the tie directly, preserving the exact mode/scope f03 resolved.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RouteTieDto {
-    /// Effective native mode for this tool.
-    pub mode: WireNativeMode,
-    /// Effective enforcer-checks scope for this tool.
-    pub scope: WireEnforcerScope,
-}
-
-impl From<&ResolvedNativeTie> for RouteTieDto {
-    fn from(value: &ResolvedNativeTie) -> Self {
-        Self {
-            mode: value.mode.into(),
-            scope: value.scope.into(),
-        }
-    }
-}
-
 /// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
 /// proves this nested DTO round-trips as part of its enclosing route plan.
 ///
 /// One native tool attached to the route plan for a detected language,
 /// carrying the resolved f03 tie (mode + scope) so consumers know not just
 /// WHICH tool but HOW it relates to the enforcer's own checks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativeToolRouteDto {
-    /// The native tool identity (`cargo`, `tsc`, `ruff`, `dart`, `CFLint`).
-    pub tool: WireNativeTool,
-    /// The f03-resolved tie (mode + scope) for this tool.
-    pub tie: RouteTieDto,
-}
-
-impl From<&ResolvedNativeTie> for NativeToolRouteDto {
-    fn from(value: &ResolvedNativeTie) -> Self {
-        Self {
-            tool: value.tool.into(),
-            tie: RouteTieDto::from(value),
-        }
-    }
-}
-
 /// The native tool a [`DetectedLanguage`] maps to, if any. `Dart`/`Go`/
 /// `Cfml` map to `dart`/no native tool landed/`CFLint` respectively; `Go`
 /// has no [`NativeTool`] variant yet (f03's closed set is `cargo, tsc,
@@ -84,18 +46,18 @@ fn native_tool_for(language: DetectedLanguage) -> Option<NativeTool> {
     }
 }
 
-/// Resolve the [`NativeToolRouteDto`]s for one detected language against
+/// Resolve the [`NativeToolRouteResponse`]s for one detected language against
 /// `tie`. Returns zero entries for a language with no mapped native tool
 /// (e.g. [`DetectedLanguage::Go`], for which f03's closed tool set has no
 /// variant) — never a fabricated tool.
 pub fn native_tools_for(
     language: DetectedLanguage,
     tie: &ResolvedProjectTie,
-) -> Vec<NativeToolRouteDto> {
+) -> Vec<NativeToolRouteResponse> {
     match native_tool_for(language) {
         Some(tool) => {
             let resolved = tie.tie(tool);
-            vec![NativeToolRouteDto::from(&resolved)]
+            vec![NativeToolRouteResponse::from(&resolved)]
         }
         None => Vec::new(),
     }
@@ -103,15 +65,16 @@ pub fn native_tools_for(
 
 #[cfg(test)]
 mod tests {
-    use super::{native_tools_for, DetectedLanguage};
+    use super::native_tools_for;
     use enforcer_config::project_tie::{ProjectConfig, ResolvedProjectTie};
     use enforcer_config::serde::{WireNativeMode, WireNativeTool};
     use enforcer_domain::config_types::ConfigSource;
+    use enforcer_domain::scan_types::DetectedLanguage;
 
     fn default_tie() -> Result<ResolvedProjectTie, Box<dyn std::error::Error>> {
         Ok(ResolvedProjectTie::resolve(
             &ProjectConfig::default(),
-            &ConfigSource("<test>".to_owned()),
+            &ConfigSource::from_owned("<test>".to_owned()),
         )?)
     }
 

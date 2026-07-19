@@ -1,12 +1,15 @@
+use enforcer_domain::events_types::{
+    EventDeliveryCapabilityState, EventDeliveryClaimState, EventDeliveryDecisionState,
+    EventDeliveryIdempotencyRequirement, EventDeliveryOverflowPolicy,
+    EventDeliveryRequiredArtifact, EventDeliveryRouteKind, EventNamespace, EventType,
+    SourceComponent, SubscriberId, TargetHandler,
+};
 use enforcer_events::delivery::decide_event_delivery_route;
 use enforcer_events::delivery::validation::{
     EventDeliveryBackpressurePolicy, EventDeliveryDecisionError, EventDeliveryDecisionInput,
-    EventDeliveryDecisionState, EventDeliveryRequiredArtifact, EventDeliveryRouteKind,
     EventDeliverySubscriberFilter,
 };
-use enforcer_events::ids::{
-    EventNamespace, EventType, SourceComponent, SubscriberId, TargetHandler,
-};
+use std::time::Duration;
 
 const NETWORK_NAMESPACE: &str = "network";
 const NETWORK_FLOW_EVENT: &str = "network.flow.observed";
@@ -31,12 +34,24 @@ fn local_event_delivery_requires_namespace_filtered_subscriber_and_backpressure(
         proof.decision_state,
         EventDeliveryDecisionState::LocalRouteReady
     );
-    assert!(proof.local_delivery_ready);
+    assert_eq!(
+        proof.local_delivery_capability,
+        EventDeliveryCapabilityState::Available
+    );
     assert!(proof.required_artifacts.is_empty());
     assert!(proof.missing_artifacts.is_empty());
-    assert!(proof.subscriber_filtering_enabled);
-    assert!(!proof.decision_authority);
-    assert!(!proof.side_effect_authority);
+    assert_eq!(
+        proof.subscriber_filtering_capability,
+        EventDeliveryCapabilityState::Available
+    );
+    assert_eq!(
+        proof.decision_authority_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.side_effect_authority_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
     Ok(())
 }
 
@@ -66,14 +81,14 @@ fn delivery_rejects_empty_or_out_of_namespace_subscriber_filters(
 fn delivery_rejects_live_external_or_authority_claims_without_artifact_path(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut transport_claim = local_input()?;
-    transport_claim.external_transport_delivery_claimed = true;
+    transport_claim.external_transport_delivery_claim = EventDeliveryClaimState::Claimed;
     assert_eq!(
         decide_event_delivery_route(transport_claim),
         Err(EventDeliveryDecisionError::LiveExternalTransportDeliveryClaimRejected)
     );
 
     let mut authority_claim = local_input()?;
-    authority_claim.decision_authority_claimed = true;
+    authority_claim.decision_authority_claim = EventDeliveryClaimState::Claimed;
     assert_eq!(
         decide_event_delivery_route(authority_claim),
         Err(EventDeliveryDecisionError::DecisionAuthorityClaimRejected)
@@ -100,16 +115,46 @@ fn delivery_decision_allows_local_first_route_with_filter_and_backpressure(
     );
     assert_eq!(proof.required_artifacts, Vec::new());
     assert_eq!(proof.missing_artifacts, Vec::new());
-    assert_eq!(proof.backpressure_policy.bounded_queue_capacity, 32);
-    assert_eq!(proof.backpressure_policy.ttl_millis, 30_000);
-    assert!(proof.backpressure_policy.overflow_dead_letters);
-    assert!(proof.backpressure_policy.idempotency_required);
-    assert!(proof.local_delivery_ready);
-    assert!(proof.subscriber_filtering_enabled);
-    assert!(!proof.external_transport_delivery_implemented);
-    assert!(!proof.external_relay_delivery_implemented);
-    assert!(!proof.decision_authority);
-    assert!(!proof.side_effect_authority);
+    assert_eq!(
+        crate::event_count_value(proof.backpressure_policy.bounded_queue_capacity),
+        32
+    );
+    assert_eq!(
+        proof.backpressure_policy.ttl.value(),
+        Duration::from_millis(30_000)
+    );
+    assert_eq!(
+        proof.backpressure_policy.overflow_policy,
+        EventDeliveryOverflowPolicy::DeadLetter
+    );
+    assert_eq!(
+        proof.backpressure_policy.idempotency_requirement,
+        EventDeliveryIdempotencyRequirement::Required
+    );
+    assert_eq!(
+        proof.local_delivery_capability,
+        EventDeliveryCapabilityState::Available
+    );
+    assert_eq!(
+        proof.subscriber_filtering_capability,
+        EventDeliveryCapabilityState::Available
+    );
+    assert_eq!(
+        proof.external_transport_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.external_relay_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.decision_authority_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.side_effect_authority_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
     Ok(())
 }
 
@@ -149,8 +194,14 @@ fn delivery_decision_marks_external_transport_manual_required_without_required_a
             EventDeliveryRequiredArtifact::TransportConfig
         ]
     );
-    assert!(!proof.external_transport_delivery_implemented);
-    assert!(!proof.external_relay_delivery_implemented);
+    assert_eq!(
+        proof.external_transport_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.external_relay_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
     Ok(())
 }
 
@@ -186,7 +237,10 @@ fn delivery_decision_marks_external_relay_manual_required_for_relay_artifacts(
             EventDeliveryRequiredArtifact::ExternalRelayPolicy
         ]
     );
-    assert!(!proof.external_relay_delivery_implemented);
+    assert_eq!(
+        proof.external_relay_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
     Ok(())
 }
 
@@ -214,9 +268,18 @@ fn delivery_decision_preserves_satisfied_external_transport_requirements_without
             .as_str(),
         "retention-policy-proof-45"
     );
-    assert!(!proof.external_transport_delivery_implemented);
-    assert!(!proof.external_relay_delivery_implemented);
-    assert!(proof.local_delivery_ready);
+    assert_eq!(
+        proof.external_transport_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.external_relay_delivery_capability,
+        EventDeliveryCapabilityState::Unavailable
+    );
+    assert_eq!(
+        proof.local_delivery_capability,
+        EventDeliveryCapabilityState::Available
+    );
     Ok(())
 }
 
@@ -225,28 +288,28 @@ fn delivery_decision_rejects_live_claims_and_invalid_route_metadata(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
-            external_transport_delivery_claimed: true,
+            external_transport_delivery_claim: EventDeliveryClaimState::Claimed,
             ..network_local_input(EventDeliveryRouteKind::ExternalTransport)?
         }),
         Err(EventDeliveryDecisionError::LiveExternalTransportDeliveryClaimRejected)
     );
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
-            external_relay_delivery_claimed: true,
+            external_relay_delivery_claim: EventDeliveryClaimState::Claimed,
             ..network_local_input(EventDeliveryRouteKind::ExternalRelay)?
         }),
         Err(EventDeliveryDecisionError::LiveExternalRelayDeliveryClaimRejected)
     );
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
-            decision_authority_claimed: true,
+            decision_authority_claim: EventDeliveryClaimState::Claimed,
             ..network_local_input(EventDeliveryRouteKind::LocalService)?
         }),
         Err(EventDeliveryDecisionError::DecisionAuthorityClaimRejected)
     );
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
-            side_effect_authority_claimed: true,
+            side_effect_authority_claim: EventDeliveryClaimState::Claimed,
             ..network_local_input(EventDeliveryRouteKind::LocalService)?
         }),
         Err(EventDeliveryDecisionError::SideEffectAuthorityClaimRejected)
@@ -254,7 +317,7 @@ fn delivery_decision_rejects_live_claims_and_invalid_route_metadata(
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
             backpressure_policy: EventDeliveryBackpressurePolicy {
-                bounded_queue_capacity: 0,
+                bounded_queue_capacity: crate::event_count(0),
                 ..network_backpressure_policy()
             },
             ..network_local_input(EventDeliveryRouteKind::LocalService)?
@@ -294,10 +357,10 @@ fn local_input() -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error
             )?],
         },
         backpressure_policy: EventDeliveryBackpressurePolicy {
-            bounded_queue_capacity: 128,
-            ttl_millis: 30_000,
-            overflow_dead_letters: true,
-            idempotency_required: true,
+            bounded_queue_capacity: crate::event_count(128),
+            ttl: Duration::from_millis(30_000).into(),
+            overflow_policy: EventDeliveryOverflowPolicy::DeadLetter,
+            idempotency_requirement: EventDeliveryIdempotencyRequirement::Required,
         },
         custody_proof_ref: None,
         publisher_auth_ref: None,
@@ -311,10 +374,10 @@ fn local_input() -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error
         transport_config_ref: None,
         relay_identity_ref: None,
         relay_policy_ref: None,
-        external_transport_delivery_claimed: false,
-        external_relay_delivery_claimed: false,
-        decision_authority_claimed: false,
-        side_effect_authority_claimed: false,
+        external_transport_delivery_claim: EventDeliveryClaimState::NotClaimed,
+        external_relay_delivery_claim: EventDeliveryClaimState::NotClaimed,
+        decision_authority_claim: EventDeliveryClaimState::NotClaimed,
+        side_effect_authority_claim: EventDeliveryClaimState::NotClaimed,
     })
 }
 
@@ -341,10 +404,10 @@ fn network_local_input(
         transport_config_ref: None,
         relay_identity_ref: None,
         relay_policy_ref: None,
-        external_transport_delivery_claimed: false,
-        external_relay_delivery_claimed: false,
-        decision_authority_claimed: false,
-        side_effect_authority_claimed: false,
+        external_transport_delivery_claim: EventDeliveryClaimState::NotClaimed,
+        external_relay_delivery_claim: EventDeliveryClaimState::NotClaimed,
+        decision_authority_claim: EventDeliveryClaimState::NotClaimed,
+        side_effect_authority_claim: EventDeliveryClaimState::NotClaimed,
     })
 }
 
@@ -381,10 +444,10 @@ fn network_subscriber_filter(
 
 fn network_backpressure_policy() -> EventDeliveryBackpressurePolicy {
     EventDeliveryBackpressurePolicy {
-        bounded_queue_capacity: 32,
-        ttl_millis: 30_000,
-        overflow_dead_letters: true,
-        idempotency_required: true,
+        bounded_queue_capacity: crate::event_count(32),
+        ttl: Duration::from_millis(30_000).into(),
+        overflow_policy: EventDeliveryOverflowPolicy::DeadLetter,
+        idempotency_requirement: EventDeliveryIdempotencyRequirement::Required,
     }
 }
 
@@ -411,7 +474,7 @@ fn network_event_namespace() -> Result<EventNamespace, Box<dyn std::error::Error
 fn network_event_type(
     value: TestText,
 ) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(EventType::parse(value.0)?)
+    Ok(EventType::parse(&{ value.0 })?)
 }
 
 fn event_type_with_suffix(
@@ -426,7 +489,7 @@ fn event_type_with_suffix(
 fn network_source_component(
     value: TestText,
 ) -> Result<SourceComponent, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(SourceComponent::parse(value.0)?)
+    Ok(SourceComponent::parse(&{ value.0 })?)
 }
 
 fn network_component(

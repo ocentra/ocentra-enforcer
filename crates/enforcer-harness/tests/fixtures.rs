@@ -7,7 +7,13 @@
 use std::path::Path;
 
 use enforcer_core::error::{Error, Result};
-use enforcer_harness::config::HarnessConfig;
+use enforcer_domain::config_types::HarnessConfig;
+use enforcer_domain::harness_types::{
+    HarnessCapturedOutput, HarnessCommandArgument, HarnessPinned, HarnessRunId, HarnessTimestamp,
+    HarnessToolName,
+};
+use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::telemetry_types::ProcessExitCode;
 use enforcer_harness::storage::{record_run, verify_run_layout, RunInput, RUN_FILES};
 
 fn missing(what: &str) -> Error {
@@ -15,23 +21,27 @@ fn missing(what: &str) -> Error {
 }
 
 fn record(repo_root: &Path, run_id: &str, config: &HarnessConfig) -> Result<()> {
+    let repo_root = RepoRoot::try_from(repo_root)?;
     record_run(
         &RunInput {
-            repo_root,
-            run_id: run_id.to_owned(),
-            tool: "cargo".to_owned(),
+            repo_root: &repo_root,
+            run_id: HarnessRunId::try_new(run_id.to_owned())?,
+            tool: HarnessToolName::try_new("cargo".to_owned())?,
             language: None,
-            command: vec!["cargo".to_owned(), "test".to_owned()],
-            stdout: String::new(),
-            stderr: String::new(),
-            exit_code: 0,
-            crate_name: Some("enforcer-harness".to_owned()),
+            command: vec![
+                HarnessCommandArgument::try_new("cargo".to_owned())?,
+                HarnessCommandArgument::try_new("test".to_owned())?,
+            ],
+            stdout: HarnessCapturedOutput::default(),
+            stderr: HarnessCapturedOutput::default(),
+            exit_code: ProcessExitCode::new(0),
+            crate_name: Some("enforcer-harness".parse()?),
             package_name: None,
             domain: None,
             tags: vec![],
-            pinned: false,
-            started_at: "2026-01-01T00:00:00Z".to_owned(),
-            ended_at: "2026-01-01T00:00:01Z".to_owned(),
+            pinned: HarnessPinned::Unpinned,
+            started_at: HarnessTimestamp::try_new("2026-01-01T00:00:00Z".to_owned())?,
+            ended_at: HarnessTimestamp::try_new("2026-01-01T00:00:01Z".to_owned())?,
         },
         config,
     )?;
@@ -44,8 +54,7 @@ fn recorded_run_has_all_five_required_files() -> Result<()> {
     let config = HarnessConfig::default();
     record(dir.path(), "run-layout", &config)?;
 
-    let run_dir = config
-        .storage_root(dir.path())?
+    let run_dir = enforcer_harness::config::storage_root(&config, dir.path())?
         .join("runs")
         .join("run-layout");
     let missing_files = verify_run_layout(&run_dir);
@@ -64,14 +73,14 @@ fn a_run_missing_any_of_the_five_files_is_flagged_by_verify_run_layout() -> Resu
     let dir = tempfile::TempDir::new()?;
     let config = HarnessConfig::default();
     record(dir.path(), "run-broken", &config)?;
-    let run_dir = config
-        .storage_root(dir.path())?
+    let run_dir = enforcer_harness::config::storage_root(&config, dir.path())?
         .join("runs")
         .join("run-broken");
     std::fs::remove_file(run_dir.join("events.ndjson"))?;
 
     let missing_files = verify_run_layout(&run_dir);
-    assert_eq!(missing_files, vec!["events.ndjson".to_owned()]);
+    assert_eq!(missing_files.len(), 1);
+    assert_eq!(missing_files[0], "events.ndjson");
     Ok(())
 }
 
@@ -82,8 +91,7 @@ fn manifest_replaces_not_duplicates_on_rerecord_and_two_runs_yield_two_entries()
     record(dir.path(), "run-a", &config)?;
     record(dir.path(), "run-b", &config)?;
 
-    let manifest_path = config
-        .storage_root(dir.path())?
+    let manifest_path = enforcer_harness::config::storage_root(&config, dir.path())?
         .join("db")
         .join("ingest-manifest.json");
     let manifest: serde_json::Value =
@@ -154,8 +162,7 @@ fn legacy_only_run_is_surfaced_by_list_runs_and_dedupes_when_present_in_both_roo
     // A run present under BOTH roots (write via the authoritative API,
     // then mirror an identical summary under legacy) must appear once.
     record(dir.path(), "run-both", &config)?;
-    let authoritative_run_dir = config
-        .storage_root(dir.path())?
+    let authoritative_run_dir = enforcer_harness::config::storage_root(&config, dir.path())?
         .join("runs")
         .join("run-both");
     let both_summary_src = authoritative_run_dir.join("summary.json");

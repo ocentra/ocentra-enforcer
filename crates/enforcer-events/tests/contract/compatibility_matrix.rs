@@ -1,4 +1,5 @@
-use enforcer_events::compatibility::{EventCompatibilityMatrix, EventCompatibilityStatus};
+use enforcer_domain::events_types::{EventCompatibilityStatus, EventSemanticId};
+use enforcer_events::compatibility::EventCompatibilityMatrix;
 
 const CLASS_CONTRACTS: &str = "class-backed-contracts";
 const EVENT_METADATA: &str = "event-args-metadata";
@@ -15,12 +16,13 @@ const DISPOSAL_CALLBACKS: &str = "payload-disposal-callbacks";
 const BROKER_DELIVERY: &str = "broker-backed-delivery";
 
 #[test]
-fn compatibility_matrix_covers_games_lineage_semantics() {
-    let matrix = EventCompatibilityMatrix::ocentra_games_lineage();
+fn compatibility_matrix_covers_games_lineage_semantics(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let matrix = EventCompatibilityMatrix::ocentra_games_lineage()?;
     let semantic_ids = matrix
         .entries()
         .iter()
-        .map(|entry| entry.semantic_id())
+        .map(|entry| entry.semantic_id().as_str())
         .collect::<Vec<_>>();
 
     assert_eq!(
@@ -44,49 +46,51 @@ fn compatibility_matrix_covers_games_lineage_semantics() {
     assert_eq!(matrix.compatible_entries().len(), 9);
     assert_eq!(matrix.intentional_deviations().len(), 3);
     assert_eq!(matrix.manual_required_entries().len(), 1);
+    Ok(())
 }
 
 #[test]
 fn compatibility_matrix_marks_deviations_and_manual_required_scope(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let matrix = EventCompatibilityMatrix::ocentra_games_lineage();
+    let matrix = EventCompatibilityMatrix::ocentra_games_lineage()?;
 
     assert_eq!(
         matrix
-            .entry(REPUBLISH_OVERRIDE)
+            .entry(&EventSemanticId::parse(REPUBLISH_OVERRIDE)?)
             .ok_or("republish entry")?
             .status(),
         EventCompatibilityStatus::IntentionalDeviation
     );
     assert_eq!(
         matrix
-            .entry(DISPOSAL_CALLBACKS)
+            .entry(&EventSemanticId::parse(DISPOSAL_CALLBACKS)?)
             .ok_or("disposal entry")?
             .status(),
         EventCompatibilityStatus::IntentionalDeviation
     );
     assert_eq!(
         matrix
-            .entry(BROKER_DELIVERY)
+            .entry(&EventSemanticId::parse(BROKER_DELIVERY)?)
             .ok_or("broker entry")?
             .status(),
         EventCompatibilityStatus::ManualRequired
     );
     for entry in matrix.entries() {
-        assert_ne!(entry.source_semantic(), "");
-        assert_ne!(entry.rust_surface(), "");
-        assert_ne!(entry.proof_artifact(), "");
-        assert_ne!(entry.compatibility_note(), "");
+        assert!(!entry.source_semantic().as_str().is_empty());
+        assert!(!entry.rust_surface().as_str().is_empty());
+        assert!(!entry.proof_artifact().as_str().is_empty());
+        assert!(!entry.compatibility_note().as_str().is_empty());
     }
     Ok(())
 }
 
 #[test]
-fn compatibility_matrix_renders_deterministic_markdown() {
-    let matrix = EventCompatibilityMatrix::ocentra_games_lineage();
-    let markdown = matrix.render_markdown();
+fn compatibility_matrix_renders_deterministic_markdown(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let matrix = EventCompatibilityMatrix::ocentra_games_lineage()?;
+    let markdown = matrix.render_markdown()?;
 
-    let lines = markdown.lines().collect::<Vec<_>>();
+    let lines = markdown.as_str().lines().collect::<Vec<_>>();
     assert_eq!(
         lines.first().copied(),
         Some("# Eventing Compatibility Matrix")
@@ -103,4 +107,5 @@ fn compatibility_matrix_renders_deterministic_markdown() {
     assert!(lines.contains(
         &"| broker-backed-delivery | Cross-process or broker-backed event delivery | Stored envelope transport boundary is not yet broker-backed | manual-required | docs/plans/network-plan/workpacks/README.md#workpack-45 | Broker delivery is P6 and cannot redefine local dispatch semantics |"
     ));
+    Ok(())
 }

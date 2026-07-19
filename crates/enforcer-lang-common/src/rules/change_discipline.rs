@@ -31,6 +31,7 @@
 //! single-file adapter — that wiring is noted as follow-up, not built
 //! here.
 
+use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
@@ -40,37 +41,23 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 /// The protected marker text this rule watches for. Any line containing
 /// this substring is a "marker line" whose presence in BASE must survive
 /// into HEAD.
-pub const OWNERSET_MARKER: &str = "(owner-set";
-
 /// Fixture-file-only delimiter line separating a fixture's BASE section
 /// (before) from its HEAD section (after), so one fixture file can carry
 /// both versions for [`OwnersetValidator`]'s single-source adapter. Not
 /// part of the real base/head content this rule protects — a production
 /// caller with real git blobs calls [`check_ownerset`] directly and never
 /// sees this delimiter.
-pub const HEAD_DELIMITER: &str = "===HEAD===";
+const HEAD_DELIMITER: &str = "===HEAD===";
 
 /// Normalize a marker line's identity for comparison: trim surrounding
 /// whitespace. Matching is by the marker LINE's normalized text, not
 /// whole-file byte-equality, so a marker line that only moved position (or
 /// was reflowed with different leading/trailing whitespace) still counts
 /// as present.
-fn normalize_marker_line(line: &str) -> String {
-    line.trim().to_owned()
-}
-
 /// Every line in `source` that contains the protected [`OWNERSET_MARKER`]
 /// substring, normalized for identity comparison. Order is preserved but
 /// irrelevant to the check (a moved/reordered marker still counts as
 /// present).
-fn marker_lines(source: &str) -> Vec<String> {
-    source
-        .lines()
-        .filter(|line| line.contains(OWNERSET_MARKER))
-        .map(normalize_marker_line)
-        .collect()
-}
-
 /// Core rule logic (T1): every `(owner-set` marker line present in `base`
 /// must have a normalized match somewhere in `head`. Returns one
 /// [`Finding`] per dropped marker line (in BASE order), naming `path` and
@@ -78,24 +65,36 @@ fn marker_lines(source: &str) -> Vec<String> {
 /// survived (including the case of zero markers in BASE — nothing to
 /// protect is not a violation). New marker lines added in `head` with no
 /// counterpart in `base` are never flagged.
-pub fn check_ownerset(base: &str, head: &str, path: &RelPath, rule_id: &RuleId) -> Vec<Finding> {
-    let head_markers: std::collections::BTreeSet<String> = marker_lines(head).into_iter().collect();
-    marker_lines(base)
+pub fn check_ownerset(
+    base: ValidationSource<'_>,
+    head: ValidationSource<'_>,
+    path: &RelPath,
+    rule_id: &RuleId,
+) -> Vec<Finding> {
+    let head_markers: std::collections::BTreeSet<String> =
+        crate::boundary::source_analysis::ownerset_marker_lines(head.as_str())
+            .into_iter()
+            .collect();
+    crate::boundary::source_analysis::ownerset_marker_lines(base.as_str())
         .into_iter()
         .filter(|base_line| !head_markers.contains(base_line))
-        .map(|dropped| Finding {
-            rule_id: rule_id.clone(),
-            severity: Severity::Error,
-            title: "change-discipline: owner-set marker dropped".to_owned(),
-            detail: format!(
-                "`{}` lost a protected owner-set marker present in the base version: `{dropped}`. \
-                 Owner-set requirements are protected invariants (L39) — restore the marker via \
-                 union resolution, or waive it explicitly by name.",
-                path.as_str()
-            ),
-            file: path.clone(),
-            line: 1,
-            snippet: Some(dropped),
+        .filter_map(|dropped| {
+            crate::boundary::finding(
+                rule_id,
+                Severity::Error,
+                (
+                    "change-discipline: owner-set marker dropped",
+                    format!(
+                        "`{}` lost a protected owner-set marker present in the base version: `{dropped}`. \
+                         Owner-set requirements are protected invariants (L39) ? restore the marker via \
+                         union resolution, or waive it explicitly by name.",
+                        path.as_str()
+                    ),
+                    Some(dropped.as_str()),
+                ),
+                path,
+                1,
+            )
         })
         .collect()
 }
@@ -106,6 +105,7 @@ pub fn check_ownerset(base: &str, head: &str, path: &RelPath, rule_id: &RuleId) 
 /// before is BASE, everything after is HEAD. A fixture/source with no
 /// delimiter is treated as HEAD-only (empty BASE — nothing to protect, so
 /// it is always clean under this rule).
+#[derive(Debug)]
 pub struct OwnersetValidator {
     rule_id: RuleId,
 }
@@ -114,7 +114,7 @@ impl OwnersetValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "OWNERSET-1.1".parse()?,
+            rule_id: crate::boundary::static_rule_id("OWNERSET-1.1")?,
         })
     }
 }
@@ -125,11 +125,16 @@ impl Validator for OwnersetValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let (base, head) = match input.source.split_once(HEAD_DELIMITER) {
+        let (base, head) = match input.source.as_str().split_once(HEAD_DELIMITER) {
             Some((base, head)) => (base, head),
-            None => ("", input.source),
+            None => ("", input.source.as_str()),
         };
-        check_ownerset(base, head, input.file, &self.rule_id)
+        check_ownerset(
+            ValidationSource::from_text(base),
+            ValidationSource::from_text(head),
+            input.file,
+            &self.rule_id,
+        )
     }
 }
 
@@ -141,23 +146,14 @@ pub fn validators(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use crate::boundary::source_analysis::ownerset_marker_lines;
+    use crate::boundary::{
+        check_ownerset_text, manifest_dir, run_fixture_parity, static_rel_path, static_rule_id,
+    };
+    use enforcer_domain::{findings::Finding, ids::RuleId};
+    use enforcer_validator::validator::{ValidationInput, Validator};
 
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::*;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn path(p: &str) -> Result<RelPath, enforcer_domain::boundary::decode_error::DecodeError> {
-        p.parse()
-    }
-
-    fn rule_id() -> Result<RuleId, enforcer_domain::boundary::decode_error::DecodeError> {
-        "OWNERSET-1.1".parse()
-    }
+    use super::{validators, OwnersetValidator};
 
     #[test]
     fn one_validator_registered() -> Result<(), enforcer_domain::boundary::decode_error::DecodeError>
@@ -174,11 +170,16 @@ mod tests {
         let base = "- [ ] Seam A (owner-set, RESTORED): do the thing\n\
                      - [ ] Seam B (owner-set): do the other thing\n";
         let head = "- [ ] Seam A (owner-set, RESTORED): do the thing\n";
-        let findings = check_ownerset(base, head, &path("docs/x06.md")?, &rule_id()?);
+        let findings = check_ownerset_text(
+            base,
+            head,
+            &static_rel_path("docs/x06.md")?,
+            &static_rule_id("OWNERSET-1.1")?,
+        );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id.as_str(), "OWNERSET-1.1");
         assert!(findings[0].file.as_str().contains("x06.md"));
-        assert!(findings[0].detail.contains("Seam B (owner-set)"));
+        assert!(findings[0].detail.as_str().contains("Seam B (owner-set)"));
         Ok(())
     }
 
@@ -187,7 +188,13 @@ mod tests {
     ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "- [ ] Seam A (owner-set): keep this\n";
         let head = "- [ ] Seam A (owner-set): keep this\n";
-        assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
+        assert!(check_ownerset_text(
+            base,
+            head,
+            &static_rel_path("f.md")?,
+            &static_rule_id("OWNERSET-1.1")?,
+        )
+        .is_empty());
         Ok(())
     }
 
@@ -196,7 +203,13 @@ mod tests {
     ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "intro\n- [ ] Seam A (owner-set): keep this\noutro\n";
         let head = "outro\nintro\n- [ ] Seam A (owner-set): keep this\n";
-        assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
+        assert!(check_ownerset_text(
+            base,
+            head,
+            &static_rel_path("f.md")?,
+            &static_rule_id("OWNERSET-1.1")?,
+        )
+        .is_empty());
         Ok(())
     }
 
@@ -206,7 +219,13 @@ mod tests {
         let base = "- [ ] Seam A (owner-set): keep this\n";
         let head = "- [ ] Seam A (owner-set): keep this\n\
                      - [ ] Seam B (owner-set): brand new requirement\n";
-        assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
+        assert!(check_ownerset_text(
+            base,
+            head,
+            &static_rel_path("f.md")?,
+            &static_rule_id("OWNERSET-1.1")?,
+        )
+        .is_empty());
         Ok(())
     }
 
@@ -216,18 +235,24 @@ mod tests {
         let base = "context line one\n- [ ] Seam A (owner-set): keep this\ncontext line two\n";
         let head =
             "context line one, reworded\n- [ ] Seam A (owner-set): keep this\ncontext line two, also reworded\n";
-        assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
+        assert!(check_ownerset_text(
+            base,
+            head,
+            &static_rel_path("f.md")?,
+            &static_rule_id("OWNERSET-1.1")?,
+        )
+        .is_empty());
         Ok(())
     }
 
     #[test]
     fn no_markers_in_base_is_clean(
     ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
-        assert!(check_ownerset(
+        assert!(check_ownerset_text(
             "plain doc\n",
             "plain doc, hardened\n",
-            &path("f.md")?,
-            &rule_id()?
+            &static_rel_path("f.md")?,
+            &static_rule_id("OWNERSET-1.1")?
         )
         .is_empty());
         Ok(())
@@ -253,8 +278,8 @@ mod tests {
             manifest_dir().join("tests/fixtures/change_discipline/ownerset_new_added/good.md"),
         )?;
         let findings = validator.validate(ValidationInput {
-            file: &path("tests/fixtures/change_discipline/ownerset_new_added/good.md")?,
-            source: &source,
+            file: &static_rel_path("tests/fixtures/change_discipline/ownerset_new_added/good.md")?,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());
@@ -269,8 +294,10 @@ mod tests {
             manifest_dir().join("tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md"),
         )?;
         let findings = validator.validate(ValidationInput {
-            file: &path("tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md")?,
-            source: &source,
+            file: &static_rel_path(
+                "tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md",
+            )?,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(findings.is_empty());
@@ -312,7 +339,7 @@ mod tests {
             }
         }
         let never_fires = NeverFiresValidator {
-            rule_id: rule_id()?,
+            rule_id: static_rule_id("OWNERSET-1.1")?,
         };
         let result = run_fixture_parity(
             &never_fires,
@@ -342,7 +369,7 @@ mod tests {
         let x06 = repo_root
             .join("docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md");
         let source = std::fs::read_to_string(&x06)?;
-        let count = marker_lines(&source).len();
+        let count = ownerset_marker_lines(&source).len();
         assert!(
             count >= 2,
             "expected the live x06 workpack to carry >= 2 (owner-set markers, found {count}"

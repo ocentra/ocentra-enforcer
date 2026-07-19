@@ -6,10 +6,12 @@
 //! `@Test`-annotation test detection, and Spring `@GetMapping`-style
 //! route extraction.
 
+use enforcer_domain::memory_types::ReceiverHint;
+use enforcer_domain::memory_types::ResolutionConfidence;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::languages::java::parse;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
-use enforcer_memory::resolution::{self, ResolutionConfidence};
+use enforcer_memory::parsers::SymbolKind;
+use enforcer_memory::resolution::{self};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -362,7 +364,7 @@ public class Widget {
         .find(|c| c.callee == "w.draw")
         .ok_or("expected a w.draw call")?;
     assert_eq!(call.from_symbol.as_deref(), Some("render"), "{call:?}");
-    assert_eq!(call.from_symbol_line, Some(5), "{call:?}");
+    assert_eq!(call.from_symbol_line, Some(5.into()), "{call:?}");
     Ok(())
 }
 

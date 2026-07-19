@@ -2,7 +2,7 @@
 //! [`crate::code_graph::CodeGraph`].
 //!
 //! Answers the parity-push gap the scout digest flags for
-//! `get_architecture` (scout digest §1: "aspects incl. Leiden/Louvain
+//! `get_architecture` (scout digest Â§1: "aspects incl. Leiden/Louvain
 //! clustering, hotspots, layers, file_tree") -- the baseline's
 //! community-detection aspect groups files/symbols into de-facto
 //! modules that do not necessarily match the on-disk directory
@@ -38,7 +38,7 @@
 //! is limited to the single `pub mod clustering;` wiring line (a
 //! sibling parity lane owns the rest of that file's diff). Community
 //! detection also does not need `CodeAdjacency`'s typed
-//! [`crate::analysis::EdgeKind`]/directed-traversal machinery -- label
+//! [`enforcer_domain::memory_types::MemoryEdgeKind`]/directed-traversal machinery -- label
 //! propagation only needs undirected connectivity -- so this module
 //! builds its own minimal undirected adjacency map directly from
 //! [`crate::code_graph::CodeGraph`]'s already-public edge accessors
@@ -49,6 +49,12 @@
 //! resolver -- no code copied).
 
 use crate::code_graph::CodeGraph;
+use crate::owned_boundary::RetainedDisplay;
+use enforcer_domain::memory_types::{
+    CodeSearchPath, CodeSearchSymbolName, MemoryClusterFileId, MemoryClusterId,
+    MemoryClusterIterationLimit, MemoryClusterNodeId, MemoryClusterSize, MemoryClusterSymbolId,
+    MemoryInterClusterEdgeCount, ParserSourceText,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// One detected community: a de-facto module grouping files/symbols
@@ -60,19 +66,19 @@ pub struct Cluster {
     /// the cluster's members (deterministic given the member set --
     /// never an arbitrary counter, so re-running clustering on the same
     /// graph reproduces the same cluster ids).
-    pub id: String,
+    pub id: MemoryClusterId,
     /// Every node id (file, symbol, or text-only file) in this
     /// cluster, sorted for determinism.
-    pub member_node_ids: Vec<String>,
+    pub member_node_ids: Vec<MemoryClusterNodeId>,
     /// File node ids among the members (subset of `member_node_ids`).
-    pub file_ids: Vec<String>,
+    pub file_ids: Vec<MemoryClusterFileId>,
     /// Symbol node ids among the members (subset of `member_node_ids`).
-    pub symbol_ids: Vec<String>,
+    pub symbol_ids: Vec<MemoryClusterSymbolId>,
 }
 
 impl Cluster {
-    pub fn size(&self) -> usize {
-        self.member_node_ids.len()
+    pub fn size(&self) -> MemoryClusterSize {
+        self.member_node_ids.len().into()
     }
 }
 
@@ -80,9 +86,9 @@ impl Cluster {
 /// had `count` resolved edges crossing the cluster boundary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterClusterEdge {
-    pub from_cluster: String,
-    pub to_cluster: String,
-    pub count: usize,
+    pub from_cluster: MemoryClusterId,
+    pub to_cluster: MemoryClusterId,
+    pub count: MemoryInterClusterEdgeCount,
 }
 
 /// The full clustering result: every detected [`Cluster`] plus the
@@ -102,26 +108,27 @@ pub struct ClusteringResult {
 struct UndirectedAdjacency {
     /// Every node id known to the graph, sorted (the label-propagation
     /// visitation order and the deterministic tie-break domain).
-    node_ids: Vec<String>,
-    neighbors: BTreeMap<String, BTreeSet<String>>,
+    node_ids: Vec<MemoryClusterNodeId>,
+    neighbors: BTreeMap<MemoryClusterNodeId, BTreeSet<MemoryClusterNodeId>>,
     /// Directed edges as resolved (from, to) pairs, kept separately from
     /// `neighbors` so [`inter_cluster_edges`] can count direction
     /// instead of the symmetrized undirected view label propagation
     /// itself uses.
-    directed_edges: Vec<(String, String)>,
+    directed_edges: Vec<(MemoryClusterNodeId, MemoryClusterNodeId)>,
 }
 
 impl UndirectedAdjacency {
     fn build(graph: &CodeGraph) -> Self {
-        let mut node_ids: BTreeSet<String> = BTreeSet::new();
+        let mut node_ids: BTreeSet<MemoryClusterNodeId> = BTreeSet::new();
         for node in graph.nodes() {
-            node_ids.insert(node.id().to_string());
+            node_ids.insert(node.id().retained_display().into());
         }
-        let node_ids: Vec<String> = node_ids.into_iter().collect();
+        let node_ids: Vec<MemoryClusterNodeId> = node_ids.into_iter().collect();
 
-        let mut neighbors: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        let mut directed_edges: Vec<(String, String)> = Vec::new();
-        let mut add_edge = |from: String, to: String| {
+        let mut neighbors: BTreeMap<MemoryClusterNodeId, BTreeSet<MemoryClusterNodeId>> =
+            BTreeMap::new();
+        let mut directed_edges: Vec<(MemoryClusterNodeId, MemoryClusterNodeId)> = Vec::new();
+        let mut add_edge = |from: MemoryClusterNodeId, to: MemoryClusterNodeId| {
             if from == to {
                 return;
             }
@@ -143,32 +150,37 @@ impl UndirectedAdjacency {
         // File -> symbol containment (structural).
         for symbol in graph.symbol_nodes() {
             // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed symbol iterator.
-            add_edge(symbol.file_id.clone(), symbol.id.clone());
+            add_edge(symbol.file_id.as_str().into(), symbol.id.as_str().into());
         }
 
         // Import edges: same best-effort suffix match `CodeAdjacency`
         // uses, re-derived here over `file_nodes()` directly (see
         // module docs for why this is not shared code).
-        let file_paths: Vec<(&str, &str)> = graph
+        let file_paths: Vec<(CodeSearchPath, MemoryClusterFileId)> = graph
             .file_nodes()
-            .map(|f| (f.rel_path.as_str(), f.id.as_str()))
+            .map(|f| (f.rel_path.as_str().into(), f.id.as_str().into()))
             .collect();
         for import in graph.imports() {
-            if let Some(to_id) = resolve_module_path(&import.module_path, &file_paths) {
+            if let Some(to_id) = resolve_module_path(
+                ParserSourceText::from(import.module_path.as_str()),
+                &file_paths,
+            ) {
                 // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed import iterator.
-                add_edge(import.from_file_id.clone(), to_id.to_string());
+                add_edge(import.from_file_id.as_str().into(), to_id.as_str().into());
             }
         }
 
         // Call edges: exact/suffix name match against symbol names.
-        let symbol_names: Vec<(&str, &str)> = graph
+        let symbol_names: Vec<(CodeSearchSymbolName, MemoryClusterNodeId)> = graph
             .symbol_nodes()
-            .map(|s| (s.name.as_str(), s.id.as_str()))
+            .map(|s| (s.name.as_str().into(), s.id.as_str().into()))
             .collect();
         for call in graph.calls() {
-            if let Some(to_id) = resolve_callee(&call.callee, &symbol_names) {
+            if let Some(to_id) =
+                resolve_callee(ParserSourceText::from(call.callee.as_str()), &symbol_names)
+            {
                 // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed call iterator.
-                add_edge(call.from_file_id.clone(), to_id.to_string());
+                add_edge(call.from_file_id.as_str().into(), to_id);
             }
         }
 
@@ -179,7 +191,10 @@ impl UndirectedAdjacency {
         }
     }
 
-    fn neighbors_of(&self, node_id: &str) -> impl Iterator<Item = &String> {
+    fn neighbors_of(
+        &self,
+        node_id: &MemoryClusterNodeId,
+    ) -> impl Iterator<Item = &MemoryClusterNodeId> {
         self.neighbors
             .get(node_id)
             .into_iter()
@@ -187,11 +202,12 @@ impl UndirectedAdjacency {
     }
 }
 
-fn resolve_module_path<'a>(
-    module_path: &str,
-    file_paths: &[(&'a str, &'a str)],
-) -> Option<&'a str> {
+fn resolve_module_path(
+    module_path: ParserSourceText<'_>,
+    file_paths: &[(CodeSearchPath, MemoryClusterFileId)],
+) -> Option<MemoryClusterFileId> {
     let needle = module_path
+        .as_str()
         .trim_start_matches("./")
         .trim_start_matches("../");
     let last_segment = needle.rsplit(['/', ':', '.']).next().unwrap_or(needle);
@@ -201,19 +217,30 @@ fn resolve_module_path<'a>(
     file_paths
         .iter()
         .find(|(rel_path, _)| {
-            let stem = rel_path.rsplit('/').next().unwrap_or(rel_path);
+            let stem = rel_path
+                .as_str()
+                .rsplit('/')
+                .next()
+                .unwrap_or(rel_path.as_str());
             let stem = stem.split('.').next().unwrap_or(stem);
-            stem == last_segment || rel_path.ends_with(last_segment)
+            stem == last_segment || rel_path.as_str().ends_with(last_segment)
         })
-        .map(|(_, id)| *id)
+        .map(|(_, id)| id.as_str().into())
 }
 
-fn resolve_callee<'a>(callee: &str, symbol_names: &[(&'a str, &'a str)]) -> Option<&'a str> {
-    let last_segment = callee.rsplit(['.', ':']).next().unwrap_or(callee);
+fn resolve_callee(
+    callee: ParserSourceText<'_>,
+    symbol_names: &[(CodeSearchSymbolName, MemoryClusterNodeId)],
+) -> Option<MemoryClusterNodeId> {
+    let last_segment = callee
+        .as_str()
+        .rsplit(['.', ':'])
+        .next()
+        .unwrap_or(callee.as_str());
     symbol_names
         .iter()
-        .find(|(name, _)| *name == callee || *name == last_segment)
-        .map(|(_, id)| *id)
+        .find(|(name, _)| name.as_str() == callee.as_str() || name.as_str() == last_segment)
+        .map(|(_, id)| id.as_str().into())
 }
 
 /// Detect communities ("de-facto modules") in `graph` via deterministic
@@ -223,30 +250,34 @@ fn resolve_callee<'a>(callee: &str, symbol_names: &[(&'a str, &'a str)]) -> Opti
 /// fixtures -- stops after this many passes rather than looping
 /// forever). Returns an empty [`ClusteringResult`] for an empty graph,
 /// never panics.
-pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringResult {
+pub fn detect_clusters(
+    graph: &CodeGraph,
+    max_iterations: impl Into<MemoryClusterIterationLimit>,
+) -> ClusteringResult {
+    let max_iterations = max_iterations.into().get();
     let adjacency = UndirectedAdjacency::build(graph);
     if adjacency.node_ids.is_empty() {
         return ClusteringResult::default();
     }
 
     // Every node starts as its own label -- singleton clusters.
-    let mut labels: BTreeMap<String, String> = adjacency
+    let mut labels: BTreeMap<MemoryClusterNodeId, MemoryClusterNodeId> = adjacency
         .node_ids
         .iter()
         // CLONE-JUSTIFICATION: labels own independent key and value entries after adjacency borrow.
         .map(|id| (id.clone(), id.clone()))
         .collect();
 
-    for _ in std::iter::repeat(()).take(max_iterations) {
+    for _ in std::iter::repeat_n((), max_iterations) {
         let mut changed = false;
         // Fixed, stable visitation order: sorted node ids, never
         // insertion/hash order and never randomized -- the determinism
         // contract the hard tests require.
         for node_id in &adjacency.node_ids {
-            let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+            let mut counts: BTreeMap<&MemoryClusterNodeId, usize> = BTreeMap::new();
             for neighbor in adjacency.neighbors_of(node_id) {
                 if let Some(label) = labels.get(neighbor) {
-                    *counts.entry(label.as_str()).or_insert(0) += 1;
+                    *counts.entry(label).or_insert(0) += 1;
                 }
             }
             if counts.is_empty() {
@@ -260,9 +291,14 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
             let best_label = counts
                 .iter()
                 .find(|(_, &count)| count == best_count)
-                .map(|(label, _)| (*label).to_string());
+                .map(|(label, _)| label.as_str().into());
             if let Some(best_label) = best_label {
-                let current = labels.get(node_id).map(String::as_str).unwrap_or("");
+                let Some(current) = labels.get(node_id).cloned() else {
+                    // Every adjacency node is seeded above; tolerate a future
+                    // index mismatch by leaving the node unchanged rather
+                    // than manufacturing an invalid empty domain id.
+                    continue;
+                };
                 if best_label != current {
                     // CLONE-JUSTIFICATION: label map owns node id beyond adjacency iteration.
                     labels.insert(node_id.clone(), best_label);
@@ -281,7 +317,7 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
     // ids that happened to win -- renormalizing makes cluster identity
     // depend only on membership, not on which node's original id the
     // propagation happened to converge to).
-    let mut groups: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut groups: BTreeMap<MemoryClusterNodeId, BTreeSet<MemoryClusterNodeId>> = BTreeMap::new();
     for (node_id, label) in &labels {
         groups
             // CLONE-JUSTIFICATION: community map owns label beyond borrowed labels iteration.
@@ -296,30 +332,32 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
 
     let mut clusters: Vec<Cluster> = groups
         .into_values()
-        .map(|members| {
-            let member_node_ids: Vec<String> = members.into_iter().collect();
-            let id = member_node_ids.first().cloned().unwrap_or_default();
+        .filter_map(|members| {
+            let member_node_ids: Vec<MemoryClusterNodeId> = members.into_iter().collect();
+            let id = member_node_ids
+                .first()
+                .map(|member| member.as_str().into())?;
             let file_ids = member_node_ids
                 .iter()
                 .filter(|id| file_id_set.contains(id.as_str()))
-                .cloned()
+                .map(|id| id.as_str().into())
                 .collect();
             let symbol_ids = member_node_ids
                 .iter()
                 .filter(|id| symbol_id_set.contains(id.as_str()))
-                .cloned()
+                .map(|id| id.as_str().into())
                 .collect();
-            Cluster {
+            Some(Cluster {
                 id,
                 member_node_ids,
                 file_ids,
                 symbol_ids,
-            }
+            })
         })
         .collect();
     clusters.sort_by(|a, b| a.id.cmp(&b.id));
 
-    let inter_cluster_edges = inter_cluster_edges(&adjacency, &labels, &clusters);
+    let inter_cluster_edges = inter_cluster_edges(&adjacency, &clusters);
 
     ClusteringResult {
         clusters,
@@ -333,19 +371,16 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
 /// cluster id for each raw label via its member set.
 fn inter_cluster_edges(
     adjacency: &UndirectedAdjacency,
-    labels: &BTreeMap<String, String>,
     clusters: &[Cluster],
 ) -> Vec<InterClusterEdge> {
     // raw label -> renormalized cluster id.
-    let mut cluster_of_node: BTreeMap<&str, &str> = BTreeMap::new();
+    let mut cluster_of_node: BTreeMap<&str, &MemoryClusterId> = BTreeMap::new();
     for cluster in clusters {
         for member in &cluster.member_node_ids {
-            cluster_of_node.insert(member.as_str(), cluster.id.as_str());
+            cluster_of_node.insert(member.as_str(), &cluster.id);
         }
     }
-    let _ = labels;
-
-    let mut counts: BTreeMap<(String, String), usize> = BTreeMap::new();
+    let mut counts: BTreeMap<(MemoryClusterId, MemoryClusterId), usize> = BTreeMap::new();
     for (from, to) in &adjacency.directed_edges {
         let (Some(&from_cluster), Some(&to_cluster)) = (
             cluster_of_node.get(from.as_str()),
@@ -357,7 +392,7 @@ fn inter_cluster_edges(
             continue;
         }
         *counts
-            .entry((from_cluster.to_string(), to_cluster.to_string()))
+            .entry((from_cluster.as_str().into(), to_cluster.as_str().into()))
             .or_insert(0) += 1;
     }
 
@@ -366,7 +401,7 @@ fn inter_cluster_edges(
         .map(|((from_cluster, to_cluster), count)| InterClusterEdge {
             from_cluster,
             to_cluster,
-            count,
+            count: count.into(),
         })
         .collect()
 }

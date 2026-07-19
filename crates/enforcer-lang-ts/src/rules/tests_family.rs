@@ -9,22 +9,14 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use crate::boundary::finding::{from_source, SourceFinding, FIRST_SOURCE_LINE};
+use crate::boundary::source_analysis::{exercises_a_decoder, has_negative_case};
+
 const RULE_ID: &str = "TS-8.10";
 
-fn exercises_a_decoder(source: &str) -> bool {
-    source.contains("Schema.decode")
-        || source.contains("decodeUnknown")
-        || source.contains("Schema.Struct")
-}
-
-fn has_negative_case(source: &str) -> bool {
-    source.contains("toThrow")
-        || source.contains(".rejects")
-        || source.contains("invalid")
-        || source.contains("malformed")
-}
-
 /// `typescript/tests` validator for TS-8.10.
+#[derive(Debug)]
+#[doc = "Decoder negative-case test validator."]
 pub struct DecoderNegativeCaseValidator {
     rule_id: RuleId,
 }
@@ -33,7 +25,7 @@ impl DecoderNegativeCaseValidator {
     /// Build the validator.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: RULE_ID.parse()?,
+            rule_id: crate::boundary::rule_spec::decode_rule_id(RULE_ID)?,
         })
     }
 }
@@ -44,17 +36,23 @@ impl Validator for DecoderNegativeCaseValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        if exercises_a_decoder(input.source) && !has_negative_case(input.source) {
-            return vec![Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "Decoder and schema tests require negative cases".to_owned(),
-                detail: "test file exercises a decoder/schema but has no invalid-input case"
-                    .to_owned(),
-                file: input.file.clone(),
-                line: 1,
-                snippet: None,
-            }];
+        if exercises_a_decoder(input.source.as_str()) && !has_negative_case(input.source.as_str()) {
+            return from_source(
+                &self.rule_id,
+                input.file,
+                SourceFinding {
+                    severity: Severity::Error,
+                    title: "Decoder and schema tests require negative cases",
+                    // ALLOC-JUSTIFICATION: the canonical Finding owns diagnostic
+                    // detail after this borrowed validator invocation returns.
+                    detail: "test file exercises a decoder/schema but has no invalid-input case"
+                        .to_owned(),
+                    line: FIRST_SOURCE_LINE,
+                    snippet: None,
+                },
+            )
+            .into_iter()
+            .collect();
         }
         Vec::new()
     }
@@ -63,8 +61,7 @@ impl Validator for DecoderNegativeCaseValidator {
 #[cfg(test)]
 mod tests {
     use super::DecoderNegativeCaseValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
+    use crate::boundary::test_fixtures::run_fixture_parity;
 
     #[test]
     fn requires_a_negative_case_when_a_decoder_is_exercised(
@@ -72,7 +69,6 @@ mod tests {
         let validator = DecoderNegativeCaseValidator::new()?;
         run_fixture_parity(
             &validator,
-            &PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             "fixtures/tests-family/ts-8-10/fail.test.ts",
             "fixtures/tests-family/ts-8-10/pass.test.ts",
         )?;

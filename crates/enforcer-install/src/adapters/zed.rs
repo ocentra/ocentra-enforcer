@@ -1,135 +1,124 @@
-//! c08 — the Zed adapter stub.
+//! Zed user-scope MCP registration.
 //!
-//! # Charter
-//!
-//! Zed's real config surface (`settings.json` `context_servers`, a JSONC
-//! dialect that tolerates comments) is NOT yet wired here — this module
-//! is contract-only. It exists so the [`crate::core::HarnessAdapter`]
-//! registry can resolve the `"zed"` key (c02 autodetect, the arc-22 CLI)
-//! without a typed-error dead end or a silent no-op that looks like
-//! success. Every call is safe: `plan` reports a deferred warning and
-//! zero planned changes, `apply` never touches the filesystem, and
-//! `verify` reports a single passing advisory check that says
-//! mechanization has not landed yet.
-//!
-//! # Deferred
-//!
-//! An ADBP-style config converter for Zed's `settings.json`
-//! `context_servers` map (USER/GLOBAL scope, absolute binary path, x01
-//! `SERVER_NAME` const, comment-tolerant JSONC parse + value-merge
-//! preserving unrelated keys AND comments) is Track B future work, not
-//! this workpack (c08 is deliberately scoped contract-only so that later
-//! work can land without touching this module's `HarnessAdapter`
-//! interface).
+//! Zed stores custom local servers in the user settings file under
+//! `context_servers`. The file location is platform-specific: `%APPDATA%\
+//! Zed\settings.json` on Windows, `~/Library/Application Support/Zed\
+//! settings.json` on macOS, and `~/.config/zed/settings.json` elsewhere.
 
-use crate::cli_contract::RequestContext;
+//! BOUNDARY-INVARIANT: adapter configuration is normalized before install decisions.
+//!
+use std::path::PathBuf;
+
+use crate::adapters::generic::{GenericAdapter, GenericAdapterConfig};
 use crate::core::HarnessAdapter;
 use crate::error::InstallResult;
-use crate::report::{ApplyResult, InstallReport, VerifyCheck, VerifyReport};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::BuiltInHarness;
+use enforcer_domain::install_types::{
+    ApplyResult, InstallBinaryPath, InstallReport, InstallRequestContext, InstallRootPath,
+    InstallTargetPath, InstallVerifyReport,
+};
 
-/// Advisory verify-check name every c08 stub reports under.
-const DEFERRED_CHECK_NAME: &str = "adapter-mechanization";
-
-/// Advisory verify-check detail every c08 stub reports under (T3 —
-/// informational tier, never `Error` severity: the check runs and passes
-/// closed, it does not fail a `doctor` run just because mechanization has
-/// not landed yet).
-const DEFERRED_DETAIL: &str = "deferred: no mechanization yet (T3)";
-
-/// The Zed adapter stub. Holds no state — a stub has nothing to configure
-/// until its real JSONC config-converter work lands.
-#[derive(Debug, Clone, Default)]
-pub struct ZedAdapter;
+/// Zed adapter rooted at the platform's user configuration directory.
+#[derive(Debug, Clone)]
+pub struct ZedAdapter {
+    config_root: InstallRootPath,
+    inner: GenericAdapter,
+}
 
 impl ZedAdapter {
-    /// Build a stub instance.
+    /// Build a Zed adapter with an explicit user configuration root.
+    pub fn try_new(config_root: PathBuf, binary_path: PathBuf) -> Result<Self, DecodeError> {
+        let config_root = InstallRootPath::try_from(config_root)?;
+        let target = InstallTargetPath::try_from(config_root.as_path().join("settings.json"))?;
+        let inner = GenericAdapter::new(GenericAdapterConfig::new_with_server_map(
+            BuiltInHarness::Zed.id(),
+            target,
+            InstallBinaryPath::try_from(binary_path)?,
+            "context_servers",
+        ));
+        Ok(Self { config_root, inner })
+    }
+
+    /// Native Zed user settings path beneath the resolved config root.
     #[must_use]
-    pub fn new() -> Self {
-        Self
+    pub fn config_path(&self) -> PathBuf {
+        self.config_root.as_path().join("settings.json")
     }
 }
 
 impl HarnessAdapter for ZedAdapter {
-    fn harness_key(&self) -> &'static str {
-        "zed"
+    fn harness_key(&self) -> enforcer_domain::ids::HarnessId {
+        BuiltInHarness::Zed.id()
     }
 
-    fn plan(&self, _ctx: &RequestContext) -> InstallResult<InstallReport> {
-        Ok(InstallReport {
-            planned_changes: vec![],
-            warnings: vec![format!("zed adapter {DEFERRED_DETAIL}")],
-        })
+    fn plan(&self, ctx: &InstallRequestContext) -> InstallResult<InstallReport> {
+        self.inner.plan(ctx)
     }
 
-    fn apply(&self, _report: &InstallReport) -> InstallResult<ApplyResult> {
-        // A stub's plan never produces planned_changes, so this has
-        // nothing to iterate -- but the contract still holds even if a
-        // caller hands it an unexpected non-empty report: no write, ever.
-        Ok(ApplyResult::default())
+    fn apply(&self, report: &InstallReport) -> InstallResult<ApplyResult> {
+        self.inner.apply(report)
     }
 
-    fn verify(&self, _ctx: &RequestContext) -> InstallResult<VerifyReport> {
-        Ok(VerifyReport {
-            checks: vec![VerifyCheck {
-                harness: self.harness_key().to_owned(),
-                name: DEFERRED_CHECK_NAME.to_owned(),
-                passed: true,
-                detail: DEFERRED_DETAIL.to_owned(),
-            }],
-        })
+    fn verify(&self, ctx: &InstallRequestContext) -> InstallResult<InstallVerifyReport> {
+        self.inner.verify(ctx)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::ZedAdapter;
-    use crate::cli_contract::RequestContext;
     use crate::core::HarnessAdapter;
-    use std::path::PathBuf;
+    use enforcer_domain::install_types::{CheckStatus, InstallRequestContext};
 
     #[test]
-    fn harness_key_is_zed() {
-        assert_eq!(ZedAdapter::new().harness_key(), "zed");
-    }
+    fn native_settings_round_trip_uses_context_servers_and_preserves_values(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let config_root = tempfile::tempdir()?;
+        let binary = config_root.path().join("bin").join("enforcer");
+        let adapter = ZedAdapter::try_new(config_root.path().to_path_buf(), binary.clone())?;
+        std::fs::write(
+            adapter.config_path(),
+            serde_json::to_string_pretty(&serde_json::json!({
+                "theme": "One Dark",
+                "context_servers": {
+                    "other": { "command": "/abs/other", "args": [], "env": {} }
+                }
+            }))?,
+        )?;
+        let ctx = InstallRequestContext::try_with_defaults(binary.clone())?;
 
-    #[test]
-    fn plan_produces_zero_planned_changes() -> Result<(), Box<dyn std::error::Error>> {
-        let adapter = ZedAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
         let plan = adapter.plan(&ctx)?;
-        assert!(plan.is_noop());
-        assert_eq!(plan.warnings.len(), 1);
-        assert!(plan.warnings[0].contains("deferred"));
+        assert_eq!(plan.planned_changes.len(), 1);
+        adapter.apply(&plan)?;
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(adapter.config_path())?)?;
+        assert_eq!(written["theme"], "One Dark");
+        assert_eq!(written["context_servers"]["other"]["command"], "/abs/other");
+        assert_eq!(
+            written["context_servers"]["enforcer"]["command"],
+            binary.display().to_string()
+        );
+        assert!(adapter
+            .verify(&ctx)?
+            .checks
+            .iter()
+            .all(|check| matches!(check.status, CheckStatus::Passed)));
+        assert!(adapter.plan(&ctx)?.planned_changes.is_empty());
         Ok(())
     }
 
     #[test]
-    fn apply_writes_zero_files_against_a_temp_dir_fixture() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let dir = tempfile::tempdir()?;
-        let before: Vec<_> = std::fs::read_dir(dir.path())?.collect();
-        assert!(before.is_empty());
-
-        let adapter = ZedAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
-        let plan = adapter.plan(&ctx)?;
-        let applied = adapter.apply(&plan)?;
-        assert!(applied.applied.is_empty());
-
-        let after: Vec<_> = std::fs::read_dir(dir.path())?.collect();
-        assert!(after.is_empty(), "stub apply must write zero files");
-        Ok(())
-    }
-
-    #[test]
-    fn verify_returns_a_single_passing_advisory_check() -> Result<(), Box<dyn std::error::Error>> {
-        let adapter = ZedAdapter::new();
-        let ctx = RequestContext::with_defaults(PathBuf::from("/abs/path/to/enforcer"));
-        let report = adapter.verify(&ctx)?;
-        assert_eq!(report.checks.len(), 1);
-        assert!(report.all_passed());
-        assert!(report.checks[0].detail.contains("deferred"));
-        assert!(report.checks[0].detail.contains("T3"));
+    fn malformed_settings_are_rejected() -> Result<(), Box<dyn std::error::Error>> {
+        let config_root = tempfile::tempdir()?;
+        let binary = config_root.path().join("enforcer");
+        let adapter = ZedAdapter::try_new(config_root.path().to_path_buf(), binary.clone())?;
+        std::fs::write(adapter.config_path(), "{ invalid json")?;
+        let ctx = InstallRequestContext::try_with_defaults(binary)?;
+        assert!(matches!(
+            adapter.plan(&ctx),
+            Err(crate::error::InstallError::MalformedConfig { .. })
+        ));
         Ok(())
     }
 }

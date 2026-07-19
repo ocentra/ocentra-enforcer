@@ -17,13 +17,13 @@
 
 use enforcer_core::error::Result;
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::harness_types::HarnessEventLabel;
 use enforcer_domain::ids::CorrelationId;
 
 use crate::security_pipeline::observability::{
     EventKind, MoneyPathClass, ObservabilityEvent, ObservabilityOutcome, SamplingDisposition,
     SecurityLogPresence,
 };
-use crate::security_pipeline::seam::EventLabel;
 
 /// Raw wire shape of one recorded observability report.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -105,7 +105,7 @@ fn event_from_record(record: EventRecord) -> Result<ObservabilityEvent> {
         Some(raw_id) => Some(raw_id.parse::<CorrelationId>()?),
     };
     Ok(ObservabilityEvent {
-        label: EventLabel(record.event_id),
+        label: HarnessEventLabel::from_adapter(record.event_id)?,
         money_class: if record.money_critical {
             MoneyPathClass::MoneyCritical
         } else {

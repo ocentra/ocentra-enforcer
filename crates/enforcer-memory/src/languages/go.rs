@@ -9,7 +9,7 @@
 //!
 //! G1 note: [`crate::parsers::parse_file`] no longer dispatches Go
 //! files here -- it routes through
-//! [`crate::languages::generic::parse_go`] instead, a spec-table-
+//! [`crate::languages::generic::go::parse_go`] instead, a spec-table-
 //! driven walker proven (`tests/unit_lang_spec_engine.rs`) to emit the
 //! identical node/edge set this module does on every scenario/fixture
 //! this crate exercises. This module is kept as the correctness oracle
@@ -28,9 +28,10 @@
 //! guessed at.
 
 use crate::parsers::{
-    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, RouteRef, SymbolKind,
-    SymbolRef, TypeRefRef,
+    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind, SymbolRef,
+    TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost function/method a call expression is lexically inside
@@ -82,9 +83,9 @@ fn walk(
         "package_clause" => {
             if let Some(name) = first_named_child_text(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -97,15 +98,15 @@ fn walk(
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -132,22 +133,22 @@ fn walk(
                     SymbolKind::Method
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(receiver_type) = receiver_type_name(node, src) {
                     out.defines.push(DefinesRef {
-                        container_name: receiver_type,
-                        member_name: name.clone(),
-                        line,
+                        container_name: (receiver_type).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -171,26 +172,26 @@ fn walk(
         "const_declaration" => {
             for name in spec_names(node, "const_spec", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Constant,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "var_declaration" => {
             for name in spec_names(node, "var_spec", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Variable,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
         "import_declaration" => {
             for path in import_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -202,13 +203,16 @@ fn walk(
                 };
                 let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
-                    callee: callee.clone(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text,
+                    callee: (callee.clone()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: receiver_text.map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(route) = route_from_call(&callee, node, src) {
                     out.routes.push(route);
@@ -318,9 +322,9 @@ fn walk_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
             // regardless of what `Y` is (never struct/interface-shaped).
             if let Some(name) = child_text(spec, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line: spec.start_position().row + 1,
+                    line: (spec.start_position().row + 1).into(),
                 });
             }
             continue;
@@ -338,45 +342,45 @@ fn walk_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         match type_node.kind() {
             "struct_type" => {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Struct,
-                    line,
+                    line: line.into(),
                 });
                 for (member_name, embedded) in struct_fields(type_node, src) {
                     if embedded {
                         out.inherits.push(InheritsRef {
-                            sub_name: name.clone(),
-                            super_name: member_name,
-                            line,
+                            sub_name: (name.clone()).into(),
+                            super_name: (member_name).into(),
+                            line: line.into(),
                         });
                     } else {
                         out.defines.push(DefinesRef {
-                            container_name: name.clone(),
-                            member_name,
-                            line,
+                            container_name: (name.clone()).into(),
+                            member_name: member_name.into(),
+                            line: line.into(),
                         });
                     }
                 }
             }
             "interface_type" => {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for method_name in interface_methods(type_node, src) {
                     out.defines.push(DefinesRef {
-                        container_name: name.clone(),
-                        member_name: method_name,
-                        line,
+                        container_name: (name.clone()).into(),
+                        member_name: (method_name).into(),
+                        line: line.into(),
                     });
                 }
             }
             _ => {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::TypeAlias,
-                    line,
+                    line: line.into(),
                 });
             }
         }
@@ -559,8 +563,8 @@ fn route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<Rout
         return None;
     }
     Some(RouteRef {
-        method,
-        path,
-        line: call_node.start_position().row + 1,
+        method: method.into(),
+        path: path.into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }

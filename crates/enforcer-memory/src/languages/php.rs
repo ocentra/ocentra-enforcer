@@ -33,9 +33,10 @@
 //! stitching with a class-level `#[Route]`).
 
 use crate::parsers::{
-    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
-    ReceiverHint, RouteRef, SymbolKind, SymbolRef, TypeRefRef,
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
+    SymbolKind, SymbolRef, TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost function/method a call expression is lexically inside
@@ -104,23 +105,23 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 let extends_test_case = emit_class_heritage_edges(node, src, &name, line, out);
                 for decorator_name in attribute_names(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: decorator_name.into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -142,9 +143,9 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 // An interface's `extends` clause lists supertype
                 // interfaces (PHP interfaces can extend several) --
@@ -152,16 +153,16 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                 // `interface Sub extends Base1, Base2` treatment.
                 for base_name in heritage_names(node, src, "extends") {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: base_name,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (base_name).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -182,9 +183,9 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
         "trait_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
                 if let Some(body) = node.child_by_field_name("body") {
                     walk_children(
@@ -205,9 +206,9 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
             if let Some(name_node) = node.child_by_field_name("name") {
                 if let Ok(text) = name_node.utf8_text(src) {
                     out.symbols.push(SymbolRef {
-                        name: text.to_string(),
+                        name: (text.to_string()).into(),
                         kind: SymbolKind::Module,
-                        line: node.start_position().row + 1,
+                        line: (node.start_position().row + 1).into(),
                     });
                 }
             }
@@ -228,21 +229,21 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                 };
                 out.symbols.push(SymbolRef {
                     kind,
-                    name: name.clone(),
-                    line,
+                    name: (name.clone()).into(),
+                    line: line.into(),
                 });
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator_name in &attributes {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator_name.clone(),
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator_name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 for route in routes_from_attributes(node, src, line) {
@@ -250,9 +251,9 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 let method_scope = FnScope {
@@ -290,15 +291,15 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                         if let Ok(text) = name_node.utf8_text(src) {
                             let line = node.start_position().row + 1;
                             out.symbols.push(SymbolRef {
-                                name: text.to_string(),
+                                name: (text.to_string()).into(),
                                 kind: SymbolKind::Constant,
-                                line,
+                                line: line.into(),
                             });
                             if let Some(container) = enclosing {
                                 out.defines.push(DefinesRef {
-                                    container_name: container.to_string(),
-                                    member_name: text.to_string(),
-                                    line,
+                                    container_name: (container.to_string()).into(),
+                                    member_name: (text.to_string()).into(),
+                                    line: line.into(),
                                 });
                             }
                         }
@@ -309,8 +310,8 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
         "namespace_use_declaration" => {
             for path in namespace_use_paths(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -327,13 +328,16 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
             if let Some(function) = node.child_by_field_name("function") {
                 let callee = function.utf8_text(src).unwrap_or("").to_string();
                 out.calls.push(CallRef {
-                    callee: callee.clone(),
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
+                    callee: (callee.clone()).into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
                     receiver_text: None,
                     receiver_hint: None,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(constant) = constant_from_define_call(&callee, node, src) {
                     out.symbols.push(constant);
@@ -345,13 +349,16 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                 if let Ok(text) = name.utf8_text(src) {
                     let (receiver_text, receiver_hint) = receiver_of_member_call(node, src);
                     out.calls.push(CallRef {
-                        callee: text.to_string(),
-                        line: node.start_position().row + 1,
-                        from_symbol: fn_scope.name.map(str::to_string),
-                        from_symbol_line: fn_scope.line,
-                        receiver_text,
+                        callee: (text.to_string()).into(),
+                        line: (node.start_position().row + 1).into(),
+                        from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                        from_symbol_line: (fn_scope.line).map(Into::into),
+                        receiver_text: receiver_text.map(Into::into),
                         receiver_hint,
-                        arg_texts: call_arg_texts(node, src),
+                        arg_texts: (call_arg_texts(node, src))
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
                     });
                 }
             }
@@ -367,13 +374,16 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
                     }
                 });
                 out.calls.push(CallRef {
-                    callee,
-                    line: node.start_position().row + 1,
-                    from_symbol: fn_scope.name.map(str::to_string),
-                    from_symbol_line: fn_scope.line,
-                    receiver_text: call_node_scope(node, src),
+                    callee: callee.into(),
+                    line: (node.start_position().row + 1).into(),
+                    from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                    from_symbol_line: (fn_scope.line).map(Into::into),
+                    receiver_text: (call_node_scope(node, src)).map(Into::into),
                     receiver_hint,
-                    arg_texts: call_arg_texts(node, src),
+                    arg_texts: (call_arg_texts(node, src))
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 });
                 if let Some(route) = route_from_scoped_call(node, name, src) {
                     out.routes.push(route);
@@ -508,16 +518,16 @@ fn emit_class_heritage_edges(
             extends_test_case = true;
         }
         out.inherits.push(InheritsRef {
-            sub_name: type_name.to_string(),
-            super_name: base_name,
-            line,
+            sub_name: (type_name.to_string()).into(),
+            super_name: (base_name).into(),
+            line: line.into(),
         });
     }
     for iface_name in heritage_names(node, src, "implements") {
         out.implements.push(ImplementsRef {
-            type_name: type_name.to_string(),
-            trait_name: iface_name,
-            line,
+            type_name: (type_name.to_string()).into(),
+            trait_name: (iface_name).into(),
+            line: line.into(),
         });
     }
     extends_test_case
@@ -606,9 +616,9 @@ fn route_from_symfony_attribute(attr: Node<'_>, src: &[u8], line: usize) -> Opti
         // "unresolved, as-written" posture as elsewhere), so the HTTP
         // method is left empty here -- a consumer wanting the verb
         // must inspect the raw attribute text.
-        method: String::new(),
-        path,
-        line,
+        method: (String::new()).into(),
+        path: path.into(),
+        line: line.into(),
     })
 }
 
@@ -667,9 +677,9 @@ fn route_from_scoped_call(
         })?;
     let raw = first_string.utf8_text(src).ok()?;
     Some(RouteRef {
-        method: method_name.to_uppercase(),
-        path: strip_php_string_literal(raw),
-        line: call_node.start_position().row + 1,
+        method: (method_name.to_uppercase()).into(),
+        path: (strip_php_string_literal(raw)).into(),
+        line: (call_node.start_position().row + 1).into(),
     })
 }
 
@@ -764,8 +774,8 @@ fn require_include_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
                 if matches!(target.kind(), "string" | "encapsed_string") {
                     if let Ok(text) = target.utf8_text(src) {
                         return Some(ImportRef {
-                            module_path: strip_php_string_literal(text),
-                            line: node.start_position().row + 1,
+                            module_path: (strip_php_string_literal(text)).into(),
+                            line: (node.start_position().row + 1).into(),
                         });
                     }
                 }
@@ -819,9 +829,9 @@ fn named_closure_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
         .trim_start_matches('$')
         .to_string();
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Lambda,
-        line: node.start_position().row + 1,
+        line: (node.start_position().row + 1).into(),
     })
 }
 
@@ -847,8 +857,8 @@ fn constant_from_define_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> O
         return None;
     }
     Some(SymbolRef {
-        name,
+        name: name.into(),
         kind: SymbolKind::Constant,
-        line: call_node.start_position().row + 1,
+        line: (call_node.start_position().row + 1).into(),
     })
 }

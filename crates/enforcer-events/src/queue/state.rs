@@ -1,13 +1,14 @@
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use std::{
     collections::{BTreeSet, VecDeque},
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
-use crate::bus::reports::dead_letter::DeadLetterReason;
 use crate::queue::policy::{EventQueuePolicy, QueueReport};
-use crate::{
-    EventClockInstant, EventId, EventType, EventingError, IdempotencyKey, StoredEventEnvelope,
+use crate::{clock::EventClockInstant, error::EventingError};
+use enforcer_domain::events_types::{
+    DeadLetterReason, EventCount, EventDuration, EventId, EventMatchState, EventType,
+    IdempotencyKey, QueueExpirationState,
 };
 
 #[path = "state/dispatch.rs"]
@@ -56,16 +57,28 @@ struct EventQueueState {
 #[derive(Clone)]
 pub(crate) struct QueuedEnvelope {
     pub(crate) stored: StoredEventEnvelope,
-    enqueued_at: EventClockInstant,
+    pub(crate) enqueued_at: EventClockInstant,
 }
 
 impl QueuedEnvelope {
-    pub(crate) fn is_expired(&self, now: EventClockInstant, ttl: Option<Duration>) -> bool {
-        ttl.is_some_and(|ttl| now.duration_since(self.enqueued_at) >= ttl)
+    pub(crate) fn expiration(
+        &self,
+        now: EventClockInstant,
+        ttl: Option<EventDuration>,
+    ) -> QueueExpirationState {
+        if ttl.is_some_and(|ttl| now.duration_since(self.enqueued_at) >= ttl) {
+            QueueExpirationState::Expired
+        } else {
+            QueueExpirationState::Current
+        }
     }
 
-    fn matches_event_type(&self, event_type: &EventType) -> bool {
-        &self.stored.contract.event_type == event_type
+    fn event_type_match(&self, event_type: &EventType) -> EventMatchState {
+        if &self.stored.contract.event_type == event_type {
+            EventMatchState::Matches
+        } else {
+            EventMatchState::DoesNotMatch
+        }
     }
 }
 
@@ -82,10 +95,10 @@ pub(crate) enum NoSubscriberQueueDecision {
 }
 
 pub(crate) struct EventQueueClearReport {
-    pub(crate) queued_event_count: usize,
-    pub(crate) queued_idempotency_key_count: usize,
-    pub(crate) in_flight_idempotency_key_count: usize,
-    pub(crate) completed_idempotency_key_count: usize,
+    pub(crate) queued_event_count: EventCount,
+    pub(crate) queued_idempotency_key_count: EventCount,
+    pub(crate) in_flight_idempotency_key_count: EventCount,
+    pub(crate) completed_idempotency_key_count: EventCount,
 }
 
 fn trim_completed_keys(state: &mut EventQueueState) {

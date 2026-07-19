@@ -10,13 +10,15 @@ use super::fixtures::{
     metadata, subscriber, test_event, TestEvent, TestText, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
 use crate::{EventBus, EventRecorder, EventingError, HandlerExecutionPolicy};
-use enforcer_events::bus::reports::handler::HandlerOutcome;
+use enforcer_domain::events_types::HandlerOutcome;
 
 async fn retry_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> {
     let previous = attempts.fetch_add(1, Ordering::SeqCst);
     if previous == 0 {
         Err(EventingError::EmptyValue {
-            field: "retryable_handler_failure",
+            field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                "retryable_handler_failure",
+            ),
         })
     } else {
         Ok(())
@@ -25,14 +27,14 @@ async fn retry_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> 
 
 async fn timeout_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> {
     attempts.fetch_add(1, Ordering::SeqCst);
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    Ok(())
+    std::future::pending::<Result<(), EventingError>>().await
 }
 
 #[tokio::test]
 async fn retry_policy_retries_failed_attempt_and_reports_trace_fields(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bus = EventBus::with_handler_policy(HandlerExecutionPolicy::new(None, 2)?);
+    let bus =
+        EventBus::with_handler_policy(HandlerExecutionPolicy::new(None, crate::event_count(2))?);
     let attempts = Arc::new(AtomicUsize::new(0));
     let attempts_clone = Arc::clone(&attempts);
     bus.subscribe::<TestEvent, _, _>(
@@ -53,7 +55,7 @@ async fn retry_policy_retries_failed_attempt_and_reports_trace_fields(
     let handler_report = &report.handler_reports[0];
 
     assert_eq!(handler_report.outcome, HandlerOutcome::Handled);
-    assert_eq!(handler_report.attempts, 2);
+    assert_eq!(crate::event_count_value(handler_report.attempts), 2);
     assert_eq!(handler_report.trace.event_id, report.event_id);
     assert_eq!(handler_report.trace.event_type, report.event_type);
     assert_eq!(
@@ -69,8 +71,8 @@ async fn retry_policy_retries_failed_attempt_and_reports_trace_fields(
 async fn timeout_policy_retries_then_dead_letters_final_timeout(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_handler_policy(HandlerExecutionPolicy::new(
-        Some(Duration::from_millis(5)),
-        2,
+        Some(Duration::from_millis(5).into()),
+        crate::event_count(2),
     )?);
     let attempts = Arc::new(AtomicUsize::new(0));
     let attempts_clone = Arc::clone(&attempts);
@@ -92,8 +94,11 @@ async fn timeout_policy_retries_then_dead_letters_final_timeout(
     let dead_letters = bus.dead_letters().await;
 
     assert_eq!(report.handler_reports[0].outcome, HandlerOutcome::TimedOut);
-    assert_eq!(report.handler_reports[0].attempts, 2);
-    assert_eq!(report.dead_letter_count, 1);
+    assert_eq!(
+        crate::event_count_value(report.handler_reports[0].attempts),
+        2
+    );
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
     assert_eq!(
         dead_letters[0]
             .subscriber_id
@@ -126,7 +131,10 @@ async fn event_recorder_uses_real_subscription_and_can_unsubscribe(
         )
         .await?;
     let recorded = recorder.recorded().await;
-    assert!(recorder.unsubscribe());
+    assert!(matches!(
+        recorder.unsubscribe(),
+        enforcer_domain::events_types::SubscriptionRemovalState::Removed
+    ));
     let second_report = bus
         .publish(
             test_event(TestText(TEST_LABEL.to_owned()))?,
@@ -134,9 +142,9 @@ async fn event_recorder_uses_real_subscription_and_can_unsubscribe(
         )
         .await?;
 
-    assert_eq!(first_report.handled_count, 1);
+    assert_eq!(crate::event_count_value(first_report.handled_count), 1);
     assert_eq!(recorded.len(), 1);
     assert_eq!(recorded[0].payload.label, TEST_LABEL);
-    assert_eq!(second_report.subscriber_count, 0);
+    assert_eq!(crate::event_count_value(second_report.subscriber_count), 0);
     Ok(())
 }

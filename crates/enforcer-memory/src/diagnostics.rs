@@ -2,7 +2,7 @@
 //!
 //! # stdout purity (hard requirement)
 //!
-//! Per the baseline schema doc §1 ("structured KV logs to stderr ONLY --
+//! Per the baseline schema doc Â§1 ("structured KV logs to stderr ONLY --
 //! stdout reserved for JSON-RPC") and the workpack's own "no raw
 //! prompt/private source text in diagnostics" requirement: this module
 //! NEVER writes to stdout, and every line it produces is redacted before
@@ -15,7 +15,7 @@
 //! scattering the allow across the crate.
 //!
 //! # Levels and formats (binding shape:
-//! `refs/x06-baseline-tool-schemas.md` §1)
+//! `refs/x06-baseline-tool-schemas.md` Â§1)
 //!
 //! The baseline's own stderr contract (`CBM_LOG_LEVEL`/`CBM_LOG_FORMAT`,
 //! `src/foundation/log.c`) is mirrored here with this crate's own env var
@@ -44,83 +44,24 @@
 //!   path, reason, phase. Per the workpack's "never silent skip, never
 //!   fail the run" doctrine, a skip is always recorded, never dropped.
 
-use std::fmt;
+use crate::owned_boundary::{Retained, RetainedDisplay};
+use enforcer_domain::memory_types::{
+    CodeSearchQuantity, MemoryDiagnosticFieldValue, MemoryDiagnosticFilePath,
+    MemoryDiagnosticFreeText, MemoryDiagnosticIsError, MemoryDiagnosticMethod,
+    MemoryDiagnosticProtocol, MemoryDiagnosticRedactedValue, MemoryDiagnosticRequestDuration,
+    MemoryDiagnosticSkipReason, MemoryDiagnosticTool, ParserSourceText,
+};
+use enforcer_domain::memory_types::{Format, Level, SkipPhase};
 use std::io::Write;
-use std::time::Duration;
 
 /// Log severity. Ordinal order matches the baseline's `CBM_LOG_*`
 /// constants exactly (`debug=0, info=1, warn=2, error=3, none=4`, binding:
-/// `refs/x06-baseline-tool-schemas.md` §1) so the numeric env-var forms
+/// `refs/x06-baseline-tool-schemas.md` Â§1) so the numeric env-var forms
 /// this crate accepts (see [`Level::from_env_str`]) resolve to the same
 /// level a baseline-familiar operator would expect from that number.
 /// [`Level::None`] is a configured-minimum-only sentinel (never a record's
 /// own severity) that disables all logging, matching `CBM_LOG_NONE`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Level {
-    Debug,
-    Info,
-    Warn,
-    Error,
-    /// Disables all logging when configured as the minimum. Never used as
-    /// a record's own emitted severity.
-    None,
-}
-
-impl Level {
-    /// Parse one `ENFORCER_MEMORY_LOG_LEVEL` value (name or baseline
-    /// numeric form) into a [`Level`]. `pub` (rather than crate-private)
-    /// solely so `tests/unit_diagnostics.rs` -- an external compilation
-    /// unit per this crate's "no inline `#[cfg(test)]` modules" style --
-    /// can exercise this parsing table directly; [`Diagnostics::from_env`]
-    /// remains the one real call site.
-    pub fn from_env_str(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "0" | "debug" => Some(Level::Debug),
-            "1" | "info" => Some(Level::Info),
-            "2" | "warn" | "warning" => Some(Level::Warn),
-            "3" | "error" => Some(Level::Error),
-            "4" | "none" => Some(Level::None),
-            _ => None,
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Level::Debug => "debug",
-            Level::Info => "info",
-            Level::Warn => "warn",
-            Level::Error => "error",
-            Level::None => "none",
-        }
-    }
-
-    /// Whether a record AT `self` severity should be emitted when the
-    /// configured minimum is `configured_min`. Ordinal order is
-    /// least-to-most-severe (`Debug` = 0 .. `None` = 4, matching the
-    /// baseline's `CBM_LOG_*` constants), so a record is emitted iff its
-    /// ordinal is >= the configured minimum's ordinal -- mirroring the
-    /// baseline's own gate exactly (`log.c:209-211`: `if (level <
-    /// g_log_level) return;`, i.e. a call below the configured level is a
-    /// no-op). Configuring [`Level::None`] as the minimum suppresses
-    /// every record, including one emitted AT [`Level::None`] (which no
-    /// caller in this crate ever does -- see the type's own doc). `pub`
-    /// for the same reason as [`Level::from_env_str`]: `tests/unit_diagnostics.rs`
-    /// exercises this gating predicate directly as an external compilation unit.
-    pub fn should_emit(self, configured_min: Level) -> bool {
-        self >= configured_min
-    }
-}
-
 /// Output encoding for emitted diagnostic lines.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Format {
-    /// `key=value key2=value2 ...`, one line, values quoted if they
-    /// contain whitespace.
-    Text,
-    /// One-line JSON object per record.
-    Json,
-}
-
 /// One diagnostics sink, configured once from the environment (or
 /// explicitly, for tests) and reused for every [`Diagnostics::emit`] call
 /// in a process/session.
@@ -141,19 +82,19 @@ impl Diagnostics {
     /// the process environment, defaulting to [`Level::Info`]/
     /// [`Format::Text`] for anything unset or unrecognized.
     pub fn from_env() -> Self {
-        let level = std::env::var("ENFORCER_MEMORY_LOG_LEVEL")
-            .ok()
-            .and_then(|value| Level::from_env_str(&value))
-            .unwrap_or(Level::Info);
-        let format = std::env::var("ENFORCER_MEMORY_LOG_FORMAT")
-            .ok()
-            .map(|value| value.to_ascii_lowercase())
-            .and_then(|value| match value.as_str() {
+        let level = match std::env::var("ENFORCER_MEMORY_LOG_LEVEL") {
+            Ok(value) => Level::from_env_str(&value).unwrap_or(Level::Info),
+            Err(_) => Level::Info,
+        };
+        let format = match std::env::var("ENFORCER_MEMORY_LOG_FORMAT") {
+            Ok(value) => match value.to_ascii_lowercase().as_str() {
                 "json" => Some(Format::Json),
                 "text" => Some(Format::Text),
                 _ => None,
-            })
-            .unwrap_or(Format::Text);
+            }
+            .unwrap_or(Format::Text),
+            Err(_) => Format::Text,
+        };
         Self { level, format }
     }
 
@@ -172,7 +113,7 @@ impl Diagnostics {
             return Ok(());
         }
         let line = format_record(level, record, self.format);
-        writeln!(sink, "{line}")
+        writeln!(sink, "{}", line.as_str())
     }
 }
 
@@ -186,14 +127,14 @@ pub trait Record {
     /// `"file_skip"`) -- emitted as `msg=` (text format) / `"event"`
     /// (json format), matching the baseline's own `msg=<event>` /
     /// `{"event":...}` framing key (binding:
-    /// `refs/x06-baseline-tool-schemas.md` §1).
-    fn event(&self) -> &'static str;
+    /// `refs/x06-baseline-tool-schemas.md` Â§1).
+    fn event(&self) -> MemoryDiagnosticFreeText;
     /// Ordered `(key, value)` pairs, values ALREADY passed through
     /// [`redact`] by the implementor -- this trait does not re-redact,
     /// so every implementor is individually responsible (both this
     /// module's two record types satisfy it; the redaction test covers
     /// both).
-    fn fields(&self) -> Vec<(&'static str, String)>;
+    fn fields(&self) -> Vec<(MemoryDiagnosticFreeText, MemoryDiagnosticRedactedValue)>;
 }
 
 /// One per-request diagnostic: which transport served the call, which
@@ -207,22 +148,22 @@ pub trait Record {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RequestRecord {
     /// `"mcp"` or `"cli"` -- which transport served this request.
-    pub protocol: &'static str,
+    pub protocol: MemoryDiagnosticProtocol,
     /// The JSON-RPC method (`"tools/call"`, `"initialize"`, ...) or, for
     /// the CLI transport, the CLI's own invocation shape (`"cli"`).
-    pub method: String,
+    pub method: MemoryDiagnosticMethod,
     /// The tool name, when this request was a `tools/call`/CLI tool
     /// invocation; `None` for `initialize`/`ping`/`tools/list`.
-    pub tool: Option<String>,
-    pub duration: Duration,
-    pub is_error: bool,
+    pub tool: Option<MemoryDiagnosticTool>,
+    pub duration: MemoryDiagnosticRequestDuration,
+    pub is_error: MemoryDiagnosticIsError,
 }
 
 impl RequestRecord {
     /// The level this record should be emitted at: WARN on error, INFO
     /// otherwise (binding spec).
     pub fn level(&self) -> Level {
-        if self.is_error {
+        if self.is_error.is_error() {
             Level::Warn
         } else {
             Level::Info
@@ -231,41 +172,39 @@ impl RequestRecord {
 }
 
 impl Record for RequestRecord {
-    fn event(&self) -> &'static str {
-        "mcp.request"
+    fn event(&self) -> MemoryDiagnosticFreeText {
+        "mcp.request".into()
     }
 
-    fn fields(&self) -> Vec<(&'static str, String)> {
-        let status = if self.is_error { "error" } else { "ok" };
+    fn fields(&self) -> Vec<(MemoryDiagnosticFreeText, MemoryDiagnosticRedactedValue)> {
+        let status = if self.is_error.is_error() {
+            "error"
+        } else {
+            "ok"
+        };
         vec![
-            ("protocol", self.protocol.to_owned()),
-            ("method", redact(&self.method)),
-            ("tool", self.tool.as_deref().map(redact).unwrap_or_default()),
-            ("status", status.to_owned()),
-            ("durationMs", self.duration.as_millis().to_string()),
+            ("protocol".into(), self.protocol.retained_display().into()),
+            (
+                "method".into(),
+                redact(&MemoryDiagnosticFieldValue::from(self.method.as_str())),
+            ),
+            (
+                "tool".into(),
+                self.tool
+                    .as_deref()
+                    .map(|tool| redact(&MemoryDiagnosticFieldValue::from(tool)))
+                    .unwrap_or_else(|| "".into()),
+            ),
+            ("status".into(), status.retained().into()),
+            (
+                "durationMs".into(),
+                self.duration.get().as_millis().retained_display().into(),
+            ),
         ]
     }
 }
 
 /// Which indexing phase a [`FileSkipRecord`] occurred in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SkipPhase {
-    Walk,
-    Parse,
-    Extract,
-}
-
-impl fmt::Display for SkipPhase {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            SkipPhase::Walk => "walk",
-            SkipPhase::Parse => "parse",
-            SkipPhase::Extract => "extract",
-        };
-        f.write_str(s)
-    }
-}
-
 /// One per-file skip diagnostic: path, human reason, and which phase
 /// skipped it. Per the workpack's "never silent skip" doctrine, this is
 /// the record type callers emit instead of dropping a file with no
@@ -275,21 +214,27 @@ impl fmt::Display for SkipPhase {
 /// interpolating file content by mistake.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileSkipRecord {
-    pub path: String,
-    pub reason: String,
+    pub path: MemoryDiagnosticFilePath,
+    pub reason: MemoryDiagnosticSkipReason,
     pub phase: SkipPhase,
 }
 
 impl Record for FileSkipRecord {
-    fn event(&self) -> &'static str {
-        "file_skip"
+    fn event(&self) -> MemoryDiagnosticFreeText {
+        "file_skip".into()
     }
 
-    fn fields(&self) -> Vec<(&'static str, String)> {
+    fn fields(&self) -> Vec<(MemoryDiagnosticFreeText, MemoryDiagnosticRedactedValue)> {
         vec![
-            ("path", redact(&self.path)),
-            ("reason", redact_free_text(&self.reason)),
-            ("phase", self.phase.to_string()),
+            (
+                "path".into(),
+                redact(&MemoryDiagnosticFieldValue::from(self.path.as_str())),
+            ),
+            (
+                "reason".into(),
+                redact_free_text(&MemoryDiagnosticFreeText::from(self.reason.as_str())),
+            ),
+            ("phase".into(), self.phase.retained_display().into()),
         ]
     }
 }
@@ -316,8 +261,8 @@ const MAX_FIELD_LEN: usize = 200;
 /// [`redact`]'s general-purpose [`MAX_FIELD_LEN`].
 const MAX_FREE_TEXT_LEN: usize = 40;
 
-pub fn redact(value: &str) -> String {
-    truncate_with_marker(value, MAX_FIELD_LEN)
+pub fn redact(value: &MemoryDiagnosticFieldValue) -> MemoryDiagnosticRedactedValue {
+    truncate_with_marker(value.as_str().into(), MAX_FIELD_LEN.into())
 }
 
 /// Redact a FREE-TEXT diagnostic field (e.g. [`FileSkipRecord::reason`])
@@ -336,68 +281,91 @@ pub fn redact(value: &str) -> String {
 /// test) is a correctness improvement, not a usability loss; a `path`
 /// field, by contrast, legitimately needs [`MAX_FIELD_LEN`]'s wider
 /// allowance and goes through plain [`redact`] instead.
-pub fn redact_free_text(value: &str) -> String {
-    truncate_with_marker(value, MAX_FREE_TEXT_LEN)
+pub fn redact_free_text(value: &MemoryDiagnosticFreeText) -> MemoryDiagnosticRedactedValue {
+    truncate_with_marker(value.as_str().into(), MAX_FREE_TEXT_LEN.into())
 }
 
-fn truncate_with_marker(value: &str, max_len: usize) -> String {
+fn truncate_with_marker(
+    value: ParserSourceText<'_>,
+    max_len: CodeSearchQuantity,
+) -> MemoryDiagnosticRedactedValue {
     let collapsed: String = value
+        .as_str()
         .chars()
         .map(|c| if c.is_control() { ' ' } else { c })
         .collect();
-    if collapsed.len() <= max_len {
-        collapsed
+    if collapsed.len() <= max_len.get() {
+        collapsed.into()
     } else {
         let total = collapsed.len();
-        let mut cut = max_len;
+        let mut cut = max_len.get();
         while cut > 0 && !collapsed.is_char_boundary(cut) {
             cut -= 1;
         }
-        format!("{}...[redacted, {total} bytes total]", &collapsed[..cut])
+        format!(
+            "{}...[redacted, {total} bytes total]",
+            collapsed.get(..cut).map_or("", |prefix| prefix)
+        )
+        .into()
     }
 }
 
-fn format_record(level: Level, record: &impl Record, format: Format) -> String {
+fn format_record(
+    level: Level,
+    record: &impl Record,
+    format: Format,
+) -> MemoryDiagnosticRedactedValue {
     match format {
         Format::Text => format_text(level, record),
         Format::Json => format_json(level, record),
     }
 }
 
-fn format_text(level: Level, record: &impl Record) -> String {
+fn format_text(level: Level, record: &impl Record) -> MemoryDiagnosticRedactedValue {
     let mut parts = vec![
         format!("level={}", level.as_str()),
-        format!("msg={}", record.event()),
+        format!("msg={}", record.event().as_str()),
     ];
     for (key, value) in record.fields() {
-        parts.push(format!("{key}={}", quote_if_needed(&value)));
+        parts.push(format!(
+            "{}={}",
+            key.as_str(),
+            quote_if_needed(value.as_str().into()).as_str()
+        ));
     }
-    parts.join(" ")
+    parts.join(" ").into()
 }
 
-fn quote_if_needed(value: &str) -> String {
-    if value.chars().any(char::is_whitespace) || value.is_empty() {
-        format!("{value:?}")
+fn quote_if_needed(value: ParserSourceText<'_>) -> MemoryDiagnosticRedactedValue {
+    if value.as_str().chars().any(char::is_whitespace) || value.as_str().is_empty() {
+        format!("{:?}", value.as_str()).into()
     } else {
-        value.to_owned()
+        value.as_str().retained().into()
     }
 }
 
-fn format_json(level: Level, record: &impl Record) -> String {
-    let mut map = serde_json::Map::new();
-    map.insert("level".to_owned(), serde_json::json!(level.as_str()));
-    map.insert("event".to_owned(), serde_json::json!(record.event()));
+fn format_json(level: Level, record: &impl Record) -> MemoryDiagnosticRedactedValue {
+    let mut map = std::collections::BTreeMap::new();
+    // ALLOC-JUSTIFICATION: JSON serialization owns map keys and values so the
+    // diagnostic record can be formatted after the borrowed Record is gone.
+    map.insert("level".retained(), level.as_str().to_owned());
+    map.insert("event".retained(), record.event().as_str().to_owned());
     for (key, value) in record.fields() {
-        map.insert(key.to_owned(), serde_json::json!(value));
+        // ALLOC-JUSTIFICATION: each dynamic field must be owned by the JSON
+        // map because the source record remains borrowed only for this call.
+        map.insert(key.as_str().to_owned(), value.as_str().to_owned());
     }
-    serde_json::Value::Object(map).to_string()
+    // ALLOC-JUSTIFICATION: the fallback is an owned JSON payload required when
+    // serialization fails, preserving the formatter's non-panicking contract.
+    serde_json::to_string(&map)
+        .unwrap_or_else(|_| "{}".to_owned())
+        .into()
 }
 
 /// Emit `record` to real `stderr()`. The ONE call site in this crate that
 /// touches a real stdio handle for diagnostics; carries the module's
 /// narrow, documented allow (see module docs) rather than every caller
 /// needing its own.
-#[allow(clippy::print_stderr)]
 pub fn emit_to_stderr(diagnostics: &Diagnostics, level: Level, record: &impl Record) {
     let mut stderr = std::io::stderr();
     // A diagnostics-emission failure (e.g. a closed stderr pipe) must

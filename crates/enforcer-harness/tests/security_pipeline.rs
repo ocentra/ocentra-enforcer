@@ -29,9 +29,11 @@ use std::path::Path;
 
 use enforcer_core::error::Error;
 use enforcer_domain::boundary::decode_error::DecodeError;
-use enforcer_domain::findings::{Finding, ScanScope};
-use enforcer_domain::paths::RelPath;
+use enforcer_domain::boundary::validation::ValidationSource;
+use enforcer_domain::findings::{Finding, FindingLine, ScanScope};
+use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::severity::Severity;
+use enforcer_domain::telemetry_types::SourceLine;
 use enforcer_harness::security_pipeline::adapters::concurrency_report::parse_recorded as parse_concurrency;
 use enforcer_harness::security_pipeline::adapters::coverage_report::parse_recorded as parse_coverage;
 use enforcer_harness::security_pipeline::adapters::crypto_localnet_report::run_stage;
@@ -54,11 +56,14 @@ use enforcer_harness::security_pipeline::static_analysis::{StaticOutcome, Static
 use enforcer_validator::error::HarnessError;
 use enforcer_validator::harness::run_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
+use std::num::NonZeroU32;
 
 const MISSING_TOOL: &str =
     include_str!("fixtures/security_pipeline/graceful_skip/good/missing_tool.json");
 const DISHONEST_PASS: &str =
     include_str!("fixtures/security_pipeline/graceful_skip/bad/dishonest_pass.json");
+const COVERAGE_BAD: &str = include_str!("fixtures/security_pipeline/coverage/bad/below_floor.json");
+const COVERAGE_GOOD: &str = include_str!("fixtures/security_pipeline/coverage/good/at_floor.json");
 const MONEY_PATH_BAD: &str =
     include_str!("fixtures/security_pipeline/observability/bad/money_path_no_security_log.json");
 const FUZZ_NO_SEED: &str = include_str!("fixtures/security_pipeline/fuzz/bad/no_seed.json");
@@ -93,55 +98,65 @@ impl std::fmt::Debug for TestFailure {
 /// workspace uses.
 #[test]
 fn security_pipeline() -> Result<(), TestFailure> {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let manifest =
+        RepoRoot::try_from(Path::new(env!("CARGO_MANIFEST_DIR"))).map_err(TestFailure::Decode)?;
 
     let coverage_gate = CoverageFloorGate::new("SEC-COV.1".parse().map_err(TestFailure::Decode)?);
-    run_fixture_parity(
-        &coverage_gate,
-        manifest,
-        "tests/fixtures/security_pipeline/coverage/bad/below_floor.json",
-        "tests/fixtures/security_pipeline/coverage/good/at_floor.json",
-    )
-    .map_err(TestFailure::Parity)?;
+    let coverage_fail =
+        fixture_path("tests/fixtures/security_pipeline/coverage/bad/below_floor.json")?;
+    let coverage_pass =
+        fixture_path("tests/fixtures/security_pipeline/coverage/good/at_floor.json")?;
+    let coverage_bad = parse_coverage(COVERAGE_BAD).map_err(TestFailure::Core)?;
+    let coverage_good = parse_coverage(COVERAGE_GOOD).map_err(TestFailure::Core)?;
+    assert!(!coverage_gate
+        .evaluate(&coverage_bad, &coverage_fail)
+        .is_empty());
+    assert!(coverage_gate
+        .evaluate(&coverage_good, &coverage_pass)
+        .is_empty());
+    run_fixture_parity(&coverage_gate, &manifest, &coverage_fail, &coverage_pass)
+        .map_err(TestFailure::Parity)?;
 
     let money_path_gate =
         MoneyPathLoggingGate::new("SEC-OBS-MONEYPATH.1".parse().map_err(TestFailure::Decode)?);
+    let money_path_fail = fixture_path(
+        "tests/fixtures/security_pipeline/observability/bad/money_path_no_security_log.json",
+    )?;
+    let money_path_pass =
+        fixture_path("tests/fixtures/security_pipeline/observability/good/money_path_logged.json")?;
     run_fixture_parity(
         &money_path_gate,
-        manifest,
-        "tests/fixtures/security_pipeline/observability/bad/money_path_no_security_log.json",
-        "tests/fixtures/security_pipeline/observability/good/money_path_logged.json",
+        &manifest,
+        &money_path_fail,
+        &money_path_pass,
     )
     .map_err(TestFailure::Parity)?;
 
     let sampling_gate =
         SamplingDropGate::new("SEC-OBS-SAMPLING.1".parse().map_err(TestFailure::Decode)?);
-    run_fixture_parity(
-        &sampling_gate,
-        manifest,
+    let sampling_fail = fixture_path(
         "tests/fixtures/security_pipeline/observability/bad/security_event_sampled.json",
+    )?;
+    let sampling_pass = fixture_path(
         "tests/fixtures/security_pipeline/observability/good/security_event_unsampled.json",
-    )
-    .map_err(TestFailure::Parity)?;
+    )?;
+    run_fixture_parity(&sampling_gate, &manifest, &sampling_fail, &sampling_pass)
+        .map_err(TestFailure::Parity)?;
 
     let fuzz_gate = FuzzSeedGate::new("SEC-FUZZ-SEED.1".parse().map_err(TestFailure::Decode)?);
-    run_fixture_parity(
-        &fuzz_gate,
-        manifest,
-        "tests/fixtures/security_pipeline/fuzz/bad/no_seed.json",
-        "tests/fixtures/security_pipeline/fuzz/good/with_seed.json",
-    )
-    .map_err(TestFailure::Parity)?;
+    let fuzz_fail = fixture_path("tests/fixtures/security_pipeline/fuzz/bad/no_seed.json")?;
+    let fuzz_pass = fixture_path("tests/fixtures/security_pipeline/fuzz/good/with_seed.json")?;
+    run_fixture_parity(&fuzz_gate, &manifest, &fuzz_fail, &fuzz_pass)
+        .map_err(TestFailure::Parity)?;
 
     let static_gate =
         StaticThreatGate::new("SEC-STATIC-THREAT.1".parse().map_err(TestFailure::Decode)?);
-    run_fixture_parity(
-        &static_gate,
-        manifest,
-        "tests/fixtures/security_pipeline/static/bad/threat_mapped_exploitable.json",
-        "tests/fixtures/security_pipeline/static/good/non_exploitable_signal.json",
-    )
-    .map_err(TestFailure::Parity)?;
+    let static_fail =
+        fixture_path("tests/fixtures/security_pipeline/static/bad/threat_mapped_exploitable.json")?;
+    let static_pass =
+        fixture_path("tests/fixtures/security_pipeline/static/good/non_exploitable_signal.json")?;
+    run_fixture_parity(&static_gate, &manifest, &static_fail, &static_pass)
+        .map_err(TestFailure::Parity)?;
 
     let concurrency_gate = ConcurrencySeverityGate::new(
         "SEC-CONCURRENCY-SEVERITY.1"
@@ -149,15 +164,24 @@ fn security_pipeline() -> Result<(), TestFailure> {
             .map_err(TestFailure::Decode)?,
         Severity::Error,
     );
+    let concurrency_fail = fixture_path(
+        "tests/fixtures/security_pipeline/concurrency/bad/race_condition_detected.json",
+    )?;
+    let concurrency_pass =
+        fixture_path("tests/fixtures/security_pipeline/concurrency/good/below_threshold.json")?;
     run_fixture_parity(
         &concurrency_gate,
-        manifest,
-        "tests/fixtures/security_pipeline/concurrency/bad/race_condition_detected.json",
-        "tests/fixtures/security_pipeline/concurrency/good/below_threshold.json",
+        &manifest,
+        &concurrency_fail,
+        &concurrency_pass,
     )
     .map_err(TestFailure::Parity)?;
 
     Ok(())
+}
+
+fn fixture_path(value: &str) -> Result<RelPath, TestFailure> {
+    value.to_owned().try_into().map_err(TestFailure::Decode)
 }
 
 /// Graceful-skip acceptance row: an honest skip (`toolPresent: false`,
@@ -231,12 +255,12 @@ fn money_path_gap_is_scored_and_flagged() -> Result<(), TestFailure> {
     let expected = Finding {
         rule_id: "SEC-OBS-MONEYPATH.1".parse().map_err(TestFailure::Decode)?,
         severity: Severity::Error,
-        title,
-        detail,
+        title: title.parse().map_err(TestFailure::Decode)?,
+        detail: detail.parse().map_err(TestFailure::Decode)?,
         // The evaluate call above already finished borrowing `file`, so
         // the expected finding takes ownership — no copy needed.
         file,
-        line: 1,
+        line: FindingLine::known(SourceLine::try_new(NonZeroU32::MIN)),
         snippet: None,
     };
     assert_eq!(findings, vec![expected]);
@@ -261,12 +285,12 @@ fn fuzz_failure_without_seed_is_flagged_with_counterexample() -> Result<(), Test
     let expected = Finding {
         rule_id: "SEC-FUZZ-SEED.1".parse().map_err(TestFailure::Decode)?,
         severity: Severity::Error,
-        title,
-        detail,
+        title: title.parse().map_err(TestFailure::Decode)?,
+        detail: detail.parse().map_err(TestFailure::Decode)?,
         // The evaluate call above already finished borrowing `file`, so
         // the expected finding takes ownership — no copy needed.
         file,
-        line: 1,
+        line: FindingLine::known(SourceLine::try_new(NonZeroU32::MIN)),
         snippet: None,
     };
     assert_eq!(findings, vec![expected]);
@@ -390,7 +414,7 @@ fn every_gate_finding_carries_its_own_rule_id() -> Result<(), TestFailure> {
     for source in sources {
         let findings = gate.validate(ValidationInput {
             file: &file,
-            source,
+            source: ValidationSource::from_text(source),
             scope: ScanScope::Files,
         });
         assert_eq!(findings.len(), 1, "expected exactly one finding");

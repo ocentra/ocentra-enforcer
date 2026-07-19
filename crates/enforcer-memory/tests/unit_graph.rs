@@ -1,6 +1,7 @@
-use enforcer_memory::graph::MemoryGraph;
+use enforcer_domain::memory_types::{RecordDomain, RecordKind};
 use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
-use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::ProvenanceDto;
+use enforcer_memory::graph::MemoryGraph;
 
 fn sample_record(id: &str) -> MemoryRecord {
     MemoryRecord {
@@ -17,8 +18,8 @@ fn sample_record(id: &str) -> MemoryRecord {
         routes: vec![],
         landed_at: vec![],
         supersedes: None,
-        provenance: Provenance {
-            writer: "primary".to_string(),
+        provenance: ProvenanceDto {
+            writer: "primary".into(),
             ..Default::default()
         },
     }
@@ -35,5 +36,5 @@ fn ingest_and_lookup_by_id() {
 #[test]
 fn empty_graph_reports_empty() {
     let graph = MemoryGraph::new();
-    assert!(graph.is_empty());
+    assert!(graph.is_empty().is_empty());
 }

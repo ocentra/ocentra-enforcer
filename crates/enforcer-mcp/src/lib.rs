@@ -68,12 +68,19 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_mcp::sink::run_stdio_server`.
 
+#[path = "boundary/aliases.rs"]
 pub mod aliases;
+pub mod boundary;
 pub mod fingerprint;
+#[path = "boundary/gate.rs"]
 pub mod gate;
 pub mod name;
+#[path = "boundary/registry.rs"]
 pub mod registry;
+#[path = "boundary/router.rs"]
 pub mod router;
+#[path = "boundary/sink.rs"]
 pub mod sink;
+#[path = "boundary/tool_surface.rs"]
 pub mod tool_surface;
 pub mod transport;

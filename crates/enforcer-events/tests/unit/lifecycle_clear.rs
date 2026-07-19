@@ -22,7 +22,7 @@ const CLEAR_REQUEST_IDEMPOTENCY: &str = "eventing-lifecycle-clear-idempotency";
 #[tokio::test]
 async fn clear_for_test_reports_and_resets_local_bus_state(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let queue_policy = EventQueuePolicy::no_subscriber_queue(4)?;
+    let queue_policy = EventQueuePolicy::no_subscriber_queue(crate::event_count(4))?;
     let bus = EventBus::with_policies(HandlerExecutionPolicy::default(), queue_policy);
     bus.subscribe::<super::fixtures::TestEvent, _, _>(
         subscriber(
@@ -40,7 +40,9 @@ async fn clear_for_test_reports_and_resets_local_bus_state(
         )?,
         |_| async {
             Err(EventingError::EmptyValue {
-                field: "lifecycle_clear_failure",
+                field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                    "lifecycle_clear_failure",
+                ),
             })
         },
     )
@@ -90,16 +92,31 @@ async fn clear_for_test_reports_and_resets_local_bus_state(
         )
         .await?;
 
-    assert_eq!(clear_report.subscription_count, 2);
-    assert_eq!(clear_report.stored_journal_count, 2);
-    assert_eq!(clear_report.dead_letter_count, 1);
-    assert_eq!(clear_report.aggregate_gate_count, 0);
-    assert_eq!(clear_report.queued_event_count, 1);
-    assert_eq!(clear_report.queued_idempotency_key_count, 0);
-    assert_eq!(clear_report.completed_idempotency_key_count, 0);
+    assert_eq!(crate::event_count_value(clear_report.subscription_count), 2);
+    assert_eq!(
+        crate::event_count_value(clear_report.stored_journal_count),
+        2
+    );
+    assert_eq!(crate::event_count_value(clear_report.dead_letter_count), 1);
+    assert_eq!(
+        crate::event_count_value(clear_report.aggregate_gate_count),
+        0
+    );
+    assert_eq!(crate::event_count_value(clear_report.queued_event_count), 1);
+    assert_eq!(
+        crate::event_count_value(clear_report.queued_idempotency_key_count),
+        0
+    );
+    assert_eq!(
+        crate::event_count_value(clear_report.completed_idempotency_key_count),
+        0
+    );
     assert_eq!(dead_letters_after_clear.len(), 0);
     assert_eq!(journal_after_clear.len(), 0);
-    assert_eq!(publish_after_clear.handled_count, 1);
+    assert_eq!(
+        crate::event_count_value(publish_after_clear.handled_count),
+        1
+    );
     Ok(())
 }
 
@@ -127,7 +144,7 @@ async fn clear_for_test_cancels_pending_request_completion(
     let request_bus = bus.clone();
     let request_event = ClearRequestEvent::new()?;
     let request_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let request_timeout = RequestOptions::with_timeout(Duration::from_secs(60))?;
+    let request_timeout = RequestOptions::with_timeout(Duration::from_secs(60).into())?;
     let request = tokio::spawn(async move {
         request_bus
             .publish_request(request_event, request_metadata, request_timeout)
@@ -138,20 +155,23 @@ async fn clear_for_test_cancels_pending_request_completion(
     let clear_report = bus.clear_for_test().await;
     let result = request.await?;
 
-    assert_eq!(clear_report.pending_request_count, 1);
+    assert_eq!(
+        crate::event_count_value(clear_report.pending_request_count),
+        1
+    );
     assert!(matches!(result, Err(EventingError::RequestTimedOut { .. })));
     Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ClearRequestEvent {
-    request_id: RequestId,
+    request_id: String,
 }
 
 impl ClearRequestEvent {
     fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            request_id: RequestId::parse(CLEAR_REQUEST_ID)?,
+            request_id: CLEAR_REQUEST_ID.to_owned(),
         })
     }
 }
@@ -160,16 +180,16 @@ impl DomainEvent for ClearRequestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             crate::EventType::parse(CLEAR_REQUEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(CLEAR_REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(CLEAR_REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(CLEAR_REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(CLEAR_REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -177,7 +197,7 @@ impl RequestEvent for ClearRequestEvent {
     type Response = ClearResponse;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 
@@ -187,3 +207,4 @@ struct ClearResponse {
 }
 
 impl EventResponseContract for ClearResponse {}
+// CANCELLATION-TEST: clear aborts the pending request lifecycle and the retained task is joined.

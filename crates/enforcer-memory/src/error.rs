@@ -4,15 +4,19 @@
 //! so callers can match on the reason a store or log operation failed
 //! rather than parsing a message string.
 
-use std::path::PathBuf;
+use enforcer_domain::memory_types::{
+    MemoryErrorArtifactId, MemoryErrorDigest, MemoryErrorLineIndex, MemoryErrorLogLength,
+    MemoryErrorManifestWatermark, MemoryErrorOperation, MemoryErrorPath, MemoryErrorReason,
+    MemoryErrorRowCount, MemoryQuarantineReason, MemoryQuarantineRowIndex,
+};
 
 /// A single quarantined row: what went wrong and where it now lives.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuarantinedRow {
     /// Zero-based line/row index in the original source.
-    pub index: usize,
+    pub index: MemoryQuarantineRowIndex,
     /// Human-readable reason the row was quarantined.
-    pub reason: String,
+    pub reason: MemoryQuarantineReason,
 }
 
 /// All `enforcer-memory` store/log/schema errors.
@@ -24,12 +28,12 @@ pub enum MemoryError {
     /// about. Callers that intend to create a new project store must go
     /// through an explicit `Store::init` call.
     #[error("no memory store exists for project at {root} -- refusing to create a ghost database; call Store::init explicitly to create one")]
-    UnknownProject { root: PathBuf },
+    UnknownProject { root: MemoryErrorPath },
 
     /// A path failed `enforcer_domain::paths` normalization/validation.
     #[error("invalid path {path:?}: {source}")]
     InvalidPath {
-        path: String,
+        path: MemoryErrorPath,
         #[source]
         source: enforcer_domain::boundary::decode_error::DecodeError,
     },
@@ -39,18 +43,18 @@ pub enum MemoryError {
     /// expected digest from the same file being checked).
     #[error("log tamper detected in {path:?} at line {line_index}: recorded digest {recorded} does not match expected {expected}")]
     ChainTamper {
-        path: PathBuf,
-        line_index: usize,
-        recorded: String,
-        expected: String,
+        path: MemoryErrorPath,
+        line_index: MemoryErrorLineIndex,
+        recorded: MemoryErrorDigest,
+        expected: MemoryErrorDigest,
     },
 
     /// A row could not be parsed/validated and was quarantined rather
     /// than silently dropped or allowed to poison the rest of the log.
     #[error("{count} row(s) quarantined from {path:?}: {}", format_rows(rows))]
     Quarantined {
-        path: PathBuf,
-        count: usize,
+        path: MemoryErrorPath,
+        count: MemoryErrorRowCount,
         rows: Vec<QuarantinedRow>,
     },
 
@@ -59,9 +63,9 @@ pub enum MemoryError {
     /// being trusted for reads.
     #[error("index manifest {path:?} is stale: high-watermark {manifest_watermark} < log length {log_length}")]
     StaleIndex {
-        path: PathBuf,
-        manifest_watermark: u64,
-        log_length: u64,
+        path: MemoryErrorPath,
+        manifest_watermark: MemoryErrorManifestWatermark,
+        log_length: MemoryErrorLogLength,
     },
 
     /// The underlying SQLite operational store returned an error.
@@ -75,7 +79,7 @@ pub enum MemoryError {
     /// Filesystem I/O failure.
     #[error("io error at {path:?}: {source}")]
     Io {
-        path: PathBuf,
+        path: MemoryErrorPath,
         #[source]
         source: std::io::Error,
     },
@@ -84,9 +88,9 @@ pub enum MemoryError {
     /// digest recomputed from its bytes at read time.
     #[error("artifact {id} content digest mismatch: manifest says {expected}, content hashes to {actual}")]
     ArtifactDigestMismatch {
-        id: String,
-        expected: String,
-        actual: String,
+        id: MemoryErrorArtifactId,
+        expected: MemoryErrorDigest,
+        actual: MemoryErrorDigest,
     },
 
     /// Local model runtime/cache validation failed. This is deliberately
@@ -94,8 +98,8 @@ pub enum MemoryError {
     /// from model failures and must never silently claim a loaded model.
     #[error("model runtime {operation} failed: {reason}")]
     ModelRuntime {
-        operation: &'static str,
-        reason: String,
+        operation: MemoryErrorOperation,
+        reason: MemoryErrorReason,
     },
 
     /// An internal append/replay invariant failed. This is returned as a
@@ -103,16 +107,17 @@ pub enum MemoryError {
     /// failure and keep the harness process alive.
     #[error("internal invariant failed in {operation}: {reason}")]
     InternalInvariant {
-        operation: &'static str,
-        reason: String,
+        operation: MemoryErrorOperation,
+        reason: MemoryErrorReason,
     },
 }
 
-fn format_rows(rows: &[QuarantinedRow]) -> String {
+fn format_rows(rows: &[QuarantinedRow]) -> MemoryErrorReason {
     rows.iter()
-        .map(|r| format!("line {}: {}", r.index, r.reason))
+        .map(|r| format!("line {}: {}", r.index, r.reason.as_str()))
         .collect::<Vec<_>>()
         .join("; ")
+        .into()
 }
 
 /// This crate's `Result` alias.

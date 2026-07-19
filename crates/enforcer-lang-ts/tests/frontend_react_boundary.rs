@@ -10,7 +10,9 @@ fn frontend_react_validators_handle_truncated_syntax_without_panicking(
     for validator in validators()? {
         let _ = validator.validate(ValidationInput {
             file: &file,
-            source: "import {\nuseEffect(\n: any\n",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "import {\nuseEffect(\n: any\n",
+            ),
             scope: ScanScope::Files,
         });
     }

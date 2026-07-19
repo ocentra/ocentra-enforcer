@@ -4,14 +4,53 @@
 //! so every assertion here goes through `Result` + `?` rather than the
 //! original inline module's `.unwrap()`/`.expect(...)` calls).
 
-use enforcer_memory::mcp::{dispatch_tool, tool_descriptors, wrap_envelope};
-use enforcer_memory::schema::{GraphEventKind, GraphEventLogEntry, SCHEMA_VERSION};
+use enforcer_domain::mcp_types::McpToolName;
+use enforcer_domain::memory_types::GraphEventKind;
+use enforcer_memory::boundary::log_schema::{GraphEventLogEntryDto, SCHEMA_VERSION};
+use enforcer_memory::mcp::{dispatch_tool, tool_descriptors, wrap_envelope, ToolDescriptorDto};
 use enforcer_memory::store::sqlite::OperationalGraph;
 use enforcer_memory::store::Store;
 use serde_json::json;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+#[test]
+fn tool_descriptor_maps_to_canonical_name() -> TestResult {
+    let descriptor = ToolDescriptorDto {
+        name: "search_graph".to_owned(),
+        title: "Search graph".to_owned(),
+        description: "Search the indexed graph".to_owned(),
+        input_schema: json!({"type": "object"}),
+        output_schema: json!({"type": "object"}),
+    };
+    let wire = serde_json::to_vec(&descriptor)?;
+    let restored: ToolDescriptorDto = serde_json::from_slice(&wire)?;
+    assert_eq!(restored.name, descriptor.name);
+    assert_eq!(restored.title, descriptor.title);
+    assert_eq!(restored.description, descriptor.description);
+    assert_eq!(restored.input_schema, descriptor.input_schema);
+    assert_eq!(restored.output_schema, descriptor.output_schema);
+    let canonical = McpToolName::try_from(restored)?;
+    assert_eq!(canonical.as_str(), "search_graph");
+    Ok(())
+}
+
+#[test]
+fn tool_descriptor_rejects_invalid_malformed_tool_name() -> TestResult {
+    let invalid_payload = json!({
+        "name": "invalid tool name",
+        "title": "Invalid",
+        "description": "must not enter the MCP catalog",
+        "inputSchema": {"type": "object"},
+        "outputSchema": {"type": "object"}
+    });
+    let invalid_result = McpToolName::try_from(serde_json::from_value::<ToolDescriptorDto>(
+        invalid_payload,
+    )?);
+    assert!(invalid_result.is_err());
+    Ok(())
+}
 
 #[test]
 fn tool_descriptors_cover_baseline_plus_x06_extension_tools_with_schemas() {
@@ -121,41 +160,42 @@ fn get_graph_schema_on_empty_repo_returns_zero_totals() -> TestResult {
 fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestResult {
     let repo_dir = tempfile::tempdir()?;
     let stores_dir = tempfile::tempdir()?;
-    let repo_root = enforcer_memory::ids::repo_root(&repo_dir.path().to_string_lossy())?;
+    let repo_root =
+        enforcer_memory::ids::repo_root(&repo_dir.path().to_string_lossy().as_ref().into())?;
     let mut store = Store::init(stores_dir.path(), &repo_root, "2026-07-07T00:00:00Z")?;
 
     let file_id = "file:store_only.rs".to_owned();
     let symbol_id = "sym:store_only.rs:7:store_only_symbol".to_owned();
-    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+    store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
+        seq: seq.into(),
         id: format!("evt-node-file-{seq}"),
         event: GraphEventKind::NodeAdded {
-            node_id: file_id.clone(),
-            node_kind: "File".to_owned(),
+            node_id: file_id.clone().into(),
+            node_kind: "File".into(),
         },
         ts: "2026-07-07T00:00:00Z".to_owned(),
         supersedes_seq: None,
     })?;
-    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+    store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
+        seq: seq.into(),
         id: format!("evt-node-symbol-{seq}"),
         event: GraphEventKind::NodeAdded {
-            node_id: symbol_id.clone(),
-            node_kind: "Function".to_owned(),
+            node_id: symbol_id.clone().into(),
+            node_kind: "Function".into(),
         },
         ts: "2026-07-07T00:00:00Z".to_owned(),
         supersedes_seq: None,
     })?;
-    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+    store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
+        seq: seq.into(),
         id: format!("evt-edge-contains-{seq}"),
         event: GraphEventKind::EdgeAdded {
-            from: file_id.clone(),
-            to: symbol_id.clone(),
-            label: "contains".to_owned(),
+            from: file_id.clone().into(),
+            to: symbol_id.clone().into(),
+            label: "contains".into(),
         },
         ts: "2026-07-07T00:00:00Z".to_owned(),
         supersedes_seq: None,
@@ -190,7 +230,7 @@ fn index_repository_with_stores_dir_primes_a_fresh_store_projection() -> TestRes
     let stores_dir = tempfile::tempdir()?;
     std::fs::write(
         repo_dir.path().join("widget.rs"),
-        "fn helper() {}\nfn caller() { helper(); }\n",
+        "fn helper() { let _ = 1; }\nfn caller() { helper(); }\n",
     )?;
 
     let indexed = dispatch_tool(
@@ -226,7 +266,10 @@ fn index_repository_with_stores_dir_primes_a_fresh_store_projection() -> TestRes
 fn index_repository_rejects_appending_into_an_existing_store_projection() -> TestResult {
     let repo_dir = tempfile::tempdir()?;
     let stores_dir = tempfile::tempdir()?;
-    std::fs::write(repo_dir.path().join("widget.rs"), "fn helper() {}\n")?;
+    std::fs::write(
+        repo_dir.path().join("widget.rs"),
+        "fn helper() { let _ = 1; }\n",
+    )?;
 
     let first = dispatch_tool(
         "index_repository",

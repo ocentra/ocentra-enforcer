@@ -1,3 +1,4 @@
+use enforcer_domain::memory_types::NodeLabel;
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest, TombstoneNode};
 use enforcer_memory::graph_schema::{get_graph_schema, node_label};
 use std::error::Error;
@@ -34,8 +35,8 @@ fn empty_graph_has_no_labels_and_no_edge_types() {
     let schema = get_graph_schema(&graph);
     assert!(schema.labels.is_empty());
     assert!(schema.edge_types.is_empty());
-    assert_eq!(schema.total_nodes(), 0);
-    assert_eq!(schema.total_edges(), 0);
+    assert_eq!(usize::from(schema.total_nodes()), 0);
+    assert_eq!(usize::from(schema.total_edges()), 0);
 }
 
 #[test]
@@ -68,7 +69,7 @@ fn schema_counts_match_a_mixed_repository_exactly() -> TestResult {
             .labels
             .iter()
             .find(|l| l.label == name)
-            .map(|l| l.count)
+            .map(|l| l.count.get())
             .unwrap_or(0)
     };
     // 2 real files + 1 TextOnly file = 3 File-ish nodes, split by
@@ -88,7 +89,7 @@ fn schema_counts_match_a_mixed_repository_exactly() -> TestResult {
             .edge_types
             .iter()
             .find(|e| e.edge_type == name)
-            .map(|e| e.count)
+            .map(|e| e.count.get())
             .unwrap_or(0)
     };
     assert_eq!(edge("Imports"), 1);
@@ -101,9 +102,9 @@ fn schema_counts_match_a_mixed_repository_exactly() -> TestResult {
     assert_eq!(edge("Calls"), 2);
     assert_eq!(edge("Route"), 1);
 
-    assert_eq!(schema.total_nodes(), graph.nodes().len());
+    assert_eq!(usize::from(schema.total_nodes()), graph.nodes().len());
     assert_eq!(
-        schema.total_edges(),
+        usize::from(schema.total_edges()),
         graph.imports().len() + graph.calls().len() + graph.routes().len()
     );
     Ok(())
@@ -152,7 +153,7 @@ fn output_ordering_matches_the_baseline_descending_by_count() -> TestResult {
     let labels: Vec<(&str, usize)> = schema
         .labels
         .iter()
-        .map(|l| (l.label.as_str(), l.count))
+        .map(|l| (l.label.as_str(), l.count.get()))
         .collect();
     assert_eq!(
         labels,
@@ -171,8 +172,8 @@ fn node_label_covers_every_codenode_variant() {
         id: "tomb:x.rs".to_owned(),
         rel_path: "x.rs".to_owned(),
         last_commit: None,
-        change_count: 0,
+        change_count: 0.into(),
         prior_chunk_ids: Vec::new(),
     });
-    assert_eq!(node_label(&tomb), "Tombstone");
+    assert_eq!(node_label(&tomb), NodeLabel::Tombstone);
 }

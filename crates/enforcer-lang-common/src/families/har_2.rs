@@ -4,118 +4,121 @@
 //! rule fires on its own literal marker; fail/pass fixtures live under
 //! `fixtures/har-2/<rule-id>/{fail,pass}.txt`.
 
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::findings::FindingTitle;
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::Validator;
 
-use crate::registry::reg;
+use crate::boundary::register_pattern as reg;
 
 /// Build every `HAR-2` validator.
-pub fn validators() -> Vec<Box<dyn Validator>> {
+pub fn validators() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
     let mut v: Vec<Box<dyn Validator>> = Vec::new();
     reg(
         &mut v,
-        "HAR-2.1",
-        "Harness runs must identify command lifecycle",
+        "HAR-2.1".parse::<RuleId>()?,
+        "Harness runs must identify command lifecycle".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_1_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.2",
-        "Raw harness logs must be bounded and redacted",
+        "HAR-2.2".parse::<RuleId>()?,
+        "Raw harness logs must be bounded and redacted".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_2_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.3",
-        "Harness diagnostics must be sorted deterministically",
+        "HAR-2.3".parse::<RuleId>()?,
+        "Harness diagnostics must be sorted deterministically".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_3_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.4",
-        "Harness parsers must not throw on malformed output",
+        "HAR-2.4".parse::<RuleId>()?,
+        "Harness parsers must not throw on malformed output".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_4_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.5",
-        "Cargo JSON diagnostics must normalize",
+        "HAR-2.5".parse::<RuleId>()?,
+        "Cargo JSON diagnostics must normalize".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_5_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.6",
-        "ESLint JSON diagnostics must normalize",
+        "HAR-2.6".parse::<RuleId>()?,
+        "ESLint JSON diagnostics must normalize".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_6_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.7",
-        "Python tool diagnostics must normalize",
+        "HAR-2.7".parse::<RuleId>()?,
+        "Python tool diagnostics must normalize".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_7_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.8",
-        "SARIF diagnostics must normalize",
+        "HAR-2.8".parse::<RuleId>()?,
+        "SARIF diagnostics must normalize".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_8_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.9",
-        "Last failure must avoid raw terminal dumps",
+        "HAR-2.9".parse::<RuleId>()?,
+        "Last failure must avoid raw terminal dumps".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_9_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.10",
-        "Harness artifacts cannot escape storage",
+        "HAR-2.10".parse::<RuleId>()?,
+        "Harness artifacts cannot escape storage".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_10_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.11",
-        "Pinned proof runs must survive pruning",
+        "HAR-2.11".parse::<RuleId>()?,
+        "Pinned proof runs must survive pruning".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_11_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.12",
-        "Failed harness commands must fail process gates",
+        "HAR-2.12".parse::<RuleId>()?,
+        "Failed harness commands must fail process gates".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_12_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.13",
-        "Harness JSON output must have schema artifacts",
+        "HAR-2.13".parse::<RuleId>()?,
+        "Harness JSON output must have schema artifacts".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_13_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.14",
-        "Harness human output must redact secrets",
+        "HAR-2.14".parse::<RuleId>()?,
+        "Harness human output must redact secrets".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_14_MARKER",
     );
     reg(
         &mut v,
-        "HAR-2.15",
-        "Harness commands must avoid shell by default",
+        "HAR-2.15".parse::<RuleId>()?,
+        "Harness commands must avoid shell by default".parse::<FindingTitle>()?,
         Severity::Error,
         "ENFORCER_HAR_2_15_MARKER",
     );
-    v
+    Ok(v)
 }

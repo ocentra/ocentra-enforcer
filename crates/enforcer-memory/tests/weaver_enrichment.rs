@@ -3,7 +3,7 @@
 //! [`enforcer_memory::enrichment`]).
 //!
 //! Every test in this file synchronizes deterministically on channels
-//! ([`enforcer_memory::enrichment::TaskOutcome`] via
+//! ([`enforcer_domain::memory_types::TaskOutcome`] via
 //! `WeaverBuilder::with_outcome_channel`/`WorkerPoolConfig::with_outcome_channel`,
 //! or the embedder's own completion signal) -- never on
 //! `tokio::time::sleep`-as-synchronization, per the owner-set
@@ -22,10 +22,15 @@
 //! synthetic string, matching `tests/code_graph_indexer.rs`'s
 //! real-fixture-over-literal convention.
 
-use enforcer_memory::enrichment::{
-    Embedder, EnrichmentError, FlakyEmbedder, NullEmbedder, TaskOutcome, WorkerPoolConfig,
+use enforcer_domain::memory_types::{
+    EmbeddingGenerationId, MemoryPriority, MemoryQueueLength, RetryAttemptCount, TaskOutcome,
+    WorkerConcurrency,
 };
-use enforcer_memory::queue::{Priority, RetryPolicy, WeaverEvent, WeaverQueue};
+use enforcer_memory::enrichment::{
+    Embedder, EnrichmentError, FlakyEmbedder, NullEmbedder, WorkerPoolConfig,
+    WorkerPoolOutcomeChannel,
+};
+use enforcer_memory::queue::{RetryPolicy, WeaverEvent, WeaverQueue};
 use enforcer_memory::weaver::Weaver;
 use sha2::{Digest, Sha256};
 use std::error::Error;
@@ -37,18 +42,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 type TestResult = Result<(), Box<dyn Error>>;
-
-/// `std::sync::Mutex::lock`'s `PoisonError<MutexGuard<'_, T>>` is not
-/// `'static` (it embeds the guard), so it cannot convert into `Box<dyn
-/// Error>` via a bare `?` -- this maps it to an owned, `'static`
-/// message first.
-fn lock_or_msg<T>(
-    mutex: &std::sync::Mutex<T>,
-) -> Result<std::sync::MutexGuard<'_, T>, Box<dyn Error>> {
-    mutex
-        .lock()
-        .map_err(|_poison_error| "mutex poisoned".into())
-}
 
 const FIXTURE_DIR: &str = "tests/fixtures/memory/weaver";
 
@@ -76,7 +69,7 @@ fn hash_file(name: &str) -> Result<String, Box<dyn Error>> {
 struct SignalingEmbedder {
     inner: NullEmbedder,
     fired: AtomicBool,
-    signal: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+    signal: tokio::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
 }
 
 impl SignalingEmbedder {
@@ -86,7 +79,7 @@ impl SignalingEmbedder {
             Arc::new(Self {
                 inner: NullEmbedder::new(),
                 fired: AtomicBool::new(false),
-                signal: std::sync::Mutex::new(Some(tx)),
+                signal: tokio::sync::Mutex::new(Some(tx)),
             }),
             rx,
         )
@@ -97,11 +90,12 @@ impl Embedder for SignalingEmbedder {
     fn embed<'a>(
         &'a self,
         task: &'a enforcer_memory::enrichment::EmbeddingTask,
-    ) -> Pin<Box<dyn Future<Output = Result<u32, EnrichmentError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<EmbeddingGenerationId, EnrichmentError>> + Send + 'a>>
+    {
         Box::pin(async move {
             let result = self.inner.embed(task).await;
             if !self.fired.swap(true, Ordering::SeqCst) {
-                if let Some(tx) = self.signal.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                if let Some(tx) = self.signal.lock().await.take() {
                     let _ = tx.send(());
                 }
             }
@@ -121,9 +115,13 @@ async fn node_created_event_triggers_embedding_task() -> TestResult {
         .build();
 
     weaver.enqueue(WeaverEvent::NodeChanged {
-        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render".to_owned(),
-        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs".to_owned(),
-        content_hash: content_hash.clone(),
+        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render"
+            .to_owned()
+            .into(),
+        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs"
+            .to_owned()
+            .into(),
+        content_hash: content_hash.clone().into(),
     })?;
 
     // Deterministic: wait for the embedder's own completion signal,
@@ -136,7 +134,7 @@ async fn node_created_event_triggers_embedding_task() -> TestResult {
         1,
         "exactly one embedding task must be produced"
     );
-    assert_eq!(calls[0].content_hash, content_hash);
+    assert_eq!(calls[0].content_hash.as_str(), content_hash);
 
     weaver.shutdown().await;
     Ok(())
@@ -152,19 +150,18 @@ async fn file_changed_event_triggers_summary_invalidation() -> TestResult {
     let new_hash = hash_file("widget_v2.rs")?;
     assert_ne!(old_hash, new_hash, "fixture revisions must actually differ");
 
-    let (builder, mut outcomes) = Weaver::builder().with_outcome_channel();
-    let weaver = builder.build();
-    {
-        let summaries = weaver.summaries();
-        let mut store = lock_or_msg(&summaries)?;
+    let channel = Weaver::builder().with_outcome_channel();
+    let weaver = channel.builder.build();
+    let mut outcomes = channel.outcomes;
+    weaver.with_summaries(|store| {
         store.set_summary(&rel_path, "summary computed against the v1 content");
-    }
-    let starts_fresh = !lock_or_msg(&weaver.summaries())?.is_stale(&rel_path);
+    });
+    let starts_fresh = weaver.with_summaries(|store| !store.is_stale(&rel_path).is_stale());
     assert!(starts_fresh, "summary must start fresh");
 
     weaver.enqueue(WeaverEvent::FileChanged {
-        rel_path: rel_path.clone(),
-        content_hash: new_hash,
+        rel_path: rel_path.clone().into(),
+        content_hash: new_hash.into(),
     })?;
 
     // Deterministic: wait for this task's own `Succeeded` outcome.
@@ -172,11 +169,11 @@ async fn file_changed_event_triggers_summary_invalidation() -> TestResult {
     assert_eq!(
         outcome,
         Some(TaskOutcome::Succeeded {
-            task_key: format!("file-changed:{rel_path}")
+            task_key: format!("file-changed:{rel_path}").into()
         })
     );
 
-    let is_stale_after = lock_or_msg(&weaver.summaries())?.is_stale(&rel_path);
+    let is_stale_after = weaver.with_summaries(|store| store.is_stale(&rel_path).is_stale());
     assert!(
         is_stale_after,
         "the file's cached summary must be marked stale after FileChanged"
@@ -192,35 +189,39 @@ async fn file_changed_event_triggers_summary_invalidation() -> TestResult {
 #[tokio::test]
 async fn failed_task_enters_dead_letter_after_retries_exhausted() -> TestResult {
     let always_fails = Arc::new(FlakyEmbedder::fail_first_n(usize::MAX));
-    let ctx = Arc::new(enforcer_memory::enrichment::EnrichmentContext {
-        embedder: Arc::clone(&always_fails) as Arc<dyn Embedder>,
-        summaries: Arc::new(std::sync::Mutex::new(
-            enforcer_memory::summaries::SummaryStore::new(),
-        )),
-        embedding_version: 1,
-    });
+    let ctx = Arc::new(enforcer_memory::enrichment::EnrichmentContext::new(
+        Arc::clone(&always_fails) as Arc<dyn Embedder>,
+        EmbeddingGenerationId::INITIAL,
+    ));
     let queue = WeaverQueue::new();
     let handle = queue.handle();
     let retry = RetryPolicy {
-        max_attempts: 2,
-        base_delay: std::time::Duration::from_millis(1),
-        max_delay: std::time::Duration::from_millis(5),
+        max_attempts: RetryAttemptCount::ZERO.next().next(),
+        base_delay: std::time::Duration::from_millis(1).into(),
+        max_delay: std::time::Duration::from_millis(5).into(),
     };
-    let (config, mut outcomes) = WorkerPoolConfig {
-        max_concurrency: 1,
+    let WorkerPoolOutcomeChannel {
+        config,
+        mut outcomes,
+    } = WorkerPoolConfig {
+        max_concurrency: WorkerConcurrency::SINGLE,
         retry,
-        embedding_version: 1,
+        embedding_version: EmbeddingGenerationId::INITIAL,
         on_outcome: None,
     }
     .with_outcome_channel();
     let pool = enforcer_memory::enrichment::WorkerPool::spawn(queue, handle.clone(), ctx, &config);
 
     let event = WeaverEvent::NodeChanged {
-        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render".to_owned(),
-        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs".to_owned(),
-        content_hash: hash_file("widget_v1.rs")?,
+        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render"
+            .to_owned()
+            .into(),
+        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs"
+            .to_owned()
+            .into(),
+        content_hash: hash_file("widget_v1.rs")?.into(),
     };
-    handle.send(event.clone(), Priority::Hot)?;
+    handle.send(event.clone(), MemoryPriority::Hot)?;
 
     // Deterministic: wait for the `DeadLettered` outcome instead of
     // polling the dead-letter queue on a sleep.
@@ -243,15 +244,21 @@ async fn failed_task_enters_dead_letter_after_retries_exhausted() -> TestResult 
         "must exhaust exactly max_attempts before dead-lettering"
     );
 
-    let dead_letters = Arc::clone(&pool.dead_letters);
+    let dead_letter_state = pool.with_dead_letters(|dead_letters| {
+        let found = dead_letters.find(&event.task_key());
+        (
+            dead_letters.len(),
+            found.len(),
+            found.first().map(|task| task.attempts),
+        )
+    });
     drop(handle);
     pool.shutdown().await;
 
-    let dlq = lock_or_msg(&dead_letters)?;
-    assert_eq!(dlq.len(), 1);
-    let found = dlq.find(&event.task_key());
-    assert_eq!(found.len(), 1);
-    assert_eq!(found[0].attempts, retry.max_attempts);
+    assert_eq!(
+        dead_letter_state,
+        (MemoryQueueLength::from(1), 1, Some(retry.max_attempts))
+    );
     Ok(())
 }
 
@@ -260,30 +267,34 @@ async fn failed_task_enters_dead_letter_after_retries_exhausted() -> TestResult 
 #[tokio::test]
 async fn retry_succeeds_on_transient_failure() -> TestResult {
     let flaky = Arc::new(FlakyEmbedder::fail_first_n(2));
-    let ctx = Arc::new(enforcer_memory::enrichment::EnrichmentContext {
-        embedder: Arc::clone(&flaky) as Arc<dyn Embedder>,
-        summaries: Arc::new(std::sync::Mutex::new(
-            enforcer_memory::summaries::SummaryStore::new(),
-        )),
-        embedding_version: 1,
-    });
+    let ctx = Arc::new(enforcer_memory::enrichment::EnrichmentContext::new(
+        Arc::clone(&flaky) as Arc<dyn Embedder>,
+        EmbeddingGenerationId::INITIAL,
+    ));
     let queue = WeaverQueue::new();
     let handle = queue.handle();
-    let (config, mut outcomes) = WorkerPoolConfig {
-        max_concurrency: 1,
+    let WorkerPoolOutcomeChannel {
+        config,
+        mut outcomes,
+    } = WorkerPoolConfig {
+        max_concurrency: WorkerConcurrency::SINGLE,
         retry: RetryPolicy::bounded_default(),
-        embedding_version: 1,
+        embedding_version: EmbeddingGenerationId::INITIAL,
         on_outcome: None,
     }
     .with_outcome_channel();
     let pool = enforcer_memory::enrichment::WorkerPool::spawn(queue, handle.clone(), ctx, &config);
 
     let event = WeaverEvent::NodeChanged {
-        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render".to_owned(),
-        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs".to_owned(),
-        content_hash: hash_file("widget_v1.rs")?,
+        node_id: "sym:tests/fixtures/memory/weaver/widget_v1.rs:6:render"
+            .to_owned()
+            .into(),
+        rel_path: "tests/fixtures/memory/weaver/widget_v1.rs"
+            .to_owned()
+            .into(),
+        content_hash: hash_file("widget_v1.rs")?.into(),
     };
-    handle.send(event.clone(), Priority::Hot)?;
+    handle.send(event.clone(), MemoryPriority::Hot)?;
 
     let mut retries_seen = 0;
     let mut succeeded = false;
@@ -299,7 +310,7 @@ async fn retry_succeeds_on_transient_failure() -> TestResult {
         }
     }
 
-    let dead_letters_len = pool.dead_letters.lock().map(|d| d.len()).unwrap_or(0);
+    let dead_letters_len = pool.with_dead_letters(|dead_letters| dead_letters.len());
     drop(handle);
     pool.shutdown().await;
 
@@ -312,7 +323,7 @@ async fn retry_succeeds_on_transient_failure() -> TestResult {
         "expected exactly 2 transient failures before success"
     );
     assert_eq!(
-        flaky.attempts_seen(),
+        flaky.attempts_seen().get(),
         3,
         "2 failed attempts + 1 successful attempt"
     );
@@ -341,7 +352,8 @@ async fn queue_does_not_block_foreground_query() -> TestResult {
         fn embed<'a>(
             &'a self,
             task: &'a enforcer_memory::enrichment::EmbeddingTask,
-        ) -> Pin<Box<dyn Future<Output = Result<u32, EnrichmentError>> + Send + 'a>> {
+        ) -> Pin<Box<dyn Future<Output = Result<EmbeddingGenerationId, EnrichmentError>> + Send + 'a>>
+        {
             Box::pin(async move {
                 self.release.notified().await;
                 self.inner.embed(task).await
@@ -353,18 +365,21 @@ async fn queue_does_not_block_foreground_query() -> TestResult {
         inner: NullEmbedder::new(),
         release: tokio::sync::Notify::new(),
     });
-    let (builder, mut outcomes) = Weaver::builder()
+    let channel = Weaver::builder()
         .with_embedder(Arc::clone(&embedder) as Arc<dyn Embedder>)
-        .with_max_concurrency(1)
+        .with_max_concurrency(WorkerConcurrency::SINGLE)
         .with_outcome_channel();
-    let weaver = builder.build();
+    let weaver = channel.builder.build();
+    let mut outcomes = channel.outcomes;
 
     // Enqueue a slow task that will not resolve until `release` is
     // notified -- this occupies the pool's single concurrency slot.
     weaver.enqueue(WeaverEvent::NodeChanged {
-        node_id: "sym:slow.rs:1:slow".to_owned(),
-        rel_path: "slow.rs".to_owned(),
-        content_hash: "hash-slow".to_owned(),
+        node_id: "sym:slow.rs:1:slow".to_owned().into(),
+        rel_path: "slow.rs".to_owned().into(),
+        content_hash: "5555555555555555555555555555555555555555555555555555555555555555"
+            .to_owned()
+            .into(),
     })?;
 
     // While the slow task is stuck (no `release.notify_*` called yet),
@@ -378,11 +393,11 @@ async fn queue_does_not_block_foreground_query() -> TestResult {
     let foreground_result: Result<Result<bool, Box<dyn Error>>, tokio::time::error::Elapsed> =
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             weaver.enqueue(WeaverEvent::FileChanged {
-                rel_path: "other.rs".to_owned(),
-                content_hash: "hash-other".to_owned(),
+                rel_path: "other.rs".to_owned().into(),
+                content_hash: "hash-other".to_owned().into(),
             })?;
-            let summaries = weaver.summaries();
-            let is_stale = lock_or_msg(&summaries)?.is_stale("never-seen.rs");
+            let is_stale =
+                weaver.with_summaries(|store| store.is_stale("never-seen.rs").is_stale());
             Ok(is_stale)
         })
         .await;
@@ -409,7 +424,7 @@ async fn queue_does_not_block_foreground_query() -> TestResult {
         }
     }
     assert_eq!(unexpected, None, "expected only Succeeded outcomes");
-    let other_is_stale = lock_or_msg(&weaver.summaries())?.is_stale("other.rs");
+    let other_is_stale = weaver.with_summaries(|store| store.is_stale("other.rs").is_stale());
     assert!(other_is_stale);
 
     weaver.shutdown().await;

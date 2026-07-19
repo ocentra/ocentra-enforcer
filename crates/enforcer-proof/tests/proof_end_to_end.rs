@@ -10,10 +10,12 @@
 
 use enforcer_core::error::Result;
 use enforcer_core::redaction::Redactor;
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::proof_types::{ClaimId, JournalEventType, ProofRunId, ProofStatus};
 use enforcer_proof::claim::{claim_proof, ClaimArgs};
-use enforcer_proof::envelope::{git_state, ArtifactRecord, GitState, ProofStatus};
-use enforcer_proof::harness::{run_proof, ProofDefinition, RunProofArgs};
-use enforcer_proof::journal::{JournalRecord, ProofJournal, JOURNAL_SCHEMA_VERSION};
+use enforcer_proof::envelope::{git_state, ArtifactRecordEnvelope, GitStateEnvelope};
+use enforcer_proof::harness::{run_proof, ProofDefinitionEnvelope, RunProofArgs};
+use enforcer_proof::journal::{JournalRecordEnvelope, ProofJournal, JOURNAL_SCHEMA_VERSION};
 
 fn temp_root(name: &str) -> Result<std::path::PathBuf> {
     let dir = std::env::temp_dir().join(format!(
@@ -28,27 +30,33 @@ fn temp_root(name: &str) -> Result<std::path::PathBuf> {
     Ok(dir)
 }
 
-fn definition() -> ProofDefinition {
-    ProofDefinition {
-        id: "E2E-PROOF".to_owned(),
-        title: "End-to-end demo proof".to_owned(),
-        family: "command".to_owned(),
-        severity: "error".to_owned(),
-        applies_to: vec!["workspace".to_owned()],
-        triggers: vec![],
-        languages: vec![],
-        capabilities: vec!["local".to_owned()],
-        collector: "command".to_owned(),
-        docs: vec![],
-        commands: vec![],
-        required_artifacts: vec![],
-        required_paths: vec![],
-        required_for_pr_ready: true,
-        claims_proved: vec!["This proof runs a trivial command.".to_owned()],
-        claims_not_proved: vec![],
-        ci_support: true,
-        device_support: false,
-    }
+fn definition() -> Result<ProofDefinitionEnvelope> {
+    Ok(serde_json::from_value(serde_json::json!({
+        "id": "E2E-PROOF", "title": "End-to-end demo proof", "family": "command",
+        "severity": "error", "appliesTo": ["workspace"], "capabilities": ["local"],
+        "collector": "command", "requiredForPrReady": true,
+        "claimsProved": ["This proof runs a trivial command."], "ciSupport": true,
+    }))?)
+}
+
+fn run_args(
+    proof_id: enforcer_domain::proof_types::ProofId,
+    root: std::path::PathBuf,
+    run_id: &str,
+    command: Vec<String>,
+) -> Result<RunProofArgs> {
+    Ok(RunProofArgs {
+        proof_id,
+        root,
+        run_id: run_id
+            .parse()
+            .map_err(enforcer_core::error::Error::Decode)?,
+        command,
+        capability: None,
+        claims_proved: Vec::new(),
+        claims_not_proved: Vec::new(),
+        pin: false,
+    })
 }
 
 /// PASS: a run whose artifact still exists on disk, gated with a matching
@@ -57,20 +65,14 @@ fn definition() -> ProofDefinition {
 #[test]
 fn fresh_artifact_claims_green() -> Result<()> {
     let root = temp_root("fresh")?;
-    let definition = definition();
+    let definition = definition()?;
     let command = if cfg!(windows) {
         vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
     } else {
         vec!["true".to_owned()]
     };
-    let args = RunProofArgs {
-        proof_id: definition.id.clone(),
-        root: root.clone(),
-        run_id: "run-fresh".to_owned(),
-        command,
-        claims_proved: definition.claims_proved.clone(),
-        ..Default::default()
-    };
+    let mut args = run_args(definition.id.clone(), root.clone(), "run-fresh", command)?;
+    args.claims_proved = definition.claims_proved.clone();
     let outcome = run_proof(&args, Some(&definition))?;
     assert!(outcome.ok);
     assert_eq!(outcome.proof_run.status, ProofStatus::Passed);
@@ -79,29 +81,29 @@ fn fresh_artifact_claims_green() -> Result<()> {
     let artifact_path = root.join("artifact.txt");
     std::fs::write(&artifact_path, "evidence")?;
     let mut run = outcome.proof_run;
-    run.artifacts.push(ArtifactRecord {
+    run.artifacts.push(ArtifactRecordEnvelope {
         name: "artifact.txt".to_owned(),
-        path: "artifact.txt".to_owned(),
-        sha256: enforcer_core::hash_chain::link_digest(None, b"evidence")
-            .parse()
+        path: RelPath::try_from("artifact.txt".to_owned())
             .map_err(enforcer_core::error::Error::Decode)?,
+        sha256: enforcer_core::hash_chain::link_digest(None, b"evidence"),
         byte_length: 8,
     });
 
-    let current_git = GitState {
+    let current_git = GitStateEnvelope {
         commit: run.git.commit.clone(),
         branch: run.git.branch.clone(),
         dirty: Some(false),
     };
     let claim_args = ClaimArgs {
-        claim_id: "claim-fresh".to_owned(),
+        claim_id: ClaimId::try_from("claim-fresh".to_owned())
+            .map_err(enforcer_core::error::Error::Decode)?,
         pr_ready: true,
         allow_dirty: false,
         proof_ids: vec![definition.id.clone()],
         current_git,
         latest_run: &|_| Some(run.clone()),
         definition: &|_| Some(definition.clone()),
-        artifact_exists: &|path| root.join(path).exists(),
+        artifact_exists: &|path| root.join(path.as_str()).exists(),
         required_path_exists: &|_| true,
     };
     let claim = claim_proof(&claim_args);
@@ -120,46 +122,40 @@ fn fresh_artifact_claims_green() -> Result<()> {
 #[test]
 fn stale_missing_artifact_claim_fails() -> Result<()> {
     let root = temp_root("stale")?;
-    let definition = definition();
+    let definition = definition()?;
     let command = if cfg!(windows) {
         vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
     } else {
         vec!["true".to_owned()]
     };
-    let args = RunProofArgs {
-        proof_id: definition.id.clone(),
-        root: root.clone(),
-        run_id: "run-stale".to_owned(),
-        command,
-        ..Default::default()
-    };
+    let args = run_args(definition.id.clone(), root.clone(), "run-stale", command)?;
     let outcome = run_proof(&args, Some(&definition))?;
     let mut run = outcome.proof_run;
     // Record an artifact that is never actually written to disk (simulates
     // a deleted/missing artifact at claim time).
-    run.artifacts.push(ArtifactRecord {
+    run.artifacts.push(ArtifactRecordEnvelope {
         name: "gone.txt".to_owned(),
-        path: "gone.txt".to_owned(),
-        sha256: enforcer_core::hash_chain::link_digest(None, b"evidence")
-            .parse()
+        path: RelPath::try_from("gone.txt".to_owned())
             .map_err(enforcer_core::error::Error::Decode)?,
+        sha256: enforcer_core::hash_chain::link_digest(None, b"evidence"),
         byte_length: 8,
     });
 
-    let current_git = GitState {
+    let current_git = GitStateEnvelope {
         commit: run.git.commit.clone(),
         branch: run.git.branch.clone(),
         dirty: Some(false),
     };
     let claim_args = ClaimArgs {
-        claim_id: "claim-stale".to_owned(),
+        claim_id: ClaimId::try_from("claim-stale".to_owned())
+            .map_err(enforcer_core::error::Error::Decode)?,
         pr_ready: true,
         allow_dirty: false,
         proof_ids: vec![definition.id.clone()],
         current_git,
         latest_run: &|_| Some(run.clone()),
         definition: &|_| Some(definition.clone()),
-        artifact_exists: &|path| root.join(path).exists(),
+        artifact_exists: &|path| root.join(path.as_str()).exists(),
         required_path_exists: &|_| true,
     };
     let claim = claim_proof(&claim_args);
@@ -175,13 +171,16 @@ fn stale_missing_artifact_claim_fails() -> Result<()> {
 /// FAIL: a claim for a proof id with no run at all must fail closed with
 /// `missing-proof-run`, never silently pass as if it were fresh.
 #[test]
-fn missing_run_claim_fails() {
+fn missing_run_claim_fails() -> Result<()> {
     let claim_args = ClaimArgs {
-        claim_id: "claim-missing".to_owned(),
+        claim_id: ClaimId::try_from("claim-missing".to_owned())
+            .map_err(enforcer_core::error::Error::Decode)?,
         pr_ready: false,
         allow_dirty: false,
-        proof_ids: vec!["NEVER-RUN".to_owned()],
-        current_git: GitState::default(),
+        proof_ids: vec!["NEVER-RUN"
+            .parse()
+            .map_err(enforcer_core::error::Error::Decode)?],
+        current_git: GitStateEnvelope::default(),
         latest_run: &|_| None,
         definition: &|_| None,
         artifact_exists: &|_| true,
@@ -189,6 +188,7 @@ fn missing_run_claim_fails() {
     };
     let claim = claim_proof(&claim_args);
     assert!(!claim.ok());
+    Ok(())
 }
 
 /// PASS: an intact hash-chained journal verifies on open AND on replay.
@@ -201,22 +201,30 @@ fn intact_journal_verifies_on_open_and_replay() -> Result<()> {
         let mut journal = ProofJournal::open(&journal_path)?;
         journal.append(
             &redactor,
-            JournalRecord {
+            JournalRecordEnvelope {
                 schema_version: JOURNAL_SCHEMA_VERSION,
-                event_type: "proof-started".to_owned(),
-                run_id: "run-journal".to_owned(),
-                proof_id: "E2E-PROOF".to_owned(),
+                event_type: JournalEventType::try_from("proof-started".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                run_id: ProofRunId::try_from("run-journal".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                proof_id: "E2E-PROOF"
+                    .parse()
+                    .map_err(enforcer_core::error::Error::Decode)?,
                 timestamp: "2026-07-04T00:00:00Z".to_owned(),
                 payload: serde_json::json!({}),
             },
         )?;
         journal.append(
             &redactor,
-            JournalRecord {
+            JournalRecordEnvelope {
                 schema_version: JOURNAL_SCHEMA_VERSION,
-                event_type: "proof-finished".to_owned(),
-                run_id: "run-journal".to_owned(),
-                proof_id: "E2E-PROOF".to_owned(),
+                event_type: JournalEventType::try_from("proof-finished".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                run_id: ProofRunId::try_from("run-journal".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                proof_id: "E2E-PROOF"
+                    .parse()
+                    .map_err(enforcer_core::error::Error::Decode)?,
                 timestamp: "2026-07-04T00:00:01Z".to_owned(),
                 payload: serde_json::json!({ "status": "passed" }),
             },
@@ -240,22 +248,30 @@ fn tampered_journal_fails_closed_on_open_and_replay() -> Result<()> {
         let mut journal = ProofJournal::open(&journal_path)?;
         journal.append(
             &redactor,
-            JournalRecord {
+            JournalRecordEnvelope {
                 schema_version: JOURNAL_SCHEMA_VERSION,
-                event_type: "proof-started".to_owned(),
-                run_id: "run-tamper".to_owned(),
-                proof_id: "E2E-PROOF".to_owned(),
+                event_type: JournalEventType::try_from("proof-started".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                run_id: ProofRunId::try_from("run-tamper".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                proof_id: "E2E-PROOF"
+                    .parse()
+                    .map_err(enforcer_core::error::Error::Decode)?,
                 timestamp: "2026-07-04T00:00:00Z".to_owned(),
                 payload: serde_json::json!({}),
             },
         )?;
         journal.append(
             &redactor,
-            JournalRecord {
+            JournalRecordEnvelope {
                 schema_version: JOURNAL_SCHEMA_VERSION,
-                event_type: "proof-finished".to_owned(),
-                run_id: "run-tamper".to_owned(),
-                proof_id: "E2E-PROOF".to_owned(),
+                event_type: JournalEventType::try_from("proof-finished".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                run_id: ProofRunId::try_from("run-tamper".to_owned())
+                    .map_err(enforcer_core::error::Error::Decode)?,
+                proof_id: "E2E-PROOF"
+                    .parse()
+                    .map_err(enforcer_core::error::Error::Decode)?,
                 timestamp: "2026-07-04T00:00:01Z".to_owned(),
                 payload: serde_json::json!({ "status": "passed" }),
             },

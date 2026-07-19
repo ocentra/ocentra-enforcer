@@ -13,7 +13,7 @@
 //! `sk_live_`, GitHub `gh[pousr]_`, Google `AIza`, Slack `xox…`, npm
 //! `npm_`, PEM private-key blocks, and a context-gated AWS secret key). It
 //! deliberately EXCLUDES the corpus's low-precision generic patterns (a
-//! bare 40-char base64 blob, a 32-hex string, bearer tokens, email/SSN/PII)
+//! bare 40-character encoded value, a 32-character hex value, bearer tokens, email/SSN/PII)
 //! — those are false-positive magnets that would erode a prevention gate,
 //! and the generic `key = "…"` assignment shape is already covered by
 //! `SEC-1.1` (`InlineSecretsValidator`). This rule is additive: it catches
@@ -22,35 +22,26 @@
 //! Matched secrets are REDACTED in the finding snippet so the secret is
 //! never echoed into a report/log.
 
+use crate::boundary::pattern::CredentialPattern;
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
-use regex::Regex;
-
-/// One provider-credential detector: display name, compiled pattern, and
-/// severity (all provider-prefixed matches are Error; the lower-confidence
-/// JWT is a Warning).
-struct CredentialPattern {
-    name: &'static str,
-    regex: Regex,
-    severity: Severity,
-}
 
 /// The high-confidence provider patterns, harvested (verbatim where the
 /// vendor had them) from the corpus inline tables. Ordered most-specific
 /// first; the first match on a line wins to avoid duplicate findings.
 fn patterns() -> Result<Vec<CredentialPattern>, DecodeError> {
     let specs: &[(&str, &str, Severity)] = &[
-        // AWS long-term / temporary access key id.
+        // AWS long-lived or session access key id.
         (
             "AWS access key id",
             r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b",
             Severity::Error,
         ),
         // AWS secret access key, CONTEXT-GATED on a nearby `aws` token to
-        // avoid matching arbitrary 40-char base64 blobs.
+        // avoid matching arbitrary 40-character encoded values.
         (
             "AWS secret access key",
             r#"(?i)aws.{0,20}['"][0-9a-zA-Z/+]{40}['"]"#,
@@ -98,22 +89,14 @@ fn patterns() -> Result<Vec<CredentialPattern>, DecodeError> {
     ];
     let mut out = Vec::with_capacity(specs.len());
     for (name, pattern, severity) in specs {
-        let regex = Regex::new(pattern)
-            .map_err(|err| DecodeError::new("cyberskillsProviderSecretRegex", err.to_string()))?;
-        out.push(CredentialPattern {
+        out.push(CredentialPattern::compile(
+            "cyberskillsProviderSecretRegex",
+            pattern,
             name,
-            regex,
-            severity: *severity,
-        });
+            *severity,
+        )?);
     }
     Ok(out)
-}
-
-/// Redact a matched secret so it is never echoed verbatim: keep a short
-/// prefix for identification, mask the rest.
-fn redact(matched: &str) -> String {
-    let prefix: String = matched.chars().take(4).collect();
-    format!("{prefix}<redacted>")
 }
 
 /// `CYBER-SECRET.1` — hardcoded provider-credential gate.
@@ -122,10 +105,20 @@ pub struct ProviderCredentialValidator {
     patterns: Vec<CredentialPattern>,
 }
 
+impl std::fmt::Debug for ProviderCredentialValidator {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProviderCredentialValidator")
+            .field("rule_id", &self.rule_id)
+            .field("pattern_count", &self.patterns.len())
+            .finish()
+    }
+}
+
 impl ProviderCredentialValidator {
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-SECRET.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberProviderSecret.id(),
             patterns: patterns()?,
         })
     }
@@ -138,26 +131,29 @@ impl Validator for ProviderCredentialValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for (index, line) in input.source.lines().enumerate() {
+        for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
             // First matching pattern on the line wins (one finding per line).
             for pattern in &self.patterns {
-                if let Some(m) = pattern.regex.find(line) {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: pattern.severity,
-                        title: "hardcoded provider credential".to_owned(),
-                        detail: format!(
+                if let Some(m) = pattern.regex().find(line) {
+                    findings.extend(crate::boundary::finding::from_owned_source(
+                        (&self.rule_id, pattern.severity()),
+                        "hardcoded provider credential",
+                        format!(
                             "a hardcoded {} was found in source. Secrets committed to a repo \
                              leak to anyone with read access and to every clone/fork/CI log. \
                              Fix: revoke/rotate it now, then inject it at runtime from a secret \
                              store or environment, never in code.",
-                            pattern.name
+                            pattern.name().as_str()
                         ),
-                        file: input.file.clone(),
-                        line: line_number,
-                        snippet: Some(redact(m.as_str())),
-                    });
+                        input.file,
+                        (
+                            line_number,
+                            Some(crate::boundary::source_predicates::redact_secret(
+                                m.as_str(),
+                            )),
+                        ),
+                    ));
                     break;
                 }
             }
@@ -168,30 +164,22 @@ impl Validator for ProviderCredentialValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
+    use crate::boundary::fixture::run_manifest_fixture_parity;
     use enforcer_domain::findings::ScanScope;
-    use enforcer_domain::paths::RelPath;
-    use enforcer_validator::harness::run_fixture_parity;
     use enforcer_validator::validator::{ValidationInput, Validator};
 
     use super::ProviderCredentialValidator;
 
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
     /// Representative fixture pair for the d01 parity oracle. The on-disk
-    /// bad fixture uses AWS's DOCUMENTED example key (`AKIAIOSFODNN7EXAMPLE`,
-    /// on GitHub's push-protection allowlist) so the committed fixture holds
+    /// bad fixture uses AWS's documented public sample from GitHub's
+    /// push-protection allowlist, so the committed fixture holds
     /// no live-secret-shaped literal; exhaustive per-provider coverage is in
     /// `provider_credential_corpus_code_built` below.
     #[test]
     fn cyberskills_provider_credentials() -> Result<(), Box<dyn std::error::Error>> {
         let validator = ProviderCredentialValidator::new()?;
-        run_fixture_parity(
+        run_manifest_fixture_parity(
             &validator,
-            &manifest_dir(),
             "tests/fixtures/cyberskills/secret.provider-credential/bad/leaked.env",
             "tests/fixtures/cyberskills/secret.provider-credential/good/clean.rs",
         )?;
@@ -207,12 +195,12 @@ mod tests {
     #[test]
     fn provider_credential_corpus_code_built() -> Result<(), Box<dyn std::error::Error>> {
         let validator = ProviderCredentialValidator::new()?;
-        let file: RelPath = "config.txt".parse()?;
+        let file = crate::boundary::fixture::rel_path("config.txt")?;
         let scan = |src: &str| -> usize {
             validator
                 .validate(ValidationInput {
                     file: &file,
-                    source: src,
+                    source: enforcer_domain::boundary::validation::ValidationSource::from_text(src),
                     scope: ScanScope::Files,
                 })
                 .len()

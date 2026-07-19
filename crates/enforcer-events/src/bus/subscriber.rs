@@ -1,3 +1,5 @@
+use enforcer_domain::events_types::{EventType, SubscriberId, TargetHandler};
+use serde::de::DeserializeOwned;
 use std::{
     collections::BTreeMap,
     future::Future,
@@ -8,15 +10,15 @@ use std::{
     },
 };
 
-use crate::{
-    DomainEvent, EventType, EventingError, StoredEventEnvelope, SubscriberId, TargetHandler,
-};
+use crate::boundary::stored_event_persistence::StoredEventEnvelope;
+use crate::{envelope::DomainEvent, error::EventingError};
 
 use super::{EventContext, EventPublisher, QueueDrainReport};
 
 type HandlerFuture = Pin<Box<dyn Future<Output = Result<(), EventingError>> + Send>>;
 type StoredHandler = dyn Fn(StoredEventEnvelope, EventPublisher) -> HandlerFuture + Send + Sync;
 
+/// Event-runtime data for event subscriber.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventSubscriber {
     pub id: SubscriberId,
@@ -25,6 +27,7 @@ pub struct EventSubscriber {
 }
 
 impl EventSubscriber {
+    /// Executes the new event-runtime operation.
     pub fn new(id: SubscriberId, event_type: EventType, target_handler: TargetHandler) -> Self {
         Self {
             id,
@@ -42,6 +45,18 @@ pub(super) struct SubscriberRecord {
     pub(super) handler: Arc<StoredHandler>,
 }
 
+#[derive(Clone, Default)]
+pub(super) struct SubscriberRegistry(Arc<Mutex<BTreeMap<EventType, Vec<SubscriberRecord>>>>);
+
+impl SubscriberRegistry {
+    pub(super) fn lock(
+        &self,
+    ) -> std::sync::MutexGuard<'_, BTreeMap<EventType, Vec<SubscriberRecord>>> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// Event-runtime data for subscription report.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SubscriptionReport {
     pub subscriber_id: SubscriberId,
@@ -50,17 +65,25 @@ pub struct SubscriptionReport {
     pub drain_report: QueueDrainReport,
 }
 
+/// Event-runtime data for subscription handle.
 pub struct SubscriptionHandle {
-    registry: Arc<Mutex<BTreeMap<EventType, Vec<SubscriberRecord>>>>,
+    registry: SubscriberRegistry,
     report: SubscriptionReport,
     active: Arc<AtomicBool>,
 }
 
+impl std::fmt::Debug for SubscriptionHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SubscriptionHandle")
+            .field("report", &self.report)
+            .field("active", &self.active.load(Ordering::Acquire))
+            .finish_non_exhaustive()
+    }
+}
+
 impl SubscriptionHandle {
-    pub(super) fn new(
-        registry: Arc<Mutex<BTreeMap<EventType, Vec<SubscriberRecord>>>>,
-        report: SubscriptionReport,
-    ) -> Self {
+    pub(super) fn new(registry: SubscriberRegistry, report: SubscriptionReport) -> Self {
         Self {
             registry,
             report,
@@ -68,12 +91,14 @@ impl SubscriptionHandle {
         }
     }
 
+    /// Executes the report event-runtime operation.
     pub fn report(&self) -> SubscriptionReport {
         // CLONE-JUSTIFICATION: the handle retains its report for idempotent unsubscribe,
         // while callers receive an independently owned snapshot.
         self.report.clone()
     }
 
+    /// Executes the unsubscribe event-runtime operation.
     pub fn unsubscribe(&self) -> UnsubscribeReport {
         let removed = if self.active.swap(false, Ordering::AcqRel) {
             remove_subscriber(
@@ -82,7 +107,7 @@ impl SubscriptionHandle {
                 &self.report.subscriber_id,
             )
         } else {
-            false
+            enforcer_domain::events_types::SubscriptionRemovalState::AlreadyAbsent
         };
         UnsubscribeReport {
             // CLONE-JUSTIFICATION: the handle retains its report so repeated unsubscribe
@@ -91,7 +116,7 @@ impl SubscriptionHandle {
             // CLONE-JUSTIFICATION: the handle retains its report so repeated unsubscribe
             // calls can return the same subscription identity without changing state.
             event_type: self.report.event_type.clone(),
-            removed,
+            removal_state: removed,
         }
     }
 }
@@ -102,11 +127,12 @@ impl Drop for SubscriptionHandle {
     }
 }
 
+/// Event-runtime data for unsubscribe report.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnsubscribeReport {
     pub subscriber_id: SubscriberId,
     pub event_type: EventType,
-    pub removed: bool,
+    pub removal_state: enforcer_domain::events_types::SubscriptionRemovalState,
 }
 
 pub(super) fn record_for<E, F, Fut>(
@@ -114,7 +140,7 @@ pub(super) fn record_for<E, F, Fut>(
     handler: F,
 ) -> Result<SubscriberRecord, EventingError>
 where
-    E: DomainEvent,
+    E: DomainEvent + DeserializeOwned,
     F: Fn(EventContext<E>) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), EventingError>> + Send + 'static,
 {
@@ -140,10 +166,10 @@ where
 }
 
 pub(super) fn insert_subscriber(
-    registry: &Arc<Mutex<BTreeMap<EventType, Vec<SubscriberRecord>>>>,
+    registry: &SubscriberRegistry,
     record: SubscriberRecord,
 ) -> Result<(), EventingError> {
-    let mut registry = registry.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut registry = registry.lock();
     // CLONE-JUSTIFICATION: the map key and the queued record each own the event type;
     // the record remains intact for insertion after selecting its bucket.
     let subscribers = registry.entry(record.event_type.clone()).or_default();
@@ -160,13 +186,13 @@ pub(super) fn insert_subscriber(
 }
 
 pub(super) fn remove_subscriber(
-    registry: &Arc<Mutex<BTreeMap<EventType, Vec<SubscriberRecord>>>>,
+    registry: &SubscriberRegistry,
     event_type: &EventType,
     subscriber_id: &SubscriberId,
-) -> bool {
-    let mut registry = registry.lock().unwrap_or_else(PoisonError::into_inner);
+) -> enforcer_domain::events_types::SubscriptionRemovalState {
+    let mut registry = registry.lock();
     let Some(subscribers) = registry.get_mut(event_type) else {
-        return false;
+        return enforcer_domain::events_types::SubscriptionRemovalState::AlreadyAbsent;
     };
     let original_len = subscribers.len();
     subscribers.retain(|subscriber| &subscriber.id != subscriber_id);
@@ -174,5 +200,9 @@ pub(super) fn remove_subscriber(
     if subscribers.is_empty() {
         registry.remove(event_type);
     }
-    removed
+    if removed {
+        enforcer_domain::events_types::SubscriptionRemovalState::Removed
+    } else {
+        enforcer_domain::events_types::SubscriptionRemovalState::AlreadyAbsent
+    }
 }

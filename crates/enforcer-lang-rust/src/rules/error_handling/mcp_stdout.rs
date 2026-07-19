@@ -11,17 +11,18 @@
 //! flags any stdout write in ANY file it is pointed at; callers scope
 //! invocation to rmcp-dependent crates.
 
-use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{ExprCall, ExprMacro, ExprMethodCall};
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::rules_types::RulePredicateResult;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The `RUST-MCP-1.1` `Validator`.
+#[derive(Debug)]
 pub struct McpStdoutValidator {
     rule_id: RuleId,
 }
@@ -31,7 +32,7 @@ impl McpStdoutValidator {
     /// construction (parse-at-boundary).
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "RUST-MCP-1.1".parse()?,
+            rule_id: BuiltInRustRule::McpStdout.id(),
         })
     }
 }
@@ -42,12 +43,12 @@ impl Validator for McpStdoutValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(file) = syn::parse_file(input.source) else {
+        let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
         let mut visitor = Visitor {
-            rule_id: self.rule_id.clone(),
-            file: input.file.clone(),
+            rule_id: &self.rule_id,
+            file: input.file,
             findings: Vec::new(),
         };
         visitor.visit_file(&file);
@@ -57,45 +58,49 @@ impl Validator for McpStdoutValidator {
 
 const BANNED_MACROS: &[&str] = &["println", "print"];
 
-fn call_path_is_stdout(expr: &syn::Expr) -> bool {
+fn call_path_is_stdout(expr: &syn::Expr) -> RulePredicateResult {
     let syn::Expr::Path(path_expr) = expr else {
-        return false;
+        return RulePredicateResult::NotMatched;
     };
-    path_expr
+    if path_expr
         .path
         .segments
         .last()
         .is_some_and(|segment| segment.ident == "stdout")
-}
-
-struct Visitor {
-    rule_id: RuleId,
-    file: RelPath,
-    findings: Vec<Finding>,
-}
-
-impl Visitor {
-    fn push(&mut self, line: u32, what: &str) {
-        self.findings.push(Finding {
-            rule_id: self.rule_id.clone(),
-            severity: Severity::Error,
-            title: format!("stdout write (`{what}`) in an MCP-stdio-lane crate"),
-            detail: "Fix: stdout is the MCP protocol channel — route this write to stderr \
-                      (`eprintln!`) or `tracing` instead."
-                .to_owned(),
-            file: self.file.clone(),
-            line,
-            snippet: None,
-        });
+    {
+        RulePredicateResult::Matched
+    } else {
+        RulePredicateResult::NotMatched
     }
 }
 
-impl<'ast> Visit<'ast> for Visitor {
+struct Visitor<'a> {
+    rule_id: &'a RuleId,
+    file: &'a RelPath,
+    findings: Vec<Finding>,
+}
+
+impl Visitor<'_> {
+    fn push(&mut self, line: enforcer_domain::telemetry_types::SourceLine, what: &str) {
+        let Ok(finding) = crate::boundary::finding::from_source(
+            (self.rule_id, Severity::Error),
+            format!("stdout write (`{what}`) in an MCP-stdio-lane crate"),
+            "Fix: stdout is the MCP protocol channel — route this write to stderr \
+                      (`eprintln!`) or `tracing` instead.",
+            self.file,
+            line,
+        ) else {
+            return;
+        };
+        self.findings.push(finding);
+    }
+}
+
+impl<'ast> Visit<'ast> for Visitor<'_> {
     fn visit_expr_macro(&mut self, item: &'ast ExprMacro) {
         if let Some(segment) = item.mac.path.segments.last() {
-            let name = segment.ident.to_string();
-            if BANNED_MACROS.contains(&name.as_str()) {
-                let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+            if let Some(name) = BANNED_MACROS.iter().find(|name| segment.ident == **name) {
+                let line = crate::boundary::finding::source_line(item);
                 self.push(line, &format!("{name}!"));
             }
         }
@@ -103,8 +108,8 @@ impl<'ast> Visit<'ast> for Visitor {
     }
 
     fn visit_expr_call(&mut self, item: &'ast ExprCall) {
-        if call_path_is_stdout(&item.func) {
-            let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+        if call_path_is_stdout(&item.func) == RulePredicateResult::Matched {
+            let line = crate::boundary::finding::source_line(item);
             self.push(line, "stdout()");
         }
         visit::visit_expr_call(self, item);
@@ -114,19 +119,26 @@ impl<'ast> Visit<'ast> for Visitor {
         // Catch `io::stdout().write(...)` / `.write_all(...)` chains by
         // checking whether the receiver expression ultimately calls
         // `stdout()` anywhere in its call chain.
-        if expr_contains_stdout_call(&item.receiver) {
-            let line = u32::try_from(item.span().start().line.max(1)).unwrap_or(u32::MAX);
+        if expr_contains_stdout_call(&item.receiver) == RulePredicateResult::Matched {
+            let line = crate::boundary::finding::source_line(item);
             self.push(line, "stdout()...write");
+            // The receiver call is already represented by the method-chain
+            // finding. Visit only the arguments so the nested `stdout()`
+            // call cannot emit a duplicate finding for the same operation.
+            for argument in &item.args {
+                self.visit_expr(argument);
+            }
+            return;
         }
         visit::visit_expr_method_call(self, item);
     }
 }
 
-fn expr_contains_stdout_call(expr: &syn::Expr) -> bool {
+fn expr_contains_stdout_call(expr: &syn::Expr) -> RulePredicateResult {
     match expr {
         syn::Expr::Call(call) => call_path_is_stdout(&call.func),
         syn::Expr::MethodCall(call) => expr_contains_stdout_call(&call.receiver),
-        _ => false,
+        _ => RulePredicateResult::NotMatched,
     }
 }
 
@@ -153,13 +165,14 @@ mod tests {
     fn fires_on_stdout_write() -> Result<(), Box<dyn std::error::Error>> {
         let validator = McpStdoutValidator::new()?;
         let source = read_fixture("fixtures/mcp-stdout/fail_stdout_write.rs")?;
-        let file: RelPath = "crates/enforcer-mcp/src/lib.rs".parse()?;
+        let file: RelPath =
+            crate::boundary::fixture::source_file("crates/enforcer-mcp/src/lib.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
-        assert!(!findings.is_empty());
+        assert_eq!(findings.len(), 1);
         assert!(findings
             .iter()
             .all(|f| f.rule_id.as_str() == "RUST-MCP-1.1"));
@@ -170,10 +183,11 @@ mod tests {
     fn silent_on_stderr_tracing_writes() -> Result<(), Box<dyn std::error::Error>> {
         let validator = McpStdoutValidator::new()?;
         let source = read_fixture("fixtures/mcp-stdout/pass_stderr_tracing.rs")?;
-        let file: RelPath = "crates/enforcer-mcp/src/lib.rs".parse()?;
+        let file: RelPath =
+            crate::boundary::fixture::source_file("crates/enforcer-mcp/src/lib.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: &source,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: ScanScope::Files,
         });
         assert!(findings.is_empty());
@@ -181,12 +195,15 @@ mod tests {
     }
 
     #[test]
-    fn unparseable_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
+    fn malformed_source_stays_silent() -> Result<(), Box<dyn std::error::Error>> {
         let validator = McpStdoutValidator::new()?;
-        let file: RelPath = "crates/enforcer-mcp/src/lib.rs".parse()?;
+        let file: RelPath =
+            crate::boundary::fixture::source_file("crates/enforcer-mcp/src/lib.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: "not valid rust {{{",
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                "malformed rust {{{",
+            ),
             scope: ScanScope::Files,
         });
         assert!(findings.is_empty());

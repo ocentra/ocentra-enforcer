@@ -6,10 +6,12 @@
 //! not a written clause), `_test.go`/`TestXxx` test detection, and
 //! `net/http` route extraction.
 
+use enforcer_domain::memory_types::ReceiverHint;
+use enforcer_domain::memory_types::ResolutionConfidence;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::languages::go::parse;
-use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
-use enforcer_memory::resolution::{self, ResolutionConfidence};
+use enforcer_memory::parsers::SymbolKind;
+use enforcer_memory::resolution::{self};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -357,7 +359,7 @@ func Render(w Widget) string {
         .find(|c| c.callee == "w.Draw")
         .ok_or("expected a w.Draw call")?;
     assert_eq!(call.from_symbol.as_deref(), Some("Render"), "{call:?}");
-    assert_eq!(call.from_symbol_line, Some(4), "{call:?}");
+    assert_eq!(call.from_symbol_line, Some(4.into()), "{call:?}");
     Ok(())
 }
 

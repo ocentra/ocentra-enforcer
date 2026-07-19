@@ -1,7 +1,8 @@
 //! Integration coverage for `enforcer_memory::analysis`, moved out of
 //! the source module's inline `#[cfg(test)]` block.
 
-use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
+use enforcer_domain::memory_types::TraceDirection;
+use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use std::error::Error;
 use std::fs;
@@ -54,7 +55,7 @@ fn related_walk_finds_connected_tests_within_depth() -> TestResult<()> {
 
     let file_a = "file:a.rs";
     assert!(
-        adjacency.contains_node(file_a),
+        adjacency.contains_node(file_a).contains_node(),
         "expected a.rs file node in adjacency"
     );
 

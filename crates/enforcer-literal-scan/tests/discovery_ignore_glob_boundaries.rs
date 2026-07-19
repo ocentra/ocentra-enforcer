@@ -25,9 +25,9 @@ fn wildcard_gitignore_matches_empty_and_nonempty_path_suffixes_without_panicking
     )?;
 
     let report = run_scan(&CliOptions {
-        root: root.clone(),
-        include_low: true,
-        min_score: 0,
+        root: root.clone().into(),
+        include_low: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
         ..CliOptions::default()
     })?;
 

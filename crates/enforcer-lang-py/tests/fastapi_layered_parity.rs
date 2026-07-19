@@ -12,21 +12,31 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use enforcer_domain::ids::RuleId;
+use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource, RuleDocAnchor};
 use enforcer_mechanization::parity::{ParityOracle, ValidatorLookup};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
+use enforcer_rules::registry::RuleRecord;
 use enforcer_validator::validator::Validator;
 
 const FASTAPI_LAYERED_JSON: &str = include_str!("../../enforcer-rules/rules/fastapi-layered.json");
 
+fn parse_fastapi_catalog() -> Result<Vec<RuleRecord>, Box<dyn std::error::Error>> {
+    let json = RuleCatalogJson::try_from(FASTAPI_LAYERED_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/fastapi-layered.json".to_owned())?;
+    Ok(parse_catalog(&json, &source)?)
+}
+
 /// Repo root: two levels up from this crate's manifest dir
 /// (`crates/enforcer-lang-py` -> workspace root), matching the
 /// `RuleRecord.fixtures` paths, which are workspace-root-relative.
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn repo_root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    RepoRoot::try_from(path.as_path())
 }
 
 /// A lookup mapping each `PYFA-*` `RuleId` to its concrete validator
@@ -54,10 +64,10 @@ impl ValidatorLookup for FastapiLayeredLookup {
 #[test]
 fn every_fastapi_layered_rule_passes_the_d01_five_way_parity_sweep(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(FASTAPI_LAYERED_JSON, "rules/fastapi-layered.json")?;
+    let records = parse_fastapi_catalog()?;
     let registry = load_registry_from_records(records)?;
     let lookup = FastapiLayeredLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(
         findings.is_empty(),
@@ -68,7 +78,7 @@ fn every_fastapi_layered_rule_passes_the_d01_five_way_parity_sweep(
 
 #[test]
 fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(FASTAPI_LAYERED_JSON, "rules/fastapi-layered.json")?;
+    let records = parse_fastapi_catalog()?;
     let registry = load_registry_from_records(records)?;
 
     struct EmptyLookup;
@@ -78,7 +88,7 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
         }
     }
 
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&EmptyLookup);
     assert_eq!(
         findings.len(),
@@ -90,26 +100,28 @@ fn seeded_missing_validator_fails_the_sweep_closed() -> Result<(), Box<dyn std::
 
 #[test]
 fn seeded_dangling_doc_anchor_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(FASTAPI_LAYERED_JSON, "rules/fastapi-layered.json")?;
-    records[0].doc_anchor = "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".to_owned();
+    let mut records = parse_fastapi_catalog()?;
+    records[0].doc_anchor = RuleDocAnchor::try_from(
+        "docs/plans/enforcer-selfhost-plan/DOES-NOT-EXIST.md#nope".to_owned(),
+    )?;
     let registry = load_registry_from_records(records)?;
     let lookup = FastapiLayeredLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert!(findings
         .iter()
-        .any(|f| f.detail.contains("does not resolve")));
+        .any(|f| f.detail.as_str().contains("does not resolve")));
     Ok(())
 }
 
 #[test]
 fn seeded_missing_fail_fixture_fails_the_sweep_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(FASTAPI_LAYERED_JSON, "rules/fastapi-layered.json")?;
+    let mut records = parse_fastapi_catalog()?;
     records[0].fixtures.fail =
-        "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/does-not-exist.py".to_owned();
+        "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/does-not-exist.py".parse()?;
     let registry = load_registry_from_records(records)?;
     let lookup = FastapiLayeredLookup::new()?;
-    let oracle = ParityOracle::new(&registry, &repo_root(), std::collections::BTreeSet::new());
+    let oracle = ParityOracle::new(&registry, repo_root()?, std::collections::BTreeSet::new());
     let findings = oracle.sweep(&lookup);
     assert_eq!(findings.len(), 1);
     Ok(())

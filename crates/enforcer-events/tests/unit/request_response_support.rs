@@ -18,23 +18,23 @@ const RESULT_IDEMPOTENCY: &str = "request-result-idempotency";
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct TestRequestEvent {
     label: String,
-    request_id: RequestId,
+    request_id: String,
 }
 
 impl DomainEvent for TestRequestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             crate::EventType::parse(REQUEST_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -42,37 +42,34 @@ impl RequestEvent for TestRequestEvent {
     type Response = TestResponse;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct InvalidContractRequestEvent {
-    request_id: RequestId,
+    request_id: String,
 }
 
 impl InvalidContractRequestEvent {
     pub(super) fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            request_id: RequestId::parse(REQUEST_ID)?,
+            request_id: REQUEST_ID.to_owned(),
         })
     }
 }
 
 impl DomainEvent for InvalidContractRequestEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
-        Ok(EventContract::new(
-            crate::EventType::parse(REQUEST_EVENT_TYPE)?,
-            SchemaVersion::new(0)?,
-        ))
+        Err(EventingError::InvalidVersion)
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(REQUEST_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(REQUEST_IDEMPOTENCY)?)
     }
 }
 
@@ -80,7 +77,7 @@ impl RequestEvent for InvalidContractRequestEvent {
     type Response = TestResponse;
 
     fn request_id(&self) -> Result<RequestId, EventingError> {
-        Ok(self.request_id.clone())
+        Ok(RequestId::parse(&self.request_id)?)
     }
 }
 
@@ -107,7 +104,9 @@ impl EventResponseContract for TestResponse {
     fn validate(&self) -> Result<(), EventingError> {
         if self.decision.trim().is_empty() {
             return Err(EventingError::EmptyValue {
-                field: "test_response_decision",
+                field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                    "test_response_decision",
+                ),
             });
         }
         Ok(())
@@ -123,16 +122,16 @@ impl DomainEvent for TestResultEvent {
     fn contract(&self) -> Result<EventContract, EventingError> {
         Ok(EventContract::new(
             crate::EventType::parse(RESULT_EVENT_TYPE)?,
-            SchemaVersion::new(1)?,
+            SchemaVersion::try_new(std::num::NonZeroU16::MIN),
         ))
     }
 
     fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
-        AggregateKey::parse(REQUEST_AGGREGATE)
+        Ok(AggregateKey::parse(REQUEST_AGGREGATE)?)
     }
 
     fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
-        IdempotencyKey::parse(RESULT_IDEMPOTENCY)
+        Ok(IdempotencyKey::parse(RESULT_IDEMPOTENCY)?)
     }
 }
 
@@ -148,7 +147,7 @@ pub(super) fn test_request_with_id(
 ) -> Result<TestRequestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestRequestEvent {
         label: label.0,
-        request_id: RequestId::parse(request_id.0)?,
+        request_id: request_id.0,
     })
 }
 

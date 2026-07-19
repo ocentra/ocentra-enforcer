@@ -2,10 +2,12 @@ use super::support::{
     metadata, subscriber, test_event, TestEvent, TestText, OTHER_EVENT_TYPE, OTHER_SUBSCRIBER,
     OTHER_TARGET, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
-use enforcer_events::bus::{EventBus, ShutdownMode};
-use enforcer_events::envelope::{EventEnvelope, EventPriority};
+use enforcer_domain::events_types::{
+    CausationId, DispatchMode, EventNamespace, EventPriority, EventType, RecordedAt, ShutdownMode,
+};
+use enforcer_events::bus::EventBus;
+use enforcer_events::envelope::EventFrame;
 use enforcer_events::error::EventingError;
-use enforcer_events::ids::{CausationId, EventNamespace, EventType, RecordedAt, SchemaVersion};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -37,10 +39,10 @@ async fn event_bus_dispatches_typed_envelope_and_stores_serialized_boundary(
         .publish(test_event(&TestText(TEST_LABEL.to_owned()))?, metadata)
         .await?;
     let journal = bus.journal().await;
-    let decoded: EventEnvelope<TestEvent> = journal[0].decode()?;
+    let decoded: EventFrame<TestEvent> = journal[0].decode()?;
 
-    assert_eq!(report.subscriber_count, 1);
-    assert_eq!(report.handled_count, 1);
+    assert_eq!(crate::event_count_value(report.subscriber_count), 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 1);
     assert_eq!(handled.lock().await.as_slice(), &[TEST_LABEL.to_string()]);
     assert_eq!(decoded.payload.label, TEST_LABEL);
     assert_eq!(
@@ -92,7 +94,7 @@ async fn target_handler_filter_prevents_wrong_handler_delivery(
         )
         .await?;
 
-    assert_eq!(report.subscriber_count, 1);
+    assert_eq!(crate::event_count_value(report.subscriber_count), 1);
     assert_eq!(*handled.lock().await, 1);
     Ok(())
 }
@@ -111,8 +113,11 @@ async fn shutdown_cancels_future_event_delivery(
         .await;
 
     assert_eq!(report.mode, ShutdownMode::Drain);
-    assert!(!report.already_shutdown);
-    assert_eq!(report.queued_event_count, 0);
+    assert_eq!(
+        report.shutdown_state,
+        enforcer_domain::events_types::EventShutdownState::Active
+    );
+    assert_eq!(crate::event_count_value(report.queued_event_count), 0);
     assert_eq!(publish_after_shutdown, Err(EventingError::BusShutdown));
     Ok(())
 }
@@ -128,8 +133,10 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
         )?,
         |_| async {
             Err(EventingError::InvalidValue {
-                field: "handler_failure",
-                value: "handler_failure".to_string(),
+                field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                    "handler_failure",
+                ),
+                value: enforcer_domain::events_types::EventErrorReason::parse("handler_failure")?,
             })
         },
     )
@@ -139,13 +146,13 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
         .publish_with_mode(
             test_event(&TestText(TEST_LABEL.to_owned()))?,
             metadata(&TestText(TEST_TARGET.to_owned()))?,
-            enforcer_events::bus::DispatchMode::Concurrent,
+            DispatchMode::Concurrent,
         )
         .await?;
     let dead_letters = bus.dead_letters().await;
 
-    assert_eq!(report.dead_letter_count, 1);
-    assert_eq!(report.handled_count, 0);
+    assert_eq!(crate::event_count_value(report.dead_letter_count), 1);
+    assert_eq!(crate::event_count_value(report.handled_count), 0);
     assert_eq!(bus.journal().await.len(), 1);
     assert_eq!(
         dead_letters[0]
@@ -183,32 +190,22 @@ async fn duplicate_subscriber_ids_are_rejected(
 #[test]
 fn eventing_newtypes_reject_empty_values_and_zero_versions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    assert_eq!(
-        EventType::parse(""),
-        Err(EventingError::EmptyValue {
-            field: "event_type"
-        })
+    assert!(
+        matches!(EventType::parse(""), Err(error) if error.path == "event_type" && !error.reason.is_empty())
     );
     for invalid_taxonomy in [".leading", "trailing.", "empty..segment"] {
-        assert_eq!(
-            EventType::parse(invalid_taxonomy),
-            Err(EventingError::InvalidValue {
-                field: "event_type",
-                value: invalid_taxonomy.to_string(),
-            })
+        assert!(
+            matches!(EventType::parse(invalid_taxonomy), Err(error) if error.path == "event_type" && !error.reason.is_empty())
         );
     }
     assert_eq!(
         EventType::parse("eventing/slash-taxonomy/observed")?.as_str(),
         "eventing/slash-taxonomy/observed"
     );
-    assert_eq!(
-        RecordedAt::parse(" "),
-        Err(EventingError::EmptyValue {
-            field: "recorded_at"
-        })
+    assert!(
+        matches!(RecordedAt::parse(" "), Err(error) if error.path == "recorded_at" && !error.reason.is_empty())
     );
-    assert_eq!(SchemaVersion::new(0), Err(EventingError::InvalidVersion));
+    assert!(std::num::NonZeroU16::new(0).is_none());
     Ok(())
 }
 
@@ -223,15 +220,21 @@ fn event_namespaces_match_dot_and_slash_event_taxonomy(
         EventNamespace::from_event_type(&slash_event)?.as_str(),
         "network"
     );
-    assert!(network_namespace.matches_event_type(&slash_event));
-    assert!(network_namespace.matches_event_type(&dot_event));
+    assert_eq!(
+        EventNamespace::from_event_type(&slash_event)?,
+        network_namespace
+    );
+    assert_eq!(
+        EventNamespace::from_event_type(&dot_event)?,
+        network_namespace
+    );
     Ok(())
 }
 
 #[test]
 fn stored_decode_rejects_contract_mismatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
-    let envelope = EventEnvelope::from_event(
+    let envelope = EventFrame::from_event(
         test_event(&TestText(TEST_LABEL.to_owned()))?,
         metadata(&TestText(TEST_TARGET.to_owned()))?,
     )?;

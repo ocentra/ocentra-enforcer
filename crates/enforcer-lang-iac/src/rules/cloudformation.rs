@@ -1,33 +1,26 @@
-//! `iac/cfn-*` — the CloudFormation (JSON/YAML template) slice of the IaC
-//! rule family: IAC-1.4, IAC-1.5.
+//! CloudFormation built-in IaC detection specifications.
 
-use super::spec::{RuleSpec, TriggerKind};
+use enforcer_domain::ids::BuiltInIacRule;
 
-/// Every CloudFormation rule's static spec, in `rules/rules.json`
-/// declaration order.
-pub const SPECS: &[RuleSpec] = &[
+use super::spec::{CommentPolicy, RuleSpec, TriggerKind};
+use crate::boundary::source_text::IacPattern;
+
+const WILDCARD_ACTION: &[IacPattern] = &[IacPattern::WildcardAction];
+
+pub(crate) const SPECS: &[RuleSpec] = &[
     RuleSpec {
-        rule_id: "IAC-1.4",
-        title: "CloudFormation S3 buckets must block public access",
+        rule: BuiltInIacRule::CloudFormationPublicAccess,
         kind: TriggerKind::RequiredAbsent {
-            scope_needle: "AWS::S3::Bucket",
-            required_needle: "PublicAccessBlockConfiguration",
+            scope: IacPattern::CloudFormationS3Bucket,
+            required: IacPattern::PublicAccessBlock,
         },
-        needles: &[],
-        comment_guard: false,
+        patterns: &[],
+        comments: CommentPolicy::Include,
     },
     RuleSpec {
-        rule_id: "IAC-1.5",
-        title: "CloudFormation IAM policies must not grant wildcard action+resource",
+        rule: BuiltInIacRule::CloudFormationWildcardIam,
         kind: TriggerKind::ForbiddenPresent,
-        // Both a wildcard Action AND wildcard Resource must be present in
-        // the file for this to be the specific over-broad-grant shape this
-        // rule targets — checked as two independent literal needles OR'd
-        // per-line would over-fire on a file that merely mentions either
-        // alone, so this rule keys on the co-occurring pair line
-        // (`"Action": "*"` and `"Resource": "*"` are adjacent lines in the
-        // canonical CFN statement shape) via the combined marker below.
-        needles: &["\"Action\": \"*\""],
-        comment_guard: false,
+        patterns: WILDCARD_ACTION,
+        comments: CommentPolicy::Include,
     },
 ];

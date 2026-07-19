@@ -4,26 +4,43 @@
 //! wire-compatible for Store-backed model-observation persistence and
 //! replay.
 
+use enforcer_domain::memory_types::{ModelTask, ProviderKind, RecurrenceNegativeKind};
 use enforcer_domain::paths::RepoRoot;
+use enforcer_memory::boundary::log_schema::{ObservationLogEntryDto, SCHEMA_VERSION};
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::model_observations::{
     ingest_model_runtime_observation, project_model_runtime_observations_from_store,
-    record_model_runtime_observation_in_store, DegradedFallback, HashMismatch, LocalLoadSucceeded,
-    ModelLoadFailure, ModelRuntimeObservationCandidate, ModelRuntimeObservationRecord,
-    ProviderDowngrade, RecurrenceNegativeKind, RecurrenceOrNegativeEvidence, RerankerLiftProof,
-    RetrievalQualityProof, RouteChoiceImprovement, TokenReductionProof,
+    record_model_runtime_observation_in_store, DegradedFallbackDto, HashMismatchDto,
+    LocalLoadSucceededDto, ModelLoadFailureDto, ModelRuntimeObservationCandidate,
+    ModelRuntimeObservationRecordDto, ProviderDowngradeDto, RecurrenceOrNegativeEvidenceDto,
+    RerankerLiftProofDto, RetrievalQualityProofDto, RouteChoiceImprovementDto,
+    TokenReductionProofDto,
 };
-use enforcer_memory::model_runtime::{ModelTask, ProviderKind};
-use enforcer_memory::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use enforcer_memory::store::Store;
 
 #[test]
+fn observation_dto_domain_boundary_conversions_round_trip() -> Result<(), Box<dyn std::error::Error>>
+{
+    let downgrade = ProviderDowngradeDto {
+        model_id: "Qwen/Qwen3-Reranker-0.6B".to_owned(),
+        task: ModelTask::Reranking,
+        requested_provider: ProviderKind::Cuda,
+        fallback_provider: ProviderKind::Cpu,
+        reason: "CUDA probe unavailable".to_owned(),
+    };
+    let wire = serde_json::to_vec(&downgrade)?;
+    let restored: ProviderDowngradeDto = serde_json::from_slice(&wire)?;
+    assert_eq!(ProviderKind::from(restored), ProviderKind::Cpu);
+    Ok(())
+}
+
+#[test]
 fn model_load_failure_shape_round_trips() -> Result<(), Box<dyn std::error::Error>> {
-    let record = ModelRuntimeObservationRecord::new(
+    let record = ModelRuntimeObservationRecordDto::new(
         "2026-07-05T12:00:00Z",
         "integration",
         "run-1",
-        ModelRuntimeObservationCandidate::ModelLoadFailure(ModelLoadFailure {
+        ModelRuntimeObservationCandidate::ModelLoadFailureDto(ModelLoadFailureDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             task: ModelTask::Embedding,
             requested_provider: Some(ProviderKind::Cuda),
@@ -45,7 +62,7 @@ fn model_load_failure_shape_round_trips() -> Result<(), Box<dyn std::error::Erro
 #[test]
 fn provider_and_hash_candidates_shape_stable() -> Result<(), Box<dyn std::error::Error>> {
     let candidate_provider =
-        ModelRuntimeObservationCandidate::ProviderDowngrade(ProviderDowngrade {
+        ModelRuntimeObservationCandidate::ProviderDowngradeDto(ProviderDowngradeDto {
             model_id: "Qwen/Qwen3-Reranker-0.6B".to_string(),
             task: ModelTask::Reranking,
             requested_provider: ProviderKind::Cuda,
@@ -53,24 +70,25 @@ fn provider_and_hash_candidates_shape_stable() -> Result<(), Box<dyn std::error:
             reason: "driver unavailable".to_string(),
         });
     let candidate_artifact_hash =
-        ModelRuntimeObservationCandidate::ArtifactHashMismatch(HashMismatch {
+        ModelRuntimeObservationCandidate::ArtifactHashMismatch(HashMismatchDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             path: "artifacts/embedding.onnx".to_string(),
             expected_sha256: "aa".repeat(64),
             observed_sha256: "bb".repeat(64),
         });
     let candidate_tokenizer_hash =
-        ModelRuntimeObservationCandidate::TokenizerHashMismatch(HashMismatch {
+        ModelRuntimeObservationCandidate::TokenizerHashMismatch(HashMismatchDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             path: "artifacts/tokenizer.model".to_string(),
             expected_sha256: "cc".repeat(64),
             observed_sha256: "dd".repeat(64),
         });
-    let candidate_degraded = ModelRuntimeObservationCandidate::DegradedFallback(DegradedFallback {
-        model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
-        task: ModelTask::Embedding,
-        fallback_reason: "provider unavailable".to_string(),
-    });
+    let candidate_degraded =
+        ModelRuntimeObservationCandidate::DegradedFallbackDto(DegradedFallbackDto {
+            model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
+            task: ModelTask::Embedding,
+            fallback_reason: "provider unavailable".to_string(),
+        });
 
     let provider_value = serde_json::to_value(candidate_provider)?;
     let artifact_hash_value = serde_json::to_value(candidate_artifact_hash)?;
@@ -97,7 +115,7 @@ fn provider_and_hash_candidates_shape_stable() -> Result<(), Box<dyn std::error:
 #[test]
 fn retrieval_and_reranker_evidence_round_trip() -> Result<(), Box<dyn std::error::Error>> {
     let retrieval =
-        ModelRuntimeObservationCandidate::RetrievalQualityProof(RetrievalQualityProof {
+        ModelRuntimeObservationCandidate::RetrievalQualityProofDto(RetrievalQualityProofDto {
             query_id: "q-123".to_string(),
             query: "load local model".to_string(),
             route: "hybrid".to_string(),
@@ -107,7 +125,7 @@ fn retrieval_and_reranker_evidence_round_trip() -> Result<(), Box<dyn std::error
             expected_top_k: 10,
             returned_top_k: 10,
         });
-    let rerank = ModelRuntimeObservationCandidate::RerankerLiftProof(RerankerLiftProof {
+    let rerank = ModelRuntimeObservationCandidate::RerankerLiftProofDto(RerankerLiftProofDto {
         query_id: "q-123".to_string(),
         query: "load local model".to_string(),
         pre_rerank_top_k: vec!["a".to_string(), "b".to_string(), "c".to_string()],
@@ -121,7 +139,7 @@ fn retrieval_and_reranker_evidence_round_trip() -> Result<(), Box<dyn std::error
     let deserialized = serde_json::from_str::<ModelRuntimeObservationCandidate>(&serialized)?;
     assert!(matches!(
         deserialized,
-        ModelRuntimeObservationCandidate::RetrievalQualityProof(_)
+        ModelRuntimeObservationCandidate::RetrievalQualityProofDto(_)
     ));
     assert_eq!(
         serialized_json["observationKind"].as_str(),
@@ -133,21 +151,21 @@ fn retrieval_and_reranker_evidence_round_trip() -> Result<(), Box<dyn std::error
         serde_json::from_str::<ModelRuntimeObservationCandidate>(&rerank_round)?;
     assert!(matches!(
         rerank_deserialized,
-        ModelRuntimeObservationCandidate::RerankerLiftProof(_)
+        ModelRuntimeObservationCandidate::RerankerLiftProofDto(_)
     ));
     Ok(())
 }
 
 #[test]
 fn token_reduction_and_route_choice_round_trip() -> Result<(), Box<dyn std::error::Error>> {
-    let token_reduction = TokenReductionProof {
+    let token_reduction = TokenReductionProofDto {
         query_id: "q-456".to_string(),
         query: "route route-choice".to_string(),
         naive_tokens: 1000,
         context_tokens: 200,
     };
     let route_choice =
-        ModelRuntimeObservationCandidate::RouteChoiceImprovement(RouteChoiceImprovement {
+        ModelRuntimeObservationCandidate::RouteChoiceImprovementDto(RouteChoiceImprovementDto {
             query_id: "q-789".to_string(),
             query: "where models are loaded".to_string(),
             chosen_route: "hybrid-search".to_string(),
@@ -170,28 +188,28 @@ fn token_reduction_and_route_choice_round_trip() -> Result<(), Box<dyn std::erro
 
 #[test]
 fn recurrence_and_negative_evidence_shape() -> Result<(), Box<dyn std::error::Error>> {
-    let recurrence = ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(
-        RecurrenceOrNegativeEvidence {
+    let recurrence = ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(
+        RecurrenceOrNegativeEvidenceDto {
             lesson_id: "L123".to_string(),
             query_id: Some("q-789".to_string()),
             evidence_kind: RecurrenceNegativeKind::RecurrenceCount {
-                recurrence_count: 2,
-                previous_count: Some(1),
+                recurrence_count: 2.into(),
+                previous_count: Some(1.into()),
             },
             clean_evidence: false,
         },
     );
-    let negative = ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidence(
-        RecurrenceOrNegativeEvidence {
+    let negative = ModelRuntimeObservationCandidate::RecurrenceOrNegativeEvidenceDto(
+        RecurrenceOrNegativeEvidenceDto {
             lesson_id: "L124".to_string(),
             query_id: None,
             evidence_kind: RecurrenceNegativeKind::NegativeEvidence {
-                reason: "clean run, no finding".to_string(),
+                reason: "clean run, no finding".into(),
             },
             clean_evidence: true,
         },
     );
-    let local_load = ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceeded {
+    let local_load = ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceededDto {
         model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
         task: ModelTask::Embedding,
         provider: ProviderKind::Cpu,
@@ -220,18 +238,18 @@ fn model_runtime_observation_persists_to_store_and_graph() -> Result<(), Box<dyn
     let root: RepoRoot = "C:/Projects/x06-model-observation-store".parse()?;
     let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
     let mut graph = MemoryGraph::new();
-    let record = ModelRuntimeObservationRecord::new(
+    let record = ModelRuntimeObservationRecordDto::new(
         "2026-07-05T12:00:00Z",
         "x06-model-runtime-proof",
         "run-1",
-        ModelRuntimeObservationCandidate::DegradedFallback(DegradedFallback {
+        ModelRuntimeObservationCandidate::DegradedFallbackDto(DegradedFallbackDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             task: ModelTask::Embedding,
             fallback_reason: "provider unavailable".to_string(),
         }),
     );
 
-    let id = ingest_model_runtime_observation(&mut store, &mut graph, record.clone())?;
+    let id = ingest_model_runtime_observation(&mut store, &mut graph, &record)?;
     assert!(id.starts_with("obs-x06-model-runtime-proof-"));
     assert_eq!(graph.len(), 1);
 
@@ -261,11 +279,11 @@ fn store_backed_model_runtime_observation_replays_without_duplicate_writes(
     let dir = tempfile::tempdir()?;
     let root: RepoRoot = "C:/Projects/x06-model-observation-store-replay".parse()?;
     let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
-    let record = ModelRuntimeObservationRecord::new(
+    let record = ModelRuntimeObservationRecordDto::new(
         "2026-07-05T12:00:00Z",
         "x06-model-runtime-proof",
         "run-2",
-        ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceeded {
+        ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceededDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             task: ModelTask::Embedding,
             provider: ProviderKind::Cpu,
@@ -299,20 +317,20 @@ fn projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty
     let dir = tempfile::tempdir()?;
     let root: RepoRoot = "C:/Projects/x06-model-observation-legacy-fallback".parse()?;
     let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
-    let record = ModelRuntimeObservationRecord::new(
+    let record = ModelRuntimeObservationRecordDto::new(
         "2026-07-05T12:00:00Z",
         "x06-model-runtime-proof",
         "run-legacy",
-        ModelRuntimeObservationCandidate::DegradedFallback(DegradedFallback {
+        ModelRuntimeObservationCandidate::DegradedFallbackDto(DegradedFallbackDto {
             model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
             task: ModelTask::Embedding,
             fallback_reason: "provider unavailable".to_string(),
         }),
     );
     let payload = serde_json::to_value(&record)?;
-    store.append_observation_entry(|seq| ObservationLogEntry {
+    store.append_observation_entry(|seq| ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
+        seq: seq.into(),
         id: format!("obs-{seq:04}"),
         lesson_id: String::new(),
         rule_id: None,

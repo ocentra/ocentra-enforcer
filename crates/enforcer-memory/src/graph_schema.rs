@@ -1,6 +1,6 @@
 //! X06.P1: `get_graph_schema` -- node labels and edge types present in a
 //! [`CodeGraph`], with counts, matching the codebase-memory-mcp parity
-//! baseline's `get_graph_schema` tool (scout digest §1, row 6: "node
+//! baseline's `get_graph_schema` tool (scout digest Â§1, row 6: "node
 //! labels + edge types").
 //!
 //! [`CodeGraph`] only exposes its contents as flat `nodes()`/
@@ -11,7 +11,7 @@
 //! # Ordering matches the baseline: descending by count
 //!
 //! `docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md`
-//! §3.2 (ground-truth extraction of codebase-memory-mcp's C
+//! Â§3.2 (ground-truth extraction of codebase-memory-mcp's C
 //! `get_schema_impl`) confirms the baseline orders both `node_labels`
 //! and `edge_types` by **descending row count**, not alphabetically --
 //! "dynamic introspection... ordered by descending row count (not
@@ -24,29 +24,34 @@
 //! `SIMILAR_TO`/`SEMANTICALLY_RELATED` row counts from
 //! [`crate::similarity`]'s post-index pass -- kept as a separate
 //! function (not merged into [`get_graph_schema`] itself) because that
-//! pass is O(n²) over callable symbols, not a free introspection over
+//! pass is O(nÂ²) over callable symbols, not a free introspection over
 //! already-stored edges like every other row here.
 
+use enforcer_domain::memory_types::{
+    GraphEdgeCount, GraphNodeCount, GraphSchemaEdgeType, GraphSchemaLabel, GraphSchemaProperty,
+    GraphSchemaRowCount, NodeLabel,
+};
 use std::collections::BTreeMap;
 
 use crate::code_graph::{CodeGraph, CodeNode};
+use crate::owned_boundary::Retained;
 
 /// One node label's presence in the graph: the label name and how many
 /// nodes carry it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LabelCount {
-    pub label: String,
-    pub count: usize,
-    pub properties: Vec<String>,
+    pub label: GraphSchemaLabel,
+    pub count: GraphSchemaRowCount,
+    pub properties: Vec<GraphSchemaProperty>,
 }
 
 /// One edge type's presence in the graph: the edge type name and how
 /// many edges of that type exist.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EdgeTypeCount {
-    pub edge_type: String,
-    pub count: usize,
-    pub properties: Vec<String>,
+    pub edge_type: GraphSchemaEdgeType,
+    pub count: GraphSchemaRowCount,
+    pub properties: Vec<GraphSchemaProperty>,
 }
 
 /// The full schema summary: every node label and edge type present,
@@ -62,13 +67,21 @@ pub struct GraphSchema {
 
 impl GraphSchema {
     /// Total node count across all labels.
-    pub fn total_nodes(&self) -> usize {
-        self.labels.iter().map(|l| l.count).sum()
+    pub fn total_nodes(&self) -> GraphNodeCount {
+        self.labels
+            .iter()
+            .map(|label| label.count.get())
+            .sum::<usize>()
+            .into()
     }
 
     /// Total edge count across all edge types.
-    pub fn total_edges(&self) -> usize {
-        self.edge_types.iter().map(|e| e.count).sum()
+    pub fn total_edges(&self) -> GraphEdgeCount {
+        self.edge_types
+            .iter()
+            .map(|edge_type| edge_type.count.get())
+            .sum::<usize>()
+            .into()
     }
 }
 
@@ -78,24 +91,24 @@ impl GraphSchema {
 /// defined once, here, and every other place that needs a node's label
 /// string (e.g. [`crate::code_search`]) can reuse it instead of
 /// re-deriving its own string from a `match`.
-pub fn node_label(node: &CodeNode) -> &'static str {
+pub const fn node_label(node: &CodeNode) -> NodeLabel {
     match node {
-        CodeNode::File(_) => "File",
-        CodeNode::Function(_) => "Function",
-        CodeNode::Type(_) => "Type",
-        CodeNode::Test(_) => "Test",
-        CodeNode::TextOnly(_) => "TextOnly",
-        CodeNode::Tombstone(_) => "Tombstone",
-        CodeNode::Method(_) => "Method",
-        CodeNode::Class(_) => "Class",
-        CodeNode::Struct(_) => "Struct",
-        CodeNode::Interface(_) => "Interface",
-        CodeNode::Enum(_) => "Enum",
-        CodeNode::TypeAlias(_) => "TypeAlias",
-        CodeNode::Module(_) => "Module",
-        CodeNode::Lambda(_) => "Lambda",
-        CodeNode::Variable(_) => "Variable",
-        CodeNode::Constant(_) => "Constant",
+        CodeNode::File(_) => NodeLabel::File,
+        CodeNode::Function(_) => NodeLabel::Function,
+        CodeNode::Type(_) => NodeLabel::Type,
+        CodeNode::Test(_) => NodeLabel::Test,
+        CodeNode::TextOnly(_) => NodeLabel::TextOnly,
+        CodeNode::Tombstone(_) => NodeLabel::Tombstone,
+        CodeNode::Method(_) => NodeLabel::Method,
+        CodeNode::Class(_) => NodeLabel::Class,
+        CodeNode::Struct(_) => NodeLabel::Struct,
+        CodeNode::Interface(_) => NodeLabel::Interface,
+        CodeNode::Enum(_) => NodeLabel::Enum,
+        CodeNode::TypeAlias(_) => NodeLabel::TypeAlias,
+        CodeNode::Module(_) => NodeLabel::Module,
+        CodeNode::Lambda(_) => NodeLabel::Lambda,
+        CodeNode::Variable(_) => NodeLabel::Variable,
+        CodeNode::Constant(_) => NodeLabel::Constant,
     }
 }
 
@@ -110,13 +123,13 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     let mut label_counts: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut label_properties: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
     for node in graph.nodes() {
-        let label = node_label(node);
+        let label = node_label(node).as_str();
         *label_counts.entry(label).or_insert(0) += 1;
         if let Some(properties) = node_schema_properties(node) {
             let entry = label_properties.entry(label).or_default();
             for property in properties {
-                if !entry.iter().any(|existing| existing == property) {
-                    entry.push((*property).to_owned());
+                if !entry.iter().any(|existing| property == *existing) {
+                    entry.push(property.into());
                 }
             }
             entry.sort();
@@ -130,9 +143,9 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
         edge_properties.insert(
             "Imports",
             vec![
-                "from_file_id".to_owned(),
-                "module_path".to_owned(),
-                "line".to_owned(),
+                "from_file_id".retained(),
+                "module_path".retained(),
+                "line".retained(),
             ],
         );
     }
@@ -141,9 +154,9 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
         edge_properties.insert(
             "Calls",
             vec![
-                "from_file_id".to_owned(),
-                "callee".to_owned(),
-                "line".to_owned(),
+                "from_file_id".retained(),
+                "callee".retained(),
+                "line".retained(),
             ],
         );
     }
@@ -152,10 +165,10 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
         edge_properties.insert(
             "Route",
             vec![
-                "from_file_id".to_owned(),
-                "method".to_owned(),
-                "path".to_owned(),
-                "line".to_owned(),
+                "from_file_id".retained(),
+                "method".retained(),
+                "path".retained(),
+                "line".retained(),
             ],
         );
     }
@@ -178,9 +191,14 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     let mut labels: Vec<LabelCount> = label_counts
         .into_iter()
         .map(|(label, count)| LabelCount {
-            label: label.to_owned(),
-            count,
-            properties: label_properties.remove(label).unwrap_or_default(),
+            label: label.into(),
+            count: count.into(),
+            properties: label_properties
+                .remove(label)
+                .map_or_else(Vec::new, std::convert::identity)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         })
         .collect();
     // Descending by count (baseline parity, see module docs); ties
@@ -191,9 +209,14 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     let mut edge_types: Vec<EdgeTypeCount> = edge_counts
         .into_iter()
         .map(|(edge_type, count)| EdgeTypeCount {
-            edge_type: edge_type.to_owned(),
-            count,
-            properties: edge_properties.remove(edge_type).unwrap_or_default(),
+            edge_type: edge_type.into(),
+            count: count.into(),
+            properties: edge_properties
+                .remove(edge_type)
+                .map_or_else(Vec::new, std::convert::identity)
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         })
         .collect();
     edge_types.sort_by(|a, b| {
@@ -207,7 +230,7 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
 
 /// [`get_graph_schema`] plus `SIMILAR_TO`/`SEMANTICALLY_RELATED` rows,
 /// for callers that have already run [`crate::similarity::similar_to`]/
-/// [`crate::similarity::semantically_related`] (both an O(n²) post-index
+/// [`crate::similarity::semantically_related`] (both an O(nÂ²) post-index
 /// pass over callable symbols -- see that module's doc comment -- so
 /// this function takes the results rather than recomputing them itself,
 /// keeping [`get_graph_schema`] itself a cheap O(n) introspection over
@@ -231,58 +254,72 @@ pub fn get_graph_schema_with_similarity_modes(
     let mut schema = get_graph_schema(graph);
     let baseline_minhash_count = baseline_similar_to_edges
         .iter()
-        .filter(|edge| edge.mode == crate::similarity::SimilarityMode::MinHashFingerprint)
+        .filter(|edge| {
+            edge.mode == enforcer_domain::memory_types::SimilarityMode::MinHashFingerprint
+        })
         .count();
     let body_shingle_count = baseline_similar_to_edges
         .iter()
-        .filter(|edge| edge.mode == crate::similarity::SimilarityMode::BodyShingle)
+        .filter(|edge| edge.mode == enforcer_domain::memory_types::SimilarityMode::BodyShingle)
         .count();
     if baseline_minhash_count > 0 {
         schema.edge_types.push(EdgeTypeCount {
-            edge_type: "SIMILAR_TO".to_owned(),
-            count: baseline_minhash_count,
+            edge_type: "SIMILAR_TO".into(),
+            count: baseline_minhash_count.into(),
             properties: vec![
-                "source_id".to_owned(),
-                "target_id".to_owned(),
-                "jaccard".to_owned(),
-                "same_file".to_owned(),
-            ],
+                "source_id".retained(),
+                "target_id".retained(),
+                "jaccard".retained(),
+                "same_file".retained(),
+            ]
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         });
     }
     if body_shingle_count > 0 {
         schema.edge_types.push(EdgeTypeCount {
-            edge_type: "BODY_SHINGLE_SIMILAR_TO".to_owned(),
-            count: body_shingle_count,
+            edge_type: "BODY_SHINGLE_SIMILAR_TO".into(),
+            count: body_shingle_count.into(),
             properties: vec![
-                "source_id".to_owned(),
-                "target_id".to_owned(),
-                "jaccard".to_owned(),
-                "same_file".to_owned(),
-            ],
+                "source_id".retained(),
+                "target_id".retained(),
+                "jaccard".retained(),
+                "same_file".retained(),
+            ]
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         });
     }
     if !rust_identifier_similar_to_edges.is_empty() {
         schema.edge_types.push(EdgeTypeCount {
-            edge_type: "RUST_IDENTIFIER_SIMILAR_TO".to_owned(),
-            count: rust_identifier_similar_to_edges.len(),
+            edge_type: "RUST_IDENTIFIER_SIMILAR_TO".into(),
+            count: rust_identifier_similar_to_edges.len().into(),
             properties: vec![
-                "source_id".to_owned(),
-                "target_id".to_owned(),
-                "jaccard".to_owned(),
-                "same_file".to_owned(),
-            ],
+                "source_id".retained(),
+                "target_id".retained(),
+                "jaccard".retained(),
+                "same_file".retained(),
+            ]
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         });
     }
     if !semantically_related_edges.is_empty() {
         schema.edge_types.push(EdgeTypeCount {
-            edge_type: "SEMANTICALLY_RELATED".to_owned(),
-            count: semantically_related_edges.len(),
+            edge_type: "SEMANTICALLY_RELATED".into(),
+            count: semantically_related_edges.len().into(),
             properties: vec![
-                "source_id".to_owned(),
-                "target_id".to_owned(),
-                "score".to_owned(),
-                "same_file".to_owned(),
-            ],
+                "source_id".retained(),
+                "target_id".retained(),
+                "score".retained(),
+                "same_file".retained(),
+            ]
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         });
     }
     schema.edge_types.sort_by(|a, b| {
@@ -293,7 +330,7 @@ pub fn get_graph_schema_with_similarity_modes(
     schema
 }
 
-fn node_schema_properties(node: &CodeNode) -> Option<&'static [&'static str]> {
+fn node_schema_properties(node: &CodeNode) -> Option<[GraphSchemaProperty; 2]> {
     match node {
         CodeNode::Function(sym)
         | CodeNode::Method(sym)
@@ -301,7 +338,7 @@ fn node_schema_properties(node: &CodeNode) -> Option<&'static [&'static str]> {
         | CodeNode::Lambda(sym)
             if sym.source_body_fingerprint.is_some() =>
         {
-            Some(&["fp", "k"])
+            Some(["fp".into(), "k".into()])
         }
         _ => None,
     }

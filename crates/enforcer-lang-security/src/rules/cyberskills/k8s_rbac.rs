@@ -37,69 +37,10 @@ const RBAC_KINDS: &[&str] = &["Role", "ClusterRole", "RoleBinding", "ClusterRole
 /// check (`get`/`list`/`watch`, or a wildcard).
 const SECRET_READ_VERBS: &[&str] = &["get", "list", "watch", "*"];
 
-#[derive(Debug, Default, serde::Deserialize)]
-struct Manifest {
-    // DEFAULT-JUSTIFICATION: a document without kind is outside this RBAC-only rule.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw manifest kind gates all subsequent RBAC inspection.
-    kind: Option<String>,
-    // DEFAULT-JUSTIFICATION: bindings do not have rules and an absent rules list grants nothing.
-    #[serde(default)]
-    rules: Vec<PolicyRule>,
-    // DEFAULT-JUSTIFICATION: roles do not have roleRef and cannot bind cluster-admin.
-    #[serde(default, rename = "roleRef")]
-    role_ref: Option<RoleRef>,
-    // DEFAULT-JUSTIFICATION: roles have no subjects and an absent binding subject grants nothing.
-    #[serde(default)]
-    subjects: Vec<Subject>,
-}
+use crate::boundary::k8s_rbac::{any_matches, has, parse_manifest};
 
-#[derive(Debug, Default, serde::Deserialize)]
-struct PolicyRule {
-    // DEFAULT-JUSTIFICATION: an absent verb list grants no operation.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw verbs are compared only with the narrow hazardous-verb set.
-    verbs: Vec<String>,
-    // DEFAULT-JUSTIFICATION: an absent resource list grants no resource access.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw resources are compared only with wildcard and secret resource names.
-    resources: Vec<String>,
-    // DEFAULT-JUSTIFICATION: an absent apiGroups list cannot grant a wildcard group.
-    #[serde(default, rename = "apiGroups")]
-    // BRAND-INVARIANT: raw API groups are compared only for a wildcard grant.
-    api_groups: Vec<String>,
-    // DEFAULT-JUSTIFICATION: an absent non-resource URL list grants no API-path access.
-    #[serde(default, rename = "nonResourceURLs")]
-    // BRAND-INVARIANT: raw API paths are compared only for wildcard access.
-    non_resource_urls: Vec<String>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct RoleRef {
-    // DEFAULT-JUSTIFICATION: missing kind is conventionally ClusterRole for a ClusterRoleBinding.
-    #[serde(default)]
-    // BRAND-INVARIANT: this raw reference kind is used only to qualify cluster-admin bindings.
-    kind: Option<String>,
-    // DEFAULT-JUSTIFICATION: missing name cannot identify the cluster-admin role.
-    #[serde(default)]
-    // BRAND-INVARIANT: this raw role name is compared only with the canonical cluster-admin name.
-    name: Option<String>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct Subject {
-    // DEFAULT-JUSTIFICATION: an omitted kind cannot identify a privileged group subject.
-    #[serde(default)]
-    // BRAND-INVARIANT: only the Kubernetes Group kind can be system:masters.
-    kind: Option<String>,
-    // DEFAULT-JUSTIFICATION: an omitted name cannot grant system:masters membership.
-    #[serde(default)]
-    // BRAND-INVARIANT: compared only with the built-in superuser group name.
-    name: Option<String>,
-}
-
-#[derive(Debug)]
 /// `CYBER-K8S-RBAC.1` — RBAC privilege-escalation hardening manifest gate.
+#[derive(Debug)]
 pub struct K8sRbacValidator {
     rule_id: RuleId,
 }
@@ -108,33 +49,9 @@ impl K8sRbacValidator {
     /// Builds the validator with its canonical, validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-K8S-RBAC.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberK8sRbac.id(),
         })
     }
-
-    fn finding(&self, input: &ValidationInput<'_>, severity: Severity, detail: String) -> Finding {
-        // ALLOC-JUSTIFICATION: findings are durable report records and therefore own their static title.
-        Finding {
-            // CLONE-JUSTIFICATION: each emitted finding owns its stable rule identity after validation returns.
-            rule_id: self.rule_id.clone(),
-            severity,
-            title: "Kubernetes RBAC manifest grants excessive privilege".to_owned(),
-            detail,
-            // CLONE-JUSTIFICATION: each emitted finding owns its source path after the borrowed input expires.
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }
-    }
-}
-
-fn has(list: &[String], value: &str) -> bool {
-    list.iter().any(|v| v == value)
-}
-
-fn any_matches(list: &[String], candidates: &[&str]) -> bool {
-    list.iter()
-        .any(|v| candidates.iter().any(|c| v.eq_ignore_ascii_case(c)))
 }
 
 impl Validator for K8sRbacValidator {
@@ -143,7 +60,7 @@ impl Validator for K8sRbacValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(manifest) = serde_yaml::from_str::<Manifest>(input.source) else {
+        let Some(manifest) = parse_manifest(input.source.as_str()) else {
             return Vec::new();
         };
         let Some(kind) = manifest.kind.as_deref() else {
@@ -154,6 +71,12 @@ impl Validator for K8sRbacValidator {
         }
 
         let mut findings = Vec::new();
+        let Some(emit) = crate::boundary::finding::ValidationFindingFactory::new(
+            &self.rule_id,
+            "Kubernetes RBAC manifest grants excessive privilege",
+        ) else {
+            return findings;
+        };
 
         // Role/ClusterRole `rules:` checks — wildcard grants and secrets
         // read access.
@@ -175,8 +98,9 @@ impl Validator for K8sRbacValidator {
                         } else {
                             Severity::Warning
                         };
-                    findings.push(self.finding(
+                    findings.extend(emit.finding(
                         &input,
+                        1,
                         severity,
                         format!(
                             "{kind} rule grants a wildcard permission (verbs: {:?}, resources: \
@@ -191,8 +115,9 @@ impl Validator for K8sRbacValidator {
                 let reads_secrets = any_matches(&rule.resources, &["secrets", "*"])
                     && any_matches(&rule.verbs, SECRET_READ_VERBS);
                 if reads_secrets {
-                    findings.push(self.finding(
+                    findings.extend(emit.finding(
                         &input,
+                        1,
                         Severity::Error,
                         format!(
                             "{kind} rule grants read access to `secrets` (verbs: {:?}). Fix: \
@@ -223,8 +148,9 @@ impl Validator for K8sRbacValidator {
                 } else {
                     "full privilege within the binding namespace"
                 };
-                findings.push(self.finding(
+                findings.extend(emit.finding(
                     &input,
+                    1,
                     Severity::Error,
                     format!(
                         "{kind} binds subjects to the `cluster-admin` ClusterRole ({scope}). \
@@ -238,8 +164,9 @@ impl Validator for K8sRbacValidator {
                     && subject.name.as_deref() == Some("system:masters")
             });
             if binds_system_masters {
-                findings.push(self.finding(
+                findings.extend(emit.finding(
                     &input,
+                    1,
                     Severity::Error,
                     format!(
                         "{kind} binds a subject to the built-in `system:masters` group, whose \
@@ -251,5 +178,33 @@ impl Validator for K8sRbacValidator {
         }
 
         findings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_manifest;
+
+    #[test]
+    fn parser_handles_empty_and_rejects_invalid_and_malformed_documents() {
+        assert!(
+            matches!(parse_manifest(""), Some(manifest) if manifest.kind.is_none()),
+            "empty documents have no RBAC kind"
+        );
+        assert!(
+            parse_manifest("kind: [").is_none(),
+            "malformed YAML is rejected"
+        );
+        assert!(
+            parse_manifest("kind: Role\nrules: [").is_none(),
+            "invalid YAML is rejected"
+        );
+    }
+
+    #[test]
+    fn parser_handles_oversized_metadata_without_panicking() {
+        let oversized_name = "x".repeat(4096);
+        let document = format!("kind: Role\nmetadata:\n  name: {oversized_name}\n");
+        assert!(matches!(parse_manifest(&document), Some(_)));
     }
 }

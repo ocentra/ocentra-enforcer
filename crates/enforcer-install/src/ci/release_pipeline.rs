@@ -4,57 +4,7 @@
 //! [`super::boundary::release_rendering`]. This module only decides whether
 //! the typed platform-and-variant assets are safe to publish.
 
-use crate::distribution::TargetPlatform;
-
-/// The Cargo-feature binary variants released for each target platform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BinaryVariant {
-    /// Includes the coordination hub and UI.
-    Full,
-    /// Headless CI-oriented binary with the smaller feature surface.
-    Lite,
-}
-
-impl BinaryVariant {
-    /// Every released variant in deterministic CI order.
-    #[must_use]
-    pub fn all() -> &'static [Self] {
-        &[Self::Lite, Self::Full]
-    }
-
-    /// The variant selected when CI has no explicit feature choice.
-    #[must_use]
-    pub fn ci_default() -> Self {
-        Self::Lite
-    }
-}
-
-/// A typed asset that must pass a smoke run before publication.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReleaseAsset {
-    /// Target platform selected by the distribution matrix.
-    pub platform: TargetPlatform,
-    /// Binary feature variant selected by the distribution matrix.
-    pub variant: BinaryVariant,
-}
-
-/// The typed result of one asset's smoke run.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SmokeResult {
-    /// Asset tested by the smoke adapter.
-    pub asset: ReleaseAsset,
-    /// Explicit result, never an ambiguous boolean flag.
-    pub outcome: SmokeOutcome,
-}
-
-/// The decision-relevant smoke outcome.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SmokeOutcome {
-    /// Both release fixtures completed with their required outcomes.
-    Passed,
-    /// A fixture panicked, hung, or returned an unexpected exit status.
-    Failed,
-}
+use enforcer_domain::install_types::{ReleaseGateVerdict, SmokeOutcome, SmokeResult};
 
 /// Gate a completed smoke sweep. One failed asset blocks the whole release.
 #[must_use]
@@ -67,53 +17,13 @@ pub fn gate_release(results: Vec<SmokeResult>) -> ReleaseGateVerdict {
     ReleaseGateVerdict::from_failing(failing)
 }
 
-/// The pre-publish decision and any assets that require repair.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReleaseGateVerdict {
-    /// Every release asset passed its smoke run.
-    Publish,
-    /// At least one release asset failed its smoke run.
-    Blocked {
-        /// Assets that prevented publication.
-        failing: Vec<ReleaseAsset>,
-    },
-}
-
-impl ReleaseGateVerdict {
-    fn from_failing(failing: Vec<ReleaseAsset>) -> Self {
-        if failing.is_empty() {
-            Self::Publish
-        } else {
-            Self::Blocked { failing }
-        }
-    }
-
-    /// The typed permission derived from the complete smoke sweep.
-    #[must_use]
-    pub fn publication_status(&self) -> PublicationStatus {
-        match self {
-            Self::Publish => PublicationStatus::Approved,
-            Self::Blocked { .. } => PublicationStatus::Blocked,
-        }
-    }
-}
-
-/// Whether the release may proceed to publication.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PublicationStatus {
-    /// Every required smoke run passed.
-    Approved,
-    /// One or more required smoke runs failed.
-    Blocked,
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{
-        gate_release, BinaryVariant, PublicationStatus, ReleaseAsset, ReleaseGateVerdict,
-        SmokeOutcome, SmokeResult,
+    use super::gate_release;
+    use enforcer_domain::install_types::{
+        BinaryVariant, PublicationStatus, ReleaseAsset, ReleaseGateVerdict, SmokeOutcome,
+        SmokeResult, TargetPlatform,
     };
-    use crate::distribution::TargetPlatform;
 
     #[test]
     fn ci_default_variant_is_lite() {

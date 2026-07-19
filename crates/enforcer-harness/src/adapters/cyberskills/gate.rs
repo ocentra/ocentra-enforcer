@@ -11,6 +11,8 @@
 //! [`super::recorded::parse_recorded`] from a fixture, or eventually by a
 //! live subprocess adapter parsing real stdout through the same seam).
 
+// BOUNDARY-INVARIANT: recorded adapter text is parsed before severity policy
+// evaluates canonical findings; raw engine fields never enter the gate.
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
@@ -54,29 +56,10 @@ impl SeverityThresholdGate {
             .findings()
             .iter()
             .filter(|finding| {
-                AdapterOutcome::normalize_severity(&finding.severity) <= self.threshold
+                AdapterOutcome::normalize_severity(finding.severity.as_str()) <= self.threshold
             })
-            .map(|finding| Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: format!(
-                    "engine finding at or above `{:?}` threshold",
-                    self.threshold
-                ),
-                detail: format!(
-                    "{} ({}): {}{}",
-                    finding.rule_id,
-                    finding.severity,
-                    finding.message,
-                    finding
-                        .threat_id
-                        .as_deref()
-                        .map(|t| format!(" [{t}]"))
-                        .unwrap_or_default()
-                ),
-                file: file.clone(),
-                line: finding.line,
-                snippet: None,
+            .filter_map(|finding| {
+                finding.to_domain(self.rule_id.clone(), file.clone(), self.threshold)
             })
             .collect()
     }
@@ -94,34 +77,41 @@ impl Validator for SeverityThresholdGate {
     /// expects a rule's fail fixture to fail: by emitting a `Finding`, here
     /// carrying the parse rejection as the detail.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        match parse_recorded(input.source) {
+        match parse_recorded(input.source.as_str()) {
             Ok(outcome) => self.evaluate(&outcome, input.file),
-            Err(err) => vec![Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "cyberskills adapter output rejected".to_owned(),
-                detail: err.to_string(),
-                file: input.file.clone(),
-                line: 1,
-                snippet: None,
-            }],
+            Err(err) => domain_finding!(
+                self.rule_id.clone(),
+                Severity::Error,
+                "cyberskills adapter output rejected".to_owned(),
+                err.to_string(),
+                input.file.clone(),
+                1,
+            )
+            .into_iter()
+            .collect(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
+    use enforcer_domain::boundary::validation::ValidationSource;
+    use enforcer_domain::harness_types::{
+        HarnessDiagnosticMessage, HarnessDiagnosticPath, HarnessExternalRuleId,
+        HarnessExternalSeverity, HarnessSourceLine, HarnessThreatId,
+    };
+    use enforcer_domain::paths::{RelPath, RepoRoot};
     use enforcer_domain::severity::Severity;
     use enforcer_validator::harness::run_fixture_parity;
     use enforcer_validator::validator::{ValidationInput, Validator};
 
     use super::SeverityThresholdGate;
-    use crate::adapters::cyberskills::seam::{AdapterOutcome, EngineFinding};
+    use crate::adapters::cyberskills::seam::{AdapterOutcome, EngineFindingEnvelope};
 
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    fn manifest_dir() -> Result<RepoRoot, Box<dyn std::error::Error>> {
+        Ok(RepoRoot::try_from(std::path::Path::new(env!(
+            "CARGO_MANIFEST_DIR"
+        )))?)
     }
 
     fn gate() -> Result<SeverityThresholdGate, Box<dyn std::error::Error>> {
@@ -133,12 +123,11 @@ mod tests {
 
     #[test]
     fn severity_gate_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
-        run_fixture_parity(
-            &gate()?,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills_adapters/sca/bad/high_cve_over_threshold.json",
-            "tests/fixtures/cyberskills_adapters/sca/good/below_threshold.json",
-        )?;
+        let fail: RelPath =
+            "tests/fixtures/cyberskills_adapters/sca/bad/high_cve_over_threshold.json".parse()?;
+        let pass: RelPath =
+            "tests/fixtures/cyberskills_adapters/sca/good/below_threshold.json".parse()?;
+        run_fixture_parity(&gate()?, &manifest_dir()?, &fail, &pass)?;
         Ok(())
     }
 
@@ -148,18 +137,21 @@ mod tests {
         let file: enforcer_domain::paths::RelPath = "package-lock.json".parse()?;
         let outcome = AdapterOutcome::Ran {
             ran: 1,
-            findings: vec![EngineFinding {
-                rule_id: "CVE-2024-12345".to_owned(),
-                severity: "High".to_owned(),
-                file: "package-lock.json".to_owned(),
-                line: 1,
-                message: "vulnerable".to_owned(),
-                threat_id: Some("CWE-1321".to_owned()),
+            findings: vec![EngineFindingEnvelope {
+                rule_id: HarnessExternalRuleId::from_adapter("CVE-2024-12345"),
+                severity: HarnessExternalSeverity::from_adapter("High"),
+                file: HarnessDiagnosticPath::from_adapter("package-lock.json"),
+                line: HarnessSourceLine::from_external(1),
+                message: HarnessDiagnosticMessage::from_adapter("vulnerable"),
+                threat_id: Some(HarnessThreatId::from_adapter("CWE-1321")),
             }],
         };
         let findings = gate.evaluate(&outcome, &file);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("CWE-1321"));
+        assert_eq!(
+            findings[0].detail.as_str(),
+            "CVE-2024-12345 (High): vulnerable [CWE-1321]"
+        );
         Ok(())
     }
 
@@ -169,12 +161,12 @@ mod tests {
         let file: enforcer_domain::paths::RelPath = "package-lock.json".parse()?;
         let outcome = AdapterOutcome::Ran {
             ran: 1,
-            findings: vec![EngineFinding {
-                rule_id: "CVE-2023-99999".to_owned(),
-                severity: "Low".to_owned(),
-                file: "package-lock.json".to_owned(),
-                line: 1,
-                message: "minor".to_owned(),
+            findings: vec![EngineFindingEnvelope {
+                rule_id: HarnessExternalRuleId::from_adapter("CVE-2023-99999"),
+                severity: HarnessExternalSeverity::from_adapter("Low"),
+                file: HarnessDiagnosticPath::from_adapter("package-lock.json"),
+                line: HarnessSourceLine::from_external(1),
+                message: HarnessDiagnosticMessage::from_adapter("minor"),
                 threat_id: None,
             }],
         };
@@ -198,13 +190,17 @@ mod tests {
         let file: enforcer_domain::paths::RelPath = "adapter-output.json".parse()?;
         let findings = gate.validate(ValidationInput {
             file: &file,
-            source: "{not json",
+            source: ValidationSource::from_text("{not json"),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert_eq!(findings.len(), 1);
         assert!(
-            findings[0].detail.to_lowercase().contains("decode")
-                || findings[0].title.contains("rejected")
+            findings[0]
+                .detail
+                .as_str()
+                .to_lowercase()
+                .contains("decode")
+                || findings[0].title.as_str().contains("rejected")
         );
         Ok(())
     }

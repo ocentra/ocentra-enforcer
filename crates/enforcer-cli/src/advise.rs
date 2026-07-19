@@ -83,8 +83,21 @@ mod tests {
     }
 
     #[test]
-    fn any_other_target_is_a_hard_error() {
-        assert!(AdviseTarget::from_str("secrets").is_err());
-        assert!(AdviseTarget::from_str("").is_err());
+    fn any_other_target_is_a_hard_error() -> Result<(), Box<dyn std::error::Error>> {
+        let unsupported = AdviseTarget::from_str("secrets")
+            .err()
+            .ok_or("must reject secrets")?;
+        assert_eq!(
+            unsupported.to_string(),
+            "advise currently supports only literals (got `secrets`)"
+        );
+        let empty = AdviseTarget::from_str("")
+            .err()
+            .ok_or("must reject empty target")?;
+        assert_eq!(
+            empty.to_string(),
+            "advise currently supports only literals (got ``)"
+        );
+        Ok(())
     }
 }

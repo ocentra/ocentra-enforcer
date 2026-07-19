@@ -1,30 +1,35 @@
 use std::sync::{Arc, Mutex, PoisonError};
 
+use enforcer_domain::events_types::{EventActivityState, EventCount};
 use tokio::sync::Notify;
 
 #[derive(Clone, Default)]
 pub(super) struct ActiveDispatchTracker {
-    state: Arc<Mutex<usize>>,
+    state: Arc<Mutex<EventCount>>,
     idle: Arc<Notify>,
 }
 
 impl ActiveDispatchTracker {
     pub(super) fn enter(&self) -> ActiveDispatchGuard {
-        *self.state.lock().unwrap_or_else(PoisonError::into_inner) += 1;
+        let mut active_count = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        *active_count = active_count.incremented();
+        // CLONE-JUSTIFICATION: the guard owns a tracker handle so Drop can decrement activity after the caller releases its borrow.
         ActiveDispatchGuard {
             tracker: self.clone(),
-            active: true,
+            activity: EventActivityState::Active,
         }
     }
 
-    pub(super) fn active_count(&self) -> usize {
+    pub(super) fn active_count(&self) -> EventCount {
         *self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     pub(super) async fn wait_for_idle(&self) {
+        // CANCELLATION: dropping this wait future cancels its notifier registration;
+        // otherwise the loop exits as soon as the tracked dispatch count reaches zero.
         loop {
             let notified = self.idle.notified();
-            if self.active_count() == 0 {
+            if self.active_count() == EventCount::ZERO {
                 return;
             }
             notified.await;
@@ -34,12 +39,12 @@ impl ActiveDispatchTracker {
 
 pub(super) struct ActiveDispatchGuard {
     tracker: ActiveDispatchTracker,
-    active: bool,
+    activity: EventActivityState,
 }
 
 impl Drop for ActiveDispatchGuard {
     fn drop(&mut self) {
-        if !self.active {
+        if self.activity == EventActivityState::Inactive {
             return;
         }
         let mut active_count = self
@@ -47,8 +52,8 @@ impl Drop for ActiveDispatchGuard {
             .state
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        *active_count = active_count.saturating_sub(1);
-        if *active_count == 0 {
+        *active_count = active_count.decremented();
+        if *active_count == EventCount::ZERO {
             self.tracker.idle.notify_waiters();
         }
     }

@@ -34,10 +34,12 @@
 
 use std::path::Path;
 
+use enforcer_domain::findings::ReportOutcome;
 use enforcer_domain::hashes::Sha256;
+use enforcer_domain::xtask_types::{
+    DogfoodGateVerdict, LiteralFloorCheck, ToolchainOutcome, XtaskFailureDetail,
+};
 use enforcer_scan::rules::baseline_ratchet::BaselineGateOutcome;
-
-use crate::dogfood::boundary::ToolchainOutcome;
 
 pub mod boundary;
 
@@ -50,7 +52,7 @@ pub struct GateError {
     // BRAND-INVARIANT: always the rendered message of the one underlying
     // composition/io failure this value wraps (see `from_display`);
     // display-only, never re-parsed or matched on downstream.
-    detail: String,
+    detail: XtaskFailureDetail,
 }
 
 impl GateError {
@@ -58,7 +60,8 @@ impl GateError {
     pub fn from_display(source: impl std::fmt::Display) -> Self {
         // ALLOC-JUSTIFICATION: the wrapped error is consumed here; one
         // owned rendering is required for this error to be 'static.
-        let detail = source.to_string();
+        let detail = XtaskFailureDetail::try_new(source.to_string())
+            .unwrap_or_else(|_| XtaskFailureDetail::invalid_rendering());
         Self { detail }
     }
 }
@@ -66,49 +69,6 @@ impl GateError {
 impl From<crate::dogfood::DogfoodError> for GateError {
     fn from(source: crate::dogfood::DogfoodError) -> Self {
         Self::from_display(source)
-    }
-}
-
-/// Terminal PASS/FAIL verdict. Closed two-variant domain enum; rendered
-/// (`Display`) as its lowercase manifest token.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc = "Closed terminal verdict; see the module docs."]
-pub enum Verdict {
-    /// Zero new self-violations across every gated family.
-    Pass,
-    /// At least one blocking condition fired.
-    Fail,
-}
-
-impl std::fmt::Display for Verdict {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Pass => formatter.write_str("pass"),
-            Self::Fail => formatter.write_str("fail"),
-        }
-    }
-}
-
-/// The e01 literal-scan floor's standing against its committed T2
-/// ceiling. Computed by [`boundary`] (which owns the counts), consumed by
-/// [`judge`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc = "Closed T2-floor standing; see the module docs."]
-pub enum FloorCheck {
-    /// The current hard-finding count is at or below the committed
-    /// ceiling (existing debt, grandfathered by the same
-    /// start-green-not-bypassed doctrine as the a10 baseline).
-    WithinCeiling,
-    /// The count GREW past the committed ceiling -- new T2 debt.
-    ExceedsCeiling,
-}
-
-impl std::fmt::Display for FloorCheck {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::WithinCeiling => formatter.write_str("within ceiling"),
-            Self::ExceedsCeiling => formatter.write_str("exceeds ceiling"),
-        }
     }
 }
 
@@ -120,15 +80,16 @@ impl std::fmt::Display for FloorCheck {
 pub fn judge(
     scan_gate: &BaselineGateOutcome,
     toolchain: Option<&ToolchainOutcome>,
-    floor: FloorCheck,
-) -> Verdict {
-    let scan_green = scan_gate.passes();
-    let toolchain_green = toolchain.is_none_or(ToolchainOutcome::passes);
-    let floor_green = matches!(floor, FloorCheck::WithinCeiling);
+    floor: LiteralFloorCheck,
+) -> DogfoodGateVerdict {
+    let scan_green = matches!(scan_gate.passes(), ReportOutcome::Clean);
+    let toolchain_green =
+        toolchain.is_none_or(|outcome| matches!(outcome.verdict(), DogfoodGateVerdict::Pass));
+    let floor_green = matches!(floor, LiteralFloorCheck::WithinCeiling);
     if scan_green && toolchain_green && floor_green {
-        Verdict::Pass
+        DogfoodGateVerdict::Pass
     } else {
-        Verdict::Fail
+        DogfoodGateVerdict::Fail
     }
 }
 
@@ -160,44 +121,44 @@ pub fn ruleset_fingerprint(rules_dir: &Path) -> Result<Sha256, GateError> {
         .iter()
         // ALLOC-JUSTIFICATION: the digest preimage owns its sorted
         // `(ruleId, version)` rows; the registry stays borrowed.
-        .map(|record| (record.rule_id.to_string(), record.version))
+        .map(|record| (record.rule_id.to_string(), record.version.value().get()))
         .collect();
     pairs.sort();
     let preimage = serde_json::to_vec(&pairs).map_err(GateError::from_display)?;
-    enforcer_core::hash_chain::link_digest(None, &preimage)
-        .parse::<Sha256>()
-        .map_err(GateError::from_display)
+    Ok(enforcer_core::hash_chain::link_digest(None, &preimage))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{judge, ruleset_fingerprint, FloorCheck, Verdict};
+    use super::{judge, ruleset_fingerprint};
     use crate::boundary::testkit::{seed, seed_rules_catalog};
-    use crate::dogfood::boundary::{StepOutcome, ToolchainOutcome};
+    use enforcer_domain::xtask_types::{
+        DogfoodGateVerdict, LiteralFloorCheck, ToolchainOutcome, ToolchainStepOutcome,
+        XtaskFailureDetail,
+    };
     use enforcer_scan::rules::baseline_ratchet::{Baseline, BaselineRatchetValidator};
 
     fn green_toolchain() -> ToolchainOutcome {
-        let deny_reason = String::from("not required by config");
-        let audit_reason = String::from("not required by config");
         ToolchainOutcome {
-            fmt: StepOutcome::Passed,
-            clippy: StepOutcome::Passed,
-            deny: StepOutcome::Skipped {
-                reason: deny_reason,
+            fmt: ToolchainStepOutcome::Passed,
+            clippy: ToolchainStepOutcome::Passed,
+            deny: ToolchainStepOutcome::Skipped {
+                reason: XtaskFailureDetail::invalid_rendering(),
             },
-            audit: StepOutcome::Skipped {
-                reason: audit_reason,
+            audit: ToolchainStepOutcome::Skipped {
+                reason: XtaskFailureDetail::invalid_rendering(),
             },
         }
     }
 
     fn red_toolchain() -> ToolchainOutcome {
-        let fmt_detail = String::from("exit status 1");
         ToolchainOutcome {
-            fmt: StepOutcome::Failed { detail: fmt_detail },
-            clippy: StepOutcome::Passed,
-            deny: StepOutcome::Passed,
-            audit: StepOutcome::Passed,
+            fmt: ToolchainStepOutcome::Failed {
+                detail: XtaskFailureDetail::invalid_rendering(),
+            },
+            clippy: ToolchainStepOutcome::Passed,
+            deny: ToolchainStepOutcome::Passed,
+            audit: ToolchainStepOutcome::Passed,
         }
     }
 
@@ -212,12 +173,14 @@ mod tests {
         let finding = enforcer_domain::findings::Finding {
             rule_id: "RR-6.1".parse().map_err(std::io::Error::other)?,
             severity: enforcer_domain::severity::Severity::Error,
-            title: seeded_title,
-            detail: seeded_detail,
+            title: seeded_title.parse().map_err(std::io::Error::other)?,
+            detail: seeded_detail.parse().map_err(std::io::Error::other)?,
             file: "crates/sample/src/lib.rs"
                 .parse()
                 .map_err(std::io::Error::other)?,
-            line: 1,
+            line: enforcer_domain::findings::FindingLine::known(
+                enforcer_domain::telemetry_types::SourceLine::try_new(std::num::NonZeroU32::MIN),
+            ),
             snippet: None,
         };
         let violation = enforcer_domain::findings::Violation::try_from(finding)
@@ -235,7 +198,10 @@ mod tests {
     /// states an unclean input produces).
     #[test]
     fn judge_truth_table_is_exhaustive() -> Result<(), std::io::Error> {
-        let floors = [FloorCheck::WithinCeiling, FloorCheck::ExceedsCeiling];
+        let floors = [
+            LiteralFloorCheck::WithinCeiling,
+            LiteralFloorCheck::ExceedsCeiling,
+        ];
         let scan_states = [false, true];
         let toolchain_states = [None, Some(false), Some(true)];
         for scan_dirty in scan_states {
@@ -254,11 +220,11 @@ mod tests {
                     let verdict = judge(&scan_gate, toolchain.as_ref(), floor);
                     let all_green = !scan_dirty
                         && toolchain_state != Some(false)
-                        && floor == FloorCheck::WithinCeiling;
+                        && floor == LiteralFloorCheck::WithinCeiling;
                     let expected = if all_green {
-                        Verdict::Pass
+                        DogfoodGateVerdict::Pass
                     } else {
-                        Verdict::Fail
+                        DogfoodGateVerdict::Fail
                     };
                     assert_eq!(
                         verdict, expected,
@@ -272,10 +238,16 @@ mod tests {
 
     #[test]
     fn verdict_and_floor_render_their_manifest_tokens() {
-        assert_eq!(format!("{}", Verdict::Pass), "pass");
-        assert_eq!(format!("{}", Verdict::Fail), "fail");
-        assert_eq!(format!("{}", FloorCheck::WithinCeiling), "within ceiling");
-        assert_eq!(format!("{}", FloorCheck::ExceedsCeiling), "exceeds ceiling");
+        assert_eq!(format!("{}", DogfoodGateVerdict::Pass), "pass");
+        assert_eq!(format!("{}", DogfoodGateVerdict::Fail), "fail");
+        assert_eq!(
+            format!("{}", LiteralFloorCheck::WithinCeiling),
+            "within ceiling"
+        );
+        assert_eq!(
+            format!("{}", LiteralFloorCheck::ExceedsCeiling),
+            "exceeds ceiling"
+        );
     }
 
     #[test]

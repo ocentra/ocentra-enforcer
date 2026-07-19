@@ -33,9 +33,15 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_proof::claim::claim_proof`.
 
+pub mod boundary;
+#[path = "boundary/claim.rs"]
 pub mod claim;
+#[path = "boundary/envelope.rs"]
 pub mod envelope;
 pub mod harness;
+#[path = "boundary/journal.rs"]
 pub mod journal;
+#[path = "boundary/legacy_import.rs"]
 pub mod legacy_import;
+#[path = "boundary/project_read_model.rs"]
 pub mod read_model;

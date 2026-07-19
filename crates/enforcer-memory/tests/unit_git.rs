@@ -16,7 +16,8 @@ fn git_diff_path_lookup_uses_delta_iterator_for_old_and_new_paths() {
             .count(),
         0
     );
-    assert_eq!(source.matches("diff.deltas().any(|delta|").count(), 1);
+    assert_eq!(source.matches(".deltas()").count(), 1);
+    assert_eq!(source.matches(".any(|delta|").count(), 1);
     assert_eq!(source.matches(".old_file()").count(), 1);
     assert_eq!(source.matches(".new_file()").count(), 1);
 }
@@ -67,7 +68,7 @@ fn open_over_a_canonicalized_path_still_finds_the_repo() -> TestResult {
 
     let canonical = dir.path().canonicalize()?;
     let meta = GitMetadata::open(&canonical)?.ok_or("expected a repo via canonicalized path")?;
-    assert!(meta.head_commit().is_some());
+    assert_eq!(meta.head_commit().map(|commit| commit.len()), Some(40));
     Ok(())
 }
 
@@ -79,7 +80,7 @@ fn open_on_git_repo_reports_head_commit() -> TestResult {
     commit_all(dir.path(), "first")?;
 
     let meta = GitMetadata::open(dir.path())?.ok_or("expected a repo")?;
-    assert!(meta.head_commit().is_some());
+    assert_eq!(meta.head_commit().map(|commit| commit.len()), Some(40));
     Ok(())
 }
 
@@ -116,7 +117,7 @@ fn open_on_this_repo_linked_worktree_resolves_head_history() -> TestResult {
     // Exercise the revwalk-based path history query, the exact code
     // path the bug report says fails with "object not found" in a
     // linked worktree over a MIDX-backed object store.
-    let history = meta.history_for("crates/enforcer-memory/src/git.rs");
+    let history = meta.history_for(&"crates/enforcer-memory/src/git.rs".into());
     assert!(
         history.last_commit.is_some(),
         "expected git.rs to have at least one commit touching it"
@@ -136,11 +137,11 @@ fn history_for_tracks_change_count_across_commits() -> TestResult {
     commit_all(dir.path(), "third")?;
 
     let mut meta = GitMetadata::open(dir.path())?.ok_or("expected a repo")?;
-    let history = meta.history_for("a.txt");
+    let history = meta.history_for(&"a.txt".into());
     assert_eq!(history.change_count, 2);
-    assert!(history.last_commit.is_some());
+    assert_eq!(history.last_commit.as_deref().map(str::len), Some(40));
 
-    let untouched = meta.history_for("does-not-exist.txt");
+    let untouched = meta.history_for(&"does-not-exist.txt".into());
     assert_eq!(untouched.change_count, 0);
     assert_eq!(untouched.last_commit, None);
     Ok(())

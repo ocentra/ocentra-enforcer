@@ -10,11 +10,13 @@
 use std::process::ExitCode as ProcessExitCode;
 
 use clap::Parser;
-use enforcer_cli::cli::{ArchitectureAction, Cli, Command};
+use enforcer_cli::cli::{ArchitectureAction, Cli, Command, HookAction};
 use enforcer_cli::commands;
 use enforcer_cli::onboard;
 use enforcer_cli::output;
-use enforcer_core::exit_codes::ExitCode;
+use enforcer_domain::core_types::ExitCode;
+
+mod install;
 
 fn main() -> ProcessExitCode {
     std::panic::set_hook(Box::new(|info| {
@@ -25,14 +27,15 @@ fn main() -> ProcessExitCode {
 }
 
 fn to_process_exit_code(exit: ExitCode) -> ProcessExitCode {
-    let code = match exit {
-        ExitCode::Success => 0,
-        ExitCode::Violations => 1,
-        ExitCode::UsageError => 2,
-        ExitCode::ConfigError => 78,
-        ExitCode::InternalError => 70,
-    };
-    ProcessExitCode::from(code)
+    match u8::try_from(exit.process_code().get()) {
+        Ok(code) => ProcessExitCode::from(code),
+        Err(error) => {
+            output::print_internal_error(&format!(
+                "canonical process exit code does not fit the OS boundary: {error}"
+            ));
+            ProcessExitCode::FAILURE
+        }
+    }
 }
 
 fn run() -> ExitCode {
@@ -74,10 +77,17 @@ fn dispatch(command: &Command) -> ExitCode {
         }
         #[cfg(feature = "full")]
         Command::Ui(args) => run_serve_ui(args),
-        Command::Install => {
-            output::print_internal_error("install is routed to arc-23; not wired in this skeleton");
-            ExitCode::InternalError
-        }
+        Command::Install => match install::run() {
+            Ok(exit) => exit,
+            Err(failure) => {
+                if failure.exit_code() == ExitCode::ConfigError {
+                    output::print_config_error(&failure.to_string());
+                } else {
+                    output::print_internal_error(&failure.to_string());
+                }
+                failure.exit_code()
+            }
+        },
         Command::Plan => {
             output::print_internal_error(
                 "plan subcommand is routed to arc-20; not wired in this skeleton",
@@ -97,6 +107,10 @@ fn dispatch(command: &Command) -> ExitCode {
             );
             ExitCode::InternalError
         }
+        #[cfg(feature = "full")]
+        Command::Memory { action } => match action {
+            enforcer_cli::cli::MemoryAction::Cli(args) => run_memory_cli(&args.args),
+        },
         Command::Verify(args) => commands::run_verify(args),
         Command::Advise { target } => match target {
             enforcer_cli::advise::AdviseTarget::Literals => commands::run_advise_literals(),
@@ -105,6 +119,22 @@ fn dispatch(command: &Command) -> ExitCode {
             ArchitectureAction::Check(_) => commands::run_architecture(action),
         },
         Command::Onboard(args) => onboard::run_onboard(args),
+        Command::Hook {
+            action: HookAction::PreToolUse,
+        } => enforcer_cli::hook::run_pretooluse(),
+    }
+}
+
+/// Bridge the memory transport's strict `0`/`1` contract into the CLI's
+/// canonical semantic exit classes. All actual output remains in `output`.
+#[cfg(feature = "full")]
+fn run_memory_cli(args: &[String]) -> ExitCode {
+    let outcome = enforcer_memory::cli::run_cli(args.to_vec());
+    output::print_memory_cli_outcome(&outcome);
+    if i32::from(outcome.exit_code) == 0 {
+        ExitCode::Success
+    } else {
+        ExitCode::Violations
     }
 }
 
@@ -127,7 +157,7 @@ fn run_serve() -> ExitCode {
 /// `enforcer serve --ui` / `enforcer ui` -- the g01 human-invoked UI
 /// serve surface. Delegates entirely to `enforcer_ui::serve` (arc-24's
 /// backend + this workpack's transport); this function only bridges
-/// clap args -> `BindRequest` -> exit code, never re-implementing the
+/// clap args -> `BindOptions` -> exit code, never re-implementing the
 /// bind gate or the transport itself.
 ///
 /// # Honest scope note
@@ -140,14 +170,16 @@ fn run_serve() -> ExitCode {
 /// socket opens regardless.
 #[cfg(feature = "full")]
 fn run_serve_ui(args: &enforcer_cli::cli::ServeArgs) -> ExitCode {
-    let request = enforcer_ui::serve::BindRequest {
-        // CLONE-JUSTIFICATION: the UI bind request owns data passed to the
-        // server after the borrowed clap arguments go out of scope.
-        host: args.host.clone(),
-        port: args.port,
-        // CLONE-JUSTIFICATION: the optional token follows the same owned
-        // request boundary as the host string above.
-        token: args.token.clone(),
+    let request = match enforcer_ui::serve::BindOptions::try_new(
+        args.host.clone(),
+        args.port,
+        args.token.clone(),
+    ) {
+        Ok(request) => request,
+        Err(err) => {
+            output::print_internal_error(&format!("invalid UI bind options: {err}"));
+            return ExitCode::InternalError;
+        }
     };
     match enforcer_ui::serve::run(&request, || false) {
         Ok(_addr) => ExitCode::Success,
@@ -160,9 +192,9 @@ fn run_serve_ui(args: &enforcer_cli::cli::ServeArgs) -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{dispatch, to_process_exit_code};
+    use super::to_process_exit_code;
     use enforcer_cli::cli::{Cli, Command};
-    use enforcer_core::exit_codes::ExitCode;
+    use enforcer_domain::core_types::ExitCode;
 
     fn parse(args: &[&str]) -> Result<Cli, Box<dyn std::error::Error>> {
         let mut full = vec!["enforcer"];
@@ -193,10 +225,9 @@ mod tests {
     }
 
     #[test]
-    fn unwired_install_reports_internal_error_not_success() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn install_is_a_first_class_command() -> Result<(), Box<dyn std::error::Error>> {
         let cli = parse(&["install"])?;
-        assert_eq!(dispatch(&cli.command), ExitCode::InternalError);
+        assert!(matches!(cli.command, Command::Install));
         Ok(())
     }
 }

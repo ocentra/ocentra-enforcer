@@ -64,10 +64,11 @@
 //! check ([`store::manifest`]), and the per-project [`store::Store`]
 //! that ties them together with a "no ghost project database" open
 //! contract. [`error::MemoryError`] is the single fail-closed error
-//! surface all of it returns through; [`ids`] holds the store-local
-//! identifier types ([`ids::Seq`], [`ids::ArtifactId`],
-//! [`ids::ProjectId`]); [`schema`] holds the wire shapes these logs and
-//! manifests persist.
+//! surface all of it returns through; canonical sequence, artifact, and
+//! project identities live in [`enforcer_domain::memory_types`], while
+//! [`ids`] contains only filesystem-boundary path decoders;
+//! [`boundary::log_schema`] holds the wire shapes these logs
+//! and manifests persist.
 //!
 //! # Modules
 //!
@@ -78,8 +79,8 @@
 //! - [`recall`] — the deterministic recall + evidence queries.
 //! - [`retriever`] — the optional, feature-gated embedding seam.
 //! - [`error`] — the crate-wide fail-closed error type.
-//! - [`ids`] — store-local identifier types (`Seq`, `ArtifactId`, `ProjectId`).
-//! - [`schema`] — wire shapes for logs, artifact manifest, index manifest.
+//! - [`ids`] — filesystem-boundary path decoders.
+//! - [`boundary::log_schema`] — wire shapes for logs, artifact manifest, index manifest.
 //! - [`log`] — the append-only hash-chained log primitive.
 //! - [`store`] — the per-project store: SQLite read model, analytics
 //!   read model, artifact manifest, index manifests.
@@ -229,6 +230,7 @@ pub mod adr;
 pub mod analysis;
 pub mod architecture;
 pub mod artifacts;
+pub mod boundary;
 pub mod cli;
 pub mod code_graph;
 pub mod code_search;
@@ -262,22 +264,21 @@ pub mod model_runtime;
 pub mod observations;
 #[cfg(feature = "ort-models")]
 pub mod ort_runtime;
+#[path = "boundary/owned.rs"]
+mod owned_boundary;
 pub mod parsers;
 pub mod projects;
 pub mod queue;
 pub mod ranking;
 pub mod recall;
 pub mod record;
-pub mod boundary;
 pub mod redaction;
 pub mod rerank;
 pub mod resolution;
 pub mod retriever;
 pub mod runtime_probe;
-pub mod schema;
 pub mod search;
 pub mod sessionstart;
-pub mod share;
 pub mod similarity;
 pub mod snippet;
 pub mod store;

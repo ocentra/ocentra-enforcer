@@ -109,7 +109,10 @@ fn extracts_use_declaration_as_import() -> TestResult {
 fn extracts_branch_heavy_function_without_panicking() {
     let src = "fn helper(x: u128) -> u128 {\n    if x > 0 {\n        x + 1\n    } else {\n        0\n    }\n}\n";
     let parsed = parse_cairo(src);
-    assert!(symbol_kind(&parsed.symbols, "helper").is_some());
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "helper"),
+        Some(&SymbolKind::Function)
+    );
 }
 
 #[test]

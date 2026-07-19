@@ -43,10 +43,17 @@
 pub mod context_budget;
 pub mod error;
 pub mod exit_codes;
+#[path = "boundary/hash_chain.rs"]
 pub mod hash_chain;
+#[path = "boundary/ndjson.rs"]
+mod ndjson_boundary;
 pub mod ndjson_writer;
+#[path = "boundary/platform.rs"]
 pub mod platform;
+#[path = "boundary/redaction.rs"]
 pub mod redaction;
 pub mod run_context;
+#[path = "boundary/telemetry.rs"]
 pub mod telemetry;
+#[path = "boundary/tracing_setup.rs"]
 pub mod tracing_setup;

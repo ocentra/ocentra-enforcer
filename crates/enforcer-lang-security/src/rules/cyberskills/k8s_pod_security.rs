@@ -42,130 +42,12 @@ const CRITICAL_CAPS: &[&str] = &["ALL", "SYS_ADMIN"];
 /// The single capability the restricted profile tolerates being added.
 const ALLOWED_CAP: &str = "NET_BIND_SERVICE";
 
-#[derive(Debug, Default, serde::Deserialize)]
-struct Manifest {
-    // DEFAULT-JUSTIFICATION: a document without `kind` is outside this workload-only rule.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw manifest kind is compared only against WORKLOAD_KINDS before inspection.
-    kind: Option<String>,
-    // DEFAULT-JUSTIFICATION: missing `spec` means there is no pod surface to validate.
-    #[serde(default)]
-    spec: Option<PodSpec>,
-}
+use crate::boundary::k8s_pod::{
+    effective_run_as_user, parse_manifest, pod_spec, run_as_non_root_ok,
+};
 
-#[derive(Debug, Default, serde::Deserialize)]
-struct PodSpec {
-    // DEFAULT-JUSTIFICATION: an omitted hostNetwork field is Kubernetes' safe false default.
-    #[serde(default, rename = "hostNetwork")]
-    // BRAND-INVARIANT: this raw transport flag is emitted only as the host-network finding.
-    host_network: bool,
-    // DEFAULT-JUSTIFICATION: an omitted hostPID field is Kubernetes' safe false default.
-    #[serde(default, rename = "hostPID")]
-    // BRAND-INVARIANT: this raw transport flag is emitted only as the host-PID finding.
-    host_pid: bool,
-    // DEFAULT-JUSTIFICATION: an omitted hostIPC field is Kubernetes' safe false default.
-    #[serde(default, rename = "hostIPC")]
-    // BRAND-INVARIANT: this raw transport flag is emitted only as the host-IPC finding.
-    host_ipc: bool,
-    // DEFAULT-JUSTIFICATION: workloads without containers have no container security context to check.
-    #[serde(default)]
-    containers: Vec<Container>,
-    // DEFAULT-JUSTIFICATION: workloads without init containers require no init-container findings.
-    #[serde(default, rename = "initContainers")]
-    init_containers: Vec<Container>,
-    // DEFAULT-JUSTIFICATION: workloads without ephemeral containers have no debug-container security context to check.
-    #[serde(default, rename = "ephemeralContainers")]
-    ephemeral_containers: Vec<Container>,
-    // DEFAULT-JUSTIFICATION: an absent pod context intentionally delegates to container-level checks.
-    #[serde(default, rename = "securityContext")]
-    security_context: Option<SecurityContext>,
-    /// Present on Deployment/DaemonSet/StatefulSet/ReplicaSet/Job — the pod
-    /// template whose `.spec` is the real pod spec.
-    // DEFAULT-JUSTIFICATION: a bare Pod has no template and is validated through its direct spec.
-    #[serde(default)]
-    template: Option<Box<PodTemplate>>,
-    /// Present on CronJob â€” the Job template ultimately carries the pod
-    /// template whose spec must receive the same restricted-profile checks.
-    #[serde(default, rename = "jobTemplate")]
-    job_template: Option<Box<JobTemplate>>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct PodTemplate {
-    // DEFAULT-JUSTIFICATION: an incomplete template has no pod spec to inspect.
-    #[serde(default)]
-    spec: Option<PodSpec>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct JobTemplate {
-    #[serde(default)]
-    spec: Option<PodSpec>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct Container {
-    // DEFAULT-JUSTIFICATION: an omitted container name is reported as <unnamed> without blocking validation.
-    #[serde(default)]
-    // BRAND-INVARIANT: this transport name is used solely to identify a finding to the manifest author.
-    name: String,
-    // DEFAULT-JUSTIFICATION: an absent container context inherits applicable pod context or triggers a finding.
-    #[serde(default, rename = "securityContext")]
-    security_context: Option<SecurityContext>,
-    // DEFAULT-JUSTIFICATION: an absent ports list cannot bind a host port.
-    #[serde(default)]
-    ports: Vec<Port>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct Port {
-    // DEFAULT-JUSTIFICATION: an omitted hostPort cannot expose a node port.
-    #[serde(default, rename = "hostPort")]
-    // BRAND-INVARIANT: the raw port number is reduced to presence because any host port is unsafe here.
-    host_port: Option<i64>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct SecurityContext {
-    // DEFAULT-JUSTIFICATION: absence is distinct from false because Kubernetes defaults privileged to false.
-    #[serde(default)]
-    // BRAND-INVARIANT: this raw tri-state preserves Kubernetes omission semantics for policy evaluation.
-    privileged: Option<bool>,
-    // DEFAULT-JUSTIFICATION: absence is unsafe because Kubernetes defaults privilege escalation to true.
-    #[serde(default, rename = "allowPrivilegeEscalation")]
-    // BRAND-INVARIANT: this raw tri-state preserves the explicit-false enforcement requirement.
-    allow_privilege_escalation: Option<bool>,
-    // DEFAULT-JUSTIFICATION: an omitted UID is evaluated with runAsNonRoot rather than coerced.
-    #[serde(default, rename = "runAsUser")]
-    // BRAND-INVARIANT: this raw UID is checked only for root (zero) execution.
-    run_as_user: Option<i64>,
-    // DEFAULT-JUSTIFICATION: absence must remain distinct from true for the restricted profile requirement.
-    #[serde(default, rename = "runAsNonRoot")]
-    // BRAND-INVARIANT: this raw tri-state preserves the explicit run-as-non-root requirement.
-    run_as_non_root: Option<bool>,
-    // DEFAULT-JUSTIFICATION: absence must remain distinct from true for the restricted profile requirement.
-    #[serde(default, rename = "readOnlyRootFilesystem")]
-    // BRAND-INVARIANT: this raw tri-state preserves the explicit read-only-root requirement.
-    read_only_root_filesystem: Option<bool>,
-    // DEFAULT-JUSTIFICATION: an absent capabilities block is reported as missing drop ALL.
-    #[serde(default)]
-    capabilities: Option<Capabilities>,
-}
-
-#[derive(Debug, Default, serde::Deserialize)]
-struct Capabilities {
-    // DEFAULT-JUSTIFICATION: an absent add list grants no additional capabilities.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw capability names are compared case-insensitively to the restricted allowlist.
-    add: Vec<String>,
-    // DEFAULT-JUSTIFICATION: an absent drop list must produce the missing drop ALL finding.
-    #[serde(default)]
-    // BRAND-INVARIANT: raw capability names are compared case-insensitively for the ALL drop.
-    drop: Vec<String>,
-}
-
-#[derive(Debug)]
 /// `CYBER-K8S-POD.1` — pod-security-standards (restricted) manifest gate.
+#[derive(Debug)]
 pub struct K8sPodSecurityValidator {
     rule_id: RuleId,
 }
@@ -174,61 +56,9 @@ impl K8sPodSecurityValidator {
     /// Builds the validator with its canonical, validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
-            rule_id: "CYBER-K8S-POD.1".parse()?,
+            rule_id: enforcer_domain::ids::BuiltInSecurityRule::CyberK8sPod.id(),
         })
     }
-
-    fn finding(&self, input: &ValidationInput<'_>, severity: Severity, detail: String) -> Finding {
-        // ALLOC-JUSTIFICATION: findings are durable report records and therefore own their static title.
-        Finding {
-            // CLONE-JUSTIFICATION: each emitted finding owns its stable rule identity after validation returns.
-            rule_id: self.rule_id.clone(),
-            severity,
-            title: "Kubernetes pod spec violates pod-security-standards hardening".to_owned(),
-            detail,
-            // CLONE-JUSTIFICATION: each emitted finding owns its source path after the borrowed input expires.
-            file: input.file.clone(),
-            line: 1,
-            snippet: None,
-        }
-    }
-}
-
-/// Resolve the effective pod spec: a Deployment/etc carries it under
-/// `spec.template.spec`; a bare Pod carries it under `spec` directly.
-fn pod_spec(manifest: &Manifest) -> Option<&PodSpec> {
-    let spec = manifest.spec.as_ref()?;
-    if manifest.kind.as_deref() == Some("CronJob") {
-        return spec
-            .job_template
-            .as_ref()
-            .and_then(|job| job.spec.as_ref())
-            .and_then(|job_spec| job_spec.template.as_ref())
-            .and_then(|template| template.spec.as_ref());
-    }
-    match spec.template.as_ref().and_then(|t| t.spec.as_ref()) {
-        Some(template_spec) => Some(template_spec),
-        None => Some(spec),
-    }
-}
-
-/// Whether the container's effective `runAsNonRoot` is satisfied, honoring
-/// the pod-level securityContext as the default when the container does not
-/// override it (standard Kubernetes inheritance).
-fn run_as_non_root_ok(pod_sc: Option<&SecurityContext>, ctr_sc: Option<&SecurityContext>) -> bool {
-    let effective = ctr_sc
-        .and_then(|sc| sc.run_as_non_root)
-        .or_else(|| pod_sc.and_then(|sc| sc.run_as_non_root));
-    effective == Some(true)
-}
-
-fn effective_run_as_user(
-    pod_sc: Option<&SecurityContext>,
-    ctr_sc: Option<&SecurityContext>,
-) -> Option<i64> {
-    ctr_sc
-        .and_then(|sc| sc.run_as_user)
-        .or_else(|| pod_sc.and_then(|sc| sc.run_as_user))
 }
 
 impl Validator for K8sPodSecurityValidator {
@@ -237,7 +67,7 @@ impl Validator for K8sPodSecurityValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        let Ok(manifest) = serde_yaml::from_str::<Manifest>(input.source) else {
+        let Some(manifest) = parse_manifest(input.source.as_str()) else {
             return Vec::new();
         };
         // Only inspect known workload kinds; anything else (or a document
@@ -254,10 +84,16 @@ impl Validator for K8sPodSecurityValidator {
         };
 
         let mut findings = Vec::new();
+        let Some(emit) = crate::boundary::finding::ValidationFindingFactory::new(
+            &self.rule_id,
+            "Kubernetes pod spec violates pod-security-standards hardening",
+        ) else {
+            return findings;
+        };
 
         // Pod-level host-namespace sharing.
         if spec.host_network {
-            findings.push(self.finding(
+            findings.extend(emit.at_start(
                 &input,
                 Severity::Error,
                 "pod sets `hostNetwork: true` (shares the node network namespace). Fix: remove \
@@ -267,8 +103,8 @@ impl Validator for K8sPodSecurityValidator {
             ));
         }
         if spec.host_pid {
-            findings.push(
-                self.finding(
+            findings.extend(
+                emit.at_start(
                     &input,
                     Severity::Error,
                     "pod sets `hostPID: true` (shares the node process namespace). Fix: remove \
@@ -279,7 +115,7 @@ impl Validator for K8sPodSecurityValidator {
             );
         }
         if spec.host_ipc {
-            findings.push(self.finding(
+            findings.extend(emit.at_start(
                 &input,
                 Severity::Error,
                 "pod sets `hostIPC: true` (shares the node IPC namespace). Fix: remove `hostIPC` \
@@ -304,7 +140,7 @@ impl Validator for K8sPodSecurityValidator {
             let sc = container.security_context.as_ref();
 
             if sc.and_then(|s| s.privileged) == Some(true) {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Error,
                     format!(
@@ -317,7 +153,7 @@ impl Validator for K8sPodSecurityValidator {
             // allowPrivilegeEscalation must be explicitly false (missing
             // defaults to true, per the vendor `.get(..., True)`).
             if sc.and_then(|s| s.allow_privilege_escalation) != Some(false) {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Warning,
                     format!(
@@ -329,7 +165,7 @@ impl Validator for K8sPodSecurityValidator {
             }
 
             if effective_run_as_user(pod_sc, sc) == Some(0) {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Error,
                     format!(
@@ -340,7 +176,7 @@ impl Validator for K8sPodSecurityValidator {
             }
 
             if !run_as_non_root_ok(pod_sc, sc) {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Warning,
                     format!(
@@ -351,7 +187,7 @@ impl Validator for K8sPodSecurityValidator {
             }
 
             if sc.and_then(|s| s.read_only_root_filesystem) != Some(true) {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Warning,
                     format!(
@@ -372,7 +208,7 @@ impl Validator for K8sPodSecurityValidator {
                     let critical = dangerous
                         .iter()
                         .any(|c| CRITICAL_CAPS.iter().any(|k| c.eq_ignore_ascii_case(k)));
-                    findings.push(self.finding(
+                    findings.extend(emit.at_start(
                         &input,
                         if critical {
                             Severity::Error
@@ -388,7 +224,7 @@ impl Validator for K8sPodSecurityValidator {
                 }
                 let drops_all = caps.drop.iter().any(|c| c.eq_ignore_ascii_case("ALL"));
                 if !drops_all {
-                    findings.push(self.finding(
+                    findings.extend(emit.at_start(
                         &input,
                         Severity::Warning,
                         format!(
@@ -398,7 +234,7 @@ impl Validator for K8sPodSecurityValidator {
                     ));
                 }
             } else {
-                findings.push(self.finding(
+                findings.extend(emit.at_start(
                     &input,
                     Severity::Warning,
                     format!(
@@ -411,7 +247,7 @@ impl Validator for K8sPodSecurityValidator {
 
             for port in &container.ports {
                 if port.host_port.is_some() {
-                    findings.push(self.finding(
+                    findings.extend(emit.at_start(
                         &input,
                         Severity::Error,
                         format!(
@@ -425,5 +261,33 @@ impl Validator for K8sPodSecurityValidator {
         }
 
         findings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_manifest;
+
+    #[test]
+    fn parser_handles_empty_and_rejects_invalid_and_malformed_documents() {
+        assert!(
+            matches!(parse_manifest(""), Some(manifest) if manifest.kind.is_none()),
+            "empty documents have no workload kind"
+        );
+        assert!(
+            parse_manifest("kind: [").is_none(),
+            "malformed YAML is rejected"
+        );
+        assert!(
+            parse_manifest("kind: Pod\nspec: [").is_none(),
+            "invalid YAML is rejected"
+        );
+    }
+
+    #[test]
+    fn parser_handles_oversized_metadata_without_panicking() {
+        let oversized_name = "x".repeat(4096);
+        let document = format!("kind: Pod\nmetadata:\n  name: {oversized_name}\n");
+        assert!(matches!(parse_manifest(&document), Some(_)));
     }
 }

@@ -1,24 +1,26 @@
+use enforcer_domain::events_types::{EventCount, RequestCompletionOutcome, RequestId};
+
 pub(super) fn complete_pending_request(
     state: &mut super::RequestRegistryState,
-    request_id: crate::RequestId,
-    payload: super::RequestPayload,
-) -> Result<super::RequestCompletionReport, crate::EventingError> {
+    request_id: RequestId,
+    payload: crate::boundary::request_persistence::RequestPayload,
+) -> Result<super::RequestCompletionReport, crate::error::EventingError> {
     let Some(entry) = state.entries.get_mut(&request_id) else {
         return Ok(super::completion_report(
             request_id,
-            super::RequestCompletionOutcome::Late,
+            RequestCompletionOutcome::Late,
         ));
     };
     entry.state = super::RequestState::Completed;
     let outcome = match entry.sender.take() {
         Some(sender) => {
             if sender.send(payload).is_ok() {
-                super::RequestCompletionOutcome::Completed
+                RequestCompletionOutcome::Completed
             } else {
-                super::RequestCompletionOutcome::Late
+                RequestCompletionOutcome::Late
             }
         }
-        None => super::RequestCompletionOutcome::Late,
+        None => RequestCompletionOutcome::Late,
     };
     mark_terminal(state, &request_id);
     trim_terminal_requests(state);
@@ -38,23 +40,23 @@ pub(super) fn request_registry_report(
 fn count_request_state(
     state: &super::RequestRegistryState,
     requested: super::RequestState,
-) -> usize {
-    state
-        .entries
-        .values()
-        .filter(|entry| entry.state == requested)
-        .count()
+) -> EventCount {
+    crate::boundary::event_values::event_count(
+        state
+            .entries
+            .values()
+            .filter(|entry| entry.state == requested)
+            .count(),
+    )
 }
 
-pub(super) fn mark_terminal(
-    state: &mut super::RequestRegistryState,
-    request_id: &crate::RequestId,
-) {
+pub(super) fn mark_terminal(state: &mut super::RequestRegistryState, request_id: &RequestId) {
     if !state
         .terminal_order
         .iter()
         .any(|terminal_id| terminal_id == request_id)
     {
+        // CLONE-JUSTIFICATION: terminal ordering owns the request identity while the result map retains the same key.
         state.terminal_order.push_back(request_id.clone());
     }
 }

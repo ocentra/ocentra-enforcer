@@ -2,65 +2,38 @@
 
 <!-- ai-dense -->
 ```yaml
-purpose: copy-paste prompt for a fresh AI-harness session to install the enforcer and wire a target repo
-binary: single native `enforcer` executable; install downloads it and registers the MCP server, no toolchain
-install_scope: user/global by default
-placeholders: "<ENFORCER_INSTALL_PATH>, <TARGET_REPO_PATH>, <PROFILE> -- fill with real values, never leave a literal drive-letter example"
-verify_step: "enforcer doctor --root <TARGET_REPO_PATH>; ask the harness to call mcp__enforcer__route"
+purpose: copy-paste prompt for a fresh harness session using a verified native Rust build
+install: "enforcer install (no flags; user-level adapter registration plus internal health check)"
+mcp_smoke: "ocentra_enforcer_mcp_status"
+validation: "run native check/scan/verify with paths, --base/--head, or --all"
 ```
 <!-- /ai-dense -->
 
-Use this when asking a fresh AI-harness session to install the enforcer and
-wire a target repo. Fill in the bracketed placeholders with real values —
-none of them should be left as a literal example path.
+Use this only after building or otherwise obtaining a native binary whose
+origin and `--help` output have been verified.
 
 ```text
-You are setting up the enforcer.
+You are setting up the native Rust Enforcer.
 
-Install:
-1. Run the platform install script (or `cargo build --release --workspace` from
-   source if no published binary exists for this platform), then:
-   enforcer install --root <TARGET_REPO_PATH> --profile <PROFILE> --dry-run
-2. If the plan is correct, run the non-dry-run installer:
-   enforcer install --root <TARGET_REPO_PATH> --profile <PROFILE>
-3. Verify the global MCP registry and target wiring:
-   enforcer doctor --root <TARGET_REPO_PATH>
-4. Restart the harness (or start a new session) so it reloads MCP servers.
-5. Ask the harness to call mcp__enforcer__route for root <TARGET_REPO_PATH>,
-   profile <PROFILE>, scope files, files ["Cargo.toml"] (or the target
-   project's actual manifest file).
-6. For hooks and CI, run the target adapter dry-run first:
-   enforcer init --root <TARGET_REPO_PATH> --profile <PROFILE> --adapters precommit,github-actions --dry-run
-7. Do not write hook or CI files until the dry-run plan is reviewed.
+1. Confirm the binary contract:
+   enforcer --help
+   enforcer serve --help
+2. Register its user-level harness adapters:
+   enforcer install
+3. Restart the harness so it reloads MCP configuration.
+4. Call ocentra_enforcer_mcp_status and confirm the server name is enforcer.
+5. From the target repository, validate one explicit scope:
+   enforcer scan Cargo.toml
+6. Widen only after the focused scope works:
+   enforcer verify --mode local --all
 
-Rules:
-- The MCP server is the installed enforcer binary, addressed by absolute path.
-- The target repo is always passed as root.
-- The installer updates harness config directly and creates a backup before writing.
-- `enforcer doctor` verifies global config separately from MCP server smoke.
-- Use `profile` for pack-owned policy.
-- Use `configPath` for target-owned policy.
-- Do not copy enforcer source into the target repo.
-- Do not remove the target repo's existing guards until old-vs-new parity is proven.
-- Use forward-slash paths in TOML/JSON on Windows to avoid backslash escaping issues.
+Current boundary:
+- install accepts no flags and performs its health check internally.
+- Rust MCP currently wires server status, coordination status, exact-path
+  coordination claim, and UI launch/status.
+- plan, proof, and coordination are visible CLI groups but are not wired.
+- route, scan, check, diagnostics, proof, and broader coordination MCP tools
+  may be registered but return a not-wired response.
+- do not invent release URLs, edit harness configuration by hand, or remove a
+  target repository's existing guards without separately verified parity.
 ```
-
-## MCP Verification Prompt
-
-After setup, ask the harness:
-
-```text
-Use the enforcer MCP server. Call mcp__enforcer__route with:
-root = <TARGET_REPO_PATH>
-profile = <PROFILE>
-scope = files
-files = ["Cargo.toml"]
-
-Report the returned docs, rule IDs, and whether the route avoided loading the full rule corpus.
-```
-
-Expected result:
-
-- `ok: true`.
-- `docs` contains only matching rule docs/records.
-- `rules` contains compact rule metadata, not the whole rule corpus.

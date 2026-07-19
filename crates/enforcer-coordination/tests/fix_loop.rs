@@ -11,15 +11,23 @@
 //! - final state never has more findings than the start.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use enforcer_coordination::error::Result;
+use enforcer_coordination::error::{CoordinationError, Result};
 use enforcer_coordination::fix_loop::dispatch::FixGenerator;
-use enforcer_coordination::fix_loop::{run_fix_loop, IterationReason, MAX_ITERATIONS};
-use enforcer_domain::findings::{Finding, ScanScope};
+use enforcer_coordination::fix_loop::{
+    boundary::FixLoopDecisionEventResponse, run_fix_loop, FixEngines, MAX_ITERATIONS,
+};
+use enforcer_domain::boundary::validation::ValidationSource;
+use enforcer_domain::coordination_types::{
+    CoordinationRejection, FindingCount, FixAcceptance, FixAttemptOutcome, FixGeneratorName,
+    FixTargetPath, FixWorkspaceRoot, IterationCapStatus, IterationReason,
+};
+use enforcer_domain::findings::{Finding, FindingDetail, FindingLine, FindingTitle, ScanScope};
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
+use enforcer_domain::telemetry_types::SourceLine;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// Validator that reports one finding per occurrence of the literal marker
@@ -34,44 +42,65 @@ impl Validator for MarkerValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        let Ok(title) = FindingTitle::new("bad marker".to_owned()) else {
+            return Vec::new();
+        };
+        let Ok(detail) = FindingDetail::new("found BAD".to_owned()) else {
+            return Vec::new();
+        };
         input
             .source
+            .as_str()
             .match_indices("BAD")
             .enumerate()
-            .map(|(idx, _)| Finding {
-                rule_id: self.rule_id.clone(),
-                severity: Severity::Error,
-                title: "bad marker".to_owned(),
-                detail: "found BAD".to_owned(),
-                file: input.file.clone(),
-                line: (idx as u32) + 1,
-                snippet: None,
+            .filter_map(|(idx, _)| {
+                let raw_line = u32::try_from(idx).unwrap_or(u32::MAX).saturating_add(1);
+                let raw_line = std::num::NonZeroU32::new(raw_line)?;
+                let line = SourceLine::try_new(raw_line);
+                Some(Finding {
+                    rule_id: self.rule_id.clone(),
+                    severity: Severity::Error,
+                    title: title.clone(),
+                    detail: detail.clone(),
+                    file: input.file.clone(),
+                    line: FindingLine::known(line),
+                    snippet: None,
+                })
             })
             .collect()
     }
 }
 
+fn finding_count(value: usize) -> FindingCount {
+    let markers = vec![(); value];
+    FindingCount::from_collection(&markers)
+}
+
 /// Removes exactly one `BAD` occurrence per attempt.
 struct OneAtATimeRemover;
 impl FixGenerator for OneAtATimeRemover {
-    fn attempt_fix(&self, root: &Path, findings: &[Finding]) -> Result<bool> {
+    fn attempt_fix(
+        &self,
+        root: &FixWorkspaceRoot,
+        findings: &[Finding],
+    ) -> Result<FixAttemptOutcome> {
         if findings.is_empty() {
-            return Ok(false);
+            return Ok(FixAttemptOutcome::Declined);
         }
-        let path = root.join("fixture.txt");
+        let path = root.as_path().join("fixture.txt");
         let content = fs::read_to_string(&path)?;
         if let Some(pos) = content.find("BAD") {
             let mut new_content = content.clone();
             new_content.replace_range(pos..pos + 3, "OK_");
             fs::write(&path, new_content)?;
-            Ok(true)
+            Ok(FixAttemptOutcome::Changed)
         } else {
-            Ok(false)
+            Ok(FixAttemptOutcome::Declined)
         }
     }
 
-    fn name(&self) -> &str {
-        "one-at-a-time-remover"
+    fn name(&self) -> Result<FixGeneratorName> {
+        Ok(FixGeneratorName::parse("one-at-a-time-remover")?)
     }
 }
 
@@ -79,50 +108,65 @@ impl FixGenerator for OneAtATimeRemover {
 /// neutral (non-improving) fix that must be reverted.
 struct NeutralRewriter;
 impl FixGenerator for NeutralRewriter {
-    fn attempt_fix(&self, root: &Path, findings: &[Finding]) -> Result<bool> {
+    fn attempt_fix(
+        &self,
+        root: &FixWorkspaceRoot,
+        findings: &[Finding],
+    ) -> Result<FixAttemptOutcome> {
         if findings.is_empty() {
-            return Ok(false);
+            return Ok(FixAttemptOutcome::Declined);
         }
-        fs::write(root.join("fixture.txt"), "BAD BAD (rewritten, still bad)")?;
-        Ok(true)
+        fs::write(
+            root.as_path().join("fixture.txt"),
+            "BAD BAD (rewritten, still bad)",
+        )?;
+        Ok(FixAttemptOutcome::Changed)
     }
 
-    fn name(&self) -> &str {
-        "neutral-rewriter"
+    fn name(&self) -> Result<FixGeneratorName> {
+        Ok(FixGeneratorName::parse("neutral-rewriter")?)
     }
 }
 
 /// Appends MORE `BAD` markers — a regressing fix that must be reverted.
 struct RegressingWriter;
 impl FixGenerator for RegressingWriter {
-    fn attempt_fix(&self, root: &Path, findings: &[Finding]) -> Result<bool> {
+    fn attempt_fix(
+        &self,
+        root: &FixWorkspaceRoot,
+        findings: &[Finding],
+    ) -> Result<FixAttemptOutcome> {
         if findings.is_empty() {
-            return Ok(false);
+            return Ok(FixAttemptOutcome::Declined);
         }
-        let path = root.join("fixture.txt");
+        let path = root.as_path().join("fixture.txt");
         let content = fs::read_to_string(&path)?;
         fs::write(&path, format!("{content} BAD BAD"))?;
-        Ok(true)
+        Ok(FixAttemptOutcome::Changed)
     }
 
-    fn name(&self) -> &str {
-        "regressing-writer"
+    fn name(&self) -> Result<FixGeneratorName> {
+        Ok(FixGeneratorName::parse("regressing-writer")?)
     }
 }
 
 /// Writes bytes that cannot be decoded by the validator's text input.
 struct NonUtf8Writer;
 impl FixGenerator for NonUtf8Writer {
-    fn attempt_fix(&self, root: &Path, findings: &[Finding]) -> Result<bool> {
+    fn attempt_fix(
+        &self,
+        root: &FixWorkspaceRoot,
+        findings: &[Finding],
+    ) -> Result<FixAttemptOutcome> {
         if findings.is_empty() {
-            return Ok(false);
+            return Ok(FixAttemptOutcome::Declined);
         }
-        fs::write(root.join("fixture.txt"), [0xff])?;
-        Ok(true)
+        fs::write(root.as_path().join("fixture.txt"), [0xff])?;
+        Ok(FixAttemptOutcome::Changed)
     }
 
-    fn name(&self) -> &str {
-        "non-utf8-writer"
+    fn name(&self) -> Result<FixGeneratorName> {
+        Ok(FixGeneratorName::parse("non-utf8-writer")?)
     }
 }
 
@@ -133,12 +177,12 @@ fn manifest_dir() -> PathBuf {
 /// Copy one fixture's content into a fresh tempdir under a stable filename
 /// (`fixture.txt`), so the on-disk fixture under version control is never
 /// mutated by a test run.
-fn stage_fixture(name: &str) -> Result<(tempfile::TempDir, PathBuf)> {
+fn stage_fixture(name: &str) -> Result<(tempfile::TempDir, FixTargetPath)> {
     let dir = tempfile::tempdir()?;
     let source = fs::read_to_string(manifest_dir().join("tests/fixtures/fix_loop").join(name))?;
     let staged = dir.path().join("fixture.txt");
     fs::write(&staged, &source)?;
-    Ok((dir, staged))
+    Ok((dir, FixTargetPath::try_from(staged)?))
 }
 
 fn rel_path() -> Result<RelPath> {
@@ -153,7 +197,7 @@ fn scan(validator: &MarkerValidator, source: &str) -> Result<Vec<Finding>> {
     let rel = rel_path()?;
     Ok(validator.validate(ValidationInput {
         file: &rel,
-        source,
+        source: ValidationSource::from_text(source),
         scope: ScanScope::Files,
     }))
 }
@@ -172,14 +216,13 @@ fn an_improving_fix_is_kept() -> Result<()> {
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &OneAtATimeRemover,
+        FixEngines::new(&validator, &OneAtATimeRemover),
         |_| {},
     )?;
 
-    assert_eq!(report.findings_start, 3);
-    assert_eq!(report.findings_final, 0);
-    assert!(!report.hit_iteration_cap);
+    assert_eq!(report.findings_start, finding_count(3));
+    assert_eq!(report.findings_final, finding_count(0));
+    assert_eq!(report.hit_iteration_cap, IterationCapStatus::NotReached);
     // Once findings_after hits 0 the generator has nothing left to try, so
     // the LAST iteration is a decline, not an accept -- only the iterations
     // that actually changed something need to be accepted.
@@ -187,7 +230,7 @@ fn an_improving_fix_is_kept() -> Result<()> {
         .iterations
         .iter()
         .filter(|it| it.reason != IterationReason::GeneratorDeclined)
-        .all(|it| it.accepted));
+        .all(|it| matches!(it.accepted, FixAcceptance::Accepted)));
     assert_eq!(fs::read_to_string(&file)?, "OK_ OK_ OK_\n");
     Ok(())
 }
@@ -206,15 +249,21 @@ fn a_neutral_fix_is_not_reverted_incorrectly_and_findings_stay_flat() -> Result<
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &NeutralRewriter,
+        FixEngines::new(&validator, &NeutralRewriter),
         |_| {},
     )?;
 
-    assert_eq!(report.findings_start, 2);
-    assert_eq!(report.findings_final, 2, "neutral fix must not be kept");
+    assert_eq!(report.findings_start, finding_count(2));
+    assert_eq!(
+        report.findings_final,
+        finding_count(2),
+        "neutral fix must not be kept"
+    );
     assert_eq!(report.iterations.len(), 1);
-    assert!(!report.iterations[0].accepted);
+    assert!(matches!(
+        report.iterations[0].accepted,
+        FixAcceptance::Reverted
+    ));
     assert_eq!(report.iterations[0].reason, IterationReason::NotImproved);
     assert_eq!(
         fs::read_to_string(&file)?,
@@ -238,14 +287,16 @@ fn a_regressing_fix_is_reverted() -> Result<()> {
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &RegressingWriter,
+        FixEngines::new(&validator, &RegressingWriter),
         |_| {},
     )?;
 
     assert_eq!(report.findings_final, report.findings_start);
     assert_eq!(report.iterations.len(), 1);
-    assert!(!report.iterations[0].accepted);
+    assert!(matches!(
+        report.iterations[0].accepted,
+        FixAcceptance::Reverted
+    ));
     assert_eq!(fs::read_to_string(&file)?, original);
     Ok(())
 }
@@ -264,12 +315,16 @@ fn unreadable_candidate_is_reverted_before_validation_returns_its_error() -> Res
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &NonUtf8Writer,
+        FixEngines::new(&validator, &NonUtf8Writer),
         |_| {},
     );
 
-    assert!(result.is_err());
+    let Err(CoordinationError::Io(error)) = result else {
+        return Err(CoordinationError::rejected(CoordinationRejection::parse(
+            "expected invalid-data IO failure",
+        )?));
+    };
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
     assert_eq!(fs::read(&file)?, original);
     Ok(())
 }
@@ -291,14 +346,16 @@ fn the_loop_halts_at_the_iteration_cap() -> Result<()> {
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &OneAtATimeRemover,
+        FixEngines::new(&validator, &OneAtATimeRemover),
         |_| {},
     )?;
 
-    assert!(report.hit_iteration_cap);
+    assert_eq!(report.hit_iteration_cap, IterationCapStatus::Reached);
     assert_eq!(report.iterations.len(), MAX_ITERATIONS as usize);
-    assert!(report.iterations.iter().all(|it| it.accepted));
+    assert!(report
+        .iterations
+        .iter()
+        .all(|it| matches!(it.accepted, FixAcceptance::Accepted)));
     Ok(())
 }
 
@@ -319,14 +376,34 @@ fn final_findings_never_exceed_the_starting_count_across_all_fixtures() -> Resul
         let rel = rel_path()?;
 
         let report: enforcer_coordination::fix_loop::FixLoopReport = match generator_name {
-            "improving" => {
-                run_fix_loop(&file, &rel, initial, &validator, &OneAtATimeRemover, |_| {})?
-            }
-            "neutral" => run_fix_loop(&file, &rel, initial, &validator, &NeutralRewriter, |_| {})?,
-            "regressing" => {
-                run_fix_loop(&file, &rel, initial, &validator, &RegressingWriter, |_| {})?
-            }
-            _ => run_fix_loop(&file, &rel, initial, &validator, &OneAtATimeRemover, |_| {})?,
+            "improving" => run_fix_loop(
+                &file,
+                &rel,
+                initial,
+                FixEngines::new(&validator, &OneAtATimeRemover),
+                |_| {},
+            )?,
+            "neutral" => run_fix_loop(
+                &file,
+                &rel,
+                initial,
+                FixEngines::new(&validator, &NeutralRewriter),
+                |_| {},
+            )?,
+            "regressing" => run_fix_loop(
+                &file,
+                &rel,
+                initial,
+                FixEngines::new(&validator, &RegressingWriter),
+                |_| {},
+            )?,
+            _ => run_fix_loop(
+                &file,
+                &rel,
+                initial,
+                FixEngines::new(&validator, &OneAtATimeRemover),
+                |_| {},
+            )?,
         };
 
         assert!(
@@ -353,21 +430,56 @@ fn every_decision_is_emitted_as_a_typed_event() -> Result<()> {
         &file,
         &rel_path()?,
         initial,
-        &validator,
-        &OneAtATimeRemover,
+        FixEngines::new(&validator, &OneAtATimeRemover),
         |event| events.push(event.clone()),
     )?;
 
     assert_eq!(events.len(), report.iterations.len());
     assert!(events
         .iter()
-        .all(|event| event.generator_name == "one-at-a-time-remover"));
+        .all(|event| event.generator_name.as_str() == "one-at-a-time-remover"));
     // Every event round-trips through the typed DomainEvent envelope shape
     // (event_kind is stable/non-empty), proving these are real typed events
     // and not ad hoc structs.
     use enforcer_events::event::DomainEvent;
     for event in &events {
-        assert_eq!(event.event_kind(), "coordination.fix_loop.decision");
+        assert_eq!(
+            event.event_kind()?.as_str(),
+            "coordination.fix_loop.decision"
+        );
     }
+    Ok(())
+}
+
+#[test]
+fn fix_loop_decision_response_round_trips_the_public_event_wire_shape() -> Result<()> {
+    let (_dir, file) = stage_fixture("improving.txt")?;
+    let validator = MarkerValidator {
+        rule_id: rule_id()?,
+    };
+    let source = fs::read_to_string(&file)?;
+    let initial = scan(&validator, &source)?;
+    let mut events = Vec::new();
+
+    run_fix_loop(
+        &file,
+        &rel_path()?,
+        initial,
+        FixEngines::new(&validator, &OneAtATimeRemover),
+        |event| events.push(event.clone()),
+    )?;
+
+    let missing_event = CoordinationRejection::parse("expected a fix-loop event")?;
+    let event = events
+        .first()
+        .ok_or_else(|| CoordinationError::rejected(missing_event.clone()))?;
+    let response = FixLoopDecisionEventResponse::from(event);
+    let wire = serde_json::to_value(&response)?;
+    let decoded: FixLoopDecisionEventResponse = serde_json::from_value(wire.clone())?;
+    assert_eq!(serde_json::to_value(decoded)?, wire);
+    assert_eq!(
+        enforcer_coordination::fix_loop::FixLoopDecisionEvent::try_from(response)?,
+        *event
+    );
     Ok(())
 }

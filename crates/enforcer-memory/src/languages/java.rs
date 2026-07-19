@@ -11,9 +11,10 @@
 //! not resolved to graph node ids here.
 
 use crate::parsers::{
-    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
-    ReceiverHint, RouteRef, SymbolKind, SymbolRef, TypeRefRef,
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
+    SymbolKind, SymbolRef, TypeRefRef,
 };
+use enforcer_domain::memory_types::ReceiverHint;
 use tree_sitter::{Node, Parser};
 
 /// The innermost method a call expression is lexically inside of, if
@@ -76,9 +77,9 @@ fn walk(
         "package_declaration" => {
             if let Some(name) = package_name(node, src) {
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.into(),
                     kind: SymbolKind::Module,
-                    line: node.start_position().row + 1,
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -86,29 +87,29 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Class,
-                    line,
+                    line: line.into(),
                 });
                 if let Some(super_name) = superclass_name(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: super_name.into(),
+                        line: line.into(),
                     });
                 }
                 for interface_name in super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.clone()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator in annotations(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -119,22 +120,22 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Interface,
-                    line,
+                    line: line.into(),
                 });
                 for extended in extends_interfaces(node, src) {
                     out.inherits.push(InheritsRef {
-                        sub_name: name.clone(),
-                        super_name: extended,
-                        line,
+                        sub_name: (name.clone()).into(),
+                        super_name: (extended).into(),
+                        line: line.into(),
                     });
                 }
                 for decorator in annotations(node, src) {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator,
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -145,15 +146,15 @@ fn walk(
             if let Some(name) = child_text(node, "name", src) {
                 let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind: SymbolKind::Enum,
-                    line,
+                    line: line.into(),
                 });
                 for interface_name in super_interfaces(node, src) {
                     out.implements.push(ImplementsRef {
-                        type_name: name.clone(),
-                        trait_name: interface_name,
-                        line,
+                        type_name: (name.clone()).into(),
+                        trait_name: (interface_name).into(),
+                        line: line.into(),
                     });
                 }
                 walk_children(node, src, out, Some(name.as_str()), fn_scope);
@@ -172,15 +173,15 @@ fn walk(
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name: name.clone(),
+                    name: (name.clone()).into(),
                     kind,
-                    line,
+                    line: line.into(),
                 });
                 for decorator in decorators {
                     out.decorates.push(DecoratesRef {
-                        target_name: name.clone(),
-                        decorator_name: decorator.clone(),
-                        line,
+                        target_name: (name.clone()).into(),
+                        decorator_name: (decorator.clone()).into(),
+                        line: line.into(),
                     });
                     if let Some(route) = route_from_mapping(&decorator, node, src) {
                         out.routes.push(route);
@@ -188,16 +189,16 @@ fn walk(
                 }
                 for type_ref in signature_type_refs(node, src) {
                     out.type_refs.push(TypeRefRef {
-                        from_name: name.clone(),
-                        type_name: type_ref,
-                        line,
+                        from_name: (name.clone()).into(),
+                        type_name: (type_ref).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
-                        container_name: container.to_string(),
-                        member_name: name.clone(),
-                        line,
+                        container_name: (container.to_string()).into(),
+                        member_name: (name.clone()).into(),
+                        line: line.into(),
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
@@ -223,15 +224,15 @@ fn walk(
                 let line = node.start_position().row + 1;
                 for name in field_names(node, src) {
                     out.symbols.push(SymbolRef {
-                        name: name.clone(),
+                        name: (name.clone()).into(),
                         kind: SymbolKind::Constant,
-                        line,
+                        line: line.into(),
                     });
                     if let Some(container) = enclosing {
                         out.defines.push(DefinesRef {
-                            container_name: container.to_string(),
-                            member_name: name,
-                            line,
+                            container_name: (container.to_string()).into(),
+                            member_name: (name).into(),
+                            line: line.into(),
                         });
                     }
                 }
@@ -240,8 +241,8 @@ fn walk(
         "import_declaration" => {
             if let Some(path) = import_path(node, src) {
                 out.imports.push(ImportRef {
-                    module_path: path,
-                    line: node.start_position().row + 1,
+                    module_path: (path).into(),
+                    line: (node.start_position().row + 1).into(),
                 });
             }
         }
@@ -249,13 +250,16 @@ fn walk(
             let callee = method_invocation_callee(node, src);
             let (receiver_text, receiver_hint) = receiver_of_call(node, src);
             out.calls.push(CallRef {
-                callee,
-                line: node.start_position().row + 1,
-                from_symbol: fn_scope.name.map(str::to_string),
-                from_symbol_line: fn_scope.line,
-                receiver_text,
+                callee: callee.into(),
+                line: (node.start_position().row + 1).into(),
+                from_symbol: (fn_scope.name.map(str::to_string)).map(Into::into),
+                from_symbol_line: (fn_scope.line).map(Into::into),
+                receiver_text: receiver_text.map(Into::into),
                 receiver_hint,
-                arg_texts: call_arg_texts(node, src),
+                arg_texts: (call_arg_texts(node, src))
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             });
         }
         _ => {}
@@ -552,9 +556,9 @@ fn route_from_mapping(decorator_name: &str, method_node: Node<'_>, src: &[u8]) -
         .map(|(_, method)| method.to_string())?;
     let path = mapping_path_argument(decorator_name, method_node, src).unwrap_or_default();
     Some(RouteRef {
-        method: http_method,
-        path,
-        line: method_node.start_position().row + 1,
+        method: (http_method).into(),
+        path: path.into(),
+        line: (method_node.start_position().row + 1).into(),
     })
 }
 

@@ -17,6 +17,8 @@
 
 use std::path::{Path, PathBuf};
 
+use enforcer_core::context_budget::decision;
+use enforcer_domain::core_types::{BudgetGateDecision, BUDGET_BASELINE_VERSION};
 use enforcer_mcp::tool_surface::{load_baseline, measure_current_surface, run_advisory_score};
 
 fn manifest_dir() -> PathBuf {
@@ -44,10 +46,10 @@ fn measurement_is_deterministic_across_calls() {
         "the same process must measure the same surface twice"
     );
     assert!(
-        first.tool_count > 0,
+        usize::from(first.tool_count()) > 0,
         "the registry must register at least one tool"
     );
-    assert!(first.total_bytes > 0);
+    assert!(usize::from(first.total_bytes()) > 0);
 }
 
 #[test]
@@ -57,7 +59,7 @@ fn simulated_surface_growth_fixture_fails_the_t1_ratchet() -> Result<(), Box<dyn
     let live = measure_current_surface();
     let outcome = enforcer_core::context_budget::evaluate(live, starved);
     assert!(
-        !outcome.passes(),
+        decision(&outcome) == BudgetGateDecision::Fail,
         "a baseline far below the live registry's real surface must fail closed"
     );
     Ok(())
@@ -69,7 +71,7 @@ fn generous_fixture_baseline_passes() -> Result<(), Box<dyn std::error::Error>> 
     let live = measure_current_surface();
     let outcome = enforcer_core::context_budget::evaluate(live, generous);
     assert!(
-        outcome.passes(),
+        decision(&outcome) == BudgetGateDecision::Pass,
         "a baseline far above the live registry's real surface must pass"
     );
     Ok(())
@@ -97,14 +99,14 @@ fn missing_baseline_fails_closed_on_load() {
 fn t2_advisory_score_is_in_unit_range_with_confidence() {
     let score = run_advisory_score();
     assert!(
-        (0.0..=1.0).contains(&score.score),
+        (0.0..=1.0).contains(&f64::from(score.score())),
         "T2 score must be in [0,1], got {}",
-        score.score
+        f64::from(score.score())
     );
     assert!(
-        (0.0..=1.0).contains(&score.confidence),
+        (0.0..=1.0).contains(&f64::from(score.confidence())),
         "T2 confidence must be in [0,1], got {}",
-        score.confidence
+        f64::from(score.confidence())
     );
 }
 
@@ -116,10 +118,10 @@ fn committed_baseline_file_is_loadable_and_well_formed() -> Result<(), Box<dyn s
         "the committed baseline must exist at crates/enforcer-mcp/context-budget-baseline.json"
     );
     let baseline = load_baseline(&path)?;
-    assert_eq!(baseline.version, 1);
-    assert!(baseline.surface.tool_count > 0);
-    assert!(baseline.surface.total_bytes > 0);
-    assert!(baseline.tolerance_pct >= 0.0);
+    assert_eq!(baseline.version(), BUDGET_BASELINE_VERSION);
+    assert!(usize::from(baseline.surface().tool_count()) > 0);
+    assert!(usize::from(baseline.surface().total_bytes()) > 0);
+    assert!(f64::from(baseline.tolerance_pct()) >= 0.0);
     Ok(())
 }
 
@@ -136,15 +138,15 @@ fn live_registry_currently_passes_the_committed_baseline() -> Result<(), Box<dyn
     let live = measure_current_surface();
     let outcome = enforcer_core::context_budget::evaluate(live, baseline);
     assert!(
-        outcome.passes(),
+        decision(&outcome) == BudgetGateDecision::Pass,
         "live tool surface ({} tools, {} bytes) exceeds the committed baseline's tolerance \
          ({} bytes, {}% tolerance) by {:.2}% — update context-budget-baseline.json via an \
          explicit reviewed commit if this growth is intentional",
-        live.tool_count,
-        live.total_bytes,
-        outcome.baseline.surface.total_bytes,
-        outcome.baseline.tolerance_pct,
-        outcome.growth_pct
+        usize::from(live.tool_count()),
+        usize::from(live.total_bytes()),
+        usize::from(outcome.baseline().surface().total_bytes()),
+        f64::from(outcome.baseline().tolerance_pct()),
+        f64::from(outcome.growth_pct())
     );
     Ok(())
 }

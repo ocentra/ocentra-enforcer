@@ -29,11 +29,7 @@ fn extracts_call_expression_via_real_fields() -> TestResult {
     let path = Path::new(FIXTURE_DIR).join("sample.ld");
     let src = fs::read_to_string(&path)?;
     let parsed = parse_linkerscript(&src);
-    parsed
-        .calls
-        .iter()
-        .find(|c| c.callee == "ASSERT")
-        .ok_or("expected an ASSERT call")?;
+    assert!(parsed.calls.iter().any(|c| c.callee == "ASSERT"));
     Ok(())
 }
 
@@ -47,6 +43,6 @@ fn incremental_reindex_is_deterministic() {
 
 #[test]
 fn malformed_source_does_not_panic() {
-    let parsed = parse_linkerscript("((( not linkerscript @@@ ###");
-    let _ = parsed;
+    let source = "((( not linkerscript @@@ ###";
+    assert_eq!(parse_linkerscript(source), parse_linkerscript(source));
 }

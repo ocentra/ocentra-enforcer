@@ -1,7 +1,13 @@
+use crate::boundary::journal_persistence::decode_journal_entry;
 use crate::journal::hash_chain::verify_hash_chain_entry;
 use crate::{
-    EventingError, JournalDispatchPhase, JournalHash, NdjsonEventJournal, NdjsonJournalEntry,
-    ReplayFilter, ReplayMode, ReplayRecord,
+    error::EventingError,
+    journal::ndjson::{NdjsonEventJournal, NdjsonJournalEntry},
+    replay::{ReplayFilter, ReplayRecord},
+};
+use enforcer_domain::events_types::{
+    EventCount, EventMatchState, JournalDispatchPhase, JournalHash, JournalLine, JournalSequence,
+    ReplayMode,
 };
 
 use tokio::{
@@ -9,34 +15,43 @@ use tokio::{
     io::{BufReader, Lines},
 };
 
+pub(super) enum JournalReadLine {
+    Empty,
+    Content(JournalLine),
+}
+
 pub(super) async fn next_line(
     lines: &mut Lines<BufReader<File>>,
     journal: &NdjsonEventJournal,
-) -> Result<Option<String>, EventingError> {
-    lines
+) -> Result<Option<JournalReadLine>, EventingError> {
+    let line = lines
         .next_line()
         .await
-        .map_err(|error| EventingError::journal_io(journal.path_string(), &error))
+        .map_err(|error| EventingError::journal_io(journal.journal_path(), &error))?;
+    Ok(line.map(|line| {
+        if line.trim().is_empty() {
+            JournalReadLine::Empty
+        } else {
+            JournalReadLine::Content(JournalLine::from_diagnostic(line))
+        }
+    }))
 }
 
 pub(super) fn read_record(
     mode: ReplayMode,
-    line: &str,
-    line_number: usize,
+    line: &JournalLine,
+    line_number: EventCount,
     expected_previous_hash: &Option<JournalHash>,
     filter: &ReplayFilter,
 ) -> Result<Option<NdjsonJournalEntry>, EventingError> {
-    if line.trim().is_empty() {
-        return Ok(None);
-    }
-    let entry = parse_entry(line, line_number)?;
+    let entry = decode_journal_entry(line, line_number)?;
     verify_hash_chain_entry(&entry, expected_previous_hash).map_err(|reason| {
         EventingError::JournalCorruptLine {
             line: line_number,
             reason,
         }
     })?;
-    if should_skip_entry(mode, &entry, filter) {
+    if should_skip_entry(mode, &entry, filter) == EventMatchState::Matches {
         return Ok(None);
     }
     Ok(Some(entry))
@@ -49,17 +64,20 @@ pub(super) fn read_record(
 /// of three independent ones updated together on every line.
 pub(super) struct ReplayAccumulator<'a> {
     pub(super) expected_previous_hash: &'a mut Option<JournalHash>,
-    pub(super) last_sequence: &'a mut u64,
+    pub(super) last_sequence: &'a mut JournalSequence,
     pub(super) records: &'a mut Vec<ReplayRecord>,
 }
 
 pub(super) fn process_record(
     mode: ReplayMode,
-    line: &str,
-    line_number: usize,
+    line: &JournalReadLine,
+    line_number: EventCount,
     filter: &ReplayFilter,
     accumulator: &mut ReplayAccumulator<'_>,
-) -> Result<bool, EventingError> {
+) -> Result<EventMatchState, EventingError> {
+    let JournalReadLine::Content(line) = line else {
+        return Ok(EventMatchState::DoesNotMatch);
+    };
     let Some(record) = read_record(
         mode,
         line,
@@ -68,25 +86,29 @@ pub(super) fn process_record(
         filter,
     )?
     else {
-        return Ok(false);
+        return Ok(EventMatchState::DoesNotMatch);
     };
+    // CLONE-JUSTIFICATION: the replay cursor retains the rolling hash while the record is consumed into output.
     *accumulator.expected_previous_hash = record.append.current_hash.clone();
     *accumulator.last_sequence = (*accumulator.last_sequence).max(record.append.sequence);
     accumulator.records.push(ReplayRecord {
         sequence: record.append.sequence,
         envelope: record.envelope,
     });
-    Ok(true)
+    Ok(EventMatchState::Matches)
 }
 
-fn parse_entry(line: &str, line_number: usize) -> Result<NdjsonJournalEntry, EventingError> {
-    serde_json::from_str(line).map_err(|error| EventingError::JournalCorruptLine {
-        line: line_number,
-        reason: error.to_string(),
-    })
-}
-
-fn should_skip_entry(mode: ReplayMode, entry: &NdjsonJournalEntry, filter: &ReplayFilter) -> bool {
-    mode == ReplayMode::ActionHandlersAllowed && entry.phase != JournalDispatchPhase::AfterDispatch
-        || !filter.matches(entry)
+fn should_skip_entry(
+    mode: ReplayMode,
+    entry: &NdjsonJournalEntry,
+    filter: &ReplayFilter,
+) -> EventMatchState {
+    if mode == ReplayMode::ActionHandlersAllowed
+        && entry.phase != JournalDispatchPhase::AfterDispatch
+        || filter.matches(entry) == EventMatchState::DoesNotMatch
+    {
+        EventMatchState::Matches
+    } else {
+        EventMatchState::DoesNotMatch
+    }
 }

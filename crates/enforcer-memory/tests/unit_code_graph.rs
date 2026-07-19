@@ -1,5 +1,6 @@
+use enforcer_domain::memory_types::IndexMode;
 use enforcer_memory::code_graph::{
-    CodeGraph, CodeNode, IndexMode, IndexOptions, IndexWithOptionsError, Manifest, TombstoneNode,
+    CodeGraph, CodeNode, IndexOptions, IndexWithOptionsError, Manifest, TombstoneNode,
 };
 use std::error::Error;
 use std::fs;
@@ -107,7 +108,10 @@ fn deleted_file_gets_tombstone_not_silently_dropped() -> TestResult {
     let tombstones: Vec<&TombstoneNode> = graph2.tombstones().collect();
     assert_eq!(tombstones.len(), 1);
     assert_eq!(tombstones[0].rel_path, "a.rs");
-    assert!(!tombstones[0].prior_chunk_ids.is_empty());
+    assert_eq!(
+        tombstones[0].prior_chunk_ids,
+        manifest_v1.entries["a.rs"].chunk_ids
+    );
     assert!(!manifest_v2.entries.contains_key("a.rs"));
     Ok(())
 }
@@ -319,7 +323,7 @@ fn persistence_true_writes_artifact_and_bootstrap_reimports_same_counts() -> Tes
             indexed_at: Some("2026-07-05T00:00:00Z"),
         },
     )?;
-    assert!(enforcer_memory::artifacts::artifact_exists(dir.path()));
+    assert!(enforcer_memory::artifacts::artifact_exists(dir.path()).is_present());
 
     let original_node_count = graph.nodes().len();
     let original_edge_count = graph.imports().len() + graph.calls().len() + graph.routes().len();

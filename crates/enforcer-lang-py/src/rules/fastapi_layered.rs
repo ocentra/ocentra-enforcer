@@ -21,68 +21,25 @@
 //! prose comment mentioning the same word in a pass fixture stays clean.
 
 use enforcer_domain::findings::Finding;
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{BuiltInPythonRule, RuleId};
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
-/// The fixed parts of one rule's finding: id, severity, title. Mirrors
-/// `enforcer-lang-common`'s `rules::fsm` helper shape.
-struct FindingSpec<'a> {
-    rule_id: &'a RuleId,
-    severity: Severity,
-    title: &'a str,
-}
-
-fn finding(
-    spec: &FindingSpec<'_>,
-    detail: String,
-    input: &ValidationInput<'_>,
-    line: u32,
-) -> Finding {
-    Finding {
-        rule_id: spec.rule_id.clone(),
-        severity: spec.severity,
-        title: spec.title.to_owned(),
-        detail,
-        file: input.file.clone(),
-        line,
-        snippet: None,
-    }
-}
-
-/// True when `path` has a `routers/` (or `router/`) path segment.
-fn in_layer(path: &str, segment: &str) -> bool {
-    path.contains(&format!("/{segment}/")) || path.starts_with(&format!("{segment}/"))
-}
+use crate::boundary::finding::{finding, PythonFindingSpec as FindingSpec};
+use crate::boundary::source::{
+    code_contains, code_part, first_code_line_with, imports_from_models_package, in_layer,
+    PythonLayer,
+};
 
 /// True when any line's code (text before a `#` comment marker, if any)
 /// contains `marker` — so a bare prose comment mentioning the word does
 /// NOT count as a reference, only actual code does.
-fn code_contains(source: &str, marker: &str) -> bool {
-    source.lines().any(|line| code_part(line).contains(marker))
-}
-
 /// First 1-based line number whose CODE portion (not a trailing `#`
 /// comment) contains `marker`.
-fn first_code_line_with(source: &str, marker: &str) -> Option<u32> {
-    source
-        .lines()
-        .enumerate()
-        .find(|(_, line)| code_part(line).contains(marker))
-        .map(|(idx, _)| (idx as u32).saturating_add(1))
-}
-
 /// Strip a trailing `#`-comment from one line of Python source. Naive (no
 /// string-literal awareness) but sufficient for this family's marker-based
 /// checks, matching the precision level `enforcer-lang-common::rules::fsm`
 /// already ships at.
-fn code_part(line: &str) -> &str {
-    match line.find('#') {
-        Some(idx) => &line[..idx],
-        None => line,
-    }
-}
-
 /// First 1-based line number of an import whose module path has a dotted
 /// segment exactly `models` — `from app.models import ...`,
 /// `from myproj.models.order import ...`, `from ..models import ...`,
@@ -90,27 +47,10 @@ fn code_part(line: &str) -> &str {
 /// `import app.models` — regardless of the root package or relative-import
 /// depth. A whole-segment match (not a substring) so a package like
 /// `data_models` or a DTO import like `app.domain.order_dto` stays clean.
-fn imports_from_models_package(source: &str) -> Option<u32> {
-    source.lines().enumerate().find_map(|(idx, line)| {
-        let code = code_part(line).trim_start();
-        let module = if let Some(rest) = code.strip_prefix("from ") {
-            rest.split(" import").next().unwrap_or("")
-        } else if let Some(rest) = code.strip_prefix("import ") {
-            rest.split([' ', ',']).next().unwrap_or("")
-        } else {
-            return None;
-        };
-        if module.split('.').any(|segment| segment == "models") {
-            Some((idx as u32).saturating_add(1))
-        } else {
-            None
-        }
-    })
-}
-
 /// PYFA-1.1 (`py-fastapi-no-repo-in-routers`) — a `routers/**` module
 /// referencing a `*Repository` symbol (import or instantiation) is
 /// flagged; a router depending only on a service stays clean.
+#[derive(Debug)]
 pub struct NoRepoInRoutersValidator {
     rule_id: RuleId,
 }
@@ -119,7 +59,7 @@ impl NoRepoInRoutersValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-1.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa1Rule1.id(),
         })
     }
 }
@@ -131,15 +71,18 @@ impl Validator for NoRepoInRoutersValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "routers") {
+        if !in_layer(input.file, PythonLayer::Routers) {
             return Vec::new();
         }
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let code = code_part(line);
             let references_repo = (code.contains("import") && code.contains("Repository"))
                 || code.contains("Repository(");
             if references_repo {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -151,8 +94,8 @@ impl Validator for NoRepoInRoutersValidator {
                          (e.g. `Depends(OrderService)`) and let the service own the repository."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -162,6 +105,7 @@ impl Validator for NoRepoInRoutersValidator {
 /// PYFA-2.1 (`py-fastapi-no-session-in-services`) — a `Session`/
 /// `AsyncSession` param or use inside `services/**` is flagged; a service
 /// taking a repository stays clean.
+#[derive(Debug)]
 pub struct NoSessionInServicesValidator {
     rule_id: RuleId,
 }
@@ -170,7 +114,7 @@ impl NoSessionInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-2.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa2Rule1.id(),
         })
     }
 }
@@ -182,17 +126,20 @@ impl Validator for NoSessionInServicesValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "services") {
+        if !in_layer(input.file, PythonLayer::Services) {
             return Vec::new();
         }
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let code = code_part(line);
             let uses_session = code.contains(": Session")
                 || code.contains(": AsyncSession")
                 || code.contains("Session)")
                 || code.contains("AsyncSession)");
             if uses_session {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -204,8 +151,8 @@ impl Validator for NoSessionInServicesValidator {
                          repository instead and let it own the session."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -215,6 +162,7 @@ impl Validator for NoSessionInServicesValidator {
 /// PYFA-3.1 (`py-fastapi-no-transaction-in-services`) — `commit()`/
 /// `begin()`/`session.rollback()` inside `services/**` is flagged; a
 /// service that leaves tx control at the boundary/unit-of-work stays clean.
+#[derive(Debug)]
 pub struct NoTransactionInServicesValidator {
     rule_id: RuleId,
 }
@@ -223,7 +171,7 @@ impl NoTransactionInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-3.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa3Rule1.id(),
         })
     }
 }
@@ -235,12 +183,12 @@ impl Validator for NoTransactionInServicesValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "services") {
+        if !in_layer(input.file, PythonLayer::Services) {
             return Vec::new();
         }
         for marker in [".commit(", ".begin(", ".rollback("] {
-            if let Some(line) = first_code_line_with(input.source, marker) {
-                return vec![finding(
+            if let Some(line) = first_code_line_with(input.source.as_str(), marker) {
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -254,7 +202,7 @@ impl Validator for NoTransactionInServicesValidator {
                     ),
                     &input,
                     line,
-                )];
+                );
             }
         }
         Vec::new()
@@ -264,6 +212,7 @@ impl Validator for NoTransactionInServicesValidator {
 /// PYFA-4.1 (`py-fastapi-no-orm-models-in-services`) — importing an ORM
 /// model class into `services/**` is flagged; a service using domain DTOs
 /// stays clean.
+#[derive(Debug)]
 pub struct NoOrmModelsInServicesValidator {
     rule_id: RuleId,
 }
@@ -272,7 +221,7 @@ impl NoOrmModelsInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-4.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa4Rule1.id(),
         })
     }
 }
@@ -284,11 +233,11 @@ impl Validator for NoOrmModelsInServicesValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "services") {
+        if !in_layer(input.file, PythonLayer::Services) {
             return Vec::new();
         }
-        if let Some(line) = imports_from_models_package(input.source) {
-            return vec![finding(
+        if let Some(line) = imports_from_models_package(input.source.as_str()) {
+            return finding(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Error,
@@ -301,7 +250,7 @@ impl Validator for NoOrmModelsInServicesValidator {
                 ),
                 &input,
                 line,
-            )];
+            );
         }
         Vec::new()
     }
@@ -310,6 +259,7 @@ impl Validator for NoOrmModelsInServicesValidator {
 /// PYFA-5.1 (`py-fastapi-no-sqlalchemy-in-routers`) — `from sqlalchemy` /
 /// `select(`/`.query(` inside `routers/**` is flagged; a router delegating
 /// to a service stays clean.
+#[derive(Debug)]
 pub struct NoSqlalchemyInRoutersValidator {
     rule_id: RuleId,
 }
@@ -318,7 +268,7 @@ impl NoSqlalchemyInRoutersValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-5.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa5Rule1.id(),
         })
     }
 }
@@ -330,12 +280,12 @@ impl Validator for NoSqlalchemyInRoutersValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "routers") {
+        if !in_layer(input.file, PythonLayer::Routers) {
             return Vec::new();
         }
         for marker in ["from sqlalchemy", "select(", ".query("] {
-            if let Some(line) = first_code_line_with(input.source, marker) {
-                return vec![finding(
+            if let Some(line) = first_code_line_with(input.source.as_str(), marker) {
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -348,7 +298,7 @@ impl Validator for NoSqlalchemyInRoutersValidator {
                     ),
                     &input,
                     line,
-                )];
+                );
             }
         }
         Vec::new()
@@ -358,6 +308,7 @@ impl Validator for NoSqlalchemyInRoutersValidator {
 /// PYFA-6.1 (`py-fastapi-httpexception-location`) — `raise HTTPException`
 /// outside `routers/**` (e.g. in services/domain) is flagged; raised only
 /// in routers stays clean.
+#[derive(Debug)]
 pub struct HttpExceptionLocationValidator {
     rule_id: RuleId,
 }
@@ -366,7 +317,7 @@ impl HttpExceptionLocationValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-6.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa6Rule1.id(),
         })
     }
 }
@@ -378,11 +329,11 @@ impl Validator for HttpExceptionLocationValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if in_layer(path, "routers") {
+        if in_layer(input.file, PythonLayer::Routers) {
             return Vec::new();
         }
-        if let Some(line) = first_code_line_with(input.source, "raise HTTPException") {
-            return vec![finding(
+        if let Some(line) = first_code_line_with(input.source.as_str(), "raise HTTPException") {
+            return finding(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Error,
@@ -395,7 +346,7 @@ impl Validator for HttpExceptionLocationValidator {
                 ),
                 &input,
                 line,
-            )];
+            );
         }
         Vec::new()
     }
@@ -404,6 +355,7 @@ impl Validator for HttpExceptionLocationValidator {
 /// PYFA-7.1 (`py-fastapi-no-repos-in-workflows`) — a `workflows/**` module
 /// using a repository directly is flagged; a workflow calling a service
 /// stays clean.
+#[derive(Debug)]
 pub struct NoReposInWorkflowsValidator {
     rule_id: RuleId,
 }
@@ -412,7 +364,7 @@ impl NoReposInWorkflowsValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-7.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa7Rule1.id(),
         })
     }
 }
@@ -424,15 +376,18 @@ impl Validator for NoReposInWorkflowsValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "workflows") {
+        if !in_layer(input.file, PythonLayer::Workflows) {
             return Vec::new();
         }
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let code = code_part(line);
             let references_repo = (code.contains("import") && code.contains("Repository"))
                 || code.contains("Repository(");
             if references_repo {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -443,8 +398,8 @@ impl Validator for NoReposInWorkflowsValidator {
                          call a service, not the persistence layer. Fix: inject a service."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -454,6 +409,7 @@ impl Validator for NoReposInWorkflowsValidator {
 /// PYFA-8.1 (`py-fastapi-models-mapped`) — a SQLAlchemy model column not
 /// typed with `Mapped[...]` is flagged (bare `Column(` assignment);
 /// `Mapped[int]`/`mapped_column` stays clean.
+#[derive(Debug)]
 pub struct ModelsMappedValidator {
     rule_id: RuleId,
 }
@@ -462,7 +418,7 @@ impl ModelsMappedValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-8.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa8Rule1.id(),
         })
     }
 }
@@ -474,12 +430,15 @@ impl Validator for ModelsMappedValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let code = code_part(line);
             let trimmed = code.trim_start();
             let is_bare_column_assign = trimmed.contains(" = Column(") && !code.contains("Mapped[");
             if is_bare_column_assign {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -490,8 +449,8 @@ impl Validator for ModelsMappedValidator {
                          mapped_column(...)`. Fix: use SQLAlchemy 2.0 `Mapped[...]` typing."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -500,6 +459,7 @@ impl Validator for ModelsMappedValidator {
 
 /// PYFA-9.1 (`py-fastapi-domain-purity`) — `domain/**` importing FastAPI/
 /// HTTP or raising `HTTPException` is flagged; a pure domain stays clean.
+#[derive(Debug)]
 pub struct DomainPurityValidator {
     rule_id: RuleId,
 }
@@ -508,7 +468,7 @@ impl DomainPurityValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-9.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa9Rule1.id(),
         })
     }
 }
@@ -520,12 +480,12 @@ impl Validator for DomainPurityValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        if !in_layer(path, "domain") {
+        if !in_layer(input.file, PythonLayer::Domain) {
             return Vec::new();
         }
         for marker in ["from fastapi", "import fastapi", "raise HTTPException"] {
-            if let Some(line) = first_code_line_with(input.source, marker) {
-                return vec![finding(
+            if let Some(line) = first_code_line_with(input.source.as_str(), marker) {
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -538,7 +498,7 @@ impl Validator for DomainPurityValidator {
                     ),
                     &input,
                     line,
-                )];
+                );
             }
         }
         Vec::new()
@@ -548,6 +508,7 @@ impl Validator for DomainPurityValidator {
 /// PYFA-10.1 (`py-fastapi-no-sync-http`) — `requests.` / a sync
 /// `httpx.Client` used in an async function is flagged; `httpx.AsyncClient`
 /// with `await` stays clean.
+#[derive(Debug)]
 pub struct NoSyncHttpValidator {
     rule_id: RuleId,
 }
@@ -556,7 +517,7 @@ impl NoSyncHttpValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-10.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa10Rule1.id(),
         })
     }
 }
@@ -568,7 +529,7 @@ impl Validator for NoSyncHttpValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        let is_async_context = input.source.contains("async def");
+        let is_async_context = input.source.as_str().contains("async def");
         if !is_async_context {
             return Vec::new();
         }
@@ -584,8 +545,8 @@ impl Validator for NoSyncHttpValidator {
             "urllib.request.urlopen(",
             "httpx.Client(",
         ] {
-            if let Some(line) = first_code_line_with(input.source, marker) {
-                return vec![finding(
+            if let Some(line) = first_code_line_with(input.source.as_str(), marker) {
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -598,7 +559,7 @@ impl Validator for NoSyncHttpValidator {
                     ),
                     &input,
                     line,
-                )];
+                );
             }
         }
         Vec::new()
@@ -608,6 +569,7 @@ impl Validator for NoSyncHttpValidator {
 /// PYFA-11.1 (`py-fastapi-no-direct-repo-instantiation`) — a
 /// `SomeRepository(...)` constructed inline (assignment, not a `Depends(...)`
 /// default) is flagged; injected via `Depends`/DI stays clean.
+#[derive(Debug)]
 pub struct NoDirectRepoInstantiationValidator {
     rule_id: RuleId,
 }
@@ -616,7 +578,7 @@ impl NoDirectRepoInstantiationValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-11.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa11Rule1.id(),
         })
     }
 }
@@ -628,7 +590,7 @@ impl Validator for NoDirectRepoInstantiationValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let code = code_part(line);
             let trimmed = code.trim_start();
             let is_inline_construction = trimmed.contains("Repository(")
@@ -636,7 +598,10 @@ impl Validator for NoDirectRepoInstantiationValidator {
                 && !trimmed.contains("class ")
                 && !trimmed.contains("def ");
             if is_inline_construction {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -648,8 +613,8 @@ impl Validator for NoDirectRepoInstantiationValidator {
                          constructor/`Depends`-injected parameter."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -660,42 +625,43 @@ impl Validator for NoDirectRepoInstantiationValidator {
 /// plaintext password (a `password` field/compare with no `hash`/`bcrypt`/
 /// `argon2` marker anywhere in the file) is flagged; bcrypt/argon2 usage
 /// stays clean.
-pub struct PlaintextPasswordValidator {
+#[derive(Debug)]
+pub struct UnsafeAuthenticationStorageValidator {
     rule_id: RuleId,
 }
 
-impl PlaintextPasswordValidator {
+impl UnsafeAuthenticationStorageValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-12.1".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa12Rule1.id(),
         })
     }
 }
 
-impl Validator for PlaintextPasswordValidator {
+impl Validator for UnsafeAuthenticationStorageValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        let stores_password_field = code_contains(input.source, "\"password\":")
-            || code_contains(input.source, "'password':")
-            || code_contains(input.source, "[\"password\"]");
+        let stores_password_field = code_contains(input.source.as_str(), "\"password\":")
+            || code_contains(input.source.as_str(), "'password':")
+            || code_contains(input.source.as_str(), "[\"password\"]");
         if !stores_password_field {
             return Vec::new();
         }
-        let uses_secure_hashing = input.source.contains("bcrypt")
-            || input.source.contains("argon2")
-            || input.source.contains("password_hash")
-            || input.source.contains("scrypt")
-            || input.source.contains("pbkdf2");
+        let uses_secure_hashing = input.source.as_str().contains("bcrypt")
+            || input.source.as_str().contains("argon2")
+            || input.source.as_str().contains("password_hash")
+            || input.source.as_str().contains("scrypt")
+            || input.source.as_str().contains("pbkdf2");
         if uses_secure_hashing {
             return Vec::new();
         }
-        if let Some(line) = first_code_line_with(input.source, "password") {
-            return vec![finding(
+        if let Some(line) = first_code_line_with(input.source.as_str(), "password") {
+            return finding(
                 &FindingSpec {
                     rule_id: &self.rule_id,
                     severity: Severity::Error,
@@ -708,7 +674,7 @@ impl Validator for PlaintextPasswordValidator {
                 ),
                 &input,
                 line,
-            )];
+            );
         }
         Vec::new()
     }
@@ -717,27 +683,28 @@ impl Validator for PlaintextPasswordValidator {
 /// PYFA-12.2 (`py-fastapi-insecure-random-token`) — `random.*` used to mint
 /// a token is flagged; `secrets.token_hex`/`secrets.token_urlsafe` stays
 /// clean.
-pub struct InsecureRandomTokenValidator {
+#[derive(Debug)]
+pub struct WeakRandomIdentifierGenerationValidator {
     rule_id: RuleId,
 }
 
-impl InsecureRandomTokenValidator {
+impl WeakRandomIdentifierGenerationValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-12.2".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa12Rule2.id(),
         })
     }
 }
 
-impl Validator for InsecureRandomTokenValidator {
+impl Validator for WeakRandomIdentifierGenerationValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        let mentions_token = input.source.contains("token");
+        let mentions_token = input.source.as_str().contains("token");
         if !mentions_token {
             return Vec::new();
         }
@@ -750,8 +717,8 @@ impl Validator for InsecureRandomTokenValidator {
             "random.sample(",
             "random.uniform(",
         ] {
-            if let Some(line) = first_code_line_with(input.source, marker) {
-                return vec![finding(
+            if let Some(line) = first_code_line_with(input.source.as_str(), marker) {
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -764,7 +731,7 @@ impl Validator for InsecureRandomTokenValidator {
                     ),
                     &input,
                     line,
-                )];
+                );
             }
         }
         Vec::new()
@@ -773,6 +740,7 @@ impl Validator for InsecureRandomTokenValidator {
 
 /// PYFA-12.3 (`py-fastapi-cors-wildcard`) — `allow_origins=["*"]` is
 /// flagged; an explicit origin list stays clean.
+#[derive(Debug)]
 pub struct CorsWildcardValidator {
     rule_id: RuleId,
 }
@@ -781,7 +749,7 @@ impl CorsWildcardValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
     pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
-            rule_id: "PYFA-12.3".parse()?,
+            rule_id: BuiltInPythonRule::Pyfa12Rule3.id(),
         })
     }
 }
@@ -795,7 +763,7 @@ impl Validator for CorsWildcardValidator {
         let path = input.file.as_str();
         // Normalize away all whitespace on each code line so
         // `allow_origins = [ "*" ]` reads the same as `allow_origins=["*"]`.
-        for (idx, line) in input.source.lines().enumerate() {
+        for (idx, line) in input.source.as_str().lines().enumerate() {
             let normalized: String = code_part(line)
                 .chars()
                 .filter(|c| !c.is_whitespace())
@@ -803,7 +771,10 @@ impl Validator for CorsWildcardValidator {
             if normalized.contains("allow_origins=[\"*\"]")
                 || normalized.contains("allow_origins=['*']")
             {
-                return vec![finding(
+                let Ok(line_number) = crate::boundary::source::one_based_line(idx) else {
+                    continue;
+                };
+                return finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
                         severity: Severity::Error,
@@ -815,8 +786,8 @@ impl Validator for CorsWildcardValidator {
                          allowed origins."
                     ),
                     &input,
-                    (idx as u32).saturating_add(1),
-                )];
+                    line_number,
+                );
             }
         }
         Vec::new()
@@ -839,8 +810,8 @@ pub fn validators(
         Box::new(DomainPurityValidator::new()?),
         Box::new(NoSyncHttpValidator::new()?),
         Box::new(NoDirectRepoInstantiationValidator::new()?),
-        Box::new(PlaintextPasswordValidator::new()?),
-        Box::new(InsecureRandomTokenValidator::new()?),
+        Box::new(UnsafeAuthenticationStorageValidator::new()?),
+        Box::new(WeakRandomIdentifierGenerationValidator::new()?),
         Box::new(CorsWildcardValidator::new()?),
     ])
 }

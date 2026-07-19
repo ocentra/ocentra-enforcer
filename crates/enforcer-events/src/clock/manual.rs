@@ -1,36 +1,43 @@
-use std::{
-    sync::{Arc, PoisonError},
-    time::Duration,
-};
+use std::sync::{Arc, PoisonError};
 
+use enforcer_domain::events_types::{EventCount, EventDuration};
 use tokio::sync::oneshot;
 
 use super::{EventClock, EventClockInstant, EventClockSleep, ManualEventClock, SharedEventClock};
 
 impl ManualEventClock {
+    /// Executes the new event-runtime operation.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Executes the shared event-runtime operation.
     pub fn shared(&self) -> SharedEventClock {
+        // CLONE-JUSTIFICATION: shared test clocks intentionally point at the same synchronized manual state.
         Arc::new(self.clone())
     }
 
-    pub fn advance(&self, duration: Duration) {
+    /// Executes the advance event-runtime operation.
+    pub fn advance(&self, duration: EventDuration) {
         let ready_sleepers = self.ready_sleepers(duration);
         for sleeper in ready_sleepers {
-            let _ = sleeper.send(());
+            if sleeper.send(()).is_err() {
+                continue;
+            }
         }
     }
 
-    pub fn pending_sleep_count(&self) -> usize {
-        self.state
+    /// Executes the pending sleep count event-runtime operation.
+    pub fn pending_sleep_count(&self) -> EventCount {
+        let pending_sleep_count = self
+            .state
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .sleepers
             .values()
             .map(Vec::len)
-            .sum()
+            .sum::<usize>();
+        crate::boundary::event_values::event_count(pending_sleep_count)
     }
 }
 
@@ -44,7 +51,7 @@ impl EventClock for ManualEventClock {
         )
     }
 
-    fn sleep<'a>(&'a self, duration: Duration) -> EventClockSleep<'a> {
+    fn sleep<'a>(&'a self, duration: EventDuration) -> EventClockSleep<'a> {
         let Some(receiver) = self.register_sleep(duration) else {
             return Box::pin(async {});
         };
@@ -55,11 +62,15 @@ impl EventClock for ManualEventClock {
 }
 
 impl ManualEventClock {
-    fn ready_sleepers(&self, duration: Duration) -> Vec<oneshot::Sender<()>> {
+    fn ready_sleepers(&self, duration: EventDuration) -> Vec<oneshot::Sender<()>> {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         // Saturate rather than panic on overflow: a manual test clock that
         // hits `Instant`'s upper bound should stay pinned there, not abort.
-        state.now = state.now.saturating_add(duration);
+        state.now = state
+            .now
+            .saturating_add(crate::boundary::event_values::event_duration_value(
+                duration,
+            ));
         let ready_targets = state
             .sleepers
             .keys()
@@ -75,9 +86,16 @@ impl ManualEventClock {
         ready_sleepers
     }
 
-    fn register_sleep(&self, duration: Duration) -> Option<tokio::sync::oneshot::Receiver<()>> {
+    fn register_sleep(
+        &self,
+        duration: EventDuration,
+    ) -> Option<tokio::sync::oneshot::Receiver<()>> {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        let target = state.now.checked_add(duration)?;
+        let target = state
+            .now
+            .checked_add(crate::boundary::event_values::event_duration_value(
+                duration,
+            ))?;
         if target <= state.now {
             return None;
         }

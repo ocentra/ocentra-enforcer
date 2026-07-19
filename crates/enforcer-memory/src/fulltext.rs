@@ -1,7 +1,7 @@
 //! X06.4 code-aware full-text search (D-07, LOCKED behavior; D-07a
 //! engine choice recorded below).
 //!
-//! # D-07a — engine choice: SQLite FTS5 over the crate's existing
+//! # D-07a â€” engine choice: SQLite FTS5 over the crate's existing
 //! `rusqlite` (`bundled`) dependency, NOT tantivy
 //!
 //! The crate already depends on `rusqlite` with the `bundled` feature
@@ -49,8 +49,13 @@
 //! must still work).
 
 use crate::error::{MemoryError, Result};
+use crate::owned_boundary::{Retained, RetainedDisplay};
 use crate::ranking::ScoredCandidate;
-use crate::search::document::{DocumentKind, SearchDocument};
+use crate::search::document::SearchDocument;
+use enforcer_domain::memory_types::{
+    DocumentKind, MemoryFullTextInput, MemoryFullTextLimit, MemoryFullTextQuery,
+    MemoryFullTextToken, ParserSourceText,
+};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -59,8 +64,8 @@ use std::sync::Mutex;
 /// camelCase, PascalCase, snake_case, kebab-case, and path/`::`/`.`
 /// separators are all split boundaries, and the untouched lowercased
 /// original is always included as one extra term so exact compound
-/// matches still work (baseline behavior per scout digest §1).
-pub fn tokenize(text: &str) -> Vec<String> {
+/// matches still work (baseline behavior per scout digest Â§1).
+pub fn tokenize(text: &MemoryFullTextInput) -> Vec<MemoryFullTextToken> {
     let mut terms = Vec::new();
     for raw_word in text.split(|c: char| {
         c.is_whitespace() || matches!(c, '/' | '\\' | '.' | ':' | '(' | ')' | ',' | '"' | '\'')
@@ -70,12 +75,12 @@ pub fn tokenize(text: &str) -> Vec<String> {
         }
         let lowered = raw_word.to_lowercase();
         if !lowered.is_empty() {
-            terms.push(lowered.clone());
+            terms.push(lowered.retained().into());
         }
-        for piece in split_identifier(raw_word) {
+        for piece in split_identifier(ParserSourceText::from(raw_word)) {
             let lowered_piece = piece.to_lowercase();
             if lowered_piece.len() > 1 && lowered_piece != lowered {
-                terms.push(lowered_piece);
+                terms.push(lowered_piece.into());
             }
         }
     }
@@ -85,14 +90,14 @@ pub fn tokenize(text: &str) -> Vec<String> {
 /// Split one identifier on camelCase/PascalCase boundaries, `_`, and
 /// `-`. Digits attach to the preceding run (`v2` stays `v2`, not `v`+`2`)
 /// so version-like tokens survive intact.
-fn split_identifier(word: &str) -> Vec<String> {
+fn split_identifier(word: ParserSourceText<'_>) -> Vec<MemoryFullTextToken> {
     let mut pieces = Vec::new();
     let mut current = String::new();
-    let chars: Vec<char> = word.chars().collect();
+    let chars: Vec<char> = word.as_str().chars().collect();
     for (i, &c) in chars.iter().enumerate() {
         if c == '_' || c == '-' {
             if !current.is_empty() {
-                pieces.push(std::mem::take(&mut current));
+                pieces.push(std::mem::take(&mut current).into());
             }
             continue;
         }
@@ -100,12 +105,12 @@ fn split_identifier(word: &str) -> Vec<String> {
             && c.is_uppercase()
             && (chars[i - 1].is_lowercase() || chars[i - 1].is_ascii_digit());
         if is_boundary && !current.is_empty() {
-            pieces.push(std::mem::take(&mut current));
+            pieces.push(std::mem::take(&mut current).into());
         }
         current.push(c);
     }
     if !current.is_empty() {
-        pieces.push(current);
+        pieces.push(current.into());
     }
     pieces
 }
@@ -114,6 +119,7 @@ fn split_identifier(word: &str) -> Vec<String> {
 /// an in-memory SQLite FTS5 table (see module docs, D-07a) so the index
 /// itself is fully disposable/rebuildable per D-02 -- nothing here is
 /// ever the source of truth.
+#[derive(Debug)]
 pub struct FullTextIndex {
     conn: Mutex<Connection>,
     /// `id -> (kind, snippet)` so `search` can hand back full
@@ -138,12 +144,17 @@ impl FullTextIndex {
                 .prepare("INSERT INTO ft (doc_id, terms) VALUES (?1, ?2)")
                 .map_err(MemoryError::Sqlite)?;
             for document in documents {
-                let terms = tokenize(&document.text).join(" ");
-                stmt.execute(rusqlite::params![document.id, terms])
+                let input = MemoryFullTextInput::from(document.text.as_str());
+                let terms = tokenize(&input)
+                    .iter()
+                    .map(MemoryFullTextToken::as_str)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                stmt.execute(rusqlite::params![document.id.as_str(), terms])
                     .map_err(MemoryError::Sqlite)?;
                 docs.insert(
-                    document.id.clone(),
-                    (document.kind, document.snippet.clone()),
+                    document.id.retained_display(),
+                    (document.kind, document.snippet.retained_display()),
                 );
             }
         }
@@ -166,11 +177,15 @@ impl FullTextIndex {
     /// this crate's [`ScoredCandidate`] convention), with the D-07
     /// structural label boost applied on top: `final = -bm25 *
     /// label_boost`.
-    pub fn search(&self, query: &str, limit: usize) -> Result<Vec<ScoredCandidate>> {
+    pub fn search(
+        &self,
+        query: &MemoryFullTextQuery,
+        limit: MemoryFullTextLimit,
+    ) -> Result<Vec<ScoredCandidate>> {
         if self.docs.is_empty() {
             return Ok(Vec::new());
         }
-        let terms = tokenize(query);
+        let terms = tokenize(&MemoryFullTextInput::from(query.as_str()));
         if terms.is_empty() {
             return Ok(Vec::new());
         }
@@ -191,12 +206,14 @@ impl FullTextIndex {
         // must still be present in this pre-boost fetch window or the
         // boost can never surface it. `self.docs.len()` bounds the fetch
         // to the corpus size so this never turns into an unbounded scan.
+        let limit = limit.get();
         let fetch_window = (limit.saturating_mul(4).max(limit)).min(self.docs.len().max(1));
         let mut stmt = conn
             .prepare("SELECT doc_id, bm25(ft) FROM ft WHERE ft MATCH ?1 ORDER BY bm25(ft) LIMIT ?2")
             .map_err(MemoryError::Sqlite)?;
+        let fetch_window = i64::try_from(fetch_window).unwrap_or(i64::MAX);
         let rows = stmt
-            .query_map(rusqlite::params![match_expr, fetch_window as i64], |row| {
+            .query_map(rusqlite::params![match_expr, fetch_window], |row| {
                 let doc_id: String = row.get(0)?;
                 let bm25: f64 = row.get(1)?;
                 Ok((doc_id, bm25))
@@ -211,8 +228,11 @@ impl FullTextIndex {
             // FTS5 bm25() is a cost (lower = better); negate then boost
             // by structural label so this crate's shared "higher is
             // better" convention holds across fulltext/vector/rerank.
-            let score = (-bm25) * kind.label_boost();
-            out.push(ScoredCandidate { doc_id, score });
+            let score = (-bm25) * f64::from(kind.label_boost());
+            out.push(ScoredCandidate {
+                doc_id: doc_id.into(),
+                score: score.into(),
+            });
         }
         // The SQL fetch above is ordered by UNBOOSTED bm25; re-sort by
         // the boosted score so the structural label boost actually

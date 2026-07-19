@@ -12,12 +12,12 @@
 //! below therefore encodes a bespoke, semantically-derived pattern from the
 //! rule's `title`/`snippet`, not a copy of the JSON `triggers` string.
 
-use super::spec::{RuleSpec, TriggerKind};
+use crate::boundary::rule_spec::{RawRuleSpec as RuleSpec, TriggerKind};
 
 /// Every TS-slice `generic-scanner` rule's static spec, grouped by
 /// `rules.json` family (`TS-6` type-safety source rules, `TS-7` toolchain
 /// config rules, `TS-8` test-quality rules).
-pub const SPECS: &[RuleSpec] = &[
+pub(crate) const SPECS: &[RuleSpec] = &[
     // --- TS-6 type-safety / domain-shape rules ---------------------------
     RuleSpec {
         rule_id: "TS-6.2",
@@ -365,13 +365,8 @@ pub const SPECS: &[RuleSpec] = &[
 #[cfg(test)]
 mod tests {
     use super::SPECS;
+    use crate::boundary::test_fixtures::run_fixture_parity;
     use crate::rules::spec::SpecValidator;
-    use enforcer_validator::harness::run_fixture_parity;
-    use std::path::PathBuf;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
 
     #[test]
     fn every_generic_scanner_ts_slice_spec_fires_on_fail_and_stays_silent_on_pass(
@@ -381,7 +376,7 @@ mod tests {
             let slug = spec.rule_id.to_lowercase().replace('.', "-");
             let fail = format!("fixtures/generic-scanner/{slug}/fail.ts");
             let pass = format!("fixtures/generic-scanner/{slug}/pass.ts");
-            run_fixture_parity(&validator, &manifest_dir(), &fail, &pass)
+            run_fixture_parity(&validator, &fail, &pass)
                 .map_err(|e| format!("{}: {e}", spec.rule_id))?;
         }
         Ok(())
