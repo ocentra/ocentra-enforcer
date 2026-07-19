@@ -11,8 +11,10 @@ export function applyTestStructureRules({
   isTestSource,
 }) {
   if (!isTestSource && !/^\s*#\s*\[\s*test\s*\]\s*$/mu.test(masked ?? source)) return;
-  if (/#\s*\[\s*should_panic/u.test(source) && !/\bPANIC-CONTRACT:/u.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /#\s*\[\s*should_panic/u);
+  const maskedLines = (masked ?? source).split(/\r?\n/u);
+  const shouldPanicIndex = maskedLines.findIndex((line) => /#\s*\[\s*should_panic/u.test(line));
+  if (shouldPanicIndex >= 0 && !/\bPANIC-CONTRACT:/u.test(source)) {
+    const lineNo = shouldPanicIndex + 1;
     addViolation(violations, root, filePath, lineNo, "RR-12.20", "#[should_panic] lacks PANIC-CONTRACT evidence.", originalLines[lineNo - 1] ?? null);
   }
   for (const testFunction of collectTestFunctions(source, masked ?? source)) {
@@ -24,7 +26,7 @@ export function applyTestStructureRules({
       continue;
     }
     const hasBehavioralAssertion =
-      /\b(?:assert[A-Za-z0-9_]*|compare[A-Za-z0-9_]*|run_fixture_parity)\s*(?:!\s*)?\(/u.test(body) ||
+      /\b(?:assert[A-Za-z0-9_]*|compare[A-Za-z0-9_]*|run_fixture_parity|run_manifest_fixture_parity|prop_assert[A-Za-z0-9_]*)\s*(?:!\s*)?\(/u.test(body) ||
       /\bmatches!\s*\(/u.test(body);
     if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !hasBehavioralAssertion) {
       addViolation(violations, root, filePath, lineNo, "RR-12.25", "construction-only test lacks behavioral assertion.", originalLines[lineNo - 1] ?? null);

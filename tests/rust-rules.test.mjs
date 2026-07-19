@@ -867,8 +867,10 @@ test('test-structure rules use balanced masked bodies', () => {
 #[test]
 fn fixture_text_is_not_a_test() {
     let fixture = r#"#[test]\nfn fake() {}"#;
+    let panic_attribute = "#[should_panic]";
     let bytes = b"fn byte_fixture() { 1 }";
     assert!(!fixture.is_empty());
+    assert!(!panic_attribute.is_empty());
     assert!(!bytes.is_empty());
 }
 
@@ -879,6 +881,7 @@ fn following_test_remains_visible() {
 `,
   });
   expectNoRule(passing, 'RR-12.24');
+  expectNoRule(passing, 'RR-12.20');
   const failing = makeProject({ 'src/lib.rs': '#[test]\nfn empty() {}\n' });
   expectFailure(failing, 'RR-12.24');
 });
@@ -895,6 +898,31 @@ fn validator_fixture_has_behavioral_proof() -> Result<(), ()> {
 `,
   });
   expectNoRule(delegatedProof, 'RR-12.25');
+
+  const manifestDelegatedProof = makeProject({
+    'src/lib.rs': `
+#[test]
+fn validator_manifest_has_behavioral_proof() -> Result<(), ()> {
+    let validator = Validator::new()?;
+    run_manifest_fixture_parity(&validator, "bad", "good")?;
+    Ok(())
+}
+`,
+  });
+  expectNoRule(manifestDelegatedProof, 'RR-12.25');
+
+  const propertyAssertion = makeProject({
+    'src/lib.rs': `
+proptest! {
+    #[test]
+    fn constructor_property(value in 1_u8..10) {
+        let outcome = Validator::new(value);
+        prop_assert!(outcome.is_ok());
+    }
+}
+`,
+  });
+  expectNoRule(propertyAssertion, 'RR-12.25');
 
   const constructionOnly = makeProject({
     'src/lib.rs': '#[test]\nfn only_constructs() { let _value = Validator::new(); }\n',
@@ -991,4 +1019,26 @@ test('DTO mapper entry points satisfy conversion evidence while missing conversi
     'src/boundary/artifact_transport.rs': 'pub struct ArtifactTransportDto;\npub struct ArtifactTransport;\n',
   });
   expectFailure(failing, 'RR-14.23');
+
+  const roundTripCovered = makeProject({
+    'src/boundary/proof.rs': `
+#[derive(Serialize, Deserialize)]
+pub struct ProofDto;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn proof_dto_round_trip_preserves_the_wire_shape() {
+        let value = ProofDto;
+        assert_eq!(serde_json::from_str::<ProofDto>(&serde_json::to_string(&value).unwrap()).is_ok(), true);
+    }
+}
+`,
+  });
+  expectNoRule(roundTripCovered, 'RR-14.25');
+
+  const roundTripMissing = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize)]\npub struct ProofDto;\n',
+  });
+  expectFailure(roundTripMissing, 'RR-14.25');
 });
