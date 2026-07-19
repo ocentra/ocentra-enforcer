@@ -29,6 +29,11 @@ fn mcp_text_brands_reject_empty_and_blank_invalid_input() -> Result<(), DecodeEr
         }
     }
     rejection(McpToolName::try_new("  "), "mcpToolName")?;
+    rejection(McpToolName::try_new("invalid tool name"), "mcpToolName")?;
+    rejection(McpToolName::try_new("invalid,name"), "mcpToolName")?;
+    rejection(McpToolName::try_new("unicode-工具"), "mcpToolName")?;
+    let oversized = "a".repeat(65);
+    rejection(McpToolName::try_new(&oversized), "mcpToolName")?;
     rejection(McpActionName::try_new("\t"), "mcpActionName")?;
     rejection(PackageVersion::try_new("\n"), "packageVersion")?;
     Ok(())
@@ -36,7 +41,13 @@ fn mcp_text_brands_reject_empty_and_blank_invalid_input() -> Result<(), DecodeEr
 
 #[test]
 fn mcp_tool_name_preserves_representative_nonblank_samples() -> Result<(), DecodeError> {
-    for sample in ["scan", "coordination_claim", "x-tool.v2", "A"] {
+    for sample in [
+        "scan",
+        "coordination_claim",
+        "x-tool.v2",
+        "tools/search",
+        "A",
+    ] {
         assert_eq!(McpToolName::try_new(sample)?.as_str(), sample);
     }
     Ok(())

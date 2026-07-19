@@ -106,8 +106,15 @@ impl McpToolName {
     ///
     /// Invalid or blank input is rejected before the identifier enters the domain.
     pub fn try_new(value: &str) -> Result<Self, DecodeError> {
-        if value.trim().is_empty() {
-            return Err(DecodeError::new("mcpToolName", "must not be empty"));
+        const MAX_LENGTH: usize = 64;
+        let valid_characters = value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'/'));
+        if value.is_empty() || value.len() > MAX_LENGTH || !valid_characters {
+            return Err(DecodeError::new(
+                "mcpToolName",
+                "must be 1 to 64 ASCII letters, digits, underscores, dashes, dots, or slashes",
+            ));
         }
         // ALLOC-JUSTIFICATION: the tool identity outlives the borrowed transport request.
         Ok(Self {
