@@ -765,11 +765,14 @@ function resolveContractConfigPath(root, explicitConfigPath) {
   return existingConfigPath(root);
 }
 
+const MAX_PROCESS_OUTPUT_BYTES = 64 * 1024 * 1024;
+
 function spawnInRoot(root, command, args) {
   const invocation = resolveCommand(command, args);
   return spawnSync(invocation.command, invocation.args, {
     cwd: root,
     encoding: "utf8",
+    maxBuffer: MAX_PROCESS_OUTPUT_BYTES,
     shell: false,
   });
 }
@@ -788,11 +791,16 @@ function resolveCommand(command, args) {
 }
 
 function compactProcessOutput(result) {
-  return {
-    status: result.status ?? 0,
-    stdout: String(result.stdout ?? "").trim(),
-    stderr: String(result.stderr ?? "").trim(),
-  };
+  const error = result.error instanceof Error
+    ? `${result.error.name}: ${result.error.message}`
+    : "";
+  const output = [
+    `status=${result.status ?? "unknown"}`,
+    error,
+    String(result.stdout ?? "").trim(),
+    String(result.stderr ?? "").trim(),
+  ].filter(Boolean).join("\n");
+  return output.length > 4096 ? `${output.slice(0, 4096)}\n...` : output;
 }
 
 function isIgnored(file, config) {
