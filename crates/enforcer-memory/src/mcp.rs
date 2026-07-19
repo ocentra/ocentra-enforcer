@@ -202,6 +202,7 @@ const WIRED_TOOLS: &[&str] = &[
     "model_runtime_status",
 ];
 
+// ROUNDTRIP-TEST: tests/mcp_cli_live.rs::tool_descriptor_dto_round_trip_through_json
 /// One MCP tool's static descriptor (mirrors `enforcer_mcp::registry`'s
 /// shape so both crates' `tools/list` payloads look the same on the wire).
 /// Field set and shape match `refs/x06-baseline-tool-schemas.md`'s fully
@@ -209,7 +210,6 @@ const WIRED_TOOLS: &[&str] = &[
 /// `inputSchema` plus a constant `outputSchema` identical for every tool
 /// (`{"type":"object","additionalProperties":true}`) -- no `$schema` draft
 /// URI anywhere, matching the baseline.
-// ROUNDTRIP-TEST: tests/mcp_cli_live.rs::tool_descriptor_dto_round_trip_through_json
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolDescriptorDto {
     pub name: String,

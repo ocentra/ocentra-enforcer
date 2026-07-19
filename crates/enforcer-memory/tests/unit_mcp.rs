@@ -26,6 +26,10 @@ fn tool_descriptor_maps_to_canonical_name() -> TestResult {
     };
     let wire = serde_json::to_vec(&descriptor)?;
     let restored: ToolDescriptorDto = serde_json::from_slice(&wire)?;
+    assert_eq!(
+        serde_json::to_value(&restored)?,
+        serde_json::to_value(&descriptor)?,
+    );
     assert_eq!(restored.name, descriptor.name);
     assert_eq!(restored.title, descriptor.title);
     assert_eq!(restored.description, descriptor.description);
