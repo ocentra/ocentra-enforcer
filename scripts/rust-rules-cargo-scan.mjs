@@ -18,6 +18,7 @@ import {
   packageNameFromManifest,
 } from "./rust-rules-path-core.mjs";
 import { scanRustFile } from "./rust-rules-source-scan.mjs";
+import { clearProofEvidenceCache } from "./rust-rules-source-late-test-evidence.mjs";
 
 function advisoryPolicyValue(denyText, key) {
   let section = "";
@@ -640,6 +641,7 @@ function scanCargoMetadata(root, config, scope) {
 }
 
 function runScanner(root, config, scope) {
+  clearProofEvidenceCache();
   const violations = [];
   violations.push(...scanWorkspaceFiles(root, config, scope));
   violations.push(...scanCargoMetadata(root, config, scope));

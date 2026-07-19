@@ -269,7 +269,14 @@ function maskRustCode(source) {
         pushMask(ch);
         continue;
       }
-      if (ch === '"' || (ch === "b" && next === '"')) {
+      if ((ch === "b" || ch === "c") && next === '"') {
+        state = "string";
+        pushMask(ch);
+        pushMask(next);
+        i += 1;
+        continue;
+      }
+      if (ch === '"') {
         state = "string";
         pushMask(ch);
         continue;

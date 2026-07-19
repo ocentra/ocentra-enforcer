@@ -15,7 +15,11 @@ export function applyBoundaryTransportRules({
     if (!isBoundary) {
       addViolation(violations, root, filePath, lineNo, "RR-14.20", `DTO struct ${name} is outside a boundary/serde/transport module.`, originalLines[lineNo - 1] ?? null);
     }
-    if (!/\b(?:TryFrom|From)\s*<[^>]*\b/u.test(source) && !/\b(?:map_to_domain|into_domain|to_domain)\b/u.test(source)) {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const hasConversion = new RegExp(`\\bimpl(?:\\s*<[^>{}]+>)?\\s+(?:core::convert::|std::convert::)?(?:TryFrom|From)\\s*<\\s*&?(?:'[_A-Za-z][_A-Za-z0-9]*\\s+)?${escapedName}\\b|\\bfn\\s+(?:map_to_domain|into_domain|to_domain)\\b[^({;]*\\([^)]*:\\s*&?(?:'[_A-Za-z][_A-Za-z0-9]*\\s+)?${escapedName}\\b|\\bimpl(?:\\s*<[^>{}]+>)?\\s+${escapedName}\\b[\\s\\S]*?\\bfn\\s+(?:into_domain|to_domain)\\b`, "u").test(source);
+    const domainName = name.replace(/(?:Dto|DTO|Request|Response|Envelope)$/u, "");
+    const hasCounterpart = domainName !== name && new RegExp(`(?:^|\\n)\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:struct|enum|type|trait)\\s+${domainName}\\b|(?:^|\\n)\\s*use\\s+[^;{]*(?:::)${domainName}\\s*;|(?:^|\\n)\\s*use\\s+[^;]*\\{[^}]*\\b${domainName}\\b[^}]*\\}\\s*;`, "u").test(source);
+    if (hasCounterpart && !hasConversion) {
       addViolation(violations, root, filePath, lineNo, "RR-14.23", `DTO struct ${name} lacks explicit domain conversion.`, originalLines[lineNo - 1] ?? null);
     }
     if (!/\b(?:round[-_ ]?trip|ROUNDTRIP-TEST:)\b/iu.test(source)) {
