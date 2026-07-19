@@ -14,13 +14,13 @@ use std::process::Command;
 fn node_entry(seq: u64, id: &str, kind: &str) -> GraphEventLogEntryDto {
     GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
-        id: format!("evt-{seq}"),
+        seq: seq.into(),
+        id: format!("evt-{seq}").into(),
         event: GraphEventKind::NodeAdded {
             node_id: id.into(),
             node_kind: kind.into(),
         },
-        ts: "2026-07-04T00:00:00Z".to_owned(),
+        ts: "2026-07-04T00:00:00Z".into(),
         supersedes_seq: None,
     }
 }
@@ -28,14 +28,14 @@ fn node_entry(seq: u64, id: &str, kind: &str) -> GraphEventLogEntryDto {
 fn edge_entry(seq: u64, from: &str, to: &str, label: &str) -> GraphEventLogEntryDto {
     GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq,
-        id: format!("evt-{seq}"),
+        seq: seq.into(),
+        id: format!("evt-{seq}").into(),
         event: GraphEventKind::EdgeAdded {
             from: from.into(),
             to: to.into(),
             label: label.into(),
         },
-        ts: "2026-07-04T00:00:00Z".to_owned(),
+        ts: "2026-07-04T00:00:00Z".into(),
         supersedes_seq: None,
     }
 }
@@ -184,12 +184,12 @@ fn beta_test() { beta(); }
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-node-{seq}"),
+                id: format!("evt-node-{seq}").into(),
                 event: GraphEventKind::NodeAdded {
                     node_id: node_id.clone().into(),
                     node_kind: node_kind.clone().into(),
                 },
-                ts: "2026-07-07T00:00:00Z".to_owned(),
+                ts: "2026-07-07T00:00:00Z".into(),
                 supersedes_seq: None,
             })?;
     }
@@ -200,13 +200,13 @@ fn beta_test() { beta(); }
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-import-{seq}"),
+                id: format!("evt-import-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
                     to: edge.module_path.clone().into(),
                     label: "imports".into(),
                 },
-                ts: "2026-07-07T00:00:00Z".to_owned(),
+                ts: "2026-07-07T00:00:00Z".into(),
                 supersedes_seq: None,
             })?;
     }
@@ -217,13 +217,13 @@ fn beta_test() { beta(); }
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-call-{seq}"),
+                id: format!("evt-call-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
                     to: edge.callee.clone().into(),
                     label: "calls".into(),
                 },
-                ts: "2026-07-07T00:00:00Z".to_owned(),
+                ts: "2026-07-07T00:00:00Z".into(),
                 supersedes_seq: None,
             })?;
     }
@@ -234,22 +234,20 @@ fn beta_test() { beta(); }
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-route-{seq}"),
+                id: format!("evt-route-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
                     to: format!("{} {}", edge.method, edge.path).into(),
                     label: "routes".into(),
                 },
-                ts: "2026-07-07T00:00:00Z".to_owned(),
+                ts: "2026-07-07T00:00:00Z".into(),
                 supersedes_seq: None,
             })?;
     }
 
     drop(store);
 
-    let outcome = read_verified::<GraphEventLogEntryDto>(&log_path, |entry| {
-        enforcer_domain::memory_types::Seq::from_log_position(entry.seq)
-    })?;
+    let outcome = read_verified::<GraphEventLogEntryDto>(&log_path, |entry| entry.seq)?;
     let mut operational = OperationalGraph::open(&sqlite_path)?;
     operational.rebuild(&outcome.entries)?;
 

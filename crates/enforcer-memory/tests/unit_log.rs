@@ -39,14 +39,14 @@ fn sample(seq: Seq) -> ObservationLogEntryDto {
     ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: seq.into(),
-        id: format!("obs-{seq:04}"),
-        lesson_id: "L1".to_owned(),
+        id: format!("obs-{seq:04}").into(),
+        lesson_id: "L1".into(),
         rule_id: None,
         fault_class: None,
-        repo_context: "crates/enforcer-memory".to_owned(),
-        clean: true,
-        source_surface: "scan".to_owned(),
-        ts: "2026-07-04T00:00:00Z".to_owned(),
+        repo_context: "crates/enforcer-memory".into(),
+        clean: true.into(),
+        source_surface: "scan".into(),
+        ts: "2026-07-04T00:00:00Z".into(),
         supersedes_seq: None,
         payload_kind: None,
         payload: None,
@@ -65,7 +65,7 @@ fn append_assigns_gap_free_seq_and_reads_back() -> Result<()> {
         assert_eq!(log.high_watermark(), Seq::from_log_position(2));
     }
     let outcome =
-        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
+        read_verified::<ObservationLogEntryDto>(&path, |e| e.seq)?;
     assert_eq!(outcome.entries.len(), 2);
     assert!(outcome.quarantined.is_empty());
     cleanup(&path);
@@ -80,17 +80,17 @@ fn supersede_records_the_relation_without_deleting_the_earlier_row() -> Result<(
         log.append_with_seq(sample)?;
         log.append_with_seq(|seq| {
             let mut e = sample(seq);
-            e.supersedes_seq = Some(0);
-            e.clean = false;
+            e.supersedes_seq = Some(Seq::GENESIS);
+            e.clean = false.into();
             e
         })?;
     }
     let outcome =
-        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
+        read_verified::<ObservationLogEntryDto>(&path, |e| e.seq)?;
     assert_eq!(outcome.entries.len(), 2, "supersede appends, never deletes");
-    assert_eq!(outcome.entries[1].supersedes_seq, Some(0));
-    assert!(outcome.entries[0].clean);
-    assert!(!outcome.entries[1].clean);
+    assert_eq!(outcome.entries[1].supersedes_seq, Some(Seq::GENESIS));
+    assert!(outcome.entries[0].clean.is_clean());
+    assert!(!outcome.entries[1].clean.is_clean());
     cleanup(&path);
     Ok(())
 }
@@ -121,7 +121,7 @@ fn corrupt_row_is_quarantined_not_dropped_silently() -> Result<()> {
         log.append_with_seq(|_seq| sample(Seq::GENESIS))?;
     }
     let outcome =
-        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
+        read_verified::<ObservationLogEntryDto>(&path, |e| e.seq)?;
     assert_eq!(
         outcome.entries.len(),
         1,
@@ -164,7 +164,7 @@ fn tampered_chain_is_rejected_against_independent_sidecar() -> Result<()> {
     let sidecar_after = read_file(&enforcer_core::telemetry::chain_sidecar_path(&path))?;
     assert_eq!(sidecar_before, sidecar_after);
 
-    let outcome = read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq));
+    let outcome = read_verified::<ObservationLogEntryDto>(&path, |e| e.seq);
     assert!(
         matches!(
             outcome,
@@ -206,7 +206,7 @@ fn malformed_json_row_is_quarantined() -> Result<()> {
         &format!("{digest}\n"),
     )?;
     let outcome =
-        read_verified::<ObservationLogEntryDto>(&path, |e| Seq::from_log_position(e.seq))?;
+        read_verified::<ObservationLogEntryDto>(&path, |e| e.seq)?;
     assert!(outcome.entries.is_empty());
     assert_eq!(outcome.quarantined.len(), 1);
     assert!(outcome.quarantined[0]

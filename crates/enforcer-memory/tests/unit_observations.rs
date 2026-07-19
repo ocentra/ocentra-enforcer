@@ -214,13 +214,13 @@ fn procedural_and_route_records_replay_from_store() -> Result<(), Box<dyn std::e
     let procedural_entries = store.read_procedural_entries()?;
     assert_eq!(procedural_entries.entries.len(), 1);
     assert_eq!(procedural_entries.entries[0].lesson_id, "L1");
-    let missing_payload_seqs: Vec<u64> = entries
+    let missing_payload_seqs: Vec<_> = entries
         .entries
         .iter()
         .filter(|entry| entry.payload.is_none())
         .map(|entry| entry.seq)
         .collect();
-    assert_eq!(missing_payload_seqs, Vec::<u64>::new());
+    assert_eq!(missing_payload_seqs, Vec::new());
     let route_entries = store.read_route_trace_entries()?;
     assert_eq!(route_entries.entries.len(), 1);
     assert_eq!(route_entries.entries[0].route, "hybrid-search");
@@ -245,23 +245,23 @@ fn procedural_replay_falls_back_to_legacy_observation_payload_when_native_log_is
         enforcer_memory::boundary::log_schema::ObservationLogEntryDto {
             schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
             seq: seq.into(),
-            id: format!("proc-{seq:04}"),
-            lesson_id: "L1".to_owned(),
+            id: format!("proc-{seq:04}").into(),
+            lesson_id: "L1".into(),
             rule_id: None,
-            fault_class: Some("fix-success".to_owned()),
-            repo_context: "applied idempotent-init fix".to_owned(),
-            clean: true,
-            source_surface: "procedural-memory".to_owned(),
-            ts: "2026-07-04T00:00:00Z".to_owned(),
+            fault_class: Some("fix-success".into()),
+            repo_context: "applied idempotent-init fix".into(),
+            clean: true.into(),
+            source_surface: "procedural-memory".into(),
+            ts: "2026-07-04T00:00:00Z".into(),
             supersedes_seq: None,
-            payload_kind: Some("procedural-memory".to_owned()),
+            payload_kind: Some("procedural-memory".into()),
             payload: Some(serde_json::json!({
                 "id": format!("proc-{seq:04}"),
                 "lesson_id": "L1",
                 "outcome": "fix-success",
                 "detail": "applied idempotent-init fix",
                 "ts": "2026-07-04T00:00:00Z"
-            })),
+            }).into()),
         }
     })?;
 
@@ -286,23 +286,23 @@ fn route_trace_replay_falls_back_to_legacy_observation_payload_when_native_log_i
         enforcer_memory::boundary::log_schema::ObservationLogEntryDto {
             schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
             seq: seq.into(),
-            id: format!("route-{seq:04}"),
-            lesson_id: String::new(),
+            id: format!("route-{seq:04}").into(),
+            lesson_id: String::new().into(),
             rule_id: None,
-            fault_class: Some("route-choice".to_owned()),
-            repo_context: "idempotent init".to_owned(),
-            clean: true,
-            source_surface: "route-choice".to_owned(),
-            ts: "2026-07-04T00:00:01Z".to_owned(),
+            fault_class: Some("route-choice".into()),
+            repo_context: "idempotent init".into(),
+            clean: true.into(),
+            source_surface: "route-choice".into(),
+            ts: "2026-07-04T00:00:01Z".into(),
             supersedes_seq: None,
-            payload_kind: Some("route-choice".to_owned()),
+            payload_kind: Some("route-choice".into()),
             payload: Some(serde_json::json!({
                 "id": format!("route-{seq:04}"),
                 "query": "idempotent init",
                 "route": "hybrid-search",
                 "confidence": 0.91,
                 "ts": "2026-07-04T00:00:01Z"
-            })),
+            }).into()),
         }
     })?;
 
