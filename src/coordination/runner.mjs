@@ -163,7 +163,7 @@ async function runCompatCommand(command, rawArgs, context) {
     case "ledger:guard":
     case "lanes:guard":
     case "hub:guard":
-      await runNested(["guard", "--lane", lane, ...compatChangedArgs(options)], context);
+      await runNested(["guard", "--lane", lane, ...compatChangedArgs(options), ...compatClaimScopeArgs(options)], context);
       return;
     case "lanes:claim":
       await runNested(["worker", required(options.lane ?? lane, "lane"), "started", required(options.task, "task")], context);
@@ -184,10 +184,10 @@ async function runCompatCommand(command, rawArgs, context) {
       await reportWithPrimaryNotification(lane, options, context);
       return;
     case "hub:lock":
-      await runNested(["claim", "--lane", lane, "--paths", required(options.paths, "paths"), "--reason", options.reason ?? "claimed from coordination alias"], context);
+      await runNested(["claim", "--lane", lane, "--paths", required(options.paths ?? options.path, "paths"), "--reason", options.reason ?? "claimed from coordination alias", ...compatClaimScopeArgs(options)], context);
       return;
     case "hub:unlock":
-      await runNested(["release", "--lane", lane, "--paths", required(options.paths, "paths"), "--reason", options.reason ?? "released from coordination alias"], context);
+      await runNested(["release", "--lane", lane, "--paths", required(options.paths ?? options.path, "paths"), "--reason", options.reason ?? "released from coordination alias", ...compatClaimScopeArgs(options)], context);
       return;
     case "hub:watch":
       await runCompatInbox(lane, options, context);
@@ -311,7 +311,30 @@ function compatMessageBody(options) {
 
 function compatChangedArgs(options) {
   const changed = options.paths ?? options.path ?? options.changed ?? options["changed-paths"];
-  return changed ? ["--changed", changed] : [];
+  return [changed].filter(Boolean).flatMap((value) => ["--changed", value]);
+}
+
+function compatClaimScopeArgs(options) {
+  return [
+    ["--root", options.root],
+    ["--repo-root", options["repo-root"] ?? options.repoRoot],
+    ["--worktree-root", options["worktree-root"] ?? options.worktreeRoot],
+    ["--cwd", options.cwd],
+    ["--operation", options.operation],
+    ["--lock-kind", options["lock-kind"] ?? options.lockKind],
+    ["--on-conflict", options["on-conflict"] ?? options.onConflict],
+    ["--claim-group", options["claim-group"] ?? options.claimGroup],
+    ["--wait-ms", options["wait-ms"] ?? options.waitMs],
+    ["--project-id", options["project-id"] ?? options.projectId],
+    ["--git-remote", options["git-remote"] ?? options.gitRemote],
+    ["--branch", options.branch],
+    ["--commit", options.commit],
+    ["--codex-thread-id", options["codex-thread-id"] ?? options.codexThreadId],
+    ["--codex-session-id", options["codex-session-id"] ?? options.codexSessionId],
+    ["--session-id", options["session-id"] ?? options.session],
+  ]
+    .filter(([, value]) => [undefined, true].includes(value) === false)
+    .flatMap(([flag, value]) => [flag, String(value)]);
 }
 
 function compatForwardedFlags(args, names) {

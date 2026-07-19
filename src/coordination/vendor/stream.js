@@ -28,6 +28,7 @@ export async function appendEvent(root, config, lane, event) {
         return completed;
     });
 }
+
 export async function listStreamFiles(root) {
     try {
         const names = await readdir(streamsDir(root));

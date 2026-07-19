@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseLaneId, parseWorkerState, } from "./domain.js";
 import { assertEventHash } from "./events.js";
-import { classifyOwnership, pathOverlaps, normalizeCoordinationPath } from "./lock-policy.js";
+import { classifyOwnership, enrichClaim, pathOverlaps } from "./lock-policy.js";
 import { applyReleaseEvent, claimIdentityKey } from "./materialize-claim-identity.js";
 import { emptyMaterializedState, thawMaterializedState } from "./materialize-state.js";
 import { nextOrderCursor, refreshTemporalState, uniqueEvents } from "./materialize-runtime.js";
@@ -378,15 +378,26 @@ function workerStateFromTaskState(state) {
     }
 }
 function intentKey(intent) {
-    return `${intent.writer}:${intent.paths.map(normalizeCoordinationPath).join(",")}`;
+    return claimIdentityKey(intent);
 }
 function removeMatchingIntents(editIntents, claim) {
     for (const [key, intent] of editIntents) {
-        if (intent.writer !== claim.writer && intent.lane !== claim.lane) continue;
+        if (!sameIntentOwner(intent, claim)) continue;
         if (overlappingPaths(intent.paths, claim.paths).length > 0) {
             editIntents.delete(key);
         }
     }
+}
+
+function sameIntentOwner(intent, claim) {
+    const left = enrichClaim(intent);
+    const right = enrichClaim(claim);
+    return left.writer === right.writer
+        && left.lane === right.lane
+        && left.ownerKey === right.ownerKey
+        && left.projectKey === right.projectKey
+        && left.worktreeKey === right.worktreeKey
+        && left.branchKey === right.branchKey;
 }
 
 function detectConflicts(claims) {

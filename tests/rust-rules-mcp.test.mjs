@@ -231,9 +231,15 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       projectId: "mcp-project",
       repoRoot: coordinationTargetRoot,
       worktreeRoot: coordinationTargetRoot,
+      codexThreadId: "thread-mcp",
+      codexSessionId: "session-mcp",
     },
   });
-  assert.equal(coordinationHealth.result.isError, false);
+  assert.equal(
+    coordinationHealth.result.isError,
+    false,
+    coordinationHealth.result.content[0].text,
+  );
   const healthReport = JSON.parse(coordinationHealth.result.content[0].text);
   assert.equal(healthReport.canInspect, true);
   assert.equal(healthReport.canWriteClaimedPaths, true);
@@ -260,6 +266,10 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       coordinationTargetRoot,
       "--worktree-root",
       coordinationTargetRoot,
+      "--codex-thread-id",
+      "thread-mcp",
+      "--codex-session-id",
+      "session-mcp",
       "--json",
     ],
     { cwd: PACK_ROOT, encoding: "utf8", maxBuffer: TEST_CLI_MAX_BUFFER },
@@ -348,9 +358,15 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     name: "ocentra_enforcer_coordination_release",
     arguments: {
       stateRoot: coordinationRoot,
+      root: coordinationTargetRoot,
       lane: "codex-a",
       paths: ["src/lib.rs"],
       reason: "mcp release",
+      projectId: "mcp-project",
+      repoRoot: coordinationTargetRoot,
+      worktreeRoot: coordinationTargetRoot,
+      codexThreadId: "thread-mcp",
+      codexSessionId: "session-mcp",
     },
   });
   assert.equal(coordinationRelease.result.isError, false);

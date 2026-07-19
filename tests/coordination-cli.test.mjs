@@ -28,6 +28,7 @@ const PACK_ROOT = path.resolve(
   "..",
 );
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+const VENDOR_CLI = path.join(PACK_ROOT, "src", "coordination", "vendor", "cli.js");
 
 function spawnCompat(stateRoot, command, extraArgs = []) {
   const startedAt = performance.now();
@@ -160,6 +161,40 @@ test("coordination CLI supports --hub without Parent repo wiring", () => {
   assert.equal(result.status, 0, result.stderr);
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.root, stateRoot);
+});
+
+test("direct vendor claim rejects an exact path owned by a sibling thread", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-vendor-claim-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-vendor-claim-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"));
+  fs.writeFileSync(path.join(targetRoot, "src", "owned.ts"), "export const owned = true;\n");
+  await coordinationInit({ stateRoot, hub: "vendor-claim-hub", lane: "codex-a" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    branch: "feature/shared",
+    codexThreadId: "vendor-thread-a",
+  });
+
+  const rejected = spawnCli(
+    process.execPath,
+    [VENDOR_CLI, "claim", "codex-a", "src/owned.ts"],
+    {
+      cwd: targetRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        LEDGER_ROOT: stateRoot,
+        CODEX_THREAD_ID: "vendor-thread-b",
+      },
+    },
+  );
+  assert.notEqual(rejected.status, 0, rejected.stdout);
+  const report = JSON.parse(rejected.stdout);
+  assert.equal(report.ok, false);
+  assert.equal(report.blockingOwners[0].codexThreadId, "vendor-thread-a");
 });
 
 test("coordination CLI supports state-root and public claim/release flags", () => {
