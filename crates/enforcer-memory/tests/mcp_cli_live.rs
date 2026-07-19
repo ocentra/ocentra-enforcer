@@ -160,11 +160,7 @@ fn tool_descriptor_dto_round_trip_through_json() -> TestResult {
         .ok_or("tool descriptor catalog must not be empty")?;
     let encoded = serde_json::to_string(&descriptor)?;
     let decoded: mcp::ToolDescriptorDto = serde_json::from_str(&encoded)?;
-    assert_eq!(decoded.name, descriptor.name);
-    assert_eq!(decoded.title, descriptor.title);
-    assert_eq!(decoded.description, descriptor.description);
-    assert_eq!(decoded.input_schema, descriptor.input_schema);
-    assert_eq!(decoded.output_schema, descriptor.output_schema);
+    assert_eq!(decoded, descriptor);
     Ok(())
 }
 

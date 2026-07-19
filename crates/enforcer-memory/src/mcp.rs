@@ -210,7 +210,7 @@ const WIRED_TOOLS: &[&str] = &[
 /// `inputSchema` plus a constant `outputSchema` identical for every tool
 /// (`{"type":"object","additionalProperties":true}`) -- no `$schema` draft
 /// URI anywhere, matching the baseline.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ToolDescriptorDto {
     pub name: String,
     pub title: String,
