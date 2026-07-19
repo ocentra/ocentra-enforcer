@@ -39,8 +39,12 @@ export function equalityAssertionMentions(statement, firstName, secondName) {
 /** Returns whether an assignment binds the requested target value. */
 export function isTargetValue(assignment, targetName) {
   const target = new RegExp(`\\b${escapeRegExp(targetName)}\\b`, "u");
+  const directConstructor = new RegExp(
+    `^\\s*&?\\s*${escapeRegExp(targetName)}\\s*(?:$|\\{|\\()`,
+    "u",
+  );
   return target.test(assignment.type)
-    || new RegExp(`\\b${escapeRegExp(targetName)}\\b\\s*\\{`, "u").test(assignment.expression);
+    || directConstructor.test(assignment.expression);
 }
 
 /** Infers an assignment's explicit or top-level transport type. */

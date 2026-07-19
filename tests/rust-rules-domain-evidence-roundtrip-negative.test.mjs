@@ -103,6 +103,74 @@ fn inline_input_dto_round_trips() {
   assert.doesNotMatch(output, /DTO struct InputDto lacks round-trip test evidence/u, output);
 });
 
+test('RR-14.25 accepts an inferred generic helper for a unit DTO value', () => {
+  const project = makeProject({
+    'src/boundary/input.rs': `
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct InputDto;
+`,
+    'tests/input_roundtrip.rs': `
+use fixture::boundary::input::InputDto;
+use serde::{de::DeserializeOwned, Serialize};
+
+fn assert_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + core::fmt::Debug + PartialEq,
+{
+    let encoded = serde_json::to_vec(value).unwrap();
+    let decoded: T = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(&decoded, value);
+}
+
+#[test]
+fn unit_input_dto_round_trips() {
+    let input = InputDto;
+    assert_round_trip(&input);
+    assert_round_trip(&InputDto);
+}
+`,
+  });
+  const output = `${runGate(project).stdout}`;
+  assert.doesNotMatch(output, /DTO struct InputDto lacks round-trip test evidence/u, output);
+});
+
+test('RR-14.25 rejects an inferred local produced by an unrelated associated function', () => {
+  const project = makeProject({
+    'src/boundary/input.rs': `
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct InputDto;
+
+impl InputDto {
+    pub fn unrelated_json() -> serde_json::Value { serde_json::json!({}) }
+}
+`,
+    'tests/input_roundtrip.rs': `
+use fixture::boundary::input::InputDto;
+use serde::{de::DeserializeOwned, Serialize};
+
+fn assert_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + core::fmt::Debug + PartialEq,
+{
+    let encoded = serde_json::to_vec(value).unwrap();
+    let decoded: T = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(&decoded, value);
+}
+
+#[test]
+fn unrelated_factory_local_is_not_dto_evidence() {
+    let unrelated = InputDto::unrelated_json();
+    assert_round_trip(&unrelated);
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.match(output, /DTO struct InputDto lacks round-trip test evidence/u, output);
+});
+
 test('RR-14.25 accepts an inferred factory call only when its signature returns the DTO', () => {
   const project = makeProject({
     'src/boundary/input.rs': `

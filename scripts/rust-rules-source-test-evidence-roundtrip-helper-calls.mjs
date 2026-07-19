@@ -11,7 +11,10 @@ function helperCallUsesOriginal(statement, helperName, originalName) {
 function helperCallConstructsTarget(body, helperName, targetName, factories) {
   const helper = escapeRegExp(helperName);
   const target = escapeRegExp(targetName);
-  if (new RegExp(`\\b${helper}\\s*\\(\\s*&?\\s*${target}\\s*\\{`, "u").test(body)) {
+  if (new RegExp(
+    `\\b${helper}\\s*\\(\\s*&?\\s*${target}\\s*(?:\\{|\\(|\\))`,
+    "u",
+  ).test(body)) {
     return true;
   }
   return factories.some((factory) =>
