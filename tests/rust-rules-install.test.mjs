@@ -11,9 +11,10 @@ import { makeProject, runGateArgs } from './rust-rules-install-fixture.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
+const GIT_TEST_MAX_BUFFER = 32 * 1024 * 1024;
 
 function git(project, args) {
-  const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+  const result = spawnSync('git', args, { cwd: project, encoding: 'utf8', maxBuffer: GIT_TEST_MAX_BUFFER });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return result.stdout;
 }

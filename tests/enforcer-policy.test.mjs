@@ -8,6 +8,7 @@ import { spawnCli } from "./cli-spawn.mjs";
 import { isIgnoredPath } from "../src/path-utils.mjs";
 import { DEFAULT_CONFIG } from "../src/rule-metadata.mjs";
 import { collectWaiverPolicyFindings } from "../src/check-policy.mjs";
+import { collectCiIntegrityFindings } from "../src/check-governance.mjs";
 import { policyTraversalEntries } from "../scripts/check-source-core-helpers.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -697,6 +698,55 @@ test("ci integrity rejects implicit shell execution in harness helpers", () => {
   const result = run(pack, ["check", "ci-integrity", "--json"]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   assert.equal(violationIds(JSON.parse(result.stdout)).has("HAR-2.15"), true);
+});
+
+test("ci integrity recognizes local composite actions and reusable dogfood roles", () => {
+  const project = makeProject({
+    "scripts/ci-local.mjs": `
+      npm test
+      npm run test:policy
+      npm run test:multilang
+      npm run test:mcp
+      npm run enforcer:self
+      npm run enforcer:verify:ci
+    `,
+    ".github/workflows/ci.yml": `
+      on:
+        pull_request:
+        push:
+          branches: [main]
+      permissions:
+        contents: read
+      jobs:
+        workspace:
+          strategy:
+            matrix:
+              os: [ubuntu-latest, windows-latest, macos-latest]
+          runs-on: \${{ matrix.os }}
+          steps:
+            - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+            - uses: ./.github/actions/setup-enforcer
+            - run: npm run ci:local
+    `,
+    ".github/workflows/dogfood.yml": `
+      on:
+        workflow_call:
+      permissions:
+        contents: read
+      jobs:
+        dogfood:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+            - uses: ./.github/actions/setup-enforcer
+    `,
+  });
+
+  const findings = collectCiIntegrityFindings(project);
+  const ruleIds = new Set(findings.map((finding) => finding.ruleId));
+  for (const ruleId of ["CI-1.13", "CI-1.15", "CI-1.16", "CI-1.17"]) {
+    assert.equal(ruleIds.has(ruleId), false, `${ruleId} must honor workflow role semantics`);
+  }
 });
 
 test("ci integrity accepts CI-safe subprocess JSON capture", () => {

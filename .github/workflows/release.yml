@@ -46,7 +46,7 @@ jobs:
         run: node scripts/check-cargo-workspace-members.mjs --fmt-check
       - name: Frozen and native dogfood gate
         run: |
-          node scripts/rust-rules.mjs scan --root . --languages rust --workspace
+          node scripts/ocentra-enforcer.mjs scan --root . --languages rust --workspace
           cargo run --locked -p xtask -- dogfood --no-toolchain
           cargo run --locked -p xtask -- dogfood-gate --no-toolchain
       - name: Dependency and advisory policy

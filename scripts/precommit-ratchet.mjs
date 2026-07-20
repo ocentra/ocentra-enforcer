@@ -5,11 +5,14 @@ import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 
+const RATCHET_MAX_BUFFER = 32 * 1024 * 1024;
+
 function run(command, args, cwd, input) {
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
     input,
+    maxBuffer: RATCHET_MAX_BUFFER,
   });
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
@@ -27,7 +30,7 @@ function scan(root, enforcerRoot, files) {
   const result = spawnSync(
     process.execPath,
     [path.join(enforcerRoot, "scripts", "rust-rules.mjs"), "scan", "--root", root, "--json", "--files", ...files],
-    { cwd: root, encoding: "utf8" },
+    { cwd: root, encoding: "utf8", maxBuffer: RATCHET_MAX_BUFFER },
   );
   if (!result.stdout) throw new Error(result.stderr || "scanner produced no JSON report");
   return JSON.parse(result.stdout).violations ?? [];
@@ -70,7 +73,7 @@ export function checkStagedRatchet({ root, enforcerRoot = root }) {
     const increased = increasedFindings(baseline, candidate);
     return { ok: increased.length === 0, files, increased };
   } finally {
-    spawnSync("git", ["worktree", "remove", "--force", tempRoot], { cwd: root, encoding: "utf8" });
+    spawnSync("git", ["worktree", "remove", "--force", tempRoot], { cwd: root, encoding: "utf8", maxBuffer: RATCHET_MAX_BUFFER });
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 }

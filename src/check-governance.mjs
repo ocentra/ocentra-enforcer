@@ -35,7 +35,11 @@ export function collectCiIntegrityFindings(root) {
   for (const file of collectSourceFiles(workflowRoot, [".yml", ".yaml"])) {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/u);
-    if (!/\bpull_request\s*:/u.test(text) || !/\bpush\s*:/u.test(text) || !/\bbranches\s*:\s*\[[^\]]*\bmain\b/u.test(text)) {
+    const workflowName = path.basename(file);
+    const isPrimaryCi = workflowName === "ci.yml";
+    const requiresLocalParity = isPrimaryCi || workflowName === "ocentra-enforcer.yml" || workflowName === "release.yml";
+    const hasSetupEnforcer = /uses\s*:\s*\.\/\.github\/actions\/setup-enforcer\b/u.test(text);
+    if (isPrimaryCi && (!/\bpull_request\s*:/u.test(text) || !/\bpush\s*:/u.test(text) || !/\bbranches\s*:\s*\[[^\]]*\bmain\b/u.test(text))) {
       findings.push(
         finding(
           root,
@@ -55,7 +59,7 @@ export function collectCiIntegrityFindings(root) {
     const hasUbuntu = /\bubuntu-latest\b/u.test(text);
     const hasWindows = /\bwindows-latest\b/u.test(text);
     const hasMacos = /\bmacos-latest\b/u.test(text);
-    if (!(hasUbuntu && hasWindows && hasMacos)) {
+    if (isPrimaryCi && !(hasUbuntu && hasWindows && hasMacos)) {
       findings.push(
         finding(
           root,
@@ -87,18 +91,18 @@ export function collectCiIntegrityFindings(root) {
         );
       }
       const action = line.match(/^\s*-\s+uses\s*:\s*([^\s#]+)\s*$/u);
-      if (action && !isPinnedActionReference(action[1])) {
+      if (action && !isLocalActionReference(action[1]) && !isPinnedActionReference(action[1])) {
         findings.push(
           finding(root, file, index + 1, "CI-1.13", `workflow action is not pinned by full commit SHA: ${action[1]}`, line),
         );
       }
-      if (/\brust-rules\b/u.test(line) && !/compatibility alias/iu.test(line)) {
+      if (/\brust-rules\b/u.test(line) && !/compatibility alias/iu.test(line) && !/\$FROZEN_SCANNER_DIR/u.test(line)) {
         findings.push(
           finding(root, file, index + 1, "CI-1.18", "workflow calls legacy rust-rules command directly", line),
         );
       }
     });
-    if (/\bpackage-lock\.json\b|package\.json\b|npm\b/u.test(text) && !/\brun\s*:\s*npm\s+ci\b/u.test(text)) {
+    if (/\bpackage-lock\.json\b|package\.json\b|npm\b/u.test(text) && !/\brun\s*:\s*npm\s+ci\b/u.test(text) && !hasSetupEnforcer) {
       findings.push(
         finding(root, file, 1, "CI-1.1", "workflow does not run npm ci", null),
       );
@@ -107,17 +111,19 @@ export function collectCiIntegrityFindings(root) {
       );
     }
     const usesLocalParity = /\brun\s*:\s*npm\s+run\s+ci:local\b/u.test(text);
-    if (!usesLocalParity) {
+    if (requiresLocalParity && !usesLocalParity) {
       findings.push(
         finding(root, file, 1, "CI-1.17", "workflow does not run npm run ci:local parity gate", null),
       );
     }
-    const ciText = usesLocalParity ? `${text}\n${ciSurfaceText}` : text;
-    for (const requirement of CI_COMMAND_REQUIREMENTS) {
-      if (!requirement.pattern.test(ciText)) {
-        findings.push(
-          finding(root, file, 1, requirement.ruleId, requirement.detail, null),
-        );
+    if (requiresLocalParity) {
+      const ciText = usesLocalParity ? `${text}\n${ciSurfaceText}` : text;
+      for (const requirement of CI_COMMAND_REQUIREMENTS) {
+        if (!requirement.pattern.test(ciText)) {
+          findings.push(
+            finding(root, file, 1, requirement.ruleId, requirement.detail, null),
+          );
+        }
       }
     }
   }
@@ -494,6 +500,10 @@ function isPinnedActionReference(actionRef) {
   const ref = String(actionRef ?? "").split("@").at(1);
   if (!ref) return false;
   return /^[a-f0-9]{40}$/iu.test(ref);
+}
+
+function isLocalActionReference(actionRef) {
+  return String(actionRef ?? "").startsWith("./");
 }
 
 function isSuspiciousDependencyName(name) {

@@ -7,13 +7,14 @@ import { fileURLToPath } from "node:url";
 import { cargoFmtBatches } from "./check-cargo-workspace-members-format.mjs";
 import { validateCargoWorkspaceMembers } from "./check-cargo-workspace-members-validation.mjs";
 
+const CARGO_METADATA_MAX_BUFFER = 32 * 1024 * 1024;
+
 function cargoFmtCheck(root, workspacePackages) {
   for (const packageNames of cargoFmtBatches(workspacePackages)) {
     const args = ["fmt", "--check", ...packageNames.flatMap((name) => ["-p", name])];
     const result = spawnSync("cargo", args, {
       cwd: root,
       encoding: "utf8",
-      shell: process.platform === "win32",
       stdio: "inherit",
     });
     if (result.status !== 0) process.exit(result.status ?? 1);
@@ -24,7 +25,7 @@ function cargoMetadata(root) {
   const result = spawnSync("cargo", ["metadata", "--no-deps", "--format-version", "1"], {
     cwd: root,
     encoding: "utf8",
-    shell: process.platform === "win32",
+    maxBuffer: CARGO_METADATA_MAX_BUFFER,
   });
   if (result.status !== 0) {
     throw new Error(`cargo metadata failed:\n${result.stderr || result.stdout}`);
