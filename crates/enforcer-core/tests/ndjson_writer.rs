@@ -79,11 +79,8 @@ fn reopen_appends_instead_of_truncating() -> Result<()> {
 fn malformed_record_is_rejected_at_the_decode_boundary() -> Result<()> {
     let path = temp_path("malformed");
     std::fs::write(&path, "{\"seq\":1\n")?;
-    let outcome = read_all::<Record>(&path);
-    assert!(outcome.is_err(), "malformed NDJSON must fail closed");
-    if let Err(error) = outcome {
-        assert!(matches!(error, enforcer_core::error::Error::Json(_)));
-    }
+    let error = read_all::<Record>(&path).expect_err("malformed NDJSON must be rejected");
+    assert!(matches!(error, enforcer_core::error::Error::Json(_)));
     std::fs::remove_file(&path)?;
     Ok(())
 }

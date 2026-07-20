@@ -2,8 +2,6 @@
 //!
 //! BOUNDARY-INVARIANT: raw serialized identity/event fields are materialized
 //! only here and converted to canonical domain values before command logic.
-//! BOUNDARY-TEST: invalid identity JSON and event conversion are covered by
-//! the crate's API integration tests.
 //! boundaryOwnerNote: enforcer-coordination owns this command transport boundary.
 
 use enforcer_domain::coordination_types::{
@@ -323,4 +321,45 @@ fn random_event_id() -> String {
         "evt_{:032x}",
         now.as_nanos() ^ (u128::from(std::process::id()) << 32)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_hub_config;
+
+    #[test]
+    fn decode_hub_config_rejects_bad_hub_identity() {
+        let bad = r#"{"hub":"UPPERCASE","nodeId":"node_a","nodeName":"node-a","defaultLane":"arc-16","createdAt":"2026-07-19T00:00:00.000Z"}"#;
+        let outcome = decode_hub_config(bad);
+        let error = outcome.expect_err("HubConfig with invalid hub should be rejected");
+        let message = error.to_string();
+        assert!(message.contains("coordination decode error"));
+    }
+
+    #[test]
+    fn decode_hub_config_rejects_bad_node_id() {
+        let bad = r#"{"hub":"valid-hub","nodeId":"invalid node","nodeName":"node-a","defaultLane":"arc-16","createdAt":"2026-07-19T00:00:00.000Z"}"#;
+        let outcome = decode_hub_config(bad);
+        let error = outcome.expect_err("HubConfig with invalid nodeId should be rejected");
+        let message = error.to_string();
+        assert!(message.contains("coordination decode error"));
+    }
+
+    #[test]
+    fn decode_hub_config_rejects_bad_default_lane() {
+        let bad = r#"{"hub":"valid-hub","nodeId":"node_a","nodeName":"node-a","defaultLane":"UPPER","createdAt":"2026-07-19T00:00:00.000Z"}"#;
+        let outcome = decode_hub_config(bad);
+        let error = outcome.expect_err("HubConfig with invalid lane should be rejected");
+        let message = error.to_string();
+        assert!(message.contains("coordination decode error"));
+    }
+
+    #[test]
+    fn decode_hub_config_rejects_blank_created_at() {
+        let bad = r#"{"hub":"valid-hub","nodeId":"node_a","nodeName":"node-a","defaultLane":"arc-16","createdAt":""}"#;
+        let outcome = decode_hub_config(bad);
+        let error = outcome.expect_err("HubConfig with blank timestamp should be rejected");
+        let message = error.to_string();
+        assert!(message.contains("coordination decode error"));
+    }
 }

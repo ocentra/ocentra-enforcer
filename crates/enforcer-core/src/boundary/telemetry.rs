@@ -296,10 +296,9 @@ mod tests {
         );
         std::fs::write(&path, tampered)?;
         let outcome = super::verify_file_chain(&path)?;
-        assert!(outcome.is_err(), "tampered first line must break the chain");
-        if let Err(error) = outcome {
-            assert_eq!(usize::from(error.index()), 0);
-        }
+        let error = outcome
+            .expect_err("tampered telemetry must be rejected by boundary checksum verification");
+        assert_eq!(usize::from(error.index()), 0);
         cleanup(&path)?;
         Ok(())
     }
@@ -307,7 +306,8 @@ mod tests {
     #[test]
     fn malformed_telemetry_record_is_rejected_at_the_decode_boundary() {
         let malformed = r#"{"seq":"invalid","secret":7,"note":false}"#;
-        let outcome = serde_json::from_str::<SampleRecord>(malformed);
-        assert!(outcome.is_err());
+        let error = serde_json::from_str::<SampleRecord>(malformed)
+            .expect_err("malformed telemetry should fail JSON deserialization");
+        assert!(error.is_syntax() || error.is_data());
     }
 }

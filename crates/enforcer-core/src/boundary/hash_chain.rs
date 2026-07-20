@@ -104,11 +104,8 @@ mod tests {
         // Tamper with the middle payload but keep its recorded digest.
         let tampered: Vec<&[u8]> = vec![b"one", b"TWO", b"three"];
         let links = tampered.iter().copied().zip(digests.iter());
-        let result = verify_chain(links);
-        assert!(result.is_err(), "tampered chain must not verify");
-        if let Err(error) = result {
-            assert_eq!(usize::from(error.index()), 1);
-        }
+        let error = verify_chain(links).expect_err("tampered chain should be rejected");
+        assert_eq!(usize::from(error.index()), 1);
     }
 
     #[test]

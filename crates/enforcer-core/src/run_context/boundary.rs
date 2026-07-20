@@ -93,22 +93,15 @@ mod tests {
 
     #[test]
     fn resolve_rejects_unknown_values() {
-        let flag_result = resolve(Some("silent"), None);
-        assert!(flag_result.is_err(), "invalid flag must fail closed");
-        if let Err(flag_error) = flag_result {
-            assert_eq!(flag_error.path, "runContext");
-            assert_eq!(flag_error.input_hint.as_deref(), Some("silent"));
-        }
+        let flag_error =
+            resolve(Some("silent"), None).expect_err("invalid flags should not be accepted");
+        assert_eq!(flag_error.path, "runContext");
+        assert_eq!(flag_error.input_hint.as_deref(), Some("silent"));
 
-        let env_result = resolve(None, Some("humanreview"));
-        assert!(
-            env_result.is_err(),
-            "invalid environment value must fail closed"
-        );
-        if let Err(env_error) = env_result {
-            assert_eq!(env_error.path, "runContext");
-            assert_eq!(env_error.input_hint.as_deref(), Some("humanreview"));
-        }
+        let env_error = resolve(None, Some("humanreview"))
+            .expect_err("invalid environment values should not be accepted");
+        assert_eq!(env_error.path, "runContext");
+        assert_eq!(env_error.input_hint.as_deref(), Some("humanreview"));
     }
 
     #[test]
