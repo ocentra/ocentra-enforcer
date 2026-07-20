@@ -43,7 +43,7 @@ export function hasHelperRoundTrip(body, targetName, helpers, factories) {
     }
   }
   const assignments = rustAssignments(body);
-  for (const original of assignments.filter((assignment) => isTargetValue(assignment, targetName))) {
+  for (const original of assignments.filter((assignment) => isTargetValue(assignment, targetName, factories))) {
     const remaining = body.slice(original.index);
     for (const statement of rustSemicolonStatements(remaining)) {
       for (const helper of helpers) {
