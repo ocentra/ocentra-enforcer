@@ -59,10 +59,9 @@ fn load_identity_rejects_a_blank_persisted_hub_name() -> Result<(), Box<dyn std:
         r#"{"hub":" ","nodeId":"node","nodeName":"node","defaultLane":"main","createdAt":"2026-07-19T00:00:00.000Z"}"#,
     )?;
 
-    let error = match load_identity(dir.path()) {
-        Err(error) => error,
-        Ok(_) => return Err("blank persisted hub must be rejected".into()),
-    };
+    let result = load_identity(dir.path());
+    assert!(result.is_err(), "blank persisted hub must be rejected");
+    let error = result.err().ok_or("blank persisted hub must be rejected")?;
     assert_eq!(
         error.to_string(),
         "coordination decode error: decode/validation failed at `hubName`: expected lowercase kebab-case (e.g. `enforcer-rust-build`)"
