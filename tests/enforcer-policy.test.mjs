@@ -820,8 +820,7 @@ test("mutation-risk rejects policy-critical changed files and ignores ordinary d
   assert.notEqual(critical.status, 0, critical.stdout || critical.stderr);
   const criticalReport = JSON.parse(critical.stdout);
   assert.equal(violationIds(criticalReport).has("ENF-2.1"), true);
-  assert.match(JSON.stringify(criticalReport.violations[0]), /rule-coverage/u);
-  assert.match(JSON.stringify(criticalReport.violations[0]), /test:mcp/u);
+  assert.match(JSON.stringify(criticalReport.violations[0]), /PROOF-MUTATION-RISK-CI/u);
 
   const ordinary = run(project, [
     "check",

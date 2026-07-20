@@ -15,6 +15,7 @@ import {
   escapeRegExp,
   finding,
 } from "../scripts/check-source-core-helpers.mjs";
+import { listProofRuns } from "./proof-storage.mjs";
 
 export function collectCiIntegrityFindings(root) {
   const findings = [];
@@ -235,6 +236,9 @@ export function collectMutationRiskFindings(root, scope = { mode: "all" }) {
   const criticalFiles = changedFiles.filter((file) =>
     matchesAnyGlob(normalizeRel(root, file), POLICY_CRITICAL_PATTERNS),
   );
+  if (criticalFiles.length === 0 || hasCurrentMutationRiskProof(root, scope)) {
+    return [];
+  }
   return criticalFiles.map((file) =>
     finding(
       root,
@@ -244,6 +248,35 @@ export function collectMutationRiskFindings(root, scope = { mode: "all" }) {
       `policy-critical file changed: ${normalizeRel(root, file)}`,
       `Required proof set: ${MUTATION_RISK_REQUIRED_PROOFS.join("; ")}`,
     ),
+  );
+}
+
+function hasCurrentMutationRiskProof(root, scope) {
+  const expectedCommit = resolvedGitRef(root, scope.head ?? "HEAD");
+  if (!expectedCommit) return false;
+  return listProofRuns(root).some((proofRun) =>
+    proofRun.status === "passed" &&
+    proofRun.proofId === MUTATION_RISK_PROOF_ID &&
+    proofRun.git?.commit === expectedCommit &&
+    isWorkspaceCiProofCommand(root, proofRun.command),
+  );
+}
+
+function resolvedGitRef(root, ref) {
+  const result = spawnSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function isWorkspaceCiProofCommand(root, command) {
+  if (!Array.isArray(command) || command.length !== 2) return false;
+  const executable = path.basename(String(command[0])).toLowerCase();
+  return (
+    (executable === "node" || executable === "node.exe") &&
+    path.resolve(root, String(command[1])) === path.join(root, "scripts", "ci-local.mjs")
   );
 }
 
@@ -418,14 +451,10 @@ const POLICY_CRITICAL_PATTERNS = [
 ];
 
 const MUTATION_RISK_REQUIRED_PROOFS = [
-  "ocentra-enforcer scan --workspace",
-  "ocentra-enforcer check rule-coverage --root <repo>",
-  "ocentra-enforcer check policy-integrity --root <repo>",
-  "ocentra-enforcer check ci-integrity --root <repo>",
-  "ocentra-enforcer check repo-governance --root <repo>",
-  "npm test",
-  "npm run test:mcp",
+  "node scripts/ocentra-enforcer.mjs proof run --root . --profile ocentra-enforcer --proof-id PROOF-MUTATION-RISK-CI --pin -- node scripts/ci-local.mjs",
 ];
+
+const MUTATION_RISK_PROOF_ID = "PROOF-MUTATION-RISK-CI";
 
 function changedFilesForMutationRisk(root, scope = { mode: "all" }) {
   if (scope.mode === "files") {
