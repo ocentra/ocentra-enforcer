@@ -419,10 +419,10 @@ fn safe_segment(value: StreamingCacheSegmentInput<'_>) -> Result<StreamingCacheP
     } else {
         out
     };
-    StreamingCachePathSegment::try_new(sanitized).map_err(|_| {
+    StreamingCachePathSegment::try_new(sanitized).map_err(|source| {
         model_error(
             "sanitize-streaming-cache-path-segment",
-            "sanitizer produced an invalid path segment",
+            format!("sanitizer produced an invalid path segment: {source}"),
         )
     })
 }

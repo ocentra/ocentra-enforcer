@@ -332,7 +332,7 @@ fn projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty
     let payload = serde_json::to_value(&record)?;
     store.append_observation_entry(|seq| ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq: seq.into(),
+        seq,
         id: format!("obs-{seq:04}").into(),
         lesson_id: String::new().into(),
         rule_id: None,

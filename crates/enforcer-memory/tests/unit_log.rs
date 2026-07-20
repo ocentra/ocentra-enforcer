@@ -38,7 +38,7 @@ fn write_file(path: &Path, content: &str) -> Result<()> {
 fn sample(seq: Seq) -> ObservationLogEntryDto {
     ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq: seq.into(),
+        seq,
         id: format!("obs-{seq:04}").into(),
         lesson_id: "L1".into(),
         rule_id: None,

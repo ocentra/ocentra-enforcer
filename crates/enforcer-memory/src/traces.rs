@@ -124,7 +124,7 @@ pub fn ingest_trace_records_into_store(
         let payload = serde_json::to_value(TraceRecordDto::from(record))?;
         store.append_observation_entry(|seq| ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: format!("trace-{seq:04}").into(),
             lesson_id: "".into(),
             rule_id: None,

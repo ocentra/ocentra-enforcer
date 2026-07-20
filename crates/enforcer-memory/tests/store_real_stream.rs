@@ -91,7 +91,7 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
             .observation_log_mut()
             .append_with_seq(|seq| ObservationLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: record.id().to_owned().into(),
                 lesson_id: record.id().to_owned().into(),
                 rule_id: None,

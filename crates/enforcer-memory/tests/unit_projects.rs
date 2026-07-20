@@ -151,7 +151,7 @@ fn index_status_detects_a_stale_index_after_the_log_grows() -> ProjectsResult<()
         .observation_log_mut()
         .append_with_seq(|seq| ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: "obs-test-0000".to_owned().into(),
             lesson_id: "L1".to_owned().into(),
             rule_id: None,

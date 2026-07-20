@@ -251,15 +251,15 @@ impl Store {
         let id = format!("obs-{}-{seq:04}", observation.source_surface);
         let entry = ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: id.into(),
-            lesson_id: observation.lesson_id.into(),
-            rule_id: observation.rule_id.map(Into::into),
-            fault_class: observation.fault_class.map(Into::into),
-            repo_context: observation.repo_context.into(),
+            lesson_id: observation.lesson_id,
+            rule_id: observation.rule_id,
+            fault_class: observation.fault_class,
+            repo_context: observation.repo_context,
             clean: observation.clean,
-            source_surface: observation.source_surface.into(),
-            ts: observation.ts.into(),
+            source_surface: observation.source_surface,
+            ts: observation.ts,
             supersedes_seq: None,
             payload_kind: None,
             payload: None,
@@ -275,12 +275,12 @@ impl Store {
         let seq = self.procedural_log.high_watermark();
         let entry = ProceduralLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
-            id: record.id.into(),
-            lesson_id: record.lesson_id.into(),
+            seq,
+            id: record.id,
+            lesson_id: record.lesson_id,
             outcome: record.outcome,
-            detail: record.detail.into(),
-            ts: record.ts.into(),
+            detail: record.detail,
+            ts: record.ts,
             supersedes_seq: None,
         };
         self.procedural_log.append_with_seq(|next_seq| {
@@ -294,12 +294,12 @@ impl Store {
         let seq = self.route_trace_log.high_watermark();
         let entry = RouteTraceLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
-            id: trace.id.into(),
-            query: trace.query.into(),
-            route: trace.route.into(),
-            confidence: trace.confidence.into(),
-            ts: trace.ts.into(),
+            seq,
+            id: trace.id,
+            query: trace.query,
+            route: trace.route,
+            confidence: trace.confidence,
+            ts: trace.ts,
             supersedes_seq: None,
         };
         self.route_trace_log.append_with_seq(|next_seq| {
@@ -319,7 +319,7 @@ impl Store {
                 record.schema_version,
             )
             .map_err(|source| crate::error::MemoryError::InvalidLogSchemaVersion { source })?,
-            seq: seq.into(),
+            seq,
             observed_at: record.observed_at.into(),
             source: record.source.into(),
             run_id: record.run_id.into(),
@@ -341,10 +341,10 @@ impl Store {
         let seq = self.graph_event_log.high_watermark();
         let entry = GraphEventLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: format!("evt-{seq:04}").into(),
             event,
-            ts: ts.into().into(),
+            ts: ts.into(),
             supersedes_seq: None,
         };
         self.graph_event_log.append_with_seq(|next_seq| {

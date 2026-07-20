@@ -75,7 +75,7 @@ impl ArtifactManifest {
             ArtifactManifestEntryDto {
                 schema_version: SCHEMA_VERSION,
                 id: enforcer_domain::memory_types::ArtifactId::from_content(content.as_ref()),
-                rel_path: rel_path.map(Into::into),
+                rel_path,
                 byte_len: match GraphArtifactByteCount::try_from(content.as_ref().len()) {
                     Ok(byte_count) => byte_count,
                     Err(_) => {
@@ -85,7 +85,7 @@ impl ArtifactManifest {
                         })
                     }
                 },
-                ts: ts.into(),
+                ts,
             },
         );
         self.persist()?;
@@ -184,9 +184,9 @@ pub fn write_index_manifest(
     let built_at = built_at.into();
     let manifest = IndexManifestDto {
         schema_version: SCHEMA_VERSION,
-        source_log: source_log.into(),
+        source_log,
         source_high_watermark,
-        built_at: built_at.into(),
+        built_at,
     };
     let json = serde_json::to_string_pretty(&manifest)?;
     std::fs::write(&path, json).map_err(|source| MemoryError::Io {

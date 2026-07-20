@@ -970,7 +970,7 @@ fn populate_store_from_candidate_graph(
         store.graph_event_log_mut().append_with_seq(|seq| {
             enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
                 schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-node-{seq}").into(),
                 event: enforcer_domain::memory_types::GraphEventKind::NodeAdded {
                     node_id: node_id.into(),
@@ -995,7 +995,7 @@ fn populate_store_from_candidate_graph(
         store.graph_event_log_mut().append_with_seq(|seq| {
             enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
                 schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-edge-{seq}").into(),
                 event: enforcer_domain::memory_types::GraphEventKind::EdgeAdded {
                     from: call_edge.from_file_id.clone().into(),

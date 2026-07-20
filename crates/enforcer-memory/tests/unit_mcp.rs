@@ -164,7 +164,7 @@ fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestRe
     let symbol_id = "sym:store_only.rs:7:store_only_symbol".to_owned();
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq: seq.into(),
+        seq,
         id: format!("evt-node-file-{seq}").into(),
         event: GraphEventKind::NodeAdded {
             node_id: file_id.clone().into(),
@@ -175,7 +175,7 @@ fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestRe
     })?;
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq: seq.into(),
+        seq,
         id: format!("evt-node-symbol-{seq}").into(),
         event: GraphEventKind::NodeAdded {
             node_id: symbol_id.clone().into(),
@@ -186,7 +186,7 @@ fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestRe
     })?;
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
-        seq: seq.into(),
+        seq,
         id: format!("evt-edge-contains-{seq}").into(),
         event: GraphEventKind::EdgeAdded {
             from: file_id.clone().into(),

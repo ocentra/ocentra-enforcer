@@ -166,17 +166,17 @@ pub fn append_observation_payload_to_store(
         assigned_id = id.as_str().into();
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: id.into(),
-            lesson_id: observation.lesson_id.into(),
-            rule_id: observation.rule_id.map(Into::into),
-            fault_class: observation.fault_class.map(Into::into),
-            repo_context: observation.repo_context.into(),
+            lesson_id: observation.lesson_id,
+            rule_id: observation.rule_id,
+            fault_class: observation.fault_class,
+            repo_context: observation.repo_context,
             clean: observation.clean,
-            source_surface: observation.source_surface.into(),
-            ts: observation.ts.into(),
+            source_surface: observation.source_surface,
+            ts: observation.ts,
             supersedes_seq: None,
-            payload_kind: payload_kind.map(Into::into),
+            payload_kind,
             payload,
         }
     })?;
@@ -254,17 +254,17 @@ fn incident_from_entry(entry: &ObservationLogEntryDto) -> Incident {
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         id: entry.id.as_str().into(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        lesson_id: entry.lesson_id.clone().into(),
+        lesson_id: entry.lesson_id.clone(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        rule_id: entry.rule_id.clone().map(Into::into),
+        rule_id: entry.rule_id.clone(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        fault_class: entry.fault_class.clone().map(Into::into),
+        fault_class: entry.fault_class.clone(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        repo_context: entry.repo_context.clone().into(),
-        clean: entry.clean.into(),
+        repo_context: entry.repo_context.clone(),
+        clean: entry.clean,
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        source_surface: entry.source_surface.clone().into(),
+        source_surface: entry.source_surface.clone(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        ts: entry.ts.clone().into(),
+        ts: entry.ts.clone(),
     }
 }

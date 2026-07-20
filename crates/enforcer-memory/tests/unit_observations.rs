@@ -244,7 +244,7 @@ fn procedural_replay_falls_back_to_legacy_observation_payload_when_native_log_is
     store.append_observation_entry(|seq| {
         enforcer_memory::boundary::log_schema::ObservationLogEntryDto {
             schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: format!("proc-{seq:04}").into(),
             lesson_id: "L1".into(),
             rule_id: None,
@@ -288,7 +288,7 @@ fn route_trace_replay_falls_back_to_legacy_observation_payload_when_native_log_i
     store.append_observation_entry(|seq| {
         enforcer_memory::boundary::log_schema::ObservationLogEntryDto {
             schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: format!("route-{seq:04}").into(),
             lesson_id: String::new().into(),
             rule_id: None,

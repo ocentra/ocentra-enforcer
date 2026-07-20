@@ -201,7 +201,7 @@ pub fn record_procedural_in_store(
         assigned_record = Some(record);
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: id.into(),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
             lesson_id: input.lesson_id.as_str().into(),
@@ -288,7 +288,7 @@ pub fn record_route_choice_in_store(
         assigned_trace = Some(trace);
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
-            seq: seq.into(),
+            seq,
             id: id.into(),
             lesson_id: "".into(),
             rule_id: None,
@@ -334,11 +334,11 @@ fn replay_procedural_from_native_log(
     let mut count = MemoryObservationReplayCount::default();
     for entry in outcome.entries {
         let record = ProceduralRecord {
-            id: entry.id.into(),
-            lesson_id: entry.lesson_id.into(),
+            id: entry.id,
+            lesson_id: entry.lesson_id,
             outcome: entry.outcome,
-            detail: entry.detail.into(),
-            ts: entry.ts.into(),
+            detail: entry.detail,
+            ts: entry.ts,
         };
         if !graph
             .procedural_records()
@@ -360,11 +360,11 @@ fn replay_route_traces_from_native_log(
     let mut count = MemoryObservationReplayCount::default();
     for entry in outcome.entries {
         let trace = RouteTrace {
-            id: entry.id.into(),
-            query: entry.query.into(),
-            route: entry.route.into(),
+            id: entry.id,
+            query: entry.query,
+            route: entry.route,
             confidence: entry.confidence,
-            ts: entry.ts.into(),
+            ts: entry.ts,
         };
         if !graph
             .route_traces()

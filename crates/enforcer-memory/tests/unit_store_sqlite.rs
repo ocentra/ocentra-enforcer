@@ -183,7 +183,7 @@ fn beta_test() { beta(); }
             .graph_event_log_mut()
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-node-{seq}").into(),
                 event: GraphEventKind::NodeAdded {
                     node_id: node_id.clone().into(),
@@ -199,7 +199,7 @@ fn beta_test() { beta(); }
             .graph_event_log_mut()
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-import-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
@@ -216,7 +216,7 @@ fn beta_test() { beta(); }
             .graph_event_log_mut()
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-call-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
@@ -233,7 +233,7 @@ fn beta_test() { beta(); }
             .graph_event_log_mut()
             .append_with_seq(|seq| GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: seq.into(),
+                seq,
                 id: format!("evt-route-{seq}").into(),
                 event: GraphEventKind::EdgeAdded {
                     from: edge.from_file_id.clone().into(),
