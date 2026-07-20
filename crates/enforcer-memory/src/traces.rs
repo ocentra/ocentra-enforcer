@@ -48,8 +48,8 @@ use crate::error::Result;
 use crate::owned_boundary::Retained;
 use crate::store::Store;
 use enforcer_domain::memory_types::{
-    EdgeProvenance, IngestSourceSurface, IngestTimestamp, TraceNodeId,
-    TraceObservationCount, TraceStoreRecordCount, TraceUnresolvedCallee, TraceUnresolvedCaller,
+    EdgeProvenance, IngestSourceSurface, IngestTimestamp, TraceNodeId, TraceObservationCount,
+    TraceStoreRecordCount, TraceUnresolvedCallee, TraceUnresolvedCaller,
 };
 use std::collections::BTreeMap;
 

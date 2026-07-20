@@ -137,8 +137,10 @@ fn real_repo_ci_workflow_has_parseable_steps() -> Result<(), Box<dyn std::error:
         "real ci.yml must yield at least one parsed step"
     );
     let names: Vec<&str> = manifest.steps.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.iter().any(|name| name == &"cargo fmt --check"));
-    assert!(names.iter().any(|name| name == &"cargo clippy -D warnings"));
+    assert!(names
+        .iter()
+        .any(|name| name == &"Windows-safe workspace format check"));
+    assert!(names.iter().any(|name| name == &"Workspace clippy"));
     Ok(())
 }
 

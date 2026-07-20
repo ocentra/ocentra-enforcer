@@ -100,12 +100,19 @@ impl OperationalGraph {
                 self.conn.execute(
                     "INSERT INTO edges (from_id, to_id, label, seq) VALUES (?1, ?2, ?3, ?4)
                      ON CONFLICT(from_id, to_id, label) DO UPDATE SET seq = excluded.seq",
-                    (from.as_str(), to.as_str(), label.as_str(), u64::from(entry.seq)),
+                    (
+                        from.as_str(),
+                        to.as_str(),
+                        label.as_str(),
+                        u64::from(entry.seq),
+                    ),
                 )?;
             }
         }
-        self.conn
-            .execute("INSERT INTO applied_events (seq) VALUES (?1)", [u64::from(entry.seq)])?;
+        self.conn.execute(
+            "INSERT INTO applied_events (seq) VALUES (?1)",
+            [u64::from(entry.seq)],
+        )?;
         Ok(())
     }
 

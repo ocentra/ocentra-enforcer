@@ -2,11 +2,11 @@ use super::support::{test_event_for_type, TestText, OTHER_EVENT_TYPE, TEST_EVENT
 use enforcer_domain::events_types::{
     EventNamespace, EventTopologyStatus, EventType, SourceComponent, SubscriberId, TargetHandler,
 };
-use enforcer_events::boundary::topology_presentation::EventTopologyManifestResponse;
+use enforcer_events::boundary::request_persistence::RequestCompletionReportResponse;
 use enforcer_events::boundary::topology_contract_presentation::{
     EventTopologyContractResponse, EventTopologySubscriberTargetResponse,
 };
-use enforcer_events::boundary::request_persistence::RequestCompletionReportResponse;
+use enforcer_events::boundary::topology_presentation::EventTopologyManifestResponse;
 use enforcer_events::contract_registry::EventContractRegistry;
 use enforcer_events::envelope::EventContract;
 use enforcer_events::request::RequestCompletionReport;
@@ -242,12 +242,11 @@ fn topology_presentation_rejects_invalid_contract_and_subscriber_values(
 
     let mut invalid: EventTopologyManifestResponse = manifest.presentation();
     invalid.entries[0].subscribers[0].target_handler = "invalid handler".to_owned();
-    let invalid_subscriber = EventTopologySubscriberTarget::try_from(
-        EventTopologySubscriberTargetResponse {
+    let invalid_subscriber =
+        EventTopologySubscriberTarget::try_from(EventTopologySubscriberTargetResponse {
             subscriber_id: COVERED_SUBSCRIBER.to_owned(),
             target_handler: "invalid handler".to_owned(),
-        },
-    );
+        });
     assert!(matches!(
         invalid_subscriber,
         Err(enforcer_events::error::EventingError::InvalidValue { field, .. })

@@ -78,10 +78,12 @@ impl ArtifactManifest {
                 rel_path: rel_path.map(Into::into),
                 byte_len: match GraphArtifactByteCount::try_from(content.as_ref().len()) {
                     Ok(byte_count) => byte_count,
-                    Err(_) => return Err(MemoryError::ModelRuntime {
-                        operation: "write-artifact".into(),
-                        reason: "artifact byte count exceeds the supported range".into(),
-                    }),
+                    Err(_) => {
+                        return Err(MemoryError::ModelRuntime {
+                            operation: "write-artifact".into(),
+                            reason: "artifact byte count exceeds the supported range".into(),
+                        })
+                    }
                 },
                 ts: ts.into(),
             },

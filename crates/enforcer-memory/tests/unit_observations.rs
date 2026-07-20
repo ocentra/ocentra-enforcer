@@ -255,13 +255,16 @@ fn procedural_replay_falls_back_to_legacy_observation_payload_when_native_log_is
             ts: "2026-07-04T00:00:00Z".into(),
             supersedes_seq: None,
             payload_kind: Some("procedural-memory".into()),
-            payload: Some(serde_json::json!({
-                "id": format!("proc-{seq:04}"),
-                "lesson_id": "L1",
-                "outcome": "fix-success",
-                "detail": "applied idempotent-init fix",
-                "ts": "2026-07-04T00:00:00Z"
-            }).into()),
+            payload: Some(
+                serde_json::json!({
+                    "id": format!("proc-{seq:04}"),
+                    "lesson_id": "L1",
+                    "outcome": "fix-success",
+                    "detail": "applied idempotent-init fix",
+                    "ts": "2026-07-04T00:00:00Z"
+                })
+                .into(),
+            ),
         }
     })?;
 
@@ -296,13 +299,16 @@ fn route_trace_replay_falls_back_to_legacy_observation_payload_when_native_log_i
             ts: "2026-07-04T00:00:01Z".into(),
             supersedes_seq: None,
             payload_kind: Some("route-choice".into()),
-            payload: Some(serde_json::json!({
-                "id": format!("route-{seq:04}"),
-                "query": "idempotent init",
-                "route": "hybrid-search",
-                "confidence": 0.91,
-                "ts": "2026-07-04T00:00:01Z"
-            }).into()),
+            payload: Some(
+                serde_json::json!({
+                    "id": format!("route-{seq:04}"),
+                    "query": "idempotent init",
+                    "route": "hybrid-search",
+                    "confidence": 0.91,
+                    "ts": "2026-07-04T00:00:01Z"
+                })
+                .into(),
+            ),
         }
     })?;
 

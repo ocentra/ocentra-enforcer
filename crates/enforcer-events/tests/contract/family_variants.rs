@@ -208,7 +208,9 @@ fn record_payload(
 ) -> Result<(), EventingError> {
     let Ok(mut guard) = received.lock() else {
         return Err(EventingError::InvalidValue {
-            field: enforcer_domain::events_types::EventErrorField::from_diagnostic("received".to_owned()),
+            field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
+                "received".to_owned(),
+            ),
             value: EventErrorReason::parse("mutex poisoned")?,
         });
     };

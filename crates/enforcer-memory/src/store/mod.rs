@@ -315,8 +315,10 @@ impl Store {
     ) -> Result<ModelObservationLogEntryDto> {
         let seq = self.model_observation_log.high_watermark();
         let entry = ModelObservationLogEntryDto {
-            schema_version: enforcer_domain::memory_types::MemoryLogSchemaVersion::try_new(record.schema_version)
-                .map_err(|source| crate::error::MemoryError::InvalidLogSchemaVersion { source })?,
+            schema_version: enforcer_domain::memory_types::MemoryLogSchemaVersion::try_new(
+                record.schema_version,
+            )
+            .map_err(|source| crate::error::MemoryError::InvalidLogSchemaVersion { source })?,
             seq: seq.into(),
             observed_at: record.observed_at.into(),
             source: record.source.into(),

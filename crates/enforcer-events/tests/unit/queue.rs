@@ -25,7 +25,9 @@ fn failing_journal_result(
     if call == fail_once_on {
         return Err(EventingError::JournalIo {
             path: EventErrorPath::from_diagnostic("failing-journal".to_owned()),
-            reason: EventErrorReason::from_diagnostic("intentional one-shot append failure".to_owned()),
+            reason: EventErrorReason::from_diagnostic(
+                "intentional one-shot append failure".to_owned(),
+            ),
         });
     }
 

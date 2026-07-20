@@ -15,12 +15,12 @@ use crate::traces::TraceRecord;
 use enforcer_domain::memory_types::{
     ArtifactId, ArtifactManifestRelativePath, ArtifactManifestTimestamp, GraphArtifactByteCount,
     GraphEventKind, IndexManifestBuiltAt, IndexManifestSourceLog, IndexManifestWatermark,
-    IngestClean, IngestFaultClass, IngestLessonId, IngestObservationPayloadKind,
-    IngestRepoContext, IngestRuleId, IngestSourceSurface, IngestTimestamp, MemoryLogEntryId,
-    MemoryLogSchemaVersion, MemoryObservationPayload, MemoryObservationTimestamp,
-    ModelRuntimeObservationRunId, ModelRuntimeObservationSource, ProceduralDetail,
-    ProceduralLessonReference, ProceduralOutcome, ProceduralRecordId, RetrievalRoute,
-    RouteConfidence, RouteTraceId, RouteTraceQuery, Seq, TraceNodeId, TraceObservationCount,
+    IngestClean, IngestFaultClass, IngestLessonId, IngestObservationPayloadKind, IngestRepoContext,
+    IngestRuleId, IngestSourceSurface, IngestTimestamp, MemoryLogEntryId, MemoryLogSchemaVersion,
+    MemoryObservationPayload, MemoryObservationTimestamp, ModelRuntimeObservationRunId,
+    ModelRuntimeObservationSource, ProceduralDetail, ProceduralLessonReference, ProceduralOutcome,
+    ProceduralRecordId, RetrievalRoute, RouteConfidence, RouteTraceId, RouteTraceQuery, Seq,
+    TraceNodeId, TraceObservationCount,
 };
 
 /// Current schema version for every shape in this module. Bumped only on

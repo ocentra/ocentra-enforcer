@@ -115,9 +115,7 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     //    verifying the hash chain against its independent sidecar.
     let log_path = store.observation_log_path();
     drop(store);
-    let outcome = read_verified::<ObservationLogEntryDto>(&log_path, |e| {
-        e.seq
-    })?;
+    let outcome = read_verified::<ObservationLogEntryDto>(&log_path, |e| e.seq)?;
     assert!(
         outcome.quarantined.is_empty(),
         "no row should be quarantined on a clean real ingest: {:?}",

@@ -223,7 +223,11 @@ pub fn replay_incident_observations_from_store(
         ) {
             continue;
         }
-        if graph.nodes().iter().any(|node| node.id().as_str() == entry.id.as_str()) {
+        if graph
+            .nodes()
+            .iter()
+            .any(|node| node.id().as_str() == entry.id.as_str())
+        {
             continue;
         }
         graph.ingest_incident(incident_from_entry(&entry));

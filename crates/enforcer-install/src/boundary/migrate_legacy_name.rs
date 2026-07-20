@@ -632,8 +632,8 @@ fn rewrite_text(raw: &str) -> String {
 mod tests {
     use super::{
         migrate, scan, ConfigFormat, ConfigTarget, FindingKind, MigrationFinding,
-        MigrationFindingDto, MigrationOutcomeDto, RewrittenFile, RewrittenFileDto, LEGACY_ALIAS_TOOL_PREFIX,
-        LEGACY_CANONICAL_TOOL_PREFIX, LEGACY_SERVER_NAME,
+        MigrationFindingDto, MigrationOutcomeDto, RewrittenFile, RewrittenFileDto,
+        LEGACY_ALIAS_TOOL_PREFIX, LEGACY_CANONICAL_TOOL_PREFIX, LEGACY_SERVER_NAME,
     };
     use crate::error::{InstallError, InstallResult};
     use enforcer_mcp::name::SERVER_NAME;

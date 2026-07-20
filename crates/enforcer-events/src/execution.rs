@@ -19,10 +19,9 @@ impl HandlerExecutionPolicy {
         if matches!(timeout, Some(duration) if duration.value().is_zero()) {
             return Err(EventingError::HandlerPolicyTimeoutMustBePositive);
         }
-        let max_attempts =
-            max_attempts
-                .as_nonzero()
-                .ok_or(EventingError::HandlerPolicyMaxAttemptsMustBePositive)?;
+        let max_attempts = max_attempts
+            .as_nonzero()
+            .ok_or(EventingError::HandlerPolicyMaxAttemptsMustBePositive)?;
         Ok(Self {
             timeout,
             max_attempts,

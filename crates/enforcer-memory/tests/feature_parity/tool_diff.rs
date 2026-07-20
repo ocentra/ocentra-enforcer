@@ -1016,9 +1016,7 @@ fn populate_store_from_candidate_graph(
     drop(store);
     let outcome = enforcer_memory::log::read_verified::<
         enforcer_memory::boundary::log_schema::GraphEventLogEntryDto,
-    >(&log_path, |e| {
-        e.seq
-    })?;
+    >(&log_path, |e| e.seq)?;
     let sqlite_path = stores_dir
         .path()
         .join(&project_id)
