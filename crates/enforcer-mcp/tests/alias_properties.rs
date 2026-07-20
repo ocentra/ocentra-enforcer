@@ -20,7 +20,9 @@ proptest! {
 
     #[test]
     fn normalize_tool_name_reverses_generated_canonical_aliases(
-        suffix in "[a-z][a-z0-9_]{0,48}"
+        // "ocentra_enforcer_" is 17 bytes; keep generated canonical names
+        // within the 64-byte McpToolName boundary.
+        suffix in "[a-z][a-z0-9_]{0,46}"
     ) {
         let raw = format!("ocentra_enforcer_{suffix}");
         let canonical = tool_name(&raw)?;
