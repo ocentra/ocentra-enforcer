@@ -180,18 +180,12 @@ mod tests {
 
     #[test]
     fn decoder_boundary_paths_accept_windows_and_posix_separators() -> Result<(), DecodeError> {
-        let integration = match RelPath::try_from(String::from(
+        let integration = RelPath::try_from(String::from(
             "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
-        )) {
-            Ok(path) => path,
-            Err(error) => return Err(error),
-        };
-        let boundary = match RelPath::try_from(String::from(
+        ))?;
+        let boundary = RelPath::try_from(String::from(
             "crates\\enforcer-literal-scan\\src\\boundary\\json_wire.mjs",
-        )) {
-            Ok(path) => path,
-            Err(error) => return Err(error),
-        };
+        ))?;
         assert_eq!(
             classify_decoder_path(&integration),
             LiteralFileRole::Boundary
@@ -202,12 +196,9 @@ mod tests {
 
     #[test]
     fn product_domain_paths_are_not_decoder_boundaries() -> Result<(), DecodeError> {
-        let domain = match RelPath::try_from(String::from(
+        let domain = RelPath::try_from(String::from(
             "crates/enforcer-literal-scan/src/domain/literal_policy.mjs",
-        )) {
-            Ok(path) => path,
-            Err(error) => return Err(error),
-        };
+        ))?;
         assert_eq!(classify_decoder_path(&domain), LiteralFileRole::Domain);
         Ok(())
     }
