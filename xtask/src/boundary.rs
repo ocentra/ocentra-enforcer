@@ -13,7 +13,8 @@
 //!
 //! # No bypass flag
 //! The only flags are `--baseline-write` / `--ceiling-write` (the two
-//! explicit, out-of-band snapshot maintenance operations) and
+//! explicit, out-of-band snapshot maintenance operations), `--proof-output-dir`
+//! (an explicit output sink, useful to make test runs hermetic), and
 //! `--no-toolchain` (a documented scope split -- the toolchain steps are
 //! first-class CI steps of their own; skipping them here never skips the
 //! rust-rule gate). No flag suppresses a finding.
@@ -61,11 +62,18 @@ pub fn entry() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut arg_iter = args.iter();
     let Some(command) = arg_iter.next() else {
-        emit("usage: xtask <dogfood|dogfood-gate> [--baseline-write] [--ceiling-write] [--no-toolchain]");
+        emit("usage: xtask <dogfood|dogfood-gate> [--baseline-write] [--ceiling-write] [--proof-output-dir <dir>] [--no-toolchain]");
         return ExitCode::from(EXIT_USAGE);
     };
     let rest: Vec<&String> = arg_iter.collect();
     let has_flag = |flag: &str| rest.iter().any(|candidate| candidate.as_str() == flag);
+    let proof_output = match flag_value(&rest, "--proof-output-dir") {
+        Ok(value) => value.map(PathBuf::from),
+        Err(message) => {
+            emit(&message);
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
 
     let Some(root) = workspace_root() else {
         emit("internal error: xtask's manifest dir has no parent (unexpected layout)");
@@ -82,12 +90,22 @@ pub fn entry() -> ExitCode {
         "dogfood" if has_flag("--baseline-write") => run_baseline_write(&root, &baseline_store),
         "dogfood" => run_dogfood_command(&root, &baseline_store, toolchain_mode),
         "dogfood-gate" if has_flag("--ceiling-write") => run_ceiling_write(&root),
-        "dogfood-gate" => run_gate_command(&root, toolchain_mode),
+        "dogfood-gate" => run_gate_command(&root, toolchain_mode, proof_output.as_deref()),
         other => {
             emit(&format!("unknown xtask subcommand: {other}"));
             ExitCode::from(EXIT_USAGE)
         }
     }
+}
+
+/// Return an explicit one-value command flag, rejecting a dangling flag.
+fn flag_value<'a>(args: &[&'a String], flag: &str) -> Result<Option<&'a str>, String> {
+    let Some(index) = args.iter().position(|candidate| candidate.as_str() == flag) else {
+        return Ok(None);
+    };
+    args.get(index + 1)
+        .map(|value| Some(value.as_str()))
+        .ok_or_else(|| format!("{flag} requires a directory argument"))
 }
 
 /// `xtask dogfood --baseline-write`: the explicit snapshot-refresh
@@ -180,8 +198,13 @@ fn run_ceiling_write(root: &Path) -> ExitCode {
 }
 
 /// `xtask dogfood-gate`: the z01 terminal composing proof gate.
-fn run_gate_command(root: &Path, mode: ToolchainMode) -> ExitCode {
-    let paths = dogfood_gate::boundary::GatePaths::under(root);
+fn run_gate_command(root: &Path, mode: ToolchainMode, proof_output: Option<&Path>) -> ExitCode {
+    let paths = match proof_output {
+        Some(directory) => {
+            dogfood_gate::boundary::GatePaths::under_with_proof_output(root, directory)
+        }
+        None => dogfood_gate::boundary::GatePaths::under(root),
+    };
     match dogfood_gate::boundary::run_gate(&paths, mode) {
         Ok(run) => {
             render_scan_summary(run.scan());

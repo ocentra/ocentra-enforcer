@@ -38,6 +38,7 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
         .ok_or_else(|| {
             std::io::Error::other("expected crates/enforcer-cli two levels under the root")
         })?;
+    let proof_output = tempfile::tempdir()?;
     let output = Command::new("cargo")
         .args([
             "run",
@@ -46,6 +47,11 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
             "--quiet",
             "--",
             "dogfood-gate",
+            "--proof-output-dir",
+            proof_output
+                .path()
+                .to_str()
+                .ok_or_else(|| std::io::Error::other("temporary proof path was not UTF-8"))?,
             "--no-toolchain",
         ])
         .current_dir(workspace_root)
@@ -59,7 +65,7 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
     );
 
     // The manifest is the durable proof artifact.
-    let manifest_raw = std::fs::read(workspace_root.join("proof/dogfood-manifest.json"))?;
+    let manifest_raw = std::fs::read(proof_output.path().join("dogfood-manifest.json"))?;
     let manifest: serde_json::Value =
         serde_json::from_slice(&manifest_raw).map_err(std::io::Error::other)?;
 
@@ -108,7 +114,7 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
 
     // The hash-chained journal received a tamper-evident record: every
     // line carries its chain digest, and at least one line exists.
-    let journal = std::fs::read_to_string(workspace_root.join("proof/dogfood-journal.ndjson"))?;
+    let journal = std::fs::read_to_string(proof_output.path().join("dogfood-journal.ndjson"))?;
     let lines: Vec<&str> = journal
         .lines()
         .filter(|line| !line.trim().is_empty())

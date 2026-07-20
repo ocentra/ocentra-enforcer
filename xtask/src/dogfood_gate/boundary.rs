@@ -51,12 +51,20 @@ impl GatePaths {
     /// Derive every gate location from `root` (the workspace root for the
     /// live run; a temp dir for fixtures).
     pub fn under(root: &Path) -> Self {
+        Self::under_with_proof_output(root, &root.join("proof"))
+    }
+
+    /// Derive gate locations from `root`, writing the mutable proof outputs
+    /// below an explicit directory. The baseline, ceiling, rules, and scan
+    /// root deliberately remain rooted at the real workspace: changing the
+    /// proof sink must never change what the gate validates.
+    pub fn under_with_proof_output(root: &Path, proof_output: &Path) -> Self {
         Self {
             root: root.to_path_buf(),
             baseline_store: root.join("xtask/dogfood-baseline.json"),
             ceiling_store: root.join("xtask/dogfood-t2-ceiling.json"),
-            manifest_file: root.join("proof/dogfood-manifest.json"),
-            journal_file: root.join("proof/dogfood-journal.ndjson"),
+            manifest_file: proof_output.join("dogfood-manifest.json"),
+            journal_file: proof_output.join("dogfood-journal.ndjson"),
             rules_dir: root.join("crates/enforcer-rules/rules"),
         }
     }
