@@ -52,13 +52,13 @@ impl DomainEvent for EnvelopeBoundaryEvent {
     }
 }
 
-fn assert_json_round_trip<T>(original: T) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+fn assert_json_round_trip<T>(original: &T) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
 {
     let wire = serde_json::to_string(&original)?;
     let decoded: T = serde_json::from_str(&wire)?;
-    assert_eq!(decoded, original);
+    assert_eq!(&decoded, original);
     Ok(())
 }
 
@@ -93,18 +93,18 @@ fn persistence_dto_round_trips_preserve_typed_event_boundary_values(
     )?;
     let stored = live.store()?;
 
-    assert_json_round_trip::<EventContractDto>(EventContractDto::from(&live.contract))?;
-    assert_json_round_trip::<EventSourceDto>(EventSourceDto::from(&live.source))?;
-    assert_json_round_trip::<EventMetadataDto>(EventMetadataDto::from(&metadata()?))?;
+    assert_json_round_trip::<EventContractDto>(&EventContractDto::from(&live.contract))?;
+    assert_json_round_trip::<EventSourceDto>(&EventSourceDto::from(&live.source))?;
+    assert_json_round_trip::<EventMetadataDto>(&EventMetadataDto::from(&metadata()?))?;
     let original_envelope: EventEnvelopeDto<EnvelopeBoundaryEvent> = EventEnvelopeDto::from(&live);
     let envelope_wire = serde_json::to_string(&original_envelope)?;
     let decoded_envelope: EventEnvelopeDto<EnvelopeBoundaryEvent> =
         serde_json::from_str(&envelope_wire)?;
     assert_eq!(decoded_envelope, original_envelope);
     assert_json_round_trip::<StoredEventPayloadDto>(
-        StoredEventEnvelopeDto::from(&stored).0.payload,
+        &StoredEventEnvelopeDto::from(&stored).0.payload,
     )?;
-    assert_json_round_trip::<StoredEventEnvelopeDto>(StoredEventEnvelopeDto::from(&stored))?;
+    assert_json_round_trip::<StoredEventEnvelopeDto>(&StoredEventEnvelopeDto::from(&stored))?;
     Ok(())
 }
 

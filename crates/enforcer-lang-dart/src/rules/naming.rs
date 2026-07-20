@@ -27,10 +27,7 @@ fn expected_snake_case_stem(widget_name: &DartWidgetName) -> Option<DartFilename
             out.push(ch);
         }
     }
-    match DartFilenameStem::try_new(out) {
-        Ok(stem) => Some(stem),
-        Err(_) => None,
-    }
+    DartFilenameStem::try_new(out).map(Some).unwrap_or_default()
 }
 
 /// `DART-NAME-1.1` — the file's snake_case stem must match its public
@@ -71,10 +68,9 @@ impl Validator for SnakeCaseFilenameValidator {
                 .and_then(|name| {
                     // ALLOC-JUSTIFICATION: the validated class name is owned by the
                     // domain brand before it is transformed into a filename stem.
-                    match DartWidgetName::try_new(name.to_owned()) {
-                        Ok(widget_name) => Some(widget_name),
-                        Err(_) => None,
-                    }
+                    DartWidgetName::try_new(name.to_owned())
+                        .map(Some)
+                        .unwrap_or_else(|_| None)
                 })
         }) else {
             return Vec::new();

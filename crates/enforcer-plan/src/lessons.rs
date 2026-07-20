@@ -955,21 +955,13 @@ fn memory_record_to_lesson(raw: MemoryStreamRecord) -> Option<Result<LessonRecor
     let raw_lesson = lesson?;
     Some((|| -> Result<LessonRecord, PlanError> {
         let lesson: LessonText = raw_lesson.parse().map_err(PlanError::SeedDecode)?;
-        let observed: ObservedEvidence = match observed {
-            Some(value) => value,
-            None => String::new(),
-        }
-        .parse()
+        let observed: ObservedEvidence = observed
+            .unwrap_or_default()
+            .parse()
         .map_err(PlanError::SeedDecode)?;
         let id: LessonId = id.parse().map_err(PlanError::SeedDecode)?;
-        let ships_via = file_content(match ships_via {
-            Some(value) => value,
-            None => String::new(),
-        });
-        let landed_at_cell = file_content(match landed_at {
-            Some(value) => value,
-            None => String::new(),
-        });
+        let ships_via = file_content(ships_via.unwrap_or_default());
+        let landed_at_cell = file_content(landed_at.unwrap_or_default());
         let landed_at = if landed_at_cell.as_str().trim().is_empty() {
             Vec::new()
         } else {
@@ -984,11 +976,9 @@ fn memory_record_to_lesson(raw: MemoryStreamRecord) -> Option<Result<LessonRecor
         };
         Ok(LessonRecord {
             id,
-            date: match date {
-                Some(value) => value,
-                None => String::new(),
-            }
-            .parse()
+            date: date
+                .unwrap_or_default()
+                .parse()
             .map_err(PlanError::SeedDecode)?,
             domain,
             observed,

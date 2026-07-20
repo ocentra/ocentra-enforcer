@@ -205,6 +205,11 @@ mod tests {
     fn parser_handles_oversized_metadata_without_panicking() {
         let oversized_name = "x".repeat(4096);
         let document = format!("kind: Role\nmetadata:\n  name: {oversized_name}\n");
-        assert!(matches!(parse_manifest(&document), Some(_)));
+        assert_eq!(
+            parse_manifest(&document)
+                .and_then(|manifest| manifest.kind)
+                .as_deref(),
+            Some("Role")
+        );
     }
 }

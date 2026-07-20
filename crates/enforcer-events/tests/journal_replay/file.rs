@@ -12,13 +12,13 @@ use super::support::{
     cleanup, journal_path, read_lines, stored_event, tamper_first_journal_payload_label, TestText,
 };
 
-fn assert_json_round_trip<T>(original: T) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+fn assert_json_round_trip<T>(original: &T) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
 {
     let wire = serde_json::to_string(&original)?;
     let decoded: T = serde_json::from_str(&wire)?;
-    assert_eq!(decoded, original);
+    assert_eq!(&decoded, original);
     Ok(())
 }
 
@@ -37,8 +37,8 @@ fn journal_entry_dto_round_trip_preserves_append_and_envelope(
         phase: JournalDispatchPhaseDto::AfterDispatch,
         envelope: StoredEventEnvelopeDto::from(&stored),
     };
-    assert_json_round_trip::<JournalAppendDto>(dto.append.clone())?;
-    assert_json_round_trip::<NdjsonJournalEntryDto>(dto.clone())?;
+    assert_json_round_trip::<JournalAppendDto>(&dto.append)?;
+    assert_json_round_trip::<NdjsonJournalEntryDto>(&dto)?;
 
     let wire = serde_json::to_string(&dto)?;
     let round_trip_entry: NdjsonJournalEntryDto = serde_json::from_str(&wire)?;
