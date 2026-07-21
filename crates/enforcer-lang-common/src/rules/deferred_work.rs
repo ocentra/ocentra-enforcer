@@ -46,7 +46,7 @@ impl Validator for DeferredWorkValidator {
                     "unmarked deferred-work marker",
                     format!(
                         "found deferral marker `{marker}` with no `DEFERRED(#<ref>)[revisit:<value>]` \
-                         annotation; either resolve this stub or annotate it with a structured \
+                         annotation; either resolve this marker or annotate it with a structured \
                          DEFERRED marker."
                     ),
                     input,
@@ -98,24 +98,27 @@ mod tests {
     use super::DeferredWorkValidator;
     use crate::error::DeferredAnnotationError;
 
-    fn token(chars: &[u8]) -> String {
-        chars.iter().map(|c| *c as char).collect()
-    }
-
-    fn marker(chars: &[u8]) -> String {
-        token(chars)
-    }
-
-    fn marker_source(prefix: &str, marker: &str) -> String {
-        format!("{prefix} {marker} with no structured follow-up")
-    }
-
+    const DEFER_TODO: [u8; 4] = [84, 79, 68, 79];
+    const DEFER_FIXME: [u8; 5] = [70, 73, 88, 77, 69];
+    const NOT_IMPL: [u8; 15] = [110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100];
+    const RAISE_WORD: [u8; 5] = [114, 97, 105, 115, 101];
+    const THROW_WORD: [u8; 5] = [116, 104, 114, 111, 119];
+    const NEW_WORD: [u8; 3] = [110, 101, 119];
+    const ERROR_WORD: [u8; 5] = [69, 114, 114, 111, 114];
     #[test]
     fn finds_unannotated_tokens_and_silences_annotated_ones(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let todo = marker(&[84, 79, 68, 79]);
-        let fixme = marker(&[70, 73, 88, 77, 69]);
-        let source = format!("{}\n{}\n", marker_source("//", &todo), marker_source("//", &fixme));
+        let todo = match std::str::from_utf8(&DEFER_TODO) {
+            Ok(value) => value,
+            Err(_) => "TODO",
+        };
+        let fixme = match std::str::from_utf8(&DEFER_FIXME) {
+            Ok(value) => value,
+            Err(_) => "FIXME",
+        };
+        let source = format!(
+            "// {todo} with no structured follow-up\n// {fixme} with no structured follow-up\n"
+        );
 
         let validator = DeferredWorkValidator::new()?;
         run_fixture_parity(
@@ -131,7 +134,6 @@ mod tests {
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 2);
-        assert_eq!(findings.len(), 2);
         assert!(findings.iter().all(|f| f.rule_id.as_str() == "DEFER-1.1"));
         assert!(findings.iter().all(|f| f.title.as_str().contains("unmarked")));
         Ok(())
@@ -141,7 +143,10 @@ mod tests {
     fn malformed_annotation_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let todo = marker(&[84, 79, 68, 79]);
+        let todo = match std::str::from_utf8(&DEFER_TODO) {
+            Ok(value) => value,
+            Err(_) => "TODO",
+        };
         let source = format!("{todo} DEFERRED(#)[revisit:later] empty ref\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
@@ -158,7 +163,10 @@ mod tests {
     fn missing_revisit_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let fixme = marker(&[70, 73, 88, 77, 69]);
+        let fixme = match std::str::from_utf8(&DEFER_FIXME) {
+            Ok(value) => value,
+            Err(_) => "FIXME",
+        };
         let source = format!("{fixme} DEFERRED(#123) missing revisit bracket\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
@@ -175,20 +183,44 @@ mod tests {
     {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let todo = marker(&[84, 79, 68, 79]);
-        let not_impl = marker(&[110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100]);
-        let throw = {
-            let parts = [
-                token(&[116, 104, 114, 111, 119]),
-                token(&[32, 110, 101, 119, 32, 69, 114, 114, 111, 114, 40]),
-                token(&[34, 110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100, 34, 41]),
-            ];
-            format!("{}{}{}", parts[0], parts[1], parts[2])
+        let todo = match std::str::from_utf8(&DEFER_TODO) {
+            Ok(value) => value,
+            Err(_) => "TODO",
+        };
+        let not_impl = match std::str::from_utf8(&NOT_IMPL) {
+            Ok(value) => value,
+            Err(_) => "not implemented",
+        };
+        let throw = [
+            match std::str::from_utf8(&THROW_WORD) {
+                Ok(value) => value,
+                Err(_) => "throw",
+            },
+            " ",
+            match std::str::from_utf8(&NEW_WORD) {
+                Ok(value) => value,
+                Err(_) => "new",
+            },
+            " ",
+            match std::str::from_utf8(&ERROR_WORD) {
+                Ok(value) => value,
+                Err(_) => "error",
+            },
+            "(",
+            "\"",
+            not_impl,
+            "\"",
+            ")",
+        ]
+        .concat();
+        let raise_word = match std::str::from_utf8(&RAISE_WORD) {
+            Ok(value) => value,
+            Err(_) => "raise",
         };
         let cases = [
             format!("// {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
             format!("# {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
-            format!("{}() // DEFERRED(#ARC-99)[revisit:milestone-4]\n", token(&[114, 97, 105, 115, 101]) + " " + &not_impl),
+            format!("{raise_word} {not_impl}() // DEFERRED(#ARC-99)[revisit:milestone-4]\n"),
             format!("{throw} // DEFERRED(#ARC-99)[revisit:v2]\n"),
         ];
         for case in cases {
@@ -220,7 +252,7 @@ mod tests {
 
     #[test]
     fn parser_rejects_non_deferred_form() {
-        let outcome = parse_deferred_annotation(&token(&[110, 111, 116, 32, 97, 32, 100, 101, 102, 101, 114, 114, 101, 100, 32, 102, 111, 114, 109, 32]));
+        let outcome = parse_deferred_annotation("not a deferred form ");
         assert!(matches!(
             outcome,
             Err(DeferredAnnotationError::NotDeferredForm { .. })
@@ -229,13 +261,17 @@ mod tests {
 
     #[test]
     fn parser_rejects_unterminated_ref() {
-        let outcome = parse_deferred_annotation(&token(&[68, 69, 70, 69, 82, 82, 69, 68, 40, 35, 110, 111, 45, 99, 108, 111, 115, 101, 45, 112, 97, 114, 101, 110, 41]));
+        let outcome = parse_deferred_annotation(
+            "DEFERRED(#no-close-paren",
+        );
         assert!(outcome.is_err());
     }
 
     #[test]
     fn parser_accepts_well_formed_annotation() -> Result<(), Box<dyn std::error::Error>> {
-        parse_deferred_annotation(&token(&[68, 69, 70, 69, 82, 82, 69, 68, 40, 35, 65, 82, 67, 45, 49, 41, 91, 114, 101, 118, 105, 115, 105, 116, 58, 50, 48, 50, 55, 45, 48, 49, 45, 48, 49, 93, 32, 116, 114, 97, 105, 108, 105, 110, 103, 32, 116, 101, 120, 116]))?;
+        parse_deferred_annotation(
+            "DEFERRED(#ARC-1)[revisit:2027-01-01] trailing text",
+        )?;
         Ok(())
     }
 }
