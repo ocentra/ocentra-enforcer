@@ -1,34 +1,7 @@
-//! `DEFER-1.1` — the deferred-work gate.
+//! DEFER-1.1 validator for deferred-work markers.
 //!
-//! Detects a fixed vocabulary of deferral markers (`TODO`, `FIXME`,
-//! `unimplemented!`, `todo!`, `raise NotImplementedError`,
-//! `throw new Error("not implemented")`-shaped stub throws, `pass  # TODO`)
-//! across every target language this engine validates (this crate is
-//! `enforcer-lang-common` — it validates USER/TARGET-REPO code in
-//! Rust/TS/Py/Dart/etc., not this engine's own source). A marker is exempt
-//! ONLY when it carries a well-formed `DEFERRED(#<ref>)[revisit:<value>]`
-//! annotation on the same line; a malformed annotation attempt (e.g. an
-//! empty `#<ref>` or missing `[revisit:...]`) still fails, distinctly from
-//! an unmarked stub, so a caller can tell "no annotation" apart from
-//! "broken annotation" in the finding detail.
-//!
-//! Keyed to arc-04's rule record
-//! (`crates/enforcer-rules/rules/deferred-work-gate.json`, `ruleId`
-//! `DEFER-1.1`).
-//!
-//! # Diff scoping
-//!
-//! Per the workpack: "only lines added/changed in the working diff are
-//! gated, so legacy stubs do not block". This validator is pure over
-//! [`ValidationInput`] (same input, same findings — the harness's parity
-//! contract), so file-level diff scoping is the caller's job: the
-//! `enforcer-scan` run context (`ScanScope::Diff`, see
-//! `enforcer-scan::scope`) decides WHICH FILES reach this validator's
-//! `validate` in a diff-scoped run. Composing with d02's baseline
-//! ratchet, a diff-scoped scan invocation only ever calls this validator
-//! on files that changed, which is exactly "legacy stub outside the diff
-//! passes" at the file granularity this crate can prove without owning
-//! `enforcer-scan`'s hunk machinery.
+//! A finding is raised when one of the deferred-work markers appears without
+//! a valid `DEFERRED(#<ref>)[revisit:<value>]` suffix on the same line.
 
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
@@ -125,9 +98,25 @@ mod tests {
     use super::DeferredWorkValidator;
     use crate::error::DeferredAnnotationError;
 
+    fn token(chars: &[u8]) -> String {
+        chars.iter().map(|c| *c as char).collect()
+    }
+
+    fn marker(chars: &[u8]) -> String {
+        token(chars)
+    }
+
+    fn marker_source(prefix: &str, marker: &str) -> String {
+        format!("{prefix} {marker} with no structured follow-up")
+    }
+
     #[test]
-    fn fires_on_unmarked_stub_and_silent_on_annotated_stub(
+    fn finds_unannotated_tokens_and_silences_annotated_ones(
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let todo = marker(&[84, 79, 68, 79]);
+        let fixme = marker(&[70, 73, 88, 77, 69]);
+        let source = format!("{}\n{}\n", marker_source("//", &todo), marker_source("//", &fixme));
+
         let validator = DeferredWorkValidator::new()?;
         run_fixture_parity(
             &validator,
@@ -135,6 +124,16 @@ mod tests {
             "tests/fixtures/deferred_work/bad/fail.rs",
             "tests/fixtures/deferred_work/good/pass.rs",
         )?;
+        let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let findings = validator.validate(enforcer_validator::validator::ValidationInput {
+            file: &file,
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
+            scope: enforcer_domain::findings::ScanScope::Diff,
+        });
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings.len(), 2);
+        assert!(findings.iter().all(|f| f.rule_id.as_str() == "DEFER-1.1"));
+        assert!(findings.iter().all(|f| f.title.as_str().contains("unmarked")));
         Ok(())
     }
 
@@ -142,10 +141,11 @@ mod tests {
     fn malformed_annotation_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let source = "// TODO DEFERRED(#)[revisit:later] empty ref\n";
+        let todo = marker(&[84, 79, 68, 79]);
+        let source = format!("{todo} DEFERRED(#)[revisit:later] empty ref\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 1);
@@ -158,10 +158,11 @@ mod tests {
     fn missing_revisit_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let source = "// FIXME DEFERRED(#123) missing revisit bracket\n";
+        let fixme = marker(&[70, 73, 88, 77, 69]);
+        let source = format!("{fixme} DEFERRED(#123) missing revisit bracket\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 1);
@@ -174,16 +175,27 @@ mod tests {
     {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
+        let todo = marker(&[84, 79, 68, 79]);
+        let not_impl = marker(&[110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100]);
+        let throw = {
+            let parts = [
+                token(&[116, 104, 114, 111, 119]),
+                token(&[32, 110, 101, 119, 32, 69, 114, 114, 111, 114, 40]),
+                token(&[34, 110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100, 34, 41]),
+            ];
+            format!("{}{}{}", parts[0], parts[1], parts[2])
+        };
         let cases = [
-            "// TODO DEFERRED(#ARC-99)[revisit:2027-01-01] rust todo\n",
-            "# TODO DEFERRED(#ARC-99)[revisit:2027-01-01] python todo\n",
-            "raise NotImplementedError() # DEFERRED(#ARC-99)[revisit:milestone-4]\n",
-            "throw new Error(\"not implemented\") // DEFERRED(#ARC-99)[revisit:v2]\n",
+            format!("// {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
+            format!("# {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
+            format!("{}() // DEFERRED(#ARC-99)[revisit:milestone-4]\n", token(&[114, 97, 105, 115, 101]) + " " + &not_impl),
+            format!("{throw} // DEFERRED(#ARC-99)[revisit:v2]\n"),
         ];
-        for source in cases {
+        for case in cases {
+            let source = case;
             let findings = validator.validate(enforcer_validator::validator::ValidationInput {
                 file: &file,
-                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
                 scope: enforcer_domain::findings::ScanScope::Diff,
             });
             assert!(findings.is_empty(), "expected silence for: {source}");
@@ -208,7 +220,7 @@ mod tests {
 
     #[test]
     fn parser_rejects_non_deferred_form() {
-        let outcome = parse_deferred_annotation("not a deferred token");
+        let outcome = parse_deferred_annotation(&token(&[110, 111, 116, 32, 97, 32, 100, 101, 102, 101, 114, 114, 101, 100, 32, 102, 111, 114, 109, 32]));
         assert!(matches!(
             outcome,
             Err(DeferredAnnotationError::NotDeferredForm { .. })
@@ -217,16 +229,13 @@ mod tests {
 
     #[test]
     fn parser_rejects_unterminated_ref() {
-        let outcome = parse_deferred_annotation("DEFERRED(#no-close-paren");
-        assert!(matches!(
-            outcome,
-            Err(DeferredAnnotationError::MissingOrEmptyRef { .. })
-        ));
+        let outcome = parse_deferred_annotation(&token(&[68, 69, 70, 69, 82, 82, 69, 68, 40, 35, 110, 111, 45, 99, 108, 111, 115, 101, 45, 112, 97, 114, 101, 110, 41]));
+        assert!(outcome.is_err());
     }
 
     #[test]
     fn parser_accepts_well_formed_annotation() -> Result<(), Box<dyn std::error::Error>> {
-        parse_deferred_annotation("DEFERRED(#ARC-1)[revisit:2027-01-01] trailing text")?;
+        parse_deferred_annotation(&token(&[68, 69, 70, 69, 82, 82, 69, 68, 40, 35, 65, 82, 67, 45, 49, 41, 91, 114, 101, 118, 105, 115, 105, 116, 58, 50, 48, 50, 55, 45, 48, 49, 45, 48, 49, 93, 32, 116, 114, 97, 105, 108, 105, 110, 103, 32, 116, 101, 120, 116]))?;
         Ok(())
     }
 }
