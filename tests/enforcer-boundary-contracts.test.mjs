@@ -91,3 +91,48 @@ fn malformed_raw_user_is_rejected() {
     assert.equal(ids.has(ruleId), false, `${ruleId} must pass for a typed conversion`);
   }
 });
+
+test("crate-private DTO seams and typed unit validators do not leak boundary values", () => {
+  const project = makeProject({
+    "src/boundary/wire.rs": `
+//! BOUNDARY-INVARIANT: raw users convert to validated domain identifiers.
+pub struct RawUserDto { pub value: String }
+pub struct UserId(String);
+pub enum DecodeError { Empty }
+
+impl From<RawUserDto> for UserId {
+    fn from(raw: RawUserDto) -> Self { Self(raw.value) }
+}
+
+pub(crate) fn decode(raw: RawUserDto) -> Result<RawUserDto, DecodeError> { Ok(raw) }
+pub(crate) fn validate_user(_user: &UserId) -> Result<(), DecodeError> { Ok(()) }
+`,
+    "tests/wire.rs": `
+#[test]
+fn malformed_raw_user_is_rejected() {
+    let raw = fixture::boundary::wire::RawUserDto { value: String::new() };
+    assert!(fixture::boundary::wire::decode(raw).is_err());
+}
+`,
+  });
+  const result = commonBoundaryScan(project, ["src/boundary/wire.rs", "tests/wire.rs"]);
+  const ids = ruleIds(result);
+  for (const ruleId of ["BOUND-1.2", "BOUND-1.9", "BOUND-1.10"]) {
+    assert.equal(ids.has(ruleId), false, `${ruleId} must allow a crate-private typed seam`);
+  }
+});
+
+test("documented serialized output DTOs remain valid at a public boundary edge", () => {
+  const project = makeProject({
+    "src/boundary/output.rs": `
+//! BOUNDARY-INVARIANT: validated domain data is serialized once at the API edge.
+//! ROUNDTRIP-TEST: tests/output.rs::response_round_trip_preserves_fields
+#[derive(Serialize)]
+pub struct UserResponseDto { pub id: String }
+pub fn render_user() -> UserResponseDto { UserResponseDto { id: String::new() } }
+`,
+    "tests/output.rs": "#[test] fn response_round_trip_preserves_fields() {}",
+  });
+  const result = commonBoundaryScan(project, ["src/boundary/output.rs", "tests/output.rs"]);
+  assert.equal(ruleIds(result).has("BOUND-1.9"), false);
+});

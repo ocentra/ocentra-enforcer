@@ -27,7 +27,9 @@ export function scanBoundaryRules(violations, root, filePath, rel, lines, text) 
   const documented = /\bBOUNDARY-INVARIANT:/u.test(text)
     || /(?:^|\n)\s*(?:\/\/[/!]|\/\*\*)[^\n]*(?:boundary|wire|raw)[\s\S]{0,600}(?:parse|decode|convert|map|domain|reject|validate)/iu.test(text);
   if (!documented) record(violations, root, filePath, 1, "BOUND-1.1", "boundary file lacks BOUNDARY-INVARIANT documentation.", rel);
-  if ((rawTypeCount > 0 || /:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u.test(text))
+  const hasUntypedInput = lines.some((line) => /:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u
+    .test(line.replace(/(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gu, "")));
+  if ((signatureEvidence.hasRawInput || hasUntypedInput)
       && !signatureEvidence.hasDomainConversion) {
     record(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);
   }
