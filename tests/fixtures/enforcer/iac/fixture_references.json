@@ -1,0 +1,21 @@
+{
+  "ruleIds": [
+    "IAC-1.1",
+    "IAC-1.2",
+    "IAC-1.3",
+    "IAC-1.6",
+    "IAC-1.7"
+  ],
+  "fixtures": [
+    "tests/fixtures/enforcer/iac/IAC-1.1/fail.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.1/pass.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.2/fail.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.2/pass.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.3/fail.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.3/pass.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.6/fail.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.6/pass.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.7/fail.tf",
+    "tests/fixtures/enforcer/iac/IAC-1.7/pass.tf"
+  ]
+}
