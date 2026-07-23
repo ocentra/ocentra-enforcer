@@ -15,11 +15,11 @@ function loadCargoMetadata(root) {
   return loadLockedCargoMetadata(root).metadata;
 }
 
-function scanCargoMetadata(root, config, scope) {
+function scanCargoMetadata(root, config, scope, loadMetadata = loadLockedCargoMetadata) {
   const violations = [];
   if (!fs.existsSync(path.join(root, "Cargo.toml"))) return violations;
   if (!commandExists("cargo")) return violations;
-  const loaded = loadLockedCargoMetadata(root);
+  const loaded = loadMetadata(root);
   if (!loaded.metadata) {
     if (!loaded.unavailable && cargoLockNeedsUpdate(loaded.output)) {
       addViolation(
