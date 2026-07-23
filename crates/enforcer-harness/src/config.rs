@@ -51,7 +51,13 @@ fn sanitize_storage_dir(value: &str) -> Result<String> {
 
 fn has_windows_drive_prefix(value: &str) -> bool {
     let bytes = value.as_bytes();
-    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+    let Some((&first, rest)) = bytes.split_first() else {
+        return false;
+    };
+    let Some(&second) = rest.first() else {
+        return false;
+    };
+    first.is_ascii_alphabetic() && second == b':'
 }
 
 /// The legacy storage root path under a repo root (read-only).
