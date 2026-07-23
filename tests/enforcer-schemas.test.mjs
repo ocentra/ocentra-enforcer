@@ -467,6 +467,21 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   }
 });
 
+test("Effect Schema requires complete private Rust test module allowlist entries", () => {
+  const config = decodeEnforcerConfig({
+    privateRustTestModuleAllowlist: [{
+      ownerFile: "crates/core/src/device_trust.rs",
+      moduleFile: "crates/core/src/device_trust_private_tests.rs",
+      moduleName: "device_trust_private_tests",
+    }],
+  });
+  assert.equal(config.privateRustTestModuleAllowlist[0].moduleName, "device_trust_private_tests");
+  assert.throws(
+    () => decodeEnforcerConfig({ privateRustTestModuleAllowlist: [{ ownerFile: "crates/core/src/device_trust.rs" }] }),
+    /enforcer config schema validation failed/u,
+  );
+});
+
 test("Effect Schema rejects invalid external payloads with useful labels", () => {
   assert.throws(
     () => decodeRouteRequest({ files: "src/lib.rs" }),

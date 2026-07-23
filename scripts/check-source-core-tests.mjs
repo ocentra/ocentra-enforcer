@@ -8,6 +8,10 @@ import {
   scopeFilesByExtensions,
   scopedProjectRoots,
 } from "./check-source-core-helpers.mjs";
+import {
+  isAllowedPrivateRustTestModule,
+  isValidPrivateRustTestModuleEntry,
+} from "./check-source-core-private-rust-test-module.mjs";
 
 function collectRequiredTestFindings(
   root,
@@ -104,6 +108,7 @@ function collectInlineSourceTestFindings(
   for (const file of files) {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/u);
+    if (isAllowedPrivateRustTestModule(root, file, lines, config)) continue;
     const pattern = inlineTestPatternForFile(file);
     for (const [index, line] of lines.entries()) {
       if (!pattern.test(line)) continue;

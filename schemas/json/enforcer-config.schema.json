@@ -244,6 +244,23 @@
     "strictEmptyTestTrees": {
       "type": "boolean"
     },
+    "privateRustTestModuleAllowlist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ownerFile",
+          "moduleFile",
+          "moduleName"
+        ],
+        "properties": {
+          "ownerFile": { "type": "string" },
+          "moduleFile": { "type": "string" },
+          "moduleName": { "type": "string" }
+        }
+      }
+    },
     "generatedArtifactsMode": {
       "enum": [
         "scan",

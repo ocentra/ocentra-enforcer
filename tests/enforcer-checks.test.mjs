@@ -186,6 +186,64 @@ mod tests {}
   assert.equal(inlineFindings.some((violation) => violation.file === 'crates/core/src/lib.rs'), true);
 });
 
+test('check required-tests permits only an exact allowlisted private Rust test module', () => {
+  const owner = 'crates/core/src/device_trust.rs';
+  const module = 'crates/core/src/device_trust_private_tests.rs';
+  const base = {
+    'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
+    'crates/core/tests/value.rs': '#[test]\nfn value_is_stable() { assert_eq!(1, 1); }\n',
+    [module]: '#[test]\nfn private_contract_is_stable() { assert_eq!(1, 1); }\n',
+  };
+  const exact = makeProject({
+    ...base,
+    'ocentra-enforcer.config.json': JSON.stringify({
+      privateRustTestModuleAllowlist: [{ ownerFile: owner, moduleFile: module, moduleName: 'device_trust_private_tests' }],
+    }),
+    [owner]: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path="device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n',
+  });
+  const accepted = run(exact, ['check', 'required-tests', '--json', '--files', owner]);
+  assert.equal(accepted.status, 0, accepted.stdout || accepted.stderr);
+  assert.deepEqual(JSON.parse(accepted.stdout).violations, []);
+
+  const rejectedCases = [
+    {
+      label: 'wrong owner',
+      config: { ownerFile: 'crates/core/src/other.rs', moduleFile: module, moduleName: 'device_trust_private_tests' },
+      source: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path="device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n',
+    },
+    {
+      label: 'wrong module file',
+      config: { ownerFile: owner, moduleFile: 'crates/core/src/other_private_tests.rs', moduleName: 'device_trust_private_tests' },
+      source: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path="device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n',
+    },
+    {
+      label: 'wrong module name',
+      config: { ownerFile: owner, moduleFile: module, moduleName: 'device_trust_tests' },
+      source: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path="device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n',
+    },
+    {
+      label: 'inline cfg test body',
+      config: { ownerFile: owner, moduleFile: module, moduleName: 'device_trust_private_tests' },
+      source: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\nmod device_trust_private_tests {}\n',
+    },
+    {
+      label: 'free inline cfg test',
+      config: { ownerFile: owner, moduleFile: module, moduleName: 'device_trust_private_tests' },
+      source: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path="device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n\n#[cfg(test)]\nfn hidden_test() {}\n',
+    },
+  ];
+  for (const rejected of rejectedCases) {
+    const project = makeProject({
+      ...base,
+      'ocentra-enforcer.config.json': JSON.stringify({ privateRustTestModuleAllowlist: [rejected.config] }),
+      [owner]: rejected.source,
+    });
+    const result = run(project, ['check', 'required-tests', '--json', '--files', owner]);
+    assert.notEqual(result.status, 0, `${rejected.label}: ${result.stdout || result.stderr}`);
+    assert.equal(JSON.parse(result.stdout).violations.some((violation) => violation.ruleId === 'TEST-2.2'), true, rejected.label);
+  }
+});
+
 test('check required-tests does not treat regex or property .test calls as inline tests', () => {
   const project = makeProject({
     'packages/app/package.json': JSON.stringify({ name: '@fixture/app' }),

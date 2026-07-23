@@ -87,6 +87,12 @@ export const LiteralRiskPolicySchema = Schema.Struct({
   hardRuleIds: OptionalStringArray,
 });
 
+export const PrivateRustTestModuleAllowlistEntrySchema = Schema.Struct({
+  ownerFile: Schema.String,
+  moduleFile: Schema.String,
+  moduleName: Schema.String,
+});
+
 export const ConfigSchema = Schema.Struct({
   schemaVersion: OptionalNumber,
   profileName: OptionalString,
@@ -138,6 +144,9 @@ export const ConfigSchema = Schema.Struct({
   architecturePolicyChecks: OptionalStringArray,
   singleSourceRequiredMirrorRoots: OptionalStringArray,
   strictEmptyTestTrees: OptionalBoolean,
+  privateRustTestModuleAllowlist: Schema.optional(
+    Schema.Array(PrivateRustTestModuleAllowlistEntrySchema),
+  ),
   generatedArtifactsMode: Schema.optional(Schema.Literal("scan", "tracked")),
   generatedArtifactsTracked: OptionalBoolean,
   generatedArtifactsAllowlist: OptionalStringArray,
