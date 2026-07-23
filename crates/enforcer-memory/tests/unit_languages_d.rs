@@ -206,6 +206,19 @@ fn malformed_source_does_not_panic() {
 }
 
 #[test]
+fn embedded_nul_source_is_rejected_without_native_crash() {
+    let parsed = parse_d("module x;\0");
+    assert_eq!(parsed, Default::default());
+}
+
+#[test]
+fn hostile_unicode_and_nul_source_does_not_crash_native_d_parser() {
+    let source = "3\u{1b}⤸:\u{b}{`\"\rLѭ¡+\u{46c64}\u{cf078}\u{b}{\u{85a78}𠟄Ѩ\u{a1447}.\0\"\\Ð&'%Y\t'`*\u{1b}?\u{c06a9}\u{7661a};/\u{feff}`¬\u{7f}%E\0s\r\u{76b7c}\u{7f}\u{be2a3}-\r娠\r\u{6c6bd}\"=\r\u{9d471}-\r\u{1b}須\u{b}Ⱥ0u\u{9f52b}M";
+    let parsed = parse_d(source);
+    assert_eq!(parsed, Default::default());
+}
+
+#[test]
 fn fixture_file_parses_without_panic() -> TestResult {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join(FIXTURE_DIR).join("widget.d");
