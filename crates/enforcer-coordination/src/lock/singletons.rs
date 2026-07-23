@@ -36,7 +36,11 @@ pub fn normalize_coordination_path(value: &ClaimPath) -> Result<ClaimPath> {
         }
         collapsed.push(c);
     }
-    let stripped = collapsed.strip_prefix("./").unwrap_or(&collapsed);
+    let stripped = if collapsed == "./" {
+        "."
+    } else {
+        collapsed.strip_prefix("./").unwrap_or(&collapsed)
+    };
     Ok(ClaimPath::try_from(stripped.to_lowercase())?)
 }
 
@@ -158,6 +162,13 @@ mod tests {
         assert!(!normalized.as_str().contains("//"));
         assert!(!normalized.as_str().contains('\\'));
         assert!(normalized.as_str().ends_with("leaf.rs"));
+        Ok(())
+    }
+
+    #[test]
+    fn root_path_normalizes_to_a_nonblank_dot_path() -> Result<()> {
+        let normalized = normalize_coordination_path(&ClaimPath::try_from(".\\".to_owned())?)?;
+        assert_eq!(normalized.as_str(), ".");
         Ok(())
     }
 
