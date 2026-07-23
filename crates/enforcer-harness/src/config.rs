@@ -39,13 +39,19 @@ fn sanitize_storage_dir(value: &str) -> Result<String> {
     };
     let looks_absolute = Path::new(storage_dir).is_absolute()
         || storage_dir.starts_with('/')
-        || storage_dir.starts_with('\\');
+        || storage_dir.starts_with('\\')
+        || has_windows_drive_prefix(storage_dir);
     if looks_absolute || storage_dir.contains("..") {
         return Err(enforcer_core::error::Error::InvalidConfig(format!(
             "invalid harness storageDir: {storage_dir}"
         )));
     }
     Ok(storage_dir.replace('\\', "/"))
+}
+
+fn has_windows_drive_prefix(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
 /// The legacy storage root path under a repo root (read-only).
@@ -99,6 +105,14 @@ mod tests {
         assert_eq!(
             sanitize_storage_dir("C:/abs").map_err(|error| error.to_string()),
             Err("invalid core configuration: invalid harness storageDir: C:/abs".to_owned())
+        );
+        assert_eq!(
+            sanitize_storage_dir(r"z:\abs").map_err(|error| error.to_string()),
+            Err(r"invalid core configuration: invalid harness storageDir: z:\abs".to_owned())
+        );
+        assert_eq!(
+            sanitize_storage_dir("C:relative").map_err(|error| error.to_string()),
+            Err("invalid core configuration: invalid harness storageDir: C:relative".to_owned())
         );
         assert_eq!(
             sanitize_storage_dir("../escape").map_err(|error| error.to_string()),
