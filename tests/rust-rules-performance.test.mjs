@@ -77,8 +77,11 @@ test("cached whole-file Rust predicates preserve findings and remove quadratic w
   });
 
   assert.deepEqual(cached, legacy);
-  assert.equal(cachedTimings.lateRules < legacyTimings.lateRules, true, JSON.stringify({
-    phase: "lateRules",
+  // The cache is consumed by the repeated line-rule predicates.  The
+  // aggregate lateRules phase also contains unrelated filesystem/parser work
+  // and is too noisy to compare as a standalone wall-clock slice on CI.
+  assert.equal(cachedTimings.lineRules < legacyTimings.lineRules, true, JSON.stringify({
+    phase: "lineRules",
     cached: cachedTimings,
     legacy: legacyTimings,
   }));
