@@ -34,7 +34,16 @@ test('Cargo wildcard dependency fails with RR-9.1', () => {
 
 test('locked Cargo metadata rejects a stale lock without mutating Cargo.lock', () => {
   const project = makeProject({
-    'src/lib.rs': '#[derive(Debug)]\npub struct Value;\n',
+    'Cargo.toml': `
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+helper = { path = "helper" }
+`,
     'helper/Cargo.toml': `
 [package]
 name = "helper"
@@ -43,30 +52,25 @@ edition = "2021"
 rust-version = "1.75"
 `,
     'helper/src/lib.rs': 'pub struct Helper;\n',
+    'src/lib.rs': '#[derive(Debug)]\npub struct Value;\n',
     'helper/OWNERS': '@ocentra/enforcer\n',
   });
-  const manifest = path.join(project, 'Cargo.toml');
   const lockPath = path.join(project, 'Cargo.lock');
   const before = fs.readFileSync(lockPath, 'utf8');
-  // Make the lock stale through the root package identity itself. Cargo's
-  // handling of a newly-added local path dependency differs across platforms,
-  // while a post-lock package-version change is deterministic everywhere.
-  fs.writeFileSync(
-    manifest,
-    fs.readFileSync(manifest, 'utf8').replace('version = "0.1.0"', 'version = "0.2.0"'),
-    'utf8',
+  // Mutating a locked package's version makes Cargo reject the lock on every
+  // supported host, unlike adding a new path dependency after lock creation.
+  const staleLock = before.replace(
+    /(name = "helper"\r?\nversion = )"0\.1\.0"/u,
+    '$1"9.9.9"',
   );
-  fs.appendFileSync(
-    manifest,
-    '\n# DEPENDENCY-JUSTIFICATION: fixture dependency exercises stale-lock detection.\n[dependencies]\nhelper = { path = "helper" }\n',
-    'utf8',
-  );
+  assert.notEqual(staleLock, before, 'fixture lock mutation must target helper');
+  fs.writeFileSync(lockPath, staleLock, 'utf8');
 
   const result = runGate(project);
   const output = `${result.stdout}\n${result.stderr}`;
   assert.notEqual(result.status, 0, output);
   assert.match(output, /RR-9\.25/u, output);
-  assert.equal(fs.readFileSync(lockPath, 'utf8'), before);
+  assert.equal(fs.readFileSync(lockPath, 'utf8'), staleLock);
 });
 
 test('private test parse helpers do not require property or fuzz evidence', () => {

@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Manual parity is diagnostic but expensive; only the newest push on a
+  # branch should consume a runner or hold the release handoff queue.
+  group: enforcer-manual-parity-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   local-parity:
     name: Exact local parity diagnostic
