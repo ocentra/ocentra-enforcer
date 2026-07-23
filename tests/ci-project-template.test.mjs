@@ -66,17 +66,30 @@ test('workflow contract rejects a branch-local scanner labelled as frozen', () =
   assert.ok(failures.some((failure) => failure.includes('branch-local scanner')));
 });
 
+test('workflow contract rejects legacy frozen verification outside the Rust scan', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-verify-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
+  const legacyVerify = readFileSync(dogfood, 'utf8').replace(
+    'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
+    'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace\n          node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" verify ci --root "$GITHUB_WORKSPACE" --profile strict',
+  );
+  writeFileSync(dogfood, legacyVerify);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('legacy verify profile')));
+});
+
 test('workflow contract requires a shell that expands frozen scanner variables', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-shell-'));
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
   const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
   const powerShellGate = readFileSync(dogfood, 'utf8').replace(
-    '      - name: Frozen Enforcer full workspace gate\n        shell: bash',
+    '      - name: Frozen Enforcer Rust workspace scan\n        shell: bash',
     '      - name: Frozen Enforcer full workspace gate',
   );
   writeFileSync(dogfood, powerShellGate);
   const failures = verifyWorkflowContract(root);
-  assert.ok(failures.some((failure) => failure.includes('Frozen Enforcer full workspace gate')));
+  assert.ok(failures.some((failure) => failure.includes('Frozen Enforcer Rust workspace scan')));
 });
 
 test('workflow contract rejects an invalidly indented reusable setup action', () => {

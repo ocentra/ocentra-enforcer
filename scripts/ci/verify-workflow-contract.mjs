@@ -19,7 +19,7 @@ export function verifyWorkflowContract(root) {
       'git -C "$FROZEN_SCANNER_DIR" fetch --depth=1 origin "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"',
-      '- name: Frozen Enforcer full workspace gate\n        shell: bash',
+      '- name: Frozen Enforcer Rust workspace scan\n        shell: bash',
       'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
       'verify-workflow-contract.mjs', 'dogfood-manifest',
     ]],
@@ -54,6 +54,10 @@ export function verifyWorkflowContract(root) {
     if (name === 'workflows/dogfood.yml'
       && /node\s+(?:\.\/)?scripts\/(?:rust-rules|ocentra-enforcer)\.mjs\s+scan\b/u.test(content)) {
       failures.push(`${name}: frozen gate must not execute the branch-local scanner`);
+    }
+    if (name === 'workflows/dogfood.yml'
+      && /node\s+"\$FROZEN_SCANNER_DIR\/scripts\/ocentra-enforcer\.mjs"\s+verify\s+ci\b/u.test(content)) {
+      failures.push(`${name}: frozen gate must not run the legacy verify profile; branch-native ci:local owns full verification`);
     }
     if (/uses:\s+[^\s]+@v\d+/u.test(content)) {
       failures.push(`${name}: action reference uses a mutable major-version tag`);
