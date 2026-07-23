@@ -27,7 +27,9 @@ function performanceFixture() {
     "struct ApiSecret { value: String }",
     "fn retry_values() { for retry in 0..3 { run(retry); } }",
   ];
-  for (let index = 0; index < 1_500; index += 1) {
+  // Keep enough ordinary lines to amplify the repeated whole-source predicates
+  // used by the uncached path above normal timer noise on CI runners.
+  for (let index = 0; index < 10_000; index += 1) {
     lines.push(`let ordinary_${index} = ${index};`);
   }
   return `${lines.join("\n")}\n`;
