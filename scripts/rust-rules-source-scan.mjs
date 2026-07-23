@@ -80,6 +80,7 @@ import {
   publicRecordLineMask,
   recordFieldLineMask,
 } from "./rust-rules-source-record-line-masks.mjs";
+import { createFilePredicate } from "./rust-rules-file-predicate-cache.mjs";
 
 function finishProfilePhase(timings, name, startedAt) {
   if (!timings) return startedAt;
@@ -91,15 +92,10 @@ function finishProfilePhase(timings, name, startedAt) {
 function scanRustFile(root, filePath, config, options = {}) {
   const timings = options.timings ?? null;
   const cacheFilePredicates = options.cacheFilePredicates !== false;
-  const predicateStats = options.predicateStats ?? null;
-  const filePredicate = (cachedValue, compute) => {
-    if (cacheFilePredicates) return cachedValue;
-    if (predicateStats) {
-      predicateStats.uncachedEvaluations =
-        (predicateStats.uncachedEvaluations ?? 0) + 1;
-    }
-    return compute();
-  };
+  const filePredicate = createFilePredicate(
+    cacheFilePredicates,
+    options.predicateStats ?? null,
+  );
   const profileStartedAt = timings ? performance.now() : 0;
   let phaseStartedAt = profileStartedAt;
   const rel = normalizeRel(root, filePath);
