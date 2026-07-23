@@ -15,11 +15,11 @@ name: Release
 
 on:
   push:
-    branches: [main, rust-build]
+    branches: [main]
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
   pull_request:
-    branches: [main, rust-build]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

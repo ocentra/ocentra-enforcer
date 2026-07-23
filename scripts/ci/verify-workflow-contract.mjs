@@ -24,6 +24,8 @@ export function verifyWorkflowContract(root) {
       'verify-workflow-contract.mjs', 'dogfood-manifest',
     ]],
     ['workflows/release.yml', [
+      '  push:\n    branches: [main]\n    tags:',
+      '  pull_request:\n    branches: [main]',
       'needs: validate', 'npm run ci:local', 'Pre-publish smoke gate', 'attest-build-provenance',
       'cargo audit --deny warnings', 'release-security-material', 'macos-15-intel',
       'ubuntu-24.04-arm', 'id-token: write', 'fail_on_unmatched_files: true',
@@ -41,7 +43,7 @@ export function verifyWorkflowContract(root) {
     const file = path.join(root, '.github', name);
     let content;
     try {
-      content = readFileSync(file, 'utf8');
+      content = readFileSync(file, 'utf8').replace(/\r\n/gu, '\n');
     } catch {
       failures.push(`${name}: missing workflow`);
       continue;

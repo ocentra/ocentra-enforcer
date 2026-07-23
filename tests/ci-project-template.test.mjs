@@ -91,3 +91,16 @@ test('workflow contract rejects an invalidly indented reusable setup action', ()
   const failures = verifyWorkflowContract(root);
   assert.ok(failures.some((failure) => failure.includes('actions/setup-enforcer/action.yml')));
 });
+
+test('workflow contract keeps release publishing off the integration branch', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-release-trigger-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const release = path.join(root, '.github', 'workflows', 'release.yml');
+  const integrationRelease = readFileSync(release, 'utf8').replace(
+    '    branches: [main]\n    tags:',
+    '    branches: [main, rust-build]\n    tags:',
+  );
+  writeFileSync(release, integrationRelease);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('workflows/release.yml')));
+});
