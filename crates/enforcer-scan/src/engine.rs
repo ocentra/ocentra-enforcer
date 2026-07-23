@@ -17,23 +17,14 @@
 //! `e01`'s bridge exists, wiring it into [`run`] is a one-line addition —
 //! this engine's fan-out/fold shape does not change.
 //!
-//! Parallelism boundary: the CPU/IO-bound phase — reading each file's
-//! source text off disk — runs on `rayon`'s pool via `par_iter`. Trait
-//! objects returned by the family registries (`Box<dyn Validator>`, not
-//! `Send + Sync`-qualified by any registry this crate depends on) cannot
-//! safely cross the `rayon` thread boundary without prohibited low-level
-//! escape hatches, so validator dispatch itself
-//! runs on the results of the parallel read phase, not inside it. This is
-//! still the CPU-bound fan-out the workpack asks for on the actual
-//! bottleneck (disk I/O across a large tree); it is not a fan-out over
-//! validator CPU work per file.
+//! Parallelism boundary: both source reads and validator dispatch run on
+//! `rayon`'s pool via `par_iter`. Validator implementations are required to
+//! be `Send + Sync`, so CPU-heavy family fan-out runs per file safely.
+//! Findings are sorted before folding, preserving byte-identical reports.
 //!
 //! Determinism (the idempotency guard): [`crate::walk::walk`] already
-//! returns files in sorted order; `par_iter().map(...).collect::<Vec<_>>()`
-//! preserves input order regardless of which worker thread finishes a
-//! given read first, so the parallel read phase's output order is
-//! identical to a serial read's, and the subsequent sequential dispatch
-//! produces byte-identical `Report`s across repeated runs.
+//! returns files in sorted order, and the final finding sort makes the
+//! parallel read/validation result byte-identical across repeated runs.
 
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
@@ -246,11 +237,9 @@ fn read_file_utf8(root: &RepoRoot, rel: &RelPath) -> Option<ValidationSourceText
 
 /// Run the engine over an already-resolved, already-walked file set.
 ///
-/// The read phase fans out across `rayon`'s pool; the classify+validate
-/// phase is sequential over the (already order-preserved) read results.
-/// This keeps the result deterministic (parallel read == serial read,
-/// byte-identical `Report` across repeated runs) without requiring
-/// `Box<dyn Validator>` to cross the `rayon` thread boundary.
+/// The read and classify+validate phases fan out across `rayon`'s pool. The
+/// final finding sort keeps the result deterministic (parallel == serial,
+/// byte-identical `Report` across repeated runs).
 pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidators) -> Report {
     run_with_inline_test_policy(scope, files, validators, InlineTestPolicy::Forbid)
 }
@@ -284,22 +273,27 @@ pub fn run_with_inline_test_policy(
         }
     }
 
-    let mut all_findings = Vec::new();
-    for (file, source) in &sources {
-        let Some(source) = source else { continue };
-        let family = classify(file);
-        let mut per_file = Vec::new();
-        for validator in validators.applicable(family, file, scope) {
-            let input = ValidationInput {
-                file,
-                source: source.as_source(),
-                scope: scope.kind,
-            };
-            per_file.extend(validator.validate(input));
-        }
-        per_file.sort_by(|a, b| (&a.file, a.line, &a.rule_id).cmp(&(&b.file, b.line, &b.rule_id)));
-        all_findings.extend(per_file);
-    }
+    let mut all_findings = sources
+        .par_iter()
+        .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
+        .map(|(file, source)| {
+            let family = classify(file);
+            let mut per_file = Vec::new();
+            for validator in validators.applicable(family, file, scope) {
+                let input = ValidationInput {
+                    file,
+                    source: source.as_source(),
+                    scope: scope.kind,
+                };
+                per_file.extend(validator.validate(input));
+            }
+            per_file
+        })
+        .reduce(Vec::new, |mut left, mut right| {
+            left.append(&mut right);
+            left
+        });
+    all_findings.sort_by(|a, b| (&a.file, a.line, &a.rule_id).cmp(&(&b.file, b.line, &b.rule_id)));
 
     let workspace_inventory = workspace_manifest_inventory(&scope.repo_root);
     all_findings.extend(cargo_workspace_policy::findings_for_sources_with_inventory(

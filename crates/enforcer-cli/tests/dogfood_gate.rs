@@ -23,9 +23,11 @@
 //! violation in the LIVE tree from an integration test would race every
 //! other concurrently-running test over shared source files.
 //!
-//! `--no-toolchain` skips xtask's nested `cargo fmt`/`clippy`/`deny`/
-//! `audit` subprocesses for the same target-dir-lock reason documented in
-//! `self_enforce.rs`.
+//! The test executes the already-built `xtask` binary directly instead of
+//! invoking `cargo run` from inside the workspace `cargo test` process. This
+//! avoids cross-platform Cargo target-directory lock contention while still
+//! exercising the real terminal gate. `--no-toolchain` skips xtask's nested
+//! `cargo fmt`/`clippy`/`deny`/`audit` subprocesses.
 
 use std::process::Command;
 
@@ -39,13 +41,23 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
             std::io::Error::other("expected crates/enforcer-cli two levels under the root")
         })?;
     let proof_output = tempfile::tempdir()?;
-    let output = Command::new("cargo")
+    // Cargo places integration-test binaries under `target/<profile>/deps`.
+    // The sibling `xtask` executable is built by the same workspace test
+    // command, so execute it directly rather than starting nested Cargo.
+    let test_binary = std::env::current_exe()?;
+    let profile_dir = test_binary
+        .parent()
+        .and_then(std::path::Path::parent)
+        .ok_or_else(|| std::io::Error::other("test binary is not under target/<profile>/deps"))?;
+    let xtask_binary = profile_dir.join(format!("xtask{}", std::env::consts::EXE_SUFFIX));
+    if !xtask_binary.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("workspace xtask binary was not built: {}", xtask_binary.display()),
+        ));
+    }
+    let output = Command::new(xtask_binary)
         .args([
-            "run",
-            "-p",
-            "xtask",
-            "--quiet",
-            "--",
             "dogfood-gate",
             "--proof-output-dir",
             proof_output

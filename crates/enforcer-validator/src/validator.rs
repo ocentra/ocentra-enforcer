@@ -34,7 +34,7 @@ pub struct ValidationInput<'a> {
 /// makes the fixture/parity harness in this crate ([`crate::harness`]) a
 /// valid oracle — it re-runs the validator against fixed fixture text and
 /// asserts a fixed outcome.
-pub trait Validator {
+pub trait Validator: Send + Sync {
     /// The rule this validator implements. Every finding this validator
     /// produces MUST carry this same [`RuleId`] — the harness asserts that
     /// invariant, not just "some finding fired".
