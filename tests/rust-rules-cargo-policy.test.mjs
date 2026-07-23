@@ -42,6 +42,7 @@ edition = "2021"
 rust-version = "1.75"
 
 [dependencies]
+# DEPENDENCY-JUSTIFICATION: fixture dependency exercises stale-lock detection.
 helper = { path = "helper" }
 `,
     'helper/Cargo.toml': `

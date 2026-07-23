@@ -111,7 +111,7 @@ fn platform_config_root(home: &std::path::Path) -> PathBuf {
     }
     #[cfg(target_os = "macos")]
     {
-        return home.join("Library").join("Application Support");
+        home.join("Library").join("Application Support")
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
