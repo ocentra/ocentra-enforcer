@@ -37,6 +37,14 @@ rust-version = "1.75"
   const manifest = path.join(project, 'Cargo.toml');
   const lockPath = path.join(project, 'Cargo.lock');
   const before = fs.readFileSync(lockPath, 'utf8');
+  // Make the lock stale through the root package identity itself. Cargo's
+  // handling of a newly-added local path dependency differs across platforms,
+  // while a post-lock package-version change is deterministic everywhere.
+  fs.writeFileSync(
+    manifest,
+    fs.readFileSync(manifest, 'utf8').replace('version = "0.1.0"', 'version = "0.2.0"'),
+    'utf8',
+  );
   fs.appendFileSync(
     manifest,
     '\n# DEPENDENCY-JUSTIFICATION: fixture dependency exercises stale-lock detection.\n[dependencies]\nhelper = { path = "helper" }\n',
