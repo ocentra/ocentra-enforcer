@@ -1,10 +1,6 @@
 name: Enforcer Manual Parity
 
 on:
-  pull_request:
-    branches: [main, rust-build]
-  push:
-    branches: [main, rust-build]
   workflow_dispatch:
 
 permissions:

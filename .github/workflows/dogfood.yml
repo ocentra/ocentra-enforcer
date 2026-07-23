@@ -44,11 +44,9 @@ jobs:
           FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner
         run: |
           node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace
-      # The frozen checkout is authoritative for the Rust scan only. Its
-      # legacy verify profile runs unrelated pack-era gates against this Rust
-      # port; the branch-native ci:local gate below owns full verification.
-      - name: Run enforcer local parity gate
-        run: npm run ci:local
+      # The frozen checkout is authoritative for the Rust scan only. The
+      # branch-native ci.yml local-parity job owns the complete ci:local gate;
+      # this reusable workflow stays focused on frozen/native dogfood proof.
       - name: Build native dogfood harness
         shell: bash
         run: cargo build --locked -p xtask
