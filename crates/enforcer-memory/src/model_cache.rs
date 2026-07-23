@@ -17,8 +17,9 @@ use crate::model_runtime::ModelCacheStatusDto;
 use crate::owned_boundary::{Retained, RetainedDisplay};
 use enforcer_domain::memory_types::{
     CacheCorruptionReasonCode, CacheHealth, CacheState, CacheUnavailableReason,
-    LocalRuntimeArtifactKind, ManifestIntegrity, ModelCacheArtifactFile, ModelCacheArtifactRef,
-    ModelCacheArtifactSizeBytes, ModelCacheCheckedAt, ModelCacheManifestRef, SourcePolicy,
+    LocalRuntimeArtifactKind, ManifestIntegrity, ModelCacheArtifactFile, ModelCacheArtifactPath,
+    ModelCacheArtifactRef, ModelCacheArtifactSizeBytes, ModelCacheCheckedAt, ModelCacheManifestRef,
+    SourcePolicy,
 };
 
 pub const MODEL_CACHE_SCHEMA_VERSION: u32 = 1;
@@ -178,14 +179,40 @@ fn validate_manifest_shape(manifest: &ModelCacheManifestDto) -> Result<()> {
     }
     for artifact in &manifest.artifacts {
         crate::model_runtime::validate_sha256_hex(&artifact.sha256)?;
-        if artifact.path.trim().is_empty() || PathBuf::from(artifact.path.as_str()).is_absolute() {
-            return Err(MemoryError::ModelRuntime {
-                operation: "validate-model-cache-manifest".into(),
-                reason: format!("artifact path must be relative: {:?}", artifact.path).into(),
-            });
-        }
+        validate_safe_relative_artifact_path(&artifact.path)?;
     }
     Ok(())
+}
+
+fn validate_safe_relative_artifact_path(value: &ModelCacheArtifactPath) -> Result<()> {
+    let path_text = value.as_str();
+    let candidate = PathBuf::from(path_text);
+    let bytes = path_text.as_bytes();
+    let has_windows_drive_prefix = match bytes.split_first() {
+        Some((&first, rest)) => rest
+            .first()
+            .is_some_and(|&second| first.is_ascii_alphabetic() && second == b':'),
+        None => false,
+    };
+    let valid = !path_text.trim().is_empty()
+        && !candidate.is_absolute()
+        && !has_windows_drive_prefix
+        && !path_text.starts_with('/')
+        && !path_text.starts_with('\\')
+        && candidate.components().all(|component| {
+            matches!(
+                component,
+                std::path::Component::Normal(_) | std::path::Component::CurDir
+            )
+        })
+        && !path_text.contains('\0');
+    if valid {
+        return Ok(());
+    }
+    Err(MemoryError::ModelRuntime {
+        operation: "validate-model-cache-manifest".into(),
+        reason: format!("artifact path must be relative: {:?}", value).into(),
+    })
 }
 
 fn metadata_len(path: ModelCacheArtifactFile<'_>) -> ModelCacheArtifactSizeBytes {
