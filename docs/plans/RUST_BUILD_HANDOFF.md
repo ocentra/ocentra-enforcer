@@ -17,13 +17,14 @@
 Remote branches are limited to `main`, `safety-main`, and `rust-build`.
 `main` and `safety-main` are intentionally untouched.
 
-The latest stable full frozen-safety scan on `rust-build` commit `57c52b5e1`
-reported zero violations across 1,235 Rust files. The branch-native scan also
-reported zero hard violations (with 1,292 advisory DOC-1.1 warnings across
-1,846 files). The earlier 8,310 count is historical only and must not be used
-as the current baseline. Do not infer a new global count from file-level
-scans; rerun the full scanner against the accepted clean commit when the
-integration state changes.
+The latest stable full frozen-safety scan on the Rust-source commit
+`b15c85f4b` reported zero violations across 1,235 Rust files. The subsequent
+`c079bcb6b` packet changes only CI cache policy and its regression test; it
+does not change Rust source. In the current CI dogfood, the branch-native
+scan reports 309 total findings, of which 281 are baselined and zero are new.
+The earlier 8,310 count is historical only and must not be used as the current
+baseline. Do not infer a new global count from file-level scans; rerun the full
+scanner against the accepted clean commit when the integration state changes.
 
 The current worktree has one unresolved vendor deletion that is intentionally
 preserved and not part of the pushed commit:
