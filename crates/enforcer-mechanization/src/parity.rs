@@ -61,7 +61,7 @@ macro_rules! parity_gap_finding {
 /// (that would invert the dependency graph); callers (a future
 /// `enforcer-cli`, or a test) own the mapping from `RuleId` to a concrete
 /// `&dyn Validator`.
-pub trait ValidatorLookup {
+pub trait ValidatorLookup: Send + Sync {
     /// Resolve the validator for `rule_id`, if one is wired.
     fn resolve(&self, rule_id: &RuleId) -> Option<&dyn Validator>;
 }
