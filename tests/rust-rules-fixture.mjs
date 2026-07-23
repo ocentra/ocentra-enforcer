@@ -35,12 +35,25 @@ rust-version = "1.75"
   }
   // Deliberately-invalid manifest fixtures must remain constructible. Valid
   // projects receive an exact lock after all caller-provided files are present.
-  spawnSync('cargo', ['generate-lockfile', '--offline'], {
-    cwd: dir,
-    encoding: 'utf8',
-    shell: false,
-  });
+  generateFixtureLock(dir);
   return dir;
+}
+
+/** Generate a fixture lock with the runner's Cargo, not the fixture override. */
+export function generateFixtureLock(project) {
+  const toolchain = path.join(project, 'rust-toolchain.toml');
+  const disabledToolchain = path.join(project, 'rust-toolchain.toml.fixture-disabled');
+  const hasToolchain = fs.existsSync(toolchain);
+  if (hasToolchain) fs.renameSync(toolchain, disabledToolchain);
+  try {
+    return spawnSync('cargo', ['generate-lockfile', '--offline'], {
+      cwd: project,
+      encoding: 'utf8',
+      shell: false,
+    });
+  } finally {
+    if (hasToolchain) fs.renameSync(disabledToolchain, toolchain);
+  }
 }
 export function runGate(project) {
   return spawnCli(process.execPath, [SCRIPT, 'scan', '--root', project], {

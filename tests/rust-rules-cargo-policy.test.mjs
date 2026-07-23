@@ -2,17 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { makeProject, runGate, runGateArgs, expectFailure, expectFailures } from './rust-rules-fixture.mjs';
+import {
+  generateFixtureLock,
+  makeProject,
+  runGate,
+  runGateArgs,
+  expectFailure,
+  expectFailures,
+} from './rust-rules-fixture.mjs';
 
 function refreshLock(project) {
-  const result = spawnSync('cargo', ['generate-lockfile', '--offline'], {
-    cwd: project,
-    encoding: 'utf8',
-    shell: false,
-  });
+  const result = generateFixtureLock(project);
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 }
+
+test('fixture lock generation preserves the project toolchain override', () => {
+  const project = makeProject({ 'src/lib.rs': 'pub struct Fixture;\n' });
+  const toolchain = path.join(project, 'rust-toolchain.toml');
+  const before = fs.readFileSync(toolchain, 'utf8');
+  refreshLock(project);
+  assert.equal(fs.readFileSync(toolchain, 'utf8'), before);
+});
+
 test('Cargo wildcard dependency fails with RR-9.1', () => {
   const project = makeProject({
     'src/lib.rs': 'pub struct UserId;\n',
