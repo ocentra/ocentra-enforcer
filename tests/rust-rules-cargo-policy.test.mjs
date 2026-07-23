@@ -40,10 +40,6 @@ name = "fixture"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
-
-[dependencies]
-# DEPENDENCY-JUSTIFICATION: fixture dependency exercises stale-lock detection.
-helper = { path = "helper" }
 `,
     'helper/Cargo.toml': `
 [package]
@@ -58,16 +54,15 @@ rust-version = "1.75"
   });
   const lockPath = path.join(project, 'Cargo.lock');
   const beforeLock = fs.readFileSync(lockPath, 'utf8');
-  const helperManifestPath = path.join(project, 'helper', 'Cargo.toml');
-  const beforeHelperManifest = fs.readFileSync(helperManifestPath, 'utf8');
-  // Change the path package version after lock generation. Cargo must reject
-  // this stale lock consistently on every supported host.
-  const staleHelperManifest = beforeHelperManifest.replace(
-    'version = "0.1.0"',
-    'version = "9.9.9"',
-  );
-  assert.notEqual(staleHelperManifest, beforeHelperManifest, 'fixture helper version mutation must target package');
-  fs.writeFileSync(helperManifestPath, staleHelperManifest, 'utf8');
+  // Add a workspace member after lock generation. Cargo must reject this
+  // stale lock consistently on every supported host.
+  const beforeManifest = fs.readFileSync(path.join(project, 'Cargo.toml'), 'utf8');
+  const staleManifest = `${beforeManifest.trimEnd()}
+
+[workspace]
+members = ["helper"]
+`;
+  fs.writeFileSync(path.join(project, 'Cargo.toml'), staleManifest, 'utf8');
 
   const result = runGate(project);
   const output = `${result.stdout}\n${result.stderr}`;
