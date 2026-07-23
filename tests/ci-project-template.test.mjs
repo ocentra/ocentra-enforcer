@@ -78,3 +78,16 @@ test('workflow contract requires a shell that expands frozen scanner variables',
   const failures = verifyWorkflowContract(root);
   assert.ok(failures.some((failure) => failure.includes('Frozen Enforcer full workspace gate')));
 });
+
+test('workflow contract rejects an invalidly indented reusable setup action', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-action-indent-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const action = path.join(root, '.github', 'actions', 'setup-enforcer', 'action.yml');
+  const malformed = readFileSync(action, 'utf8').replace(
+    '    - name: Install locked Node dependencies',
+    '  - name: Install locked Node dependencies',
+  );
+  writeFileSync(action, malformed);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('actions/setup-enforcer/action.yml')));
+});

@@ -31,6 +31,9 @@ export function verifyWorkflowContract(root) {
     ['actions/setup-enforcer/action.yml', [
       'node-version: 22.22.2', 'toolchain: 1.95.0', 'npm@11.7.0',
       'cargo-audit --version 0.22.2', 'cargo-deny --version 0.20.2',
+      'runs:\n  using: composite\n  steps:\n    - uses:',
+      '    - name: Select the repository npm version',
+      '    - name: Install locked Node dependencies',
     ]],
   ]);
   const failures = [];
