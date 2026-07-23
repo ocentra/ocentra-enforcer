@@ -23,7 +23,7 @@ test('Cargo wildcard dependency fails with RR-9.1', () => {
 
 test('locked Cargo metadata rejects a stale lock without mutating Cargo.lock', () => {
   const project = makeProject({
-    'src/lib.rs': 'pub struct Value;\n',
+    'src/lib.rs': '#[derive(Debug)]\npub struct Value;\n',
     'helper/Cargo.toml': `
 [package]
 name = "helper"
