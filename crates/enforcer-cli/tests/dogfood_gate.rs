@@ -42,35 +42,54 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
         })?;
     let proof_output = tempfile::tempdir()?;
     // Cargo places integration-test binaries under `target/<profile>/deps`.
-    // The sibling `xtask` executable is built by the same workspace test
-    // command, so execute it directly rather than starting nested Cargo.
+    // Depending on the platform and Cargo invocation, the runnable workspace
+    // binary may already be the profile sibling. Prefer that direct path;
+    // otherwise use an isolated Cargo target directory so this outer
+    // `cargo test` process cannot deadlock against a nested build.
     let test_binary = std::env::current_exe()?;
     let profile_dir = test_binary
         .parent()
         .and_then(std::path::Path::parent)
         .ok_or_else(|| std::io::Error::other("test binary is not under target/<profile>/deps"))?;
-    let xtask_binary = profile_dir.join(format!("xtask{}", std::env::consts::EXE_SUFFIX));
-    if !xtask_binary.is_file() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!(
-                "workspace xtask binary was not built: {}",
-                xtask_binary.display()
-            ),
-        ));
-    }
-    let output = Command::new(xtask_binary)
-        .args([
-            "dogfood-gate",
-            "--proof-output-dir",
-            proof_output
-                .path()
-                .to_str()
-                .ok_or_else(|| std::io::Error::other("temporary proof path was not UTF-8"))?,
-            "--no-toolchain",
-        ])
-        .current_dir(workspace_root)
-        .output()?;
+    let profile_xtask = profile_dir.join(format!("xtask{}", std::env::consts::EXE_SUFFIX));
+    let proof_path = proof_output
+        .path()
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("temporary proof path was not UTF-8"))?
+        .to_owned();
+    let output = if profile_xtask.is_file() {
+        Command::new(&profile_xtask)
+            .args([
+                "dogfood-gate",
+                "--proof-output-dir",
+                &proof_path,
+                "--no-toolchain",
+            ])
+            .current_dir(workspace_root)
+            .output()?
+    } else {
+        let isolated_target = tempfile::tempdir()?;
+        let isolated_target_path = isolated_target
+            .path()
+            .to_str()
+            .ok_or_else(|| std::io::Error::other("isolated target path was not UTF-8"))?;
+        Command::new("cargo")
+            .args([
+                "run",
+                "--locked",
+                "--target-dir",
+                isolated_target_path,
+                "-p",
+                "xtask",
+                "--",
+                "dogfood-gate",
+                "--proof-output-dir",
+                &proof_path,
+                "--no-toolchain",
+            ])
+            .current_dir(workspace_root)
+            .output()?
+    };
     let rendered_stdout = String::from_utf8_lossy(&output.stdout);
     let rendered_stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(
