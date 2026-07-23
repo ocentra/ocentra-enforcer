@@ -235,6 +235,17 @@ fn install_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::
     command
 }
 
+fn expected_config_root(_home: &std::path::Path, _app_data: &std::path::Path) -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        _home.join("Library").join("Application Support")
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        _app_data.to_path_buf()
+    }
+}
+
 #[test]
 fn install_registers_every_native_harness_and_is_idempotent(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -248,7 +259,7 @@ fn install_registers_every_native_harness_and_is_idempotent(
     );
 
     let home = fixture.path().join("home");
-    let config_root = fixture.path().join("config");
+    let config_root = expected_config_root(&home, &fixture.path().join("config"));
     let json_paths = [
         home.join(".claude.json"),
         home.join(".gemini").join("settings.json"),
