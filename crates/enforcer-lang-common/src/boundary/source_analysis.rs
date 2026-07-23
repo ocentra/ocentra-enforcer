@@ -179,6 +179,70 @@ pub(crate) fn boundary_declaration_name(line: &str) -> Option<&str> {
     .then_some(name)
 }
 
+/// Counts raw public fields in DTO-like declarations before the budget rule
+/// converts the observation into a typed finding.
+pub(crate) fn raw_public_boundary_declarations(source: &str) -> usize {
+    let mut count = 0;
+    let mut declaration_name: Option<String> = None;
+    let mut has_raw_field = false;
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(name) = boundary_declaration_name(trimmed) {
+            declaration_name = Some(name.into());
+            has_raw_field = false;
+            let Some((_, fields)) = trimmed.split_once('{') else {
+                continue;
+            };
+            has_raw_field = raw_public_boundary_field(fields);
+            if fields.contains('}') {
+                if let Some(name) = declaration_name.take() {
+                    count += usize::from(
+                        has_raw_field && !has_fallible_domain_conversion(source, &name),
+                    );
+                }
+            }
+            continue;
+        }
+        if declaration_name.is_none() {
+            continue;
+        }
+        has_raw_field |= raw_public_boundary_field(trimmed);
+        if trimmed.starts_with('}') {
+            if let Some(name) = declaration_name.take() {
+                count +=
+                    usize::from(has_raw_field && !has_fallible_domain_conversion(source, &name));
+            }
+        }
+    }
+    count
+}
+
+fn raw_public_boundary_field(fields: &str) -> bool {
+    fields.contains("pub ")
+        && [
+            "String",
+            "str",
+            "u8",
+            "u16",
+            "u32",
+            "u64",
+            "usize",
+            "i8",
+            "i16",
+            "i32",
+            "i64",
+            "isize",
+            "f32",
+            "f64",
+            "bool",
+            "serde_json::Value",
+        ]
+        .iter()
+        .any(|raw| {
+            fields.contains(&format!(": {raw}")) || fields.contains(&format!(": Option<{raw}"))
+        })
+}
+
 const FUNCTION_OPENERS: &[&str] = &["function ", "fn ", "def "];
 
 pub(crate) fn is_function_opener(line: &str) -> bool {

@@ -17,11 +17,35 @@ use enforcer_domain::memory_types::{
     GraphEventKind, IndexManifestBuiltAt, IndexManifestSourceLog, IndexManifestWatermark,
     IngestClean, IngestFaultClass, IngestLessonId, IngestObservationPayloadKind, IngestRepoContext,
     IngestRuleId, IngestSourceSurface, IngestTimestamp, MemoryLogEntryId, MemoryLogSchemaVersion,
-    MemoryObservationPayload, MemoryObservationTimestamp, ModelRuntimeObservationRunId,
-    ModelRuntimeObservationSource, ProceduralDetail, ProceduralLessonReference, ProceduralOutcome,
-    ProceduralRecordId, RetrievalRoute, RouteConfidence, RouteTraceId, RouteTraceQuery, Seq,
-    TraceNodeId, TraceObservationCount,
+    MemoryObservationTimestamp, ModelRuntimeObservationRunId, ModelRuntimeObservationSource,
+    ProceduralDetail, ProceduralLessonReference, ProceduralOutcome, ProceduralRecordId,
+    RetrievalRoute, RouteConfidence, RouteTraceId, RouteTraceQuery, Seq, TraceNodeId,
+    TraceObservationCount,
 };
+
+/// Opaque JSON payload retained by an observation log entry.
+///
+/// This is a persistence DTO, so untyped JSON is decoded only at this
+/// boundary. The domain crate remains independent of wire-shaped payloads.
+// ROUNDTRIP-TEST: tests::log_schema_dtos_round_trip_without_losing_typed_payloads
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct MemoryObservationPayloadDto(serde_json::Value);
+
+/// Local name for the observation-log payload DTO.
+pub type MemoryObservationPayload = MemoryObservationPayloadDto;
+
+impl From<serde_json::Value> for MemoryObservationPayloadDto {
+    fn from(value: serde_json::Value) -> Self {
+        Self(value)
+    }
+}
+
+impl From<MemoryObservationPayloadDto> for serde_json::Value {
+    fn from(value: MemoryObservationPayloadDto) -> Self {
+        value.0
+    }
+}
 
 /// Current schema version for every shape in this module. Bumped only on
 /// a wire-incompatible change; readers must reject an unknown version

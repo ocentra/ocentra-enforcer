@@ -1021,7 +1021,7 @@ pub struct MemoryLogSchemaVersionWire(u32);
 /// Domain name for the wire-owned Memory log schema version.
 pub type MemoryLogSchemaVersion = MemoryLogSchemaVersionWire;
 
-impl MemoryLogSchemaVersion {
+impl MemoryLogSchemaVersionWire {
     /// The initial, currently supported Memory log schema.
     pub const INITIAL: Self = Self(1);
 
@@ -2756,27 +2756,6 @@ owned_memory_text!(
     IngestObservationPayload
 );
 
-/// Structured payload carried by a durable Memory observation log entry.
-/// SERIALIZATION-DOC: JSON is retained solely as opaque data at the Memory log boundary.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(transparent)]
-#[doc = "BRAND-INVARIANT: this opaque JSON is owned by the Memory observation boundary."]
-pub struct MemoryObservationPayloadWire(serde_json::Value);
-
-/// Domain name for the wire-owned opaque observation payload.
-pub type MemoryObservationPayload = MemoryObservationPayloadWire;
-
-impl From<serde_json::Value> for MemoryObservationPayloadWire {
-    fn from(value: serde_json::Value) -> Self {
-        Self(value)
-    }
-}
-
-impl From<MemoryObservationPayloadWire> for serde_json::Value {
-    fn from(value: MemoryObservationPayloadWire) -> Self {
-        value.0
-    }
-}
 owned_memory_text!(
     #[doc = "Canonical qualified symbol name returned by source-snippet retrieval."]
     SnippetQualifiedName

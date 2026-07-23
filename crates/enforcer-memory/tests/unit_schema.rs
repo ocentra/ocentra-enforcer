@@ -1,7 +1,8 @@
 use enforcer_domain::memory_types::{GraphEventKind, ModelTask, ProceduralOutcome, ProviderKind};
 use enforcer_memory::boundary::log_schema::{
-    ArtifactManifestEntryDto, GraphEventLogEntryDto, IndexManifestDto, ModelObservationLogEntryDto,
-    ObservationLogEntryDto, ProceduralLogEntryDto, RouteTraceLogEntryDto, SCHEMA_VERSION,
+    ArtifactManifestEntryDto, GraphEventLogEntryDto, IndexManifestDto, MemoryObservationPayloadDto,
+    ModelObservationLogEntryDto, ObservationLogEntryDto, ProceduralLogEntryDto,
+    RouteTraceLogEntryDto, SCHEMA_VERSION,
 };
 use enforcer_memory::boundary::record::{EvidenceDto, ProvenanceDto};
 use enforcer_memory::model_observations::{ModelLoadFailureDto, ModelRuntimeObservationCandidate};
@@ -32,7 +33,13 @@ fn observation_entry_round_trips() -> Result<(), serde_json::Error> {
         ts: "2026-07-04T00:00:00Z".into(),
         supersedes_seq: None,
         payload_kind: None,
-        payload: None,
+        payload: Some(
+            serde_json::json!({
+                "observationKind": "runtime-trace",
+                "source": "unit-schema"
+            })
+            .into(),
+        ),
     };
     let json = serde_json::to_string(&entry)?;
     let back: ObservationLogEntryDto = serde_json::from_str(&json)?;
@@ -94,6 +101,11 @@ fn malformed_graph_event_kind_is_rejected_as_data() {
 
 #[test]
 fn log_schema_dtos_round_trip_without_losing_typed_payloads() -> Result<(), serde_json::Error> {
+    let payload: MemoryObservationPayloadDto = serde_json::json!({
+        "observationKind": "runtime-trace",
+        "source": "unit-schema"
+    })
+    .into();
     let observation = ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: 1.into(),
@@ -107,7 +119,7 @@ fn log_schema_dtos_round_trip_without_losing_typed_payloads() -> Result<(), serd
         ts: "2026-07-17T00:00:00Z".into(),
         supersedes_seq: None,
         payload_kind: None,
-        payload: None,
+        payload: Some(payload.clone()),
     };
     let graph_event = GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
@@ -168,6 +180,7 @@ fn log_schema_dtos_round_trip_without_losing_typed_payloads() -> Result<(), serd
         built_at: "2026-07-17T00:00:06Z".into(),
     };
 
+    assert_json_round_trip(&payload)?;
     assert_json_round_trip(&observation)?;
     assert_json_round_trip(&graph_event)?;
     assert_json_round_trip(&procedural)?;

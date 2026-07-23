@@ -122,7 +122,8 @@ impl Validator for BoundaryDeclarationBudget {
         // number of transport containers. A DTO composed entirely of domain
         // brands is a safe wire representation and must not be charged merely
         // because its name ends in `Dto`.
-        let declarations = raw_public_boundary_declarations(source);
+        let declarations =
+            crate::boundary::source_analysis::raw_public_boundary_declarations(source);
         if declarations <= 3 {
             return Vec::new();
         }
@@ -142,78 +143,10 @@ impl Validator for BoundaryDeclarationBudget {
     }
 }
 
-fn raw_public_boundary_declarations(source: &str) -> usize {
-    let mut count = 0;
-    let mut declaration_name: Option<String> = None;
-    let mut has_raw_field = false;
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if let Some(name) = crate::boundary::source_analysis::boundary_declaration_name(trimmed) {
-            declaration_name = Some(name.into());
-            has_raw_field = false;
-            let Some((_, fields)) = trimmed.split_once('{') else {
-                continue;
-            };
-            has_raw_field = raw_public_boundary_field(fields);
-            if fields.contains('}') {
-                if let Some(name) = declaration_name.take() {
-                    count += usize::from(
-                        has_raw_field
-                            && !crate::boundary::source_analysis::has_fallible_domain_conversion(
-                                source, &name,
-                            ),
-                    );
-                }
-            }
-            continue;
-        }
-        if declaration_name.is_none() {
-            continue;
-        }
-        has_raw_field |= raw_public_boundary_field(trimmed);
-        if trimmed.starts_with('}') {
-            if let Some(name) = declaration_name.take() {
-                count += usize::from(
-                    has_raw_field
-                        && !crate::boundary::source_analysis::has_fallible_domain_conversion(
-                            source, &name,
-                        ),
-                );
-            }
-        }
-    }
-    count
-}
-
-fn raw_public_boundary_field(fields: &str) -> bool {
-    fields.contains("pub ")
-        && [
-            "String",
-            "str",
-            "u8",
-            "u16",
-            "u32",
-            "u64",
-            "usize",
-            "i8",
-            "i16",
-            "i32",
-            "i64",
-            "isize",
-            "f32",
-            "f64",
-            "bool",
-            "serde_json::Value",
-        ]
-        .iter()
-        .any(|raw| {
-            fields.contains(&format!(": {raw}")) || fields.contains(&format!(": Option<{raw}"))
-        })
-}
-
 #[cfg(test)]
 mod tests {
     use super::BoundaryDeclarationBudget;
+    use crate::boundary::source_analysis::raw_public_boundary_declarations;
     use enforcer_domain::findings::ScanScope;
     use enforcer_validator::validator::{ValidationInput, Validator};
 
@@ -239,13 +172,13 @@ mod tests {
     #[test]
     fn branded_transport_containers_do_not_consume_the_raw_boundary_budget() {
         let source = "pub struct ArtifactDto {\n  pub id: ArtifactId,\n  pub path: RelPath,\n}\npub struct ShareDto {\n  pub scope: MemoryShareScope,\n  pub payload: MemoryBundlePayload,\n}";
-        assert_eq!(super::raw_public_boundary_declarations(source), 0);
+        assert_eq!(raw_public_boundary_declarations(source), 0);
     }
 
     #[test]
     fn public_primitive_wire_field_consumes_the_raw_boundary_budget() {
         let source = "pub struct WireDto {\n  pub id: String,\n  pub sequence: u64,\n}";
-        assert_eq!(super::raw_public_boundary_declarations(source), 1);
+        assert_eq!(raw_public_boundary_declarations(source), 1);
     }
 
     #[test]
