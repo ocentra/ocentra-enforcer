@@ -23,6 +23,7 @@
 //! than that repo's own sources -- see `tests/unit_languages_c.rs` for
 //! the baseline-indexing test that *does* apply (C, not C++).
 
+use super::has_unsafe_tree_sitter_input;
 use crate::owned_boundary::{Retained, RetainedDisplay};
 use crate::parsers::{
     CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, SymbolKind, SymbolRef,
@@ -50,6 +51,9 @@ struct FnScope<'a> {
 /// macro detection and `test_`/`_test` name-convention heuristic (both
 /// of which apply independently of this flag).
 pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_cpp::LANGUAGE.into())

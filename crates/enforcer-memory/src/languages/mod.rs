@@ -17,3 +17,13 @@ pub mod python;
 pub mod rust;
 pub mod spec;
 pub mod typescript;
+
+/// Tree-sitter's native scanners are not safe for binary/control input.
+/// Reject embedded NULs and non-whitespace control characters before any
+/// language-specific parser crosses that ABI boundary; callers keep the
+/// total-parser contract by returning an empty parsed file.
+pub(crate) fn has_unsafe_tree_sitter_input(source: &str) -> bool {
+    source
+        .chars()
+        .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
+}

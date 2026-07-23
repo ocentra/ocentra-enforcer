@@ -13,6 +13,7 @@
 //! matches, which is a silent-miss on JSX-only symbols, not a parse
 //! failure (the file still gets its file node either way).
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, Language, ParsedFile,
     RouteRef, SymbolKind, SymbolRef, TypeRefRef,
@@ -35,6 +36,9 @@ struct FnScope<'a> {
 }
 
 pub fn parse(source: &str, _language: Language) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())

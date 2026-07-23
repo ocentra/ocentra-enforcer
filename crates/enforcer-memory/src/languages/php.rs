@@ -32,6 +32,7 @@
 //! `languages/csharp.rs`: the literal path as written, no prefix
 //! stitching with a class-level `#[Route]`).
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
     SymbolKind, SymbolRef, TypeRefRef,
@@ -66,6 +67,9 @@ struct WalkScope<'a> {
 const HTTP_METHODS: &[&str] = &["get", "post", "put", "patch", "delete", "options", "head"];
 
 pub fn parse(source: &str) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_php::LANGUAGE_PHP.into())

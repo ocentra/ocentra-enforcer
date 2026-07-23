@@ -10,6 +10,7 @@
 //! import paths and call callees are recorded as written in source,
 //! not resolved to graph node ids here.
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
     SymbolKind, SymbolRef, TypeRefRef,
@@ -41,6 +42,9 @@ const MAPPING_ANNOTATIONS: &[(&str, &str)] = &[
 ];
 
 pub fn parse(source: &str) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_java::LANGUAGE.into())

@@ -3,6 +3,7 @@
 //! [`SymbolKind::Test`]), classes, imports, calls, and Flask/FastAPI
 //! route decorators.
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind,
     SymbolRef,
@@ -24,6 +25,9 @@ struct FnScope<'a> {
 }
 
 pub fn parse(source: &str) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_python::LANGUAGE.into())

@@ -26,7 +26,7 @@ macro_rules! property_parser_contracts {
             fn every_registered_parser_is_total(
                 source in proptest::collection::vec(any::<char>(), 0..128)
                     .prop_map(|characters| characters.into_iter().collect::<String>()),
-            ) {
+                ) {
                 $(
                     let outcome = catch_unwind(AssertUnwindSafe(|| ($exercise)(&source)));
                     let panic_key = match outcome {
@@ -226,4 +226,24 @@ property_parser_contracts! {
     "src/parsers/mod.rs::parse_file" => |source: &str| {
         parsers::parse_file(parsers::Language::Rust, source, "property.rs")
     },
+}
+
+#[test]
+fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
+    let source = "fn hostile() {}\0";
+    assert_eq!(languages::c::parse(source, false), Default::default());
+    assert_eq!(languages::cpp::parse(source, false), Default::default());
+    assert_eq!(languages::csharp::parse(source), Default::default());
+    assert_eq!(languages::go::parse(source, false), Default::default());
+    assert_eq!(languages::java::parse(source), Default::default());
+    assert_eq!(languages::php::parse(source), Default::default());
+    assert_eq!(languages::python::parse(source), Default::default());
+    assert_eq!(languages::rust::parse(source), Default::default());
+    assert_eq!(
+        languages::typescript::parse(source, parsers::Language::TypeScript),
+        Default::default()
+    );
+
+    let hostile_control_source = "fn hostile() {}\u{1b}\u{7f}";
+    assert_eq!(generic::parse_d(hostile_control_source), Default::default());
 }

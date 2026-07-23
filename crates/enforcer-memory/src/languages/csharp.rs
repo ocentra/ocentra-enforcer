@@ -29,6 +29,7 @@
 //! minimal-API endpoint calls (`app.MapGet("/path", ...)`,
 //! `app.MapPost(...)`, etc).
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
     SymbolKind, SymbolRef, TypeRefRef,
@@ -49,6 +50,9 @@ struct FnScope<'a> {
 const HTTP_METHODS: &[&str] = &["get", "post", "put", "patch", "delete", "options", "head"];
 
 pub fn parse(source: &str) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_c_sharp::LANGUAGE.into())

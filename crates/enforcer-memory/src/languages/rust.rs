@@ -8,6 +8,7 @@
 //! every file in the repo has been parsed and every symbol's id is
 //! known.
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
     SymbolKind, SymbolRef, TypeRefRef,
@@ -35,6 +36,9 @@ struct FnScope<'a> {
 /// *a* tree, marking unparseable spans as `ERROR` nodes that this walk
 /// simply does not match against).
 pub fn parse(source: &str) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     // `set_language` only fails if the grammar's ABI version is
     // incompatible with this `tree-sitter` core version, which is a

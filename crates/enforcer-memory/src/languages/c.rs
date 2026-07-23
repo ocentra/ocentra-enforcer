@@ -12,6 +12,7 @@
 //! targets are recorded as written in source; resolving them to
 //! concrete graph node ids is [`crate::code_graph`]'s job.
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{CallRef, DefinesRef, ImportRef, ParsedFile, SymbolKind, SymbolRef};
 use tree_sitter::{Node, Parser};
 
@@ -37,6 +38,9 @@ struct FnScope<'a> {
 /// module's own `test_`/`_test` name-convention heuristic (which still
 /// applies independently for files this flag is `false` for).
 pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_c::LANGUAGE.into())

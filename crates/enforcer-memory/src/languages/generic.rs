@@ -197,13 +197,10 @@ pub fn parse_with_spec(
     quirks: &Quirks,
     is_test_file: bool,
 ) -> ParsedFile {
-    // Tree-sitter's C ABI treats NUL as a string terminator.  Most grammars
-    // tolerate embedded NUL bytes because the binding also supplies a length,
-    // but some external scanners still read past that boundary and can crash
-    // the process.  Source containing NUL is binary/invalid input for every
-    // language handled by this generic path, so reject it before entering the
-    // native parser boundary and preserve the total-parser contract.
-    if source.as_bytes().contains(&0) {
+    // Tree-sitter's C ABI and external scanners are not safe for binary or
+    // control input. Reject it before entering the native parser boundary and
+    // preserve the total-parser contract.
+    if super::has_unsafe_tree_sitter_input(source) {
         return ParsedFile::default();
     }
 

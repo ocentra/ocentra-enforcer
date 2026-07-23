@@ -27,6 +27,7 @@
 //! mission) it is honestly not extracted here at all, rather than
 //! guessed at.
 
+use super::has_unsafe_tree_sitter_input;
 use crate::parsers::{
     CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind, SymbolRef,
     TypeRefRef,
@@ -50,6 +51,9 @@ struct FnScope<'a> {
 const HTTP_METHODS: &[&str] = &["get", "post", "put", "patch", "delete", "options", "head"];
 
 pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
+    if has_unsafe_tree_sitter_input(source) {
+        return ParsedFile::default();
+    }
     let mut parser = Parser::new();
     if parser
         .set_language(&tree_sitter_go::LANGUAGE.into())
