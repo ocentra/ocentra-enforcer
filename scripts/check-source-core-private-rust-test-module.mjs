@@ -16,8 +16,13 @@ function hasExactPrivateTestModuleDeclaration(lines, entry) {
   const cfgIndex = lines.findIndex((line) => /^\s*#\[cfg\(test\)\]\s*$/u.test(line));
   if (cfgIndex < 0 || hasAnotherCfgTestAttribute(lines, cfgIndex)) return false;
   return lines[cfgIndex].trim() === "#[cfg(test)]"
-    && lines[cfgIndex + 1].trim() === `#[path=\"${path.basename(entry.moduleFile)}\"]`
+    && hasExactPathAttribute(lines[cfgIndex + 1], entry.moduleFile)
     && lines[cfgIndex + 2].trim() === `mod ${entry.moduleName};`;
+}
+
+function hasExactPathAttribute(line, moduleFile) {
+  const basename = path.basename(moduleFile);
+  return new RegExp(`^#\\[path\\s*=\\s*\"${basename}\"\\]$`, "u").test(line.trim());
 }
 
 function hasAnotherCfgTestAttribute(lines, allowedIndex) {

@@ -57,6 +57,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   "architecturePolicyChecks",
   "singleSourceRequiredMirrorRoots",
   "strictEmptyTestTrees",
+  "privateRustTestModuleAllowlist",
   "generatedArtifactsMode",
   "generatedArtifactsTracked",
   "generatedArtifactsAllowlist",

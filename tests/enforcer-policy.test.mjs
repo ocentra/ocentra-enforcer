@@ -136,6 +136,25 @@ test("profile-backed waivers satisfy governed dependency escape hatches", () => 
   assert.equal(violationIds(report).has("CFG-1.6"), false);
 });
 
+test("config-lockdown accepts the exact private Rust test module allowlist key", () => {
+  const project = makeProject({ "src/lib.rs": "pub fn f() {}\n" });
+  writeConfig(project, {
+    schemaVersion: 2,
+    profileName: "ocentra-parent",
+    failOn: ["error"],
+    languages: ["rust", "common"],
+    privateRustTestModuleAllowlist: [{
+      ownerFile: "crates/device-trust-core/src/device_trust.rs",
+      moduleFile: "crates/device-trust-core/src/device_trust_private_tests.rs",
+      moduleName: "device_trust_private_tests",
+    }],
+  });
+
+  const result = run(project, ["check", "config-lockdown", "--json"]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.equal(violationIds(JSON.parse(result.stdout)).has("CFG-1.9"), false);
+});
+
 test("waiver policy rejects expired, broad, AI-owned, and immutable waivers", () => {
   const project = makeProject({ "src/lib.rs": "pub fn f() {}\n" });
   writeConfig(project, {

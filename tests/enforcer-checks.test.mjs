@@ -205,6 +205,16 @@ test('check required-tests permits only an exact allowlisted private Rust test m
   assert.equal(accepted.status, 0, accepted.stdout || accepted.stderr);
   assert.deepEqual(JSON.parse(accepted.stdout).violations, []);
 
+  const rustfmtFormatted = makeProject({
+    ...base,
+    'ocentra-enforcer.config.json': JSON.stringify({
+      privateRustTestModuleAllowlist: [{ ownerFile: owner, moduleFile: module, moduleName: 'device_trust_private_tests' }],
+    }),
+    [owner]: 'pub fn value() -> u8 { 1 }\n\n#[cfg(test)]\n#[path = "device_trust_private_tests.rs"]\nmod device_trust_private_tests;\n',
+  });
+  const formatted = run(rustfmtFormatted, ['check', 'required-tests', '--json', '--files', owner]);
+  assert.equal(formatted.status, 0, formatted.stdout || formatted.stderr);
+
   const rejectedCases = [
     {
       label: 'wrong owner',
