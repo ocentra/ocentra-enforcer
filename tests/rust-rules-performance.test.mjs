@@ -65,27 +65,27 @@ test("cached whole-file Rust predicates preserve findings and remove quadratic w
   const filePath = path.join(root, "large_test.rs");
   fs.writeFileSync(filePath, performanceFixture(), "utf8");
   const config = normalizeConfig(DEFAULT_CONFIG);
-  const legacyTimings = {};
-  const cachedTimings = {};
+  const legacyPredicateStats = {};
+  const cachedPredicateStats = {};
 
   const legacy = scanRustFile(root, filePath, config, {
     cacheFilePredicates: false,
-    timings: legacyTimings,
+    predicateStats: legacyPredicateStats,
   });
   const cached = scanRustFile(root, filePath, config, {
-    timings: cachedTimings,
+    predicateStats: cachedPredicateStats,
   });
 
   assert.deepEqual(cached, legacy);
-  // Individual phases include scheduler, filesystem, and parser noise on
-  // hosted runners.  Compare the complete scan instead of asserting that a
-  // single phase wins on every OS; the cache must preserve findings and reduce
-  // total work for this representative fixture.
-  assert.equal(cachedTimings.total < legacyTimings.total, true, JSON.stringify({
-    phase: "total",
-    cached: cachedTimings,
-    legacy: legacyTimings,
-  }));
+  // Wall-clock timings are inherently noisy across hosted operating systems.
+  // Count the actual whole-file predicate evaluations instead: the legacy
+  // path must repeat them while the cached path must reuse its precomputed
+  // values. This is a deterministic proof of reduced work.
+  assert.equal(cachedPredicateStats.uncachedEvaluations ?? 0, 0);
+  assert.ok(
+    (legacyPredicateStats.uncachedEvaluations ?? 0) > 0,
+    JSON.stringify({ legacyPredicateStats, cachedPredicateStats }),
+  );
 });
 
 test("evidence collectors preserve outputs when a crate-cached Rust mask is supplied", () => {

@@ -91,6 +91,15 @@ function finishProfilePhase(timings, name, startedAt) {
 function scanRustFile(root, filePath, config, options = {}) {
   const timings = options.timings ?? null;
   const cacheFilePredicates = options.cacheFilePredicates !== false;
+  const predicateStats = options.predicateStats ?? null;
+  const filePredicate = (cachedValue, compute) => {
+    if (cacheFilePredicates) return cachedValue;
+    if (predicateStats) {
+      predicateStats.uncachedEvaluations =
+        (predicateStats.uncachedEvaluations ?? 0) + 1;
+    }
+    return compute();
+  };
   const profileStartedAt = timings ? performance.now() : 0;
   let phaseStartedAt = profileStartedAt;
   const rel = normalizeRel(root, filePath);
@@ -765,9 +774,10 @@ function scanRustFile(root, filePath, config, options = {}) {
       }
     }
 
-    if (secretValueTypeName(line) && !(cacheFilePredicates
-      ? hasRedactionRationale
-      : /\bRedacted\b|REDACTED|redact/u.test(source))) {
+    if (secretValueTypeName(line) && !filePredicate(
+      hasRedactionRationale,
+      () => /\bRedacted\b|REDACTED|redact/u.test(source),
+    )) {
       addViolation(
         violations,
         root,
@@ -1004,9 +1014,10 @@ function scanRustFile(root, filePath, config, options = {}) {
     }
 
     if (
-      (cacheFilePredicates
-        ? hasAsyncSyntax
-        : /\basync\s+fn\b|\.await\b/u.test(masked)) &&
+      filePredicate(
+        hasAsyncSyntax,
+        () => /\basync\s+fn\b|\.await\b/u.test(masked),
+      ) &&
       /\bstd::sync::(?:Mutex|RwLock)\b|\bstd::thread::sleep\b|\bstd::fs::|\bstd::net::/u.test(
         line,
       )
@@ -1089,9 +1100,10 @@ function scanRustFile(root, filePath, config, options = {}) {
       );
     }
 
-    if (/\b(?:retry|retries|Retry)\b/u.test(line) && /\b(?:loop|while|for)\b/u.test(line) && !(cacheFilePredicates
-      ? hasRetryRationale
-      : /\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source))) {
+    if (/\b(?:retry|retries|Retry)\b/u.test(line) && /\b(?:loop|while|for)\b/u.test(line) && !filePredicate(
+      hasRetryRationale,
+      () => /\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source),
+    )) {
       addViolation(
         violations,
         root,
@@ -1115,11 +1127,13 @@ function scanRustFile(root, filePath, config, options = {}) {
       );
     }
 
-    if ((cacheFilePredicates
-      ? hasAsyncSyntax
-      : /\basync\s+fn\b|\.await\b/u.test(masked)) && /\b(?:for|while)\b/u.test(line) && /\b(?:hash|compress|encode|decode|sort|parse|render|compute)\b/iu.test(line) && !(cacheFilePredicates
-      ? hasCpuOffloadRationale
-      : /\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source))) {
+    if (filePredicate(
+      hasAsyncSyntax,
+      () => /\basync\s+fn\b|\.await\b/u.test(masked),
+    ) && /\b(?:for|while)\b/u.test(line) && /\b(?:hash|compress|encode|decode|sort|parse|render|compute)\b/iu.test(line) && !filePredicate(
+      hasCpuOffloadRationale,
+      () => /\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source),
+    )) {
       addViolation(
         violations,
         root,
@@ -1162,9 +1176,10 @@ function scanRustFile(root, filePath, config, options = {}) {
       );
     }
 
-    if (/^\s*loop\s*\{/u.test(line) && (cacheFilePredicates
-      ? hasAsyncSyntax
-      : /\basync\s+fn\b|\.await\b/u.test(masked)) && !contextHas(originalLines, idx, "CANCEL", 8)) {
+    if (/^\s*loop\s*\{/u.test(line) && filePredicate(
+      hasAsyncSyntax,
+      () => /\basync\s+fn\b|\.await\b/u.test(masked),
+    ) && !contextHas(originalLines, idx, "CANCEL", 8)) {
       addViolation(
         violations,
         root,
