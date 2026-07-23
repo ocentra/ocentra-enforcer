@@ -62,6 +62,10 @@ export function verifyWorkflowContract(root) {
     if (/uses:\s+[^\s]+@v\d+/u.test(content)) {
       failures.push(`${name}: action reference uses a mutable major-version tag`);
     }
+    if (name === 'workflows/ci.yml'
+      && /^\s+target\s*$/mu.test(content)) {
+      failures.push(`${name}: Cargo cache must not archive generated target output`);
+    }
   }
   return failures;
 }

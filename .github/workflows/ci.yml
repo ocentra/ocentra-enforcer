@@ -83,7 +83,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
       - name: Windows-safe workspace format check
         run: node scripts/check-cargo-workspace-members.mjs --fmt-check

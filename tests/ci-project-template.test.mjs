@@ -53,6 +53,19 @@ test('checked-in workflows satisfy the reusable contract', () => {
   assert.deepEqual(verifyWorkflowContract(process.cwd()), []);
 });
 
+test('workflow contract rejects caching generated Cargo target output', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-target-cache-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const workflow = path.join(root, '.github', 'workflows', 'ci.yml');
+  const cachedTarget = readFileSync(workflow, 'utf8').replace(
+    '            ~/.cargo/git\n',
+    '            ~/.cargo/git\n            target\n',
+  );
+  writeFileSync(workflow, cachedTarget);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('generated target output')));
+});
+
 test('workflow contract rejects a branch-local scanner labelled as frozen', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-scanner-'));
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
