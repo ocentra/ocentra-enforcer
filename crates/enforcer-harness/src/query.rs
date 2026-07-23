@@ -363,7 +363,7 @@ fn is_inside_root(root: &Path, candidate: &Path) -> bool {
         .canonicalize()
         .map(|p| p.join(candidate.file_name().unwrap_or_default()))
         .unwrap_or_else(|_| candidate.to_path_buf());
-    candidate_resolved.starts_with(&root) || candidate.starts_with(&root)
+    candidate_resolved.starts_with(&root)
 }
 
 #[cfg(test)]
