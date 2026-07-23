@@ -19,6 +19,7 @@ export function verifyWorkflowContract(root) {
       'git -C "$FROZEN_SCANNER_DIR" fetch --depth=1 origin "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"',
+      '- name: Frozen Enforcer full workspace gate\n        shell: bash',
       'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
       'verify-workflow-contract.mjs', 'dogfood-manifest',
     ]],

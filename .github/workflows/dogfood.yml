@@ -39,6 +39,7 @@ jobs:
           test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"
           npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"
       - name: Frozen Enforcer full workspace gate
+        shell: bash
         env:
           FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner
         run: |
