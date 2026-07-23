@@ -32,11 +32,16 @@ edition = "2021"
 rust-version = "1.75"
 `,
     'helper/src/lib.rs': 'pub struct Helper;\n',
+    'helper/OWNERS': '@ocentra/enforcer\n',
   });
   const manifest = path.join(project, 'Cargo.toml');
   const lockPath = path.join(project, 'Cargo.lock');
   const before = fs.readFileSync(lockPath, 'utf8');
-  fs.appendFileSync(manifest, '\n[dependencies]\nhelper = { path = "helper" }\n', 'utf8');
+  fs.appendFileSync(
+    manifest,
+    '\n# DEPENDENCY-JUSTIFICATION: fixture dependency exercises stale-lock detection.\n[dependencies]\nhelper = { path = "helper" }\n',
+    'utf8',
+  );
 
   const result = runGate(project);
   const output = `${result.stdout}\n${result.stderr}`;
