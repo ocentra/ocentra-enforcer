@@ -1040,7 +1040,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"fixture-binary")?;
         let adapter = ClaudeAdapter::try_new(home.path().to_path_buf(), binary.clone())?;
 
         let plan = adapter.plan(&ctx(&binary)?)?;
@@ -1072,7 +1072,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"fixture-binary")?;
 
         // Pre-existing unrelated state that must survive round-trip.
         let claude_json_path = home.path().join(".claude.json");
@@ -1129,7 +1129,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"fixture-binary")?;
         fs::write(
             home.path().join(".claude.json"),
             serde_json::to_string_pretty(&serde_json::json!({}))?,

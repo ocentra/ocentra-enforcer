@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Conversion of transport-owned CLI argument text into domain-owned values.
 
 use crate::cli::CliError;

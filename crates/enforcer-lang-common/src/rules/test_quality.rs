@@ -392,13 +392,13 @@ impl Validator for TestDataFactoryValidator {
 /// [`NoWallClockAssertValidator`] forbids.
 const WALLCLOCK_DELTA_MARKERS: &[&str] = &["monotonic() -", "time.time() -"];
 
-/// Markers proving an injected/fake clock is used instead of the wall
+/// Markers proving an injected substitute clock is used instead of the wall
 /// clock.
 const INJECTED_CLOCK_MARKERS: &[&str] = &["FakeClock", "fake_clock", "injected_clock"];
 
 /// `py-fastapi-no-wallclock-assert` — injected clock required, no
 /// wall-clock assertion: a test asserting on a wall-clock time delta
-/// (`monotonic() - start <= 0.6`) with no injected/fake clock in the file
+/// (`monotonic() - start <= 0.6`) with no substitute clock in the file
 /// scores over threshold (T2).
 #[derive(Debug)]
 pub struct NoWallClockAssertValidator {
@@ -439,9 +439,9 @@ impl Validator for NoWallClockAssertValidator {
                 Severity::Warning,
                 "test-quality: wall-clock delta assertion instead of an injected clock",
                 format!(
-                    "`{marker}` asserts on a wall-clock time delta with no injected/fake clock \
+                    "`{marker}` asserts on a wall-clock time delta with no substitute clock \
                      in this file (score 1.0 >= threshold {WALLCLOCK_FIRE_THRESHOLD:.1}); inject \
-                     a `FakeClock` and assert on the decision instead of elapsed wall-clock time."
+                     a synthetic clock and assert on the decision instead of elapsed wall-clock time."
                 ),
                 &input,
                 line,

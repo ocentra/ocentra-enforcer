@@ -308,6 +308,7 @@ fn io_err(path: &Path, e: impl std::fmt::Display) -> InstallError {
 /// Returns [`InstallError::MalformedConfig`] if a target file exists but
 /// fails to parse for its declared [`ConfigFormat`] — a malformed config is
 /// a detected, typed error, never a silent skip.
+// ROUNDTRIP-TEST: crates/enforcer-install/src/boundary/migrate_legacy_name.rs::migration_outcome_round_trip_through_json
 pub fn scan(targets: &[ConfigTarget]) -> InstallResult<Vec<MigrationFindingDto>> {
     let mut findings = Vec::new();
     for target in targets {
@@ -465,6 +466,7 @@ fn scan_text_literals(target: &ConfigTarget, raw: &str) -> InstallResult<Vec<Mig
 /// for its declared format — fail-closed, never a silent skip.
 /// Returns [`InstallError::BackupFailed`]/[`InstallError::Io`] if a backup
 /// or rewrite fails.
+// ROUNDTRIP-TEST: crates/enforcer-install/src/boundary/migrate_legacy_name.rs::migration_outcome_round_trip_through_json
 pub fn migrate(
     targets: &[ConfigTarget],
     legacy_skill_dir: Option<&Path>,
@@ -961,12 +963,26 @@ mod tests {
             kind: FindingKind::LegacyServerRegistration,
             detail: String::new(),
         };
-        assert!(MigrationFinding::try_from(invalid_finding).is_err());
+        let finding_result = MigrationFinding::try_from(invalid_finding);
+        assert!(
+            finding_result.is_err(),
+            "relative finding paths must be rejected"
+        );
+        if let Err(InstallError::InvalidDomain(finding_error)) = finding_result {
+            assert_eq!(finding_error.path, "installTargetPath");
+        }
 
         let invalid_rewrite = RewrittenFileDto {
             path: "relative/config.toml".to_owned(),
             backup_path: "relative/config.toml.bak".to_owned(),
         };
-        assert!(RewrittenFile::try_from(invalid_rewrite).is_err());
+        let rewrite_result = RewrittenFile::try_from(invalid_rewrite);
+        assert!(
+            rewrite_result.is_err(),
+            "relative backup paths must be rejected"
+        );
+        if let Err(InstallError::InvalidDomain(rewrite_error)) = rewrite_result {
+            assert_eq!(rewrite_error.path, "installTargetPath");
+        }
     }
 }

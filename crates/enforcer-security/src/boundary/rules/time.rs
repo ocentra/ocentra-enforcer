@@ -1,10 +1,11 @@
-//! `MCM-TIME.1` (T1) — the clock-trust mechanics facet (h06, §8.7 of the
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `MCM-TIME.1` (T1) â€” the clock-trust mechanics facet (h06, Â§8.7 of the
 //! ingested money-critical/security-testing spec).
 //!
-//! Doctrine (§8.7): client wall-clock time is NEVER trusted in a money
+//! Doctrine (Â§8.7): client wall-clock time is NEVER trusted in a money
 //! path. A backend that reads `Date.now()`/`new Date()`/a client-supplied
 //! timestamp field straight from the request body to drive an expiry or
-//! settlement decision lets an attacker forge time itself — replay a
+//! settlement decision lets an attacker forge time itself â€” replay a
 //! stale request with a spoofed future timestamp, or extend a window
 //! indefinitely. The only safe pattern is server-side time
 //! (`serverNow()`/`Date.now()` evaluated server-side with no client input
@@ -12,11 +13,11 @@
 //! FAILS CLOSED (treats an unparseable/missing time as expired, never as
 //! valid).
 //!
-//! GENERIC across any value system — never a crypto-only slot/timestamp
+//! GENERIC across any value system â€” never a crypto-only slot/timestamp
 //! notion (the optional crypto instance's slot-timing nuance is h07's
 //! localnet-proof concern, not this facet's).
 //!
-//! Scoped by h01's money-critical classifier (consumed read-only) — this
+//! Scoped by h01's money-critical classifier (consumed read-only) â€” this
 //! module does not redefine what counts as money-critical.
 //!
 //! # Detection shape
@@ -69,7 +70,7 @@ fn fail_open_expiry_pattern() -> Result<Regex, DecodeError> {
         })
 }
 
-/// `MCM-TIME.1` — T1 clock-trust mechanics gate.
+/// `MCM-TIME.1` â€” T1 clock-trust mechanics gate.
 ///
 /// Fires when the scanned source reads a client-supplied timestamp field
 /// to drive time logic, or when an expiry helper's fallback is fail-open
@@ -113,7 +114,7 @@ impl Validator for TimeValidator {
                     severity: Severity::Error,
                     title: "money path trusts client-supplied clock time (T1)".to_owned(),
                     detail: "client wall-clock time is read to drive a money-path time decision. \
-                              Doctrine (§8.7): client time is NEVER trusted in a money path — an \
+                              Doctrine (Â§8.7): client time is NEVER trusted in a money path â€” an \
                               attacker can forge time (replay with a spoofed timestamp, extend a \
                               window indefinitely). Fix: use server-side time only \
                               (`serverNow()`/server-evaluated `Date.now()`), with an explicit skew \
@@ -132,7 +133,7 @@ impl Validator for TimeValidator {
                     severity: Severity::Error,
                     title: "expiry check fails open (T1)".to_owned(),
                     detail: "an expiry/isExpired-shaped check's fallback treats unknown/missing \
-                              time as NOT expired. Doctrine (§8.7): expiry MUST fail closed \
+                              time as NOT expired. Doctrine (Â§8.7): expiry MUST fail closed \
                               (treat unparseable/missing time as expired), never fail open. Fix: \
                               invert the fallback so missing/unparseable time is treated as \
                               expired."

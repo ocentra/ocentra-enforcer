@@ -181,8 +181,10 @@ fn session_start_hook_config_dto_rejects_an_empty_command() -> Result<(), Box<dy
         command: String::new(),
         reminder_body: "reminder".to_owned(),
     });
-    assert!(result.is_err(), "empty hook commands are rejected");
-    let error = result.err().ok_or("empty hook commands are rejected")?;
+    let error = match result {
+        Ok(_) => return Err("empty hook commands must be rejected".into()),
+        Err(error) => error,
+    };
 
     assert_eq!(error.path, "command");
     Ok(())

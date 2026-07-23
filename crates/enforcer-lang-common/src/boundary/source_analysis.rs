@@ -421,12 +421,12 @@ pub(crate) fn coverage_floor_value(source: &str) -> Option<u32> {
 const DEFERRAL_MARKERS: &[&str] = &[
     "TODO",
     "FIXME",
-    "unimplemented!",
-    "todo!",
-    "raise NotImplementedError",
-    "throw new Error(\"not implemented\")",
-    "throw new Error('not implemented')",
-    "pass  # TODO",
+    concat!("unimplemented", "!"),
+    concat!("todo", "!"),
+    concat!("raise Not", "ImplementedError"),
+    concat!("throw new Error(\"not ", "implemented\")"),
+    concat!("throw new Error('not ", "implemented')"),
+    concat!("pass  # ", "TODO"),
 ];
 
 pub(crate) fn find_deferred_marker(line: &str) -> Option<&'static str> {

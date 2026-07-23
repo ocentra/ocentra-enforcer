@@ -106,10 +106,10 @@ class Widget:
         .filter(|d| d.container_name == "Widget")
         .map(|d| d.member_name.as_str())
         .collect();
-    assert!(members.contains(&"drawn"), "{members:?}");
-    assert!(members.contains(&"label"), "{members:?}");
-    assert!(members.contains(&"helper"), "{members:?}");
-    assert!(members.contains(&"count"), "{members:?}");
+    assert!(members.contains(&"drawn"));
+    assert!(members.contains(&"label"));
+    assert!(members.contains(&"helper"));
+    assert!(members.contains(&"count"));
 }
 
 #[test]
@@ -123,7 +123,7 @@ class_name Widget
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"res://base_widget.gd"), "{paths:?}");
+    assert!(paths.contains(&"res://base_widget.gd"));
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn extracts_class_name_statement_extends_clause_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Node"), "{paths:?}");
+    assert!(paths.contains(&"Node"));
 }
 
 #[test]
@@ -164,7 +164,7 @@ func f():
 "#;
     let parsed = parse_gdscript(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
 }
 
 #[test]

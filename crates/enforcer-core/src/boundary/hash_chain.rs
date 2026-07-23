@@ -1,9 +1,11 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Pure SHA-256 hash-chain boundary mechanism.
 //!
 //! RECONCILED 2026-07-05: this module was originally specified as an
 //! OcentraParent `logging-core` borrow, but the real upstream source
 //! (reachable at vendor time; unreachable when this module was first
-//! written, per lesson L12) contains NO hash-chain logic anywhere —
+//! written, per lesson L12) contains NO hash-chain logic anywhere â€”
 //! `logging-core` has no such primitive to port. This is Enforcer-native
 //! code, inspired by the same tamper-evident-chain idea used elsewhere in
 //! the OcentraParent ecosystem, not a vendored module. No reconciliation
@@ -98,14 +100,18 @@ mod tests {
     }
 
     #[test]
-    fn tampered_payload_is_detected_at_its_index() {
+    fn tampered_payload_is_detected_at_its_index() -> Result<(), Box<dyn std::error::Error>> {
         let payloads: Vec<&[u8]> = vec![b"one", b"two", b"three"];
         let digests = build_chain(&payloads);
         // Tamper with the middle payload but keep its recorded digest.
         let tampered: Vec<&[u8]> = vec![b"one", b"TWO", b"three"];
         let links = tampered.iter().copied().zip(digests.iter());
-        let error = verify_chain(links).expect_err("tampered chain should be rejected");
+        let error = match verify_chain(links) {
+            Ok(_) => return Err("tampered chain unexpectedly verified".into()),
+            Err(error) => error,
+        };
         assert_eq!(usize::from(error.index()), 1);
+        Ok(())
     }
 
     #[test]

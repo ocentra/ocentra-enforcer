@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Raw JSON contracts for canonical core values.
 
 use crate::boundary::decode_error::DecodeError;

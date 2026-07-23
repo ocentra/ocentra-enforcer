@@ -175,8 +175,8 @@ fn extracts_require_and_source_calls_as_imports() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"methods"), "{paths:?}");
-    assert!(paths.contains(&"helper.R"), "{paths:?}");
+    assert!(paths.contains(&"methods"));
+    assert!(paths.contains(&"helper.R"));
 }
 
 #[test]

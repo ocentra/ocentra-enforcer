@@ -136,3 +136,69 @@ pub fn render_user() -> UserResponseDto { UserResponseDto { id: String::new() } 
   const result = commonBoundaryScan(project, ["src/boundary/output.rs", "tests/output.rs"]);
   assert.equal(ruleIds(result).has("BOUND-1.9"), false);
 });
+
+test("BOUND scanner ignores unknown_variant helper names in error mapping", () => {
+  const project = makeProject({
+    "src/boundary/wire.rs": `
+//! BOUNDARY-INVARIANT: wire tags are decoded into domain values.
+use enforcer_domain::memory_types::MemoryBundleSchemaVersion;
+use serde::{Deserialize, Deserializer};
+
+pub enum KnownKind {
+  Unknown,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum KnownKindWire {
+  Unknown,
+  Known,
+}
+
+pub(crate) fn deserialize_kind<'de, D>(deserializer: D) -> Result<MemoryBundleSchemaVersion, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    match String::deserialize(deserializer)?.as_str() {
+        "known" => Ok(MemoryBundleSchemaVersion::INITIAL),
+        value => Err(serde::de::Error::unknown_variant(value, &["known"])),
+    }
+}
+`,
+    "tests/wire.rs": `
+#[test]
+fn known_variant_round_trip() {
+    assert_eq!(1, 1);
+}
+`,
+  });
+  const result = commonBoundaryScan(project, ["src/boundary/wire.rs", "tests/wire.rs"]);
+  const ids = ruleIds(result);
+  assert.equal(ids.has("BOUND-1.2"), false);
+});
+
+test("BOUND signature leak detection ignores boundary words in comments only", () => {
+  const project = makeProject({
+    "src/boundary/wire.rs": `
+//! BOUNDARY-INVARIANT: parse raw wire DTOs before calling domain logic.
+//! Example DTO: UserResponseDto and LegacyRequest must stay internal.
+use enforcer_domain::memory_types::MemoryBundleSchemaVersion;
+
+pub fn decode_kind(raw: &str) -> usize {
+    if raw.trim().is_empty() {
+        return 0;
+    }
+    raw.len()
+}
+`,
+    "tests/wire.rs": `
+#[test]
+fn decode_kind_lengths() {
+    assert_eq!(decode_kind("abc"), 3);
+}
+`,
+  });
+  const result = commonBoundaryScan(project, ["src/boundary/wire.rs", "tests/wire.rs"]);
+  const ids = ruleIds(result);
+  assert.equal(ids.has("BOUND-1.9"), false);
+});

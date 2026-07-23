@@ -1,11 +1,12 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Run-telemetry boundary sink (d04): wires the generic [`crate::ndjson_writer`]
 //! append-only writer, the two-layer [`crate::redaction`], and the
 //! [`crate::hash_chain`] primitive together into ONE append operation for
-//! any run record type. `enforcer-core` stays domain-agnostic — this module
+//! any run record type. `enforcer-core` stays domain-agnostic â€” this module
 //! is generic over `T`; the `enforcer-domain::run_record::RunRecord` shape
 //! rides it (see `crates/enforcer-core/tests/telemetry.rs` for the
 //! domain-level integration proof, which takes `enforcer-domain` as a
-//! dev-dependency only — no cycle in the normal build graph).
+//! dev-dependency only â€” no cycle in the normal build graph).
 //!
 //! Contract:
 //! - Both redaction layers ALWAYS run over the record's JSON form before it
@@ -16,7 +17,7 @@
 //!   impl that produces a shape its own `Deserialize` cannot parse back).
 //! - Append is atomic and newline-terminated (delegated to
 //!   [`crate::ndjson_writer::NdjsonWriter`], which opens append-only and
-//!   flushes every line — a crash mid-write leaves at most one truncated
+//!   flushes every line â€” a crash mid-write leaves at most one truncated
 //!   trailing line, never a torn record injected earlier in the file).
 //! - Each appended line is also fed through the hash-chain so replay can
 //!   verify the whole run-telemetry stream has not been tampered with.
@@ -61,7 +62,7 @@ pub fn chain_sidecar_path(data_path: &Path) -> PathBuf {
 /// every record, with a running hash-chain digest over appended lines
 /// persisted to a `.chain` sidecar so cold verification can detect
 /// tampering with the data file (recomputing digests from the data file
-/// alone cannot detect tampering — the recorded digest must be compared
+/// alone cannot detect tampering â€” the recorded digest must be compared
 /// against an independently-persisted value).
 pub struct RunTelemetrySink<T> {
     data_file: std::fs::File,
@@ -76,10 +77,10 @@ where
     T: serde::Serialize + serde::de::DeserializeOwned,
 {
     /// Open (or create) the sink at `path`, starting a fresh hash-chain
-    /// (genesis link — `prev_digest` starts at `None`). Re-opening an
+    /// (genesis link â€” `prev_digest` starts at `None`). Re-opening an
     /// existing file continues appending to it but does NOT replay prior
     /// digests into memory; the in-memory chain only covers records
-    /// appended through THIS sink instance — cold verification of a whole
+    /// appended through THIS sink instance â€” cold verification of a whole
     /// file's chain (across process restarts) goes through
     /// [`verify_file_chain`] instead, which reads the sidecar directly.
     pub fn open(path: &Path) -> Result<Self> {
@@ -115,7 +116,7 @@ where
         self.redactor.redact(&mut value);
 
         // Fail-closed re-verification: the redacted shape must still decode
-        // as `T`. The decoded copy is discarded — it only proves the
+        // as `T`. The decoded copy is discarded â€” it only proves the
         // redacted `value` is a valid `T` before that exact JSON value is
         // serialized to the line we write and hash.
         let _: T = serde_json::from_value(value.clone()).map_err(|e| {
@@ -151,8 +152,8 @@ where
 
 /// Verify the hash-chain over every line in an NDJSON file against the
 /// digests recorded in its `.chain` sidecar (see [`chain_sidecar_path`]).
-/// Comparing against the independently-persisted sidecar — rather than
-/// recomputing digests from the data file alone — is what makes this able
+/// Comparing against the independently-persisted sidecar â€” rather than
+/// recomputing digests from the data file alone â€” is what makes this able
 /// to detect tampering with the data file: recomputation-only verification
 /// against no external record would trivially "verify" any content,
 /// tampered or not. Returns the number of verified lines or the first
@@ -296,9 +297,13 @@ mod tests {
         );
         std::fs::write(&path, tampered)?;
         let outcome = super::verify_file_chain(&path)?;
-        let error = outcome
-            .expect_err("tampered telemetry must be rejected by boundary checksum verification");
-        assert_eq!(usize::from(error.index()), 0);
+        assert!(
+            outcome.is_err(),
+            "tampered telemetry must be rejected by boundary checksum verification"
+        );
+        if let Err(error) = outcome {
+            assert_eq!(usize::from(error.index()), 0);
+        }
         cleanup(&path)?;
         Ok(())
     }
@@ -306,8 +311,13 @@ mod tests {
     #[test]
     fn malformed_telemetry_record_is_rejected_at_the_decode_boundary() {
         let malformed = r#"{"seq":"invalid","secret":7,"note":false}"#;
-        let error = serde_json::from_str::<SampleRecord>(malformed)
-            .expect_err("malformed telemetry should fail JSON deserialization");
-        assert!(error.is_syntax() || error.is_data());
+        let result = serde_json::from_str::<SampleRecord>(malformed);
+        assert!(
+            result.is_err(),
+            "malformed telemetry should fail JSON deserialization"
+        );
+        if let Err(error) = result {
+            assert!(error.is_syntax() || error.is_data());
+        }
     }
 }

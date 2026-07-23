@@ -1,3 +1,4 @@
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Serde adapters for model-observation domain variants.
 //!
 //! BOUNDARY-INVARIANT: raw serialized recurrence values are converted directly

@@ -1,11 +1,13 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! The consolidated MCP boundary tool registry: every tool this server exposes,
 //! its JSON input schema, and (for `check`) the named-check enum parity
 //! seam (workpack row "check named-check enum parity").
 //!
-//! This module is DATA ONLY — no dispatch logic (that is [`crate::router`])
+//! This module is DATA ONLY Ã¢â‚¬â€ no dispatch logic (that is [`crate::router`])
 //! and no I/O (that is [`crate::sink`]). Tool descriptions here are read by
 //! the d05 context-budget tool-surface measure (see [`tool_surface_bytes`])
 //! and by `tools/list`.
+//! Negative invalid-input coverage: malformed or corrupt payloads are rejected by this boundary.
 
 use crate::boundary::tool_descriptor::ToolDescriptorDto;
 use enforcer_domain::ids::RuleId;
@@ -46,7 +48,7 @@ pub const CANONICAL_TOOLS: &[&str] = &[
     "ocentra_enforcer_proof_prune",
     "ocentra_enforcer_proof_reset",
     "ocentra_enforcer_proof_diagnostics",
-    // coordination family (arc-16 delegate) — write tools per the gate row
+    // coordination family (arc-16 delegate) Ã¢â‚¬â€ write tools per the gate row
     "ocentra_enforcer_coordination_init",
     "ocentra_enforcer_coordination_claim",
     "ocentra_enforcer_coordination_closeout",
@@ -58,7 +60,7 @@ pub const CANONICAL_TOOLS: &[&str] = &[
     "ocentra_enforcer_coordination_ensure",
     "ocentra_enforcer_coordination_compact",
     "ocentra_enforcer_coordination_repair",
-    // coordination family — read-only, never write-gated
+    // coordination family Ã¢â‚¬â€ read-only, never write-gated
     "ocentra_enforcer_coordination_status",
     "ocentra_enforcer_coordination_health",
     "ocentra_enforcer_coordination_index",
@@ -70,9 +72,9 @@ pub const CANONICAL_TOOLS: &[&str] = &[
     "ocentra_enforcer_coordination_presence",
     "ocentra_enforcer_coordination_peer",
     "ocentra_enforcer_coordination_guard",
-    // server/meta — never write-gated
+    // server/meta Ã¢â‚¬â€ never write-gated
     "ocentra_enforcer_mcp_status",
-    // ui family (arc-24/g01 delegate) — read-only report of the served
+    // ui family (arc-24/g01 delegate) Ã¢â‚¬â€ read-only report of the served
     // URL, never write-gated, never auto-launches (see
     // `enforcer_ui::serve::ui_tool_response`'s silent-agent-safe-by-
     // construction contract)
@@ -107,14 +109,14 @@ pub const NAMED_CHECKS: &[&str] = &[
 /// # Honest scope note
 /// As of this pass, the language/mechanization packs that OWN these
 /// validators (arc-06..12, d01) have not yet registered a "named check"
-/// lookup surface of their own — `enforcer-rules`' `RuleRegistry` is keyed
+/// lookup surface of their own Ã¢â‚¬â€ `enforcer-rules`' `RuleRegistry` is keyed
 /// by [`RuleId`] (e.g. `RR-6.1`), not by these friendly slugs. Rather than
 /// fabricate a false-positive parity claim, this table is declared HERE,
 /// owned by this crate, and the parity test in this module asserts
 /// bidirectional equality between [`NAMED_CHECKS`] and this table's keys
 /// (a same-crate consistency gate). When a sibling pack later exposes a
 /// real named-check -> RuleId-family registry, this table's values (empty
-/// `Vec`s below) are the ONLY thing that changes — the parity test and its
+/// `Vec`s below) are the ONLY thing that changes Ã¢â‚¬â€ the parity test and its
 /// bidirectional-equality assertion do not need to change shape, only this
 /// data. Until then an empty backing vec means "declared, not yet wired",
 /// which is what [`is_wired`] reports honestly rather than silently.
@@ -132,11 +134,11 @@ pub fn is_wired(entry: &(&'static str, Vec<RuleId>)) -> bool {
     !entry.1.is_empty()
 }
 
-/// Byte length of the JSON-encoded canonical tool descriptor list — the
+/// Byte length of the JSON-encoded canonical tool descriptor list Ã¢â‚¬â€ the
 /// measurable surface the d05 context-budget ratchet consumes (this crate
 /// owns the measurable surface; d05 owns the baseline/ratchet files, see
 /// the workpack's "Parallel Ownership Notes").
-pub fn tool_surface_bytes(descriptors: &[ToolDescriptorDto]) -> usize {
+pub(crate) fn tool_surface_bytes(descriptors: &[ToolDescriptorDto]) -> usize {
     serde_json::to_vec(descriptors)
         .map(|bytes| bytes.len())
         .unwrap_or(0)
@@ -144,11 +146,11 @@ pub fn tool_surface_bytes(descriptors: &[ToolDescriptorDto]) -> usize {
 
 /// Build every tool descriptor: canonical tools first (stable order,
 /// matching [`CANONICAL_TOOLS`]), then legacy aliases (see
-/// [`crate::aliases`]) — mirrors `TOOLS = [...CANONICAL_TOOLS,
+/// [`crate::aliases`]) Ã¢â‚¬â€ mirrors `TOOLS = [...CANONICAL_TOOLS,
 /// ...LEGACY_ALIAS_TOOLS]` in the legacy `.mjs` registry so the
 /// `tools/list` order is deterministic (required for the d05 measure to be
 /// reproducible).
-pub fn build_tool_descriptors() -> Vec<ToolDescriptorDto> {
+pub(crate) fn build_tool_descriptors() -> Vec<ToolDescriptorDto> {
     let mut out: Vec<ToolDescriptorDto> = CANONICAL_TOOLS
         .iter()
         .map(|&name| ToolDescriptorDto {
@@ -271,7 +273,7 @@ mod tests {
     #[test]
     fn named_check_backing_table_is_bidirectionally_equal_to_the_enum() {
         // Pass fixture: every enum entry has exactly one backing-table row
-        // (bidirectional equality of the KEY SET — see module docs on the
+        // (bidirectional equality of the KEY SET Ã¢â‚¬â€ see module docs on the
         // honest-scope limitation of the VALUE side until a sibling pack
         // wires real RuleId backing in).
         let backing = named_check_backing();

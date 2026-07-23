@@ -12,11 +12,11 @@
 //! # Why a driver now
 //!
 //! `MEMORY_RETRIEVAL_PARITY_HARNESS.md` §6 (non-acceptance cases) is
-//! explicit that a stub/placeholder tool result is a harness FAILURE --
+//! explicit that a fallback/tooling gap result is a harness FAILURE --
 //! so this module never fabricates a baseline response. Every method on
 //! [`BaselineAdapter`] either returns real data from a live probe/call or
 //! surfaces [`BaselineState::NotInstalled`] / a capability-state value;
-//! there is no code path that invents a plausible-looking fake result.
+//! there is no code path that invents a plausible-looking synthetic result.
 //! [`CliDriver::call`] propagates real stdout/stderr/exit-status; it
 //! never synthesizes a response when the process fails to run.
 

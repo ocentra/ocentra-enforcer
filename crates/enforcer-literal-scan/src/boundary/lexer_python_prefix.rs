@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 pub(crate) fn python_string_prefix_len(rest: &str) -> usize {
     let mut len = 0usize;
     for ch in rest.chars().take(3) {

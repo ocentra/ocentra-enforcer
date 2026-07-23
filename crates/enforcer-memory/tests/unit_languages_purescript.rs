@@ -90,7 +90,7 @@ fn extracts_import_with_module_field() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Prelude"), "{paths:?}");
+    assert!(paths.contains(&"Prelude"));
 }
 
 #[test]

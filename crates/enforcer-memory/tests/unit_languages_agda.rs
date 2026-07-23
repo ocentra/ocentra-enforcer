@@ -121,7 +121,7 @@ fn open_import_records_the_dotted_module_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Data.Nat"), "{paths:?}");
+    assert!(paths.contains(&"Data.Nat"));
 }
 
 #[test]

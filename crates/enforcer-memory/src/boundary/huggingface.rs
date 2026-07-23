@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Hugging Face HTTP metadata DTOs.
 //!
 //! These shapes model the provider response only. `hf_cache` validates their

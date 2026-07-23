@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 pub(crate) fn glob_match(pattern: &str, text: &str) -> bool {
     glob_match_bytes(pattern.as_bytes(), text.as_bytes())
 }

@@ -135,6 +135,7 @@ pub fn reminder_body(enforcer_binary_path: &Path) -> String {
 /// rendering it into the command/reminder strings (no existence check —
 /// that is c03's `plan`/`verify` job against the real filesystem).
 #[must_use]
+// ROUNDTRIP-TEST: crates/enforcer-install/src/boundary/sessionstart.rs::session_start_hook_config_dto_round_trip_through_json
 pub fn sessionstart_hook_config(enforcer_binary_path: &Path) -> SessionStartHookConfigDto {
     SessionStartHookConfigDto {
         event: HookEvent::SessionStart,
@@ -164,9 +165,10 @@ pub fn render_settings_entry(config: &SessionStartHookConfigDto) -> serde_json::
 
 #[cfg(test)]
 mod tests {
+    // negative: malformed SessionStartHookConfigDto values must fail conversion into SessionStartHookConfig.
     use super::{
         reminder_body, render_settings_entry, sessionstart_hook_config, HookEvent,
-        SessionStartHookConfigDto, ENFORCER_FIRST_MARKER,
+        SessionStartHookConfig, SessionStartHookConfigDto, ENFORCER_FIRST_MARKER,
     };
     use crate::hooks::{TIER_T1_TOKEN, TIER_T2_TOKEN, TIER_T3_TOKEN};
     use std::path::{Path, PathBuf};
@@ -180,16 +182,38 @@ mod tests {
     #[test]
     fn session_start_hook_config_dto_rejects_an_invalid_empty_command(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let dto = super::SessionStartHookConfigDto {
-            event: HookEvent::SessionStart,
-            matcher: String::new(),
-            command: String::new(),
-            reminder_body: "reminder".to_owned(),
+        let malformed = serde_json::json!({
+            "event": "sessionStart",
+            "matcher": "",
+            "command": "",
+            "reminderBody": "reminder"
+        })
+        .to_string();
+        let dto: SessionStartHookConfigDto = serde_json::from_str(&malformed)?;
+        let error = match enforcer_domain::install_types::SessionStartHookConfig::try_from(dto) {
+            Ok(_) => return Err("empty hook commands were unexpectedly accepted".into()),
+            Err(error) => error,
         };
-        let error = enforcer_domain::install_types::SessionStartHookConfig::try_from(dto)
-            .err()
-            .ok_or("empty hook commands are rejected")?;
         assert_eq!(error.path, "command");
+        Ok(())
+    }
+
+    #[test]
+    fn session_start_hook_config_dto_rejects_an_invalid_empty_reminder_body(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let malformed = serde_json::json!({
+            "event": "sessionStart",
+            "matcher": "",
+            "command": "/opt/enforcer/bin/enforcer hooks sessionstart",
+            "reminderBody": ""
+        })
+        .to_string();
+        let dto: SessionStartHookConfigDto = serde_json::from_str(&malformed)?;
+        let error = match enforcer_domain::install_types::SessionStartHookConfig::try_from(dto) {
+            Ok(_) => return Err("empty hook reminder body was unexpectedly accepted".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.path, "reminderBody");
         Ok(())
     }
 
@@ -237,6 +261,25 @@ mod tests {
         let a = reminder_body(&sample_binary_path());
         let b = reminder_body(&sample_binary_path());
         assert_eq!(a, b, "same input must yield byte-identical output");
+    }
+
+    #[test]
+    fn session_start_hook_config_dto_rejects_invalid_values() {
+        assert!(SessionStartHookConfig::try_from(SessionStartHookConfigDto {
+            event: HookEvent::SessionStart,
+            matcher: String::new(),
+            command: String::new(),
+            reminder_body: reminder_body(&sample_binary_path()),
+        })
+        .is_err());
+
+        assert!(SessionStartHookConfig::try_from(SessionStartHookConfigDto {
+            event: HookEvent::SessionStart,
+            matcher: String::new(),
+            command: "/opt/enforcer/bin/enforcer hooks sessionstart".to_owned(),
+            reminder_body: String::new(),
+        })
+        .is_err());
     }
 
     #[test]

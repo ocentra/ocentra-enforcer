@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Wire/request shapes emitted by the filesystem watcher.
 
 use enforcer_domain::memory_types::MemoryWatchPath;

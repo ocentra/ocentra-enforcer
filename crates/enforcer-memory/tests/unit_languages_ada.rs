@@ -88,7 +88,7 @@ end Widget;
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "Draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "Draw")));
     Ok(())
 }
 
@@ -126,7 +126,7 @@ end Widget;
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget_Type", "Name")), "{defines:?}");
+    assert!(defines.contains(&("Widget_Type", "Name")));
     Ok(())
 }
 
@@ -201,7 +201,7 @@ end Widget;
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Ada.Text_IO"), "{paths:?}");
+    assert!(paths.contains(&"Ada.Text_IO"));
 }
 
 #[test]
@@ -218,7 +218,7 @@ end Widget;
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Ada.Text_IO"), "{paths:?}");
+    assert!(paths.contains(&"Ada.Text_IO"));
 }
 
 #[test]

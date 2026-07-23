@@ -169,7 +169,7 @@ end
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Bar.Baz"), "{paths:?}");
+    assert!(paths.contains(&"Bar.Baz"));
 }
 
 #[test]
@@ -187,9 +187,9 @@ end
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Enum"), "{paths:?}");
-    assert!(paths.contains(&"GenServer"), "{paths:?}");
-    assert!(paths.contains(&"Logger"), "{paths:?}");
+    assert!(paths.contains(&"Enum"));
+    assert!(paths.contains(&"GenServer"));
+    assert!(paths.contains(&"Logger"));
 }
 
 #[test]

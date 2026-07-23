@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! [G8] Git-provenance claim validation boundary: gate a PR-ready claim against the
 //! current [`crate::envelope::GitStateEnvelope`] and each proof's latest run,
 //! emitting typed violations. `ok` iff the violation list is empty.
@@ -93,7 +94,7 @@ pub struct ClaimArgs<'a> {
 /// empty) is every `requiredForPrReady` proof in the registry the caller
 /// supplied via `definition` lookups is NOT resolvable here (registry
 /// iteration is the caller's job); callers must pass an already-resolved
-/// `proof_ids` list — see [`crate::harness::ProofRegistryEnvelope`] for building
+/// `proof_ids` list â€” see [`crate::harness::ProofRegistryEnvelope`] for building
 /// the default set from `requiredForPrReady`.
 pub fn claim_proof(args: &ClaimArgs<'_>) -> ClaimEnvelope {
     let mut violations = Vec::new();

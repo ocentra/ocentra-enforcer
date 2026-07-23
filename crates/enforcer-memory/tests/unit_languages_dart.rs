@@ -72,7 +72,7 @@ class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
 }
 
 #[test]
@@ -121,7 +121,7 @@ class Widget extends Base implements Drawable, Sizeable {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Base")));
 
     let implements: Vec<(&str, &str)> = parsed
         .implements
@@ -148,7 +148,7 @@ void f() {
 "#;
     let parsed = parse_dart(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     let method_call = parsed
         .calls
         .iter()
@@ -192,9 +192,9 @@ export 'src/widget_base.dart';
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"dart:async"), "{paths:?}");
-    assert!(paths.contains(&"package:foo/bar.dart"), "{paths:?}");
-    assert!(paths.contains(&"src/widget_base.dart"), "{paths:?}");
+    assert!(paths.contains(&"dart:async"));
+    assert!(paths.contains(&"package:foo/bar.dart"));
+    assert!(paths.contains(&"src/widget_base.dart"));
 }
 
 #[test]

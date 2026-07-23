@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Serialization boundary for the project proof read model.
 //!
 //! These DTOs are the Tauri/API response contract. Raw strings remain here

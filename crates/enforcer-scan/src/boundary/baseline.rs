@@ -1,4 +1,7 @@
 //! Persisted baseline DTOs.
+//!
+//! BOUNDARY-INVARIANT: persisted baseline records retain branded rule, path,
+//! line, and digest values until they are projected into the scan domain.
 
 use enforcer_domain::findings::FindingLine;
 use enforcer_domain::hashes::Sha256;

@@ -112,7 +112,7 @@ fn extracts_use_statement_string_literal_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"collections"), "{paths:?}");
+    assert!(paths.contains(&"collections"));
 }
 
 #[test]

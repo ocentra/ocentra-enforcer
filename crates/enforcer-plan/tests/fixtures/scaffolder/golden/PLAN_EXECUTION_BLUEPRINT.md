@@ -4,7 +4,7 @@
 > Agent Capsule
 > Plan: `demo-plan`
 > Doc: `Plan Execution Blueprint`
-> Kind: plan index; read at the start of any work in this plan.
+> Kind: index document; read at the start of any work in this plan.
 > Read when: Before assigning or claiming any workpack.
 <!-- /agent-capsule -->
 

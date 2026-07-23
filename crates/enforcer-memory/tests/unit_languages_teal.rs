@@ -102,7 +102,7 @@ end
 "#;
     let parsed = parse_teal(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
 }
 
 #[test]

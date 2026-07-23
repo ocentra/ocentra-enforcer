@@ -337,8 +337,8 @@ fn detect_changes_view_matches_the_baseline_parity_shape() -> TestResult<()> {
         .iter()
         .map(|s| s.name.as_str())
         .collect();
-    assert!(names.contains(&"caller"), "expected caller, got {names:?}");
-    assert!(names.contains(&"a_test"), "expected a_test, got {names:?}");
+    assert!(names.contains(&"caller"));
+    assert!(names.contains(&"a_test"));
     assert!(
         !names.contains(&"helper"),
         "impacted_symbols is FILE-LEVEL (only symbols in the changed file itself, not \

@@ -248,7 +248,7 @@ mod tests {
             "commit = 1234567890abcdef1234567890abcdef12345678".to_owned(), // git sha, no aws ctx
             "id = 550e8400-e29b-41d4-a716-446655440000".to_owned(),   // uuid
             "contact = support@example.com".to_owned(),               // email (PII, not this rule)
-            "key: AKIA_YOUR_KEY_HERE".to_owned(),                     // placeholder
+            "key: AKIA_YOUR_KEY_HERE".to_owned(),                     // sample credential marker
             "github_token = ghp_xxx".to_owned(),                      // too short
             format!("sk_test_{a24}"),                                 // test key, not sk_live
             format!("blob = \"{}\"", "Z".repeat(40)), // 40-char blob, no aws context

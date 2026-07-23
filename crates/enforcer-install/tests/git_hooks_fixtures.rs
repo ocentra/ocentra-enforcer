@@ -1,6 +1,6 @@
 use enforcer_domain::install_types::HookFlavor;
 use enforcer_domain::install_types::{InstallRootPath, OverwriteMode};
-use enforcer_install::emitters::git_hooks::{apply, plan, verify};
+use enforcer_install::emitters::git_hooks::{apply, build_writes, verify};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -13,7 +13,7 @@ fn hook_templates_default_to_staged_scope_with_workspace_opt_in() -> TestResult 
     ] {
         let root =
             enforcer_domain::install_types::InstallRootPath::try_from(std::env::current_dir()?)?;
-        let writes = plan(&root, flavor)?;
+        let writes = build_writes(&root, flavor)?;
         let template = writes
             .first()
             .ok_or("git hook flavor must produce one planned write")?
@@ -62,7 +62,7 @@ fn linked_worktree_plain_hook_is_per_worktree_and_never_common_hooks() -> TestRe
     )?;
 
     let install_root = InstallRootPath::try_from(root.path().to_path_buf())?;
-    let planned = plan(
+    let planned = build_writes(
         &install_root,
         enforcer_domain::install_types::HookFlavor::PlainGitHook,
     )?;
@@ -86,7 +86,13 @@ fn linked_worktree_plain_hook_is_per_worktree_and_never_common_hooks() -> TestRe
         "shared hook must remain unchanged\n"
     );
     let worktree_config = std::fs::read_to_string(worktree_git.join("config.worktree"))?;
-    assert!(worktree_config.contains("hooksPath = .enforcer/hooks"));
+    assert_eq!(
+        worktree_config
+            .lines()
+            .find(|line| line.trim().starts_with("hooksPath"))
+            .map(str::trim),
+        Some("hooksPath = .enforcer/hooks")
+    );
     assert!(verify(
         &install_root,
         enforcer_domain::install_types::HookFlavor::PlainGitHook,

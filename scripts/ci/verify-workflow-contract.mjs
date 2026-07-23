@@ -19,7 +19,7 @@ export function verifyWorkflowContract(root) {
       'git -C "$FROZEN_SCANNER_DIR" fetch --depth=1 origin "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"',
-      'node "$FROZEN_SCANNER_DIR/scripts/rust-rules.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
+      'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
       'verify-workflow-contract.mjs', 'dogfood-manifest',
     ]],
     ['workflows/release.yml', [
@@ -46,7 +46,7 @@ export function verifyWorkflowContract(root) {
       if (!content.includes(needle)) failures.push(`${name}: missing contract marker ${needle}`);
     }
     if (name === 'workflows/dogfood.yml'
-      && /node\s+(?:\.\/)?scripts\/rust-rules\.mjs\b/u.test(content)) {
+      && /node\s+(?:\.\/)?scripts\/(?:rust-rules|ocentra-enforcer)\.mjs\s+scan\b/u.test(content)) {
       failures.push(`${name}: frozen gate must not execute the branch-local scanner`);
     }
     if (/uses:\s+[^\s]+@v\d+/u.test(content)) {

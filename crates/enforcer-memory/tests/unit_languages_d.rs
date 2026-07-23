@@ -55,8 +55,8 @@ class Animal {
         .iter()
         .map(|s| (s.name.as_str(), s.kind))
         .collect();
-    assert!(kinds.contains(&("Animal", SymbolKind::Class)), "{kinds:?}");
-    assert!(kinds.contains(&("speak", SymbolKind::Method)), "{kinds:?}");
+    assert!(kinds.contains(&("Animal", SymbolKind::Class)));
+    assert!(kinds.contains(&("speak", SymbolKind::Method)));
     assert!(
         parsed
             .defines
@@ -76,8 +76,8 @@ fn extracts_multi_base_heritage_as_inherits() {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Dog", "Animal")), "{inherits:?}");
-    assert!(inherits.contains(&("Dog", "Serializable")), "{inherits:?}");
+    assert!(inherits.contains(&("Dog", "Animal")));
+    assert!(inherits.contains(&("Dog", "Serializable")));
 }
 
 #[test]
@@ -100,8 +100,8 @@ struct Point {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Point", "x")), "{defines:?}");
-    assert!(defines.contains(&("Point", "y")), "{defines:?}");
+    assert!(defines.contains(&("Point", "x")));
+    assert!(defines.contains(&("Point", "y")));
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn extracts_import_declaration() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"std.stdio"), "{paths:?}");
+    assert!(paths.contains(&"std.stdio"));
 }
 
 #[test]

@@ -2,6 +2,7 @@
 //!
 //! BOUNDARY-INVARIANT: every raw manifest field is validated and converted to
 //! a canonical streaming-cache type; empty and zero-valued invariants fail closed.
+//! Negative invalid-input coverage: malformed and unsupported payloads are rejected.
 
 use serde::{Deserialize, Serialize};
 

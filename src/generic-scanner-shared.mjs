@@ -423,12 +423,54 @@ function countTextMatches(text, pattern) {
 }
 
 function importsOwnModule(rel, text) {
-  const basename = path.basename(rel, path.extname(rel));
-  if (!basename || basename === "index") return false;
-  return new RegExp(
-    `from\\s+["'][^"']*/${escapeRegExp(basename)}["']|use\\s+(?:crate|self|super)::(?:\\w+::)*${escapeRegExp(basename)}::`,
-    "iu",
-  ).test(text);
+  const sourceSegments = String(rel)
+    .replaceAll("\\", "/")
+    .replace(/^(?:.*?\/)?src\//u, "")
+    .replace(/(?:\/mod)?\.(?:rs|[cm]?[jt]sx?|[cm]?js)$/u, "")
+    .split("/")
+    .filter(Boolean);
+  if (sourceSegments.length === 0) return false;
+  const sourceModule = sourceSegments.join("::");
+  const sourceDepth = sourceSegments.length;
+  const importPathPattern = /\buse\s+(?<root>crate|self|super)::(?<path>[A-Za-z_][A-Za-z0-9_:]*)/gu;
+  for (const match of String(text).matchAll(importPathPattern)) {
+    const importedSegments = String(match.groups?.path ?? "")
+      .split("::")
+      .filter(Boolean);
+    let resolvedSegments;
+    if (match.groups?.root === "crate") {
+      resolvedSegments = importedSegments;
+    } else {
+      resolvedSegments = [...sourceSegments.slice(0, -1), ...importedSegments];
+    }
+    if (resolvedSegments.slice(0, sourceDepth).join("::") === sourceModule) {
+      return true;
+    }
+  }
+  const sourcePath = sourceSegments.join("/");
+  const sourceDir = sourcePath.includes("/") ? path.posix.dirname(sourcePath) : ".";
+  const tsImportPathPattern = /^\s*(?:export\b[\s\S]*?\bfrom|import\b[^"']*?)\s+["'](?<path>[^"']+)["']/u;
+  for (const line of String(text).split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
+      continue;
+    }
+    const tsMatch = trimmed.match(tsImportPathPattern);
+    const importPath = tsMatch?.groups?.path;
+    if (!importPath || !importPath.startsWith(".")) {
+      continue;
+    }
+    const normalizedImport = path.posix
+      .normalize(path.posix.join("/", sourceDir, importPath))
+      .replace(/^(?:.*?\/)?src\//u, "")
+      .replace(/(?:\/index)?(?:\/mod)?\.(?:rs|[cm]?[jt]sx?|[cm]?js)$/u, "")
+      .replace(/^\//u, "")
+      .replace(/\/$/u, "");
+    if (normalizedImport === sourcePath) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function hasOwnershipFile(dir) {

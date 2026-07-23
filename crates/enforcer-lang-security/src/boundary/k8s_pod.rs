@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Kubernetes workload manifest decoding boundary.
 //! Malformed YAML is rejected, with negative coverage in this module's tests.
 
@@ -38,12 +39,12 @@ pub(crate) struct PodSpec {
     // DEFAULT-JUSTIFICATION: an absent pod context intentionally delegates to container-level checks.
     #[serde(default, rename = "securityContext")]
     pub(crate) security_context: Option<SecurityContext>,
-    /// Present on Deployment/DaemonSet/StatefulSet/ReplicaSet/Job — the pod
+    /// Present on Deployment/DaemonSet/StatefulSet/ReplicaSet/Job â€” the pod
     /// template whose `.spec` is the real pod spec.
     // DEFAULT-JUSTIFICATION: a bare Pod has no template and is validated through its direct spec.
     #[serde(default)]
     pub(crate) template: Option<Box<PodTemplate>>,
-    /// Present on CronJob — the Job template ultimately carries the pod
+    /// Present on CronJob â€” the Job template ultimately carries the pod
     /// template whose spec must receive the same restricted-profile checks.
     // DEFAULT-JUSTIFICATION: non-CronJob workloads have no job template.
     #[serde(default, rename = "jobTemplate")]

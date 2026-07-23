@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Explicit ownership and numeric-conversion boundaries shared by Memory subsystems.
 //!
 //! These helpers name the places where Memory intentionally materializes owned

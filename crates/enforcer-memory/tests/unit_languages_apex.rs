@@ -150,8 +150,8 @@ public class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "name")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "age")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "name")));
+    assert!(defines.contains(&("Widget", "age")));
 }
 
 #[test]
@@ -171,8 +171,8 @@ public class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "resize")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
+    assert!(defines.contains(&("Widget", "resize")));
 }
 
 #[test]

@@ -568,7 +568,11 @@ mod tests {
     #[test]
     fn family_validators_build_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let validators = build_family_validators()?;
-        assert!(!validators.rust.is_empty());
+        assert_eq!(
+            validators.rust.len(),
+            2,
+            "the Rust baseline registry is complete"
+        );
         for expected in [
             "CYBER-FILELESS-MALWARE.1",
             "CYBER-FILELESS-TELEMETRY.1",

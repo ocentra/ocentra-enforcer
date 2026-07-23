@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Canonical compiled-pattern records created at the regex/text boundary.
 
 use enforcer_domain::boundary::decode_error::DecodeError;

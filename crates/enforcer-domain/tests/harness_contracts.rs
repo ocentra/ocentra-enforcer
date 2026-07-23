@@ -1,3 +1,5 @@
+// contractHash: harness_contracts.rs
+// sourceOwner: enforcer-domain
 use enforcer_domain::harness_types::{HarnessLanguage, HarnessRunId, HarnessSourceLine};
 
 #[test]

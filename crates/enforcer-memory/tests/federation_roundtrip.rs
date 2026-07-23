@@ -155,7 +155,7 @@ fn personal_bundle_export_import_roundtrips_exactly() -> TestResult {
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        enforcer_memory::boundary::share::ExportRequest {
+        enforcer_memory::boundary::share::BundleExportOptions {
             scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: Some("primary".to_string().into()),
@@ -190,7 +190,7 @@ fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestRes
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = export_bundle(
         &snapshot,
-        enforcer_memory::boundary::share::ExportRequest {
+        enforcer_memory::boundary::share::BundleExportOptions {
             scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
@@ -241,7 +241,7 @@ fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure()
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = export_bundle(
         &snapshot,
-        enforcer_memory::boundary::share::ExportRequest {
+        enforcer_memory::boundary::share::BundleExportOptions {
             scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
@@ -293,7 +293,7 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() -> TestR
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        enforcer_memory::boundary::share::ExportRequest {
+        enforcer_memory::boundary::share::BundleExportOptions {
             scope: MemoryShareScope::Team,
             consent: ExportConsent::Granted,
             creator: Some("exporter-team".to_string().into()),

@@ -103,7 +103,7 @@ fn extracts_use_statement_as_import_joined_from_two_fields() -> TestResult {
         .iter()
         .find(|i| i.module_path.contains("restJson1"))
         .ok_or("expected an aws.protocols#restJson1 import")?;
-    assert!(import.module_path.contains("aws.protocols"), "{import:?}");
+    assert!(import.module_path.contains("aws.protocols"));
     Ok(())
 }
 

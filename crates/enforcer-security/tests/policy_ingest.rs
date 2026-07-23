@@ -272,6 +272,13 @@ fn profile_dto_rejects_invalid_typed_profile_name() -> Result<(), Box<dyn std::e
     let raw = std::fs::read_to_string(repo_root.join("profiles/money-critical-security.json"))?;
     let mut dto: MechanizedProfileDto = serde_json::from_str(&raw)?;
     dto.profile_name = " ".to_owned();
-    assert!(MechanizedProfile::try_from(dto).is_err());
+    let result = MechanizedProfile::try_from(dto);
+    assert!(
+        result.is_err(),
+        "blank persisted profile name must be rejected"
+    );
+    if let Err(error) = result {
+        assert_eq!(error.path, "configProfileName");
+    }
     Ok(())
 }

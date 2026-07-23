@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Terraform/HCL source decoding for security validators.
 
 use enforcer_domain::boundary::decode_error::DecodeError;

@@ -1,6 +1,7 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! The graceful-skip run-adapter seam every cyberskills engine adapter
 //! shares: an HONEST three-way outcome (absent / errored / ran) that can
-//! never collapse "tool missing" into "tool passed" — the exact failure
+//! never collapse "tool missing" into "tool passed" â€” the exact failure
 //! mode the h12 workpack calls out as dishonest and the a09 doctrine
 //! forbids ("skipped != passed != failed").
 //!
@@ -22,7 +23,7 @@ use enforcer_domain::severity::Severity;
 /// One finding an external engine reported, generic across engines (SCA
 /// scanner CVE, static-analysis weakness, benchmark failure, ...).
 ///
-/// Deliberately NOT `enforcer_domain::Finding` yet — this is the
+/// Deliberately NOT `enforcer_domain::Finding` yet â€” this is the
 /// engine-agnostic wire shape a RECORDED fixture or a live subprocess's
 /// parsed stdout carries; [`crate::adapters::cyberskills::gate`] is what
 /// maps it onto a real `Finding` behind a `RuleId`.
@@ -33,8 +34,8 @@ pub struct EngineFindingEnvelope {
     /// The engine's own identifier for what fired (a CVE id, a detector
     /// name, a CIS benchmark control id, ...).
     pub rule_id: HarnessExternalRuleId,
-    /// The engine's own severity label (kept as the engine's raw string —
-    /// e.g. `"High"`/`"Critical"` — normalized to `enforcer_domain::Severity`
+    /// The engine's own severity label (kept as the engine's raw string â€”
+    /// e.g. `"High"`/`"Critical"` â€” normalized to `enforcer_domain::Severity`
     /// only at the gate, since engines disagree on vocabulary).
     pub severity: HarnessExternalSeverity,
     /// Repo/target-relative file the finding points at.
@@ -90,13 +91,13 @@ fn default_line() -> HarnessSourceLine {
 }
 
 /// The three-way honest outcome of running one adapter against one target.
-/// Never a bare bool — collapsing "absent" and "ran clean" into the same
+/// Never a bare bool â€” collapsing "absent" and "ran clean" into the same
 /// `true` is exactly the dishonest-skip failure mode this seam exists to
 /// prevent.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "outcome", rename_all = "lowercase")]
 pub enum AdapterOutcome {
-    /// The engine binary/lib was not found. This is a SKIP, not a pass —
+    /// The engine binary/lib was not found. This is a SKIP, not a pass â€”
     /// `ran` must be `0` and `findings` must be empty; a present, running
     /// tool is the only path that may report zero findings as "clean".
     Skipped {
@@ -107,14 +108,14 @@ pub enum AdapterOutcome {
         ran: u32,
     },
     /// The engine binary/lib was present but exited non-zero, produced
-    /// unparseable output, or otherwise failed — surfaced as an error, NOT
+    /// unparseable output, or otherwise failed â€” surfaced as an error, NOT
     /// silently treated as clean.
     Errored {
         /// The engine's own failure detail (stderr tail, parse error, ...).
         error_message: String,
     },
     /// The engine ran to completion (present and did not error). `findings`
-    /// may legitimately be empty (a real clean run) — that emptiness is
+    /// may legitimately be empty (a real clean run) â€” that emptiness is
     /// only trustworthy because [`AdapterOutcome::Ran`] guarantees the tool
     /// actually executed.
     Ran {
@@ -128,7 +129,7 @@ pub enum AdapterOutcome {
 impl AdapterOutcome {
     /// `true` for every well-formed outcome value THIS type can construct.
     /// Because [`AdapterOutcome`] has no variant that conflates "absent"
-    /// with "passed", any value of this type is honest by construction —
+    /// with "passed", any value of this type is honest by construction â€”
     /// the dishonest shape (`toolPresent: false` yet `outcome: "pass"`)
     /// cannot even be represented; see [`crate::adapters::cyberskills::recorded`]
     /// for the boundary check that rejects a raw fixture attempting that
@@ -149,7 +150,7 @@ impl AdapterOutcome {
     }
 
     /// Map the engine's raw severity string onto the domain [`Severity`]
-    /// scale. Unrecognized labels fail CLOSED to [`Severity::Error`] —
+    /// scale. Unrecognized labels fail CLOSED to [`Severity::Error`] â€”
     /// an adapter that emits a severity word this mapping does not know
     /// must not silently downgrade to a warning.
     ///
@@ -182,7 +183,7 @@ mod tests {
     #[test]
     fn skipped_with_nonzero_ran_is_dishonest() {
         // Structurally representable (serde does not forbid it) but the
-        // honesty oracle must still catch it — a skip that claims to have
+        // honesty oracle must still catch it â€” a skip that claims to have
         // covered targets is a contradiction in terms.
         let outcome = AdapterOutcome::Skipped { ran: 3 };
         assert!(!outcome.is_honest());

@@ -109,7 +109,7 @@ end
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Dog", "Animal")), "{inherits:?}");
+    assert!(inherits.contains(&("Dog", "Animal")));
 }
 
 #[test]
@@ -139,8 +139,8 @@ end
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "resize")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
+    assert!(defines.contains(&("Widget", "resize")));
 }
 
 #[test]
@@ -272,8 +272,8 @@ require_relative './helper'
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"json"), "{paths:?}");
-    assert!(paths.contains(&"./helper"), "{paths:?}");
+    assert!(paths.contains(&"json"));
+    assert!(paths.contains(&"./helper"));
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn require_call_is_also_recorded_as_a_call() {
     let src = "require 'json'\n";
     let parsed = parse_ruby(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"require"), "{callees:?}");
+    assert!(callees.contains(&"require"));
 }
 
 #[test]

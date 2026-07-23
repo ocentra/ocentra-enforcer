@@ -71,7 +71,7 @@ fn extracts_preproc_include_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"common.isph"), "{paths:?}");
+    assert!(paths.contains(&"common.isph"));
 }
 
 #[test]

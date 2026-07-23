@@ -122,7 +122,7 @@ class Widget : Drawable {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Drawable")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Drawable")));
 }
 
 #[test]
@@ -145,7 +145,7 @@ class Widget : Base() {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Base")));
 }
 
 #[test]
@@ -160,7 +160,7 @@ fun f() {
 "#;
     let parsed = parse_kotlin(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     let method_call = parsed
         .calls
         .iter()
@@ -207,8 +207,8 @@ import kotlin.collections.List
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"kotlin.math.max"), "{paths:?}");
-    assert!(paths.contains(&"kotlin.collections.List"), "{paths:?}");
+    assert!(paths.contains(&"kotlin.math.max"));
+    assert!(paths.contains(&"kotlin.collections.List"));
 }
 
 #[test]

@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Data-driven rule spec: one [`RuleSpec`] per `SEC-2.*` rule id, consumed
 //! by the [`super::generic_scanner`] validator family. Keeping the
 //! per-rule detection as DATA (a compiled regex + a path/content matcher
@@ -10,7 +11,7 @@
 //! keyword/punctuation triggers), every SEC-2 pattern ported from
 //! `src/generic-scanner-shared.mjs`'s `COMMON_SECRET_RULES` table and
 //! `src/generic-common-line-rules.mjs`'s `scanSecretLine` is itself a
-//! regex (token shapes, high-entropy assignments, path patterns) — so
+//! regex (token shapes, high-entropy assignments, path patterns) â€” so
 //! [`RuleSpec::pattern`] is a compiled [`regex::Regex`], not a plain
 //! needle string.
 
@@ -106,7 +107,7 @@ pub(crate) struct RuleSpec {
     /// Whether this rule scans file content (line-by-line) or the file
     /// path itself.
     target: MatchTarget,
-    /// When `true` (the default posture for every rule in this crate — see
+    /// When `true` (the default posture for every rule in this crate â€” see
     /// `text_scan`'s module doc), a comment-only line is skipped before
     /// content matching. Ignored for [`MatchTarget::Path`].
     comment_guard: bool,
@@ -114,7 +115,7 @@ pub(crate) struct RuleSpec {
     /// classified by the shared generic scanner.
     command_guard: bool,
     /// An optional second pattern whose PRESENCE on the same line
-    /// suppresses the finding — e.g. an explicit safe-value marker
+    /// suppresses the finding â€” e.g. an explicit safe-value marker
     /// (`example`/`<TOKEN>`) that makes an otherwise secret-shaped
     /// line safe, or a `--sarif`/`--json` flag that makes an otherwise
     /// bare tool invocation compliant. Rust's `regex` crate has no
@@ -205,7 +206,7 @@ impl RuleSpec {
 }
 
 /// Redact any quoted secret-looking value before it lands in a
-/// [`Finding::snippet`] — findings must never carry a raw secret value
+/// [`Finding::snippet`] â€” findings must never carry a raw secret value
 /// (SEC-2.15's own charter: "Secret diagnostics must redact matched
 /// values"), even for the OTHER 21 rules in this crate that report a
 /// finding pointing AT a secret-shaped line.
@@ -222,7 +223,7 @@ pub(crate) fn redact_line(text: &str) -> String {
         .into_owned()
 }
 
-/// A [`Validator`] wrapper around one [`RuleSpec`] — the adapter every
+/// A [`Validator`] wrapper around one [`RuleSpec`] â€” the adapter every
 /// `generic-scanner`-shaped SEC-2 rule registers as its `Validator` impl.
 pub(crate) struct SpecValidator {
     spec: RuleSpec,
@@ -232,7 +233,7 @@ pub(crate) struct SpecValidator {
 impl SpecValidator {
     /// Build a validator for `spec`. Fails closed (returns `Err`) rather
     /// than panicking when `spec.rule_id` is not a well-formed [`RuleId`]
-    /// literal — every call site in [`super::registry`] propagates this
+    /// literal â€” every call site in [`super::registry`] propagates this
     /// with `?`, and `tests/completeness.rs` asserts the whole registry
     /// constructs cleanly, so a malformed literal fails the build's tests
     /// instead of surfacing as a runtime panic.

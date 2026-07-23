@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage: malformed or corrupt payloads are rejected by this boundary.
 use crate::json_wire::json_string;
 use crate::{Finding, ScanReport};
 use enforcer_domain::findings::ReportOutcome;

@@ -29,7 +29,7 @@
 //! - [`Aspect::Packages`] -- detected package manifests (`Cargo.toml`,
 //!   `package.json`), the files under each, and CALLS-only
 //!   `fan_in`/`fan_out` (baseline Â§7.2 documents its own `fan_in`/
-//!   `fan_out` as "always 0... UNVERIFIED why" -- a likely stub this
+//!   `fan_out` as "always 0... UNVERIFIED why" -- a likely partial placeholder this
 //!   crate does not reproduce; real counts are computed instead);
 //! - [`Aspect::EntryPoints`] -- binary/library entry files (`main.rs`,
 //!   `lib.rs`) plus route-declaring files;
@@ -315,7 +315,7 @@ pub struct RouteEntry {
 /// `[{name, node_count, fan_in, fan_out}]`) -- CALLS-only,
 /// cross-package edge counts, computed here rather than left at zero
 /// (the baseline doc flags its own `fan_in`/`fan_out` as "always 0...
-/// UNVERIFIED why," i.e. likely a stub/bug, not a documented design
+/// UNVERIFIED why," i.e. likely a partial implementation gap, not a documented design
 /// ceiling worth reproducing).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageSection {
@@ -948,7 +948,7 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
 
         // Package-scoped, CALLS-only fan_in/fan_out (baseline-aligned
         // shape; see PackageSection docs for why these are computed
-        // rather than left at the baseline's own always-zero stub).
+        // rather than left at the baseline's own always-zero fallback path).
         let (mut fan_in, mut fan_out) = (0usize, 0usize);
         for call in graph.calls() {
             let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {

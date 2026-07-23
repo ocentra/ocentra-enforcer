@@ -131,7 +131,7 @@ fn extracts_source_command_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"./lib.sh"), "{paths:?}");
+    assert!(paths.contains(&"./lib.sh"));
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn extracts_dot_command_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"./other.sh"), "{paths:?}");
+    assert!(paths.contains(&"./other.sh"));
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn source_command_is_also_recorded_as_a_call() {
     let src = "source ./lib.sh\n";
     let parsed = parse_bash(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"source"), "{callees:?}");
+    assert!(callees.contains(&"source"));
 }
 
 #[test]
@@ -172,7 +172,7 @@ fi
 "#;
     let parsed = parse_bash(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"greet"), "{callees:?}");
+    assert!(callees.contains(&"greet"));
     assert_eq!(callees.iter().filter(|c| **c == "greet").count(), 2);
 }
 

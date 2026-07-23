@@ -44,7 +44,16 @@ fn tool_descriptor_rejects_invalid_malformed_tool_name() -> TestResult {
     let invalid_result = McpToolName::try_from(serde_json::from_value::<ToolDescriptorDto>(
         invalid_payload,
     )?);
-    assert!(invalid_result.is_err());
+    match invalid_result {
+        Err(error) => {
+            assert_eq!(error.path, "mcpToolName");
+            assert_eq!(
+                error.reason,
+                "must be 1 to 64 ASCII letters, digits, underscores, dashes, dots, or slashes"
+            );
+        }
+        Ok(_) => return Err("invalid MCP tool name unexpectedly entered the catalog".into()),
+    }
     Ok(())
 }
 

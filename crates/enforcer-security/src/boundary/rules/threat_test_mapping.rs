@@ -1,16 +1,17 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! `THREAT-MAP-UNIT-COVERAGE.1` + `THREAT-MAP-NO-UNMAPPED.1` +
-//! `THREAT-MAP-THREAT-HAS-TEST.1` (all T1) — the threat/invariant/test
-//! mapping-completeness family (h03, §0.5 + §8.5 of the ingested
+//! `THREAT-MAP-THREAT-HAS-TEST.1` (all T1) â€” the threat/invariant/test
+//! mapping-completeness family (h03, Â§0.5 + Â§8.5 of the ingested
 //! money-critical/security-testing spec).
 //!
-//! Doctrine (§0.5): "unmapped logic is forbidden logic" — every
+//! Doctrine (Â§0.5): "unmapped logic is forbidden logic" â€” every
 //! money-critical unit (as classified by h01, consumed here read-only,
 //! never redefined) must map to at least one threat, one invariant, one
 //! property test, one concurrency test, and one replay test; and every
 //! threat declared anywhere in the map must itself be backed by at least
 //! one test, or the threat model is incomplete. This module implements a
 //! `Validator` over a typed `THREAT_MAP` record (deserialized at the
-//! boundary into branded newtypes — [`ThreatId`], [`RuleId`] — never bare
+//! boundary into branded newtypes â€” [`ThreatId`], [`RuleId`] â€” never bare
 //! `String`) rather than any heuristic AST scan; the money-critical
 //! classification signal itself is h01's, this module only asserts the
 //! mapping GRAPH is complete for whatever units + threats a THREAT_MAP
@@ -21,21 +22,21 @@
 //! - [`ThreatMapUnitCoverageValidator`] (`THREAT-MAP-UNIT-COVERAGE.1`):
 //!   every unit listed under `units` must carry at least one threat, at
 //!   least one invariant, at least one property test, at least one
-//!   concurrency test, and at least one replay test — any missing edge on
+//!   concurrency test, and at least one replay test â€” any missing edge on
 //!   any listed unit is a `Finding`.
 //! - [`ThreatMapNoUnmappedValidator`] (`THREAT-MAP-NO-UNMAPPED.1`): every
 //!   entry in the h01-shaped `moneyCriticalUnits` manifest snapshot must have a
-//!   corresponding entry under `units` — an h01-classified unit absent
+//!   corresponding entry under `units` â€” an h01-classified unit absent
 //!   from the map entirely is "unmapped logic", flagged regardless of
 //!   whether the units that ARE present are fully mapped.
 //! - [`ThreatMapThreatHasTestValidator`] (`THREAT-MAP-THREAT-HAS-TEST.1`):
 //!   every threat declared under the record's `threats` list must itself
-//!   carry at least one test id in its own `tests` array — a threat with
+//!   carry at least one test id in its own `tests` array â€” a threat with
 //!   zero tests means the threat model itself is incomplete, independent
 //!   of whether any unit happens to reference that threat.
 //!
 //! GENERIC across any value system (fiat, Stripe, an internal ledger, or
-//! the optional crypto/Anchor instance) — the fixtures below use a
+//! the optional crypto/Anchor instance) â€” the fixtures below use a
 //! deliberately neutral `credit_balance`/`sign_payment` vocabulary, never a
 //! crypto-only one.
 //!
@@ -94,7 +95,7 @@ struct UnitTests {
 
 /// One `units` entry: a unit name paired with its threat/invariant/test
 /// mapping edges. `threats` is parsed as [`ThreatId`] at the boundary
-/// (parse-at-boundary doctrine) — a malformed threat id fails record
+/// (parse-at-boundary doctrine) â€” a malformed threat id fails record
 /// deserialization rather than being silently treated as unmapped.
 #[derive(Debug, Clone, serde::Deserialize)]
 struct UnitEntry {
@@ -146,7 +147,7 @@ struct ThreatMap {
 
 /// Parse `source` as a THREAT_MAP record. Unparseable/non-JSON source is
 /// not this validator family's concern (mirrors h01's "unparseable source
-/// stays silent" contract) — returns `None` rather than a `Finding`.
+/// stays silent" contract) â€” returns `None` rather than a `Finding`.
 fn parse_threat_map(source: &str) -> Option<ThreatMap> {
     serde_json::from_str(source).ok()
 }
@@ -174,12 +175,12 @@ fn missing_edges(unit: &UnitEntry) -> Vec<&'static str> {
     missing
 }
 
-/// `THREAT-MAP-UNIT-COVERAGE.1` — T1 per-unit mapping completeness (§8.5).
+/// `THREAT-MAP-UNIT-COVERAGE.1` â€” T1 per-unit mapping completeness (Â§8.5).
 ///
 /// Every unit listed under `units` must carry at least one threat, at
 /// least one invariant, at least one property test, at least one
 /// concurrency test, and at least one replay test. This validator only
-/// inspects units already present in the map — a unit
+/// inspects units already present in the map â€” a unit
 /// entirely absent from the map is [`ThreatMapNoUnmappedValidator`]'s
 /// concern, not this one's.
 pub struct ThreatMapUnitCoverageValidator {
@@ -217,7 +218,7 @@ impl Validator for ThreatMapUnitCoverageValidator {
                 severity: Severity::Error,
                 title: "money-critical unit has an incomplete threat/test mapping (T1)".to_owned(),
                 detail: format!(
-                    "unit `{}` is missing: {}. Doctrine (§8.5): every money-critical unit must \
+                    "unit `{}` is missing: {}. Doctrine (Â§8.5): every money-critical unit must \
                      map to >=1 threat, >=1 invariant, >=1 property test, >=1 concurrency test, \
                      and >=1 replay test. Fix: add the missing edge(s) to this unit's THREAT_MAP \
                      entry.",
@@ -233,7 +234,7 @@ impl Validator for ThreatMapUnitCoverageValidator {
     }
 }
 
-/// `THREAT-MAP-NO-UNMAPPED.1` — T1 unmapped-logic-forbidden gate (§0.5).
+/// `THREAT-MAP-NO-UNMAPPED.1` â€” T1 unmapped-logic-forbidden gate (Â§0.5).
 ///
 /// Any unit named in the h01-shaped `moneyCriticalUnits` manifest snapshot
 /// that has no corresponding `units` entry is "unmapped logic" and is
@@ -276,7 +277,7 @@ impl Validator for ThreatMapNoUnmappedValidator {
                 title: "money-critical unit absent from THREAT_MAP (T1)".to_owned(),
                 detail: format!(
                     "unit `{classified_unit}` is classified money-critical but has no entry in \
-                     THREAT_MAP `units`. Doctrine (§0.5): unmapped logic is forbidden logic — \
+                     THREAT_MAP `units`. Doctrine (Â§0.5): unmapped logic is forbidden logic â€” \
                      every h01-classified unit MUST have a THREAT_MAP entry. Fix: add a `units` \
                      entry for `{classified_unit}` mapping it to its threats, invariants, and \
                      tests."
@@ -290,11 +291,11 @@ impl Validator for ThreatMapNoUnmappedValidator {
     }
 }
 
-/// `THREAT-MAP-THREAT-HAS-TEST.1` — T1 declared-threat completeness gate
-/// (§0.5).
+/// `THREAT-MAP-THREAT-HAS-TEST.1` â€” T1 declared-threat completeness gate
+/// (Â§0.5).
 ///
 /// Any threat declared under the record's `threats` list with zero
-/// associated test ids means the threat model itself is incomplete — the
+/// associated test ids means the threat model itself is incomplete â€” the
 /// threat is named but nothing proves the system resists it. This is
 /// independent of whether any `units` entry happens to reference that
 /// threat id.
@@ -334,8 +335,8 @@ impl Validator for ThreatMapThreatHasTestValidator {
                     .to_owned(),
                 detail: format!(
                     "threat `{}` is declared in THREAT_MAP `threats` with an empty `tests` list. \
-                     Doctrine (§0.5): a declared threat with zero tests means the threat model is \
-                     incomplete — naming a threat proves nothing without a test that would fail \
+                     Doctrine (Â§0.5): a declared threat with zero tests means the threat model is \
+                     incomplete â€” naming a threat proves nothing without a test that would fail \
                      if the corresponding protection were removed. Fix: add >=1 test id to this \
                      threat's `tests` array.",
                     threat.threat_id.as_str()
@@ -387,7 +388,7 @@ mod tests {
     fn threat_map_unit_coverage_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
         // Representative triple from the workpack: `mapped/bad/partial_mapping.json`
         // has a unit with a threat and an invariant and a property test but
-        // NO concurrency/replay test — a genuine coverage gap, distinct
+        // NO concurrency/replay test â€” a genuine coverage gap, distinct
         // from `unmapped/bad/unit_absent.json` (a unit missing entirely,
         // which is `THREAT-MAP-NO-UNMAPPED.1`'s fail case, not this rule's).
         let validator = ThreatMapUnitCoverageValidator::new()?;

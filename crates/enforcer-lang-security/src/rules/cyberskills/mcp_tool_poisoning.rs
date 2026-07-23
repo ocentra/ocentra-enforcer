@@ -60,7 +60,7 @@ const POISON_PATTERNS_SRC: &[PoisonPattern] = &[
     },
     PoisonPattern {
         regex: r"(?i)<important>|<system>|\[system\]",
-        label: "pseudo-tag smuggling a fake system prompt (<important>/<system>/[system])",
+        label: "pseudo-tag smuggling a substituted system prompt (<important>/<system>/[system])",
     },
     PoisonPattern {
         regex: r"(?i)read .*(?:\.ssh|id_rsa|\.env|credentials|passwd)",

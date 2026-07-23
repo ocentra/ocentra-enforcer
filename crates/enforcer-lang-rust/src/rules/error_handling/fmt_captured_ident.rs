@@ -4,7 +4,7 @@
 //!
 //! Scope: flags a `format!`/`println!`/`eprintln!`/`write!`/`writeln!`
 //! invocation whose format-string literal contains a bare positional `{}`
-//! placeholder while the macro call has at least one trailing argument
+//! capture slot while the macro call has at least one trailing argument
 //! after the format string — the common case an inline capture could
 //! replace.
 

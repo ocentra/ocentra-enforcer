@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Serde decode boundary for durable domain records.
 //!
 //! Domain modules own the validated shapes and serialization contract. This

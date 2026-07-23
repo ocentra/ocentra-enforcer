@@ -57,7 +57,39 @@ const dynamicCodePattern = /\b(?:eval|Function)\s*\(/u;
 const rawDtoSpreadPattern = /\{[^}\n]*\.\.\.\s*(?:raw|dto|payload|json|input|data|[A-Za-z_$][\w$]*(?:Dto|DTO|Payload|Json|JSON|Input|Data))\b/u;
 const anySpreadPattern = /\.\.\.\s*[A-Za-z_$][\w$]*Any\b|\.\.\.\s*\([^)]*\s+as\s+any\s*\)/u;
 const exportedFunctionNoReturnPattern =
-  /^\s*export\s+(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(.*\)\s*\{/u;
+  /^\s*export\s+(?:async\s+)?function\s+[A-Za-z_$][\w$]*\b/u;
+
+function hasExportedFunctionExplicitReturnType(line) {
+  const functionPos = line.indexOf("function");
+  if (functionPos < 0) {
+    return true;
+  }
+  const openPos = line.indexOf("(", functionPos);
+  if (openPos < 0) {
+    return true;
+  }
+  let depth = 0;
+  for (let i = openPos; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === "(") {
+      depth += 1;
+    } else if (ch === ")" && depth > 0) {
+      depth -= 1;
+      if (depth === 0) {
+        const tail = line.slice(i + 1).trimStart();
+        return tail.startsWith(":");
+      }
+    }
+  }
+  return false;
+}
+
+function isExportedFunctionMissingReturnType(line) {
+  if (!exportedFunctionNoReturnPattern.test(line)) {
+    return false;
+  }
+  return !hasExportedFunctionExplicitReturnType(line);
+}
 const exportedArrowNoReturnPattern =
   /^\s*export\s+const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/u;
 const exportedObjectLiteralPattern = /^\s*export\s+const\s+[A-Za-z_$][\w$]*\s*=\s*\{/u;
@@ -95,6 +127,7 @@ export {
   emptyCatchPattern,
   enumPattern,
   exportedArrowNoReturnPattern,
+  isExportedFunctionMissingReturnType,
   exportedFunctionNoReturnPattern,
   exportedObjectLiteralPattern,
   forbiddenSensitivePathPatterns,

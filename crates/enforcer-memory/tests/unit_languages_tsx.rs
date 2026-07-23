@@ -81,7 +81,7 @@ class Widget extends Component {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Component")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Component")));
     assert_eq!(
         symbol_kind(&parsed.symbols, "render"),
         Some(&SymbolKind::Method),
@@ -139,7 +139,7 @@ fn extracts_import_statement() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"react"), "{paths:?}");
+    assert!(paths.contains(&"react"));
 }
 
 #[test]

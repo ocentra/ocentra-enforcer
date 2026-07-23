@@ -126,6 +126,37 @@ pub(crate) fn find_literal(text: &str, needle: &str) -> Vec<usize> {
     hits
 }
 
+/// Replace the contents of quoted TypeScript strings with spaces while
+/// preserving the delimiters and code outside the strings. Lexical rules such
+/// as TS-6.3 must not treat prose like `"as separate steps"` as a type cast.
+pub(crate) fn mask_string_literals(text: &str) -> String {
+    let mut masked = String::with_capacity(text.len());
+    let mut delimiter = None;
+    let mut escaped = false;
+    for character in text.chars() {
+        if let Some(active) = delimiter {
+            if escaped {
+                escaped = false;
+                masked.push(' ');
+            } else if character == '\\' {
+                escaped = true;
+                masked.push(' ');
+            } else if character == active {
+                delimiter = None;
+                masked.push(character);
+            } else {
+                masked.push(' ');
+            }
+        } else if matches!(character, '\'' | '"' | '`') {
+            delimiter = Some(character);
+            masked.push(character);
+        } else {
+            masked.push(character);
+        }
+    }
+    masked
+}
+
 /// Guard for the `!` non-null-assertion trigger: a bare `!` token is a
 /// non-null assertion only when it follows an identifier/`)`/`]` character
 /// directly (postfix position) and is NOT itself part of `!=`, `!==`, or a
@@ -160,12 +191,24 @@ mod tests {
     use enforcer_domain::boundary::validation::ValidationSource;
     use enforcer_domain::telemetry_types::SourceLine;
 
-    use super::{find_non_null_assertions, find_word, lines, source_line_role, SourceLineRole};
+    use super::{
+        find_non_null_assertions, find_word, lines, mask_string_literals, source_line_role,
+        SourceLineRole,
+    };
 
     #[test]
     fn find_word_respects_boundaries() {
         assert_eq!(find_word("let x: any = 1;", "any"), vec![7]);
         assert_eq!(find_word("company anyOf", "any"), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn mask_string_literals_preserves_code_but_hides_prose() {
+        let masked = mask_string_literals(
+            r#"const detail = "as separate steps"; const cast = raw as Widget;"#,
+        );
+        assert!(!masked.contains("as separate steps"));
+        assert!(masked.contains("raw as Widget"));
     }
 
     #[test]

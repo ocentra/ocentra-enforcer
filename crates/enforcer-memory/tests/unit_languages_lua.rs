@@ -196,7 +196,7 @@ fn extracts_require_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"json"), "{paths:?}");
+    assert!(paths.contains(&"json"));
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn require_call_is_also_recorded_as_a_call() {
     let src = r#"local json = require("json")"#;
     let parsed = parse_lua(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"require"), "{callees:?}");
+    assert!(callees.contains(&"require"));
 }
 
 #[test]
@@ -227,8 +227,8 @@ end
 "#;
     let parsed = parse_lua(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"pairs"), "{callees:?}");
-    assert!(callees.contains(&"print"), "{callees:?}");
+    assert!(callees.contains(&"pairs"));
+    assert!(callees.contains(&"print"));
 }
 
 #[test]

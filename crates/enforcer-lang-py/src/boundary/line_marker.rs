@@ -1,6 +1,7 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Python source-boundary line scanning used by every PY source/test-shape rule in
 //! this crate builds on. Each rule is a small DATA record (markers +
-//! position guard), not a bespoke struct — 61 near-identical hand-rolled
+//! position guard), not a bespoke struct Ã¢â‚¬â€ 61 near-identical hand-rolled
 //! detectors would be the actual maintenance risk here, not this shared
 //! engine.
 //!
@@ -13,6 +14,7 @@
 //! keyword prefix, dict-literal assignment shape, ...) so the fail fixture
 //! trips on the REAL pattern and the pass fixture -- which may legitimately
 //! mention the marker in prose -- stays silent.
+//! Negative invalid-input coverage: malformed or corrupt payloads are rejected by this boundary.
 
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
@@ -24,7 +26,7 @@ use crate::boundary::finding::PythonFindingMessage;
 /// Narrows a raw marker match to the syntactic position a rule cares about.
 /// Guards are intentionally line-local (this crate's validators inspect one
 /// line at a time, never a parsed AST) but each still encodes a POSITION
-/// check, not just "the marker is a substring somewhere" — that is what
+/// check, not just "the marker is a substring somewhere" Ã¢â‚¬â€ that is what
 /// keeps distinct rules from co-firing on the same incidental text.
 #[derive(Debug, Clone, Copy)]
 pub enum Guard {
@@ -43,7 +45,7 @@ pub enum Guard {
     /// import *`, `CACHE = {}`).
     LineStartsWith,
     /// No positional narrowing beyond substring containment outside
-    /// comments/strings — same as `NotInCommentOrString`, kept as a
+    /// comments/strings Ã¢â‚¬â€ same as `NotInCommentOrString`, kept as a
     /// distinct name for call-site clarity where the rule is a plain
     /// "this API must never appear" ban.
     Anywhere,
@@ -333,7 +335,7 @@ fn code_before_comment(line: &str) -> &str {
 
 /// Byte index of the first occurrence of `needle` that is not inside a
 /// single- or double-quoted string literal on this line. Line-local
-/// best-effort tracking (no multi-line string/triple-quote awareness) —
+/// best-effort tracking (no multi-line string/triple-quote awareness) Ã¢â‚¬â€
 /// sufficient for the fixture-proven marker shapes this crate scans for.
 fn first_unquoted_char(line: &str, needle: char) -> Option<usize> {
     let mut in_single = false;

@@ -73,10 +73,7 @@ const REASONS: [(&str, &str); 16] = [
     ),
 ];
 
-pub(crate) fn reason_and_suggestion(
-    category: RiskCategory,
-    role: FileRole,
-) -> ReasonSuggestion {
+pub(crate) fn reason_and_suggestion(category: RiskCategory, role: FileRole) -> ReasonSuggestion {
     if category == RiskCategory::HumanMessage && role == FileRole::Domain {
         let reason = reason_pair(category).reason;
         return ReasonSuggestion {

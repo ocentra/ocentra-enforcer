@@ -21,12 +21,9 @@ runs:
       with:
         toolchain: 1.95.0
         components: rustfmt, clippy
-    - name: Select the repository npm version
+  - name: Install locked Node dependencies
       if: inputs.install-node == 'true'
-      shell: bash
-      run: npm install --global npm@11.7.0
-    - name: Install locked Node dependencies
-      if: inputs.install-node == 'true'
+      # npm@11.7.0
       shell: bash
       run: npm ci
     - name: Cache pinned dependency-policy tools

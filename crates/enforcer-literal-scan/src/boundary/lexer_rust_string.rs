@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use crate::lexer_rust_helpers::{is_rust_lifetime, rust_raw_prefix};
 use crate::lexer_shared::{advance_position, candidate, line_at, read_quoted, LexerCursor};
 use crate::{LiteralCandidate, LiteralKind};

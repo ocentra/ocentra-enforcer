@@ -1,8 +1,10 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! The backed-rule catalog: which `RuleId`s this crate actually has a
 //! mechanized `Validator` for (h08, POLICY-SPEC-INGESTION honesty seam).
 //!
 //! This is a deliberately STANDALONE catalog, not a live read of
-//! [`crate::rules::registry::build_all`] — `registry.rs` is part of the
+//! [`crate::rules::registry::build_all`] â€” `registry.rs` is part of the
 //! arc-19 skeleton's `owns:` set (shared seam every h01-h11 feature pack
 //! extends), and this workpack's `owns:` set is disjoint by file from it.
 //! Wiring `policy_ingest` to import `registry::build_all` directly would
@@ -32,7 +34,7 @@ pub struct BackedRuleCatalog {
 }
 
 impl BackedRuleCatalog {
-    /// Build a catalog from an explicit id list — the seam a caller (or a
+    /// Build a catalog from an explicit id list â€” the seam a caller (or a
     /// future live-registry reader, once that refactor is in scope for
     /// someone who owns `registry.rs`) can substitute.
     pub fn from_ids<I>(ids: I) -> Self

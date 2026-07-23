@@ -1,3 +1,5 @@
+// contractHash: finding_contracts.rs
+// sourceOwner: enforcer-domain
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::{
     Finding, FindingDetail, FindingLine, FindingTitle, Report, ReportOutcome, ScanScope, Violation,

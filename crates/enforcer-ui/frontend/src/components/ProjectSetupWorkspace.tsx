@@ -9,7 +9,7 @@ import {
   GitPullRequest,
   Settings2,
 } from "lucide-react";
-import { useState, type ComponentType } from "react";
+import { useState, type ComponentType, type ReactElement } from "react";
 import type { Project } from "../data/enforcerAppData";
 import type { WorkspaceKey } from "./AppShell";
 import type { SettingsTab } from "./ProjectSettingsWorkspace";
@@ -42,12 +42,26 @@ type ScanScopeSettings = {
   ignoreFileGlobs: string[];
 };
 
+type ProjectSetupWorkspaceProps = {
+  project: Project;
+  settings: ProjectSettings | undefined;
+  settingsLoading: boolean;
+  settingsError: string;
+  scanScopeSettings: ScanScopeSettings | undefined;
+  scanScopeSettingsLoading: boolean;
+  scanScopeSettingsError: string;
+  proofSnapshot: ProofSnapshot | undefined;
+  proofLoading: boolean;
+  proofError: string;
+  onNavigate: (workspace: WorkspaceKey, settingsTab: SettingsTab | undefined) => void;
+};
+
 type ProofSnapshot = {
   claim: { state: "unconfigured" | "invalid-registry" | "no-required-proofs" | "ready" | "blocked" };
   journal: { state: "missing" | "verified" | "invalid"; recordCount: number };
 };
 
-export function ProjectSetupWorkspace({
+export const ProjectSetupWorkspace = ({
   project,
   settings,
   settingsLoading,
@@ -59,19 +73,7 @@ export function ProjectSetupWorkspace({
   proofLoading,
   proofError,
   onNavigate,
-}: {
-  project: Project;
-  settings?: ProjectSettings | undefined;
-  settingsLoading: boolean;
-  settingsError: string;
-  scanScopeSettings?: ScanScopeSettings | undefined;
-  scanScopeSettingsLoading: boolean;
-  scanScopeSettingsError: string;
-  proofSnapshot?: ProofSnapshot | undefined;
-  proofLoading: boolean;
-  proofError: string;
-  onNavigate: (workspace: WorkspaceKey, settingsTab?: SettingsTab) => void;
-}) {
+}: ProjectSetupWorkspaceProps): ReactElement => {
   const [activeSection, setActiveSection] = useState<SetupSection>("foundation");
   const setupCards: SetupCard[] = [
     {
@@ -162,7 +164,12 @@ export function ProjectSetupWorkspace({
     { id: "delivery", label: "Delivery", detail: "CI posture and lifecycle" },
   ];
   const visibleCards = setupCards.filter((card) => card.section === activeSection);
-  const activeSectionMeta = sections.find((section) => section.id === activeSection)!;
+  const defaultSection: { id: SetupSection; label: string; detail: string } = {
+    id: "foundation",
+    label: "Foundation",
+    detail: "Registration, policy, scope, and index",
+  };
+  const activeSectionMeta = sections.find((section) => section.id === activeSection) ?? defaultSection;
 
   return (
     <section className="main-surface setup-workspace">
@@ -191,9 +198,9 @@ export function ProjectSetupWorkspace({
       </section>
     </section>
   );
-}
+};
 
-function SetupLifecycleCard({ card, onNavigate }: { card: SetupCard; onNavigate: (workspace: WorkspaceKey, settingsTab?: SettingsTab) => void }) {
+function SetupLifecycleCard({ card, onNavigate }: { card: SetupCard; onNavigate: (workspace: WorkspaceKey, settingsTab: SettingsTab | undefined) => void }) {
   const Icon = card.icon;
   const action = card.action;
   return <article className={card.wide ? "setup-card wide" : "setup-card"}><div className="setup-card-head"><Icon size={18} /><span><strong>{card.title}</strong><em className={card.tone}>{card.state}</em></span></div><p>{card.detail}</p>{action && <button className="setup-card-action" onClick={() => onNavigate(action.workspace, action.settingsTab)}>{action.label}<ArrowUpRight size={15} /></button>}</article>;

@@ -1,5 +1,6 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Parses RECORDED tool-output fixtures (`toolPresent`/`outcome`/`ran`/
-//! `findings` JSON — the shape captured from a real engine run, or
+//! `findings` JSON â€” the shape captured from a real engine run, or
 //! hand-authored to represent one) into an [`super::seam::AdapterOutcome`].
 //!
 //! This is the boundary the CI test suite exercises: no live engine executable
@@ -7,7 +8,7 @@
 //! plus its expected verdict (per the workpack's acceptance section). The
 //! live path (spawning the real subprocess) is intentionally out of scope
 //! for this pack per its own charter ("build this pack ONLY as the (d)
-//! engine-bound skills are actually needed") — this module is the seam a
+//! engine-bound skills are actually needed") â€” this module is the seam a
 //! future live-process adapter would also parse its own stdout through.
 
 use enforcer_core::error::Result;
@@ -16,7 +17,7 @@ use enforcer_domain::boundary::decode_error::DecodeError;
 use super::seam::{AdapterOutcome, EngineFindingEnvelope};
 
 /// Raw wire shape a recorded fixture (or a live adapter's captured JSON
-/// output) is authored in. Deliberately flatter than [`AdapterOutcome`] —
+/// output) is authored in. Deliberately flatter than [`AdapterOutcome`] â€”
 /// this is what a human/tool WRITES; [`parse_recorded`] is the fail-closed
 /// boundary that either accepts it as one honest [`AdapterOutcome`] or
 /// rejects it, never silently coercing a dishonest shape into a pass.
@@ -43,7 +44,7 @@ struct RecordedWire {
 /// Parse one recorded-fixture JSON document into an [`AdapterOutcome`].
 ///
 /// Fails closed (returns `Err`, never fabricates a value) when the raw
-/// shape is DISHONEST — specifically, `toolPresent: false` paired with an
+/// shape is DISHONEST â€” specifically, `toolPresent: false` paired with an
 /// `outcome` other than `"skipped"` (a tool that is absent yet claims to
 /// have `"pass"`ed or `"ran"` is exactly the silent-pass failure mode this
 /// whole seam exists to reject). A present tool may legitimately report
@@ -62,7 +63,7 @@ pub fn parse_recorded(raw: &str) -> Result<AdapterOutcome> {
             if parsed.tool_present {
                 return Err(DecodeError::new(
                     "cyberskillsAdapter.outcome",
-                    "`outcome: skipped` but `toolPresent: true` — a present tool cannot honestly skip",
+                    "`outcome: skipped` but `toolPresent: true` â€” a present tool cannot honestly skip",
                 )
                 .into());
             }
@@ -71,12 +72,12 @@ pub fn parse_recorded(raw: &str) -> Result<AdapterOutcome> {
         "pass" if !parsed.tool_present => Err(DecodeError::new(
             "cyberskillsAdapter.outcome",
             "dishonest skip: `toolPresent: false` reported `outcome: pass` instead of an honest \
-             `skipped` outcome with `ran: 0` — an absent tool must never be reported as a pass",
+             `skipped` outcome with `ran: 0` â€” an absent tool must never be reported as a pass",
         )
         .into()),
         "pass" if parsed.error_message.is_some() => Err(DecodeError::new(
             "cyberskillsAdapter.outcome",
-            "dishonest pass: an `errorMessage` is present but `outcome: pass` was reported — a \
+            "dishonest pass: an `errorMessage` is present but `outcome: pass` was reported â€” a \
              present-but-erroring tool must surface the error, never a silent pass",
         )
         .into()),
@@ -91,7 +92,7 @@ pub fn parse_recorded(raw: &str) -> Result<AdapterOutcome> {
         }),
         other => Err(DecodeError::new(
             "cyberskillsAdapter.outcome",
-            format!("unrecognized outcome `{other}` — expected skipped/errored/ran/pass"),
+            format!("unrecognized outcome `{other}` â€” expected skipped/errored/ran/pass"),
         )
         .into()),
     }
@@ -162,7 +163,7 @@ mod tests {
         );
         assert_eq!(
             result.map_err(|error| error.to_string()),
-            Err("decode/validation failed at `cyberskillsAdapter.outcome`: dishonest pass: an `errorMessage` is present but `outcome: pass` was reported — a present-but-erroring tool must surface the error, never a silent pass".to_owned())
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: dishonest pass: an `errorMessage` is present but `outcome: pass` was reported â€” a present-but-erroring tool must surface the error, never a silent pass".to_owned())
         );
     }
 
@@ -171,7 +172,7 @@ mod tests {
         let result = parse_recorded(r#"{"toolPresent":true,"outcome":"skipped","ran":0}"#);
         assert_eq!(
             result.map_err(|error| error.to_string()),
-            Err("decode/validation failed at `cyberskillsAdapter.outcome`: `outcome: skipped` but `toolPresent: true` — a present tool cannot honestly skip".to_owned())
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: `outcome: skipped` but `toolPresent: true` â€” a present tool cannot honestly skip".to_owned())
         );
     }
 
@@ -180,7 +181,7 @@ mod tests {
         let result = parse_recorded(r#"{"toolPresent":true,"outcome":"maybe","ran":0}"#);
         assert_eq!(
             result.map_err(|error| error.to_string()),
-            Err("decode/validation failed at `cyberskillsAdapter.outcome`: unrecognized outcome `maybe` — expected skipped/errored/ran/pass".to_owned())
+            Err("decode/validation failed at `cyberskillsAdapter.outcome`: unrecognized outcome `maybe` â€” expected skipped/errored/ran/pass".to_owned())
         );
     }
 

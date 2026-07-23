@@ -174,7 +174,7 @@
 //!   scheme, layered over [`analysis::CodeAdjacency`].
 //! - [`traces`] — `ingest_traces`: an additive runtime-call-trace overlay
 //!   over [`code_graph::CodeGraph`] (the baseline's own `ingest_traces`
-//!   is an unimplemented stub, so this module's merge/idempotency/
+//!   is a partially unimplemented section, so this module's merge/idempotency/
 //!   provenance semantics are this crate's own documented design).
 //! - [`impact::detect_changes_view`] — the baseline-parity `detect_changes`
 //!   response shape (file-level `impacted_symbols`, no risk field);

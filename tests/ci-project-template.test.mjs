@@ -58,8 +58,8 @@ test('workflow contract rejects a branch-local scanner labelled as frozen', () =
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
   const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
   const localScanner = readFileSync(dogfood, 'utf8').replace(
-    'node "$FROZEN_SCANNER_DIR/scripts/rust-rules.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
-    'node scripts/rust-rules.mjs scan --root . --languages rust --workspace',
+    'node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
+    'node scripts/ocentra-enforcer.mjs scan --root . --languages rust --workspace',
   );
   writeFileSync(dogfood, localScanner);
   const failures = verifyWorkflowContract(root);

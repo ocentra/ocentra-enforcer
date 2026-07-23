@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Two-layer redaction at the structured-record boundary.
 //!
 //! RECONCILED 2026-07-05 against the real OcentraParent `logging-core`
@@ -6,7 +8,7 @@
 //! SINGLE-layer only (key-name matching over a flat `LogFields` map, no
 //! value-pattern scanning, no recursion into nested structures). This
 //! module is a deliberate, independent EXTENSION beyond that upstream
-//! shape — not a partial or pending port — adding a second value-pattern
+//! shape â€” not a partial or pending port â€” adding a second value-pattern
 //! layer (regex secret detection in free text) and generalizing from the
 //! flat `LogFields` type to arbitrary nested `serde_json::Value`, so any
 //! structured record can be redacted, not just log lines.

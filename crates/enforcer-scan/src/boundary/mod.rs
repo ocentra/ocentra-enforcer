@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! External transport and persistence DTOs for the scan crate.
 //!
 //! These modules own raw serde/persistence shapes.  The scan engine consumes

@@ -55,6 +55,7 @@
 
 pub mod agents_forest;
 mod boundary;
+mod domain;
 pub mod error;
 pub mod lessons;
 pub mod orchestrator;

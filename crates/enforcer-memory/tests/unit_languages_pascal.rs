@@ -330,9 +330,9 @@ fn extracts_uses_clause_with_multiple_units_as_imports() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"SysUtils"), "{paths:?}");
-    assert!(paths.contains(&"Classes"), "{paths:?}");
-    assert!(paths.contains(&"Foo.Bar"), "{paths:?}");
+    assert!(paths.contains(&"SysUtils"));
+    assert!(paths.contains(&"Classes"));
+    assert!(paths.contains(&"Foo.Bar"));
 }
 
 #[test]

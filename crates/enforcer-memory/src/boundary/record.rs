@@ -1,7 +1,9 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Serde-only representation of the append-only memory-record wire format.
 
 use serde::{Deserialize, Serialize};
 
+use crate::record::MemoryRecord;
 use enforcer_domain::memory_types::{
     MemoryRecordEvidenceSource, MemoryRecordModel, MemoryRecordSessionId, MemoryRecordUser,
     MemoryRecordWriter, RecordDomain, RecordKind,
@@ -64,7 +66,7 @@ pub struct MemoryRecordDto {
     pub provenance: ProvenanceDto,
 }
 
-impl crate::record::MemoryRecord {
+impl MemoryRecord {
     /// Convert a payload at the NDJSON or signed-bundle boundary before it
     /// enters the local graph.
     pub fn from_dto(dto: MemoryRecordDto) -> Self {
@@ -120,7 +122,7 @@ impl crate::record::MemoryRecord {
     }
 }
 
-impl From<MemoryRecordDto> for crate::record::MemoryRecord {
+impl From<MemoryRecordDto> for MemoryRecord {
     fn from(dto: MemoryRecordDto) -> Self {
         Self::from_dto(dto)
     }

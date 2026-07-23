@@ -149,8 +149,8 @@ end
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "resize")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
+    assert!(defines.contains(&("Widget", "resize")));
 }
 
 #[test]
@@ -166,7 +166,7 @@ end
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "@name")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "@name")));
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn extracts_require_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"json"), "{paths:?}");
+    assert!(paths.contains(&"json"));
 }
 
 #[test]

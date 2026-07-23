@@ -1,9 +1,10 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! `h03` threat-vocabulary SEED (h11 workpack, "h03 vocab seed"): a Rust
 //! frontmatter parser that unions `mitre_attack` + `nist_csf` ids across
 //! the vendored `anthropic-cybersecurity-skills` corpus's 817 SKILL.md
 //! files, producing the canonical [`ThreatId`] dictionary `h03`'s
 //! [`enforcer_security::rules::threat_test_mapping`] validators consume
-//! (SEEDS the dictionary — this module does not redefine h03's own
+//! (SEEDS the dictionary â€” this module does not redefine h03's own
 //! enforcement, which stays h03's).
 //!
 //! # Well-formedness (always enforced, corpus-independent)
@@ -15,7 +16,7 @@
 //!   `ID.RA`).
 //!
 //! Format well-formedness alone is checked by these two functions with NO
-//! corpus dependency — a syntactically valid id is accepted even if it
+//! corpus dependency â€” a syntactically valid id is accepted even if it
 //! happens not to appear anywhere in the 817-skill sample, because the
 //! MITRE ATT&CK / NIST-CSF namespaces are far larger than what one
 //! 817-skill corpus happens to cite (261+ ATT&CK ids sampled is not the
@@ -28,7 +29,7 @@
 //! [`union_frontmatter_ids`] performs the seeding step proper: scan a
 //! directory of `SKILL.md` files, extract every `mitre_attack`/`nist_csf`
 //! id via [`super::frontmatter_lint`]'s frontmatter parser, and return the
-//! deduplicated, well-formed union — the concrete [`CorpusVocab`] a caller
+//! deduplicated, well-formed union â€” the concrete [`CorpusVocab`] a caller
 //! (h03, or an offline seeding job) persists as the dictionary's initial
 //! content. Malformed ids found in the corpus are reported separately
 //! (`malformed`) rather than silently dropped, so a corpus quality
@@ -80,13 +81,13 @@ pub fn is_known_nist_csf_id(id: &str) -> bool {
 }
 
 /// The subdomain allowlist, ported 1:1 from `validate-skill.py`'s
-/// `ALLOWED_SUBDOMAINS` — the FLAT set of every accepted value (each
+/// `ALLOWED_SUBDOMAINS` â€” the FLAT set of every accepted value (each
 /// canonical form PLUS all of its aliases in `_SUBDOMAIN_ALIASES`), 46
 /// entries total. The vendor validator accepts a subdomain iff it is a
 /// member of this flat set (it only WARNs, non-blocking, when an accepted
 /// value is an alias rather than the canonical form); since this Rust
 /// validator's contract is pass/fail, not advisory, membership in the flat
-/// set is exactly the accept/reject decision — so the flat set, not the
+/// set is exactly the accept/reject decision â€” so the flat set, not the
 /// canonical-only subset, is the faithful port. Grouped below by vendor
 /// canonical (first entry) followed by its aliases, mirroring the
 /// `_SUBDOMAIN_ALIASES` table so the port is auditable line-for-line
@@ -96,7 +97,7 @@ pub fn is_known_nist_csf_id(id: &str) -> bool {
 /// the corpus's 817 SKILL.md actually use (e.g. `security-operations`,
 /// `ransomware-defense`, `threat-detection`, `application-security`,
 /// `identity-and-access-management`) must be accepted, and a value the
-/// vendor does NOT accept must be rejected — the earlier hand-authored
+/// vendor does NOT accept must be rejected â€” the earlier hand-authored
 /// list diverged from the vendor set in both directions and is replaced
 /// here.
 pub const ALLOWED_SUBDOMAINS: &[&str] = &[
@@ -177,7 +178,7 @@ pub struct CorpusVocab {
 /// Extract the `mitre_attack:`/`nist_csf:` list items from one SKILL.md's
 /// raw text, using the same minimal frontmatter line-scan
 /// [`super::frontmatter_lint`] uses (no shared parser struct is exposed
-/// there — both call sites independently parse the same simple `key:` /
+/// there â€” both call sites independently parse the same simple `key:` /
 /// `- item` shape rather than sharing a `pub` type across modules, keeping
 /// this module's public surface to the vocab concern only).
 fn extract_list(source: &str, key: &str) -> Vec<String> {
@@ -388,7 +389,7 @@ mod tests {
 
     /// Corpus-backed parity proof (the real defect the earlier list had):
     /// every `subdomain:` value actually used across the vendored 817
-    /// SKILL.md must be accepted by our allowlist — otherwise the linter
+    /// SKILL.md must be accepted by our allowlist â€” otherwise the linter
     /// false-rejects legitimate corpus skills. Skipped gracefully when the
     /// vendor dir is absent (L12 honesty protocol).
     #[test]
@@ -433,7 +434,7 @@ mod tests {
         let corpus_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../vendor/anthropic-cybersecurity-skills/skills");
         if !corpus_dir.is_dir() {
-            // Vendor-absent: nothing to assert (L12 honesty protocol — do
+            // Vendor-absent: nothing to assert (L12 honesty protocol â€” do
             // not fabricate corpus content).
             return;
         }

@@ -304,8 +304,8 @@ fn cpp_fixture_repo_reindexes_incrementally() -> TestResult {
     assert_eq!(report_v1.added.len(), files.len());
 
     let symbol_names: Vec<&str> = graph1.symbol_nodes().map(|s| s.name.as_str()).collect();
-    assert!(symbol_names.contains(&"Widget"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"widgets"), "{symbol_names:?}");
+    assert!(symbol_names.contains(&"Widget"));
+    assert!(symbol_names.contains(&"widgets"));
     assert!(
         symbol_names.iter().any(|n| n.contains("WidgetSuite")),
         "{symbol_names:?}"

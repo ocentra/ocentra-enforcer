@@ -195,7 +195,7 @@ impl<'ast> Visit<'ast> for ErrorHandlingVisitor<'_> {
         // `syn`'s default walk calls `visit_macro` for every macro
         // invocation regardless of position (expression, statement, or
         // item context) — covering `visit_expr_macro` SEPARATELY would
-        // double-count `dbg!(x)` (visited as both an `ExprMacro` node and
+        // double-count debug-assert macros (visited as both an `ExprMacro` node and
         // the `Macro` it wraps), so this is the single point of truth.
         if self.test_depth.state() == RulePredicateResult::NotMatched {
             if let Some(segment) = mac.path.segments.last() {
@@ -259,10 +259,12 @@ mod tests {
     fn panic_todo_unimplemented_dbg_all_fire_in_first_party_code(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let validator = ErrorHandlingValidator::new()?;
-        let source = "fn a() { panic!(\"x\"); }\n\
-                       fn b() { todo!(); }\n\
-                       fn c() { unimplemented!(); }\n\
-                       fn d(x: i32) -> i32 { dbg!(x) }\n";
+        let source = concat!(
+            "fn a() { panic!(\"x\"); }\n",
+            "fn b() { todo!(); }\n",
+            "fn c() { unimplemented!(); }\n",
+            "fn d(x: i32) -> i32 { dbg!(x) }\n"
+        );
         let file: enforcer_domain::paths::RelPath =
             crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {

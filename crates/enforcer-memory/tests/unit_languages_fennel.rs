@@ -72,7 +72,7 @@ fn anonymous_hashfn_form_still_finds_nested_call() {
     let src = r#"(each [x (pairs t)] (#(helper x)))"#;
     let parsed = parse_fennel(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
 }
 
 #[test]
@@ -80,8 +80,8 @@ fn extracts_calls_inside_each_form() {
     let src = r#"(each [k v (pairs t)] (print k v))"#;
     let parsed = parse_fennel(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"pairs"), "{callees:?}");
-    assert!(callees.contains(&"print"), "{callees:?}");
+    assert!(callees.contains(&"pairs"));
+    assert!(callees.contains(&"print"));
 }
 
 #[test]

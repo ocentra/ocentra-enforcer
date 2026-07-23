@@ -1,18 +1,19 @@
-//! `MCM-ROLLBACK.1` (T2) — the rollback/compensation mechanics facet
-//! (h06, §8.10 of the ingested money-critical/security-testing spec).
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `MCM-ROLLBACK.1` (T2) â€” the rollback/compensation mechanics facet
+//! (h06, Â§8.10 of the ingested money-critical/security-testing spec).
 //!
-//! Doctrine (§8.10): a rollback/compensation path MUST be idempotent,
+//! Doctrine (Â§8.10): a rollback/compensation path MUST be idempotent,
 //! replay-safe, atomic, and exactly-once. A rollback that re-applies its
 //! reversal on every retry (no idempotency key, no "already rolled back"
 //! guard) can double-refund, double-release, or otherwise duplicate the
-//! compensating effect — the exact double-spend shape rollback exists to
+//! compensating effect â€” the exact double-spend shape rollback exists to
 //! prevent, turned back on itself. An untested rollback is forbidden,
 //! same as an untested kill switch.
 //!
 //! This is a T2 SCORED heuristic (mirrors [`super::economic`]'s
-//! scored-shape) — score + confidence are carried in the finding detail.
+//! scored-shape) â€” score + confidence are carried in the finding detail.
 //!
-//! GENERIC across any value system — never a crypto-only rollback
+//! GENERIC across any value system â€” never a crypto-only rollback
 //! notion.
 //!
 //! Scoped by h01's money-critical classifier (consumed read-only).
@@ -25,11 +26,11 @@
 //!
 //! - Non-idempotent: no idempotency-key check / "already rolled back"
 //!   guard (`idempotencyKey`/`alreadyRolledBack`/`isCompensated`) found
-//!   in the same source — scores toward the finding.
+//!   in the same source â€” scores toward the finding.
 //! - Non-atomic: no transactional wrapper (`withLock(`/`transaction(`/
-//!   `atomic(`) found — scores toward the finding.
+//!   `atomic(`) found â€” scores toward the finding.
 //! - Untested: no co-located test marker
-//!   (`// rollback-tested: <test-name>`) — scores toward the finding,
+//!   (`// rollback-tested: <test-name>`) â€” scores toward the finding,
 //!   independent of the mechanical properties (mirrors the kill-switch
 //!   facet's "untested X is forbidden" rule).
 //! - Crossing the threshold flags the rollback; a fully idempotent,
@@ -76,7 +77,7 @@ fn tested_pattern() -> Result<Regex, DecodeError> {
 /// finding.
 const ROLLBACK_THRESHOLD: i32 = 40;
 
-/// `MCM-ROLLBACK.1` — T2 scored rollback/compensation mechanics gate.
+/// `MCM-ROLLBACK.1` â€” T2 scored rollback/compensation mechanics gate.
 ///
 /// Scores a rollback/compensation declaration against missing
 /// idempotency guard, missing atomic wrapper, and missing test marker.
@@ -155,7 +156,7 @@ impl Validator for RollbackValidator {
             "rollback/compensation is not idempotent/atomic/tested (T2 scored)",
             format!(
                 "rollback is missing: {} (score {score}, threshold {ROLLBACK_THRESHOLD}, \
-                 confidence: {confidence}). Doctrine (§8.10): a rollback/compensation path MUST \
+                 confidence: {confidence}). Doctrine (Â§8.10): a rollback/compensation path MUST \
                  be idempotent, replay-safe, atomic, and exactly-once; an untested rollback is \
                  forbidden. Fix: add the missing property/properties above.",
                 missing.join(", ")

@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Process-input boundary for the canonical run context.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -92,16 +93,23 @@ mod tests {
     }
 
     #[test]
-    fn resolve_rejects_unknown_values() {
-        let flag_error =
-            resolve(Some("silent"), None).expect_err("invalid flags should not be accepted");
+    fn resolve_rejects_unknown_values() -> std::result::Result<(), String> {
+        let flag_result = resolve(Some("silent"), None);
+        let flag_error = match flag_result {
+            Ok(_) => return Err("invalid flags should not be accepted".to_owned()),
+            Err(error) => error,
+        };
         assert_eq!(flag_error.path, "runContext");
         assert_eq!(flag_error.input_hint.as_deref(), Some("silent"));
 
-        let env_error = resolve(None, Some("humanreview"))
-            .expect_err("invalid environment values should not be accepted");
+        let env_result = resolve(None, Some("humanreview"));
+        let env_error = match env_result {
+            Ok(_) => return Err("invalid environment values should not be accepted".to_owned()),
+            Err(error) => error,
+        };
         assert_eq!(env_error.path, "runContext");
         assert_eq!(env_error.input_hint.as_deref(), Some("humanreview"));
+        Ok(())
     }
 
     #[test]

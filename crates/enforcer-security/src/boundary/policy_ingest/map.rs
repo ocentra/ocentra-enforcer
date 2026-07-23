@@ -1,6 +1,8 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Map a parsed [`super::PolicySpec`] against the [`super::BackedRuleCatalog`]
 //! to produce a [`super::MechanizedProfile`] plus unbacked-rule
-//! [`Finding`]s (h08, POLICY-SPEC-INGESTION — the honesty-seam stage).
+//! [`Finding`]s (h08, POLICY-SPEC-INGESTION â€” the honesty-seam stage).
 //!
 //! This is the point of the whole module: a rule the spec ASSERTS but that
 //! has no real [`enforcer_validator::validator::Validator`] behind it must
@@ -10,7 +12,7 @@
 //! appear in the profile (so the UI/d01 pipeline can see what was asserted)
 //! but carry `backed: false`, and this function additionally emits one
 //! structured [`Finding`] per unbacked rule, flagging it for mechanization
-//! — never a silent accept-as-enforced.
+//! â€” never a silent accept-as-enforced.
 
 use enforcer_domain::config_types::ConfigProfileName;
 use enforcer_domain::findings::Finding;
@@ -23,7 +25,7 @@ use super::spec::{MechanizedProfile, PolicySpec, ProfileRuleRow};
 /// Map `spec` (already parsed) against `catalog` (the backed-rule
 /// snapshot) into a neutral [`MechanizedProfile`] named `profile_name`,
 /// plus a `Finding` for every rule the spec asserts that `catalog` does
-/// not back — the un-mechanized subset, fed to d01/d08 for scaffolding
+/// not back â€” the un-mechanized subset, fed to d01/d08 for scaffolding
 /// rather than silently enabled.
 ///
 /// `file` is the `RelPath` the emitted findings point at (the ingested
@@ -56,7 +58,7 @@ pub fn map_to_profile(
             format!(
                 "the ingested policy spec asserts rule `{}` at tier {:?}, but no mechanized \
                  `Validator` backs that rule id yet. Per the ingestion honesty seam, an \
-                 asserted-but-unbacked rule is NEVER silently treated as enforced — it is \
+                 asserted-but-unbacked rule is NEVER silently treated as enforced â€” it is \
                  flagged here for mechanization (feed to d01's rule-scaffold engine / d08) so a \
                  real `Validator` can be built for it. Fix: scaffold the rule via `enforcer rule \
                  new {}` (d01) and register it in the crate's Validator seam, or remove the \

@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Decoding boundary for raw values entering Plan domain logic.
 
 use enforcer_domain::paths::RelPath;
@@ -63,6 +64,22 @@ pub(crate) fn rel_path(value: String) -> RelPath {
 
 pub(crate) fn budget_bytes(value: usize) -> PlanBudgetBytes {
     PlanBudgetBytes::try_new(value).unwrap_or(PlanBudgetBytes::DEFAULT)
+}
+
+pub(crate) fn finding_title(value: String) -> enforcer_domain::findings::FindingTitle {
+    decode_with_fallback(
+        value,
+        "invalid Plan finding title",
+        enforcer_domain::findings::FindingTitle::new,
+    )
+}
+
+pub(crate) fn finding_detail(value: String) -> enforcer_domain::findings::FindingDetail {
+    decode_with_fallback(
+        value,
+        "invalid Plan finding detail",
+        enforcer_domain::findings::FindingDetail::new,
+    )
 }
 
 fn decode_with_fallback<T>(

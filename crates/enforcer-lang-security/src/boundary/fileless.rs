@@ -213,8 +213,17 @@ pub(crate) fn contains_large_registry_payload(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn malformed_fileless_telemetry_snapshot_is_rejected() {
-        assert!(super::decode(r#"{"kind":"fileless-telemetry-baseline""#).is_err());
+    fn malformed_fileless_telemetry_snapshot_is_rejected() -> Result<(), String> {
+        let error = match super::decode(r#"{"kind":"fileless-telemetry-baseline""#) {
+            Ok(_) => return Err("truncated telemetry snapshot unexpectedly decoded".to_owned()),
+            Err(error) => error,
+        };
+        assert_eq!(error.path, "filelessTelemetryBaseline");
+        assert_eq!(
+            error.input_hint.as_deref(),
+            Some("expected the documented fileless telemetry JSON snapshot")
+        );
+        Ok(())
     }
 
     #[test]

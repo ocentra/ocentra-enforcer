@@ -74,7 +74,7 @@ type Widget(name: string) =
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Animal")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Animal")));
 }
 
 #[test]
@@ -168,7 +168,7 @@ open System.Text
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"System.Text"), "{paths:?}");
+    assert!(paths.contains(&"System.Text"));
 }
 
 #[test]

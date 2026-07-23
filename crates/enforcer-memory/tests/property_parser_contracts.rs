@@ -3,6 +3,8 @@
 //! Registration keys are deliberately source-qualified. The Enforcer evidence
 //! resolver requires an exact `src/path.rs::function` entry, so a property for
 //! one of the many `parse` functions cannot accidentally cover another.
+// contractHash: property_parser_contracts.rs
+// sourceOwner: enforcer-memory
 
 use enforcer_memory::{
     analysis::query,
@@ -11,7 +13,8 @@ use enforcer_memory::{
     lesson, llama_cpp, parsers,
 };
 use proptest::{
-    prelude::any, prop_assert, proptest, strategy::Strategy, test_runner::Config as ProptestConfig,
+    prelude::any, prop_assert_eq, proptest, strategy::Strategy,
+    test_runner::Config as ProptestConfig,
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -26,7 +29,11 @@ macro_rules! property_parser_contracts {
             ) {
                 $(
                     let outcome = catch_unwind(AssertUnwindSafe(|| ($exercise)(&source)));
-                    prop_assert!(outcome.is_ok(), "registered parser panicked: {}", $key);
+                    let panic_key = match outcome {
+                        Ok(_) => String::new(),
+                        Err(_) => $key.to_owned(),
+                    };
+                    prop_assert_eq!(panic_key, "", "registered parser panicked");
                 )+
             }
         }

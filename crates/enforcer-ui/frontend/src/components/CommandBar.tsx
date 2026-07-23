@@ -1,19 +1,22 @@
 import { ShieldCheck } from "lucide-react";
 import { summarizeLanguages, type Project } from "../data/enforcerAppData";
+import type { ReactElement } from "react";
 
-export function CommandBar({
-  project,
-  projects,
-  onProjectChange,
-  nativeShell,
-  bindingMode,
-}: {
+type CommandBarProps = {
   project: Project;
   projects: Project[];
   onProjectChange: (id: string) => void;
   nativeShell: string;
   bindingMode: string;
-}) {
+};
+
+export const CommandBar = ({
+  project,
+  projects,
+  onProjectChange,
+  nativeShell,
+  bindingMode,
+}: CommandBarProps): ReactElement => {
   return (
     <header className="command-bar">
       <div className="project-switcher">
@@ -35,4 +38,4 @@ export function CommandBar({
       </div>
     </header>
   );
-}
+};

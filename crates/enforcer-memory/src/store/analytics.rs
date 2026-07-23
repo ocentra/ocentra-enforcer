@@ -1,6 +1,6 @@
 //! Analytics read model.
 //!
-//! # The DuckDB decision (recorded honestly, per owner intent: never fake
+//! # The DuckDB decision (recorded honestly, per owner intent: never synthetic
 //! green)
 //!
 //! The subpack's hard requirement is "DuckDB analytics read model", with
@@ -38,9 +38,9 @@
 //!   NOT exercised by this lane's gate â€” wiring an actual
 //!   `DuckDbAnalytics: AnalyticsReadModel` impl is an explicit deferred
 //!   follow-up (tracked in the final report), so this module does not
-//!   claim a capability it has not proven. This is the fake-green
+//!   claim a capability it has not proven. This is the simulation-green
 //!   distinction the owner-intent doc draws: a `#[cfg(feature =
-//!   "duckdb-analytics")]` stub that is never compiled by the gate would
+//!   "duckdb-analytics")]` partial impl that is never compiled by the gate would
 //!   be worse than not mentioning DuckDB at all, so none is added here.
 
 use crate::boundary::log_schema::ObservationLogEntryDto;
@@ -53,7 +53,7 @@ use enforcer_domain::memory_types::{
 /// One aggregate analytics answer: counts of clean vs. non-clean
 /// observations, grouped by `repo_context`. Intentionally the simplest
 /// aggregate that still proves the read model is real (group-by +
-/// count), not a placeholder that returns a constant.
+/// count), not a fallback that returns a constant.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RepoContextCounts {
     pub repo_context: MemoryAnalyticsRepoContext,

@@ -209,7 +209,7 @@ where
 ///    expiry, so a hung index run cannot hang the supervisor either.
 /// 4. Map a nonzero child exit code / a timeout / a malformed result
 ///    payload to a typed failure the caller can distinguish from "index
-///    ran and found a real error" (same "never silent, never fake data"
+///    ran and found a real error" (same "never silent, never synthetic data"
 ///    posture as the rest of this crate).
 ///
 /// None of steps 1-4 are implemented in this crate -- this doc comment

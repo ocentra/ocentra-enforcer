@@ -15,9 +15,17 @@ import {
   Settings2,
   Wrench,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 export type WorkspaceKey = "overview" | "setup" | "findings" | "projects" | "engine" | "analysis" | "runs" | "rules" | "doctrine" | "settings" | "assurance" | "hub" | "proofs" | "memory";
+
+type AppShellProps = {
+  active: WorkspaceKey;
+  onNavigate: (key: WorkspaceKey) => void;
+  nativeShell: string;
+  bindingMode: string;
+  children: ReactNode;
+};
 
 const projectNavItems: Array<{ key: WorkspaceKey; label: string; icon: ReactNode }> = [
   { key: "projects", label: "Projects", icon: <Boxes size={18} /> },
@@ -39,19 +47,13 @@ const hubNavItems: Array<{ key: WorkspaceKey; label: string; icon: ReactNode }> 
   { key: "hub", label: "Lane Hub", icon: <GitBranch size={18} /> },
 ];
 
-export function AppShell({
+export const AppShell = ({
   active,
   onNavigate,
   nativeShell,
   bindingMode,
   children,
-}: {
-  active: WorkspaceKey;
-  onNavigate: (key: WorkspaceKey) => void;
-  nativeShell: string;
-  bindingMode: string;
-  children: ReactNode;
-}) {
+}: AppShellProps): ReactElement => {
   const activeMode = active === "hub" ? "hub" : "project";
 
   return (
@@ -115,4 +117,4 @@ export function AppShell({
       <section className="workspace">{children}</section>
     </div>
   );
-}
+};

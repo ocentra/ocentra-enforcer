@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use std::collections::HashSet;
 use std::fs;
 use std::io;
@@ -39,7 +41,7 @@ pub(crate) fn build_scan_jobs(
             LiteralFindingPath::try_new(normalize_path(path.strip_prefix(root).unwrap_or(&path)))
                 .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         jobs.push(FileJob {
-            role: classify_file_role(rel.as_str(), language),
+            role: classify_file_role(&rel, language),
             path,
             rel,
             language,

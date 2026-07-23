@@ -13,7 +13,7 @@
 //!
 //! TabAgentServer `Rust/weaver` (tokio MPSC + worker pool, 4 module
 //! shape: semantic indexer, entity linker, associative linker,
-//! summarizer stub) per `refs/x06-source-scout-digests.md` Â§2 and
+//! summarizer fallback implementation) per `refs/x06-source-scout-digests.md` Ã‚Â§2 and
 //! `MEMORY_RETRIEVAL_DECISIONS.md` D-09 (LOCKED). Every mechanism below
 //! that the digest calls out as absent from the source (dead-letter
 //! queue, bounded backoff retry, hot/warm/cold priority, blue/green
@@ -22,7 +22,7 @@
 //!
 //! # Blue/green embedding migration (Rag-Guide, D-09)
 //!
-//! "Never mix vector versions" (digest Â§4). [`EmbeddingGeneration`]
+//! "Never mix vector versions" (digest Ã‚Â§4). [`EmbeddingGeneration`]
 //! models the migration as two ordinally-comparable generations: the
 //! active one every new [`crate::enrichment::EmbeddingTask`] is
 //! stamped with, and an optional next one being built in the
@@ -50,7 +50,7 @@ use std::sync::{Arc, Mutex};
 /// means every task is stamped with `active`; `Migrating` means a
 /// green generation is being built alongside blue -- callers building
 /// the green index must use `next`, never mix it with `active`'s
-/// vectors (Rag-Guide, digest Â§4).
+/// vectors (Rag-Guide, digest Ã‚Â§4).
 /// Error attempting an invalid migration transition (e.g. completing a
 /// migration that was never started, or starting one that is already
 /// in flight).
@@ -301,7 +301,7 @@ impl Weaver {
     /// [`Weaver::complete_embedding_migration`] cuts over -- this call
     /// only records that a green generation is being built, matching
     /// Rag-Guide's "build parallel, shadow, compare, cut over" sequence
-    /// (digest Â§4); it does not itself re-embed anything (X06.4's
+    /// (digest Ã‚Â§4); it does not itself re-embed anything (X06.4's
     /// concern once wired).
     pub fn begin_embedding_migration(
         &self,

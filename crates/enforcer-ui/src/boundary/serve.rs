@@ -411,7 +411,16 @@ mod tests {
     #[test]
     fn serve_surface_contract_remote_with_empty_token_is_still_rejected(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        assert!(BindOptions::try_new("0.0.0.0".to_owned(), 0, Some(String::new()),).is_err());
+        let empty_token_result = BindOptions::try_new("0.0.0.0".to_owned(), 0, Some(String::new()));
+        assert!(
+            empty_token_result.is_err(),
+            "empty token must fail at the boundary"
+        );
+        if let Err(empty_token_error) = empty_token_result {
+            assert_eq!(empty_token_error.path, "uiAuthToken");
+            assert_eq!(empty_token_error.reason, "must not be empty");
+        }
+
         let request = options("0.0.0.0", None)?;
         assert_eq!(
             resolve_bind(&request),

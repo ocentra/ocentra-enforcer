@@ -90,7 +90,7 @@ class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
 }
 
 #[test]
@@ -115,7 +115,7 @@ class Widget extends Base implements Drawable {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Base")));
 
     let implements: Vec<(&str, &str)> = parsed
         .implements
@@ -138,7 +138,7 @@ def f() {
 "#;
     let parsed = parse_groovy(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     let method_call = parsed
         .calls
         .iter()
@@ -200,8 +200,8 @@ import com.example.other.Bar
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"com.example.other.Foo"), "{paths:?}");
-    assert!(paths.contains(&"com.example.other.Bar"), "{paths:?}");
+    assert!(paths.contains(&"com.example.other.Foo"));
+    assert!(paths.contains(&"com.example.other.Bar"));
 }
 
 #[test]

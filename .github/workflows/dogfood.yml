@@ -2,6 +2,10 @@ name: Dogfood
 
 on:
   workflow_call:
+  pull_request:
+    branches: [main, rust-build]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -10,13 +14,20 @@ permissions:
 jobs:
   dogfood:
     name: Frozen and native dogfood
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Verify workflow contract before self-enforcement
         run: node scripts/ci/verify-workflow-contract.mjs
       - name: Checkout pinned frozen safety scanner
+        shell: bash
         env:
           FROZEN_SAFETY_SCANNER_COMMIT: c078c5ceb7318caa295ca26a9496354c238a3b8f
           FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner
@@ -27,15 +38,22 @@ jobs:
           git -C "$FROZEN_SCANNER_DIR" checkout --detach FETCH_HEAD
           test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"
           npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"
-      - name: Frozen MJS full workspace gate
+      - name: Frozen Enforcer full workspace gate
         env:
           FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner
-        run: node "$FROZEN_SCANNER_DIR/scripts/rust-rules.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace
+        run: |
+          node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace
+          node "$FROZEN_SCANNER_DIR/scripts/ocentra-enforcer.mjs" verify ci --root "$GITHUB_WORKSPACE" --profile strict
+      - name: Run enforcer local parity gate
+        run: npm run ci:local
       - name: Build native dogfood harness
+        shell: bash
         run: cargo build --locked -p xtask
       - name: Native dogfood scan
+        shell: bash
         run: cargo run --locked -p xtask -- dogfood --no-toolchain
       - name: Terminal proof-journal gate
+        shell: bash
         run: cargo run --locked -p xtask -- dogfood-gate --no-toolchain
       - name: Upload dogfood manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

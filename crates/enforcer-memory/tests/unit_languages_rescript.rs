@@ -83,8 +83,8 @@ fn extracts_open_and_include_statements_as_imports() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Belt"), "{paths:?}");
-    assert!(paths.contains(&"MyModule"), "{paths:?}");
+    assert!(paths.contains(&"Belt"));
+    assert!(paths.contains(&"MyModule"));
 }
 
 #[test]
@@ -92,8 +92,8 @@ fn extracts_call_edges_including_qualified_module_path_callee() -> TestResult {
     let src = "let helper = (x) => {\n  Js.log(\"hi\")\n  x\n}\n\nlet result = helper(1)\n";
     let parsed = parse_rescript(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"Js.log"), "{callees:?}");
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"Js.log"));
+    assert!(callees.contains(&"helper"));
     let call = parsed
         .calls
         .iter()
@@ -166,8 +166,8 @@ fn real_fixture_file_parses_and_extracts_expected_symbols() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Belt"), "{paths:?}");
-    assert!(paths.contains(&"MyModule"), "{paths:?}");
+    assert!(paths.contains(&"Belt"));
+    assert!(paths.contains(&"MyModule"));
     assert!(
         parsed
             .decorates

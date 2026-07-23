@@ -73,7 +73,7 @@ fn include_directive_records_the_included_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"widget_defs.h"), "{paths:?}");
+    assert!(paths.contains(&"widget_defs.h"));
 }
 
 #[test]

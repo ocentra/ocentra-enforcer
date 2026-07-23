@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 pub(crate) fn looks_like_event(text: &str) -> bool {
     let parts: Vec<_> = text.split('.').collect();
     parts.len() >= 2

@@ -4,6 +4,7 @@ import {
   defaultExportPattern,
   exportedArrowNoReturnPattern,
   exportedFunctionNoReturnPattern,
+  isExportedFunctionMissingReturnType,
   exportedObjectLiteralPattern,
   manualBrandPattern,
   nakedDomainAliasPattern,
@@ -50,17 +51,25 @@ function scanRuleSet(root, filePath, rel, lines, rules) {
     for (const rule of rules) {
       if (rule.skipWhen && rule.skipWhen(rel)) continue;
       const patterns = rule.patterns ?? [rule.pattern];
-      const matched = patterns.some((pattern) =>
-        rule.ruleId === "TS-1.2" && pattern.source.includes("zod")
-          ? pattern.test(line)
-          : pattern.test(masked),
-      );
+      const matched = isLineMatchingRule(line, masked, rule, patterns);
       if (matched) {
         addViolation(violations, root, filePath, 1, rule.ruleId, rule.label, line);
       }
     }
   }
   return violations;
+}
+
+function isLineMatchingRule(line, masked, rule, patterns) {
+  return patterns.some((pattern) => {
+    if (pattern === exportedFunctionNoReturnPattern && rule.ruleId === "TS-6.37") {
+      return isExportedFunctionMissingReturnType(line);
+    }
+    if (rule.ruleId === "TS-1.2" && pattern.source.includes("zod")) {
+      return pattern.test(line);
+    }
+    return pattern.test(masked);
+  });
 }
 
 /** Scans TypeScript source-only rules for one source file. */

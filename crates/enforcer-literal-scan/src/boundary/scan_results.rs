@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use enforcer_domain::scan_types::{LiteralLanguageId, LiteralScanCount, LiteralStableHash};
@@ -76,7 +78,7 @@ fn classify_result_candidates(
             file: &result.file,
             language: &result.language,
             role: result.role,
-            repeated_files,
+            repeated_files: LiteralScanCount::from_count(repeated_files),
             fail_above: opts.fail_above,
         });
         if should_skip_low_import_finding(&finding, opts.include_low.is_enabled()) {

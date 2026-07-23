@@ -14,7 +14,7 @@
 //!
 //! # Flavor isolation (never bleed)
 //!
-//! [`plan`] takes exactly one [`HookFlavor`] and returns a plan containing
+//! [`build_writes`] takes exactly one [`HookFlavor`] and returns the selected writes containing
 //! ONLY that flavor's single target file — there is no code path in this
 //! module that can touch a different flavor's file as a side effect of
 //! selecting one. This is the workpack's explicit acceptance bar: choosing
@@ -31,7 +31,7 @@
 //!
 //! # `--dry-run` / force semantics
 //!
-//! Same contract as [`crate::emitters::consumer_ci`]: [`plan`] never
+//! Same contract as [`crate::emitters::consumer_ci`]: [`build_writes`] never
 //! touches disk; [`apply`] is the only writer, and skips an existing
 //! target unless `force` is set.
 
@@ -307,7 +307,10 @@ pub struct PlannedWrite {
 /// Compute the planned write for `flavor` under `root`. Pure: never
 /// touches disk, and returns exactly one entry — the selected flavor's
 /// file, never any other flavor's.
-pub fn plan(root: &InstallRootPath, flavor: HookFlavor) -> InstallResult<Vec<PlannedWrite>> {
+pub fn build_writes(
+    root: &InstallRootPath,
+    flavor: HookFlavor,
+) -> InstallResult<Vec<PlannedWrite>> {
     Ok(vec![PlannedWrite {
         path: target_path(root, flavor)?,
         // ALLOC-JUSTIFICATION: ownership is required to construct the typed report or diagnostic value that crosses this boundary.
@@ -326,7 +329,7 @@ pub struct AppliedWrite {
     pub outcome: FileWriteOutcome,
 }
 
-/// Execute [`plan`]'s single-flavor output against `root`'s real
+/// Execute [`build_writes`]'s single-flavor output against `root`'s real
 /// filesystem. Never called for `--dry-run`. Skip-existing-unless-`force`
 /// semantics match [`crate::emitters::consumer_ci::apply`].
 ///
@@ -345,7 +348,7 @@ pub fn apply(
             set_worktree_hooks_path(&worktree)?;
         }
     }
-    let planned = plan(root, flavor)?;
+    let planned = build_writes(root, flavor)?;
     let mut applied = Vec::with_capacity(planned.len());
     for write in planned {
         if let Some(parent) = write.path.as_path().parent() {
@@ -390,7 +393,7 @@ pub fn apply(
 /// currently have that flavor's target file, with bytes matching the
 /// bundled template. Feeds the shared [`crate::doctor`] aggregation the
 /// same way a [`crate::core::HarnessAdapter::verify`] check does —
-/// re-reads disk at call time, never trusts a previous [`plan`]/[`apply`]
+/// re-reads disk at call time, never trusts a previous [`build_writes`]/[`apply`]
 /// outcome.
 pub fn verify(
     root: &InstallRootPath,
@@ -401,7 +404,7 @@ pub fn verify(
     } else {
         None
     };
-    plan(root, flavor)?
+    build_writes(root, flavor)?
         .into_iter()
         .map(|write| -> InstallResult<InstallVerifyCheck> {
             let on_disk = match std::fs::read_to_string(write.path.as_path()) {
@@ -461,25 +464,26 @@ pub fn verify(
         .collect()
 }
 
-#[cfg(unix)]
 fn mark_executable_if_applicable(path: &Path, flavor: HookFlavor) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    if is_executable_script(flavor) {
-        let mut perms = std::fs::metadata(path)?.permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(path, perms)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if is_executable_script(flavor) {
+            let mut perms = std::fs::metadata(path)?.permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(path, perms)?;
+        }
     }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn mark_executable_if_applicable(_path: &Path, _flavor: HookFlavor) -> std::io::Result<()> {
+    #[cfg(not(unix))]
+    {
+        let _ = (path, flavor);
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{apply, plan, verify, HookFlavor};
+    use super::{apply, build_writes, verify, HookFlavor};
     use enforcer_domain::install_types::{InstallRootPath, OverwriteMode};
     use std::path::PathBuf;
 
@@ -570,7 +574,7 @@ mod tests {
     fn dry_run_returns_the_single_planned_write_with_zero_files_created(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
-        let planned = plan(&root(dir.path())?, HookFlavor::Lefthook)?;
+        let planned = build_writes(&root(dir.path())?, HookFlavor::Lefthook)?;
         assert_eq!(planned.len(), 1);
         assert!(!dir.path().join("lefthook.yml").exists());
         Ok(())

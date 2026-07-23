@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use crate::lexer_python_prefix::{prefix_has_f, python_string_prefix_len};
 use crate::lexer_shared::{advance_position, candidate, line_at, read_quoted, LexerCursor};
 use crate::LiteralKind;

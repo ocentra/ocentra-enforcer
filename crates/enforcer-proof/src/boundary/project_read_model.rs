@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Project-facing proof filesystem read boundary.
 //!
 //! The proof harness owns the on-disk layout for current Rust proof runs so

@@ -1,3 +1,4 @@
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Serialized model-cache manifest DTOs.
 //!
 //! BOUNDARY-INVARIANT: these DTOs model the persisted cache wire contract;

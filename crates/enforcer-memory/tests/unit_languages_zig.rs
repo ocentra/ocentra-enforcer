@@ -108,8 +108,8 @@ const Widget = struct {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "name")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "age")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "name")));
+    assert!(defines.contains(&("Widget", "age")));
 }
 
 #[test]
@@ -136,7 +136,7 @@ pub fn main() void {
 "#;
     let parsed = parse_zig(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     Ok(())
 }
 
@@ -168,7 +168,7 @@ const std = @import("std");
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"std"), "{paths:?}");
+    assert!(paths.contains(&"std"));
 }
 
 #[test]
@@ -178,7 +178,7 @@ const std = @import("std");
 "#;
     let parsed = parse_zig(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"@import"), "{callees:?}");
+    assert!(callees.contains(&"@import"));
 }
 
 #[test]
@@ -190,7 +190,7 @@ pub fn main() void {
 "#;
     let parsed = parse_zig(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"@compileLog"), "{callees:?}");
+    assert!(callees.contains(&"@compileLog"));
     assert!(parsed.imports.is_empty(), "{:?}", parsed.imports);
 }
 

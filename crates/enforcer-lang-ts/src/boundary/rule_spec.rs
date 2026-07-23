@@ -26,6 +26,7 @@ pub(crate) enum TriggerKind {
     Word,
     Literal,
     NonNullAssertion,
+    ExportedFunctionReturnType,
 }
 
 #[derive(Debug, Clone, Copy)]

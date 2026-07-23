@@ -2,18 +2,13 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { chromium } from "playwright";
 
 const repoRoot = process.cwd();
 const frontendRoot = path.join(repoRoot, "crates/enforcer-ui/frontend");
 const distRoot = path.join(frontendRoot, "dist");
 const proofPath = path.join(repoRoot, "proof/ui/g09-memory-explorer.json");
-const { chromium } = await import(pathToFileUrl(path.join(frontendRoot, "node_modules/playwright/index.mjs")));
-
 const selectedRoot = path.join(frontendRoot, "src-tauri/tests/fixtures/desktop/cargo-workspace");
-
-function pathToFileUrl(file) {
-  return `file:///${file.replace(/\\/g, "/").replace(/^([A-Za-z]):/, "$1:")}`;
-}
 
 function responseFor(command, args) {
   switch (command) {
@@ -28,7 +23,7 @@ function responseFor(command, args) {
     case "load_project_rule_coverage":
       return { detectedLanguages: ["Rust"], catalogLanguages: ["Rust"], observedWithoutCatalog: [], settingsStatus: "fixture", rules: [] };
     case "load_cached_scan":
-      return null;
+      break;
     case "load_desktop_scan_history":
       return [];
     case "memory_index_status":

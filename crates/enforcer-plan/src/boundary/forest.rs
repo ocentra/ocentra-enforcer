@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Raw AGENTS forest template and markdown parsing boundary.
 //!
 //! NEGATIVE-TEST: unresolved template tokens are rejected with a typed error.

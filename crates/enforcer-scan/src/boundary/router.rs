@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Route-plan and native-tool transport DTOs.
 
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};

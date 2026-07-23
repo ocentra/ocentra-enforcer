@@ -62,8 +62,9 @@ impl fmt::Display for CapsuleDocKind {
         match self {
             Self::WorkpackStub => formatter
                 .write_str("assigned workpack; read only when selected by hub or WORKPACK_INDEX."),
-            Self::Index => formatter
-                .write_str("index document; read at the start of any work in this plan."),
+            Self::Index => {
+                formatter.write_str("index document; read at the start of any work in this plan.")
+            }
         }
     }
 }
@@ -85,9 +86,7 @@ impl fmt::Display for CapsuleDocReadWhen {
             Self::ExecutionBlueprint => {
                 formatter.write_str("Before assigning or claiming any workpack.")
             }
-            Self::TestProofExpectations => {
-                formatter.write_str("Before marking any workpack DONE.")
-            }
+            Self::TestProofExpectations => formatter.write_str("Before marking any workpack DONE."),
             Self::WorkpackIndex => formatter.write_str("At the start of any work in this plan."),
             Self::ResumeState => {
                 formatter.write_str("First, on any resume after a token-out/crash/restart.")
@@ -149,9 +148,7 @@ pub(crate) fn empty_scope_facts() -> ScopeFacts {
     ScopeFacts {
         // ALLOC-JUSTIFICATION: plan bootstrap emits a non-empty default
         // state so the generated document is deterministic.
-        where_we_are: current_state(
-            "Scope not yet recorded for this plan.".to_owned(),
-        ),
+        where_we_are: current_state("Scope not yet recorded for this plan.".to_owned()),
         requirements: Vec::new(),
     }
 }
@@ -162,7 +159,11 @@ pub(crate) fn emit_plan(
     facts: &ScopeFacts,
     overwrite: PlanOverwriteMode,
 ) -> Result<PlanEmission, PlanError> {
-    let plan_dir = root.as_path().join("docs").join("plans").join(plan.as_str());
+    let plan_dir = root
+        .as_path()
+        .join("docs")
+        .join("plans")
+        .join(plan.as_str());
     if plan_dir.exists() {
         if matches!(overwrite, PlanOverwriteMode::RefuseExisting) {
             return Err(PlanError::PlanAlreadyExists {
@@ -421,9 +422,6 @@ fn documents(plan: &PlanName, facts: &ScopeFacts) -> Vec<DocumentSpec> {
             render_resume_state(plan, facts),
             render_workpack_stub(plan),
         ])
-        .map(|(slot, contents)| DocumentSpec {
-            slot,
-            contents,
-        })
+        .map(|(slot, contents)| DocumentSpec { slot, contents })
         .collect()
 }

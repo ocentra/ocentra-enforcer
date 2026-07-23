@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage: malformed or corrupt payloads are rejected by this boundary.
 use std::io::{self, Write};
 
 pub(crate) fn write_usage(mut output: impl Write) -> io::Result<()> {

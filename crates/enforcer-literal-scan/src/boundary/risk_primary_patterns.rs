@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use crate::risk_heuristics_literals::{
     looks_like_event, looks_like_human_message, looks_like_id_or_key, looks_like_json_blob,
     looks_like_protocol, looks_like_route_or_url, looks_like_shell, looks_like_sql,

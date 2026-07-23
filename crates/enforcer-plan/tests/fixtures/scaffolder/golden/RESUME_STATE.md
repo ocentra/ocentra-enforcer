@@ -4,7 +4,7 @@
 > Agent Capsule
 > Plan: `demo-plan`
 > Doc: `Resume State`
-> Kind: plan index; read at the start of any work in this plan.
+> Kind: index document; read at the start of any work in this plan.
 > Read when: First, on any resume after a token-out/crash/restart.
 <!-- /agent-capsule -->
 

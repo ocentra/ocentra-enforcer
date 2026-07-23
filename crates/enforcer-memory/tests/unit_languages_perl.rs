@@ -166,8 +166,8 @@ fn extracts_use_statement_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"strict"), "{paths:?}");
-    assert!(paths.contains(&"warnings"), "{paths:?}");
+    assert!(paths.contains(&"strict"));
+    assert!(paths.contains(&"warnings"));
 }
 
 #[test]

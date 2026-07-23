@@ -1,9 +1,10 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! The rich proof envelope boundary: git-state capture, the versioned `ProofRunEnvelope`
 //! record, the in-toto attestation shape (G7), the retention policy (G6),
 //! and the redacted manifest-only export (G14).
 //!
 //! Secret redaction here CONSUMES `enforcer_core::redaction::Redactor` (G13)
-//! — this module declares NO local secret-pattern list.
+//! â€” this module declares NO local secret-pattern list.
 //! Invalid attestation serializer shapes are rejected by the negative tests
 //! in this module before an envelope is accepted.
 
@@ -61,9 +62,9 @@ fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     Some(text.trim().to_owned())
 }
 
-/// manual gate — this is a hard gap, not an accepted waiver.
+/// manual gate â€” this is a hard gap, not an accepted waiver.
 /// One captured artifact's manifest metadata (never the raw bytes on the
-/// wire — see [`export_bundle`]).
+/// wire â€” see [`export_bundle`]).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactRecordEnvelope {
@@ -80,7 +81,7 @@ pub struct ArtifactRecordEnvelope {
 /// Default proof-run retention policy.
 ///
 /// **Divergence resolved (G6):** the legacy constant also declared
-/// `pinPrReadyDays`, but `pruneProofRuns` never read it — a pinned run
+/// `pinPrReadyDays`, but `pruneProofRuns` never read it â€” a pinned run
 /// never became prunable purely by age. We WIRE that knob in rather than
 /// silently keep it dead: [`RetentionPolicyEnvelope::prunable`] makes a pinned run
 /// prunable once its age exceeds `pin_pr_ready_days`, so pinning is a
@@ -127,7 +128,7 @@ impl RetentionPolicyEnvelope {
     }
 }
 
-/// One completed (or manual/unavailable) proof run — the versioned envelope
+/// One completed (or manual/unavailable) proof run â€” the versioned envelope
 /// record. `schema_version` + implicit `eventType` (`"proof-run"`) per the
 /// "versioned serde structs" contract; reuses `enforcer_domain::hashes::Sha256`
 /// for artifact digests.
@@ -200,7 +201,7 @@ pub struct AttestationSubjectEnvelope {
 }
 
 /// The subject digest map. Deliberately ONLY `git_commit` (wire:
-/// `gitCommit`) — see the [`AttestationEnvelope`] doc comment.
+/// `gitCommit`) â€” see the [`AttestationEnvelope`] doc comment.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttestationDigestEnvelope {
@@ -250,7 +251,7 @@ pub fn attestation_for(run: &ProofRunEnvelope) -> AttestationEnvelope {
     }
 }
 
-/// [G14] Manifest-only run row for the redacted export bundle — no artifact
+/// [G14] Manifest-only run row for the redacted export bundle â€” no artifact
 /// bytes, ever.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -286,7 +287,7 @@ impl From<ProofRunEnvelope> for ProofId {
 
 /// [G13/G14] Build the redacted export bundle for `runs`, running the whole
 /// bundle through `enforcer_core`'s two-layer [`Redactor`] before returning
-/// it. Manifest metadata only — callers must never add artifact bytes to
+/// it. Manifest metadata only â€” callers must never add artifact bytes to
 /// `runs`.
 pub fn export_bundle(
     redactor: &Redactor,

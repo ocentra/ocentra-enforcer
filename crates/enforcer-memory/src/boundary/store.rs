@@ -1,3 +1,4 @@
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Serialized store marker DTOs.
 //!
 //! BOUNDARY-INVARIANT: persisted marker text is contained in these DTOs and

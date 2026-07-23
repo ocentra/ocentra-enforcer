@@ -23,7 +23,7 @@ fn extracts_plain_command_call() {
     let src = r#"project('widget', 'c')"#;
     let parsed = parse_meson(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"project"), "{callees:?}");
+    assert!(callees.contains(&"project"));
 }
 
 #[test]
@@ -48,8 +48,8 @@ endif
 "#;
     let parsed = parse_meson(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"add_project_arguments"), "{callees:?}");
-    assert!(callees.contains(&"get_option"), "{callees:?}");
+    assert!(callees.contains(&"add_project_arguments"));
+    assert!(callees.contains(&"get_option"));
 }
 
 #[test]
@@ -61,7 +61,7 @@ endforeach
 "#;
     let parsed = parse_meson(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"message"), "{callees:?}");
+    assert!(callees.contains(&"message"));
 }
 
 #[test]

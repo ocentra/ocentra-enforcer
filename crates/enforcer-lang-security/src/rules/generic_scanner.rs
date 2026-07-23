@@ -34,7 +34,7 @@ use enforcer_domain::ids::BuiltInSecurityRule;
 
 const ANY_SECRET_PATTERN: &str = r#"(?i)\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']"#;
 const ENV_PLACEHOLDER_ALLOWED_PATTERN: &str =
-    r"(?i)example|placeholder|changeme|replace_me|dummy|fake|test|<[^>]+>|\$\{[^}]+\}";
+    r"(?i)example|placeholder|changeme|replace_me|dummy|counterfeit|test|<[^>]+>|\$\{[^}]+\}";
 const FIXTURE_MARKER_ALLOWED_PATTERN: &str = r"(?i)\bfake\b|\bfixture\b|\bexample\b";
 
 /// Build every one of the 20 `SEC-2.*` specs. Fails closed (propagates the
@@ -170,8 +170,8 @@ pub(crate) fn specs() -> Result<Vec<RuleSpec>, DecodeError> {
         // also carries one of the accepted fixture sentinels.
         RuleSpec::new(
             BuiltInSecurityRule::Sec2Rule14,
-            "Fixture secrets require fake markers",
-            "fixture secret lacks explicit fake marker.",
+            "Fixture secrets require counterfeit markers",
+            "fixture secret lacks explicit counterfeit marker.",
             compile(any_secret)?,
             RuleBehavior::unguarded_content_suppressed(compile(fixture_marker_allowed)?),
         ),

@@ -374,7 +374,12 @@ fn safe_read_query_executes_against_the_fixture_graph() -> TestResult {
     let parsed = query::parse("MATCH (n:Function) WHERE n.name = 'validate' RETURN n")?;
     let rows = query::execute(&parsed, &adjacency, &graph)?;
     assert_eq!(rows.len(), 1);
-    assert!(rows[0]["n"].contains("validate"));
+    let found_node = rows[0]["n"].as_ref();
+    let parsed = found_node
+        .split(':')
+        .next_back()
+        .ok_or("result row must include a symbol name")?;
+    assert_eq!(parsed, "validate");
     Ok(())
 }
 
@@ -398,6 +403,5 @@ fn query_with_relationship_hop_traverses_route_containment() -> TestResult {
 #[test]
 fn malformed_query_is_a_parse_error_not_a_panic() {
     let result = query::parse("MATCH n RETURN");
-    assert!(result.is_err());
     assert!(matches!(result, Err(QueryError::Parse { .. })));
 }

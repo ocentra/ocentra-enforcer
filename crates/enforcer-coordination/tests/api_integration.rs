@@ -60,7 +60,6 @@ fn load_identity_rejects_a_blank_persisted_hub_name() -> Result<(), Box<dyn std:
     )?;
 
     let result = load_identity(dir.path());
-    assert!(result.is_err(), "blank persisted hub must be rejected");
     let error = result.err().ok_or("blank persisted hub must be rejected")?;
     assert_eq!(
         error.to_string(),

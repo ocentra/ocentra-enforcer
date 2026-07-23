@@ -220,10 +220,24 @@ mod tests {
     #[test]
     fn dart_name_brands_reject_invalid_input() {
         for invalid in ["", "widget", "Widget-Card"] {
-            assert!(DartWidgetName::try_new(invalid.to_owned()).is_err());
+            let result = DartWidgetName::try_new(invalid.to_owned());
+            assert!(
+                result.is_err(),
+                "invalid widget spelling must not construct a brand"
+            );
+            if let Err(error) = result {
+                assert_eq!(error.path, "dartWidgetName");
+            }
         }
         for invalid_stem in ["", "OrderCard", "order-card"] {
-            assert!(DartFilenameStem::try_new(invalid_stem.to_owned()).is_err());
+            let result = DartFilenameStem::try_new(invalid_stem.to_owned());
+            assert!(
+                result.is_err(),
+                "invalid filename spelling must not construct a brand"
+            );
+            if let Err(error) = result {
+                assert_eq!(error.path, "dartFilenameStem");
+            }
         }
     }
 }

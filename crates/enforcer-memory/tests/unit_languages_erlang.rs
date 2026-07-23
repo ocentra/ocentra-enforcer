@@ -84,7 +84,7 @@ fn extracts_import_attribute_module_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"lists"), "{paths:?}");
+    assert!(paths.contains(&"lists"));
 }
 
 #[test]

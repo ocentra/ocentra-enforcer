@@ -1,10 +1,11 @@
-//! `MCM-SIGNING.1` (T1) — the backend-signing mechanics facet (h06, §8.6
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `MCM-SIGNING.1` (T1) â€” the backend-signing mechanics facet (h06, Â§8.6
 //! of the ingested money-critical/security-testing spec).
 //!
-//! Doctrine (§8.6): a backend MUST NOT sign or authorize a client-raw,
+//! Doctrine (Â§8.6): a backend MUST NOT sign or authorize a client-raw,
 //! non-reconstructable, or unverified payload. Signing the caller's own
 //! unmodified request body binds the server's trust to whatever the
-//! client chose to send — an attacker can request a signature over any
+//! client chose to send â€” an attacker can request a signature over any
 //! payload shape they like. The only safe pattern is: canonically
 //! serialize a payload the server itself reconstructed from trusted
 //! request context (never the raw client body verbatim), and log a
@@ -13,19 +14,19 @@
 //!
 //! GENERIC across any value system (fiat, Stripe, an internal ledger, or
 //! the optional crypto/Anchor instance, per e-pack-crypto-blockchain,
-//! which composes with this facet read-only) — never a crypto-only
+//! which composes with this facet read-only) â€” never a crypto-only
 //! marker set.
 //!
 //! Scoped by h01's money-critical classifier (consumed read-only via the
 //! money-critical manifest/annotation this crate's [`super::money_critical`]
-//! module maintains) — this module does not itself redefine what counts
+//! module maintains) â€” this module does not itself redefine what counts
 //! as money-critical; it only mechanizes the SIGNING facet's shape over
 //! source text.
 //!
 //! # Detection shape
 //!
 //! A line-scan `Validator` (mirrors [`super::no_bypass`]'s text-level
-//! approach — target-language code, here TS/JS backend sign sites, is
+//! approach â€” target-language code, here TS/JS backend sign sites, is
 //! scanned lexically rather than through a full frontend parse, since the
 //! violation shape is a call-site pattern, not a structural AST property):
 //!
@@ -93,7 +94,7 @@ fn correlation_log_pattern() -> Result<Regex, DecodeError> {
     })
 }
 
-/// `MCM-SIGNING.1` — T1 backend-signing mechanics gate.
+/// `MCM-SIGNING.1` â€” T1 backend-signing mechanics gate.
 ///
 /// Fires when a sign/authorize call site's argument expression reads
 /// straight from the raw client request body (or a `body`/`payload`
@@ -163,8 +164,8 @@ impl Validator for SigningValidator {
                 severity: Severity::Error,
                 title: "backend signs a client-raw or unlogged payload (T1)".to_owned(),
                 detail: format!(
-                    "sign/authorize call {reason}. Doctrine (§8.6): a backend MUST NOT sign a \
-                     client-raw, non-reconstructable, or unverified payload — binding trust to \
+                    "sign/authorize call {reason}. Doctrine (Â§8.6): a backend MUST NOT sign a \
+                     client-raw, non-reconstructable, or unverified payload â€” binding trust to \
                      whatever the client chose to send lets an attacker request a signature over \
                      any payload shape. Fix: canonically serialize a payload the server itself \
                      reconstructed from trusted request context (`canonicalize(...)` / \

@@ -153,7 +153,7 @@ fn extracts_open_module_import_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Printf"), "{paths:?}");
+    assert!(paths.contains(&"Printf"));
 }
 
 #[test]

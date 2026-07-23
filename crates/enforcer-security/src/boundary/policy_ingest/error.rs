@@ -1,7 +1,8 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Typed parse-at-boundary error for [`super::parse`] (h08,
 //! POLICY-SPEC-INGESTION).
 //!
-//! Every malformed-input path returns a variant here — never a silent
+//! Every malformed-input path returns a variant here â€” never a silent
 //! default, never a panic/unwrap. `thiserror` derives `Display`/`Error` so
 //! callers can surface the reason without reaching into private fields.
 
@@ -32,7 +33,7 @@ pub enum PolicyIngestError {
         reason: String,
     },
     /// The spec asserts the same rule id twice with conflicting severities
-    /// — ambiguous input, not silently resolved by "last wins".
+    /// â€” ambiguous input, not silently resolved by "last wins".
     #[error(
         "policy spec `{spec_source}` asserts rule `{rule_id}` twice with conflicting severities \
          (`{first}` vs `{second}`)"

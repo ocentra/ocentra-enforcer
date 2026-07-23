@@ -78,8 +78,8 @@ private:
         .iter()
         .map(|s| (s.name.as_str(), s.kind))
         .collect();
-    assert!(kinds.contains(&("Widget", SymbolKind::Class)), "{kinds:?}");
-    assert!(kinds.contains(&("value", SymbolKind::Method)), "{kinds:?}");
+    assert!(kinds.contains(&("Widget", SymbolKind::Class)));
+    assert!(kinds.contains(&("value", SymbolKind::Method)));
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn extracts_include_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"cuda_runtime.h"), "{paths:?}");
+    assert!(paths.contains(&"cuda_runtime.h"));
 }
 
 #[test]

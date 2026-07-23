@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! The ONE stdio-protocol boundary sink module in this crate.
 //!
 //! Per the workpack: "Confine all stdout/stderr writes to ONE
@@ -169,7 +170,7 @@ fn write_reply(
 /// a02 fingerprint-over-running-artifact computation lands upstream and is
 /// threaded in (see [`crate::gate`]'s seam note). Deliberately
 /// conservative: `fresh()` (not gated) is safe ONLY because this skeleton
-/// pass has no persistent running-server-vs-disk drift yet — a02 replaces
+/// pass has no persistent running-server-vs-disk drift yet â€” a02 replaces
 /// this call site, not this module's shape.
 pub fn default_dispatch_context(cli_path: impl AsRef<std::path::Path>) -> DispatchContext {
     DispatchContext {

@@ -4,7 +4,7 @@
 > Agent Capsule
 > Plan: `demo-plan`
 > Doc: `Workpack Index`
-> Kind: plan index; read at the start of any work in this plan.
+> Kind: index document; read at the start of any work in this plan.
 > Read when: At the start of any work in this plan.
 <!-- /agent-capsule -->
 

@@ -92,7 +92,7 @@ class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
 }
 
 #[test]
@@ -136,9 +136,9 @@ class Widget extends Base with Drawable with Sizeable {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Base")), "{inherits:?}");
-    assert!(inherits.contains(&("Widget", "Drawable")), "{inherits:?}");
-    assert!(inherits.contains(&("Widget", "Sizeable")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Base")));
+    assert!(inherits.contains(&("Widget", "Drawable")));
+    assert!(inherits.contains(&("Widget", "Sizeable")));
 }
 
 #[test]
@@ -151,7 +151,7 @@ def f(): Unit = {
 "#;
     let parsed = parse_scala(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     let method_call = parsed
         .calls
         .iter()
@@ -196,8 +196,8 @@ import com.example.other.Foo
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"scala.collection.mutable"), "{paths:?}");
-    assert!(paths.contains(&"com.example.other.Foo"), "{paths:?}");
+    assert!(paths.contains(&"scala.collection.mutable"));
+    assert!(paths.contains(&"com.example.other.Foo"));
 }
 
 #[test]

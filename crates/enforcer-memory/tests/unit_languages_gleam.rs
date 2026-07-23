@@ -91,7 +91,7 @@ import gleam/io
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"gleam/io"), "{paths:?}");
+    assert!(paths.contains(&"gleam/io"));
 }
 
 #[test]

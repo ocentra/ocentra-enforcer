@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use super::{LanguageFamily, LanguageSpec};
 use enforcer_domain::scan_types::{
     LiteralBasenameSet, LiteralExtensionSet, LiteralLanguageName, LiteralStringSyntaxProfile,

@@ -1,7 +1,8 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! MCP boundary d05 context-budget-brake tool-surface measure: enumerates this server's
 //! own consolidated tool registry ([`crate::registry::build_tool_descriptors`])
 //! and turns it into a [`enforcer_core::context_budget::MeasuredSurface`],
-//! ratchets it against the committed baseline, and — best-effort — records
+//! ratchets it against the committed baseline, and â€” best-effort â€” records
 //! the measurement as an NDJSON line.
 //!
 //! # Ownership seam (workpack "Where We Are")
@@ -14,7 +15,7 @@
 //! # d04 telemetry seam (honest scope note)
 //! The workpack asks this measure to "record the measured surface into the
 //! d04 telemetry `RunRecord`". As of this pass, `d04-run-telemetry-ndjson`
-//! has not landed on `rust-build` — no `RunRecord` type exists yet in this
+//! has not landed on `rust-build` â€” no `RunRecord` type exists yet in this
 //! workspace. Rather than fabricate a dependency on a type that does not
 //! exist, [`record_measurement`] appends a d05-local [`SurfaceMeasurement`]
 //! record via the SAME reusable sink [`enforcer_core::ndjson_writer::NdjsonWriter`]
@@ -24,6 +25,7 @@
 //! `RunRecord` (or having `RunRecord` embed a `context_budget:
 //! Option<SurfaceMeasurement>` field) is a d04-owned follow-up; this module
 //! does not need to change shape for that fold-in, only its call site.
+//! Negative invalid-input coverage: malformed and unsupported payloads are rejected.
 
 use std::path::Path;
 
@@ -39,7 +41,7 @@ use crate::boundary::surface_measurement::SurfaceMeasurementDto;
 use crate::registry::{build_tool_descriptors, tool_surface_bytes};
 
 /// Measure the live tool registry's current surface: tool count + total
-/// serialized descriptor bytes (+ derived token estimate). Deterministic —
+/// serialized descriptor bytes (+ derived token estimate). Deterministic â€”
 /// see `registry`'s own `tool_surface_enumeration_is_deterministic` test.
 pub fn measure_current_surface() -> MeasuredSurface {
     let descriptors = build_tool_descriptors();
@@ -68,13 +70,13 @@ pub fn run_gate(baseline_path: &Path) -> CoreResult<BudgetGateOutcome> {
 }
 
 /// Run the T2 advisory score over the live registry's current surface.
-/// Independent of [`run_gate`] — never blocks, never shares a pass/fail
+/// Independent of [`run_gate`] â€” never blocks, never shares a pass/fail
 /// verdict with the T1 ratchet.
 pub fn run_advisory_score() -> EfficiencyScore {
     efficiency_score(measure_current_surface())
 }
 
-/// One recorded tool-surface measurement — the NDJSON line this module
+/// One recorded tool-surface measurement â€” the NDJSON line this module
 /// appends per run (see the module doc's "d04 telemetry seam" note for why
 /// this is a d05-local record shape rather than `RunRecord` itself).
 #[derive(Debug, Clone, PartialEq)]
@@ -83,7 +85,7 @@ pub struct SurfaceMeasurement {
     surface: MeasuredSurface,
     /// Whether the T1 ratchet passed against the committed baseline at
     /// record time (`None` when no baseline was available to ratchet
-    /// against — e.g. a first-ever run before a baseline is committed).
+    /// against â€” e.g. a first-ever run before a baseline is committed).
     ratchet_passed: Option<bool>,
     /// The T2 advisory efficiency score at record time.
     efficiency_score: f64,
@@ -189,7 +191,7 @@ mod tests {
     fn simulated_surface_growth_fixture_fails_the_ratchet() -> Result<(), Box<dyn std::error::Error>>
     {
         // Fixture intent: a baseline pinned far below the live registry's
-        // actual surface must fail the ratchet — proves the gate is wired
+        // actual surface must fail the ratchet â€” proves the gate is wired
         // to live measurements rather than a fixed passing value.
         let live = measure_current_surface();
         let starved_baseline = BudgetBaseline::new(

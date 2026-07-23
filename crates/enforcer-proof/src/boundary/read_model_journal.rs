@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Journal DTO conversion boundary for the project proof read model.
 //! Invalid branded journal values are rejected before conversion, with
 //! negative snapshot coverage in `tests/read_model_boundary.rs`.

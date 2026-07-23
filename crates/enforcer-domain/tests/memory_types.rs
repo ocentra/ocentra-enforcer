@@ -16,6 +16,23 @@ use enforcer_domain::memory_types::{
 use proptest::prelude::any;
 use proptest::{prop_assert, prop_assert_eq, proptest};
 
+fn assert_decode_rejected<T>(
+    result: Result<T, enforcer_domain::boundary::decode_error::DecodeError>,
+    path: &str,
+) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    match result {
+        Err(error) => {
+            assert_eq!(error.path, path);
+            assert_ne!(error.reason, "");
+            Ok(())
+        }
+        Ok(_) => Err(enforcer_domain::boundary::decode_error::DecodeError::new(
+            path,
+            "invalid input unexpectedly accepted",
+        )),
+    }
+}
+
 #[test]
 fn memory_sequence_is_monotonic_and_preserves_its_wire_value() {
     let first = Seq::GENESIS.next();
@@ -25,15 +42,23 @@ fn memory_sequence_is_monotonic_and_preserves_its_wire_value() {
 }
 
 #[test]
-fn memory_log_schema_version_accepts_only_supported_wire_values() {
+fn memory_log_schema_version_accepts_only_supported_wire_values(
+) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
     assert_eq!(
         MemoryLogSchemaVersion::try_new(1),
         Ok(MemoryLogSchemaVersion::INITIAL)
     );
-    assert!(MemoryLogSchemaVersion::try_new(0).is_err());
-    assert!(MemoryLogSchemaVersion::try_new(2).is_err());
-    assert!(serde_json::from_str::<MemoryLogSchemaVersion>("0").is_err());
-    assert!(serde_json::from_str::<MemoryLogSchemaVersion>("2").is_err());
+    assert_decode_rejected(MemoryLogSchemaVersion::try_new(0), "memoryLogSchemaVersion")?;
+    assert_decode_rejected(MemoryLogSchemaVersion::try_new(2), "memoryLogSchemaVersion")?;
+    assert_eq!(
+        serde_json::from_str::<MemoryLogSchemaVersion>("0").map_err(|error| error.classify()),
+        Err(serde_json::error::Category::Data)
+    );
+    assert_eq!(
+        serde_json::from_str::<MemoryLogSchemaVersion>("2").map_err(|error| error.classify()),
+        Err(serde_json::error::Category::Data)
+    );
+    Ok(())
 }
 
 #[test]
@@ -41,10 +66,22 @@ fn streaming_cache_path_segment_accepts_only_safe_nonempty_components(
 ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
     let segment = StreamingCachePathSegment::try_new("artifact-v1.2_3".to_owned())?;
     assert_eq!(segment.as_str(), "artifact-v1.2_3");
-    assert!(StreamingCachePathSegment::try_new(String::new()).is_err());
-    assert!(StreamingCachePathSegment::try_new(".".to_owned()).is_err());
-    assert!(StreamingCachePathSegment::try_new("..".to_owned()).is_err());
-    assert!(StreamingCachePathSegment::try_new("../escape".to_owned()).is_err());
+    assert_decode_rejected(
+        StreamingCachePathSegment::try_new(String::new()),
+        "streamingCachePathSegment",
+    )?;
+    assert_decode_rejected(
+        StreamingCachePathSegment::try_new(".".to_owned()),
+        "streamingCachePathSegment",
+    )?;
+    assert_decode_rejected(
+        StreamingCachePathSegment::try_new("..".to_owned()),
+        "streamingCachePathSegment",
+    )?;
+    assert_decode_rejected(
+        StreamingCachePathSegment::try_new("../escape".to_owned()),
+        "streamingCachePathSegment",
+    )?;
     Ok(())
 }
 

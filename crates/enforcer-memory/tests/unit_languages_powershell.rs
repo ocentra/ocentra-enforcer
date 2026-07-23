@@ -51,8 +51,8 @@ fn extracts_class_with_method_and_defines_edge() {
         .iter()
         .map(|s| (s.name.as_str(), s.kind))
         .collect();
-    assert!(kinds.contains(&("Animal", SymbolKind::Class)), "{kinds:?}");
-    assert!(kinds.contains(&("Speak", SymbolKind::Method)), "{kinds:?}");
+    assert!(kinds.contains(&("Animal", SymbolKind::Class)));
+    assert!(kinds.contains(&("Speak", SymbolKind::Method)));
     assert!(
         parsed
             .defines
@@ -125,7 +125,7 @@ fn extracts_using_namespace_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"System.Collections.Generic"), "{paths:?}");
+    assert!(paths.contains(&"System.Collections.Generic"));
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn extracts_using_module_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"MyModule"), "{paths:?}");
+    assert!(paths.contains(&"MyModule"));
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn using_directive_is_also_recorded_as_a_call() {
     let src = "using namespace System.Collections.Generic\n";
     let parsed = parse_powershell(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"using"), "{callees:?}");
+    assert!(callees.contains(&"using"));
 }
 
 #[test]

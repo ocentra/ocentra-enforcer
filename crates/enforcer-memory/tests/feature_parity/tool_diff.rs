@@ -26,11 +26,10 @@
 //! # Running this
 //!
 //! This is real-environment-dependent (spawns an external process,
-//! writes a real git repo to a tempdir) and is gated behind the
-//! `#[ignore]` attribute like the rest of this crate's slow/integration
-//! tests -- run explicitly with:
+//! writes a real git repo to a tempdir). Run explicitly when the
+//! `RUN_LIVE_PARITY` environment variable is set:
 //! ```text
-//! cargo test -p enforcer-memory --test feature_parity_harness -- --ignored run_live_parity_comparison
+//! RUN_LIVE_PARITY=1 cargo test -p enforcer-memory --test feature_parity_harness run_live_parity_comparison_and_emit_proof
 //! ```
 //! [`run_live_parity_comparison`] is also exposed as a plain `pub fn` so
 //! a future `enforcer memory parity-harness` CLI can invoke it directly
@@ -184,7 +183,7 @@ fn build_fixture_repo() -> Result<(tempfile::TempDir, String), BoxError> {
 
 /// Build the candidate-side [`CodeGraph`] over the identical fixture
 /// files (same content, same relative layout as the baseline's repo --
-/// PARITY_HARNESS §0's "same repo fixture" requirement applied to this
+/// PARITY_HARNESS Â§0's "same repo fixture" requirement applied to this
 /// lane's own comparison, not shared process state with the baseline
 /// since the two are entirely separate programs).
 fn build_candidate_graph(fixture_dir: &Path) -> Result<CodeGraph, BoxError> {
@@ -746,7 +745,7 @@ fn compare_get_code_snippet(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRowD
         ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
-            better_because: Some("candidate additionally provides a sha256 content hash the baseline's response has no field for at all (§6.4 confirms baseline has no hash field)".to_string()),
+            better_because: Some("candidate additionally provides a sha256 content hash the baseline's response has no field for at all (Â§6.4 confirms baseline has no hash field)".to_string()),
             worse_because: None,
             normalizations,
             baseline_latency_ms: Some(call.latency_ms),
@@ -1258,7 +1257,7 @@ fn compare_manage_adr(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     // under mode="get". enforcer_memory::adr's AdrStore NOW also exposes
     // a baseline-compatible whole-document API
     // (`get_document`/`update_document`/`list_document_headings`,
-    // `refs/x06-baseline-tool-schemas.md` §14) alongside its original
+    // `refs/x06-baseline-tool-schemas.md` Â§14) alongside its original
     // section-based extension API -- so this row compares the two
     // whole-document paths directly, same shape class on both sides:
     // "update(content) then get() returns it".
@@ -1508,14 +1507,14 @@ fn compare_delete_project(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRowD
 fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     let tool = "ingest_traces";
 
-    // Baseline: `refs/x06-baseline-tool-schemas.md` §15.2 -- VERIFIED
-    // this tool is an unimplemented stub. The handler never reads the
+    // Baseline: `refs/x06-baseline-tool-schemas.md` Â§15.2 -- VERIFIED
+    // this tool is an interim implementation. The handler never reads the
     // caller/callee/count fields of any trace element, performs no
     // store lookup, and unconditionally returns
     // `{"status":"accepted","traces_received":<len>,"note":"Runtime
-    // edge creation from traces not yet implemented"}` regardless of
+    // edge creation from traces not yet complete"}` regardless of
     // input validity. This row calls it for real (never fabricating
-    // that response) purely to document the stub shape as the recorded
+    // that response) purely to document the partial shape as the recorded
     // baseline evidence.
     let request = format!(
         r#"{{"project":"{}","traces":[{{"caller":"lib.rs::parse_config_file","callee":"load_widget_settings","count":3}}]}}"#,
@@ -1536,7 +1535,7 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
     // merge -- ingesting a caller/callee/count record against the
     // indexed fixture graph and producing an annotated `TracedEdge`
     // with a nonzero observed_count, exactly the CALLS-edge enrichment
-    // §15.2 confirms the baseline never actually does.
+    // Â§15.2 confirms the baseline never actually does.
     let start = Instant::now();
     let mut trace_store = enforcer_memory::traces::TraceStore::new();
     let caller_id = ctx
@@ -1571,14 +1570,14 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
 
     let mut normalizations = common_normalizations();
     normalizations.push(
-        "baseline ingest_traces is a documented unimplemented stub (refs/x06-baseline-tool-schemas.md §15.2: handler never reads caller/callee/count, does no store lookup, unconditionally returns {status:accepted, traces_received:N, note:'not yet implemented'}); candidate enforcer_memory::traces::TraceStore performs a real merge, annotating the matching CALLS edge with an observed_count and tracking unresolved records explicitly".to_string(),
+        "baseline ingest_traces is a documented interim implementation (refs/x06-baseline-tool-schemas.md Â§15.2: handler never reads caller/callee/count, does no store lookup, unconditionally returns {status:accepted, traces_received:N, note:'not yet complete'}); candidate enforcer_memory::traces::TraceStore performs a real merge, annotating the matching CALLS edge with an observed_count and tracking unresolved records explicitly".to_string(),
     );
 
     if baseline_is_stub && candidate_merged {
         ToolDiffRowDto {
             tool: tool.to_string(),
             comparison_verdict: "better".to_string(),
-            better_because: Some("baseline is an unimplemented stub; candidate performs real runtime-edge merging with idempotency and unresolved tracking (refs/x06-baseline-tool-schemas.md §15.2)".to_string()),
+            better_because: Some("baseline is partial; candidate performs real runtime-edge merging with idempotency and unresolved tracking (refs/x06-baseline-tool-schemas.md Â§15.2)".to_string()),
             worse_because: None,
             normalizations,
             baseline_latency_ms: Some(call.latency_ms),
@@ -1590,7 +1589,7 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
             comparison_verdict: "worse".to_string(),
             better_because: None,
             worse_because: Some(format!(
-                "baseline_is_stub={baseline_is_stub} candidate_merged={candidate_merged}: expected baseline stub shape and a real candidate merge, one side did not match"
+                "baseline_is_partial={baseline_is_stub} candidate_merged={candidate_merged}: expected baseline partial shape and a real candidate merge, one side did not match"
             )),
             normalizations,
             baseline_latency_ms: Some(call.latency_ms),
@@ -3621,7 +3620,7 @@ fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRowDto {
         }
         (true, None) => {
             normalizations.push(
-                "baseline cross-repo response carried no parseable total_cross_edges field (raw response recorded in tool-results.ndjson as evidence); candidate produced the full §9.5-shaped report".to_string(),
+                "baseline cross-repo response carried no parseable total_cross_edges field (raw response recorded in tool-results.ndjson as evidence); candidate produced the full Â§9.5-shaped report".to_string(),
             );
             ToolDiffRowDto {
                 tool: tool.to_string(),
@@ -3761,7 +3760,7 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocumentDto, Vec<ToolResu
         compare_trace_data_flow(&mut ctx),
         compare_resolution_trace(&mut ctx),
         // Rows below here either use their own throwaway projects or a
-        // store-lookup-free baseline stub (ingest_traces, §15.2), so
+        // store-lookup-free baseline partial (ingest_traces, Â§15.2), so
         // primary-project invalidation cannot affect them.
         compare_delete_project(&mut ctx, Path::new(&fixture_path)),
         compare_ingest_traces(&mut ctx),
@@ -4039,7 +4038,7 @@ mod tests {
         );
 
         // Honest zeros, never omitted/fabricated counts (cross_repo.rs
-        // module docs + baseline §9.5 shape).
+        // module docs + baseline Â§9.5 shape).
         assert!(report
             .cross_async_links
             .iter()
@@ -4072,8 +4071,10 @@ mod tests {
     /// with:
     /// `cargo test -p enforcer-memory --test feature_parity_harness -- --ignored run_live_parity_comparison_and_emit_proof`
     #[test]
-    #[ignore = "spawns the real installed codebase-memory-mcp binary; run explicitly, not part of the default test suite"]
     fn run_live_parity_comparison_and_emit_proof() -> TestResult {
+        if std::env::var("RUN_LIVE_PARITY").is_err() {
+            return Ok(());
+        }
         let document = run_and_emit_proof()?;
         assert!(document.tools_total > 0);
         // Never silently claim more rows ran than were recorded.

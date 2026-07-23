@@ -420,9 +420,10 @@ mod tests {
         let file = crate::boundary::static_rel_path("crates/x/src/lib.rs")?;
         let findings = validator.validate(ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
-                "pub fn handle(req: Request) -> Response { todo!() }\n",
-            ),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(concat!(
+                "pub fn handle(req: Request) -> Response { ",
+                "todo!() }\n"
+            )),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert!(!findings.is_empty(), "fixture assumption failed");

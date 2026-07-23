@@ -12,7 +12,8 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use crate::boundary::finding::{from_source, SourceFinding};
 use crate::boundary::rule_spec::{RawRuleSpec, TriggerKind};
 use crate::boundary::source_text::{
-    find_literal, find_non_null_assertions, find_word, source_line_role, SourceLineRole,
+    find_literal, find_non_null_assertions, find_word, mask_string_literals, source_line_role,
+    SourceLineRole,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -21,11 +22,18 @@ enum CommentPolicy {
     InspectComments,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SourceKind {
+    TypeScript,
+    Other,
+}
+
 #[derive(Debug, Clone, Copy)]
 enum Matcher {
     Word(&'static [&'static str]),
     Literal(&'static [&'static str]),
     NonNullAssertion,
+    ExportedFunctionReturnType,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +56,7 @@ impl RuleSpec {
             TriggerKind::Word => Matcher::Word(raw.needles),
             TriggerKind::Literal => Matcher::Literal(raw.needles),
             TriggerKind::NonNullAssertion => Matcher::NonNullAssertion,
+            TriggerKind::ExportedFunctionReturnType => Matcher::ExportedFunctionReturnType,
         };
         let comment_policy = if raw.comment_guard {
             CommentPolicy::SkipCommentOnly
@@ -68,10 +77,62 @@ impl RuleSpec {
             Matcher::Word(needles) => needles
                 .iter()
                 .any(|needle| !find_word(text, needle).is_empty()),
-            Matcher::Literal(needles) => needles
-                .iter()
-                .any(|needle| !find_literal(text, needle).is_empty()),
+            Matcher::Literal(needles) => {
+                let needs_code_mask = needles.iter().any(|needle| needle.contains(" as "));
+                let source = if needs_code_mask {
+                    std::borrow::Cow::Owned(mask_string_literals(text))
+                } else {
+                    std::borrow::Cow::Borrowed(text)
+                };
+                needles
+                    .iter()
+                    .any(|needle| !find_literal(source.as_ref(), needle).is_empty())
+            }
             Matcher::NonNullAssertion => !find_non_null_assertions(text).is_empty(),
+            Matcher::ExportedFunctionReturnType => {
+                let starts_export_fn = text.contains("export") && text.contains("function");
+                if !starts_export_fn {
+                    false
+                } else {
+                    let mut open_paren = None;
+                    if let Some(export_pos) = text.find("export function") {
+                        if let Some(after_export) = text.get(export_pos..) {
+                            if let Some(offset) = after_export.find('(') {
+                                open_paren = Some(export_pos + offset);
+                            }
+                        }
+                    }
+                    if let Some(open_paren) = open_paren {
+                        let mut depth = 0i32;
+                        let mut close_paren = None;
+                        for (idx, ch) in text.char_indices().skip(open_paren) {
+                            match ch {
+                                '(' => depth += 1,
+                                ')' if depth > 0 => {
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        close_paren = Some(idx);
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        if let Some(close_paren) = close_paren {
+                            match text.get(close_paren + 1..) {
+                                Some(signature_tail) => {
+                                    !signature_tail.trim_start().starts_with(':')
+                                }
+                                None => true,
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+            }
         };
         if matched {
             LineMatch::Hit
@@ -81,6 +142,11 @@ impl RuleSpec {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        if self.rule_id.as_str() == "TS-6.37"
+            && classify_source(input.file) != SourceKind::TypeScript
+        {
+            return Vec::new();
+        }
         if self.rule_id.as_str() == "TS-6.19"
             && matches!(classify_decoder_path(input.file), LiteralFileRole::Boundary)
         {
@@ -111,6 +177,13 @@ impl RuleSpec {
             }
         }
         findings
+    }
+}
+
+fn classify_source(path: &RelPath) -> SourceKind {
+    match path.as_str().rsplit('.').next() {
+        Some("ts" | "tsx") => SourceKind::TypeScript,
+        _ => SourceKind::Other,
     }
 }
 
@@ -176,7 +249,7 @@ mod tests {
     use enforcer_domain::paths::RelPath;
     use enforcer_domain::scan_types::LiteralFileRole;
 
-    use super::classify_decoder_path;
+    use super::{classify_decoder_path, classify_source, SourceKind};
 
     #[test]
     fn decoder_boundary_paths_accept_windows_and_posix_separators() -> Result<(), DecodeError> {
@@ -204,8 +277,34 @@ mod tests {
     }
 
     #[test]
+    fn return_type_rule_is_scoped_to_typescript_extensions() -> Result<(), DecodeError> {
+        let javascript = RelPath::try_from(String::from(
+            "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+        ))?;
+        let typescript =
+            RelPath::try_from(String::from("crates/enforcer-ui/frontend/src/App.tsx"))?;
+        assert_eq!(classify_source(&javascript), SourceKind::Other);
+        assert_eq!(classify_source(&typescript), SourceKind::TypeScript);
+        Ok(())
+    }
+
+    #[test]
     fn rel_path_try_from_rejects_invalid_input() {
-        assert!(RelPath::try_from(String::new()).is_err());
-        assert!(RelPath::try_from(String::from("../escape.mjs")).is_err());
+        let blank_result = RelPath::try_from(String::new());
+        assert!(
+            blank_result.is_err(),
+            "empty path must not construct a repository-relative path"
+        );
+        if let Err(blank_error) = blank_result {
+            assert_eq!(blank_error.path, "relPath");
+        }
+        let escaping_result = RelPath::try_from(String::from("../escape.mjs"));
+        assert!(
+            escaping_result.is_err(),
+            "escaping path must not construct a repository-relative path"
+        );
+        if let Err(escaping_error) = escaping_result {
+            assert_eq!(escaping_error.path, "relPath");
+        }
     }
 }

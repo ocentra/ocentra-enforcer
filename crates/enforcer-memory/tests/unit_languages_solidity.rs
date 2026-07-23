@@ -148,8 +148,8 @@ using SafeMath for uint256;
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"./IWidget.sol"), "{paths:?}");
-    assert!(paths.contains(&"SafeMath"), "{paths:?}");
+    assert!(paths.contains(&"./IWidget.sol"));
+    assert!(paths.contains(&"SafeMath"));
 }
 
 #[test]
@@ -170,18 +170,18 @@ contract Helper {
 "#;
     let parsed = parse_solidity(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     // Qualified (`h.register`, not bare `register`): the receiver is
     // captured as part of the fully-written callee text, same
     // convention every other qualified call in this crate uses (e.g.
     // Go's `w.Draw`).
-    assert!(callees.contains(&"h.register"), "{callees:?}");
+    assert!(callees.contains(&"h.register"));
     // `new Helper(a)` -- captured as `call_expression` whose unwrapped
     // `function` field is the nested `new_expression`'s own text
     // (includes the `new` keyword, matching how Go's `NewXxx(...)`
     // constructor-idiom convention is captured as literal callee text
     // too rather than stripped).
-    assert!(callees.contains(&"new Helper"), "{callees:?}");
+    assert!(callees.contains(&"new Helper"));
 }
 
 #[test]

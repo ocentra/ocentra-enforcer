@@ -1,7 +1,8 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Environment transport boundary for `enforcer-config`'s own overrides.
 //! (a07 parse-at-boundary requirement). Every var this crate consumes is
 //! declared here, once, with its type, required/default, and fail-closed
-//! decode behavior — there is no scattered `std::env::var(...)` elsewhere
+//! decode behavior â€” there is no scattered `std::env::var(...)` elsewhere
 //! in this crate.
 //!
 //! # Declared variables
@@ -14,7 +15,7 @@
 //!   declares. Absent -> the config file's own `profileName` (or
 //!   `default` when there is no project config) is used unchanged.
 //!
-//! Both are optional; neither var being unset is ever an error — it just
+//! Both are optional; neither var being unset is ever an error â€” it just
 //! means "no override". A var that IS set but decodes to an invalid value
 //! (e.g. `ENFORCER_PROFILE=bogus`) is a typed
 //! [`crate::error::ConfigLoadError::InvalidEnvVar`], never a silent
@@ -36,7 +37,7 @@ pub const ENFORCER_PROFILE_VAR: &str = "ENFORCER_PROFILE";
 
 /// Typed, decoded view of every environment variable `enforcer-config`
 /// consumes. Constructed only via [`ConfigEnv::read`] /
-/// [`ConfigEnv::read_from`] — never assembled field-by-field from ad hoc
+/// [`ConfigEnv::read_from`] â€” never assembled field-by-field from ad hoc
 /// `std::env::var` calls elsewhere.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ConfigEnv {

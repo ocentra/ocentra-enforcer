@@ -1,25 +1,14 @@
-use crate::risk_heuristics_context::is_schema_owner_context;
-use crate::risk_heuristics_secret::is_secret_like;
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
+
+use enforcer_domain::scan_types::{LiteralSourceContext, LiteralSourceText};
+
 use crate::{FileRole, RiskCategory};
 
 pub(crate) fn role_specific_category(
     role: FileRole,
-    context: &str,
-    text: &str,
+    context: &LiteralSourceContext,
+    text: &LiteralSourceText,
 ) -> Option<RiskCategory> {
-    if role == FileRole::Test {
-        return Some(test_category(text));
-    }
-    if is_schema_owner_context(role, context) {
-        return Some(RiskCategory::SchemaOwnerLiteral);
-    }
-    None
-}
-
-fn test_category(text: &str) -> RiskCategory {
-    if is_secret_like(text) {
-        RiskCategory::SecretLike
-    } else {
-        RiskCategory::TestFixture
-    }
+    crate::domain::risk_primary_roles::role_specific_category(role, context, text)
 }

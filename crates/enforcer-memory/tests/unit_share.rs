@@ -4,7 +4,7 @@ use enforcer_domain::memory_types::{RecordDomain, RecordKind};
 use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
 use enforcer_memory::boundary::record::ProvenanceDto;
 use enforcer_memory::boundary::share::{
-    export_bundle, BundleGraphSnapshotDto, BundleManifestDto, ExportRequest, LessonRowDto,
+    export_bundle, BundleExportOptions, BundleGraphSnapshotDto, BundleManifestDto, LessonRowDto,
     ShareError, SignedBundleDto, BUNDLE_SCHEMA_VERSION,
 };
 use enforcer_memory::graph::MemoryGraph;
@@ -47,8 +47,8 @@ fn request(
     scope: MemoryShareScope,
     consent: ExportConsent,
     creator: Option<String>,
-) -> ExportRequest {
-    ExportRequest {
+) -> BundleExportOptions {
+    BundleExportOptions {
         scope,
         consent,
         creator: creator.map(Into::into),

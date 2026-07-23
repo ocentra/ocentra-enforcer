@@ -13,6 +13,7 @@ mod discovery_ignore_match;
 mod discovery_ignore_state;
 #[path = "boundary/discovery_ignore_walk.rs"]
 mod discovery_ignore_walk;
+mod domain;
 #[path = "boundary/file-role.rs"]
 mod file_role;
 #[path = "boundary/language-registry.rs"]

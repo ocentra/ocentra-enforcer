@@ -6,7 +6,7 @@ use enforcer_domain::memory_types::{RecordDomain, RecordKind};
 use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
 use enforcer_memory::boundary::record::ProvenanceDto;
 use enforcer_memory::boundary::share::{
-    export_bundle, BundleGraphSnapshotDto, ExportRequest, SignedBundleDto,
+    export_bundle, BundleExportOptions, BundleGraphSnapshotDto, SignedBundleDto,
 };
 use enforcer_memory::federation::{
     import_bundle, import_bundle_logged, RejectReason, RejectedBundle, RejectionLog, TrustList,
@@ -55,7 +55,7 @@ fn signed_personal_bundle(
 ) -> Result<SignedBundleDto, enforcer_memory::boundary::share::ShareError> {
     export_bundle(
         &sample_snapshot(),
-        ExportRequest {
+        BundleExportOptions {
             scope: MemoryShareScope::Personal,
             consent: ExportConsent::Granted,
             creator: None,
@@ -262,7 +262,7 @@ fn graph_bootstrap_artifact_import_reconstructs_graph_counts(
     let expected_count = snapshot.node_count();
     let bundle = export_bundle(
         &snapshot,
-        ExportRequest {
+        BundleExportOptions {
             scope: MemoryShareScope::Team,
             consent: ExportConsent::Granted,
             creator: Some("team-bootstrap".to_string().into()),

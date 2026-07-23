@@ -64,8 +64,8 @@ struct Light {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Light", "position")), "{defines:?}");
-    assert!(defines.contains(&("Light", "color")), "{defines:?}");
+    assert!(defines.contains(&("Light", "position")));
+    assert!(defines.contains(&("Light", "color")));
 }
 
 #[test]
@@ -77,7 +77,7 @@ void main() {
 "#;
     let parsed = parse_glsl(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     Ok(())
 }
 
@@ -109,7 +109,7 @@ fn extracts_include_as_imports_edge() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"common.glsl"), "{paths:?}");
+    assert!(paths.contains(&"common.glsl"));
 }
 
 #[test]
@@ -166,7 +166,7 @@ void main() {
         parsed.symbols
     );
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"transform"), "{callees:?}");
+    assert!(callees.contains(&"transform"));
 }
 
 #[test]

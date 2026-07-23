@@ -125,8 +125,8 @@ fn snippet_include_neighbors_lists_other_symbols_in_the_same_file() -> TestResul
         .iter()
         .map(|n| n.qualified_name.as_str())
         .collect();
-    assert!(names.contains(&"service.rs::caller_one"), "{names:?}");
-    assert!(names.contains(&"service.rs::caller_two"), "{names:?}");
+    assert!(names.contains(&"service.rs::caller_one"));
+    assert!(names.contains(&"service.rs::caller_two"));
     Ok(())
 }
 

@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! MCP boundary legacy `rust_rules_*` alias surface + defined deprecation window.
 //!
 //! Ported from the legacy `.mjs` registry/dispatch pair
@@ -6,7 +8,7 @@
 //! canonical `ocentra_enforcer_*` tool is doubled under a `rust_rules_*`
 //! name, and dispatch folds any `rust_rules_*` call back to its canonical
 //! handler before lookup. This is a DEFINED, one-Rust-pack-release
-//! deprecation window (workpack row), not a permanent surface — see
+//! deprecation window (workpack row), not a permanent surface â€” see
 //! [`deprecation_window_open`].
 
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -16,7 +18,7 @@ use enforcer_domain::mcp_types::McpToolName;
 /// against. Lives here (not in `crate::name`, x01's owned name-surface
 /// file) because it is tied 1:1 to `crate::registry::CANONICAL_TOOLS`'s
 /// own `ocentra_enforcer_*` literal family, which x01 does not own or
-/// rewrite (see the workpack's `owns:` line) — x01's grep gate scans
+/// rewrite (see the workpack's `owns:` line) â€” x01's grep gate scans
 /// `crate::name` (plus `Cargo.toml` name fields) and must find zero
 /// matches there; this internal tool-family literal is unaffected by the
 /// workpack's product-identity rename and keeps its historical value
@@ -33,7 +35,7 @@ pub(crate) const LEGACY_ALIAS_PREFIX: &str = "rust_rules";
 ///
 /// TRANSITIONAL: `true` for the "one Rust-pack compatibility release" the
 /// workpack names. Flip to `false` (or remove this seam entirely,
-/// coordinating with x03) once that release closes — [`crate::registry`]
+/// coordinating with x03) once that release closes â€” [`crate::registry`]
 /// and [`crate::router`] both consult this single flag rather than each
 /// hardcoding the window state.
 pub fn deprecation_window_open() -> bool {
@@ -44,7 +46,7 @@ pub fn deprecation_window_open() -> bool {
 /// `ocentra_enforcer_*` name.
 ///
 /// # Panics
-/// Never — a name lacking the canonical prefix is returned unchanged
+/// Never â€” a name lacking the canonical prefix is returned unchanged
 /// (defensive; callers only ever pass [`crate::registry::CANONICAL_TOOLS`]
 /// entries, which always carry the prefix).
 pub fn alias_name(canonical: &McpToolName) -> Result<McpToolName, DecodeError> {
@@ -122,7 +124,7 @@ mod tests {
 
     #[test]
     fn deprecation_window_is_currently_open() {
-        // Pass fixture for "alias resolves + appears in tools/list" — see
+        // Pass fixture for "alias resolves + appears in tools/list" â€” see
         // crate::registry::build_tool_descriptors and crate::router tests
         // for the full end-to-end fixtures this flag gates.
         assert!(deprecation_window_open());

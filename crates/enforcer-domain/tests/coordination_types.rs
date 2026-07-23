@@ -29,7 +29,7 @@ fn parse_node_name(raw: &str) -> Result<NodeName, DecodeError> {
 }
 
 #[test]
-fn coordination_identity_types_reject_invalid_wire_values() {
+fn coordination_identity_types_reject_invalid_wire_values() -> Result<(), DecodeError> {
     assert_eq!(
         parse_node_id("node_valid-01").map(|value| value.as_str().to_owned()),
         Ok("node_valid-01".to_owned())
@@ -38,8 +38,9 @@ fn coordination_identity_types_reject_invalid_wire_values() {
         parse_node_name("Builder.Host").map(|value| value.as_str().to_owned()),
         Ok("Builder.Host".to_owned())
     );
-    assert!(parse_node_id("contains spaces").is_err());
-    assert!(parse_node_name("").is_err());
+    assert_rejected(parse_node_id("contains spaces"), "nodeId")?;
+    assert_rejected(parse_node_name(""), "nodeName")?;
+    Ok(())
 }
 
 proptest! {

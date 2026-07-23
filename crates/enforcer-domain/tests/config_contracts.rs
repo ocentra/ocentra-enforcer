@@ -1,4 +1,6 @@
 use enforcer_domain::boundary::decode_error::DecodeError;
+// contractHash: config_contracts.rs
+// sourceOwner: enforcer-domain
 
 use enforcer_domain::config_types::{CrateName, HarnessConfig, HarnessRunLimit};
 

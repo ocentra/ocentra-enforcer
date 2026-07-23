@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Regex compilation boundary for security-rule definitions.
 //! Malformed patterns return typed errors, with negative coverage in this module's tests.
 

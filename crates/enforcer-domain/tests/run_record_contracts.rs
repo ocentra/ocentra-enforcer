@@ -1,3 +1,5 @@
+// contractHash: run_record_contracts.rs
+// sourceOwner: enforcer-domain
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::run_record::{

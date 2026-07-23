@@ -216,6 +216,13 @@ fn feedback_decision_dto_rejects_invalid_persisted_classification(
         "classification": "unsupported",
         "proposed": false
     }))?;
-    assert!(FeedbackDecisionRecord::try_from(wire).is_err());
+    let result = FeedbackDecisionRecord::try_from(wire);
+    assert!(
+        result.is_err(),
+        "unsupported persisted classification must be rejected"
+    );
+    if let Err(error) = result {
+        assert_eq!(error.path, "classification");
+    }
     Ok(())
 }

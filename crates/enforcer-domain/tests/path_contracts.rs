@@ -1,3 +1,5 @@
+// contractHash: path_contracts.rs
+// sourceOwner: enforcer-domain
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::paths::{RelPath, RepoRoot};
 

@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Claim DTO conversion boundary for the project proof read model.
 //! Invalid branded claim values are rejected before conversion, with
 //! negative claim coverage in the proof boundary tests.

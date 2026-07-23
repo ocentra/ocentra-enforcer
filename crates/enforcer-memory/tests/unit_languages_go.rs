@@ -115,12 +115,12 @@ var registry = 0
         .iter()
         .map(|s| (s.name.as_str(), s.kind))
         .collect();
-    assert!(kinds.contains(&("Widget", SymbolKind::Struct)), "{kinds:?}");
+    assert!(kinds.contains(&("Widget", SymbolKind::Struct)));
     assert!(
         kinds.contains(&("Drawable", SymbolKind::Interface)),
         "{kinds:?}"
     );
-    assert!(kinds.contains(&("ID", SymbolKind::TypeAlias)), "{kinds:?}");
+    assert!(kinds.contains(&("ID", SymbolKind::TypeAlias)));
     assert!(
         kinds.contains(&("MaxWidgets", SymbolKind::Constant)),
         "{kinds:?}"
@@ -153,7 +153,7 @@ type Widget struct {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Base")));
 
     // Named field is DEFINES, not INHERITS.
     let defines: Vec<(&str, &str)> = parsed
@@ -161,7 +161,7 @@ type Widget struct {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "Name")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "Name")));
 }
 
 #[test]
@@ -180,8 +180,8 @@ type Drawable interface {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Drawable", "Draw")), "{defines:?}");
-    assert!(defines.contains(&("Drawable", "Resize")), "{defines:?}");
+    assert!(defines.contains(&("Drawable", "Draw")));
+    assert!(defines.contains(&("Drawable", "Resize")));
 }
 
 #[test]
@@ -199,7 +199,7 @@ func (w *Widget) Draw() string { return w.Name }
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "Draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "Draw")));
 }
 
 #[test]
@@ -218,8 +218,8 @@ import (
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"fmt"), "{paths:?}");
-    assert!(paths.contains(&"net/http"), "{paths:?}");
+    assert!(paths.contains(&"fmt"));
+    assert!(paths.contains(&"net/http"));
 }
 
 #[test]
@@ -234,8 +234,8 @@ func f() {
 "#;
     let parsed = parse(src, false);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
-    assert!(callees.contains(&"fmt.Println"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
+    assert!(callees.contains(&"fmt.Println"));
 }
 
 #[test]
@@ -251,9 +251,9 @@ func Combine(a int, b string) bool { return true }
         .iter()
         .map(|t| t.type_name.as_str())
         .collect();
-    assert!(types.contains(&"int"), "{types:?}");
-    assert!(types.contains(&"string"), "{types:?}");
-    assert!(types.contains(&"bool"), "{types:?}");
+    assert!(types.contains(&"int"));
+    assert!(types.contains(&"string"));
+    assert!(types.contains(&"bool"));
 }
 
 #[test]
@@ -322,7 +322,7 @@ func RegisterRoutes(mux *http.ServeMux) {
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("ANY", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("ANY", "/widgets")));
 }
 
 #[test]
@@ -340,7 +340,7 @@ func RegisterRoutes(router *Router) {
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("GET", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("GET", "/widgets")));
 }
 
 #[test]
@@ -599,9 +599,9 @@ fn go_fixture_repo_reindexes_incrementally() -> TestResult {
     assert_eq!(report_v1.added.len(), files.len());
 
     let symbol_names: Vec<&str> = graph1.symbol_nodes().map(|s| s.name.as_str()).collect();
-    assert!(symbol_names.contains(&"Widget"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"NewWidget"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"TestNewWidget"), "{symbol_names:?}");
+    assert!(symbol_names.contains(&"Widget"));
+    assert!(symbol_names.contains(&"NewWidget"));
+    assert!(symbol_names.contains(&"TestNewWidget"));
 
     // Second run, nothing changed: every file is skipped.
     let mut graph2 = CodeGraph::new();

@@ -1,4 +1,4 @@
-﻿//! Construction boundary for validated findings emitted by plan logic.
+//! Construction boundary for validated findings emitted by plan logic.
 
 use enforcer_domain::findings::{Finding, FindingDetail, FindingLine, FindingTitle};
 use enforcer_domain::ids::RuleId;
@@ -47,10 +47,7 @@ pub(crate) fn build_error_finding(
             file,
             line,
         },
-        FindingContent {
-            title,
-            detail,
-        },
+        FindingContent { title, detail },
     )
 }
 
@@ -68,10 +65,7 @@ pub(crate) fn build_error_finding_at(
             file,
             line,
         },
-        FindingContent {
-            title,
-            detail,
-        },
+        FindingContent { title, detail },
     )
 }
 
@@ -89,10 +83,7 @@ pub(crate) fn build_lesson_finding(
             file,
             line: default_line(),
         },
-        FindingContent {
-            title,
-            detail,
-        },
+        FindingContent { title, detail },
     )
 }
 

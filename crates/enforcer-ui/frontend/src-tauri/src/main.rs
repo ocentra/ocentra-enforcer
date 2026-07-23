@@ -2904,10 +2904,14 @@ mod desktop_project_tests {
         project.main_root = None;
         let registry = std::env::temp_dir().join("enforcer-desktop-project-invalid.json");
 
-        let error = register_desktop_project_at(&registry, project)
-            .expect_err("missing worktree main root must be rejected");
-
-        assert_eq!(error, "desktop worktree registration requires mainRoot");
+        let result = register_desktop_project_at(&registry, project);
+        assert!(
+            result.is_err(),
+            "missing worktree main root must be rejected"
+        );
+        if let Err(error) = result {
+            assert_eq!(error, "desktop worktree registration requires mainRoot");
+        }
         Ok(())
     }
 

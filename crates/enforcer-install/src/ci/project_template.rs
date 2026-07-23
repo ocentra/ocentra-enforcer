@@ -83,6 +83,7 @@ pub struct ProjectCiCommands {
 pub struct ProjectCiWorkflow(InstallReportText);
 
 impl ProjectCiWorkflow {
+    /// Return the validated workflow source ready for filesystem emission.
     #[must_use]
     pub fn content(&self) -> &InstallReportText {
         &self.0

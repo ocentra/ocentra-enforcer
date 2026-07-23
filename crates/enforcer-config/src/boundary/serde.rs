@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Serde-only ingress and egress shapes for configuration files.
 //!
 //! Canonical configuration values live in `enforcer-domain`. This module owns

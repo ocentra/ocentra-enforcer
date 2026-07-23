@@ -1223,7 +1223,7 @@ impl<'a> Cursor<'a> {
 mod parser_edge_tests {
     use super::{
         parse_and, parse_column_ref, parse_comparison, parse_depth_range, parse_match_pattern,
-        parse_not, parse_or, parse_predicate, parse_return_list, Cursor, QueryLexeme,
+        parse_not, parse_or, parse_predicate, parse_return_list, Cursor, QueryError, QueryLexeme,
     };
 
     #[test]
@@ -1234,21 +1234,21 @@ mod parser_edge_tests {
             pos: 0,
         };
         let return_result = parse_return_list(&mut return_cursor);
-        assert!(return_result.is_err());
+        assert!(matches!(return_result, Err(QueryError::Parse { .. })));
 
         let mut column_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let column_result = parse_column_ref(&mut column_cursor);
-        assert!(column_result.is_err());
+        assert!(matches!(column_result, Err(QueryError::Parse { .. })));
 
         let mut match_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let match_result = parse_match_pattern(&mut match_cursor);
-        assert!(match_result.is_err());
+        assert!(matches!(match_result, Err(QueryError::Parse { .. })));
 
         let invalid_depth = [QueryLexeme::Word("invalid".to_owned())];
         let mut depth_cursor = Cursor {
@@ -1256,41 +1256,41 @@ mod parser_edge_tests {
             pos: 0,
         };
         let depth_result = parse_depth_range(&mut depth_cursor);
-        assert!(depth_result.is_err());
+        assert!(matches!(depth_result, Err(QueryError::Parse { .. })));
 
         let mut predicate_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let predicate_result = parse_predicate(&mut predicate_cursor);
-        assert!(predicate_result.is_err());
+        assert!(matches!(predicate_result, Err(QueryError::Parse { .. })));
 
         let mut or_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let or_result = parse_or(&mut or_cursor);
-        assert!(or_result.is_err());
+        assert!(matches!(or_result, Err(QueryError::Parse { .. })));
 
         let mut and_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let and_result = parse_and(&mut and_cursor);
-        assert!(and_result.is_err());
+        assert!(matches!(and_result, Err(QueryError::Parse { .. })));
 
         let mut not_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let not_result = parse_not(&mut not_cursor);
-        assert!(not_result.is_err());
+        assert!(matches!(not_result, Err(QueryError::Parse { .. })));
 
         let mut comparison_cursor = Cursor {
             tokens: &empty,
             pos: 0,
         };
         let comparison_result = parse_comparison(&mut comparison_cursor);
-        assert!(comparison_result.is_err());
+        assert!(matches!(comparison_result, Err(QueryError::Parse { .. })));
     }
 }

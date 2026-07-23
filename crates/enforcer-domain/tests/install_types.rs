@@ -35,7 +35,27 @@ fn session_start_hook_brands_preserve_valid_wire_text_and_reject_empty_invariant
         SessionStartHookReminderBody::try_new("enforcer first".to_owned())?.as_str(),
         "enforcer first"
     );
-    assert!(SessionStartHookCommand::try_from(" \t".to_owned()).is_err());
-    assert!(SessionStartHookReminderBody::try_from("\n".to_owned()).is_err());
+    let command_error = match SessionStartHookCommand::try_from(" \t".to_owned()) {
+        Err(error) => error,
+        Ok(_) => {
+            return Err(enforcer_domain::boundary::decode_error::DecodeError::new(
+                "command",
+                "blank session-start command unexpectedly accepted",
+            ));
+        }
+    };
+    assert_eq!(command_error.path, "command");
+    assert_eq!(command_error.reason, "must not be empty");
+    let reminder_error = match SessionStartHookReminderBody::try_from("\n".to_owned()) {
+        Err(error) => error,
+        Ok(_) => {
+            return Err(enforcer_domain::boundary::decode_error::DecodeError::new(
+                "reminderBody",
+                "blank session-start reminder body unexpectedly accepted",
+            ));
+        }
+    };
+    assert_eq!(reminder_error.path, "reminderBody");
+    assert_eq!(reminder_error.reason, "must not be empty");
     Ok(())
 }

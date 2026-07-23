@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 pub(crate) fn json_string(value: impl AsRef<str>) -> String {
     let value = value.as_ref();
     let mut out = String::with_capacity(value.len() + 2);

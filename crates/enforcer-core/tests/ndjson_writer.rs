@@ -76,10 +76,14 @@ fn reopen_appends_instead_of_truncating() -> Result<()> {
 }
 
 #[test]
-fn malformed_record_is_rejected_at_the_decode_boundary() -> Result<()> {
+fn malformed_record_is_rejected_at_the_decode_boundary(
+) -> std::result::Result<(), Box<dyn std::error::Error>> {
     let path = temp_path("malformed");
     std::fs::write(&path, "{\"seq\":1\n")?;
-    let error = read_all::<Record>(&path).expect_err("malformed NDJSON must be rejected");
+    let error = match read_all::<Record>(&path) {
+        Ok(_) => return Err("malformed NDJSON was unexpectedly accepted".into()),
+        Err(error) => error,
+    };
     assert!(matches!(error, enforcer_core::error::Error::Json(_)));
     std::fs::remove_file(&path)?;
     Ok(())

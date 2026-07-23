@@ -127,6 +127,25 @@ impl Convert for usize {
   assert.equal(result.status, 0, result.stdout || result.stderr);
 });
 
+test("Rust boundary ingress ignores private DTO conversion and crate-private persistence helpers", () => {
+  const project = makeProject({
+    "src/boundary/wire.rs": `
+//! BOUNDARY-INVARIANT: wire values are converted before crossing the public API.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct RecordDto { value: String }
+struct Record { value: String }
+impl From<RecordDto> for Record {
+    fn from(value: RecordDto) -> Self { Self { value: value.value } }
+}
+pub(crate) fn persist(value: &RecordDto) -> usize { value.value.len() }
+`,
+  });
+  const result = run(project, ["scan", "--json", "--languages", "common", "--files", "src/boundary/wire.rs"]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.violations.some((violation) => violation.ruleId === "BOUND-1.2"), false);
+});
+
 test("schema-named Rust tests without decoder behavior do not require malformed-input cases", () => {
   const project = makeProject({
     "tests/unit_graph_schema.rs": `

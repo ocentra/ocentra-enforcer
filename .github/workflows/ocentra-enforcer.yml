@@ -1,6 +1,10 @@
 name: Enforcer Manual Parity
 
 on:
+  pull_request:
+    branches: [main, rust-build]
+  push:
+    branches: [main, rust-build]
   workflow_dispatch:
 
 permissions:
@@ -9,11 +13,17 @@ permissions:
 jobs:
   local-parity:
     name: Exact local parity diagnostic
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
         with:
           install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Run the developer gate unchanged
         run: npm run ci:local

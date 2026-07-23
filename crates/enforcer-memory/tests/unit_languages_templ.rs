@@ -75,8 +75,8 @@ import (
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"fmt"), "{paths:?}");
-    assert!(paths.contains(&"strings"), "{paths:?}");
+    assert!(paths.contains(&"fmt"));
+    assert!(paths.contains(&"strings"));
 }
 
 #[test]

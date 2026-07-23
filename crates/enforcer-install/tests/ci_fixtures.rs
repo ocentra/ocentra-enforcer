@@ -38,8 +38,14 @@ fn checked_in_action_yml_pins_cache_to_an_immutable_revision(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = repo_root()?.join(".github/actions/enforcer-scan/action.yml");
     let on_disk = std::fs::read_to_string(&path)?;
-    assert!(on_disk.contains("uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684"));
-    assert!(!on_disk.contains("actions/cache@v4"));
+    let cache_reference = on_disk
+        .lines()
+        .find(|line| line.trim_start().starts_with("uses: actions/cache@"))
+        .ok_or("rendered action must configure the pinned cache action")?;
+    assert_eq!(
+        cache_reference.trim(),
+        "uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684"
+    );
     Ok(())
 }
 

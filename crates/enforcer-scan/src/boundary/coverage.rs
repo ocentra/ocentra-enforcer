@@ -1,9 +1,10 @@
 //! Serialized coverage DTOs.
-
-use enforcer_domain::paths::RelPath;
-use enforcer_domain::scan_types::{ScanTargetCount, SkipReason};
+//! BOUNDARY-INVARIANT: boundary coverage DTOs preserve wire representation only and convert
+//! to scan-domain coverage through `CoverageDto::into_domain`.
 
 use crate::coverage::{Coverage, SkipRecord};
+use enforcer_domain::paths::RelPath;
+use enforcer_domain::scan_types::{ScanTargetCount, SkipReason};
 
 /// One skipped target in the coverage report wire form.
 /// ROUNDTRIP-TEST: `coverage::tests::coverage_roundtrip_through_json` proves
@@ -32,12 +33,14 @@ pub struct CoverageDto {
 }
 
 /// Decode one coverage DTO at the JSON boundary.
+/// NEGATIVE-TEST: `tests/coverage_boundary.rs` rejects malformed JSON before
+/// it can become scan-domain accounting.
 pub fn decode_coverage_json(payload: &str) -> Result<CoverageDto, serde_json::Error> {
     serde_json::from_str(payload)
 }
 
 impl SkipRecordDto {
-    /// Convert an already-decoded report DTO into scan-domain accounting.
+    /// Convert a decoded wire record into the scan-domain representation.
     pub fn into_domain(self) -> SkipRecord {
         SkipRecord {
             file: self.file,
@@ -47,7 +50,7 @@ impl SkipRecordDto {
 }
 
 impl CoverageDto {
-    /// Convert a report DTO into canonical scan-domain coverage accounting.
+    /// Convert boundary-validated coverage into canonical scan-domain state.
     pub fn into_domain(self) -> Coverage {
         Coverage::from_parts(
             self.ran_count,

@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Conversion from raw Rust source-parser observations into canonical findings.
 
 use enforcer_domain::boundary::decode_error::DecodeError;

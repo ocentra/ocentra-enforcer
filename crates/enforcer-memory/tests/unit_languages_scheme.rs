@@ -60,7 +60,7 @@ fn def_form_head_is_also_recorded_as_a_call() {
     let src = "(define (greet name) (display name))\n";
     let parsed = parse_scheme(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"define"), "{callees:?}");
+    assert!(callees.contains(&"define"));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn extracts_require_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"scheme/string"), "{paths:?}");
+    assert!(paths.contains(&"scheme/string"));
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn extracts_import_of_list_spec_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"scheme base"), "{paths:?}");
+    assert!(paths.contains(&"scheme base"));
 }
 
 #[test]

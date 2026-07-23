@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Serde wire DTOs for feedback-decision persistence.
 //!
 //! Raw strings exist only at this NDJSON/JSON boundary and are converted to

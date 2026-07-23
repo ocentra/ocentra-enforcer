@@ -1,13 +1,14 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Append-only SHA-256 hash-chained NDJSON persistence boundary.
 //!
 //! CONSUMES `enforcer-core`'s generic append-only
 //! [`enforcer_core::ndjson_writer::NdjsonWriter`] sink and the pure
-//! [`enforcer_core::hash_chain`] primitive — no crypto or file-append logic
+//! [`enforcer_core::hash_chain`] primitive â€” no crypto or file-append logic
 //! is reimplemented here. This module only adds the proof-specific
 //! envelope: a versioned [`JournalRecordEnvelope`] wire shape (`schema_version` +
 //! `event_type`) whose on-disk line ALSO carries the hash-chain digest, and
-//! **verify-on-open + verify-on-replay** so any break in the chain —
-//! tampered payload, reordered line, truncated/missing link — fails closed
+//! **verify-on-open + verify-on-replay** so any break in the chain â€”
+//! tampered payload, reordered line, truncated/missing link â€” fails closed
 //! instead of being silently accepted.
 //! Malformed or tampered chains are rejected by the negative open and replay
 //! tests in this module.
@@ -160,7 +161,7 @@ impl ProofJournal {
     }
 
     /// The records currently on disk, in append order (test/inspection
-    /// helper — production replay uses [`ProofJournal::verify_on_replay`]
+    /// helper â€” production replay uses [`ProofJournal::verify_on_replay`]
     /// first).
     pub fn records(&self) -> Result<Vec<JournalRecordEnvelope>> {
         Ok(read_lines(&self.path)?

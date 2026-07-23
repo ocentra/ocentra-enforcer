@@ -84,7 +84,7 @@ fn scoring_marks_domain_event_high_and_test_fixture_low() -> Result<(), Box<dyn 
         file: &domain_file,
         language: &rust_language,
         role: FileRole::Domain,
-        repeated_files: 1,
+        repeated_files: 1.into(),
         fail_above: None,
     });
     assert!(risk.score >= 70, "expected high risk, got {}", risk.score);
@@ -97,7 +97,7 @@ fn scoring_marks_domain_event_high_and_test_fixture_low() -> Result<(), Box<dyn 
         file: &test_file,
         language: &typescript_language,
         role: FileRole::Test,
-        repeated_files: 1,
+        repeated_files: 1.into(),
         fail_above: None,
     });
     assert!(test.score < risk.score);
@@ -123,7 +123,7 @@ fn secret_is_blocking() -> Result<(), Box<dyn std::error::Error>> {
         file: &file,
         language: &language,
         role: FileRole::Config,
-        repeated_files: 1,
+        repeated_files: 1.into(),
         fail_above: None,
     });
     assert_eq!(finding.category, RiskCategory::SecretLike);

@@ -76,7 +76,7 @@ fn extracts_superclass_as_inherits() {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Animal")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Animal")));
 }
 
 #[test]
@@ -129,8 +129,8 @@ fn extracts_method_defines_inside_implementation() {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
-    assert!(defines.contains(&("Widget", "resize")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
+    assert!(defines.contains(&("Widget", "resize")));
 }
 
 #[test]
@@ -256,7 +256,7 @@ void draw(void) {
 "#;
     let parsed = parse_objc(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     Ok(())
 }
 
@@ -308,8 +308,8 @@ fn extracts_preproc_include_as_imports() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Foundation/Foundation.h"), "{paths:?}");
-    assert!(paths.contains(&"local.h"), "{paths:?}");
+    assert!(paths.contains(&"Foundation/Foundation.h"));
+    assert!(paths.contains(&"local.h"));
 }
 
 #[test]

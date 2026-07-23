@@ -186,8 +186,8 @@ pub(crate) const SPECS: &[RuleSpec] = &[
     RuleSpec {
         rule_id: "TS-6.37",
         title: "Exported functions require explicit return types",
-        kind: TriggerKind::Literal,
-        needles: &["export function widget() {", "export function process() {"],
+        kind: TriggerKind::ExportedFunctionReturnType,
+        needles: &[],
         comment_guard: true,
     },
     RuleSpec {

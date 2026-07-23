@@ -25,7 +25,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Resolve changed graph and reverse dependents
         id: plan
         shell: bash
@@ -51,7 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Validate affected crates and reverse dependents
         run: node scripts/ci/run-impacted.mjs --packages "${{ needs.plan-impacted.outputs.packages }}"
 
@@ -66,7 +70,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Cache Cargo registry and build outputs
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
@@ -89,9 +95,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
         with:
           install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: Run the exact developer parity command
         run: npm run ci:local
 
@@ -102,9 +110,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: ./.github/actions/setup-enforcer
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
         with:
           install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        run: npm ci
       - name: RustSec advisory audit
         run: cargo audit --deny warnings
       - name: Cargo deny policy

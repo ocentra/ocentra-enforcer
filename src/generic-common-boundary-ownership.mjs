@@ -27,8 +27,16 @@ export function scanBoundaryRules(violations, root, filePath, rel, lines, text) 
   const documented = /\bBOUNDARY-INVARIANT:/u.test(text)
     || /(?:^|\n)\s*(?:\/\/[/!]|\/\*\*)[^\n]*(?:boundary|wire|raw)[\s\S]{0,600}(?:parse|decode|convert|map|domain|reject|validate)/iu.test(text);
   if (!documented) record(violations, root, filePath, 1, "BOUND-1.1", "boundary file lacks BOUNDARY-INVARIANT documentation.", rel);
-  const hasUntypedInput = lines.some((line) => /:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u
-    .test(line.replace(/(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gu, "")));
+  const sanitizedLines = lines.map((line) => line
+    .replace(/\/\/[^\n\r]*/u, "")
+    .replace(/\/\*[\s\S]*?\*\//gu, "")
+    .replace(/(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gu, ""));
+  const hasUntypedInput = sanitizedLines.some((line) => {
+    const trimmed = line.trimStart();
+    return /:\s*(?:&\s*)?(?:unknown|any)(?:[\s,\]\)\};&]|$)/u.test(trimmed)
+      || /:\s*dict\[/u.test(trimmed)
+      || /:\s*Record<string,\s*unknown>/u.test(trimmed);
+  });
   if ((signatureEvidence.hasRawInput || hasUntypedInput)
       && !signatureEvidence.hasDomainConversion) {
     record(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);

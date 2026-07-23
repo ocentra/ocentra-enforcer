@@ -72,7 +72,7 @@ fn extracts_import_as_import_edge() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"common.just"), "{paths:?}");
+    assert!(paths.contains(&"common.just"));
 }
 
 #[test]

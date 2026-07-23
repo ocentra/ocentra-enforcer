@@ -1,4 +1,6 @@
-//! Windows-first path/time/env helpers (OcentraParent `logging-core` borrow —
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
+//! Windows-first path/time/env helpers (OcentraParent `logging-core` borrow â€”
 //! see the vendoring attribution note in `lib.rs`).
 //!
 //! Boundary callers never hand-roll path handling: backslash paths are

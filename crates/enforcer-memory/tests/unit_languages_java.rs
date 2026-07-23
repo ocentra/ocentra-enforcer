@@ -53,8 +53,8 @@ public enum Color { RED, GREEN }
         kinds.contains(&("Drawable", SymbolKind::Interface)),
         "{kinds:?}"
     );
-    assert!(kinds.contains(&("Widget", SymbolKind::Class)), "{kinds:?}");
-    assert!(kinds.contains(&("Color", SymbolKind::Enum)), "{kinds:?}");
+    assert!(kinds.contains(&("Widget", SymbolKind::Class)));
+    assert!(kinds.contains(&("Color", SymbolKind::Enum)));
 }
 
 #[test]
@@ -72,7 +72,7 @@ public class Widget extends Shape {}
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Shape")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Shape")));
 }
 
 #[test]
@@ -115,7 +115,7 @@ public interface Drawable extends Base {}
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Drawable", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Drawable", "Base")));
 }
 
 #[test]
@@ -147,7 +147,7 @@ public class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "MAX_WIDGETS")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "MAX_WIDGETS")));
 }
 
 #[test]
@@ -166,21 +166,21 @@ public class Widget {
         .iter()
         .map(|s| (s.name.as_str(), s.kind))
         .collect();
-    assert!(kinds.contains(&("draw", SymbolKind::Method)), "{kinds:?}");
+    assert!(kinds.contains(&("draw", SymbolKind::Method)));
 
     let defines: Vec<(&str, &str)> = parsed
         .defines
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "draw")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "draw")));
 
     let decorates: Vec<(&str, &str)> = parsed
         .decorates
         .iter()
         .map(|d| (d.target_name.as_str(), d.decorator_name.as_str()))
         .collect();
-    assert!(decorates.contains(&("draw", "Override")), "{decorates:?}");
+    assert!(decorates.contains(&("draw", "Override")));
 }
 
 #[test]
@@ -197,8 +197,8 @@ import java.util.ArrayList;
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"java.util.List"), "{paths:?}");
-    assert!(paths.contains(&"java.util.ArrayList"), "{paths:?}");
+    assert!(paths.contains(&"java.util.List"));
+    assert!(paths.contains(&"java.util.ArrayList"));
 }
 
 #[test]
@@ -215,7 +215,7 @@ public class Widget {
 "#;
     let parsed = parse(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
     assert!(callees.iter().any(|c| c.ends_with(".trim")), "{callees:?}");
 }
 
@@ -234,9 +234,9 @@ public class Widget {
         .iter()
         .map(|t| t.type_name.as_str())
         .collect();
-    assert!(types.contains(&"int"), "{types:?}");
-    assert!(types.contains(&"String"), "{types:?}");
-    assert!(types.contains(&"boolean"), "{types:?}");
+    assert!(types.contains(&"int"));
+    assert!(types.contains(&"String"));
+    assert!(types.contains(&"boolean"));
 }
 
 #[test]
@@ -287,7 +287,7 @@ public class WidgetController {
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("GET", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("GET", "/widgets")));
 }
 
 #[test]
@@ -308,7 +308,7 @@ public class WidgetController {
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("POST", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("POST", "/widgets")));
 }
 
 /// Regression: syntax-child traversal must retain source order for both
@@ -632,16 +632,16 @@ fn java_fixture_repo_reindexes_incrementally() -> TestResult {
     assert_eq!(report_v1.added.len(), files.len());
 
     let symbol_names: Vec<&str> = graph1.symbol_nodes().map(|s| s.name.as_str()).collect();
-    assert!(symbol_names.contains(&"Widget"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"Drawable"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"testDraw"), "{symbol_names:?}");
+    assert!(symbol_names.contains(&"Widget"));
+    assert!(symbol_names.contains(&"Drawable"));
+    assert!(symbol_names.contains(&"testDraw"));
 
     let routes: Vec<(&str, &str)> = graph1
         .routes()
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("GET", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("GET", "/widgets")));
 
     // Second run, nothing changed: every file is skipped.
     let mut graph2 = CodeGraph::new();

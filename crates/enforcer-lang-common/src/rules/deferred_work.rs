@@ -100,22 +100,25 @@ mod tests {
 
     const DEFER_TODO: [u8; 4] = [84, 79, 68, 79];
     const DEFER_FIXME: [u8; 5] = [70, 73, 88, 77, 69];
-    const NOT_IMPL: [u8; 15] = [110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100];
+    const NOT_IMPL: [u8; 15] = [
+        110, 111, 116, 32, 105, 109, 112, 108, 101, 109, 101, 110, 116, 101, 100,
+    ];
     const RAISE_WORD: [u8; 5] = [114, 97, 105, 115, 101];
     const THROW_WORD: [u8; 5] = [116, 104, 114, 111, 119];
     const NEW_WORD: [u8; 3] = [110, 101, 119];
     const ERROR_WORD: [u8; 5] = [69, 114, 114, 111, 114];
+
+    macro_rules! text {
+        ($bytes:expr) => {
+            String::from_utf8_lossy($bytes)
+        };
+    }
+
     #[test]
     fn finds_unannotated_tokens_and_silences_annotated_ones(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let todo = match std::str::from_utf8(&DEFER_TODO) {
-            Ok(value) => value,
-            Err(_) => "TODO",
-        };
-        let fixme = match std::str::from_utf8(&DEFER_FIXME) {
-            Ok(value) => value,
-            Err(_) => "FIXME",
-        };
+        let todo = text!(&DEFER_TODO);
+        let fixme = text!(&DEFER_FIXME);
         let source = format!(
             "// {todo} with no structured follow-up\n// {fixme} with no structured follow-up\n"
         );
@@ -130,12 +133,16 @@ mod tests {
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                source.as_str(),
+            ),
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 2);
         assert!(findings.iter().all(|f| f.rule_id.as_str() == "DEFER-1.1"));
-        assert!(findings.iter().all(|f| f.title.as_str().contains("unmarked")));
+        assert!(findings
+            .iter()
+            .all(|f| f.title.as_str().contains("unmarked")));
         Ok(())
     }
 
@@ -143,14 +150,13 @@ mod tests {
     fn malformed_annotation_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let todo = match std::str::from_utf8(&DEFER_TODO) {
-            Ok(value) => value,
-            Err(_) => "TODO",
-        };
+        let todo = text!(&DEFER_TODO);
         let source = format!("{todo} DEFERRED(#)[revisit:later] empty ref\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                source.as_str(),
+            ),
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 1);
@@ -163,14 +169,13 @@ mod tests {
     fn missing_revisit_still_fails() -> Result<(), Box<dyn std::error::Error>> {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let fixme = match std::str::from_utf8(&DEFER_FIXME) {
-            Ok(value) => value,
-            Err(_) => "FIXME",
-        };
+        let fixme = text!(&DEFER_FIXME);
         let source = format!("{fixme} DEFERRED(#123) missing revisit bracket\n");
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                source.as_str(),
+            ),
             scope: enforcer_domain::findings::ScanScope::Diff,
         });
         assert_eq!(findings.len(), 1);
@@ -183,40 +188,13 @@ mod tests {
     {
         let validator = DeferredWorkValidator::new()?;
         let file: enforcer_domain::paths::RelPath = "crates/x/src/lib.rs".parse()?;
-        let todo = match std::str::from_utf8(&DEFER_TODO) {
-            Ok(value) => value,
-            Err(_) => "TODO",
-        };
-        let not_impl = match std::str::from_utf8(&NOT_IMPL) {
-            Ok(value) => value,
-            Err(_) => "not implemented",
-        };
-        let throw = [
-            match std::str::from_utf8(&THROW_WORD) {
-                Ok(value) => value,
-                Err(_) => "throw",
-            },
-            " ",
-            match std::str::from_utf8(&NEW_WORD) {
-                Ok(value) => value,
-                Err(_) => "new",
-            },
-            " ",
-            match std::str::from_utf8(&ERROR_WORD) {
-                Ok(value) => value,
-                Err(_) => "error",
-            },
-            "(",
-            "\"",
-            not_impl,
-            "\"",
-            ")",
-        ]
-        .concat();
-        let raise_word = match std::str::from_utf8(&RAISE_WORD) {
-            Ok(value) => value,
-            Err(_) => "raise",
-        };
+        let todo = text!(&DEFER_TODO);
+        let not_impl = text!(&NOT_IMPL);
+        let throw_word = text!(&THROW_WORD);
+        let new_word = text!(&NEW_WORD);
+        let error_word = text!(&ERROR_WORD);
+        let throw = format!("{throw_word} {new_word} {error_word}(\"{not_impl}\")");
+        let raise_word = text!(&RAISE_WORD);
         let cases = [
             format!("// {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
             format!("# {todo} DEFERRED(#ARC-99)[revisit:2027-01-01] generated line\n"),
@@ -227,7 +205,9 @@ mod tests {
             let source = case;
             let findings = validator.validate(enforcer_validator::validator::ValidationInput {
                 file: &file,
-                source: enforcer_domain::boundary::validation::ValidationSource::from_text(source.as_str()),
+                source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+                    source.as_str(),
+                ),
                 scope: enforcer_domain::findings::ScanScope::Diff,
             });
             assert!(findings.is_empty(), "expected silence for: {source}");
@@ -261,17 +241,22 @@ mod tests {
 
     #[test]
     fn parser_rejects_unterminated_ref() {
-        let outcome = parse_deferred_annotation(
-            "DEFERRED(#no-close-paren",
+        let outcome = parse_deferred_annotation("DEFERRED(#no-close-paren");
+        assert!(
+            outcome.is_err(),
+            "unterminated deferred annotation must be rejected"
         );
-        assert!(outcome.is_err());
+        if let Err(error) = outcome {
+            assert!(matches!(
+                error,
+                DeferredAnnotationError::MissingOrEmptyRef { .. }
+            ));
+        }
     }
 
     #[test]
     fn parser_accepts_well_formed_annotation() -> Result<(), Box<dyn std::error::Error>> {
-        parse_deferred_annotation(
-            "DEFERRED(#ARC-1)[revisit:2027-01-01] trailing text",
-        )?;
+        parse_deferred_annotation("DEFERRED(#ARC-1)[revisit:2027-01-01] trailing text")?;
         Ok(())
     }
 }

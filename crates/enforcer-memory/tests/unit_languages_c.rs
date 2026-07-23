@@ -293,8 +293,8 @@ fn c_fixture_repo_reindexes_incrementally() -> TestResult {
     assert_eq!(report_v1.added.len(), files.len());
 
     let symbol_names: Vec<&str> = graph1.symbol_nodes().map(|s| s.name.as_str()).collect();
-    assert!(symbol_names.contains(&"widget_new"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"Widget"), "{symbol_names:?}");
+    assert!(symbol_names.contains(&"widget_new"));
+    assert!(symbol_names.contains(&"Widget"));
     assert!(
         symbol_names.contains(&"test_widget_new_sets_id"),
         "{symbol_names:?}"

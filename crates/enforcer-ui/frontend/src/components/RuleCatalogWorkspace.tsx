@@ -1,5 +1,5 @@
 import { BookOpenCheck, CircleAlert, Filter, LockKeyhole, Search, SlidersHorizontal, ToggleLeft, ToggleRight, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactElement, useEffect, useMemo, useState } from "react";
 import type { Project } from "../data/enforcerAppData";
 import {
   type CatalogRule,
@@ -15,6 +15,17 @@ import {
 
 type CatalogView = "universal" | "detected" | "overrides" | "all";
 
+type RuleCatalogWorkspaceProps = {
+  project: Project;
+  catalog: CatalogRule[];
+  catalogLoading: boolean;
+  catalogError: string;
+  coverage: ProjectRuleCoverage | undefined;
+  overrides: RuleOverride[];
+  focusRuleId: string | undefined;
+  onUpdateOverride: (override: RuleOverride) => Promise<void>;
+};
+
 const viewLabels: Array<{ id: CatalogView; label: string }> = [
   { id: "universal", label: "Universal" },
   { id: "detected", label: "Project stack" },
@@ -22,7 +33,7 @@ const viewLabels: Array<{ id: CatalogView; label: string }> = [
   { id: "all", label: "All rules" },
 ];
 
-export function RuleCatalogWorkspace({
+export const RuleCatalogWorkspace = ({
   project,
   catalog,
   catalogLoading,
@@ -31,16 +42,7 @@ export function RuleCatalogWorkspace({
   overrides,
   focusRuleId,
   onUpdateOverride,
-}: {
-  project: Project;
-  catalog: CatalogRule[];
-  catalogLoading: boolean;
-  catalogError: string;
-  coverage?: ProjectRuleCoverage | undefined;
-  overrides: RuleOverride[];
-  focusRuleId?: string | undefined;
-  onUpdateOverride: (override: RuleOverride) => Promise<void>;
-}) {
+}: RuleCatalogWorkspaceProps): ReactElement => {
   const [view, setView] = useState<CatalogView>("detected");
   const [family, setFamily] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -152,7 +154,7 @@ export function RuleCatalogWorkspace({
       )}
     </section>
   );
-}
+};
 
 function RuleInspector({ rule, onEdit, onClose }: { rule: ReturnType<typeof rulesForProject>[number]; onEdit: () => void; onClose: () => void }) {
   const fixture = rule.requiresFailFixture && rule.requiresPassFixture ? "pass + fail required" : rule.requiresPassFixture ? "pass fixture" : rule.requiresFailFixture ? "fail fixture" : "no fixture contract";
@@ -195,7 +197,7 @@ function EmptyInspector() {
   return <div className="empty-inspector"><BookOpenCheck size={24} /><strong>Select a numbered rule</strong><small>Its source, trigger, fixture contract, and project policy state appear here.</small></div>;
 }
 
-function OverrideDialog({ rule, existing, onClose, onSave }: { rule: CatalogRule; existing?: RuleOverride | undefined; onClose: () => void; onSave: (override: RuleOverride) => Promise<void> }) {
+function OverrideDialog({ rule, existing, onClose, onSave }: { rule: CatalogRule; existing: RuleOverride | undefined; onClose: () => void; onSave: (override: RuleOverride) => Promise<void> }) {
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const [severity, setSeverity] = useState<RuleSeverity>(existing?.severity ?? rule.severity);
   const [owner, setOwner] = useState(existing?.waiver?.owner ?? "");
@@ -210,11 +212,15 @@ function OverrideDialog({ rule, existing, onClose, onSave }: { rule: CatalogRule
       <section className="policy-dialog" role="dialog" aria-modal="true" aria-label={`Edit ${rule.id} project policy`} onMouseDown={(event) => event.stopPropagation()}>
         <div className="panel-head"><span><strong>Edit project policy</strong><small>{rule.id} / {rule.title}</small></span><button className="icon-button" onClick={onClose} title="Close policy editor"><X size={18} /></button></div>
         <label className="policy-field"><span>Effective state</span><select value={enabled ? "enabled" : "disabled"} onChange={(event) => setEnabled(event.target.value === "enabled")}><option value="enabled">Enabled</option><option value="disabled" disabled={!rule.canDisable}>Disabled with waiver</option></select></label>
-        <label className="policy-field"><span>Effective severity</span><select value={severity} disabled={!rule.canDowngrade} onChange={(event) => setSeverity(event.target.value as RuleSeverity)}><option value="error">error</option><option value="warning">warning</option><option value="info">info</option></select></label>
+        <label className="policy-field"><span>Effective severity</span><select value={severity} disabled={!rule.canDowngrade} onChange={(event) => { const value = event.target.value; if (isRuleSeverity(value)) setSeverity(value); }}><option value="error">error</option><option value="warning">warning</option><option value="info">info</option></select></label>
         {requiresWaiver && <div className="waiver-fields"><div className="policy-callout"><CircleAlert size={17} /><span>Disabling a rule requires a named owner and a reason. This mirrors the typed Rust request contract.</span></div><label className="policy-field"><span>Waiver owner</span><input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder="team or person" /></label><label className="policy-field"><span>Waiver reason</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why this project needs the exception" /></label></div>}
         {saveError && <div className="index-error">{saveError}</div>}
         <div className="dialog-actions"><button className="secondary-action" onClick={onClose} disabled={saving}>Cancel</button><button className="primary-action" disabled={!canSave || saving} onClick={() => { setSaving(true); setSaveError(""); void onSave({ ruleId: rule.id, enabled, severity, waiver: enabled ? undefined : { owner: owner.trim(), reason: reason.trim() } }).catch((error: unknown) => { setSaveError(String(error)); setSaving(false); }); }}>{enabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}{saving ? "Saving" : enabled ? "Save override" : "Save waiver"}</button></div>
       </section>
     </div>
   );
+}
+
+function isRuleSeverity(value: string): value is RuleSeverity {
+  return value === "error" || value === "warning" || value === "info";
 }

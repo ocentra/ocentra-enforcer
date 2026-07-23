@@ -93,7 +93,7 @@ fn extracts_use_statement_as_import_via_positional_identifier() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"fmt"), "{paths:?}");
+    assert!(paths.contains(&"fmt"));
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"fmt"), "{paths:?}");
+    assert!(paths.contains(&"fmt"));
     Ok(())
 }
 

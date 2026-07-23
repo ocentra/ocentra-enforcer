@@ -142,8 +142,8 @@ Item {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"QtQuick"), "{paths:?}");
-    assert!(paths.contains(&"./helpers.js"), "{paths:?}");
+    assert!(paths.contains(&"QtQuick"));
+    assert!(paths.contains(&"./helpers.js"));
 }
 
 #[test]
@@ -185,8 +185,8 @@ Item {
 "#;
     let parsed = parse_qml(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"Widget"), "{callees:?}");
-    assert!(callees.contains(&"w.draw"), "{callees:?}");
+    assert!(callees.contains(&"Widget"));
+    assert!(callees.contains(&"w.draw"));
     let call = parsed
         .calls
         .iter()
@@ -309,5 +309,5 @@ fn real_fixture_file_parses_and_extracts_expected_symbols() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"QtQuick"), "{paths:?}");
+    assert!(paths.contains(&"QtQuick"));
 }

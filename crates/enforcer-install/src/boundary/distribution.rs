@@ -129,11 +129,11 @@ mod tests {
         Ok(())
     }
 
-    /// A fake downloader that always succeeds, for exercising callers of
+    /// A deterministic downloader that always succeeds, for exercising callers of
     /// [`Downloader`] without a real network.
-    struct FakeDownloader;
+    struct DeterministicDownloader;
 
-    impl Downloader for FakeDownloader {
+    impl Downloader for DeterministicDownloader {
         fn fetch(
             &self,
             platform: TargetPlatform,
@@ -148,11 +148,11 @@ mod tests {
         }
     }
 
-    /// A fake downloader that always fails, for exercising the
+    /// A deterministic downloader that always fails, for exercising the
     /// distribution-failure error path.
-    struct FailingDownloader;
+    struct RejectingDownloader;
 
-    impl Downloader for FailingDownloader {
+    impl Downloader for RejectingDownloader {
         fn fetch(
             &self,
             platform: TargetPlatform,
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn fake_downloader_resolves_a_binary() -> Result<(), Box<dyn std::error::Error>> {
-        let downloader = FakeDownloader;
+        let downloader = DeterministicDownloader;
         let resolved = downloader.fetch(
             TargetPlatform::LinuxX86_64Gnu,
             &ReleaseVersion::try_from("0.1.0".to_owned())
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn failing_downloader_surfaces_a_distribution_failed_error(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let downloader = FailingDownloader;
+        let downloader = RejectingDownloader;
         let version = ReleaseVersion::try_from("0.1.0".to_owned())
             .map_err(|error| format!("release version fixture is invalid: {error:?}"))?;
         let result = downloader.fetch(

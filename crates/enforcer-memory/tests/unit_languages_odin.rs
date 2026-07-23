@@ -145,7 +145,7 @@ fn extracts_import_declaration_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"core:fmt"), "{paths:?}");
+    assert!(paths.contains(&"core:fmt"));
 }
 
 #[test]

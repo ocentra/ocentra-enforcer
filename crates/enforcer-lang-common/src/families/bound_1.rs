@@ -222,7 +222,10 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let validator = BoundaryDeclarationBudget::new()?;
         let file = crate::boundary::static_rel_path("src/boundary/wire.rs")?;
-        let source = "pub struct EventDto;\nimpl TryFrom<EventDto> for Domain { fn try_from(_: EventDto) -> Result<Self, ()> { todo!() } }\nfn repeat(_: EventDto, _: EventDto, _: EventDto) {}";
+        let source = concat!(
+            "pub struct EventDto;\nimpl TryFrom<EventDto> for Domain { fn try_from(_: EventDto) -> Result<Self, ()> { ",
+            "todo!() } }\nfn repeat(_: EventDto, _: EventDto, _: EventDto) {}"
+        );
         assert!(validator
             .validate(ValidationInput {
                 file: &file,

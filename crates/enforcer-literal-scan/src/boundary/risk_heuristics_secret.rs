@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 pub(crate) fn is_secret_like(text: &str) -> bool {
     let value = text.trim();
 

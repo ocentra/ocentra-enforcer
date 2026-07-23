@@ -1,17 +1,18 @@
-//! `MCM-KILLSWITCH.1` (T1) — the kill-switch mechanics facet (h06, §8.9
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `MCM-KILLSWITCH.1` (T1) â€” the kill-switch mechanics facet (h06, Â§8.9
 //! of the ingested money-critical/security-testing spec).
 //!
-//! Doctrine (§8.9): a kill switch (emergency halt / circuit breaker /
+//! Doctrine (Â§8.9): a kill switch (emergency halt / circuit breaker /
 //! pause-payments toggle) MUST be halt-all, atomic, authenticated,
-//! audited, and replay-safe. An untested kill switch is forbidden — a
+//! audited, and replay-safe. An untested kill switch is forbidden â€” a
 //! halt mechanism nobody has exercised is not a safety mechanism, it is
 //! an unverified assumption sitting in the money path. Each of these
 //! properties is independently checkable from the source text; missing
 //! ANY of them is a fail.
 //!
-//! GENERIC across any value system — never a crypto-only pause notion.
+//! GENERIC across any value system â€” never a crypto-only pause notion.
 //!
-//! Scoped by h01's money-critical classifier (consumed read-only) — a
+//! Scoped by h01's money-critical classifier (consumed read-only) â€” a
 //! kill switch is definitionally money-critical; this module does not
 //! redefine that classification.
 //!
@@ -35,7 +36,7 @@
 //!   replay-unsafe.
 //! - Must be tested: a co-located test marker comment
 //!   (`// kill-switch-tested: <test-name>`) must be present in the same
-//!   source — its absence is flagged as "untested kill switch is
+//!   source â€” its absence is flagged as "untested kill switch is
 //!   forbidden", independent of the mechanical properties above.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -101,7 +102,7 @@ fn tested_pattern() -> Result<Regex, DecodeError> {
     })
 }
 
-/// `MCM-KILLSWITCH.1` — T1 kill-switch mechanics gate.
+/// `MCM-KILLSWITCH.1` â€” T1 kill-switch mechanics gate.
 ///
 /// Fires once per missing required property (atomic / authed / audited /
 /// replay-safe / tested) on any source declaring a kill-switch
@@ -178,7 +179,7 @@ impl Validator for KillSwitchValidator {
             (&self.rule_id, Severity::Error),
             "kill switch is not halt-all/atomic/authed/audited/replay-safe/tested (T1)",
             format!(
-                "kill switch is missing: {}. Doctrine (§8.9): a kill switch MUST be halt-all, \
+                "kill switch is missing: {}. Doctrine (Â§8.9): a kill switch MUST be halt-all, \
                  atomic, authenticated, audited, and replay-safe; an untested kill switch is \
                  forbidden. Fix: add the missing property/properties above.",
                 missing.join(", ")

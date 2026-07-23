@@ -57,7 +57,7 @@ fn def_form_head_is_also_recorded_as_a_call() {
     let src = "(define (greet name) (display name))\n";
     let parsed = parse_racket(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"define"), "{callees:?}");
+    assert!(callees.contains(&"define"));
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn extracts_require_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"racket/string"), "{paths:?}");
+    assert!(paths.contains(&"racket/string"));
 }
 
 #[test]

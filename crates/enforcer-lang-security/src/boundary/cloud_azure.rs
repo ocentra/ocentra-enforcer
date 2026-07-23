@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Azure storage snapshot decoding boundary.
 //! Malformed JSON is rejected, with negative coverage in this module's tests.
 

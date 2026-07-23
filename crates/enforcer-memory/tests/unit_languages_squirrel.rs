@@ -115,8 +115,8 @@ fn extracts_call_edges_including_qualified_receiver() -> TestResult {
     let src = "function f(h) {\n    helper();\n    h.register();\n}\n";
     let parsed = parse_squirrel(src);
     let callees: Vec<&str> = parsed.calls.iter().map(|c| c.callee.as_str()).collect();
-    assert!(callees.contains(&"helper"), "{callees:?}");
-    assert!(callees.contains(&"h.register"), "{callees:?}");
+    assert!(callees.contains(&"helper"));
+    assert!(callees.contains(&"h.register"));
     let call = parsed
         .calls
         .iter()

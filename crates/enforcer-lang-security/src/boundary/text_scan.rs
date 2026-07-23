@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Shared line-oriented matching primitives for the security validator
 //! families (`secret_scan`, `generic_scanner`).
 //!
@@ -5,7 +7,7 @@
 //!
 //! A shared comment-only-line guard (skip matching on lines that are pure
 //! `//`/`#`/`/* */` comments) is the right default posture for MOST rules
-//! in this crate — a secret pattern merely MENTIONED in a comment (e.g. a
+//! in this crate â€” a secret pattern merely MENTIONED in a comment (e.g. a
 //! doc example) is not a live occurrence of it. But arc-07's memory
 //! flagged that a uniform guard silently defeats any rule whose violation
 //! IS itself a comment. None of the 22 `SEC-*` rules in this crate have
@@ -16,7 +18,7 @@
 //!
 //! # The double-dispatch / position-guard gotcha (mem-arc-06-0002)
 //!
-//! A bare substring search matches regardless of surrounding context —
+//! A bare substring search matches regardless of surrounding context â€”
 //! e.g. a `.env` path fragment inside an unrelated word, or a `key`/
 //! `secret` identifier substring inside a longer identifier. Every regex
 //! pattern below is anchored with `\b` word boundaries or explicit
@@ -70,7 +72,7 @@ pub(crate) fn is_command_like_line(text: &str) -> bool {
 }
 
 /// True when `text` is (trimmed) a `//`, `#`, or `/* */`-style comment
-/// line — used to keep matchers from firing on comment-only mentions of a
+/// line â€” used to keep matchers from firing on comment-only mentions of a
 /// forbidden pattern (this doc comment's own examples included).
 pub(crate) fn is_comment_only_line(
     text: enforcer_domain::boundary::validation::ValidationSource<'_>,

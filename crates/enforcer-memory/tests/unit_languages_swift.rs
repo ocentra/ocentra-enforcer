@@ -114,7 +114,7 @@ class Widget: Drawable {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Widget", "Drawable")), "{inherits:?}");
+    assert!(inherits.contains(&("Widget", "Drawable")));
 }
 
 #[test]
@@ -132,7 +132,7 @@ protocol Sub: Base {
         .iter()
         .map(|i| (i.sub_name.as_str(), i.super_name.as_str()))
         .collect();
-    assert!(inherits.contains(&("Sub", "Base")), "{inherits:?}");
+    assert!(inherits.contains(&("Sub", "Base")));
 }
 
 #[test]
@@ -148,7 +148,7 @@ class Widget {
         .iter()
         .map(|d| (d.container_name.as_str(), d.member_name.as_str()))
         .collect();
-    assert!(defines.contains(&("Widget", "name")), "{defines:?}");
+    assert!(defines.contains(&("Widget", "name")));
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn extracts_import_declaration() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Foundation"), "{paths:?}");
+    assert!(paths.contains(&"Foundation"));
 }
 
 #[test]

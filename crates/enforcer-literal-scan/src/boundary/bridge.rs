@@ -1,4 +1,5 @@
-//! `LIT-2.1` — the universal literal-scan T2 advisory bridge.
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `LIT-2.1` â€” the universal literal-scan T2 advisory bridge.
 //!
 //! Wires the folded scored literal-risk scanner (arc-13) into the
 //! `enforcer-validator` (arc-05) `Validator` boundary as an **always-on,
@@ -16,13 +17,13 @@
 //! NOT call it. Instead it composes the same pure per-file primitives
 //! `run_scan` itself calls internally, operating directly over
 //! `input.source: &str`:
-//! 1. [`crate::detect_language`] — classify the target's language from its
+//! 1. [`crate::detect_language`] â€” classify the target's language from its
 //!    path (extension/basename), independent of file contents.
-//! 2. [`crate::classify_file_role`] — classify the target's role (domain,
+//! 2. [`crate::classify_file_role`] â€” classify the target's role (domain,
 //!    boundary, config, test, ...) from its repo-relative path.
-//! 3. [`crate::lexer::lex_literals`] — lex string/template literal
+//! 3. [`crate::lexer::lex_literals`] â€” lex string/template literal
 //!    candidates out of the in-memory source text.
-//! 4. [`crate::risk::classify_literal`] — score each candidate, producing
+//! 4. [`crate::risk::classify_literal`] â€” score each candidate, producing
 //!    the crate's own (richer) `Finding` DTO with `score` + `confidence`.
 //!
 //! Each crate-local `Finding` is then mapped into an
@@ -31,7 +32,7 @@
 //! # Non-blocking, by construction
 //!
 //! [`enforcer_domain::findings::Violation`] only exists for a `Finding`
-//! whose `severity` is [`Severity::Error`] — `Violation::try_from` fails
+//! whose `severity` is [`Severity::Error`] â€” `Violation::try_from` fails
 //! closed otherwise. This bridge NEVER constructs a `Finding` with
 //! `Severity::Error`, regardless of the crate-local scorer's own
 //! `blocking` flag (which drives ITS severity string, `"error"` /
@@ -40,7 +41,7 @@
 //! [`Severity::Warning`] when the crate-local score crosses the advisory
 //! threshold, and no finding at all is emitted below it. That makes it
 //! structurally impossible for this validator's output to promote to a
-//! blocking `Violation` or flip a `Report.ok` to `false` on its own — the
+//! blocking `Violation` or flip a `Report.ok` to `false` on its own â€” the
 //! T2 doctrine (scored/advisory, never a hard gate by itself).
 
 use std::num::NonZeroU32;
@@ -114,7 +115,7 @@ impl Validator for LiteralScanBridgeValidator {
             return Vec::new();
         };
         let language_id = LiteralLanguageId::from(language.id);
-        let role = classify_file_role(rel, language);
+        let role = classify_file_role(&finding_path, language);
         let candidates = lex_literals(input.source.as_str(), language, rel);
 
         let mut findings = Vec::new();
@@ -128,7 +129,7 @@ impl Validator for LiteralScanBridgeValidator {
                 // cross-file repeated-literal context at the per-file
                 // `Validator` boundary); `repeated_files = 0` matches
                 // "no repetition signal available here".
-                repeated_files: 0,
+                repeated_files: 0.into(),
                 fail_above: None,
             });
             if scan_finding.score < self.min_score {
@@ -265,7 +266,7 @@ mod tests {
 
     /// A target whose path carries no recognizable extension/basename
     /// still degrades gracefully (empty findings, no panic) rather than
-    /// treating "unknown language" as an error condition — the run stays
+    /// treating "unknown language" as an error condition â€” the run stays
     /// exit-0-capable even when native language detection has nothing to
     /// key off.
     #[test]
@@ -284,7 +285,7 @@ mod tests {
     }
 
     /// `.dart`, `.cfc`, and `.cfm` must all resolve to a concrete language
-    /// entry in the registry (not the `unknown` fallback) — the additive
+    /// entry in the registry (not the `unknown` fallback) â€” the additive
     /// registry rows this pack owns.
     #[test]
     fn dart_and_cfml_extensions_are_registered() {

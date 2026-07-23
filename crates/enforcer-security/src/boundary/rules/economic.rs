@@ -1,11 +1,12 @@
-//! `MCM-ECONOMIC.1` (T2) — the economic-cost mechanics facet (h06, §8.10
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! `MCM-ECONOMIC.1` (T2) â€” the economic-cost mechanics facet (h06, Â§8.10
 //! of the ingested money-critical/security-testing spec).
 //!
-//! Doctrine (§8.10): attacker-cost MUST be >= system-cost. A retry loop
+//! Doctrine (Â§8.10): attacker-cost MUST be >= system-cost. A retry loop
 //! that re-runs a backend operation with non-zero system cost (a
 //! provider call, a DB write, a settlement attempt) with NO charge to
 //! the caller and NO bound on retry count gives an attacker free,
-//! unbounded leverage — each retry costs the system money/resources
+//! unbounded leverage â€” each retry costs the system money/resources
 //! while costing the attacker nothing. "Dust" (residual sub-unit value
 //! left over from a calculation) must also be bounded, never
 //! accumulated into an exploitable drift.
@@ -14,7 +15,7 @@
 //! scored-classifier shape): score + confidence are carried in the
 //! finding detail, not a separate wire field.
 //!
-//! GENERIC across any value system — never a crypto-only fee model.
+//! GENERIC across any value system â€” never a crypto-only fee model.
 //!
 //! Scoped by h01's money-critical classifier (consumed read-only).
 //!
@@ -75,7 +76,7 @@ fn bound_or_charge_pattern() -> Result<Regex, DecodeError> {
 /// Score >= this threshold crosses into a flagged free-retry finding.
 const FREE_RETRY_THRESHOLD: i32 = 50;
 
-/// `MCM-ECONOMIC.1` — T2 scored economic-cost mechanics gate.
+/// `MCM-ECONOMIC.1` â€” T2 scored economic-cost mechanics gate.
 ///
 /// Scores a retry construct co-occurring with a backend-cost-bearing
 /// call, minus any bound/charge mitigation present in the same source.
@@ -144,7 +145,7 @@ impl Validator for EconomicValidator {
                 "retry construct co-occurs with a backend-cost-bearing call (score {score}, \
                  threshold {FREE_RETRY_THRESHOLD}, confidence: {confidence}), with no \
                  `maxRetries`/`retryBudget`/`chargeCaller`/`boundedBy` mitigation found. \
-                 Doctrine (§8.10): attacker-cost MUST be >= system-cost — an unbounded, \
+                 Doctrine (Â§8.10): attacker-cost MUST be >= system-cost â€” an unbounded, \
                  uncharged retry against a non-zero-cost backend call gives an attacker free \
                  leverage. Fix: bound the retry count/budget, or charge the caller per attempt."
             ),

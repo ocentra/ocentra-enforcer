@@ -29,7 +29,7 @@
 //! Label propagation is a recognized, published community-detection
 //! algorithm in its own right (Raghavan/Albert/Kumara 2007) rather than
 //! an approximation of Louvain -- it is the right tool here, not a
-//! placeholder for a future Louvain implementation.
+//! temporary fallback for a future Louvain implementation.
 //!
 //! # Why a fresh adjacency, not [`crate::analysis::CodeAdjacency`]
 //!

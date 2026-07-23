@@ -248,7 +248,7 @@ impl Record for FileSkipRecord {
 ///    is never this long), so it is truncated with a `"...[redacted,
 ///    NNN bytes total]"` marker rather than emitted in full;
 /// 2. control-character stripping -- embedded newlines (which could
-///    forge additional fake log lines) are collapsed to spaces.
+///    forge additional synthetic log lines) are collapsed to spaces.
 ///
 /// This is a defense-in-depth backstop, not the primary control: the
 /// primary control is [`RequestRecord`]/[`FileSkipRecord`]'s own fixed,

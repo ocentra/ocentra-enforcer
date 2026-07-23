@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
+//! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 use super::{LanguageFamily, LanguageSpec, LiteralCandidate};
 use crate::lexer_c_like_scan::lex_c_like;
 use crate::lexer_hash_comment_scan::lex_hash_comment;

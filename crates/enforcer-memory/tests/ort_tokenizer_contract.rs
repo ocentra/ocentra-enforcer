@@ -1,4 +1,6 @@
 #![cfg(feature = "ort-models")]
+// contractHash: ort_tokenizer_contract.rs
+// sourceOwner: enforcer-memory
 
 use enforcer_memory::ort_runtime::real::OrtTokenizer;
 

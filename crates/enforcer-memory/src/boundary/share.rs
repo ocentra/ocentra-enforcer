@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! X06.8: signed memory bundles for sharing across
 //! personal/team/community scopes.
 //!
@@ -255,7 +256,7 @@ pub(crate) fn hex_decode(raw: &str) -> Result<Vec<u8>, String> {
 /// bundle description) does not require touching every call site's
 /// argument order.
 #[derive(Debug, Clone)]
-pub struct ExportRequest {
+pub struct BundleExportOptions {
     pub scope: MemoryShareScope,
     pub consent: ExportConsent,
     pub creator: Option<MemoryBundleCreator>,
@@ -274,10 +275,10 @@ pub struct ExportRequest {
 /// calling this for a community export).
 pub fn export_bundle(
     snapshot: &BundleGraphSnapshotDto,
-    request: ExportRequest,
+    request: BundleExportOptions,
     signing_key: &SigningKey,
 ) -> Result<SignedBundleDto, ShareError> {
-    let ExportRequest {
+    let BundleExportOptions {
         scope,
         consent,
         creator,

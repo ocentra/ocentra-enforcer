@@ -249,7 +249,7 @@ fn extracts_using_statement_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Base"), "{paths:?}");
+    assert!(paths.contains(&"Base"));
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn extracts_import_statement_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Foo"), "{paths:?}");
+    assert!(paths.contains(&"Foo"));
 }
 
 #[test]
@@ -273,8 +273,8 @@ fn extracts_export_statement_names_as_imports() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"draw"), "{paths:?}");
-    assert!(paths.contains(&"area"), "{paths:?}");
+    assert!(paths.contains(&"draw"));
+    assert!(paths.contains(&"area"));
 }
 
 #[test]

@@ -4,7 +4,7 @@
 > Agent Capsule
 > Plan: `demo-plan`
 > Doc: `Plan State`
-> Kind: plan index; read at the start of any work in this plan.
+> Kind: index document; read at the start of any work in this plan.
 > Read when: At the start of any work in this plan.
 <!-- /agent-capsule -->
 

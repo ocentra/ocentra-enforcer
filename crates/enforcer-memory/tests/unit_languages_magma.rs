@@ -80,7 +80,7 @@ fn extracts_load_directive_as_import() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"setup.m"), "{paths:?}");
+    assert!(paths.contains(&"setup.m"));
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn extracts_import_directive_with_filename_field() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"foo.m"), "{paths:?}");
+    assert!(paths.contains(&"foo.m"));
 }
 
 #[test]
@@ -135,8 +135,8 @@ fn parses_fixture_widget_without_panicking() -> TestResult {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"setup.m"), "{paths:?}");
-    assert!(paths.contains(&"foo.m"), "{paths:?}");
+    assert!(paths.contains(&"setup.m"));
+    assert!(paths.contains(&"foo.m"));
     Ok(())
 }
 

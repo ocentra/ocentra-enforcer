@@ -178,7 +178,7 @@ impl DataFlowGraph {
 /// edges when it has no captured [`CallEdge::arg_texts`] (nothing to
 /// link) or when [`ResolvedCall::confidence`] is
 /// [`ResolutionConfidence::Unresolved`] (nothing to link *to*) -- never
-/// a fabricated placeholder edge for either case. An
+/// a fabricated fallback edge for either case. An
 /// [`ResolutionConfidence::Ambiguous`] call produces one edge per
 /// candidate, all sharing the same `argument_exprs`/`line`/
 /// `from_symbol_id`, so a consumer sees every real possibility.

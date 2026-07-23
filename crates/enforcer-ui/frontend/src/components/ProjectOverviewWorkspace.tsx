@@ -11,16 +11,19 @@ import {
   Wrench,
 } from "lucide-react";
 import type { WorkspaceKey } from "./AppShell";
+import type { ReactElement } from "react";
 import { summarizeLanguages, type Project } from "../data/enforcerAppData";
+import type { EnforcerReport } from "../data/reportAdapter";
 import { projectRuleLanguages, type CatalogRule, unsupportedProjectRuleLanguages } from "../data/ruleCatalog";
 
-type ScanSummary = {
-  totalCount: number;
-  violations: unknown[];
-  warnings: unknown[];
-  runtime?: string;
-  targetLabel?: string;
+type ProjectOverviewWorkspaceProps = {
+  project: Project;
+  report: ScanSummary;
+  catalog: CatalogRule[];
+  onNavigate: (workspace: WorkspaceKey) => void;
 };
+
+type ScanSummary = EnforcerReport;
 
 type Destination = {
   workspace: WorkspaceKey;
@@ -28,20 +31,15 @@ type Destination = {
   detail: string;
   state: string;
   icon: typeof ScanLine;
-  tone?: "ready" | "partial" | "missing";
+  tone: "ready" | "partial" | "missing" | undefined;
 };
 
-export function ProjectOverviewWorkspace({
+export const ProjectOverviewWorkspace = ({
   project,
   report,
   catalog,
   onNavigate,
-}: {
-  project: Project;
-  report: ScanSummary;
-  catalog: CatalogRule[];
-  onNavigate: (workspace: WorkspaceKey) => void;
-}) {
+}: ProjectOverviewWorkspaceProps): ReactElement => {
   const scanLoaded = report.runtime === "packaged-enforcer-command";
   const policyLanguages = projectRuleLanguages(project, catalog);
   const observedWithoutPolicy = unsupportedProjectRuleLanguages(project, catalog);
@@ -163,7 +161,7 @@ export function ProjectOverviewWorkspace({
       </section>
     </section>
   );
-}
+};
 
 function Fact({ label, value }: { label: string; value: string }) {
   return <span><small>{label}</small><strong>{value}</strong></span>;

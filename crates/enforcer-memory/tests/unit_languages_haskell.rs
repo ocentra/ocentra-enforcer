@@ -104,7 +104,7 @@ fn extracts_import_module_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Data.List"), "{paths:?}");
+    assert!(paths.contains(&"Data.List"));
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn extracts_qualified_import_module_path() {
         .iter()
         .map(|i| i.module_path.as_str())
         .collect();
-    assert!(paths.contains(&"Data.Map"), "{paths:?}");
+    assert!(paths.contains(&"Data.Map"));
 }
 
 #[test]

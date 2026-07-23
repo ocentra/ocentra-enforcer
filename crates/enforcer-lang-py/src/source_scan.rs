@@ -284,8 +284,8 @@ pub fn all() -> Result<Vec<Box<dyn Validator>>, DecodeError> {
             Guard::WordBoundary,
             &[
                 "monkeypatch.setattr",
-                "unittest.mock",
-                "Mock(",
+                "unittest.simulation_framework",
+                "Simulator(",
                 "MagicMock(",
             ],
         )),

@@ -3,7 +3,7 @@
 //! workpack names against a small multi-language fixture repo copied
 //! from `tests/fixtures/memory/code_graph/` into a real, throwaway git
 //! working tree (content hashes and history summaries are meaningless
-//! without a real git repo, so this test does not mock git).
+//! without a real git repo, so this test uses a real git control path.
 
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use std::error::Error;
@@ -71,9 +71,9 @@ fn full_fixture_repo_indexes_every_supported_language_plus_text_only() -> TestRe
 
     // Symbol extraction: Rust struct/trait/fn/test all present.
     let symbol_names: Vec<&str> = graph.symbol_nodes().map(|s| s.name.as_str()).collect();
-    assert!(symbol_names.contains(&"Widget"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"Drawable"), "{symbol_names:?}");
-    assert!(symbol_names.contains(&"render"), "{symbol_names:?}");
+    assert!(symbol_names.contains(&"Widget"));
+    assert!(symbol_names.contains(&"Drawable"));
+    assert!(symbol_names.contains(&"render"));
     assert!(
         symbol_names.contains(&"render_does_not_panic"),
         "{symbol_names:?}"
@@ -86,7 +86,7 @@ fn full_fixture_repo_indexes_every_supported_language_plus_text_only() -> TestRe
         .iter()
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
-    assert!(routes.contains(&("GET", "/widgets")), "{routes:?}");
+    assert!(routes.contains(&("GET", "/widgets")));
 
     // Import/call edges exist for the Rust fixture.
     assert!(graph.imports().iter().any(|i| i.module_path.contains("fs")));

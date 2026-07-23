@@ -1,3 +1,4 @@
+//! BOUNDARY-INVARIANT: this boundary module validates raw wire values and converts only through typed domain contracts.
 //! Raw seed-ledger and memory-stream transport decoding.
 //!
 //! NEGATIVE-TEST: unknown lesson-domain wire values are rejected during decode.

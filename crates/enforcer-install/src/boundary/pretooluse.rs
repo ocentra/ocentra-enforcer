@@ -294,7 +294,7 @@ pub fn run_enforcer_check(
 /// tests can assert on named fields rather than JSON-pointer digging.
 /// This hook's fixed argv tail: `hook pretooluse`. The `hook` subcommand
 /// reads Claude's pending Edit/Write/MultiEdit JSON from stdin, stages the
-/// proposed content in an isolated temporary root, and runs the ordinary
+/// proposed content in an isolated ephemeral root, and runs the ordinary
 /// enforcer check before returning a Claude permission decision. It never
 /// relies on Claude appending a target path to this command.
 const HOOK_ARGS: [&str; 2] = ["hook", "pretooluse"];

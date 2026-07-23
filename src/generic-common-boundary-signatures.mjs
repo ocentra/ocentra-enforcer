@@ -45,6 +45,12 @@ function validFromTarget(text, rawTypes) {
   return false;
 }
 
+function removeRustAndDocComments(text) {
+  return text
+    .replace(/\/\/[^\n\r]*/gu, "")
+    .replace(/\/\*[\s\S]*?\*\//gu, "");
+}
+
 /** Extracts return-signature facts needed for boundary type analysis. */
 export function analyzeBoundarySignatures(text, rawTypes) {
   const rawPattern = rawBoundaryTypePattern(rawTypes);
@@ -72,8 +78,14 @@ export function analyzeBoundarySignatures(text, rawTypes) {
   const untypedTryFromError = /\btype\s+Error\s*=\s*(?:String|&?str|anyhow::Error|Box\s*<\s*dyn\s+(?:std::error::)?Error\s*>)\s*;/u.test(text);
   return {
     hasDomainConversion,
-    hasRawInput: signatures.some((signature) => rawPattern.test(signature.parameters)
-      || (CONVERSION_NAME_RE.test(signature.name) && rawPattern.test(signature.returnType))),
+    // Only exported APIs are boundary ingress. Trait conversion methods and
+    // crate-private persistence/serialization helpers may accept a DTO while
+    // they are still inside the boundary module; treating those as public
+    // ingress created false BOUND-1.2 findings in typed code.
+    hasRawInput: signatures.some((signature) => signature.isPublic && (
+      rawPattern.test(signature.parameters)
+        || (CONVERSION_NAME_RE.test(signature.name) && rawPattern.test(signature.returnType))
+    )),
     publicRawReturn,
     untypedConversion,
     untypedTryFromError,
@@ -91,5 +103,5 @@ function hasDocumentedWireOutput(text, returnType, rawTypes) {
 /** Reports whether a domain signature exposes a boundary implementation type. */
 export function domainSignatureLeaksBoundaryType(text) {
   const signature = /\b(?:export\s+)?(?:async\s+)?(?:function|const|def|fn)\s+\w+[^\n{;]*(?:Dto|DTO|Payload|Raw[A-Z]|Request\b)/u;
-  return signature.test(text);
+  return signature.test(removeRustAndDocComments(text));
 }
