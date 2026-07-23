@@ -17,13 +17,19 @@
 Remote branches are limited to `main`, `safety-main`, and `rust-build`.
 `main` and `safety-main` are intentionally untouched.
 
-The latest stable full frozen-safety scan on `rust-build` commit `689eb1e2b`
+The latest stable full frozen-safety scan on `rust-build` commit `57c52b5e1`
 reported zero violations across 1,235 Rust files. The branch-native scan also
 reported zero hard violations (with 1,292 advisory DOC-1.1 warnings across
 1,846 files). The earlier 8,310 count is historical only and must not be used
 as the current baseline. Do not infer a new global count from file-level
 scans; rerun the full scanner against the accepted clean commit when the
 integration state changes.
+
+The current worktree has one unresolved vendor deletion that is intentionally
+preserved and not part of the pushed commit:
+`vendor/anthropic-cybersecurity-skills/skills/hunting-for-anomalous-powershell-execution/references/api-reference.md`.
+The separately named `detecting-fileless-malware-techniques/SKILL.md` file is
+present and tracked; it is not currently deleted.
 
 Recent validated `rust-build` packets after that scan include focused tests,
 focused frozen-safety scanning, and a detached audit with zero introduced
