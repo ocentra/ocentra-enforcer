@@ -637,6 +637,35 @@ impl TryFrom<FourDto> for DomainValue { type Error = String; fn try_from(value: 
   );
 });
 
+test("BOUND-1.6 does not count a Rust alias as another owned raw DTO", () => {
+  const project = makeProject({
+    "src/boundary/log_schema.rs": `
+//! BOUNDARY-INVARIANT: serialized persistence shapes stay at the boundary.
+use serde::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize)] struct OneDto { value: String }
+#[derive(Serialize, Deserialize)] struct TwoDto { value: String }
+#[derive(Serialize, Deserialize)] struct ThreeDto { value: String }
+#[derive(Serialize, Deserialize)] struct FourDto { value: String }
+type FourPayload = FourDto;
+// ROUNDTRIP-TEST: tests::log_schema_dtos_round_trip
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "common",
+    "--files",
+    "src/boundary/log_schema.rs",
+  ]);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === "BOUND-1.6"),
+    false,
+    result.stdout,
+  );
+});
+
 test("Rust DTO budget exemption requires conversion for every raw declaration", () => {
   const project = makeProject({
     "src/boundary/report.rs": `

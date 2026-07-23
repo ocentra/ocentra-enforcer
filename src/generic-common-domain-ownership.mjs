@@ -1,8 +1,20 @@
 /** Collects declared raw boundary DTO type names from a source file. */
 export function declaredRawBoundaryTypeNames(text) {
   const names = new Set();
-  const pattern = /\b(?:class|enum|interface|struct|type)\s+(?<name>Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/gu;
-  for (const match of text.matchAll(pattern)) if (match.groups?.name) names.add(match.groups.name);
+  const declarationPattern = /\b(?:class|enum|interface|struct)\s+(?<name>Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/gu;
+  for (const match of text.matchAll(declarationPattern)) {
+    if (match.groups?.name) names.add(match.groups.name);
+  }
+  // A type alias is not an additional owned wire shape. Preserve structural
+  // aliases (for example `Payload = { ... }`) as raw declarations, while
+  // ignoring aliases that merely rename an already-declared DTO.
+  const aliasPattern = /\btype\s+(?<name>Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\s*=\s*(?<rhs>[^;\n]+)/gu;
+  for (const match of text.matchAll(aliasPattern)) {
+    const rhs = match.groups?.rhs?.trim() ?? "";
+    if (match.groups?.name && !/^(?:Raw[A-Z]\w*|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))$/u.test(rhs)) {
+      names.add(match.groups.name);
+    }
+  }
   return names;
 }
 
