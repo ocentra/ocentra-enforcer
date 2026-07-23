@@ -125,6 +125,10 @@ fn llama_binary_name(base_name: &str) -> String {
     format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
 }
 
+fn windows_llama_binary_name(base_name: &str) -> String {
+    format!("{base_name}.exe")
+}
+
 fn assert_contract_terms(haystack: &str, expected_terms: &[&str]) {
     let missing_terms: Vec<&str> = expected_terms
         .iter()
@@ -1300,7 +1304,7 @@ fn checked_in_qwen3_embedding_gguf_server_fallback_is_rejected_runtime_boundary(
         report["binaryPath"],
         format!(
             "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/{}",
-            llama_binary_name("llama-server")
+            windows_llama_binary_name("llama-server")
         )
     );
     assert_eq!(report["executionRoute"], "llama-server-v1-embeddings");
@@ -1773,7 +1777,7 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
 fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
     let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
-    let llama_embedding_binary = llama_binary_name("llama-embedding");
+    let llama_embedding_binary = windows_llama_binary_name("llama-embedding");
     let llama_embedding_term = format!(
         "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName '{}'",
         llama_embedding_binary
