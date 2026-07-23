@@ -53,7 +53,10 @@ fn dogfood_gate_passes_live_workspace_and_emits_manifest_and_journal() -> Result
     if !xtask_binary.is_file() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("workspace xtask binary was not built: {}", xtask_binary.display()),
+            format!(
+                "workspace xtask binary was not built: {}",
+                xtask_binary.display()
+            ),
         ));
     }
     let output = Command::new(xtask_binary)
