@@ -8,6 +8,13 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const PACK_ROOT = path.resolve(path.join(path.dirname(SCRIPT_PATH), '..'));
 const args = parseArgs(process.argv.slice(2));
 const npm = npmStep;
+// The workspace links many feature-heavy binaries. Keep the developer and
+// CI-parity command deterministic on memory-constrained hosts while allowing
+// an explicit caller override for larger runners.
+const childEnv = {
+  ...process.env,
+  CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
+};
 
 const steps = [
   ['git diff whitespace check', 'git', ['diff', '--check']],
@@ -60,6 +67,7 @@ for (const [label, command, commandArgs] of steps) {
   console.log(`\n==> ${label}`);
   const result = spawnSync(command, commandArgs, {
     cwd: PACK_ROOT,
+    env: childEnv,
     stdio: 'inherit',
     shell: false,
   });
