@@ -24,21 +24,27 @@ pre-existing `codex/private-rust-test-allowlist`. `main` and `safety-main`
 are intentionally untouched; the codex branch is not an integration branch
 and is pending separate cleanup/retention review.
 
-The latest stable full frozen-safety scan on the Rust-source commit
-`b15c85f4b` reported zero violations across 1,235 Rust files. The subsequent
-`c079bcb6b` packet changes only CI cache policy and its regression test; it
-does not change Rust source. The subsequent `f66b2ab61` packet fixes
-cross-platform expectations for Windows model-proof fixtures and is covered
-by focused model-runtime contract tests. In the current CI dogfood, the branch-native
-scan reports 309 total findings, of which 281 are baselined and zero are new.
-The next source packet hardens the generic Tree-sitter boundary against
-embedded-NUL input, which previously caused a Linux SIGSEGV in
-`generic::parse_d`; the exact hostile input and a minimal NUL case are now
-covered by `unit_languages_d`, and the full property-parser contract passes on
-Linux and Windows under default features.
-The earlier 8,310 count is historical only and must not be used as the current
-baseline. Do not infer a new global count from file-level scans; rerun the full
-scanner against the accepted clean commit when the integration state changes.
+The current `rust-build` commit is `e05aee350`. The authoritative frozen
+scanner was run twice against this exact tree:
+
+```text
+Ocentra Enforcer scan passed for 1,235 file(s).
+Ocentra Enforcer scan passed for 1,235 file(s).
+```
+
+Both runs produced zero findings. The packet also hardens the generic
+Tree-sitter boundary against embedded-NUL and non-whitespace control input,
+which previously caused a Linux `SIGSEGV` in `generic::parse_d`. The hostile
+input regression is covered by `property_parser_contracts` and direct language
+tests; the graph-impacted CI gate is green on the pushed commit.
+
+Local Windows evidence on this commit is green for workspace format, full
+workspace clippy, full workspace tests, and the exact `npm run ci:local` gate.
+The latter reports 1,292 advisory documentation warnings but no hard findings.
+The full remote workspace and exact-parity jobs for CI run `30054814884` were
+still running when this handoff was refreshed; their completion remains a
+merge prerequisite. Historical counts such as 8,310 or the earlier branch-native
+309/281 baseline must not be used as the current global result.
 
 The current worktree has one unresolved vendor deletion that is intentionally
 preserved and not part of the pushed commit:
