@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { summarizeCommandOutput } from "../scripts/rust-rules-cargo-command.mjs";
 import { diagnosticSourceLines } from "../scripts/rust-rules-output-check.mjs";
+import { compactCargoDiagnostic } from "../scripts/check-cargo-workspace-test-process.mjs";
 
 test("cargo diagnostics preserve short output verbatim", () => {
   const output = "compiler error: missing symbol";
@@ -27,4 +28,13 @@ test("human diagnostics retain both the beginning and terminal failure lines", (
   assert.match(lines[0], /compile line/u);
   assert.match(lines[6], /diagnostic source truncated; tail preserved/u);
   assert.match(lines.at(-1), /error: parser test failed/u);
+});
+
+test("bounded Cargo target diagnostics retain child termination errors", () => {
+  const diagnostic = compactCargoDiagnostic({
+    stdout: "",
+    stderr: "",
+    error: { message: "spawn cargo ENOBUFS" },
+  });
+  assert.match(diagnostic, /spawn cargo ENOBUFS/u);
 });
