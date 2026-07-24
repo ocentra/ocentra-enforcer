@@ -219,6 +219,11 @@ mod tests {
         write_file(temp.path(), "target/debug/build.log", "noise")?;
         write_file(temp.path(), "target-nextest/debug/build.log", "noise")?;
         write_file(temp.path(), "target-ci/release/build.log", "noise")?;
+        write_file(
+            temp.path(),
+            "target-install-finish/debug/build.log",
+            "noise",
+        )?;
         write_file(temp.path(), "targeting/source.rs", "fn retained() {}")?;
         write_file(temp.path(), ".git/HEAD", "ref: refs/heads/main")?;
         let found = walk(temp.path(), &IgnoreRules::default())?;
