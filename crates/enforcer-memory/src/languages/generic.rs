@@ -9143,6 +9143,13 @@ pub fn d_quirks() -> Quirks {
 /// against this crate's own `node-types.json` plus real parse trees (see
 /// [`LangSpec::d`]'s doc comment and `tests/unit_languages_d.rs`).
 pub fn parse_d(source: &str) -> ParsedFile {
+    // tree-sitter-d's native external scanner is not memory-safe for arbitrary
+    // non-ASCII input (it can segfault before Rust can recover). D source
+    // remains fully supported for its ASCII grammar surface; reject the
+    // hostile boundary input rather than crossing into that scanner.
+    if !source.is_ascii() {
+        return ParsedFile::default();
+    }
     let spec = LangSpec::d();
     let quirks = d_quirks();
     let language: tree_sitter::Language = tree_sitter_d::LANGUAGE.into();

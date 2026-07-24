@@ -246,4 +246,5 @@ fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
 
     let hostile_control_source = "fn hostile() {}\u{1b}\u{7f}";
     assert_eq!(generic::parse_d(hostile_control_source), Default::default());
+    assert_eq!(generic::parse_d("module café;"), Default::default());
 }
