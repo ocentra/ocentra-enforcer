@@ -246,5 +246,17 @@ fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
 
     let hostile_control_source = "fn hostile() {}\u{1b}\u{7f}";
     assert_eq!(generic::parse_d(hostile_control_source), Default::default());
+    // U+202E is a bidi format control rather than `char::is_control()` and
+    // previously reached tree-sitter-just's native scanner, which could
+    // segfault on Linux instead of returning an empty parse.
+    assert_eq!(generic::parse_just("\u{202e}%&/"), Default::default());
+    assert_eq!(
+        generic::parse_just("\u{fbd6e}\u{44dfc}\r\u{10f335}%$"),
+        Default::default()
+    );
+    assert_eq!(
+        generic::parse_odin("\u{90a47}\u{57257}"),
+        Default::default()
+    );
     assert_eq!(generic::parse_d("module café;"), Default::default());
 }
