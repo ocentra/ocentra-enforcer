@@ -3,6 +3,22 @@ import { spawnSync } from "node:child_process";
 import { RULES } from "../src/rule-metadata.mjs";
 import { policyForTool } from "../src/policy.mjs";
 
+const MAX_COMMAND_OUTPUT = 4000;
+
+/**
+ * Keep both the beginning and end of a failed tool's output. Cargo commonly
+ * emits thousands of compile lines before the useful linker/test error, so a
+ * head-only slice can turn a real failure into an unactionable RR-10 finding.
+ */
+function summarizeCommandOutput(output, maxLength = MAX_COMMAND_OUTPUT) {
+  if (output.length <= maxLength) return output;
+  const marker = "\n... [output truncated; tail preserved] ...\n";
+  const available = Math.max(0, maxLength - marker.length);
+  const headLength = Math.ceil(available / 2);
+  const tailLength = available - headLength;
+  return `${output.slice(0, headLength)}${marker}${output.slice(-tailLength)}`;
+}
+
 function commandExists(command) {
   const result = spawnSync(command, ["--version"], {
     encoding: "utf8",
@@ -33,7 +49,7 @@ function runCommand(root, command, args, ruleId, env = {}) {
       file: ".",
       line: 1,
       snippet: RULES[ruleId].snippet,
-      source: output.slice(0, 4000),
+      source: summarizeCommandOutput(output),
     },
   ];
 }
@@ -59,4 +75,4 @@ function configuredCargoCommand(
   }));
 }
 
-export { commandExists, runCommand, configuredCargoCommand };
+export { commandExists, runCommand, configuredCargoCommand, summarizeCommandOutput };
