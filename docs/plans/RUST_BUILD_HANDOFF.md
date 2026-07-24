@@ -25,7 +25,7 @@ are intentionally untouched; the codex branch is not an integration branch
 and is pending separate cleanup/retention review.
 
 The validated code commit preceding this documentation refresh is
-`7a7966c77`. The authoritative frozen
+`8a25b03e5`. The authoritative frozen
 scanner was run twice against this exact tree:
 
 ```text
@@ -54,10 +54,10 @@ Windows hosts do not launch an unbounded linker storm; an explicit
 `CARGO_BUILD_JOBS` override remains supported. The latter reports 1,292
 advisory documentation warnings but no hard findings.
 The authoritative frozen scan is stable at zero findings across 1,235 files.
-The prior CI run `30077834003` exposed one genuine Ubuntu native-parser
-`SIGSEGV`; its Windows job is still finishing the bounded workspace test
-sequence. The fix is pushed in CI run `30088137181`, which is queued behind
-that prior run; its terminal result remains a merge prerequisite.
+The prior CI run exposed one genuine Ubuntu native-parser `SIGSEGV`; the
+regression was reproduced locally and fixed by narrowing the supplementary-
+plane guard to the two affected external scanners. The full code-SHA CI run
+for `8a25b03e5` remains a merge prerequisite.
 Historical counts such as 8,310 or the earlier branch-native 309/281 baseline
 must not be used as the current global result.
 
@@ -93,9 +93,9 @@ findings. They cleared RR-5.1 clone findings in their owned files:
 
 1. Verify `HEAD` equals `origin/rust-build`; resolve no local residue other
    than the explicitly preserved vendor deletion.
-2. Record the final conclusion for CI run `30088137181`; any failure must be
-   fixed with a scoped regression and a new pushed run.
-3. The authoritative frozen scanner has passed twice on `7a7966c77`:
+2. Record the final conclusion for the pushed code-SHA CI run; any failure
+   must be fixed with a scoped regression and a new pushed run.
+3. The authoritative frozen scanner has passed twice on `8a25b03e5`:
 
    ```powershell
    node E:\ocentra-enforcer\scripts\rust-rules.mjs scan --root . --languages rust --workspace

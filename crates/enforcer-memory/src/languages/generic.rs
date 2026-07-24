@@ -12699,6 +12699,9 @@ pub fn odin_quirks() -> Quirks {
 /// `LangSpec::odin`'s own doc comment), not byte-for-byte comparison
 /// against an oracle.
 pub fn parse_odin(source: &str) -> ParsedFile {
+    if super::has_unsafe_external_scanner_input(source) {
+        return ParsedFile::default();
+    }
     let spec = LangSpec::odin();
     let quirks = odin_quirks();
     let language: tree_sitter::Language = tree_sitter_odin::LANGUAGE.into();
@@ -19202,6 +19205,9 @@ pub fn just_quirks() -> Quirks {
 /// `tree-sitter-just` (crates.io, `casey/tree-sitter-just`). Language-
 /// parity wave G2.3d.
 pub fn parse_just(source: &str) -> ParsedFile {
+    if super::has_unsafe_external_scanner_input(source) {
+        return ParsedFile::default();
+    }
     let spec = LangSpec::just();
     let quirks = just_quirks();
     let language: tree_sitter::Language = tree_sitter_just::LANGUAGE.into();
