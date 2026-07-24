@@ -87,13 +87,48 @@ fn copy_dir_recursive(
 }
 
 fn build_fixture_graph(dir: &Path) -> TestResult<CodeGraph> {
+    build_fixture_graph_with_file_order(dir, false)
+}
+
+fn build_fixture_graph_with_file_order(dir: &Path, reverse_files: bool) -> TestResult<CodeGraph> {
     init_repo(dir)?;
-    let files = copy_fixtures_recursive(dir)?;
+    let mut files = copy_fixtures_recursive(dir)?;
+    if reverse_files {
+        files.reverse();
+    }
     commit_all(dir, "initial fixture import")?;
 
     let mut graph = CodeGraph::new();
     graph.index_repository(dir, &files, &Manifest::default())?;
     Ok(graph)
+}
+
+#[test]
+fn architecture_hotspots_are_invariant_to_input_file_order() -> TestResult {
+    let forward_dir = tempfile::tempdir()?;
+    let reverse_dir = tempfile::tempdir()?;
+    let forward = build_fixture_graph_with_file_order(forward_dir.path(), false)?;
+    let reverse = build_fixture_graph_with_file_order(reverse_dir.path(), true)?;
+
+    let hotspot_ids = |graph: &CodeGraph| -> TestResult<Vec<String>> {
+        let report = architecture::build_report(
+            graph,
+            &[Aspect::Overview, Aspect::Hotspots],
+            Some("crates/core/".into()),
+            20,
+            30,
+        );
+        Ok(report
+            .overview
+            .ok_or("expected overview section")?
+            .hotspots()
+            .iter()
+            .map(|score| score.node_id.to_string())
+            .collect())
+    };
+
+    assert_eq!(hotspot_ids(&forward)?, hotspot_ids(&reverse)?);
+    Ok(())
 }
 
 // --- hard test: every aspect returns its typed section -----------------

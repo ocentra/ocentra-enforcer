@@ -1026,8 +1026,16 @@ impl CodeGraph {
         let mut report = IndexReport::default();
         let mut seen_paths = std::collections::HashSet::new();
 
-        for path in walk_files {
-            let rel_path = normalize_rel_path(repo_root, path)?;
+        // Filesystem enumeration order is platform-dependent.  Normalize and
+        // sort the input once so graph insertion and later duplicate-symbol
+        // resolution do not vary between Windows, macOS, and Linux.
+        let mut ordered_files: Vec<(String, &Path)> = walk_files
+            .iter()
+            .map(|path| Ok((normalize_rel_path(repo_root, path)?, path.as_path())))
+            .collect::<Result<_, IndexError>>()?;
+        ordered_files.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+        for (rel_path, path) in ordered_files {
             seen_paths.insert(rel_path.clone());
 
             let content = fs::read(path).map_err(|source| IndexError::ReadFile {
