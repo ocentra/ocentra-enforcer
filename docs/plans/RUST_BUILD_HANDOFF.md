@@ -24,7 +24,8 @@ pre-existing `codex/private-rust-test-allowlist`. `main` and `safety-main`
 are intentionally untouched; the codex branch is not an integration branch
 and is pending separate cleanup/retention review.
 
-The current `rust-build` commit is `e05aee350`. The authoritative frozen
+The validated code commit preceding this documentation refresh is
+`7a7966c77`. The authoritative frozen
 scanner was run twice against this exact tree:
 
 ```text
@@ -32,19 +33,42 @@ Ocentra Enforcer scan passed for 1,235 file(s).
 Ocentra Enforcer scan passed for 1,235 file(s).
 ```
 
-Both runs produced zero findings. The packet also hardens the generic
+Both runs produced zero findings. The accepted packets harden the generic
 Tree-sitter boundary against embedded-NUL and non-whitespace control input,
-which previously caused a Linux `SIGSEGV` in `generic::parse_d`. The hostile
-input regression is covered by `property_parser_contracts` and direct language
-tests; the graph-impacted CI gate is green on the pushed commit.
+which previously caused a Linux `SIGSEGV` in `generic::parse_d`, and make graph
+indexing deterministic by sorting normalized paths before symbol resolution.
+The final parser-boundary packet also rejects the supplementary-plane and
+Unicode format/control classes that caused native `tree-sitter-just` and
+`tree-sitter-odin` crashes. The hostile-input regression is covered by
+`property_parser_contracts` and direct language tests; reversed-input graph
+ordering is covered by `parity_architecture`. The graph-impacted CI gate is
+green on the pushed commit.
 
-Local Windows evidence on this commit is green for workspace format, full
-workspace clippy, full workspace tests, and the exact `npm run ci:local` gate.
-The latter reports 1,292 advisory documentation warnings but no hard findings.
-The full remote workspace and exact-parity jobs for CI run `30054814884` were
-still running when this handoff was refreshed; their completion remains a
-merge prerequisite. Historical counts such as 8,310 or the earlier branch-native
-309/281 baseline must not be used as the current global result.
+Local Windows evidence on the preceding code run is green for workspace
+format, full workspace clippy, full workspace tests, and the exact
+`npm run ci:local` gate. On `7a7966c77`, the focused parser contract test and
+`enforcer-memory` clippy gate are also green; the same parser contract passes
+under WSL Ubuntu for 100 repeated exact runs.
+The local gate now defaults Cargo to four build jobs so memory-constrained
+Windows hosts do not launch an unbounded linker storm; an explicit
+`CARGO_BUILD_JOBS` override remains supported. The latter reports 1,292
+advisory documentation warnings but no hard findings.
+The authoritative frozen scan is stable at zero findings across 1,235 files.
+The prior CI run `30077834003` exposed one genuine Ubuntu native-parser
+`SIGSEGV`; its Windows job is still finishing the bounded workspace test
+sequence. The fix is pushed in CI run `30088137181`, which is queued behind
+that prior run; its terminal result remains a merge prerequisite.
+Historical counts such as 8,310 or the earlier branch-native 309/281 baseline
+must not be used as the current global result.
+
+The memory-graph proof artifact `proof/memory/x06-kg-parity.json` compares 23
+live tools against the installed baseline: 15 equal, 8 better, 0 worse, and 0
+unrunnable. Candidate latency is lower in 21 of 23 rows, with a median
+candidate/baseline ratio of approximately 1.16%. The deterministic
+`x06_9_longitudinal` benchmark also passes for 10/50/100-file synthetic graphs,
+including incremental-index speedups of 23.7x, 11.0x, and 8.6x and retrieval
+p95 samples below 1 ms. These figures are evidence for the current Rust
+implementation, not product guarantees for arbitrary repositories.
 
 The current worktree has one unresolved vendor deletion that is intentionally
 preserved and not part of the pushed commit:
@@ -69,22 +93,21 @@ findings. They cleared RR-5.1 clone findings in their owned files:
 
 1. Verify `HEAD` equals `origin/rust-build`; resolve no local residue other
    than the explicitly preserved vendor deletion.
-2. Run the authoritative frozen scanner:
+2. Record the final conclusion for CI run `30088137181`; any failure must be
+   fixed with a scoped regression and a new pushed run.
+3. The authoritative frozen scanner has passed twice on `7a7966c77`:
 
    ```powershell
    node E:\ocentra-enforcer\scripts\rust-rules.mjs scan --root . --languages rust --workspace
    ```
 
-3. Group findings by rule and crate. RR-5.1 ownership work is no longer the
-   primary lane. Prioritize coherent RR-6.x type-boundary refactors (public
-   raw DTO fields, primitive domain signatures, and raw private invariants)
-   in isolated worktrees, with all affected callers and external tests.
-4. Each packet must have scoped tests, focused frozen-safety proof, and a
-   detached-parent audit with zero introduced findings before it is committed
-   and pushed to `rust-build`. Never weaken a rule, add a waiver, or use a
-   bypass merely to reduce the count.
+4. Keep every accepted packet covered by scoped tests, focused frozen-safety
+   proof, and a detached-parent audit with zero introduced findings before it is
+   committed and pushed to `rust-build`. Never weaken a rule, add a waiver, or
+   use a bypass merely to reduce the count.
 5. Before any merge, update the public README and product documentation from
    current behavior only. Keep internal migration/research/planning history in
    `docs/plans/`; do not present it as product behavior.
-6. Only after a full clean scanner result and full validation may
+6. Only after a full clean scanner result, final CI, full validation, and an
+   explicit decision on the preserved vendor deletion may
    `rust-build` be merged into `main`.
