@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -59,15 +60,40 @@ export function runHarness(args = {}) {
   const tool = args.tool ?? command[0];
   const language = args.language ?? inferLanguage(tool);
 
-  const result = spawnSync(command[0], command.slice(1), {
-    cwd,
-    encoding: 'utf8',
-    shell: false,
-    env: { ...process.env, ...(args.env ?? {}) },
-  });
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-harness-'));
+  const stdoutPath = path.join(captureDir, 'stdout.log');
+  const stderrPath = path.join(captureDir, 'stderr.log');
+  const stdoutFd = fs.openSync(stdoutPath, 'w');
+  const stderrFd = fs.openSync(stderrPath, 'w');
+  let result;
+  try {
+    result = spawnSync(command[0], command.slice(1), {
+      cwd,
+      encoding: 'utf8',
+      shell: false,
+      env: { ...process.env, ...(args.env ?? {}) },
+      // File-backed stdio avoids the platform pipe limit while the explicit
+      // bound protects callers that replace either descriptor with a pipe.
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', stdoutFd, stderrFd],
+    });
+  } finally {
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  }
+  const capturedStdout = fs.readFileSync(stdoutPath, 'utf8');
+  const capturedStderr = fs.readFileSync(stderrPath, 'utf8');
+  fs.rmSync(captureDir, { recursive: true, force: true });
+  const spawnDiagnostic = result.error
+    ? `Harness child process failed (${result.error.code ?? 'unknown'}): ${result.error.message}`
+    : result.signal
+      ? `Harness child process terminated by signal ${result.signal}.`
+      : '';
   const endedAt = new Date().toISOString();
-  const stdout = redactSecrets(result.stdout ?? '');
-  const stderr = redactSecrets(result.stderr ?? '');
+  const stdout = redactSecrets(capturedStdout);
+  const stderr = redactSecrets(
+    [capturedStderr.trimEnd(), spawnDiagnostic].filter(Boolean).join('\n'),
+  );
   fs.writeFileSync(path.join(runDir, 'raw', 'stdout.log'), stdout, 'utf8');
   fs.writeFileSync(path.join(runDir, 'raw', 'stderr.log'), stderr, 'utf8');
 

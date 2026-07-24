@@ -98,6 +98,35 @@ test("harness persists raw logs, NDJSON diagnostics, summaries, and last failure
   assert.match(artifactReport.text, /TS2322/u);
 });
 
+test("harness keeps a successful command green when stderr exceeds the pipe buffer", () => {
+  const project = makeProject();
+  const result = run(project, [
+    "run",
+    "--json",
+    "--tool",
+    "cargo-test",
+    "--",
+    process.execPath,
+    "-e",
+    "process.stderr.write('x'.repeat(2 * 1024 * 1024)); process.exit(0);",
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.equal(report.summary.status, "passed");
+  assert.equal(report.summary.exitCode, 0);
+  assert.deepEqual(report.diagnostics, []);
+  const stderrPath = path.join(
+    project,
+    ".enforce",
+    "runs",
+    report.summary.runId,
+    "raw",
+    "stderr.log",
+  );
+  assert.equal(fs.statSync(stderrPath).size, 2 * 1024 * 1024);
+});
+
 test("CI triage ranks a missing Rust module path above exit-code noise", () => {
   const project = makeProject();
   const logPath = path.join(project, "agent-service-clippy.log");
