@@ -56,7 +56,7 @@ fn stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end(
         .arg("/abs/path/to/enforcer")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::inherit())
         .spawn()?;
 
     let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
@@ -127,7 +127,7 @@ fn stdio_smoke_legacy_alias_call_resolves_end_to_end() -> Result<(), Box<dyn std
         .arg("/abs/path/to/enforcer")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::inherit())
         .spawn()?;
     let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
     let stdout = child.stdout.take().ok_or("child has no stdout")?;
