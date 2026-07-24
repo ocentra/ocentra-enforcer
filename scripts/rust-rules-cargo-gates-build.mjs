@@ -24,6 +24,18 @@ function cargoFmtCommand(root, fmtArgs) {
   return { command: "cargo", args: fmtArgs };
 }
 
+function cargoTestCommand(root, packageArgs, testArgs) {
+  const workspaceHelper = path.join(root, "scripts", "check-cargo-workspace-tests.mjs");
+  if (packageArgs.length === 1 && packageArgs[0] === "--workspace" && fs.existsSync(workspaceHelper)) {
+    const separatorIndex = testArgs.indexOf("--");
+    return {
+      command: process.execPath,
+      args: [workspaceHelper, ...(separatorIndex === -1 ? [] : testArgs.slice(separatorIndex + 1))],
+    };
+  }
+  return { command: "cargo", args: testArgs };
+}
+
 /** Runs configured Cargo build and formatting gates for the selected packages. */
 export function runCargoBuildGates(root, config, policies, packageArgs, fmtArgs) {
   const violations = [];
@@ -64,14 +76,15 @@ export function runCargoBuildGates(root, config, policies, packageArgs, fmtArgs)
     if (config.cargoTestThreads !== null) {
       testArgs.push("--", `--test-threads=${config.cargoTestThreads}`);
     }
+    const tester = cargoTestCommand(root, packageArgs, testArgs);
     violations.push(
       ...configuredCargoCommand(
         root,
         config,
         "cargoTest",
         true,
-        "cargo",
-        testArgs,
+        tester.command,
+        tester.args,
         "RR-10.3",
       ),
     );
@@ -98,4 +111,4 @@ export function runCargoBuildGates(root, config, policies, packageArgs, fmtArgs)
   return violations;
 }
 
-export { cargoFmtCommand };
+export { cargoFmtCommand, cargoTestCommand };

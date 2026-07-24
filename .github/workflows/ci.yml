@@ -89,7 +89,7 @@ jobs:
       - name: Workspace clippy
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Workspace tests
-        run: cargo test --locked --workspace --all-targets --all-features
+        run: node scripts/check-cargo-workspace-tests.mjs
 
   local-parity:
     name: Exact local CI parity

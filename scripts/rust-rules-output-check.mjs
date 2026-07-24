@@ -15,11 +15,23 @@ function printFindingList(findings, label) {
     console.error(`  Rule: ${finding.doc ?? finding.docPath ?? ""}`);
     console.error(`  Fix: ${finding.snippet}`);
     if (finding.source) {
-      for (const line of String(finding.source).split(/\r?\n/u).slice(0, 12))
+      for (const line of diagnosticSourceLines(finding.source))
         console.error(`  > ${line}`);
     }
     console.error("");
   }
+}
+
+function diagnosticSourceLines(source, maxLines = 12) {
+  const lines = String(source).split(/\r?\n/u);
+  if (lines.length <= maxLines) return lines;
+  const headLines = Math.ceil(maxLines / 2);
+  const tailLines = maxLines - headLines;
+  return [
+    ...lines.slice(0, headLines),
+    "... [diagnostic source truncated; tail preserved] ...",
+    ...lines.slice(-tailLines),
+  ];
 }
 
 function pluralSuffix(count) {
@@ -82,3 +94,5 @@ export function printScanReport(report) {
   printFindingList(report.violations, "Reason");
   warnings.length > 0 && printFindingList(warnings, "Warning");
 }
+
+export { diagnosticSourceLines };
