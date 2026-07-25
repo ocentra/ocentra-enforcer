@@ -24,9 +24,15 @@ pre-existing `codex/private-rust-test-allowlist`. `main` and `safety-main`
 are intentionally untouched; the codex branch is not an integration branch
 and is pending separate cleanup/retention review.
 
-The validated code commit preceding this documentation refresh is
-`8a25b03e5`. The authoritative frozen
-scanner was run twice against this exact tree:
+The current pushed `rust-build` tip is the tree used for this handoff. Verify
+the exact tip and remote alignment before relying on the evidence below:
+
+```powershell
+git rev-parse HEAD
+git rev-parse origin/rust-build
+```
+
+The authoritative frozen scanner was run twice against the current Rust tree:
 
 ```text
 Ocentra Enforcer scan passed for 1,235 file(s).
@@ -42,13 +48,12 @@ Unicode format/control classes that caused native `tree-sitter-just` and
 `tree-sitter-odin` crashes. The hostile-input regression is covered by
 `property_parser_contracts` and direct language tests; reversed-input graph
 ordering is covered by `parity_architecture`. The graph-impacted CI gate is
-green on the pushed commit.
+required for every pushed tip and must be green before merge.
 
-Local Windows evidence on the preceding code run is green for workspace
-format, full workspace clippy, full workspace tests, and the exact
-`npm run ci:local` gate. On `7a7966c77`, the focused parser contract test and
-`enforcer-memory` clippy gate are also green; the same parser contract passes
-under WSL Ubuntu for 100 repeated exact runs.
+Local Windows evidence is green for workspace format, full workspace clippy,
+full workspace tests, and the exact `npm run ci:local` gate. The commit-bound
+mutation-risk proof must be rerun after any subsequent commit; do not reuse a
+proof from an older SHA.
 The local gate now defaults Cargo to four build jobs so memory-constrained
 Windows hosts do not launch an unbounded linker storm; an explicit
 `CARGO_BUILD_JOBS` override remains supported. The latter reports 1,292
@@ -56,8 +61,8 @@ advisory documentation warnings but no hard findings.
 The authoritative frozen scan is stable at zero findings across 1,235 files.
 The prior CI run exposed one genuine Ubuntu native-parser `SIGSEGV`; the
 regression was reproduced locally and fixed by narrowing the supplementary-
-plane guard to the two affected external scanners. The full code-SHA CI run
-for `8a25b03e5` remains a merge prerequisite.
+plane guard to the two affected external scanners. A full code-SHA CI run for
+the final pushed tip remains a merge prerequisite.
 Historical counts such as 8,310 or the earlier branch-native 309/281 baseline
 must not be used as the current global result.
 
@@ -66,7 +71,7 @@ live tools against the installed baseline: 15 equal, 8 better, 0 worse, and 0
 unrunnable. Candidate latency is lower in 21 of 23 rows, with a median
 candidate/baseline ratio of approximately 1.16%. The deterministic
 `x06_9_longitudinal` benchmark also passes for 10/50/100-file synthetic graphs,
-including incremental-index speedups of 23.7x, 11.0x, and 8.6x and retrieval
+including incremental-index speedups of 13.5x, 8.4x, and 7.8x and retrieval
 p95 samples below 1 ms. These figures are evidence for the current Rust
 implementation, not product guarantees for arbitrary repositories.
 
@@ -95,7 +100,7 @@ findings. They cleared RR-5.1 clone findings in their owned files:
    than the explicitly preserved vendor deletion.
 2. Record the final conclusion for the pushed code-SHA CI run; any failure
    must be fixed with a scoped regression and a new pushed run.
-3. The authoritative frozen scanner has passed twice on `8a25b03e5`:
+3. Run the authoritative frozen scanner twice on the final pushed tip:
 
    ```powershell
    node E:\ocentra-enforcer\scripts\rust-rules.mjs scan --root . --languages rust --workspace
