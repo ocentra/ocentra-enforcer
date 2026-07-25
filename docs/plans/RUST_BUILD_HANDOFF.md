@@ -56,8 +56,8 @@ mutation-risk proof must be rerun after any subsequent commit; do not reuse a
 proof from an older SHA.
 The local gate now defaults Cargo to four build jobs so memory-constrained
 Windows hosts do not launch an unbounded linker storm; an explicit
-`CARGO_BUILD_JOBS` override remains supported. The latter reports 1,292
-advisory documentation warnings but no hard findings.
+`CARGO_BUILD_JOBS` override remains supported. The latter reports advisory
+documentation warnings but no hard findings.
 The authoritative frozen scan is stable at zero findings across 1,235 files.
 The prior CI run exposed one genuine Ubuntu native-parser `SIGSEGV`; the
 regression was reproduced locally and fixed by narrowing the supplementary-
