@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { cargoFmtArgs } from "../scripts/rust-rules-cargo-gates.mjs";
 import { cleanupTargetArtifacts, workspaceTestPlan } from "../scripts/check-cargo-workspace-tests.mjs";
+import { removeTargetArtifact } from "../scripts/check-cargo-workspace-test-plan.mjs";
 import { cargoFmtCommand, cargoTestCommand } from "../scripts/rust-rules-cargo-gates-build.mjs";
 
 test("crate cargo fmt gate stays inside the selected package", () => {
@@ -87,6 +88,23 @@ test("bounded target cleanup removes only generated target artifacts", () => {
   } finally {
     fs.rmSync(targetDirectory, { recursive: true, force: true });
   }
+});
+
+test("bounded target cleanup retries transient Windows executable locks", () => {
+  const calls = [];
+  removeTargetArtifact("target/debug/deps/sample_tests-abc.exe", (artifactPath, options) => {
+    calls.push({ artifactPath, options });
+  });
+
+  assert.deepEqual(calls, [{
+    artifactPath: "target/debug/deps/sample_tests-abc.exe",
+    options: {
+      force: true,
+      recursive: true,
+      maxRetries: 6,
+      retryDelay: 250,
+    },
+  }]);
 });
 
 test("cargo fmt falls back to the direct invocation outside this repository", () => {

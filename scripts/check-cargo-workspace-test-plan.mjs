@@ -10,6 +10,13 @@ const TEST_TARGET_KINDS = new Map([
   ["bench", "--bench"],
 ]);
 
+const TARGET_ARTIFACT_REMOVE_OPTIONS = Object.freeze({
+  force: true,
+  recursive: true,
+  maxRetries: 6,
+  retryDelay: 250,
+});
+
 /** Builds a deterministic one-target-at-a-time workspace test plan. */
 export function workspaceTestPlan(packages) {
   return packages.flatMap((pkg) => {
@@ -48,9 +55,14 @@ export function cleanupTargetArtifacts(targetDirectory, entry) {
     if (!fs.existsSync(root)) continue;
     for (const entryName of fs.readdirSync(root)) {
       if (!matchesTargetArtifact(entryName, names, entry.kind, root === debugRoot)) continue;
-      fs.rmSync(path.join(root, entryName), { force: true });
+      removeTargetArtifact(path.join(root, entryName));
     }
   }
+}
+
+/** Removes one generated artifact with bounded retries for transient Windows executable locks. */
+export function removeTargetArtifact(artifactPath, remove = fs.rmSync) {
+  remove(artifactPath, TARGET_ARTIFACT_REMOVE_OPTIONS);
 }
 
 function targetNames(targetName) {
