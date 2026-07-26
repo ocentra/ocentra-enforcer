@@ -154,3 +154,16 @@ test('workflow contract keeps release ancestry and publishing tag-only', () => {
   assert.ok(failures.some((failure) => failure.includes("build:\n")));
   assert.ok(failures.some((failure) => failure.includes("publish:\n")));
 });
+
+test('workflow contract keeps pull-request release validation bounded', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-release-pr-bounded-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const release = path.join(root, '.github', 'workflows', 'release.yml');
+  const duplicatedParity = readFileSync(release, 'utf8').replace(
+    "- name: Exact local CI parity\n        if: github.event_name != 'pull_request'",
+    '- name: Exact local CI parity',
+  );
+  writeFileSync(release, duplicatedParity);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('Exact local CI parity')));
+});

@@ -27,6 +27,7 @@ export function verifyWorkflowContract(root) {
       '  push:\n    branches: [main]\n    tags:',
       '  pull_request:\n    branches: [main]',
       "- name: Require the release tag commit to be on main\n        if: startsWith(github.ref, 'refs/tags/v')",
+      "- name: Exact local CI parity\n        if: github.event_name != 'pull_request'",
       "build:\n    if: startsWith(github.ref, 'refs/tags/v')",
       "publish:\n    if: startsWith(github.ref, 'refs/tags/v')",
       'needs: validate', 'npm run ci:local', 'Pre-publish smoke gate', 'attest-build-provenance',

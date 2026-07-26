@@ -40,6 +40,7 @@ jobs:
         with:
           install-policy-tools: 'true'
       - name: Deterministic dependency bootstrap
+        if: github.event_name != 'pull_request'
         run: npm ci
       - name: Require the release tag commit to be on main
         if: startsWith(github.ref, 'refs/tags/v')
@@ -48,21 +49,27 @@ jobs:
       - name: Verify reusable workflow contract
         run: node scripts/ci/verify-workflow-contract.mjs
       - name: Exact local CI parity
+        if: github.event_name != 'pull_request'
         run: npm run ci:local
       - name: Workspace format contract
+        if: github.event_name != 'pull_request'
         run: node scripts/check-cargo-workspace-members.mjs --fmt-check
       - name: Frozen and native dogfood gate
+        if: github.event_name != 'pull_request'
         run: |
           node scripts/ocentra-enforcer.mjs scan --root . --languages rust --workspace
           cargo run --locked -p xtask -- dogfood --no-toolchain
           cargo run --locked -p xtask -- dogfood-gate --no-toolchain
       - name: Dependency and advisory policy
+        if: github.event_name != 'pull_request'
         run: |
           cargo audit --deny warnings
           cargo deny check
       - name: Generate release SBOM
+        if: github.event_name != 'pull_request'
         run: node scripts/ocentra-enforcer.mjs check sbom --root . --output target/security
       - name: Preserve release policy evidence
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-security-material
