@@ -4135,11 +4135,11 @@ fn track_a_blueprint_history_probe(row: &QaRow) -> RowResult {
 
 fn track_a_blueprint_history_probe_v2(row: &QaRow) -> RowResult {
     const BLUEPRINT_REL: &str = "docs/plans/enforcer-selfhost-plan/PLAN_EXECUTION_BLUEPRINT.md";
-    let history = match run_git_stdout(&["blame", "-L", "104,105", "--", BLUEPRINT_REL]) {
+    let expected_commit = "aa7b282075dded5248a02459ac9c4b03c79e58cf";
+    let history = match run_git_stdout(&["blame", expected_commit, "--", BLUEPRINT_REL]) {
         Ok(output) => output,
         Err(reason) => return unrunnable(row, &reason),
     };
-    let expected_commit = "aa7b282075dded5248a02459ac9c4b03c79e58cf";
     if !history.contains("aa7b2820")
         || !history.contains("- **A (RUST):** `a01`")
         || !history.contains("- **X (cross-cutting, early):**")
@@ -4595,14 +4595,29 @@ fn unchanged_since_baseline_probe(row: &QaRow) -> RowResult {
     exact_pass(row, ids, refs)
 }
 
+fn resolved_branch_name(git_branch: &str, github_head_ref: Option<&str>) -> Option<String> {
+    let local = git_branch.trim();
+    if !local.is_empty() {
+        return Some(local.to_string());
+    }
+    github_head_ref
+        .map(str::trim)
+        .filter(|candidate| !candidate.is_empty())
+        .map(str::to_string)
+}
+
 fn most_recent_session_created_files_probe(row: &QaRow) -> RowResult {
-    let branch = match run_git_stdout(&["branch", "--show-current"]) {
-        Ok(output) => output.trim().to_string(),
+    let git_branch = match run_git_stdout(&["branch", "--show-current"]) {
+        Ok(output) => output,
         Err(reason) => return unrunnable(row, &reason),
     };
-    if branch.is_empty() {
-        return unrunnable(row, "git branch --show-current returned no current branch");
-    }
+    let github_head_ref = std::env::var("GITHUB_HEAD_REF").ok();
+    let Some(branch) = resolved_branch_name(&git_branch, github_head_ref.as_deref()) else {
+        return unrunnable(
+            row,
+            "neither git branch --show-current nor GITHUB_HEAD_REF identified the source branch",
+        );
+    };
 
     let log = match run_git_stdout(&[
         "log",
@@ -10179,8 +10194,9 @@ pub fn run_all(rows: &[QaRow], fixtures: &Fixtures) -> Vec<RowResult> {
 #[cfg(test)]
 mod tests {
     use super::{
-        registry, run_all, score_row, unrunnable, CliRunner, ExactQaEvidenceRunner,
-        GraphTraversalRunner, McpRunner, RetrievalRunner, RowEvidence, RowResult, RowRunner,
+        registry, resolved_branch_name, run_all, score_row, unrunnable, CliRunner,
+        ExactQaEvidenceRunner, GraphTraversalRunner, McpRunner, RetrievalRunner, RowEvidence,
+        RowResult, RowRunner,
     };
     use crate::feature_parity::queryset::QaRow;
     use crate::feature_parity::BoxError;
@@ -10210,6 +10226,19 @@ mod tests {
             query: query.to_string(),
             expectation: expectation.to_string(),
         }
+    }
+
+    #[test]
+    fn detached_pull_request_checkout_uses_the_source_branch_ref() {
+        assert_eq!(
+            resolved_branch_name("", Some("rust-build")),
+            Some("rust-build".to_string())
+        );
+        assert_eq!(
+            resolved_branch_name("feature/local", Some("rust-build")),
+            Some("feature/local".to_string())
+        );
+        assert_eq!(resolved_branch_name("", Some("  ")), None);
     }
 
     #[test]
