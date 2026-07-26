@@ -45,7 +45,11 @@ fn adaptive_poll_interval_matches_baseline_formula() {
 #[test]
 fn watcher_detects_a_file_change_and_emits_exactly_one_debounced_request() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let watcher = Watcher::start(dir.path(), Duration::from_millis(150))?;
+    // Native backends deliver create/modify notifications on different
+    // schedules (notably FSEvents and ReadDirectoryChangesW).  Keep the
+    // test's quiet window wide enough to cover that delivery jitter while
+    // still exercising the production debounce path.
+    let watcher = Watcher::start(dir.path(), Duration::from_millis(500))?;
 
     // A single logical change: create then immediately rewrite one
     // file -- on most platforms/editors this fires multiple raw OS
@@ -66,7 +70,7 @@ fn watcher_detects_a_file_change_and_emits_exactly_one_debounced_request() -> Te
 
     // No SECOND request should be pending immediately after the
     // first one drains -- the burst collapsed into exactly one.
-    let second = watcher.next_reindex_request(Duration::from_millis(200))?;
+    let second = watcher.next_reindex_request(Duration::from_millis(750))?;
     if let Some(second) = second {
         return Err(format!("expected no second reindex request, got {second:?}").into());
     }
