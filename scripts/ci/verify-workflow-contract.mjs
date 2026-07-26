@@ -26,6 +26,9 @@ export function verifyWorkflowContract(root) {
     ['workflows/release.yml', [
       '  push:\n    branches: [main]\n    tags:',
       '  pull_request:\n    branches: [main]',
+      "- name: Require the release tag commit to be on main\n        if: startsWith(github.ref, 'refs/tags/v')",
+      "build:\n    if: startsWith(github.ref, 'refs/tags/v')",
+      "publish:\n    if: startsWith(github.ref, 'refs/tags/v')",
       'needs: validate', 'npm run ci:local', 'Pre-publish smoke gate', 'attest-build-provenance',
       'cargo audit --deny warnings', 'release-security-material', 'macos-15-intel',
       'ubuntu-24.04-arm', 'id-token: write', 'fail_on_unmatched_files: true',

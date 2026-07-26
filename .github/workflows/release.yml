@@ -42,6 +42,7 @@ jobs:
       - name: Deterministic dependency bootstrap
         run: npm ci
       - name: Require the release tag commit to be on main
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: git merge-base --is-ancestor "${{ github.sha }}" origin/main
       - name: Verify reusable workflow contract
@@ -71,6 +72,7 @@ jobs:
           if-no-files-found: error
 
   build:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: validate
     strategy:
       fail-fast: false
@@ -176,6 +178,7 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:

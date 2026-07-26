@@ -130,3 +130,27 @@ test('workflow contract keeps release publishing off the integration branch', ()
   const failures = verifyWorkflowContract(root);
   assert.ok(failures.some((failure) => failure.includes('workflows/release.yml')));
 });
+
+test('workflow contract keeps release ancestry and publishing tag-only', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-release-tag-only-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const release = path.join(root, '.github', 'workflows', 'release.yml');
+  const pullRequestPublish = readFileSync(release, 'utf8')
+    .replace(
+      "- name: Require the release tag commit to be on main\n        if: startsWith(github.ref, 'refs/tags/v')",
+      '- name: Require the release tag commit to be on main',
+    )
+    .replace(
+      "build:\n    if: startsWith(github.ref, 'refs/tags/v')",
+      'build:',
+    )
+    .replace(
+      "publish:\n    if: startsWith(github.ref, 'refs/tags/v')",
+      'publish:',
+    );
+  writeFileSync(release, pullRequestPublish);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('release tag commit')));
+  assert.ok(failures.some((failure) => failure.includes("build:\n")));
+  assert.ok(failures.some((failure) => failure.includes("publish:\n")));
+});
