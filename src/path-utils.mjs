@@ -109,10 +109,15 @@ export function walkFiles(root, start, config, collect, forcedPrefix = null) {
   const stats = fs.lstatSync(start);
   if (stats.isSymbolicLink()) return;
   const rel = normalizeRel(root, start);
-  const forced =
+  const scopedRel =
     forcedPrefix != null &&
-    (rel === forcedPrefix || rel.startsWith(`${forcedPrefix}/`));
-  if (rel !== '' && !forced && isIgnoredPath(rel, config, stats.isDirectory())) return;
+    (rel === forcedPrefix || rel.startsWith(`${forcedPrefix}/`))
+      ? rel.slice(forcedPrefix.length).replace(/^\//u, '')
+      : rel;
+  if (
+    scopedRel !== '' &&
+    isIgnoredPath(scopedRel, config, stats.isDirectory())
+  ) return;
   if (stats.isDirectory()) {
     for (const entry of fs.readdirSync(start, { withFileTypes: true })) {
       walkFiles(root, path.join(start, entry.name), config, collect, forcedPrefix);

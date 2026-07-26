@@ -234,11 +234,15 @@ function buildReport({ root, config, checkName, findings, scope = null }) {
 
 function collectPolicyFiles(root, config, policy, scope = { mode: "all" }) {
   const entries = policyTraversalEntries(root, config, policy, scope);
+  const extensions = new Set(policy.extensions ?? []);
   return collectFiles(
     root,
     entries,
     config,
-    (file) => isUnderRoots(normalizeRel(root, file), policy.roots ?? []),
+    (file) =>
+      extensions.has(path.extname(file).toLowerCase()) &&
+      isUnderRoots(normalizeRel(root, file), policy.roots ?? []),
+    false,
   );
 }
 
