@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { planImpacted } from '../scripts/ci/plan-impacted.mjs';
+import { impactedCargoTestCommand } from '../scripts/ci/run-impacted.mjs';
 import { verifyWorkflowContract } from '../scripts/ci/verify-workflow-contract.mjs';
 
 const metadata = {
@@ -35,6 +36,16 @@ test('docs-only changes retain the fast path', () => {
   assert.deepEqual(plan.packages, []);
   assert.equal(plan.docsOnly, true);
   assert.equal(plan.fullRequired, false);
+});
+
+test('graph-impacted tests use the bounded target runner for every selected package', () => {
+  const command = impactedCargoTestCommand('/repo', ['api', 'domain']);
+  assert.equal(command.command, process.execPath);
+  assert.match(command.args[0], /check-cargo-workspace-tests\.mjs$/u);
+  assert.deepEqual(command.args.slice(1), [
+    '--package', 'api',
+    '--package', 'domain',
+  ]);
 });
 
 test('workflow contract validator rejects missing and mutable gates', () => {
