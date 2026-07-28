@@ -36,11 +36,13 @@ pub fn normalize_coordination_path(value: &ClaimPath) -> Result<ClaimPath> {
         }
         collapsed.push(c);
     }
-    let stripped = if collapsed == "./" {
-        "."
-    } else {
-        collapsed.strip_prefix("./").unwrap_or(&collapsed)
-    };
+    let mut stripped = collapsed.as_str();
+    while let Some(remainder) = stripped.strip_prefix("./") {
+        stripped = remainder;
+    }
+    if stripped.is_empty() {
+        stripped = ".";
+    }
     Ok(ClaimPath::try_from(stripped.to_lowercase())?)
 }
 
@@ -169,6 +171,8 @@ mod tests {
     fn root_path_normalizes_to_a_nonblank_dot_path() -> Result<()> {
         let normalized = normalize_coordination_path(&ClaimPath::try_from(".\\".to_owned())?)?;
         assert_eq!(normalized.as_str(), ".");
+        let repeated = normalize_coordination_path(&ClaimPath::from_static("././")?)?;
+        assert_eq!(repeated.as_str(), ".");
         Ok(())
     }
 
