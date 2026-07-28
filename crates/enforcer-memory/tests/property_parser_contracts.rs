@@ -21,6 +21,7 @@ use proptest::{
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     process::Command,
+    sync::{Mutex, MutexGuard},
 };
 
 const PROPERTY_PARSER_CASES: u32 = 64;
@@ -29,6 +30,14 @@ const PROPERTY_PARSER_KEY_ENV: &str = "OCENTRA_PROPERTY_PARSER_KEY";
 const PROPERTY_PARSER_CHILD_TEST: &str = "property_parser_child";
 const EXACT_TEST_ARGUMENT: &str = "--exact";
 const NO_CAPTURE_ARGUMENT: &str = "--nocapture";
+static PARSER_TEST_SERIALIZER: Mutex<()> = Mutex::new(());
+
+fn parser_test_guard() -> MutexGuard<'static, ()> {
+    match PARSER_TEST_SERIALIZER.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 
 fn property_parser_config() -> ProptestConfig {
     ProptestConfig {
@@ -61,6 +70,7 @@ macro_rules! property_parser_contracts {
                 source in proptest::collection::vec(any::<char>(), 0..128)
                     .prop_map(|characters| characters.into_iter().collect::<String>()),
                 ) {
+                let _guard = parser_test_guard();
                 let selected_parser = match std::env::var(PROPERTY_PARSER_KEY_ENV) {
                     Ok(value) => value,
                     Err(_) => return Ok(()),
@@ -81,6 +91,7 @@ macro_rules! property_parser_contracts {
 
         #[test]
         fn every_registered_parser_is_total() {
+            let _guard = parser_test_guard();
             let current_executable = match std::env::current_exe() {
                 Ok(path) => path,
                 Err(error) => {
@@ -110,8 +121,9 @@ macro_rules! property_parser_contracts {
                 };
                 assert!(
                     output.status.success(),
-                    "registered parser process failed for {parser_key}: {}\n{}",
+                    "registered parser process failed for {parser_key}: {}\nstdout:\n{}\nstderr:\n{}",
                     output.status,
+                    String::from_utf8_lossy(&output.stdout),
                     String::from_utf8_lossy(&output.stderr)
                 );
             }
@@ -119,6 +131,7 @@ macro_rules! property_parser_contracts {
 
         #[test]
         fn registered_parsers_share_process_for_safe_source() {
+            let _guard = parser_test_guard();
             const SAFE_SOURCE: &str = "fn main() {}";
             for parser_key in PROPERTY_PARSER_KEYS {
                 assert!(
@@ -327,6 +340,7 @@ fn parser_property_generation_is_reproducible() {
 
 #[test]
 fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
+    let _guard = parser_test_guard();
     let source = "fn hostile() {}\0";
     assert_eq!(languages::c::parse(source, false), Default::default());
     assert_eq!(languages::cpp::parse(source, false), Default::default());
