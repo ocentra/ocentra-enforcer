@@ -28,6 +28,12 @@ const PROPERTY_PARSER_CASES: u32 = 64;
 const PROPERTY_PARSER_SEED: u64 = 0x4f43_454e_5452_4150;
 const PROPERTY_PARSER_KEY_ENV: &str = "OCENTRA_PROPERTY_PARSER_KEY";
 const PROPERTY_PARSER_CHILD_TEST: &str = "property_parser_child";
+const CORE_SHARED_CHILD_ENV: &str = "OCENTRA_CORE_SHARED_PARSER_CHILD";
+const CORE_SHARED_CHILD_TEST: &str = "core_native_parsers_share_process_for_safe_sources";
+const DIRECT_ENTRYPOINT_CHILD_ENV: &str = "OCENTRA_DIRECT_ENTRYPOINT_PARSER_CHILD";
+const DIRECT_ENTRYPOINT_CHILD_TEST: &str =
+    "direct_tree_sitter_entrypoints_reject_binary_and_control_input";
+const ISOLATED_CHILD_VALUE: &str = "1";
 const EXACT_TEST_ARGUMENT: &str = "--exact";
 const NO_CAPTURE_ARGUMENT: &str = "--nocapture";
 static PARSER_TEST_SERIALIZER: Mutex<()> = Mutex::new(());
@@ -37,6 +43,29 @@ fn parser_test_guard() -> MutexGuard<'static, ()> {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     }
+}
+
+fn run_current_test_in_isolated_child(test_name: &str, child_env: &str) -> Result<bool, String> {
+    if std::env::var_os(child_env).is_some() {
+        return Ok(false);
+    }
+    let current_executable = std::env::current_exe()
+        .map_err(|error| format!("failed to resolve parser test executable: {error}"))?;
+    let output = Command::new(current_executable)
+        .arg(EXACT_TEST_ARGUMENT)
+        .arg(test_name)
+        .arg(NO_CAPTURE_ARGUMENT)
+        .env(child_env, ISOLATED_CHILD_VALUE)
+        .output()
+        .map_err(|error| format!("failed to start isolated parser test: {error}"))?;
+    assert!(
+        output.status.success(),
+        "isolated parser test {test_name} failed: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(true)
 }
 
 fn property_parser_config() -> ProptestConfig {
@@ -130,8 +159,14 @@ macro_rules! property_parser_contracts {
         }
 
         #[test]
-        fn core_native_parsers_share_process_for_safe_sources() {
+        fn core_native_parsers_share_process_for_safe_sources() -> Result<(), String> {
             let _guard = parser_test_guard();
+            if run_current_test_in_isolated_child(
+                CORE_SHARED_CHILD_TEST,
+                CORE_SHARED_CHILD_ENV,
+            )? {
+                return Ok(());
+            }
             let parsed_files = [
                 generic::parse_rust("fn main() {}"),
                 generic::parse_typescript("function main() {}"),
@@ -143,6 +178,7 @@ macro_rules! property_parser_contracts {
                     .all(|parsed_file| !parsed_file.symbols.is_empty()),
                 "a core native parser did not extract its safe-source symbol"
             );
+            Ok(())
         }
     };
 }
@@ -343,8 +379,14 @@ fn parser_property_generation_is_reproducible() {
 }
 
 #[test]
-fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
+fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() -> Result<(), String> {
     let _guard = parser_test_guard();
+    if run_current_test_in_isolated_child(
+        DIRECT_ENTRYPOINT_CHILD_TEST,
+        DIRECT_ENTRYPOINT_CHILD_ENV,
+    )? {
+        return Ok(());
+    }
     let source = "fn hostile() {}\0";
     assert_eq!(languages::c::parse(source, false), Default::default());
     assert_eq!(languages::cpp::parse(source, false), Default::default());
@@ -374,4 +416,5 @@ fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() {
         Default::default()
     );
     assert_eq!(generic::parse_d("module café;"), Default::default());
+    Ok(())
 }
