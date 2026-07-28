@@ -130,15 +130,19 @@ macro_rules! property_parser_contracts {
         }
 
         #[test]
-        fn registered_parsers_share_process_for_safe_source() {
+        fn core_native_parsers_share_process_for_safe_sources() {
             let _guard = parser_test_guard();
-            const SAFE_SOURCE: &str = "fn main() {}";
-            for parser_key in PROPERTY_PARSER_KEYS {
-                assert!(
-                    exercise_registered_parser(parser_key, SAFE_SOURCE),
-                    "registered parser key was not found: {parser_key}"
-                );
-            }
+            let parsed_files = [
+                generic::parse_rust("fn main() {}"),
+                generic::parse_typescript("function main() {}"),
+                generic::parse_python("def main():\n    pass\n"),
+            ];
+            assert!(
+                parsed_files
+                    .iter()
+                    .all(|parsed_file| !parsed_file.symbols.is_empty()),
+                "a core native parser did not extract its safe-source symbol"
+            );
         }
     };
 }
