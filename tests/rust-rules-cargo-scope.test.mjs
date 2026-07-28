@@ -130,6 +130,27 @@ test("bounded cargo test batches reject invalid limits", () => {
   );
 });
 
+test("native process stress targets receive singleton Cargo batches", () => {
+  const plan = workspaceTestPlan([
+    {
+      name: "enforcer-memory",
+      targets: [
+        { name: "before", kind: ["test"] },
+        { name: "property_parser_contracts", kind: ["test"] },
+        { name: "zz-after", kind: ["test"] },
+      ],
+    },
+  ]);
+
+  const batches = workspaceTestBatches(plan, 8);
+
+  assert.deepEqual(
+    batches.map((batch) => batch.entries.map((entry) => entry.targetName)),
+    [["before"], ["property_parser_contracts"], ["zz-after"]],
+  );
+  assert.equal(batches[1].entries[0].processIsolated, true);
+});
+
 test("bounded target cleanup removes only generated target artifacts", () => {
   const targetDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "cargo-bounded-test-"),

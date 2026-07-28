@@ -10,6 +10,10 @@ const TEST_TARGET_KINDS = new Map([
   ["bench", "--bench"],
 ]);
 
+const PROCESS_ISOLATED_TARGETS = new Set([
+  "enforcer-memory/property_parser_contracts",
+]);
+
 const TARGET_ARTIFACT_REMOVE_OPTIONS = Object.freeze({
   force: true,
   recursive: true,
@@ -43,6 +47,8 @@ export function workspaceTestBatches(
     const current = batches.at(-1);
     if (
       !current ||
+      entry.processIsolated ||
+      current.entries.some((candidate) => candidate.processIsolated) ||
       current.packageName !== entry.packageName ||
       current.entries.length >= batchSize
     ) {
@@ -72,6 +78,9 @@ function targetEntry(packageName, target) {
     packageName,
     targetName: target.name,
     kind,
+    processIsolated: PROCESS_ISOLATED_TARGETS.has(
+      `${packageName}/${target.name}`,
+    ),
     selectorArgs: isLibrary ? [selectorFlag] : [selectorFlag, target.name],
     selector: isLibrary ? selectorFlag : `${selectorFlag} ${target.name}`,
   };
