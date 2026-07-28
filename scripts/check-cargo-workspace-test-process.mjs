@@ -2,7 +2,7 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 
 const CARGO_OUTPUT_MAX_BUFFER = 16 * 1024 * 1024;
-const DIAGNOSTIC_MAX_LENGTH = 8000;
+const DIAGNOSTIC_STREAM_MAX_LENGTH = 3600;
 
 export function cargoBuildBatchArgs(batch) {
   return [
@@ -52,10 +52,27 @@ function runCargo(root, args) {
 }
 
 export function compactCargoDiagnostic(result) {
-  const output = [result.stdout, result.stderr, result.error?.message]
+  const status = [
+    `cargo status: ${result.status ?? "unknown"}`,
+    result.signal ? `signal: ${result.signal}` : null,
+    result.error?.message ? `spawn error: ${result.error.message}` : null,
+  ]
     .filter(Boolean)
-    .join("\n")
-    .trim();
-  if (output.length <= DIAGNOSTIC_MAX_LENGTH) return output;
-  return `... [cargo output truncated; tail preserved] ...\n${output.slice(-DIAGNOSTIC_MAX_LENGTH)}`;
+    .join("; ");
+  const sections = [
+    compactDiagnosticStream("stdout", result.stdout),
+    compactDiagnosticStream("stderr", result.stderr),
+  ].filter(Boolean);
+  return [status, ...sections].join("\n");
+}
+
+function compactDiagnosticStream(label, value) {
+  const output = value?.trim();
+  if (!output) return "";
+  if (output.length <= DIAGNOSTIC_STREAM_MAX_LENGTH) {
+    return `${label}:\n${output}`;
+  }
+  return `${label}:\n... [${label} truncated; tail preserved] ...\n${output.slice(
+    -DIAGNOSTIC_STREAM_MAX_LENGTH,
+  )}`;
 }

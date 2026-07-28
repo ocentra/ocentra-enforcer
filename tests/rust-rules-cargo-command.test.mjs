@@ -55,7 +55,24 @@ test("bounded Cargo target diagnostics retain child termination errors", () => {
   const diagnostic = compactCargoDiagnostic({
     stdout: "",
     stderr: "",
+    status: null,
+    signal: "SIGTERM",
     error: { message: "spawn cargo ENOBUFS" },
   });
+  assert.match(diagnostic, /cargo status: unknown; signal: SIGTERM/u);
   assert.match(diagnostic, /spawn cargo ENOBUFS/u);
+});
+
+test("bounded Cargo target diagnostics retain stdout failures beside long stderr", () => {
+  const diagnostic = compactCargoDiagnostic({
+    stdout: "test parser_contract ... FAILED\nchild parser exited with signal 11",
+    stderr: `${"compiler warning\n".repeat(800)}terminal compiler warning`,
+    status: 101,
+    signal: null,
+  });
+  assert.match(diagnostic, /cargo status: 101/u);
+  assert.match(diagnostic, /stdout:\ntest parser_contract \.\.\. FAILED/u);
+  assert.match(diagnostic, /child parser exited with signal 11/u);
+  assert.match(diagnostic, /stderr truncated; tail preserved/u);
+  assert.match(diagnostic, /terminal compiler warning/u);
 });
