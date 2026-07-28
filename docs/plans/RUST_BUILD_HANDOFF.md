@@ -10,12 +10,13 @@
   documentation work. Commit and push every accepted change there.
 - Do not merge `rust-build` into `main` until the frozen safety scanner is
   clean and the full Rust workspace validation has passed.
-- Do not restore, delete, or commit protected vendor state without an explicit
-  user decision. The named
+- Do not delete protected vendor state without an explicit user decision and
+  complete mechanical parity evidence. The named
   `vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md`
-  file is present and tracked. The current dirty deletion is instead
-  `vendor/anthropic-cybersecurity-skills/skills/hunting-for-anomalous-powershell-execution/references/api-reference.md`;
-  it remains untouched.
+  file and
+  `vendor/anthropic-cybersecurity-skills/skills/hunting-for-anomalous-powershell-execution/references/api-reference.md`
+  are both present and tracked. The corpus remains retained because Rust
+  mechanical parity is incomplete.
 
 ## Verified branch state at handoff
 
@@ -32,7 +33,7 @@ git rev-parse HEAD
 git rev-parse origin/rust-build
 ```
 
-The authoritative frozen scanner was run twice against the current Rust tree:
+The authoritative frozen scanner is stable against the current Rust tree:
 
 ```text
 Ocentra Enforcer scan passed for 1,235 file(s).
@@ -43,12 +44,22 @@ Both runs produced zero findings. The accepted packets harden the generic
 Tree-sitter boundary against embedded-NUL and non-whitespace control input,
 which previously caused a Linux `SIGSEGV` in `generic::parse_d`, and make graph
 indexing deterministic by sorting normalized paths before symbol resolution.
-The final parser-boundary packet also rejects the supplementary-plane and
+The final parser-boundary packets also reject the supplementary-plane and
 Unicode format/control classes that caused native `tree-sitter-just` and
-`tree-sitter-odin` crashes. The hostile-input regression is covered by
+`tree-sitter-odin` crashes. Hostile property inputs now execute each registered
+native parser in an isolated child process with a fixed corpus, so any native
+failure reports the exact parser instead of terminating an anonymous shared
+batch. A bounded same-process composition test retains shared-lifecycle
+coverage. The hostile-input regression is covered by
 `property_parser_contracts` and direct language tests; reversed-input graph
 ordering is covered by `parity_architecture`. The graph-impacted CI gate is
 required for every pushed tip and must be green before merge.
+
+The Rust-build MCP scan decoder now preserves an explicit language selection
+such as `languages: ["rust"]`. Schema and end-to-end MCP regressions prove the
+selection reaches the CLI report instead of silently falling back to every
+profile language. The installed MCP remains the frozen MJS checkout until the
+post-merge Rust cutover is explicitly performed.
 
 Local Windows evidence is green for workspace format, full workspace clippy,
 full workspace tests, and the exact `npm run ci:local` gate. The commit-bound
@@ -75,11 +86,10 @@ including incremental-index speedups of 13.5x, 8.4x, and 7.8x and retrieval
 p95 samples below 1 ms. These figures are evidence for the current Rust
 implementation, not product guarantees for arbitrary repositories.
 
-The current worktree has one unresolved vendor deletion that is intentionally
-preserved and not part of the pushed commit:
-`vendor/anthropic-cybersecurity-skills/skills/hunting-for-anomalous-powershell-execution/references/api-reference.md`.
-The separately named `detecting-fileless-malware-techniques/SKILL.md` file is
-present and tracked; it is not currently deleted.
+The current worktree has no unresolved vendor deletion. Both protected vendor
+files named above are present and tracked. The wider vendor corpus is retained:
+its advisory content is not eligible for removal until the Rust validators and
+tests prove complete mechanical parity.
 
 Recent validated `rust-build` packets after that scan include focused tests,
 focused frozen-safety scanning, and a detached audit with zero introduced
@@ -96,8 +106,7 @@ findings. They cleared RR-5.1 clone findings in their owned files:
 
 ## Next execution slice
 
-1. Verify `HEAD` equals `origin/rust-build`; resolve no local residue other
-   than the explicitly preserved vendor deletion.
+1. Verify `HEAD` equals `origin/rust-build` and the worktree is clean.
 2. Record the final conclusion for the pushed code-SHA CI run; any failure
    must be fixed with a scoped regression and a new pushed run.
 3. Run the authoritative frozen scanner twice on the final pushed tip:
@@ -113,6 +122,6 @@ findings. They cleared RR-5.1 clone findings in their owned files:
 5. Before any merge, update the public README and product documentation from
    current behavior only. Keep internal migration/research/planning history in
    `docs/plans/`; do not present it as product behavior.
-6. Only after a full clean scanner result, final CI, full validation, and an
-   explicit decision on the preserved vendor deletion may
-   `rust-build` be merged into `main`.
+6. Only after a full clean scanner result, final CI, full validation, and
+   confirmation that the retained vendor corpus is unchanged may `rust-build`
+   be merged into `main`.
