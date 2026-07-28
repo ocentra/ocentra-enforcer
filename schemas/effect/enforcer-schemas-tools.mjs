@@ -42,6 +42,7 @@ export const ScanToolArgumentsSchema = Schema.Struct({
   crateName: OptionalString,
   base: OptionalString,
   head: OptionalString,
+  languages: Schema.optional(Schema.Array(LanguageSchema)),
   cargo: OptionalBoolean,
   diagnosticLimit: OptionalNumber,
   summaryOnly: OptionalBoolean,

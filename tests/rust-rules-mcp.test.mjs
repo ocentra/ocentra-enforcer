@@ -450,9 +450,12 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       profile: "ocentra-parent",
       scope: "files",
       files: ["src/lib.rs"],
+      languages: ["rust"],
     },
   });
   assert.equal(scan.result.isError, true);
+  const scanReport = JSON.parse(scan.result.content[0].text);
+  assert.deepEqual(scanReport.languages, ["rust"]);
   assert.match(scan.result.content[0].text, /RR-7\.3/u);
 
   const route = await client.request(5, "tools/call", {

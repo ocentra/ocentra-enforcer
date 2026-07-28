@@ -33,7 +33,21 @@ const {
   decodeRunReport,
   decodeRunToolArguments,
   decodeScanReport,
+  decodeScanToolArguments,
 } = DecodeSchemas;
+
+test("scan tool arguments retain explicit language scope", () => {
+  const decoded = decodeScanToolArguments({
+    scope: "crate",
+    crateName: "enforcer-memory",
+    languages: ["rust"],
+  });
+  assert.deepEqual(decoded.languages, ["rust"]);
+  assert.throws(
+    () => decodeScanToolArguments({ languages: ["javascript"] }),
+    /scan tool arguments schema validation failed/u,
+  );
+});
 
 test("Effect Schema decodes valid registry, config, route, init, and reports", () => {
   const registry = decodeRuleRegistry(
