@@ -5,12 +5,16 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parseWorkspaceTestArgs } from "./check-cargo-workspace-test-cli.mjs";
-import { cleanupTargetArtifacts, workspaceTestPlan } from "./check-cargo-workspace-test-plan.mjs";
-import { runCargoTestTarget } from "./check-cargo-workspace-test-process.mjs";
+import {
+  cleanupTargetArtifacts,
+  workspaceTestBatches,
+  workspaceTestPlan,
+} from "./check-cargo-workspace-test-plan.mjs";
+import { runCargoTestBatch } from "./check-cargo-workspace-test-process.mjs";
 
 const CARGO_METADATA_MAX_BUFFER = 32 * 1024 * 1024;
 
-/** Runs every Cargo workspace target without accumulating large test binaries. */
+/** Runs every Cargo workspace target in bounded batches without accumulating binaries. */
 export function runWorkspaceTests(root, packageFilter = null, testArgs = []) {
   const metadata = cargoMetadata(root);
   const packages = metadata.packages
@@ -21,17 +25,26 @@ export function runWorkspaceTests(root, packageFilter = null, testArgs = []) {
   }
 
   const plan = workspaceTestPlan(packages);
-  console.log(`Cargo bounded test plan: ${plan.length} target(s).`);
-  for (const entry of plan) {
-    console.log(`\n==> cargo test -p ${entry.packageName} ${entry.selector}`);
-    const result = runCargoTestTarget(root, entry, testArgs);
-    cleanupTargetArtifacts(metadata.target_directory, entry);
+  const batches = workspaceTestBatches(plan);
+  console.log(
+    `Cargo bounded test plan: ${plan.length} target(s) in ${batches.length} batch(es).`,
+  );
+  for (const batch of batches) {
+    console.log(`\n==> cargo test -p ${batch.packageName} ${batch.selector}`);
+    const result = runCargoTestBatch(root, batch, testArgs);
+    for (const entry of batch.entries) {
+      cleanupTargetArtifacts(metadata.target_directory, entry);
+    }
     if (result.status !== 0) {
-      console.error(result.diagnostic || "cargo test process returned no diagnostic.");
+      console.error(
+        result.diagnostic || "cargo test process returned no diagnostic.",
+      );
       return result.status ?? 1;
     }
   }
-  console.log(`\nCargo bounded workspace tests passed: ${plan.length} target(s).`);
+  console.log(
+    `\nCargo bounded workspace tests passed: ${plan.length} target(s).`,
+  );
   return 0;
 }
 
@@ -47,17 +60,28 @@ function cargoMetadata(root) {
     },
   );
   if (result.status !== 0) {
-    throw new Error(`cargo metadata failed:\n${result.stderr || result.stdout}`);
+    throw new Error(
+      `cargo metadata failed:\n${result.stderr || result.stdout}`,
+    );
   }
   return JSON.parse(result.stdout);
 }
 
-export { cleanupTargetArtifacts, workspaceTestPlan };
+export { cleanupTargetArtifacts, workspaceTestBatches, workspaceTestPlan };
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
-    const { packageFilter, testArgs } = parseWorkspaceTestArgs(process.argv.slice(2));
-    process.exitCode = runWorkspaceTests(process.cwd(), packageFilter, testArgs);
+    const { packageFilter, testArgs } = parseWorkspaceTestArgs(
+      process.argv.slice(2),
+    );
+    process.exitCode = runWorkspaceTests(
+      process.cwd(),
+      packageFilter,
+      testArgs,
+    );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

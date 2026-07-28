@@ -4,13 +4,13 @@ import { spawnSync } from "node:child_process";
 const CARGO_OUTPUT_MAX_BUFFER = 16 * 1024 * 1024;
 const DIAGNOSTIC_MAX_LENGTH = 8000;
 
-export function runCargoTestTarget(root, entry, testArgs) {
+export function runCargoTestBatch(root, batch, testArgs) {
   const args = [
     "test",
     "--locked",
     "--package",
-    entry.packageName,
-    ...entry.selectorArgs,
+    batch.packageName,
+    ...batch.selectorArgs,
     "--all-features",
     ...(testArgs.length > 0 ? ["--", ...testArgs] : []),
   ];
@@ -18,7 +18,7 @@ export function runCargoTestTarget(root, entry, testArgs) {
     cwd: root,
     env: {
       ...process.env,
-      CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? "1",
+      CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? "2",
       CARGO_INCREMENTAL: process.env.CARGO_INCREMENTAL ?? "0",
     },
     encoding: "utf8",
