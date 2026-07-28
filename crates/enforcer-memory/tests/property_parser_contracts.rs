@@ -13,15 +13,28 @@ use enforcer_memory::{
     lesson, llama_cpp, parsers,
 };
 use proptest::{
-    prelude::any, prop_assert_eq, proptest, strategy::Strategy,
-    test_runner::Config as ProptestConfig,
+    prelude::any,
+    prop_assert_eq, proptest,
+    strategy::Strategy,
+    test_runner::{Config as ProptestConfig, RngSeed},
 };
 use std::panic::{catch_unwind, AssertUnwindSafe};
+
+const PROPERTY_PARSER_CASES: u32 = 64;
+const PROPERTY_PARSER_SEED: u64 = 0x4f43_454e_5452_4150;
+
+fn property_parser_config() -> ProptestConfig {
+    ProptestConfig {
+        cases: PROPERTY_PARSER_CASES,
+        rng_seed: RngSeed::Fixed(PROPERTY_PARSER_SEED),
+        ..ProptestConfig::default()
+    }
+}
 
 macro_rules! property_parser_contracts {
     ($($key:literal => $exercise:expr),+ $(,)?) => {
         proptest! {
-            #![proptest_config(ProptestConfig::with_cases(8))]
+            #![proptest_config(property_parser_config())]
             #[test]
             fn every_registered_parser_is_total(
                 source in proptest::collection::vec(any::<char>(), 0..128)
@@ -226,6 +239,13 @@ property_parser_contracts! {
     "src/parsers/mod.rs::parse_file" => |source: &str| {
         parsers::parse_file(parsers::Language::Rust, source, "property.rs")
     },
+}
+
+#[test]
+fn parser_property_generation_is_reproducible() {
+    let config = property_parser_config();
+    assert_eq!(config.cases, PROPERTY_PARSER_CASES);
+    assert_eq!(config.rng_seed, RngSeed::Fixed(PROPERTY_PARSER_SEED));
 }
 
 #[test]
