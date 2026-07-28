@@ -3,7 +3,28 @@ import assert from "node:assert/strict";
 
 import { summarizeCommandOutput } from "../scripts/rust-rules-cargo-command.mjs";
 import { diagnosticSourceLines } from "../scripts/rust-rules-output-check.mjs";
-import { compactCargoDiagnostic } from "../scripts/check-cargo-workspace-test-process.mjs";
+import {
+  cargoBuildBatchArgs,
+  compactCargoDiagnostic,
+} from "../scripts/check-cargo-workspace-test-process.mjs";
+
+test("bounded Cargo runner builds runnable binaries before cross-package fixtures", () => {
+  assert.deepEqual(
+    cargoBuildBatchArgs({
+      packageName: "enforcer-cli",
+      selectorArgs: ["--bin", "enforcer"],
+    }),
+    [
+      "build",
+      "--locked",
+      "--package",
+      "enforcer-cli",
+      "--bin",
+      "enforcer",
+      "--all-features",
+    ],
+  );
+});
 
 test("cargo diagnostics preserve short output verbatim", () => {
   const output = "compiler error: missing symbol";

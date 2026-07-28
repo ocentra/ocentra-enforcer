@@ -10,7 +10,10 @@ import {
   workspaceTestBatches,
   workspaceTestPlan,
 } from "./check-cargo-workspace-test-plan.mjs";
-import { runCargoTestBatch } from "./check-cargo-workspace-test-process.mjs";
+import {
+  runCargoBuildBatch,
+  runCargoTestBatch,
+} from "./check-cargo-workspace-test-process.mjs";
 
 const CARGO_METADATA_MAX_BUFFER = 32 * 1024 * 1024;
 
@@ -26,26 +29,48 @@ export function runWorkspaceTests(root, packageFilter = null, testArgs = []) {
 
   const plan = workspaceTestPlan(packages);
   const batches = workspaceTestBatches(plan);
+  const binaryEntries = plan.filter((entry) => entry.kind === "bin");
+  const binaryBatches = workspaceTestBatches(binaryEntries);
   console.log(
     `Cargo bounded test plan: ${plan.length} target(s) in ${batches.length} batch(es).`,
   );
-  for (const batch of batches) {
-    console.log(`\n==> cargo test -p ${batch.packageName} ${batch.selector}`);
-    const result = runCargoTestBatch(root, batch, testArgs);
-    for (const entry of batch.entries) {
+  try {
+    for (const batch of binaryBatches) {
+      console.log(
+        `\n==> cargo build -p ${batch.packageName} ${batch.selector}`,
+      );
+      const result = runCargoBuildBatch(root, batch);
+      if (result.status !== 0) {
+        console.error(
+          result.diagnostic || "cargo build process returned no diagnostic.",
+        );
+        return result.status ?? 1;
+      }
+    }
+    for (const batch of batches) {
+      console.log(`\n==> cargo test -p ${batch.packageName} ${batch.selector}`);
+      const result = runCargoTestBatch(root, batch, testArgs);
+      for (const entry of batch.entries.filter(
+        (entry) => entry.kind !== "bin",
+      )) {
+        cleanupTargetArtifacts(metadata.target_directory, entry);
+      }
+      if (result.status !== 0) {
+        console.error(
+          result.diagnostic || "cargo test process returned no diagnostic.",
+        );
+        return result.status ?? 1;
+      }
+    }
+    console.log(
+      `\nCargo bounded workspace tests passed: ${plan.length} target(s).`,
+    );
+    return 0;
+  } finally {
+    for (const entry of binaryEntries) {
       cleanupTargetArtifacts(metadata.target_directory, entry);
     }
-    if (result.status !== 0) {
-      console.error(
-        result.diagnostic || "cargo test process returned no diagnostic.",
-      );
-      return result.status ?? 1;
-    }
   }
-  console.log(
-    `\nCargo bounded workspace tests passed: ${plan.length} target(s).`,
-  );
-  return 0;
 }
 
 function cargoMetadata(root) {

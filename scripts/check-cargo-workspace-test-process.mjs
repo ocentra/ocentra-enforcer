@@ -4,6 +4,21 @@ import { spawnSync } from "node:child_process";
 const CARGO_OUTPUT_MAX_BUFFER = 16 * 1024 * 1024;
 const DIAGNOSTIC_MAX_LENGTH = 8000;
 
+export function cargoBuildBatchArgs(batch) {
+  return [
+    "build",
+    "--locked",
+    "--package",
+    batch.packageName,
+    ...batch.selectorArgs,
+    "--all-features",
+  ];
+}
+
+export function runCargoBuildBatch(root, batch) {
+  return runCargo(root, cargoBuildBatchArgs(batch));
+}
+
 export function runCargoTestBatch(root, batch, testArgs) {
   const args = [
     "test",
@@ -14,6 +29,10 @@ export function runCargoTestBatch(root, batch, testArgs) {
     "--all-features",
     ...(testArgs.length > 0 ? ["--", ...testArgs] : []),
   ];
+  return runCargo(root, args);
+}
+
+function runCargo(root, args) {
   const result = spawnSync("cargo", args, {
     cwd: root,
     env: {
