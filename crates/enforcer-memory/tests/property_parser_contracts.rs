@@ -14,14 +14,21 @@ use enforcer_memory::{
 };
 use proptest::{
     prelude::any,
-    prop_assert_eq, proptest,
+    prop_assert, prop_assert_eq, proptest,
     strategy::Strategy,
     test_runner::{Config as ProptestConfig, RngSeed},
 };
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::{
+    panic::{catch_unwind, AssertUnwindSafe},
+    process::Command,
+};
 
 const PROPERTY_PARSER_CASES: u32 = 64;
 const PROPERTY_PARSER_SEED: u64 = 0x4f43_454e_5452_4150;
+const PROPERTY_PARSER_KEY_ENV: &str = "OCENTRA_PROPERTY_PARSER_KEY";
+const PROPERTY_PARSER_CHILD_TEST: &str = "property_parser_child";
+const EXACT_TEST_ARGUMENT: &str = "--exact";
+const NO_CAPTURE_ARGUMENT: &str = "--nocapture";
 
 fn property_parser_config() -> ProptestConfig {
     ProptestConfig {
@@ -33,21 +40,91 @@ fn property_parser_config() -> ProptestConfig {
 
 macro_rules! property_parser_contracts {
     ($($key:literal => $exercise:expr),+ $(,)?) => {
+        const PROPERTY_PARSER_KEYS: &[&str] = &[$($key),+];
+
+        fn exercise_registered_parser(parser_key: &str, source: &str) -> bool {
+            match parser_key {
+                $(
+                    $key => {
+                        let _ = ($exercise)(source);
+                        true
+                    }
+                )+
+                _ => false,
+            }
+        }
+
         proptest! {
             #![proptest_config(property_parser_config())]
             #[test]
-            fn every_registered_parser_is_total(
+            fn property_parser_child(
                 source in proptest::collection::vec(any::<char>(), 0..128)
                     .prop_map(|characters| characters.into_iter().collect::<String>()),
                 ) {
-                $(
-                    let outcome = catch_unwind(AssertUnwindSafe(|| ($exercise)(&source)));
-                    let panic_key = match outcome {
-                        Ok(_) => String::new(),
-                        Err(_) => $key.to_owned(),
-                    };
-                    prop_assert_eq!(panic_key, "", "registered parser panicked");
-                )+
+                let selected_parser = match std::env::var(PROPERTY_PARSER_KEY_ENV) {
+                    Ok(value) => value,
+                    Err(_) => return Ok(()),
+                };
+                let outcome = catch_unwind(AssertUnwindSafe(|| {
+                    exercise_registered_parser(&selected_parser, &source)
+                }));
+                let matched = match outcome {
+                    Ok(value) => value,
+                    Err(_) => {
+                        prop_assert_eq!(selected_parser, "", "registered parser panicked");
+                        false
+                    }
+                };
+                prop_assert!(matched, "registered parser key was not found");
+            }
+        }
+
+        #[test]
+        fn every_registered_parser_is_total() {
+            let current_executable = match std::env::current_exe() {
+                Ok(path) => path,
+                Err(error) => {
+                    assert!(
+                        false,
+                        "failed to resolve parser test executable: {error}"
+                    );
+                    return;
+                }
+            };
+            for parser_key in PROPERTY_PARSER_KEYS {
+                let output = match Command::new(&current_executable)
+                    .arg(EXACT_TEST_ARGUMENT)
+                    .arg(PROPERTY_PARSER_CHILD_TEST)
+                    .arg(NO_CAPTURE_ARGUMENT)
+                    .env(PROPERTY_PARSER_KEY_ENV, parser_key)
+                    .output()
+                {
+                    Ok(value) => value,
+                    Err(error) => {
+                        assert!(
+                            false,
+                            "failed to start parser property child for {parser_key}: {error}"
+                        );
+                        return;
+                    }
+                };
+                assert!(
+                    output.status.success(),
+                    "registered parser process failed for {parser_key}: {}\n{}",
+                    output.status,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+
+        #[test]
+        fn registered_parsers_share_process_for_safe_source() {
+            const SAFE_SOURCE: &str = "fn main() {}";
+            for parser_key in PROPERTY_PARSER_KEYS {
+                assert!(
+                    exercise_registered_parser(parser_key, SAFE_SOURCE),
+                    "registered parser key was not found: {parser_key}"
+                );
             }
         }
     };
