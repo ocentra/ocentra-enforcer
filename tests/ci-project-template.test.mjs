@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { planImpacted } from '../scripts/ci/plan-impacted.mjs';
-import { impactedCargoTestCommand } from '../scripts/ci/run-impacted.mjs';
+import { impactedCargoTestCommand, impactedValidationCommands } from '../scripts/ci/run-impacted.mjs';
 import { verifyWorkflowContract } from '../scripts/ci/verify-workflow-contract.mjs';
 
 const metadata = {
@@ -45,6 +45,26 @@ test('graph-impacted tests use the bounded target runner for every selected pack
   assert.deepEqual(command.args.slice(1), [
     '--package', 'api',
     '--package', 'domain',
+  ]);
+});
+
+test('graph-impacted validation batches package gates without dropping workspace coverage', () => {
+  const commands = impactedValidationCommands('/repo', ['api', 'domain']);
+  assert.deepEqual(commands.map((command) => command.label), [
+    'graph-impacted format check',
+    'graph-impacted Enforcer Rust workspace scan',
+    'graph-impacted cargo check',
+    'graph-impacted bounded Cargo tests',
+    'graph-impacted cargo clippy',
+  ]);
+  assert.deepEqual(commands[1].args, [
+    'scripts/rust-rules.mjs', 'scan', '--root', '.', '--languages', 'rust', '--workspace', '--scan-only',
+  ]);
+  assert.deepEqual(commands[2].args, [
+    'check', '--locked', '--package', 'api', '--package', 'domain', '--all-targets', '--all-features',
+  ]);
+  assert.deepEqual(commands[4].args, [
+    'clippy', '--locked', '--package', 'api', '--package', 'domain', '--all-targets', '--all-features', '--', '-D', 'warnings',
   ]);
 });
 

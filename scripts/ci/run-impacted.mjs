@@ -11,31 +11,43 @@ export function runImpacted(packages, root = process.cwd()) {
     return;
   }
 
-  run(
-    'graph-impacted format check',
-    'cargo',
-    ['fmt', '--check', ...packages.flatMap((packageName) => ['-p', packageName])],
-    root,
-  );
-  for (const packageName of packages) {
-    run(`${packageName}: Enforcer crate scan`, process.execPath, [
-      'scripts/rust-rules.mjs', 'scan', '--root', '.', '--crate', packageName,
-      '--languages', 'rust', '--scan-only',
-    ], root);
-    run(`${packageName}: cargo check`, 'cargo', [
-      'check', '--locked', '--package', packageName, '--all-targets', '--all-features',
-    ], root);
+  for (const command of impactedValidationCommands(root, packages)) {
+    run(command.label, command.command, command.args, root);
   }
+}
 
+/** Builds the complete, batched validation plan for graph-impacted packages. */
+export function impactedValidationCommands(root, packages) {
+  const packageArgs = packages.flatMap((packageName) => ['--package', packageName]);
   const boundedTests = impactedCargoTestCommand(root, packages);
-  run('graph-impacted bounded Cargo tests', boundedTests.command, boundedTests.args, root);
-
-  for (const packageName of packages) {
-    run(`${packageName}: cargo clippy`, 'cargo', [
-      'clippy', '--locked', '--package', packageName, '--all-targets', '--all-features',
-      '--', '-D', 'warnings',
-    ], root);
-  }
+  return [
+    {
+      label: 'graph-impacted format check',
+      command: 'cargo',
+      args: ['fmt', '--check', ...packageArgs],
+    },
+    {
+      label: 'graph-impacted Enforcer Rust workspace scan',
+      command: process.execPath,
+      // One workspace scan covers every selected package in a single indexed pass.
+      args: ['scripts/rust-rules.mjs', 'scan', '--root', '.', '--languages', 'rust', '--workspace', '--scan-only'],
+    },
+    {
+      label: 'graph-impacted cargo check',
+      command: 'cargo',
+      args: ['check', '--locked', ...packageArgs, '--all-targets', '--all-features'],
+    },
+    {
+      label: 'graph-impacted bounded Cargo tests',
+      command: boundedTests.command,
+      args: boundedTests.args,
+    },
+    {
+      label: 'graph-impacted cargo clippy',
+      command: 'cargo',
+      args: ['clippy', '--locked', ...packageArgs, '--all-targets', '--all-features', '--', '-D', 'warnings'],
+    },
+  ];
 }
 
 /** Builds the bounded Cargo test command for the selected package set. */
