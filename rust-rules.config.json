@@ -12,6 +12,9 @@
   "cargoTestThreads": null,
   "allowUnsafeCode": false,
   "allowBuildRs": false,
+  "allowedBuildRsPaths": [
+    "crates/enforcer-ui/frontend/src-tauri/build.rs"
+  ],
   "allowGitDependencies": false,
   "allowPathDependencies": false,
   "publicReexportPolicy": "forbid",
@@ -45,7 +48,10 @@
     "src/**/api.rs",
     "src/**/prelude.rs"
   ],
-  "rawStringOwnerGlobs": [],
+  "rawStringOwnerGlobs": [
+    "crates/enforcer-domain/src/**",
+    "crates/enforcer-lang-rust/src/rules/**"
+  ],
   "domainPrimitiveOwnerGlobs": [],
   "enforceRuntimeStringLiterals": false,
   "runtimeStringOwnerGlobs": [],

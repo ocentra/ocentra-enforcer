@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ERR-SENTINEL",
+        "version": 1,
+        "title": "No sentinel returns; use Result/Option",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::err_sentinel::ErrSentinelValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/err-sentinel/fail_sentinel.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/err-sentinel/pass_option.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

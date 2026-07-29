@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.9: Circular imports are forbidden
+// Clean source — no occurrence of the ARCH-1.9 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

@@ -1,0 +1,162 @@
+{
+  "workpack": "c07",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P1 unit (T1)",
+  "namedTests": [
+    "generic-writer",
+    "install-doctor",
+    "consumer-ci-emitter",
+    "git-hooks-emitter"
+  ],
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 100,
+    "testsFailed": 0,
+    "testsAddedByThisWorkpack": 26,
+    "baselineTestsBeforeThisWorkpack": 74,
+    "clippy": "clean (no warnings)",
+    "fmt": "clean (no diff)",
+    "workspaceRegressionCheck": "cargo test --workspace --lib green across all 25 crates prior to the doctor<->emitter wiring addition; re-verified green for enforcer-install after"
+  },
+  "seededViolationCases": [
+    {
+      "row": "generic-writer",
+      "case": "fresh install writes golden mcpServers[\"enforcer\"] bytes",
+      "test": "adapters::generic::tests::fresh_install_writes_the_golden_bytes",
+      "fixture": "crates/enforcer-install/tests/fixtures/generic/fresh_install/mcp.json",
+      "status": "PASS"
+    },
+    {
+      "row": "generic-writer",
+      "case": "upsert preserves unrelated top-level keys and other mcpServers entries",
+      "test": "adapters::generic::tests::upsert_preserves_unrelated_keys_and_servers",
+      "status": "PASS"
+    },
+    {
+      "row": "generic-writer",
+      "case": "never writes the legacy ocentra-enforcer literal",
+      "test": "adapters::generic::tests::never_writes_the_legacy_ocentra_enforcer_key, adapters::generic::tests::server_key_is_the_x01_const_never_the_legacy_literal",
+      "status": "PASS"
+    },
+    {
+      "row": "generic-writer",
+      "case": "relative target path (would resolve to a per-repo/project file) rejected at construction",
+      "test": "adapters::generic::tests::rejects_a_relative_target_path, adapters::generic::tests::never_writes_a_per_repo_project_file_path_by_construction",
+      "status": "PASS"
+    },
+    {
+      "row": "generic-writer",
+      "case": "idempotent re-install yields a noop plan",
+      "test": "adapters::generic::tests::idempotent_reinstall_yields_a_noop_plan",
+      "status": "PASS"
+    },
+    {
+      "row": "install-doctor",
+      "case": "all-green on a good fixture",
+      "test": "doctor::tests::all_green_on_a_good_fixture",
+      "fixture": "crates/enforcer-install/tests/fixtures/doctor/good/mcp.json",
+      "status": "PASS"
+    },
+    {
+      "row": "install-doctor",
+      "case": "missing server entry -> doctor red naming the failing check",
+      "test": "doctor::tests::red_on_missing_server_names_the_failing_check",
+      "fixture": "crates/enforcer-install/tests/fixtures/doctor/missing_server/mcp.json",
+      "expectation": "failing_check_names() == [\"mcp-registration-present\"]",
+      "status": "PASS"
+    },
+    {
+      "row": "install-doctor",
+      "case": "renamed server binary path -> doctor red naming the failing check",
+      "test": "doctor::tests::red_on_renamed_server_binary_names_the_failing_check",
+      "fixture": "crates/enforcer-install/tests/fixtures/doctor/renamed_binary/mcp.json",
+      "status": "PASS"
+    },
+    {
+      "row": "install-doctor",
+      "case": "doctor mechanically re-reads disk, never trusts a stale in-memory plan",
+      "test": "doctor::tests::doctor_re_reads_disk_never_trusts_a_stale_in_memory_state",
+      "status": "PASS"
+    },
+    {
+      "row": "install-doctor",
+      "case": "Severity::Warning checks never flip the exit code (fail-closed contract is Error-only)",
+      "test": "doctor::tests::warning_severity_never_flips_the_exit_code",
+      "status": "PASS"
+    },
+    {
+      "row": "consumer-ci-emitter",
+      "case": "writes exactly the 5-workflow set with golden bytes matching adapters/github-actions/*.yml",
+      "test": "emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes",
+      "fixture": "crates/enforcer-install/tests/fixtures/consumer-ci/{ocentra-enforcer,codeql,dependency-policy,secret-scan,sbom}.yml",
+      "status": "PASS"
+    },
+    {
+      "row": "consumer-ci-emitter",
+      "case": "plan()/dry-run touches zero files on disk",
+      "test": "emitters::consumer_ci::tests::plan_never_touches_disk, emitters::consumer_ci::tests::dry_run_returns_the_planned_write_set_with_zero_files_created",
+      "status": "PASS"
+    },
+    {
+      "row": "consumer-ci-emitter",
+      "case": "existing file skipped unless force, overwritten when forced",
+      "test": "emitters::consumer_ci::tests::apply_skips_an_existing_file_unless_forced, emitters::consumer_ci::tests::apply_overwrites_an_existing_file_when_forced",
+      "status": "PASS"
+    },
+    {
+      "row": "consumer-ci-emitter",
+      "case": "emitter verify() is green after apply and red naming the missing workflow when one goes missing; feeds the shared doctor aggregation alongside adapter checks",
+      "test": "emitters::consumer_ci::tests::verify_is_green_after_apply_and_red_when_a_workflow_goes_missing, doctor::tests::emitter_verify_checks_feed_the_same_aggregation_as_adapters",
+      "status": "PASS"
+    },
+    {
+      "row": "git-hooks-emitter",
+      "case": "selecting one flavor never bleeds into the other two flavors' files",
+      "test": "emitters::git_hooks::tests::plain_git_hook_alone_never_writes_husky_or_lefthook, emitters::git_hooks::tests::husky_alone_never_writes_plain_hook_or_lefthook, emitters::git_hooks::tests::lefthook_alone_never_writes_plain_hook_or_husky",
+      "status": "PASS"
+    },
+    {
+      "row": "git-hooks-emitter",
+      "case": "each flavor writes golden bytes matching its own adapters/{git-hooks,husky,lefthook} template",
+      "test": "emitters::git_hooks::tests::each_flavor_writes_golden_bytes",
+      "fixture": "crates/enforcer-install/tests/fixtures/git-hooks/{pre-commit.sh,husky-pre-commit,lefthook.yml}",
+      "status": "PASS"
+    },
+    {
+      "row": "git-hooks-emitter",
+      "case": "dry-run returns the single planned write with zero files created",
+      "test": "emitters::git_hooks::tests::dry_run_returns_the_single_planned_write_with_zero_files_created",
+      "status": "PASS"
+    },
+    {
+      "row": "git-hooks-emitter",
+      "case": "existing file skipped unless force, overwritten when forced",
+      "test": "emitters::git_hooks::tests::apply_skips_an_existing_file_unless_forced, emitters::git_hooks::tests::apply_overwrites_an_existing_file_when_forced",
+      "status": "PASS"
+    },
+    {
+      "row": "git-hooks-emitter",
+      "case": "emitter verify() is green after apply and red when the hook goes missing; feeds the shared doctor aggregation alongside adapter checks",
+      "test": "emitters::git_hooks::tests::verify_is_green_after_apply_and_red_when_the_hook_goes_missing, doctor::tests::emitter_verify_checks_feed_the_same_aggregation_as_adapters",
+      "status": "PASS"
+    }
+  ],
+  "deviations": [
+    {
+      "topic": "arc-23 mount points created by this pack instead of pre-existing",
+      "detail": "crates/enforcer-install/src/adapters.rs and src/emitters.rs (the pub-mod barrels) and the two `pub mod adapters;`/`pub mod doctor;`/`pub mod emitters;` lines in src/lib.rs did not exist yet -- arc-23's skeleton documented the mount points but had not created them. Created as minimal additive `pub mod` declaration lists (not `pub use` re-export barrels, so [workspace.lints] `pub use` barrel restriction is not triggered). Follows the same fallback precedent c02 used for HarnessId (crate-local, flagged, promotable later)."
+    },
+    {
+      "topic": "enforcer-mcp dependency added to enforcer-install/Cargo.toml",
+      "detail": "The workpack binds the generic adapter's mcpServers key to the x01 SERVER_NAME const ('never a hardcoded literal'). x01 has already landed (crates/enforcer-mcp/src/name.rs, SERVER_NAME = \"enforcer\"). Cargo.toml is not in c07's owns: line (arc-23 owns crate structure), but the dependency is additive, one line, and non-conflicting -- enforcer-mcp does not depend on enforcer-install, so no cycle. Flagged for the orchestrator/hub to fold into arc-23's own Cargo.toml pass if preferred."
+    },
+    {
+      "topic": "reference adapters/github-actions/*.yml and adapters/{git-hooks,husky,lefthook}/* templates predate the x01 neutral rename",
+      "detail": "The five bundled GitHub Actions workflow templates and the three hook-flavor templates under adapters/ in this repo still say 'ocentra-enforcer' (npm package name, CLI invocation, env var prefixes) -- they were authored before x01's binary/product rename to 'enforcer' landed. This workpack's golden-bytes contract is 'match the bundled adapters/*.yml templates byte-for-byte', so the emitters embed and emit these templates verbatim (including the pre-rename literal) rather than silently rewriting their contents, which would violate the golden-bytes contract this workpack is scoped to. Flagged as a follow-up for whichever pack owns the x01-cutover content edit of these bundled template files (not in c07's owns: line)."
+    }
+  ]
+}

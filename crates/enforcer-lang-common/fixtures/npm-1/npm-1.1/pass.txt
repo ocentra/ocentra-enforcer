@@ -1,0 +1,5 @@
+// Fixture for NPM-1.1: package-lock.json is required
+// Clean source — no occurrence of the NPM-1.1 marker below.
+fn clean_example() {
+    // conformant with common/package-determinism
+}

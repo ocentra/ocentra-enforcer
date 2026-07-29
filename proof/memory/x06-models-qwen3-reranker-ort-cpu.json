@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
+  "allowNetwork": true,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "defaultProbeFilter": "chat",
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "reason": "one real model probe at a time by default to avoid resource contention or host instability",
+    "requestedProbeFilter": "reranker-onnx",
+    "selectedProbes": [
+      "qwen-reranker-onnx"
+    ]
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
+    "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "ornith-1.0-9b-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": true,
+    "operation": "qwen-reranker-onnx",
+    "ranked": [
+      {
+        "docId": "relevant",
+        "score": 0.999975562095642
+      },
+      {
+        "docId": "irrelevant",
+        "score": 0.00015858886763453484
+      }
+    ],
+    "workerTask": "reranker",
+    "provider": "cpu",
+    "ownership": "enforcer-isolated-worker",
+    "requestProtocol": "enforcer-worker-env",
+    "externalServerAllowed": false,
+    "portBindingAllowed": false,
+    "killOnTimeout": true,
+    "timeoutMs": 30000,
+    "providerResolution": {
+      "requestedProvider": "cpu",
+      "resolvedProvider": "cpu",
+      "availableProviders": [
+        "cpu"
+      ],
+      "providerProbePassed": true,
+      "downgradeReason": null
+    }
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "successful-local-load",
+        "modelId": "Qwen/Qwen3-Reranker-0.6B",
+        "task": "reranking",
+        "provider": "cpu",
+        "loadedFromLocalCache": true
+      }
+    }
+  ]
+}

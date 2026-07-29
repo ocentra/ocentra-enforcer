@@ -115,11 +115,13 @@ function collectInlineSourceTestFindings(root, srcPath, config, findings) {
 }
 
 function isInlineTestSourceCandidate(file) {
-  return /\.(?:rs|[cm]?[jt]sx?|py)$/u.test(file);
+  // Rust is exempt: `#[cfg(test)] mod tests` inside src/ IS the organized
+  // Rust unit-test root (compiled out of release builds), so it satisfies
+  // TEST-2.2; crate-level integration tests are still required by TEST-2.1.
+  return /\.(?:[cm]?[jt]sx?|py)$/u.test(file);
 }
 
 function inlineTestPatternForFile(file) {
-  if (file.endsWith(".rs")) return /^\s*#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]/u;
   if (file.endsWith(".py")) return /^\s*def\s+test_[A-Za-z0-9_]+\s*\(/u;
   return /^\s*(?:describe|it|test)(?:\s*\.\s*(?:skip|only|todo|concurrent))?\s*\(/u;
 }

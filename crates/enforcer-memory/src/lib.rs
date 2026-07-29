@@ -1,0 +1,291 @@
+//! `enforcer-memory` -- x06: the harness memory graph.
+//!
+//! # Charter
+//!
+//! This crate is the retrievable/shareable harness-memory graph over
+//! the x05 lesson corpus: it ingests append-only NDJSON memory records
+//! (`memory/schema/memory-record.schema.json`) and the
+//! `orchestration-lessons.md` ledger into an in-process graph
+//! ([`graph::MemoryGraph`]), and exposes:
+//!
+//! - a **local-first, zero-network recall query** ([`recall::recall`]) —
+//!   deterministic keyword matching over node text, no embeddings, no
+//!   model download, safe to run in every test and every CI job;
+//! - a **learning-evidence query** ([`recall::evidence`]) answering
+//!   `memory evidence <lessonId>` with the t0 (observed) -> t1 (landed)
+//!   -> t2 (recurrence) chain, fail-closed on missing provenance;
+//! - the **usage-ingestion seam** ([`ingest::ingest_observation`]) that
+//!   scan/check/run/doctor/closeout surfaces call on every run so
+//!   enforcement usage automatically feeds the graph — including clean
+//!   runs, which count as negative evidence.
+//!
+//! # Scope of this slice
+//!
+//! The workpack's full acceptance block
+//! (`docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md`)
+//! describes a much larger long-range system: a code-aware KG (files,
+//! symbols, call graphs, ADR memory), dense-vector RAG with local
+//! embedding/reranker models and HNSW sidecars, background "weaver"
+//! enrichment workers, a live parity harness against an installed
+//! codebase-memory-mcp baseline, and a 100-row QA benchmark with
+//! measured token-reduction and reranker-lift curves. None of that ships
+//! in this pass. What ships is the ingestion + graph + deterministic
+//! recall + usage-ingestion-seam + evidence-chain core that the rest of
+//! that system would sit on top of, kept strictly local-first and
+//! zero-network by default (see [`retriever`] for the explicit
+//! embedding seam, which is feature-gated and unimplemented here on
+//! purpose so no test or default build ever needs a model runtime).
+//!
+//! # Federation (X06.8)
+//!
+//! Federation (sharing memory across machines/agents) is an explicit
+//! opt-in surface, never a live dependency of the default ingest/recall
+//! path (the crate's local-first mandate): [`share`] exports signed,
+//! zstd-compressed bundles (personal DEFAULT / team / community scopes,
+//! explicit per-call consent required beyond personal); [`federation`]
+//! is the zero-trust import gate (signature vs a local trust list,
+//! checksum, schema version — typed rejection reasons, imported lessons
+//! forced inactive until local x05 validation supersedes them);
+//! [`redaction`] is the community-scope redaction pipeline (paths,
+//! identities, secret-shaped strings, bounded snippets — golden
+//! byte-exact fixture-tested); [`artifacts`] is exact fail-closed
+//! content-addressed retrieval plus the D-11 `.codebase-memory/
+//! graph.db.zst` + `artifact.json` code-graph bootstrap artifact.
+//!
+//! # X06.1 -- core/store/logs
+//!
+//! This slice adds the durable, on-disk foundation the rest of x06 sits
+//! on: append-only observation/graph-event logs with an independently
+//! verifiable SHA-256 hash chain ([`log`]), a SQLite operational
+//! graph/read model rebuilt deterministically by replay
+//! ([`store::sqlite`]), an analytics read model behind a swappable trait
+//! ([`store::analytics`] — see its module docs for the DuckDB decision),
+//! a content-addressed artifact manifest and index-manifest staleness
+//! check ([`store::manifest`]), and the per-project [`store::Store`]
+//! that ties them together with a "no ghost project database" open
+//! contract. [`error::MemoryError`] is the single fail-closed error
+//! surface all of it returns through; canonical sequence, artifact, and
+//! project identities live in [`enforcer_domain::memory_types`], while
+//! [`ids`] contains only filesystem-boundary path decoders;
+//! [`boundary::log_schema`] holds the wire shapes these logs
+//! and manifests persist.
+//!
+//! # Modules
+//!
+//! - [`record`] — the `MemoryRecord` wire type mirroring the schema.
+//! - [`lesson`] — the orchestration-lessons ledger table parser.
+//! - [`graph`] — the in-process node store.
+//! - [`ingest`] — NDJSON parsing + the usage-ingestion seam.
+//! - [`recall`] — the deterministic recall + evidence queries.
+//! - [`retriever`] — the optional, feature-gated embedding seam.
+//! - [`error`] — the crate-wide fail-closed error type.
+//! - [`ids`] — filesystem-boundary path decoders.
+//! - [`boundary::log_schema`] — wire shapes for logs, artifact manifest, index manifest.
+//! - [`log`] — the append-only hash-chained log primitive.
+//! - [`store`] — the per-project store: SQLite read model, analytics
+//!   read model, artifact manifest, index manifests.
+//! - [`code_graph`] — the X06.2 code KG indexer: files, symbols,
+//!   imports, calls, routes, git metadata, incremental reindexing.
+//! - [`parsers`] / [`languages`] — the tree-sitter-backed language
+//!   extraction [`code_graph`] builds nodes/edges from.
+//! - [`git`] — read-only git metadata ([`git2`]) for the indexer.
+//! - [`analysis`] — X06.3: graph algorithms (related walk, call-path
+//!   tracing, reverse dependency traversal, centrality/hotspots) over
+//!   [`code_graph::CodeGraph`], plus [`analysis::query`], the read-only
+//!   Cypher-subset query DSL (D-05).
+//! - [`architecture`] — X06.3: architecture overview / repo mind map.
+//! - [`impact`] — X06.3: impact analysis from a git diff.
+//! - [`adr`] — X06.3: ADR memory linked to graph nodes.
+//! - [`learning`] — lesson activation, supersede, per-domain learning curves.
+//! - [`evidence`] — t0->t1->t2 chain with proof-ref seam + recurrence curve.
+//! - [`observations`] — procedural memory + meta-memory (route/confidence).
+//! - [`sessionstart`] — the SessionStart recall-pack seam.
+//!
+//! # X06.6 -- continuous learning
+//!
+//! [`learning`] adds lesson activation rules (landed = active,
+//! unlanded/imported = inactive, superseded = never active) and
+//! per-domain aggregate learning-curve emission; [`evidence`] extends
+//! [`recall::evidence`] with enforcer-proof journal refs per chain
+//! element (via a caller-supplied [`evidence::ProofRefLookup`] seam,
+//! never a hard dependency on `enforcer-proof`) and an ordered
+//! recurrence curve; [`observations`] adds procedural memory (fix/
+//! retrieval success AND failure) and meta-memory (route choice +
+//! confidence) as their own append-only record kinds on
+//! [`graph::MemoryGraph`]; [`sessionstart`] computes the bounded,
+//! deterministic recall-pack payload a Claude SessionStart hook (c05,
+//! `crates/enforcer-install/**`, out of this crate) would inject at the
+//! start of a new session.
+//!
+//! # X06.4 -- full-text/vector/rerank retrieval stack
+//!
+//! This slice adds the hybrid retrieval pipeline the workpack's "modern
+//! production RAG" half of the vision (OWNER_INTENT) requires: a
+//! code-aware full-text index ([`fulltext`]), an HNSW dense vector index
+//! ([`vector`]), the embedding/reranking capability seams
+//! ([`embed`]/[`rerank`], deterministic zero-network defaults per D-03),
+//! RRF rank fusion with hard-filter exclusion ([`ranking`]), and the
+//! [`search::HybridSearcher`] that wires all of it together while
+//! extending (not forking) the existing [`retriever::EmbeddingRetriever`]
+//! seam.
+//! - [`queue`] — the X06.5 weaver's event-driven priority queue
+//!   (hot/warm/cold) plus its dead-letter queue and retry/backoff
+//!   policy.
+//! - [`enrichment`] — the X06.5 weaver's worker abstraction: the
+//!   semantic indexer / entity linker / associative linker /
+//!   summarizer dispatch, the bounded-concurrency worker pool, and the
+//!   [`enrichment::Embedder`] seam X06.4's embedder is adapter-wired
+//!   into at integration.
+//! - [`summaries`] — the X06.5 weaver's summary cache and
+//!   entity-link table.
+//! - [`weaver`] — the X06.5 background weaver: wires [`queue`] to
+//!   [`enrichment`], translates [`code_graph::IndexReport`] into
+//!   weaver events, and owns the blue/green embedding-version
+//!   migration cutover.
+//!
+//! # X06.P1 -- parity read tools
+//!
+//! Library functions underneath 5 of the codebase-memory-mcp parity
+//! baseline's 14 tools (scout digest §1); the MCP/CLI wrapper surface
+//! (X06.7) wires these in at integration, not part of this slice.
+//!
+//! - [`snippet`] — `get_code_snippet`: byte-exact source retrieval by
+//!   qualified symbol name, with SHA-256 verification and an optional
+//!   same-file neighbor listing. Fails closed on an unknown symbol --
+//!   never a similar-name substitute.
+//! - [`graph_schema`] — `get_graph_schema`: node labels and edge types
+//!   present in a [`code_graph::CodeGraph`], with counts, in
+//!   deterministic order.
+//! - [`code_search`] — `search_code`: graph-augmented grep -- a
+//!   regex/text scan over indexed file contents, each hit enriched with
+//!   its containing symbol and ranked by structural importance (inbound
+//!   call-degree). Unreadable files are reported, never silently
+//!   skipped.
+//! - [`projects`] — the project registry (`list_projects`/
+//!   `delete_project`/`index_status`) over the X06.1
+//!   [`store::Store`] layout: one store per project under a root.
+//!   Delete removes only the derived store and refuses any path outside
+//!   the store root.
+//!
+//! # X06.P2 -- trace_path / ingest_traces / detect_changes parity
+//!
+//! - [`analysis::trace`] — `trace_path`'s three modes (calls/data_flow/
+//!   cross_service) plus its baseline-verified `risk_labels` hop-distance
+//!   scheme, layered over [`analysis::CodeAdjacency`].
+//! - [`traces`] — `ingest_traces`: an additive runtime-call-trace overlay
+//!   over [`code_graph::CodeGraph`] (the baseline's own `ingest_traces`
+//!   is a partially unimplemented section, so this module's merge/idempotency/
+//!   provenance semantics are this crate's own documented design).
+//! - [`impact::detect_changes_view`] — the baseline-parity `detect_changes`
+//!   response shape (file-level `impacted_symbols`, no risk field);
+//!   [`impact::analyze_diff_impact_scoped`] is a separate, richer,
+//!   non-parity risk-classification extension layered alongside it.
+//!
+//! # X06.7 -- MCP/CLI wrapper, filesystem watcher, diagnostics
+//!
+//! - [`mcp`] — the MCP stdio JSON-RPC server exposing the
+//!   codebase-memory-mcp 14-tool parity floor (`tools/list`/`tools/call`,
+//!   dual framing via [`enforcer_mcp::transport`], honest `not_wired`
+//!   results for genuinely unlanded tools/modes).
+//! - [`cli`] — the CLI mirror of [`mcp`]'s tool surface: same registry,
+//!   same dispatch, same envelope, so CLI and MCP are call-for-call
+//!   identical.
+//! - [`watch`] — the D-12 filesystem watcher: native OS events (`notify`)
+//!   with debounce, plus an adaptive-polling + git-HEAD-diff fallback.
+//! - [`diagnostics`] — stderr-only structured KV/JSON logging for the
+//!   MCP/CLI/watch surface, with redaction so no raw source text ever
+//!   reaches a log line.
+//!
+//! # X06 core parity -- cross-repo intelligence + operational robustness
+//!
+//! - [`cross_repo`] — `index_repository(mode="cross-repo-intelligence")`'s
+//!   library-layer analog: matches one project's outbound HTTP call
+//!   sites against another's declared routes to produce
+//!   `CROSS_HTTP_CALLS` edges, with an honestly-documented heuristic and
+//!   zero (not omitted, not erroring) counts for the five other
+//!   cross-repo protocols this crate does not yet detect.
+//! - [`store_manager`] — the baseline's idle open-store cache
+//!   (default 60s timeout, injected-clock eviction, never drops a store
+//!   mid-use) plus [`store_manager::IndexSupervisor`], the seam for a
+//!   future subprocess-isolated index run (env-gated like the
+//!   baseline's `CBM_INDEX_SUPERVISOR`; only an in-process default ships
+//!   here).
+//! - [`data_flow`] — `DATA_FLOWS` edge materialization: links each call
+//!   site's captured argument expressions
+//!   ([`code_graph::CallEdge::arg_texts`]) to its
+//!   [`resolution`]-resolved callee, the argument-granularity half of the
+//!   baseline's route-mediated `DATA_FLOWS` edge this crate's graph model
+//!   can support honestly today (see that module's doc comment for the
+//!   full baseline citation and scope-reduction rationale); wired into
+//!   [`analysis::trace::trace_data_flow`]'s `param_link` field.
+//! - [`similarity`] — `SIMILAR_TO` / `SEMANTICALLY_RELATED` edge
+//!   materialization: an honestly-reduced analog of the baseline's
+//!   MinHash-LSH similarity pass and 11-signal semantic-embedding pass
+//!   (see that module's doc comment for the full baseline citation and
+//!   scope-reduction rationale -- this crate's [`code_graph::SymbolNode`]
+//!   carries no stored source text/signature/pretrained-embedding input
+//!   the baseline's exact algorithm needs).
+
+pub mod adr;
+pub mod analysis;
+pub mod architecture;
+pub mod artifacts;
+pub mod boundary;
+pub mod cli;
+pub mod code_graph;
+pub mod code_search;
+pub mod complexity;
+pub mod cross_repo;
+pub mod data_flow;
+pub mod diagnostics;
+pub mod embed;
+pub mod enrichment;
+pub mod error;
+pub mod evidence;
+pub mod federation;
+pub mod fulltext;
+pub mod git;
+pub mod graph;
+pub mod graph_schema;
+pub mod hf_cache;
+pub mod ids;
+pub mod impact;
+pub mod ingest;
+pub mod languages;
+pub mod learning;
+pub mod lesson;
+pub mod llama_cpp;
+pub mod local_runtime;
+pub mod log;
+pub mod mcp;
+pub mod model_cache;
+pub mod model_observations;
+pub mod model_runtime;
+pub mod observations;
+#[cfg(feature = "ort-models")]
+pub mod ort_runtime;
+#[path = "boundary/owned.rs"]
+mod owned_boundary;
+pub mod parsers;
+pub mod projects;
+pub mod queue;
+pub mod ranking;
+pub mod recall;
+pub mod record;
+pub mod redaction;
+pub mod rerank;
+pub mod resolution;
+pub mod retriever;
+pub mod runtime_probe;
+pub mod search;
+pub mod sessionstart;
+pub mod similarity;
+pub mod snippet;
+pub mod store;
+pub mod store_manager;
+pub mod streaming_cache;
+pub mod summaries;
+pub mod traces;
+pub mod vector;
+pub mod watch;
+pub mod weaver;

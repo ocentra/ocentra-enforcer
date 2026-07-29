@@ -1,0 +1,2 @@
+This fixture is clean and must NOT trip the sample oracle test's
+MarkerValidator.

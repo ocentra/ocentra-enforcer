@@ -1,24 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
-import { matchesAnyGlob, normalizeRel, repoAbsolute } from "../src/path-utils.mjs";
+import { matchesAnyGlob, repoAbsolute } from "../src/path-utils.mjs";
 import { runGenericScan } from "../src/generic-scanners.mjs";
 import { scanAdditionalTypeScriptFile } from "../src/source-policy-scanners.mjs";
+import { isNakedDomainStringFinding } from "./check-source-core-domain-finding.mjs";
+import { collectImportBoundaryFindings } from "./check-source-core-import-boundaries.mjs";
+import { collectSecretPolicyFindings } from "./check-source-core-policy-checks.mjs";
 import {
   collectContractScanFiles,
   enforceRequiredMirrorCoverage,
   finding,
   genericFinding,
-  importSpecifier,
   isGeneratedArtifactPath,
   isNonBlockingContractPath,
-  isUnderRoots,
   loadContract,
   missingRequiredContractPaths,
   recordMissingContractPaths,
   resolveContractConfigPath,
   scopeFilesByExtensions,
   scopeRelativeFiles,
-  stagedFiles,
   trackedScopeFiles,
 } from "./check-source-core-helpers.mjs";
 
@@ -116,9 +116,11 @@ function collectGeneratedArtifactFindings(
   );
   if (!tracked) return findings;
 
+  const allowlist = config.generatedArtifactsAllowlist ?? [];
   const trackedFiles = trackedScopeFiles(root, scope);
   for (const rel of trackedFiles) {
     if (!isGeneratedArtifactPath(rel)) continue;
+    if (matchesAnyGlob(rel, allowlist)) continue;
     findings.push(
       genericFinding(
         root,
@@ -158,21 +160,7 @@ function collectNoNakedDomainStringsFindings(root, config, scope = { mode: "all"
     config,
     languages: ["rust", "typescript", "python", "common"],
   });
-  const allowedRuleIds = new Set(["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]);
-  const generatedMirrorPattern = /(?:^|[\\/])generated-[^\\/]+\.(?:ts|tsx|js|jsx|mjs|cjs)$/u;
-  return (report.violations ?? []).filter(
-    (entry) =>
-      allowedRuleIds.has(entry.ruleId) &&
-      (() => {
-        const file = String(entry.file ?? "");
-        return (
-          !isGeneratedArtifactPath(file) &&
-          !generatedMirrorPattern.test(file) &&
-          !file.includes("/generated/") &&
-          !file.includes("\\generated\\")
-        );
-      })(),
-  );
+  return (report.violations ?? []).filter(isNakedDomainStringFinding);
 }
 
 function collectWeakAssertionsFindings(root, config, scope = { mode: "all" }) {
@@ -225,7 +213,14 @@ function collectReexportFindings(root, config, scope = { mode: "all" }) {
     languages: ["rust", "typescript", "common"],
   });
   const allowedRuleIds = new Set(["RR-7.2", "RR-7.3", "TS-1.1"]);
-  return (report.violations ?? []).filter((entry) => allowedRuleIds.has(entry.ruleId));
+  return (report.violations ?? []).filter(
+    (entry) => allowedRuleIds.has(entry.ruleId) && !isContextualReexportEvidence(entry.file),
+  );
+}
+
+function isContextualReexportEvidence(file) {
+  const rel = String(file ?? "").replaceAll("\\", "/");
+  return /(?:^|\/)(?:vendor|fixtures)\//u.test(rel);
 }
 
 function collectSecretFindings(
@@ -234,66 +229,7 @@ function collectSecretFindings(
   scope = { mode: "all" },
   args = {},
 ) {
-  if (args.staged === true) {
-    const files = stagedFiles(root);
-    if (files.length === 0) return [];
-    const genericReport = runGenericScan({
-      root,
-      scope: { mode: "files", files },
-      config,
-      languages: ["common"],
-    });
-    return (genericReport.violations ?? []).filter(
-      (entry) => entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2",
-    );
-  }
-  const genericReport = runGenericScan({
-    root,
-    scope,
-    config,
-    languages: ["common"],
-  });
-  return (genericReport.violations ?? []).filter(
-    (entry) => entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2",
-  );
-}
-
-function collectImportBoundaryFindings(root, config, scope = { mode: "all" }) {
-  const policies = config.importBoundaryPolicies ?? [];
-  if (policies.length === 0) return [];
-  const files = scopeFilesByExtensions(
-    root,
-    scope,
-    config,
-    new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]),
-  );
-  const findings = [];
-  for (const file of files) {
-    const rel = normalizeRel(root, file);
-    const text = fs.readFileSync(file, "utf8");
-    const lines = text.split(/\r?\n/u);
-    for (const policy of policies) {
-      if (!isUnderRoots(rel, policy.roots ?? [])) continue;
-      lines.forEach((line, index) => {
-        const spec = importSpecifier(line);
-        if (!spec) return;
-        const forbidden = matchesAnyGlob(spec, policy.forbiddenImports ?? []);
-        const allowed = matchesAnyGlob(spec, policy.allowedImports ?? []);
-        if (!forbidden || allowed) return;
-        findings.push(
-          finding(
-            root,
-            file,
-            index + 1,
-            "TS-4.1",
-            policy.message ?? `import "${spec}" crosses a configured boundary`,
-            line,
-          ),
-        );
-      });
-    }
-  }
-  return findings;
+  return collectSecretPolicyFindings(root, config, scope, args);
 }
 
 export {

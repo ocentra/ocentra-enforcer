@@ -124,8 +124,14 @@ function applySimpleSignatureRules({
   line,
   source,
   violations,
+  isPrivateLanguageHelper,
+  scope,
 }) {
   for (const rule of SIMPLE_SIGNATURE_RULES) {
+    if (isPrivateLanguageHelper && rule.ruleId.startsWith("RR-6.")) continue;
+    if (rule.ruleId === "RR-6.34"
+      && scope.kind === "trait-impl"
+      && /\bfor\s+[A-Z][A-Za-z0-9_]*Wire\b/u.test(scope.header)) continue;
     if (!rule.matches(sigText)) continue;
     addSignatureViolation(
       violations,
@@ -149,7 +155,16 @@ function applyFallibleSignatureRules({
   source,
   violations,
 }) {
-  if (FALLIBLE_FN_NAME_RE.test(sigName) && /->\s*bool\b/u.test(sigText)) {
+  const receiverOnlyBooleanAccessor =
+    sigName === "get" &&
+    /^\s*(?:&\s*(?:'\w+\s+)?(?:mut\s+)?self|mut\s+self|self(?:\s*:\s*[^,]+)?)\s*$/u.test(
+      params,
+    );
+  if (
+    FALLIBLE_FN_NAME_RE.test(sigName) &&
+    /->\s*bool\b/u.test(sigText) &&
+    !receiverOnlyBooleanAccessor
+  ) {
     addSignatureViolation(
       violations,
       root,
@@ -181,7 +196,9 @@ function applyFallibleSignatureRules({
 
 function applyOwnerSensitiveSignatureRules({
   sigText,
+  sigName,
   params,
+  scope,
   root,
   filePath,
   line,
@@ -189,6 +206,7 @@ function applyOwnerSensitiveSignatureRules({
   violations,
   isStringOwner,
   isPrimitiveOwner,
+  isLanguageAnalyzer,
 }) {
   if (
     /\bfn\s+new\s*\(/u.test(sigText) &&
@@ -209,7 +227,48 @@ function applyOwnerSensitiveSignatureRules({
     );
   }
 
-  if (!isStringOwner && RAW_STRING_TYPE_RE.test(sigText)) {
+  const isPrivateLanguageHelper =
+    isLanguageAnalyzer && !/^\s*pub(?:\s|\()/u.test(sigText);
+  // Restricted visibility (`pub(crate)`, `pub(super)`, and `pub(self)`) is
+  // implementation-local. Only an unrestricted `pub fn` is a public domain
+  // boundary for raw-signature enforcement.
+  const isPrivateImplementationHelper = !/^\s*pub\s+/u.test(sigText);
+  const isTraitImplementation = scope.kind === "trait-impl";
+  const hasReceiver =
+    /(?:^|,)\s*(?:&\s*(?:'\w+\s+)?(?:mut\s+)?self|mut\s+self|self(?:\s*:\s*[^,]+)?)\s*(?:,|$)/u.test(
+      params,
+    );
+  const paramsWithoutReceiver = params
+    .replace(
+      /(?:^|,)\s*(?:&\s*(?:'\w+\s+)?(?:mut\s+)?self|mut\s+self|self(?:\s*:\s*[^,]+)?)\s*(?=,|$)/u,
+      "",
+    )
+    .replace(/^\s*,|,\s*$/gu, "")
+    .trim();
+  const returnsSelf =
+    /->\s*(?:Self|Result\s*<\s*Self\b|Option\s*<\s*Self\b)/u.test(sigText);
+  const isConstructor =
+    scope.kind === "inherent-impl" &&
+    !hasReceiver &&
+    returnsSelf &&
+    /^(?:new|try_new|parse|from(?:_[A-Za-z0-9_]+)?|normalized)$/u.test(sigName);
+  const isAccessor =
+    scope.kind === "inherent-impl" &&
+    hasReceiver &&
+    !RAW_STRING_TYPE_RE.test(paramsWithoutReceiver) &&
+    !RAW_PRIMITIVE_TYPE_RE.test(paramsWithoutReceiver) &&
+    /^(?:get|value|len|count|first(?:_mut)?|last(?:_mut)?|into_inner|as_[A-Za-z0-9_]+|is_[A-Za-z0-9_]+|has_[A-Za-z0-9_]+|supports_[A-Za-z0-9_]+|should_[A-Za-z0-9_]+|computes_[A-Za-z0-9_]+)$/u.test(
+      sigName,
+    );
+  const signatureOwnsRawBoundary =
+    isTraitImplementation || isConstructor || isAccessor;
+
+  if (
+    !isStringOwner &&
+    !isPrivateImplementationHelper &&
+    !signatureOwnsRawBoundary &&
+    RAW_STRING_TYPE_RE.test(sigText)
+  ) {
     addSignatureViolation(
       violations,
       root,
@@ -221,7 +280,12 @@ function applyOwnerSensitiveSignatureRules({
     );
   }
 
-  if (!isPrimitiveOwner && RAW_PRIMITIVE_TYPE_RE.test(sigText)) {
+  if (
+    !isPrimitiveOwner &&
+    !isPrivateImplementationHelper &&
+    !signatureOwnsRawBoundary &&
+    RAW_PRIMITIVE_TYPE_RE.test(sigText)
+  ) {
     addSignatureViolation(
       violations,
       root,
@@ -234,6 +298,7 @@ function applyOwnerSensitiveSignatureRules({
   }
 }
 
+/** Applies Rust function-signature rules to a source scan context. */
 export function applySignatureRules({
   masked,
   originalLines,
@@ -243,6 +308,7 @@ export function applySignatureRules({
   isBoundary,
   isStringOwner,
   isPrimitiveOwner,
+  isLanguageAnalyzer,
 }) {
   for (const sig of collectFunctionSignatures(masked)) {
     if (isBoundary) continue;
@@ -250,6 +316,8 @@ export function applySignatureRules({
     const originalSigFirstLine = originalLines[sig.line - 1] ?? sig.text;
     const sigName = functionName(sig.text);
     const params = functionParams(sig.text);
+    const isPrivateLanguageHelper =
+      isLanguageAnalyzer && !/^\s*pub\s+/u.test(sig.text);
 
     applySimpleSignatureRules({
       sigText: sig.text,
@@ -258,6 +326,8 @@ export function applySignatureRules({
       line: sig.line,
       source: originalSigFirstLine,
       violations,
+      isPrivateLanguageHelper,
+      scope: sig.scope,
     });
     applyFallibleSignatureRules({
       sigText: sig.text,
@@ -271,7 +341,9 @@ export function applySignatureRules({
     });
     applyOwnerSensitiveSignatureRules({
       sigText: sig.text,
+      sigName,
       params,
+      scope: sig.scope,
       root,
       filePath,
       line: sig.line,
@@ -279,6 +351,7 @@ export function applySignatureRules({
       violations,
       isStringOwner,
       isPrimitiveOwner,
+      isLanguageAnalyzer,
     });
   }
 }

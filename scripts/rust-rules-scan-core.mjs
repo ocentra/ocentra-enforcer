@@ -42,6 +42,10 @@ import {
   splitFindings,
 } from "../src/policy.mjs";
 import {
+  applyPackagedWaivers,
+  loadPackagedWaiverRegistry,
+} from "../src/packaged-waivers.mjs";
+import {
   enrichFindingMetadata,
   enrichFindingsMetadata,
   registryRules as loadRegistryRules,
@@ -69,6 +73,12 @@ import {
 
 import * as RustRulesPathCore from "./rust-rules-path-core.mjs";
 import * as RustRulesEngine from "./rust-rules-scan-engine.mjs";
+import { manifestPathsForScope } from "./rust-rules-cargo-manifest-discovery.mjs";
+import {
+  loadCargoMetadata,
+  scanCargoMetadata,
+} from "./rust-rules-cargo-metadata.mjs";
+import { nearestCargoManifest } from "./rust-rules-workspace-partitioning.mjs";
 const {
   normalizeRel,
   toPosix,
@@ -99,14 +109,10 @@ const {
 const {
   scanRustFile,
   scanWorkspaceFiles,
-  manifestPathsForScope,
-  nearestCargoManifest,
   scanCargoManifest,
   dependencyNameFromManifestLine,
   dependencyRequirementFromManifestLine,
   workspacePackageNamesFromManifests,
-  loadCargoMetadata,
-  scanCargoMetadata,
   runScanner,
   commandExists,
   runCommand,
@@ -168,7 +174,7 @@ Usage:
   ocentra-enforcer doctor [options]
   ocentra-enforcer explain <RULE_ID>
   ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
-  ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
+  ocentra-enforcer runs <list|summary|diagnostics|last-failure|triage|artifact|prune|reset> [options]
   ocentra-enforcer proof <route|run|status|inventory|migrate-legacy|import-legacy|parity|claim|last-failure|diagnostics|artifact|reset|prune|export> [options]
   ocentra-enforcer coordination <ledger-command> [--hub <hub>] [--state-root <path>] [options]
   ocentra-enforcer coordination closeout --lane <lane> [--thread-id <thread>] [--all-owned] [--json]
@@ -761,7 +767,7 @@ function printCodexDoctorReport(report) {
   for (const step of report.nextSteps) console.log(`next: ${step}`);
 }
 
-function applyPolicyAndWaivers(findings, config) {
+function applyPolicyAndWaivers(findings, config, root) {
   const enriched = enrichFindingsMetadata(findings, PACK_ROOT, {
     ...RULES,
     ...CHECK_RULES,
@@ -774,12 +780,25 @@ function applyPolicyAndWaivers(findings, config) {
     ruleRegistryRules(),
     { ci: process.env.CI === "true" },
   );
-  const { violations, warnings, bySeverity } = splitFindings(active, config);
+  const packagedWaivers = loadPackagedWaiverRegistry(
+    path.join(PACK_ROOT, "crates", "enforcer-rules", "waivers.json"),
+    ruleRegistryRules(),
+  );
+  const packaged = applyPackagedWaivers(active, packagedWaivers);
+  const projectWaiverPath = path.join(root, ".enforce", "waivers.json");
+  const projectWaivers = fs.existsSync(projectWaiverPath)
+    ? loadPackagedWaiverRegistry(projectWaiverPath, ruleRegistryRules())
+    : [];
+  const project = applyPackagedWaivers(packaged.active, projectWaivers, {
+    waiverIdPrefix: "PROJECT-WAIVER",
+    waiverSource: "project-registry",
+  });
+  const { violations, warnings, bySeverity } = splitFindings(project.active, config);
   return {
     violations,
     warnings,
-    waived,
-    findings: [...active, ...waived],
+    waived: [...waived, ...packaged.waived, ...project.waived],
+    findings: [...project.active, ...waived, ...packaged.waived, ...project.waived],
     bySeverity,
   };
 }

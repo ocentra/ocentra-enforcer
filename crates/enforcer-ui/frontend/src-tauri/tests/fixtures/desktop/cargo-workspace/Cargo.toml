@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/scan-alpha",
+    "crates/scan-beta",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"

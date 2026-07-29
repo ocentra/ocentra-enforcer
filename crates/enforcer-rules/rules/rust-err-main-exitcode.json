@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ERR-MAIN-EXITCODE",
+        "version": 1,
+        "title": "main -> ExitCode/anyhow::Result<()>; no scattered process::exit",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::err_main_exitcode::ErrMainExitcodeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/err-main-exitcode/fail_process_exit.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/err-main-exitcode/pass_exitcode.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

@@ -1,0 +1,5 @@
+// Fixture for NPM-1.9: npm audit high and critical findings must fail
+// Clean source — no occurrence of the NPM-1.9 marker below.
+fn clean_example() {
+    // conformant with dependency-policy
+}

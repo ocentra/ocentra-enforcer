@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.14: Internal modules cannot leak through public types
+// Clean source — no occurrence of the ARCH-1.14 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

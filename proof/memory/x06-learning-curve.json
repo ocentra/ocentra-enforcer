@@ -1,0 +1,665 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-learning-curve",
+  "workpack": "x06-models-harvest",
+  "generatedAt": "2026-07-09T13:09:00.000Z",
+  "status": "store-backed-projection-policy-clean-focused-gates",
+  "learningCurve": {
+    "present": true,
+    "reason": "durable observation, procedural, route-choice, trace, and model-runtime observation records append to Store logs; project_learning_from_store now replays those logs into a deterministic Store-derived learning and recurrence projection",
+    "storeBackedSignals": [
+      "incident-observation",
+      "procedural-record",
+      "route-choice",
+      "trace-observation",
+      "model-load-failure",
+      "model-provider-downgrade",
+      "model-hash-mismatch",
+      "model-tokenizer-mismatch",
+      "model-degraded-fallback",
+      "model-local-load-success",
+      "store-learning-projection",
+      "store-derived-recurrence-curve"
+    ],
+    "tests": [
+      "cargo test -p enforcer-memory --test unit_ingest -- store_backed_observation_appends_then_replays_projection",
+      "cargo test -p enforcer-memory --test unit_learning -- store_learning_projection_replays_observations_into_curves --exact",
+      "cargo test -p enforcer-memory --test continuous_learning -- store_backed_learning_projection_replays_t0_t1_t2 --exact",
+      "cargo test -p enforcer-memory --test unit_observations",
+      "cargo test -p enforcer-memory --test unit_traces",
+      "cargo test -p enforcer-memory --test model_observations"
+    ]
+  },
+  "dogfoodLessons": [
+    {
+      "lessonId": "dogfood-001",
+      "lesson": "The local runtime contract is backend-neutral, but the first-class path is llama-cpp/GGUF, not ONNX-first.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-002",
+      "lesson": "Contract proof and execution proof are different things; a degraded/default build is honest, but it is not parity.",
+      "evidence": [
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-003",
+      "lesson": "Token reduction can be real even when reranker lift is still zero, so those metrics must be tracked separately.",
+      "evidence": [
+        "proof/memory/x06-retrieval-quality.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-004",
+      "lesson": "Model observations stay append-only first, then project into graph/memory views; the proof must distinguish persisted observation facts from derived graph curves.",
+      "evidence": [
+        "crates/enforcer-memory/src/model_observations.rs",
+        "crates/enforcer-memory/tests/model_observations.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-005",
+      "lesson": "A broad QA runner can create fabricated red by claiming rows it cannot prove; runner claim logic must be fixture-backed and leave unsupported rows unrunnable.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-006",
+      "lesson": "Runtime model proof must be CPU-first and one-model-at-a-time by default; GPU/NPU requires provider probes and child-process timeout protection.",
+      "evidence": [
+        "crates/enforcer-memory/examples/x06_model_runtime_probe.rs",
+        "proof/memory/x06-models.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-007",
+      "lesson": "Rollup proof must be derived from artifact evidence; stale pending rows can hide completed model, token, Store, RAG, dogfood, and parity work just as badly as fabricated green can overclaim it.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-008",
+      "lesson": "When a prefix flips from pending to artifact-backed green, rollup tests must update the derived signal assertion instead of preserving stale false expectations.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-mcp.json",
+        "proof/memory/x06-cli.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-009",
+      "lesson": "Coordination lane ids are not Git branch names; slash-bearing branch names must be recorded as branch metadata while lane uses a schema-valid id.",
+      "evidence": [
+        "ocentra_enforcer_coordination_health hub=ocentra-enforcer stateRoot=<ledger>/ocentra-enforcer lane=codex-x06-integration",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-010",
+      "lesson": "Compile-green harness changes can still violate test policy; no-test-doubles and weak-assertions must run on touched test files before commit.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "ocentra_enforcer_check no-test-doubles scope=files",
+        "ocentra_enforcer_check weak-assertions scope=files"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-011",
+      "lesson": "Store-backed learning projection should clone a seed lesson graph and replay canonical Store observation logs into that projection; otherwise recurrence proof either mutates caller state or treats the in-memory graph as the source of truth.",
+      "evidence": [
+        "crates/enforcer-memory/src/learning.rs",
+        "crates/enforcer-memory/tests/unit_learning.rs",
+        "crates/enforcer-memory/tests/continuous_learning.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-012",
+      "lesson": "Repo-local GGUF proof harnesses must discover direct llama.cpp worker binaries, not only llama-cli, because embedding proof must use an Enforcer-owned route such as llama-embedding and reject llama-server as an external API surface.",
+      "evidence": [
+        "crates/enforcer-memory/scripts/x06-real-model-proof.ps1",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-013",
+      "lesson": "Exact MCP parity rows should stay on the exact-evidence allowlist when the repo can prove a tool's registry, router, and smoke-test surface mechanically; otherwise the broad MCP runner understates landed parity as unrunnable.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-mcp/src/router.rs",
+        "tests/rust-rules-mcp.test.mjs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-014",
+      "lesson": "Exact CLI parity rows should only flip green when the row-specific command path, handler wiring, and deterministic test/doc evidence all line up; nearby generic CLI proof is not enough.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "tests/enforcer-multilang.test.mjs",
+        "tests/enforcer-harness.test.mjs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-015",
+      "lesson": "Native `enforcer` CLI rows must stay distinct from legacy `.mjs` surfaces; when the row names the Rust CLI, prove it with the Rust binary-name seam and Rust fixture tests rather than nearby compatibility shims.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-cli/src/name.rs",
+        "crates/enforcer-install/src/doctor.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-016",
+      "lesson": "Artifact-backed parity rows are acceptable when the artifact itself already encodes the exact cross-surface claim and the named evidence tests prove that claim mechanically.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-cli.json",
+        "proof/memory/x06-mcp.json",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-017",
+      "lesson": "A CLI `run --tool ...` parity row should only flip green when command dispatch, tool-language routing, parser proof, integration test coverage, and operator-facing docs all line up on the same tool path.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "src/cli-command-dispatch.mjs",
+        "src/harness.mjs",
+        "crates/enforcer-harness/src/parsers.rs",
+        "tests/enforcer-harness.test.mjs",
+        "docs/TARGET_REPO_WIRING.md"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-018",
+      "lesson": "Real full-matrix QA proof is heavyweight; repeated architecture/repository indexing must reuse cached per-target evidence or the harness turns proof regeneration into avoidable repeated work.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-019",
+      "lesson": "Claude adapter selection is narrower than Claude install-hook parity; keep the hook proof row blocked, but allow the adapter-selection row to go green when harness key, selection core, detection, and fixture coverage all line up.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "crates/enforcer-install/src/adapters/claude.rs",
+        "crates/enforcer-install/src/core.rs",
+        "crates/enforcer-install/src/detect.rs",
+        "crates/enforcer-install/tests/claude_adapter_fixtures.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-020",
+      "lesson": "Some semantic-looking QA rows can still be proven by exact structural evidence when the row maps to a single concrete mechanism such as route traces, lifecycle telemetry, or deferred-work validation fixtures.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/src/analysis/trace.rs",
+        "crates/enforcer-cli/src/lifecycle.rs",
+        "crates/enforcer-lang-common/src/rules/deferred_work.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-021",
+      "lesson": "Benchmark rows that explicitly name root workspace config facts should use that config as the single source of truth instead of widening into synthesized repository summaries.",
+      "evidence": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "Cargo.toml",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-022",
+      "lesson": "Exact QA rows scored at Recall@5 cannot dump every exhaustive match as the row id set; exhaustive repository scans need one summary id plus full sourceRefs, or honest evidence will fail the harness for the wrong reason.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-023",
+      "lesson": "Exact structural parity probes must follow the code's real seam names; inventing a plausible constructor like `RepoRoot::new(cwd)` fabricates red even when the repo already proves the current `parse::<RepoRoot>()` path.",
+      "evidence": [
+        "crates/enforcer-cli/src/commands.rs",
+        "crates/enforcer-cli/src/lifecycle/oracle.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-024",
+      "lesson": "Low-cost QA promotions should bind to concrete append/read seams that already exist, such as coordination ledger append helpers and NDJSON reader/writer APIs, instead of widening a whole category runner just to flip a few rows.",
+      "evidence": [
+        "crates/enforcer-coordination/src/api.rs",
+        "crates/enforcer-coordination/src/sync/stream.rs",
+        "crates/enforcer-core/src/ndjson_writer.rs",
+        "crates/enforcer-harness/src/storage.rs",
+        "crates/enforcer-memory/src/log.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-025",
+      "lesson": "A green subpack artifact plus named proof tests is sufficient for exact parity promotion when the row asks for that exact subpack behavior; federation rows do not need a synthetic generic runner when the artifact and roundtrip tests already encode the claim.",
+      "evidence": [
+        "proof/memory/x06-federation.json",
+        "crates/enforcer-memory/tests/federation_roundtrip.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-026",
+      "lesson": "Doc-backed parity probes must distinguish plan intent from current repo truth: when a benchmark names an ownership chain and the implementation still lives in a transitional file, prove both the live definition and the owning workpack instead of pretending the planned file split already landed.",
+      "evidence": [
+        "crates/enforcer-domain/src/ids.rs",
+        "docs/plans/enforcer-selfhost-plan/workpacks/a03-branded-ruleid-and-registry.md",
+        "docs/plans/enforcer-selfhost-plan/WORKPACK_INDEX.md",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-027",
+      "lesson": "A GGUF embedding proof is not honest unless it records which llama.cpp route actually ran and validates the returned embedding dimension contract; fallback-by-side-effect and any nonempty vector are both fake green.",
+      "evidence": [
+        "crates/enforcer-memory/src/llama_cpp.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+        "proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-028",
+      "lesson": "Cheap GitHistory QA promotions should bind to specific git facts the repo can prove now, such as unchanged single-commit fixture files or the latest add-bearing commit on the active lane, instead of waiting for a broad history summarizer.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "docs/plans/enforcer-selfhost-plan/workpacks/d02-baseline-grandfather-ratchet.md",
+        "docs/plans/enforcer-selfhost-plan/WORKPACK_INDEX.md",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-029",
+      "lesson": "When benchmark prose and the current QA proof gate diverge, exact-evidence promotions must follow the live proof gate rows and then prove those rows with concrete artifact or snippet evidence instead of relying on older category prose.",
+      "evidence": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-030",
+      "lesson": "Default degraded runtime status must remain source-policy-aware: unconfigured sources should report unavailable/model-source-unconfigured, local-cache defaults should report unavailable/artifact-not-installed, and bundled or parent-installed assets should degrade as integrity-unverified instead of collapsing everything to a generic artifact-missing state.",
+      "evidence": [
+        "crates/enforcer-memory/src/model_runtime.rs",
+        "crates/enforcer-memory/tests/model_runtime.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-031",
+      "lesson": "Exact QA promotions can mine plan/docs/git truth when the row names a specific prior incident or proven pattern; that is better than leaving the row unrunnable or widening a broad category runner past its evidence.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md",
+        "docs/plans/enforcer-selfhost-plan/workpacks/arc-01-enforcer-core.md",
+        "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md",
+        "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md",
+        "docs/plans/enforcer-selfhost-plan/workpacks/x02-docs-refresh.md",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-032",
+      "lesson": "Continuous-learning and federation proof surfaces can promote broad-looking QA rows honestly when the row maps to a small deterministic fixture or artifact seam; that is cheaper and safer than expanding a generic category runner too early.",
+      "evidence": [
+        "crates/enforcer-memory/tests/fixtures/memory/continuous-learning.ndjson",
+        "crates/enforcer-memory/tests/continuous_learning.rs",
+        "crates/enforcer-memory/tests/federation_roundtrip.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-federation.json",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-033",
+      "lesson": "When exact QA promotions depend on live proof or source text, the harness should be allowed to reject stale markers first; tightening the probe to the current file contents is safer than keeping a broader but drift-prone interpretation.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/src/enrichment.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "crates/enforcer-install/src/ci/branch_protection.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-034",
+      "lesson": "Rows that prove large result sets or self-referential rollups need bounded summary ids and qualitative invariants; otherwise ranking metrics or artifact-regeneration timing can create false red or stale proof.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-035",
+      "lesson": "Checked-in runtime artifacts are not canonical proof until they carry proofScope, appear in the aggregate proof graph, and have row-specific semantic assertions; broad no-hardcoded-path and ciParity scans are necessary but not sufficient.",
+      "evidence": [
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-models-chat-plan.json",
+        "proof/memory/x06-models-multi-probe-plan.json",
+        "proof/memory/x06-models-qwen3-4b-download-local.json",
+        "proof/memory/x06-models-qwen3-embedding-download.json",
+        "proof/memory/x06-models-qwen3-reranker-download.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-036",
+      "lesson": "Exact CodeGraph promotions should use bounded summary ids backed by manifests or hot-path source markers; if a probe dumps too many concrete ids into a top-k scored row, the harness will correctly fail ranking even when the evidence itself is true.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-mcp/Cargo.toml",
+        "crates/enforcer-scan/src/lib.rs",
+        "crates/enforcer-scan/src/engine.rs",
+        "crates/enforcer-cli/src/commands.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-037",
+      "lesson": "Exact Symbol promotions are honest when a row maps to one stable function with a bounded callee set; prefer small call-edge summary ids over broad workspace symbol sweeps when the benchmark question is local and deterministic.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-scan/src/engine.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-038",
+      "lesson": "Broad-looking error-surface rows can still be promoted honestly when the crate collapses them into a few stable boundary families; summary ids over validated boundary groups are safer than pretending the harness can enumerate every raw symbol return site.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-domain/src/ids.rs",
+        "crates/enforcer-domain/src/paths.rs",
+        "crates/enforcer-domain/src/hashes.rs",
+        "crates/enforcer-domain/src/findings.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-039",
+      "lesson": "Lesson-retrieval rows must return lesson ids, not observation ids; use observations only to prove the lesson linkage. If the probe returns the wrong semantic entity, the harness should and will mark the row false-red.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/fixtures/memory/continuous-learning.ndjson",
+        "crates/enforcer-memory/src/learning.rs",
+        "crates/enforcer-memory/src/observations.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-040",
+      "lesson": "Dependency-policy exceptions must be executable policy, not prose-only policy. If deny.toml records a narrow RUSTSEC exception, the Enforcer runner must pass that exact exception to cargo audit and keep unmaintained=deny for everything else.",
+      "evidence": [
+        "current .mjs Enforcer src/check-governance-dependency.mjs",
+        "current .mjs Enforcer tests/dependency-policy.test.mjs",
+        "deny.toml",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-041",
+      "lesson": "Exact-evidence QA rows must follow migrated proof files after required-tests cleanup. Production source markers and migrated unit-test markers are both valid evidence, but the row must point at the file that actually owns each marker.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/unit_architecture.rs",
+        "crates/enforcer-memory/src/architecture.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-042",
+      "lesson": "ORT ownership needs an executable worker command seam, not only a serializable plan. The Enforcer-owned command must carry task/provider as args, model and tokenizer metadata as env, and avoid server or port surfaces by construction.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-043",
+      "lesson": "Runtime proof JSON should be derived from typed runtime ownership contracts. If the probe hand-writes ownership data, it can drift from the code that actually validates llama.cpp and ORT lifecycle control.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-044",
+      "lesson": "Real-model probe compile gates are required even when default CI stays zero-network. They catch runtime-only assumptions such as stale helper imports that ordinary default-model tests do not exercise.",
+      "evidence": [
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-045",
+      "lesson": "Large Rust crates need an explicit sharded gate, not only a monolithic package command. The sharded gate must discover targets from the filesystem, run one cargo test target per process, and emit proof so timeout workarounds do not hide coverage loss.",
+      "evidence": [
+        "scripts/x06-enforcer-memory-sharded-test.mjs",
+        "proof/memory/x06-test-shards.json",
+        "proof/memory/x06-test-shards-local-exec.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-046",
+      "lesson": "Real ORT runtime proof must reuse the shared owned-worker command seam. If the probe hand-spawns the child separately from ort_worker_command, command-shape tests can pass while the live probe drifts away from the audited no-server/no-port worker boundary.",
+      "evidence": [
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-047",
+      "lesson": "ORT acceleration requests are not proof of provider availability. The runtime must resolve requested CPU/GPU/NPU/OpenVINO-style providers against explicit probe evidence and downgrade to CPU with a recorded reason when the requested provider is not available.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-048",
+      "lesson": "Checked-in local GGUF/ORT runtime artifacts are real host-local proof, but they are not the same thing as live-loaded default QA execution. The rollup must count them separately so CI stays zero-network without hiding local runtime evidence.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-049",
+      "lesson": "Negative proof fixtures must not describe stale historical state as current truth. Keep the refusal behavior, but label old skeleton/pending cases as regression fixtures once the live artifact is green.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "proof/memory/x06-feature-parity.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-050",
+      "lesson": "Named scanner-backed checks are valid proof-slice gates only when explicit file scope is preserved end-to-end. Broad scan expansion must be tracked separately and not mixed into runtime proof evidence.",
+      "evidence": [
+        "tests/enforcer-checks.test.mjs",
+        "src/cli-check-scanner-backed.mjs",
+        "src/cli-scan.mjs",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-051",
+      "lesson": "Do not parallelize broad Cargo validation gates for enforcer-memory on local Windows proof runs; stale compiler/linker children can survive command timeouts and block later scoped proof commands. Use the sharded gate or one focused Cargo target at a time.",
+      "evidence": [
+        "proof/memory/x06-dogfood.json",
+        "scripts/x06-enforcer-memory-sharded-test.mjs",
+        "proof/memory/x06-test-shards-rollup.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "id": "ort-provider-resolution-owned-worker-plan",
+      "t0": "ORT provider acceleration can look configured while the parent-side hardware probe evidence is not preserved in the worker plan.",
+      "t1": "Provider resolution is now part of the typed OrtWorkerExecutionPlan and child env/proof contract.",
+      "t2": "Focused local_runtime tests prove unprobed NPU/OpenVINO downgrades to CPU before child spawn and probed acceleration keeps requested/resolved/available evidence.",
+      "recurrenceSignal": "reject ORT acceleration claims that do not carry providerResolution evidence",
+      "status": "active"
+    },
+    {
+      "id": "provider-downgrade-tests-need-exact-reasons",
+      "t0": "A provider-downgrade test can pass while hiding the actual downgrade reason if it only checks Option::is_some.",
+      "t1": "The ORT downgrade test now asserts the exact reason string for unprobed NPU to CPU downgrade.",
+      "t2": "weak-assertions and ORT worker-plan tests pass after the exact assertion landed.",
+      "recurrenceSignal": "reject downgrade tests that do not assert the resolved provider and exact reason",
+      "status": "active"
+    },
+    {
+      "id": "checked-in-runtime-proof-artifacts-must-track-harness-contract",
+      "t0": "A runtime harness contract can evolve while prior checked-in successful proof artifacts still lack the new control-plane evidence fields.",
+      "t1": "The ORT CPU embedding and reranker proof artifacts now carry owned-worker providerResolution metadata and tests assert it directly.",
+      "t2": "Focused model_runtime_real_contract tests pass for providerResolution, probe default policy, and portable plan linkage.",
+      "recurrenceSignal": "reject successful ORT proof artifacts without worker ownership and providerResolution metadata",
+      "status": "active"
+    },
+    {
+      "id": "default-qa-must-separate-host-local-proof-from-live-loaded",
+      "t0": "The QA rollup reported all 250 green rows as degraded even though checked-in GGUF/ORT host-local runtime proof artifacts existed; changing them to loaded would overclaim default CI live execution.",
+      "t1": "Added a host-local-proof capability state and rollup count while keeping loaded reserved for feature-gated live model rows.",
+      "t2": "feature_parity_harness proves 250/250 green rows with 3 host-local-proof model-runtime rows, 0 live-loaded default rows, and 247 degraded deterministic rows.",
+      "recurrenceSignal": "reject model-runtime QA rollups that hide host-local proof or mark static artifacts as live-loaded default execution",
+      "status": "active"
+    },
+    {
+      "id": "negative-fixtures-must-not-claim-stale-current-state",
+      "t0": "An anti-fabricated-green test still said today's rollup had mostly pending prefixes after the checked-in matrix became green.",
+      "t1": "Renamed and rewrote the test as an explicit skeleton-state regression fixture.",
+      "t2": "The exact feature_parity_harness test for the renamed negative fixture passed and current x06-feature-parity.json remains allMatrixPrefixesGreen=true.",
+      "recurrenceSignal": "reject proof comments or test names that contradict the current artifact state",
+      "status": "active"
+    },
+    {
+      "id": "scanner-backed-checks-must-preserve-explicit-file-scope",
+      "t0": "Generic scan noise made it unclear whether focused scanner-backed checks were safe proof gates for runtime/proof slices.",
+      "t1": "Added a CLI regression where no-zod-source checks only src/requested.ts while an unrequested sibling contains a zod violation.",
+      "t2": "The exact node --test --test-name-pattern scanner-backed scope regression passed, proving the scanner-backed check reports a clean requested-file scope and no unrequested-file violation.",
+      "recurrenceSignal": "reject scanner-backed check evidence unless its report scope matches the requested files",
+      "status": "active"
+    },
+    {
+      "id": "validation-harness-must-not-parallelize-broad-cargo-gates",
+      "t0": "Parallel broad cargo test attempts for enforcer-memory timed out and left cargo/rustc/link children alive, blocking later focused proof commands behind stale build work.",
+      "t1": "Recovered by stopping only the orphaned build processes from the timed-out attempts and returning to scoped checks plus the existing sharded enforcer-memory gate for long-running coverage.",
+      "t2": "The worktree remained clean, cargo fmt -p enforcer-memory --check passed after recovery, and the dogfood record now distinguishes this validation-harness issue from product runtime failures.",
+      "recurrenceSignal": "reject local proof plans that run multiple broad enforcer-memory cargo gates in parallel instead of sharded or single-target validation",
+      "status": "active"
+    }
+  ],
+  "blockers": [],
+  "followUps": [
+    "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
+    "QA coverage is 250/250 green with 0 failures in proof/memory/x06-rag-qa.json and proof/memory/x06-feature-parity.json; keep unsupported future install-hook rows outside X06 memory scope unless new code lands.",
+    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded a 60 minute local timeout after QA-013 was fixed; scripts/x06-enforcer-memory-sharded-test.mjs now provides the cross-platform replacement gate, and proof/memory/x06-test-shards-rollup.json proves all 232 default enforcer-memory integration targets passed across 8 shards.",
+    "Broad ocentra_enforcer_scan over changed runtime files still expands into existing crate/workspace debt and remains unsuitable as runtime-slice proof evidence; named scanner-backed checks now have explicit file-scope regression coverage in tests/enforcer-checks.test.mjs."
+  ],
+  "recurrenceNotes": [
+    "t0 events now have durable Store append paths for observations and model-runtime incidents.",
+    "t1 proof exists through Store replay tests and clean source-shape/check gates.",
+    "t2 recurrence curves now come from project_learning_from_store, which replays Store logs into a deterministic projection before computing learning_curve and recurrence_curve."
+  ]
+}

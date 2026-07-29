@@ -8,17 +8,23 @@ import {
   materializedToJson,
 } from "./vendor/materialize.js";
 import { ensureDaemon } from "./vendor/daemon.js";
-import { inspectLedger } from "./vendor/doctor.js";
+import { inspectLiveLedger } from "./vendor/doctor.js";
 import { guardLedger } from "./vendor/guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
 import { normalizeClaimPaths } from "./vendor/claim-policy.js";
 import { buildCoordinationContext } from "./vendor/context.js";
+import {
+  claimIdentityKey,
+  claimsReleasedByEvent,
+  releaseContextForClaims,
+} from "./vendor/materialize-claim-identity.js";
 import { buildStreamManifest } from "./vendor/manifest.js";
 import { notify } from "./vendor/notify.js";
 import { addPeer, loadPeerRegistry, removePeer, resolvePeer } from "./vendor/peers.js";
 import { buildPresenceMatrix } from "./vendor/presence.js";
 import { rebuildCoordinationIndex } from "./vendor/read-index.js";
+import { materializeLive } from "./vendor/live-state.js";
 import {
   repairLegacyHashCompatibility,
   repairSequenceBreaks,
@@ -64,7 +70,7 @@ export async function coordinationInit(args = {}) {
 
 export async function coordinationStatus(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return {
     ok: true,
     root,
@@ -74,12 +80,12 @@ export async function coordinationStatus(args = {}) {
 
 export async function coordinationHealth(args = {}) {
   const root = coordinationRoot(args);
-  const inspection = await inspectLedger(root);
+  const inspection = await inspectLiveLedger(root);
   const changedPaths = normalizeHealthPaths(args);
   const focused = changedPaths.length > 0 && args.focused !== false;
   let state;
   try {
-    state = await materialize(root);
+    state = await materializeLive(root);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -115,12 +121,14 @@ export async function coordinationHealth(args = {}) {
     };
   }
   const conflicts = state.ownership.hardConflicts ?? state.ownership.conflicts;
+  const checkpointAudit = state.checkpointAudit ?? { ok: true, diagnostics: [] };
+  const diagnostics = [...checkpointAudit.diagnostics, ...inspection.diagnostics];
   const blockingConflicts = focused
     ? conflicts.filter((conflict) => conflictTouchesPaths(conflict, changedPaths))
     : conflicts;
   const warnings = state.warnings;
   const guard = await tryGuard(root, args);
-  const corruptDiagnostics = inspection.diagnostics.filter(
+  const corruptDiagnostics = diagnostics.filter(
     (diagnostic) =>
       /hash|sequence|previous|pointer|malformed|corrupt|lock/iu.test(
         diagnostic.message ?? JSON.stringify(diagnostic),
@@ -130,17 +138,17 @@ export async function coordinationHealth(args = {}) {
     session.expiresAt ? Date.parse(session.expiresAt) < Date.now() : false,
   );
   const mustRepairLedger =
-    !inspection.ok || corruptDiagnostics.length > 0 || warnings.length > 0;
+    !inspection.ok || !checkpointAudit.ok || corruptDiagnostics.length > 0 || warnings.length > 0;
   const pathLockDenied = guard.result?.ok === false;
   return {
     ok: !mustRepairLedger && !pathLockDenied && blockingConflicts.length === 0,
     root,
-    canInspect: inspection.ok,
+    canInspect: inspection.ok && checkpointAudit.ok,
     canLockPaths: !mustRepairLedger && (guard.result?.blockers?.length ?? blockingConflicts.length) === 0,
     canWriteClaimedPaths: guard.result?.ok ?? !mustRepairLedger,
     mustWait: pathLockDenied || blockingConflicts.length > 0,
     mustRepairLedger,
-    diagnostics: compactDiagnostics(inspection.diagnostics, args.limit),
+    diagnostics: compactDiagnostics(diagnostics, args.limit),
     warnings,
     conflicts: compactConflicts(blockingConflicts, args.limit),
     conflictCount: blockingConflicts.length,
@@ -170,16 +178,14 @@ export async function coordinationHealth(args = {}) {
 
 export async function coordinationPresence(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
-  const presence = buildPresenceMatrix(root, state, { limit: args.limit });
-  await rebuildCoordinationIndex(root, { limit: args.limit });
-  return presence;
+  const state = await materializeLive(root);
+  return buildPresenceMatrix(root, state, { limit: args.limit });
 }
 
 export async function coordinationInbox(args = {}) {
   const root = coordinationRoot(args);
   const lane = parseLaneId(args.lane ?? (await loadIdentity(root)).defaultLane);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   const inbox = state.lanes.get(lane)?.inbox ?? [];
   return {
     ok: true,
@@ -236,7 +242,7 @@ export async function coordinationClaim(args = {}) {
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
     context: claimContext,
   });
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   const decision = blockersForRequest(state.ownership.activeClaims, request, claimContext.operation);
   if (decision.blockers.length > 0) {
     const onConflict = normalizeOnConflict(args.onConflict, claimContext.onConflict);
@@ -290,61 +296,27 @@ export async function coordinationRelease(args = {}) {
   const root = coordinationRoot(args);
   const config = await loadIdentity(root);
   const lane = parseLaneId(args.lane ?? config.defaultLane);
-  let paths = pathList(args.paths).map((entry) => parseClaimPath(entry));
-  let matchedClaimCount = 0;
-  if (paths.length === 0) {
-    const state = await materialize(root);
-    const filters = closeoutFilters(args, config, lane);
-    const claims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
-    matchedClaimCount = claims.length;
-    paths = unique(claims.flatMap((claim) => claim.paths ?? []));
-    if (paths.length === 0) {
-      return {
-        ok: true,
-        root,
-        lane,
-        matchedClaimCount,
-        releasedPaths: [],
-        notificationEvents: [],
-        nextStep: "No active claims matched the selected lane/thread/worktree release scope.",
-      };
-    }
-  }
+  const requestedPaths = pathList(args.paths).map((entry) => parseClaimPath(entry));
   const releaseContextValue = releaseContext(args);
+  const stateBefore = await materializeLive(root);
+  const selection = selectReleaseClaims(stateBefore, args, config, lane, requestedPaths, releaseContextValue);
+  if (selection.paths.length === 0) return { ok: true, root, lane, matchedClaimCount: 0, releasedPaths: [], notificationEvents: [], nextStep: "No active claims matched the selected lane/thread/worktree release scope." };
   const event = await appendEvent(root, config, lane, {
     type: "release",
-    paths,
+    paths: selection.paths,
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
-    ...(releaseContextValue === undefined ? {} : { context: releaseContextValue }),
+    context: releaseContextForClaims(releaseContextValue, selection.claims),
   });
-  const state = await materialize(root);
-  const notificationEvents = [];
-  const notifiedLanes = new Set();
-  for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {
-    if (intent.lane === lane || notifiedLanes.has(intent.lane)) continue;
-    notifiedLanes.add(intent.lane);
-    notificationEvents.push(
-      await appendEvent(root, config, lane, {
-        type: "message",
-        to: parseMessageAddress(intent.lane),
-        body: parseUserText(
-          `Released ${paths.join(", ")}. Re-read the file before claiming and editing; queued intent ${intent.eventId}.`,
-        ),
-        context: contextFor({
-          ...args,
-          releaseEventId: event.id,
-          editIntentId: intent.eventId,
-          notificationKind: "editIntentReleased",
-        }),
-      }),
-    );
-  }
+  const stateAfter = await materializeLive(root);
+  const activeClaimKeys = new Set(stateAfter.ownership.activeClaims.map(claimIdentityKey));
+  const releasedPaths = unique(selection.claims.filter((claim) => !activeClaimKeys.has(claimIdentityKey(claim))).flatMap((claim) => claim.paths ?? []));
+  const notificationEvents = await appendReleaseNotifications(root, config, lane, args, event, stateAfter, releasedPaths);
   return {
     ok: true,
     root,
     lane,
-    matchedClaimCount,
-    releasedPaths: paths,
+    matchedClaimCount: selection.claims.length,
+    releasedPaths,
     event,
     notificationEvents,
   };
@@ -359,28 +331,23 @@ export async function coordinationCloseout(args = {}) {
   const releaseOwned = args.releaseOwned !== false;
   const repairStale = args.repairStale !== false;
   const filters = closeoutFilters(args, config, lane);
-  let state = await materialize(root);
+  let state = await materializeLive(root);
   const initialClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   const releaseEvents = [];
   if (releaseOwned && initialClaims.length > 0) {
-    for (const [claimLane, claims] of claimsByLane(initialClaims)) {
-      const paths = unique(claims.flatMap((claim) => claim.paths ?? []));
+    for (const claim of initialClaims) {
+      const paths = unique(claim.paths ?? []);
       if (paths.length === 0) continue;
       releaseEvents.push(
-        await appendEvent(root, config, parseLaneId(claimLane), {
+        await appendEvent(root, config, parseLaneId(claim.lane), {
           type: "release",
           paths,
           reason: parseUserText(args.reason ?? "coordination closeout release"),
-          context: contextFor({
-            ...args,
-            closeoutAction: "release",
-            closeoutLane: lane,
-            closeoutClaimCount: claims.length,
-          }),
+          context: releaseContextForClaims(claim.context, [claim]),
         }),
       );
     }
-    state = await materialize(root);
+    state = await materializeLive(root);
   }
   const afterReleaseClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   let staleRepairEvent = null;
@@ -399,7 +366,7 @@ export async function coordinationCloseout(args = {}) {
         closeoutClaimCount: afterReleaseClaims.length,
       }),
     });
-    state = await materialize(root);
+    state = await materializeLive(root);
   }
   const remainingClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   const index = await rebuildCoordinationIndex(root, { limit });
@@ -471,13 +438,13 @@ export async function coordinationReport(args = {}) {
 
 export async function coordinationWorkers(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return { ok: true, root, workers: getWorkers(state) };
 }
 
 export async function coordinationTasks(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return { ok: true, root, tasks: getActiveTasks(state) };
 }
 
@@ -670,6 +637,33 @@ function compactConflicts(conflicts, limit = 25) {
   return conflicts.slice(0, Number.isFinite(limit) ? limit : 25);
 }
 
+function selectReleaseClaims(state, args, config, lane, requestedPaths, context) {
+  const isPathless = requestedPaths.length === 0;
+  const candidates = isPathless
+    ? matchingCloseoutClaims(state.ownership.activeClaims, closeoutFilters(args, config, lane))
+    : state.ownership.activeClaims;
+  const candidatePaths = isPathless ? unique(candidates.flatMap((claim) => claim.paths ?? [])) : requestedPaths;
+  const selectionEvent = { writer: writerId(config.nodeId, lane), lane, paths: candidatePaths, eventId: "__release__", context };
+  const selectedClaims = claimsReleasedByEvent(candidates, selectionEvent);
+  const paths = isPathless ? unique(selectedClaims.flatMap((claim) => claim.paths ?? [])) : requestedPaths;
+  return { paths, claims: claimsReleasedByEvent(state.ownership.activeClaims, { ...selectionEvent, paths }) };
+}
+
+async function appendReleaseNotifications(root, config, lane, args, event, state, paths) {
+  const notificationEvents = [];
+  for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {
+    const decision = blockersForRequest(state.ownership.activeClaims, intent, intent.context?.operation ?? "edit");
+    if (decision.blockers.length > 0) continue;
+    notificationEvents.push(await appendEvent(root, config, lane, {
+      type: "message",
+      to: parseMessageAddress(intent.lane),
+      body: parseUserText(`Released ${paths.join(", ")}. Re-read the file before claiming and editing; queued intent ${intent.eventId}.`),
+      context: contextFor({ ...args, releaseEventId: event.id, editIntentId: intent.eventId, notificationKind: "editIntentReleased" }),
+    }));
+  }
+  return notificationEvents;
+}
+
 function blockingOwnersFor(blockers) {
   return [
     ...new Map(
@@ -819,7 +813,10 @@ function closeoutFilters(args, config, lane) {
     codexSessionId: args.codexSessionId ?? args.sessionId,
     projectId: args.projectId,
     worktreeRoot: rootFilter === undefined ? undefined : path.resolve(rootFilter),
-    includeAllLanes: args.allOwned === true || args.allLanes === true,
+    // `allOwned` means every matching claim owned inside the selected lane.
+    // Cross-lane release is a distinct administrative scope and must be
+    // requested explicitly with `allLanes`.
+    includeAllLanes: args.allLanes === true,
   };
 }
 

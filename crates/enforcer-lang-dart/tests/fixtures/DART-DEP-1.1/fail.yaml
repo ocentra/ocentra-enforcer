@@ -1,0 +1,5 @@
+# FAIL fixture for DART-DEP-1.1: unpinned dependency version constraint.
+dependencies:
+  flutter:
+    sdk: flutter
+  foo: any

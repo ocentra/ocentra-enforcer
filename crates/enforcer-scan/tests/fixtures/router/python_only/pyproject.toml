@@ -1,0 +1,9 @@
+[project]
+name = "fixture-python-only"
+version = "0.1.0"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.pyright]
+typeCheckingMode = "strict"

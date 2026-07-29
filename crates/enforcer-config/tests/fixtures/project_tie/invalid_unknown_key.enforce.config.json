@@ -1,0 +1,8 @@
+{
+  "native": {
+    "cargo": {
+      "mode": "augment"
+    }
+  },
+  "unknownTopLevelKey": true
+}

@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.9: Proof command cannot be a shell string
+// Clean source — no occurrence of the PROOF-1.9 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

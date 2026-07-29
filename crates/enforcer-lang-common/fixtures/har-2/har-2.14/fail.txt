@@ -1,0 +1,4 @@
+// Fixture for HAR-2.14: Harness human output must redact secrets
+// Ported from legacy validator id `common/harness-contracts` (see rules/rules.json doc: rules/common/harness.md#covered-rules).
+// This line trips the rule:
+ENFORCER_HAR_2_14_MARKER

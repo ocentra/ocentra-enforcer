@@ -1,0 +1,165 @@
+workpack: x04
+hub: enforcer-selfhost-plan
+tier: P5 install-proof + P2 (T1)
+namedTest: branch-protection verifier + emitter fixtures
+
+commands:
+  __COMPAT_LAYER=RunAsInvoker cargo test -p enforcer-install --lib branch_protection
+  __COMPAT_LAYER=RunAsInvoker cargo test -p enforcer-install --test branch_protection_fixtures
+  __COMPAT_LAYER=RunAsInvoker cargo clippy -p enforcer-install --all-targets -- -D warnings
+  cargo fmt -p enforcer-install --check
+
+result:
+  testsPassed (ci::branch_protection unit tests): 11
+    resolve_contexts_renders_one_context_per_matrix_value ................ ok
+    resolve_contexts_non_matrix_job_has_no_parenthesized_suffix ........... ok
+    emit_payload_never_hardcodes_a_stale_context_it_always_derives_from_the_job ok
+    emit_payload_with_no_required_jobs_emits_none_for_required_status_checks  ok
+    verify_attests_the_pass_fixture_state .................................. ok
+    verify_refuses_when_no_required_checks_are_configured ................... ok
+    verify_refuses_when_admin_override_allowed_or_force_push_allowed ........ ok
+    verify_refuses_when_required_check_is_red_but_still_merge_eligible ...... ok
+    verify_refuses_when_not_required_up_to_date_before_merge ................ ok
+    verify_refuses_when_live_contexts_are_missing_a_desired_context ......... ok
+    ghapi_payload_and_live_state_round_trip_through_json_with_identical_shape ok
+  testsPassed (tests/branch_protection_fixtures.rs integration): 7
+    pass_fixture_attests_protection .......................................... ok
+    fail_fixture_no_required_checks_refuses_non_zero ......................... ok
+    fail_fixture_bypassable_refuses_non_zero ................................. ok
+    fail_fixture_red_merge_eligible_refuses_non_zero ......................... ok
+    emitter_payload_matches_the_pinned_golden_fixture ........................ ok
+    emitted_payload_applied_as_live_state_yields_the_pass_fixture ............ ok
+    check_contexts_resolve_symbolically_never_a_hardcoded_stale_string ....... ok
+  totalPassed (this workpack's owned tests): 18
+  crateWideTestsFailed: 2 (pre-existing, NOT owned by this workpack -- see
+    "unrelatedFailures" below; same root cause independently reconfirmed by
+    c05's proof at proof/install/c05-sessionstart.txt)
+  clippy: clean (no warnings, -D warnings, over enforcer-install --all-targets)
+  fmt: clean (no diff)
+
+seededViolationCases:
+  - case: captured branch-protection state with NO required checks configured
+    test: ci::branch_protection::tests::verify_refuses_when_no_required_checks_are_configured,
+      branch_protection_fixtures::fail_fixture_no_required_checks_refuses_non_zero
+    fixture: crates/enforcer-install/tests/fixtures/branch_protection/fail_no_required_checks.json
+      (required_status_checks: null)
+    expectation: verify() returns Verdict::Refused containing RefusalReason::NoRequiredChecks;
+      Verdict::exit_code() > 0 (non-zero); verifier never attests.
+    status: PASS
+
+  - case: required checks present but bypassable (admin override allowed +
+      force-push allowed)
+    test: ci::branch_protection::tests::verify_refuses_when_admin_override_allowed_or_force_push_allowed,
+      branch_protection_fixtures::fail_fixture_bypassable_refuses_non_zero
+    fixture: crates/enforcer-install/tests/fixtures/branch_protection/fail_bypassable.json
+      (enforce_admins: false, allow_force_pushes: true)
+    expectation: verify() returns Verdict::Refused containing BOTH
+      RefusalReason::AdminOverrideAllowed and RefusalReason::ForcePushAllowed
+      (collected together, not short-circuited on the first gap); exit_code() > 0.
+    status: PASS
+
+  - case: a red/pending required check that is nonetheless reported
+      merge-eligible ("merge when red")
+    test: ci::branch_protection::tests::verify_refuses_when_required_check_is_red_but_still_merge_eligible,
+      branch_protection_fixtures::fail_fixture_red_merge_eligible_refuses_non_zero
+    fixture: crates/enforcer-install/tests/fixtures/branch_protection/fail_red_merge_eligible.json
+      (required_checks_passing: false)
+    expectation: verify() returns Verdict::Refused containing
+      RefusalReason::RedCheckMergeEligible for BOTH the explicit-red
+      (Some(false)) and pending/unknown (None) cases -- verified directly in
+      the unit test (both sub-cases asserted in the same test body).
+    status: PASS
+
+  - case: pass fixture -- required checks present, force-push blocked, admin
+      override disallowed, require-up-to-date-before-merge on
+    test: ci::branch_protection::tests::verify_attests_the_pass_fixture_state,
+      branch_protection_fixtures::pass_fixture_attests_protection
+    fixture: crates/enforcer-install/tests/fixtures/branch_protection/pass.json
+    expectation: verify() returns Verdict::Attested; exit_code() == 0.
+    status: PASS
+
+  - case: emitter fixture -- emitted config (from the same DesiredProtection
+      that models .github/BRANCH_PROTECTION.md, covering BOTH workflows that
+      push-trigger on `main`: Rust CI's matrixed rust-ci job AND Ocentra
+      Enforcer's non-matrixed ocentra-enforcer job) produces the gh api
+      payload that yields the pass-fixture state, and check contexts resolve
+      symbolically (never a hardcoded stale context string)
+    test: branch_protection_fixtures::emitter_payload_matches_the_pinned_golden_fixture,
+      emitted_payload_applied_as_live_state_yields_the_pass_fixture,
+      check_contexts_resolve_symbolically_never_a_hardcoded_stale_string
+    fixture: crates/enforcer-install/tests/fixtures/branch_protection/emitted_payload.golden.json,
+      crates/enforcer-install/tests/fixtures/branch_protection/pass.json
+    expectation: emit_payload(&desired()) byte/field-equals the pinned golden
+      payload; mapping that payload's fields onto a LiveProtectionState (with
+      required_checks_passing: Some(true)) equals the pass.json fixture
+      exactly; resolve_contexts() output is cross-checked against the actual
+      `name:`/job-id declared in BOTH .github/workflows/ci.yml AND
+      .github/workflows/ocentra-enforcer.yml (read from disk in the test, not
+      assumed) so either workflow's rename would fail this test rather than
+      silently drifting -- exactly the failure mode the legacy
+      docs/BRANCH_PROTECTION.md fell into (it named
+      "Ocentra Enforcer / ocentra-enforcer (*)" WITH a matrix suffix, a
+      pre-rename context never reconciled against the real workflow, which
+      today has no matrix at all -- the test explicitly asserts the
+      non-matrixed job resolves to the bare "Ocentra Enforcer /
+      ocentra-enforcer" context with no parenthesized suffix).
+    status: PASS
+
+unrelatedFailures (pre-existing, outside this workpack's owned files -- NOT
+this workpack's regression; independently reconfirmed, same root cause
+already documented in proof/install/c05-sessionstart.txt):
+  - emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes
+  - emitters::git_hooks::tests::each_flavor_writes_golden_bytes
+  cause: local checkout's `core.autocrlf=true` checks the LF-only golden
+    fixtures out as CRLF while the emitters' include_str!-embedded templates
+    stay LF-only -- a byte mismatch from local checkout config only, not from
+    any change in this workpack. Neither file is in this workpack's `owns:`
+    line (c07 owns emitters::consumer_ci; c04-adjacent owns emitters::git_hooks);
+    left untouched, confirmed zero diff against origin/rust-build for both
+    files.
+
+deviations: []
+
+dogfoodFindings:
+  - "L29 __COMPAT_LAYER=RunAsInvoker reconfirmed for enforcer-install's
+    compiled test binary on this Windows machine: `cargo test -p
+    enforcer-install --lib` (and the new `--test branch_protection_fixtures`
+    integration binary) both fail with `error 740 (The requested operation
+    requires elevation)` invoking the test exe directly unless the env var is
+    set first -- Windows app-compat heuristics flag any executable whose name
+    contains \"install\" for elevation. Same root cause independently
+    reconfirmed for a second, separately-compiled test binary
+    (branch_protection_fixtures-*.exe) in addition to the crate's --lib
+    binary already documented by c05; no code change needed, environment-only
+    workaround, same fix applies uniformly."
+
+filesCreated:
+  - crates/enforcer-install/src/ci/branch_protection.rs (NEW -- this
+    workpack's owned module: WorkflowJob, resolve_contexts,
+    DesiredProtection, GhApiPayload, RequiredStatusChecks,
+    LiveProtectionState, RefusalReason, Verdict, emit_payload, verify)
+  - crates/enforcer-install/tests/branch_protection_fixtures.rs (NEW --
+    integration proof over the fixtures below; disjoint from c10's
+    tests/ci_fixtures.rs)
+  - crates/enforcer-install/tests/fixtures/branch_protection/pass.json (NEW)
+  - crates/enforcer-install/tests/fixtures/branch_protection/fail_no_required_checks.json (NEW)
+  - crates/enforcer-install/tests/fixtures/branch_protection/fail_bypassable.json (NEW)
+  - crates/enforcer-install/tests/fixtures/branch_protection/fail_red_merge_eligible.json (NEW)
+  - crates/enforcer-install/tests/fixtures/branch_protection/emitted_payload.golden.json (NEW)
+  - .github/BRANCH_PROTECTION.md (NEW -- this repo's own protected-`main`
+    settings doc; supersedes the stale docs/BRANCH_PROTECTION.md, which named
+    a pre-rename "Ocentra Enforcer / ocentra-enforcer (*)" context and was
+    never actually applied as a real GitHub setting; docs/BRANCH_PROTECTION.md
+    left in place, not deleted, as this workpack's owns: line does not include
+    it and deleting a doc outside owns: risks colliding with a sibling pack)
+
+filesEdited:
+  - crates/enforcer-install/src/ci/mod.rs (added exactly one line:
+    `pub mod branch_protection;`, this workpack's only registration line,
+    disjoint from c10's four existing `pub mod` lines in the same file)
+
+keptExtendedReplaced:
+  ci/mod.rs: "EXTENDED (added `pub mod branch_protection;`) -- the only
+    mod-registration line this workpack owns; c10's four existing lines
+    (github_action, installer_scripts, npm_wrapper, release_pipeline)
+    untouched."

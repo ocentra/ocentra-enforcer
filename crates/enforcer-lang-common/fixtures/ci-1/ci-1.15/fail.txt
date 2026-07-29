@@ -1,0 +1,4 @@
+// Fixture for CI-1.15: CI must run on pull requests and main
+// Ported from legacy validator id `common/ci-integrity` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CI_1_15_MARKER

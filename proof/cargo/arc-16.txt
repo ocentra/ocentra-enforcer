@@ -1,0 +1,202 @@
+=== cargo test -p enforcer-coordination ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_coordination-56d1aae17e6b66bd.exe)
+
+running 30 tests
+test domain::tests::resolve_ledger_root_prefers_explicit_root_override ... ok
+test domain::tests::sanitize_hostname_replaces_invalid_characters ... ok
+test domain::tests::writer_id_formats_and_extracts_node_prefix ... ok
+test events::tests::assert_event_hash_detects_tampering ... ok
+test events::tests::extension_hash_differs_from_wire_hash_because_context_is_included ... ok
+test events::tests::mutating_a_wire_field_changes_the_hash ... ok
+test domain::tests::resolve_ledger_root_joins_home_and_hub_when_no_explicit_root ... ok
+test events::tests::mutating_context_does_not_change_wire_hash ... ok
+test events::tests::golden_sentinel_matches_expected_wire_hash ... ok
+test ledger::tests::claim_then_release_clears_the_active_claim ... ok
+test ledger::tests::unreleased_claim_remains_active ... ok
+test lock::singletons::tests::lockfiles_are_protected_singletons ... ok
+test lock::singletons::tests::migrations_and_generated_and_ci_are_protected ... ok
+test lock::tests::pr_ready_operation_blocks_on_merge_risk_unless_allowed ... ok
+test lock::tests::distinct_ordinary_files_on_different_branches_do_not_conflict_at_all ... ok
+test lock::tests::different_worktrees_different_branches_is_only_merge_risk ... ok
+test lock::singletons::tests::ordinary_source_paths_are_not_protected ... ok
+test lock::tests::protected_singleton_escalates_across_worktrees_to_global_conflict ... ok
+test lock::tests::push_operation_only_blocks_on_branch_lease_conflicts ... ok
+test lock::tests::same_logical_owner_never_conflicts ... ok
+test lock::tests::same_path_same_worktree_different_owners_is_write_lock_conflict ... ok
+test lock::tests::work_reservation_tail_branch_is_unreachable_given_same_worktree_write_lock_precedence ... ok
+test sync::stream::tests::malformed_final_line_is_a_warning_not_a_hard_failure_in_read_all ... ok
+test api::tests::init_is_idempotent_l1 ... ok
+test api::tests::claim_context_reflects_caller_not_server_cwd_l2 ... ok
+test sync::stream::tests::append_then_read_round_trips_and_never_rewrites_earlier_lines ... ok
+test sync::retention::tests::compaction_round_trips_every_event_and_shrinks_live_stream ... ok
+test api::tests::release_clears_claim_and_stream_is_append_only ... ok
+test api::tests::closeout_scoped_to_lane_a_does_not_release_lane_b_claims ... ok
+test api::tests::claim_all_expands_dir_owns_set_and_batches_over_the_cap_l13 ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests enforcer_coordination
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo clippy -p enforcer-coordination --all-targets -- -D warnings ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Checking enforcer-coordination v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a4dc67cd4bc20fccb\crates\enforcer-coordination)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.49s
+
+=== cargo fmt -p enforcer-coordination -- --check ===
+
+EXIT: all commands above must show 0 test failures, zero clippy errors, zero fmt diffs.

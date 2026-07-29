@@ -1,0 +1,4 @@
+// Fixture for MCP-1.11: MCP write tools cannot be generic action dispatchers
+// Ported from legacy validator id `common/mcp-contracts` (see rules/rules.json doc: rules/common/mcp.md#covered-rules).
+// This line trips the rule:
+ENFORCER_MCP_1_11_MARKER

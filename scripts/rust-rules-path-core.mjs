@@ -60,9 +60,24 @@ function matchesAnyGlob(relPath, globs) {
   return globs.some((glob) => matchesGlob(relPath, glob));
 }
 
-function isIgnoredPath(relPath, config) {
+function isGeneratedCargoTargetDirectoryPath(
+  relPath,
+  finalSegmentIsDirectory,
+) {
+  const segments = relPath.split("/").filter(Boolean);
+  const directorySegments = finalSegmentIsDirectory
+    ? segments
+    : segments.slice(0, -1);
+  return directorySegments.some(
+    (segment) => segment === "target" || segment.startsWith("target-"),
+  );
+}
+
+function isIgnoredPath(relPath, config, finalSegmentIsDirectory = false) {
   return (
     relPath.split("/").some((segment) => config.ignoreDirs.includes(segment)) ||
+    (config.ignoreDirs.includes("target") &&
+      isGeneratedCargoTargetDirectoryPath(relPath, finalSegmentIsDirectory)) ||
     matchesAnyGlob(relPath, config.ignoreFileGlobs)
   );
 }
@@ -98,7 +113,7 @@ function walkFiles(root, start, config, collect) {
   if (!fs.existsSync(start)) return;
   const stats = fs.statSync(start);
   const rel = normalizeRel(root, start);
-  if (isIgnoredPath(rel, config)) return;
+  if (isIgnoredPath(rel, config, stats.isDirectory())) return;
   if (stats.isDirectory()) {
     for (const entry of fs.readdirSync(start, { withFileTypes: true })) {
       walkFiles(root, path.join(start, entry.name), config, collect);
@@ -257,13 +272,20 @@ function maskRustCode(source) {
         pushMask(ch);
         continue;
       }
-      if (ch === '"' || (ch === "b" && next === '"')) {
+      if (ch === "b" && next === '"') {
+        state = "string";
+        pushMask(ch);
+        pushMask(next);
+        i += 1;
+        continue;
+      }
+      if (ch === '"') {
         state = "string";
         pushMask(ch);
         continue;
       }
       if (ch === "'") {
-        if (/^'[A-Za-z_][A-Za-z0-9_]*\b/u.test(source.slice(i))) {
+        if (/^'[A-Za-z_][A-Za-z0-9_]*\b(?!')/u.test(source.slice(i))) {
           out += ch;
           continue;
         }

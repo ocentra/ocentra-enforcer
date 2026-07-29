@@ -1,0 +1,32 @@
+use crate::error::EventingError;
+use enforcer_domain::events_types::EventType;
+
+use super::{DispatchMode, EventBus, QueueDrainReport};
+
+mod runner;
+
+impl EventBus {
+    /// CANCELLATION-TEST: production_shutdown_drain_dispatches_queue_and_dead_letters_remaining
+    pub async fn drain_queued(
+        &self,
+        dispatch_mode: DispatchMode,
+    ) -> Result<QueueDrainReport, EventingError> {
+        self.ensure_active()?;
+        runner::drain_queued_matching_unchecked(self, dispatch_mode, None).await
+    }
+
+    pub(super) async fn drain_queued_unchecked(
+        &self,
+        dispatch_mode: DispatchMode,
+    ) -> Result<QueueDrainReport, EventingError> {
+        runner::drain_queued_matching_unchecked(self, dispatch_mode, None).await
+    }
+
+    pub(super) async fn drain_queued_for_event_unchecked(
+        &self,
+        dispatch_mode: DispatchMode,
+        event_type: &EventType,
+    ) -> Result<QueueDrainReport, EventingError> {
+        runner::drain_queued_matching_unchecked(self, dispatch_mode, Some(event_type)).await
+    }
+}

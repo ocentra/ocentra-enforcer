@@ -1,0 +1,229 @@
+=== cargo build --workspace ===
+Finished `dev` profile [unoptimized + debuginfo] target(s) -- clean, no errors.
+
+=== cargo test -p enforcer-lang-py -p enforcer-rules (__COMPAT_LAYER=RunAsInvoker) ===
+
+     Running unittests src\lib.rs (target\debug\deps\enforcer_lang_py-*.exe)
+
+running 4 tests
+test line_marker::tests::line_starts_with_guard_requires_leading_position ... ok
+test line_marker::tests::not_in_comment_or_string_guard_ignores_comment_mentions ... ok
+test line_marker::tests::trailing_comment_guard_ignores_prose_mid_statement ... ok
+test registry_coverage::every_python_rule_id_has_a_registered_validator ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\fastapi_layered_detection.rs (target\debug\deps\fastapi_layered_detection-*.exe)
+
+running 3 tests
+test family_covers_exactly_fourteen_rules ... ok
+test every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass ... ok
+test hardened_rules_catch_realistic_evasions ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\fastapi_layered_parity.rs (target\debug\deps\fastapi_layered_parity-*.exe)
+
+running 4 tests
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test every_fastapi_layered_rule_passes_the_d01_five_way_parity_sweep ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\fixture_parity.rs (target\debug\deps\fixture_parity-*.exe)
+
+running 2 tests
+test harness_catches_a_validator_that_never_fires ... ok
+test every_registered_validator_proves_fail_and_pass_fixtures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running unittests src\lib.rs (target\debug\deps\enforcer_rules-*.exe)
+
+running 23 tests
+test loader::tests::parses_a_well_formed_catalog ... ok
+test loader::tests::rejects_duplicate_ids_across_the_same_file ... ok
+test registry::tests::loads_well_formed_records ... ok
+test registry::tests::rejects_empty_doc_anchor ... ok
+test registry::tests::rejects_malformed_fixture_ref ... ok
+test registry::tests::rejects_malformed_validator_ref ... ok
+test loader::tests::rejects_malformed_json ... ok
+test registry::tests::empty_registry_reports_empty ... ok
+test rules::plan::tests::every_plan_record_has_full_5_way_linkage ... ok
+test registry::tests::rejects_duplicate_rule_ids ... ok
+test loader::tests::missing_file_fails_closed ... ok
+test rules::plan::tests::plan_records_load_into_a_registry_without_collision ... ok
+test version_drift::tests::content_change_with_matching_version_bump_is_clean ... ok
+test version_drift::tests::content_change_without_version_bump_fails_closed ... ok
+test version_drift::tests::cosmetic_only_changes_do_not_count_as_content_drift ... ok
+test version_drift::tests::identical_records_are_unchanged ... ok
+test rules::plan::tests::every_plan_record_fixture_path_exists_on_disk ... ok
+test version_drift::tests::mismatched_rule_ids_are_not_comparable ... ok
+test version_drift::tests::validator_change_without_version_bump_fails_closed ... ok
+test version_drift::tests::version_bump_without_content_change_fails_closed ... ok
+test version_drift::tests::version_decrease_with_content_change_fails_closed ... ok
+test loader::tests::loads_registry_from_disk_files ... ok
+test loader::tests::duplicate_across_two_files_fails_closed ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\fsm_registry.rs (target\debug\deps\fsm_registry-*.exe)
+
+running 5 tests
+test fsm_catalog_loads_into_registry_with_no_duplicates ... ok
+test fsm_catalog_has_no_t3_rules ... ok
+test fsm_tier_split_matches_workpack_six_t1_four_t2 ... ok
+test fsm_catalog_loads_ten_records ... ok
+test every_fsm_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\registry_load.rs (target\debug\deps\registry_load-*.exe)
+
+running 12 tests
+test malformed_record_is_rejected ... ok
+test a_renamed_posture_record_id_fails_closed ... ok
+test a_missing_posture_record_fails_closed ... ok
+test duplicate_rule_id_across_catalogs_is_rejected ... ok
+test deny_wall_record_loads_and_resolves ... ok
+test seeded_version_drift_fails_closed_on_content_change_without_bump ... ok
+test legitimate_version_bump_matching_content_change_is_clean ... ok
+test baseline_catalogs_load_into_one_registry ... ok
+test no_reexports_record_loads_and_is_linked_to_lang_rust_validator ... ok
+test ocentra_parent_posture_yields_all_four_expected_records ... ok
+test deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator ... ok
+test seeded_version_drift_fails_closed_on_hollow_version_bump ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\size_shape_registry.rs (target\debug\deps\size_shape_registry-*.exe)
+
+running 5 tests
+test every_size_shape_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test size_shape_catalog_has_no_t3_rules ... ok
+test size_shape_tier_split_matches_workpack_six_t1_three_t2 ... ok
+test size_shape_catalog_loads_into_registry_with_no_duplicates ... ok
+test size_shape_catalog_loads_nine_records ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+   Doc-tests enforcer_lang_py
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+   Doc-tests enforcer_rules
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+=== Named proof rows (TEST_PROOF_EXPECTATIONS.md, Track E, e-pack-python) ===
+- python-fastapi-layered-detection -> tests/fastapi_layered_detection.rs::
+                                       every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass
+                                       (all 14 py-fastapi-* validators fire on their fail fixture and
+                                       stay silent on their pass fixture, via the arc-05
+                                       run_fixture_parity harness; symbol-level rules are guarded to
+                                       actual import/call/annotation shapes so a pass fixture's prose
+                                       comment mentioning "Repository"/"password" never trips the
+                                       check)
+                                       tests/fastapi_layered_detection.rs::family_covers_exactly_fourteen_rules
+                                       (registers exactly 14 validators: PYFA-1.1 .. PYFA-11.1 layering/
+                                       DI + PYFA-12.1 .. PYFA-12.3 security)
+                                       tests/fastapi_layered_detection.rs::hardened_rules_catch_realistic_evasions
+                                       (the four rules whose detection was broadened beyond a single
+                                       literal marker -- PYFA-4.1 non-`app` / relative `models` import,
+                                       PYFA-10.1 `requests.delete` and other omitted verbs, PYFA-12.2
+                                       `random.randrange` and other omitted fns, PYFA-12.3 whitespace
+                                       around a wildcard CORS origin -- each fires on a realistic
+                                       evasion the old narrow check MISSED, while its canonical pass
+                                       fixture stays clean under the broadened validator; fail-variant
+                                       fixtures under `<rule>/fail-variant/`)
+- python-fastapi-family-parity     -> tests/fastapi_layered_parity.rs::
+                                       every_fastapi_layered_rule_passes_the_d01_five_way_parity_sweep
+                                       (every py-fastapi-* ruleId in
+                                       crates/enforcer-rules/rules/fastapi-layered.json resolves to a
+                                       validator export + a resolvable doc anchor + both fixtures,
+                                       proven via enforcer_mechanization::parity::ParityOracle, the
+                                       same d01 oracle d16/d22 already prove against)
+                                       tests/fastapi_layered_parity.rs::seeded_missing_validator_fails_the_sweep_closed
+                                       (empty lookup gaps out all 14 records -- fails closed, not open)
+                                       tests/fastapi_layered_parity.rs::seeded_dangling_doc_anchor_fails_the_sweep_closed
+                                       tests/fastapi_layered_parity.rs::seeded_missing_fail_fixture_fails_the_sweep_closed
+                                       (seeded doc-anchor / fixture gaps are caught, not silently
+                                       accepted)
+
+=== d16/d22 consumption (not re-implemented) ===
+- StrEnum-only + enum-discipline is consumed read-only from FSM-ENUMLOC.1
+  (crates/enforcer-lang-common/src/rules/fsm.rs::EnumLocationStrEnumOnlyValidator),
+  already registered against crates/enforcer-rules/rules/fsm.json with
+  legacyIds ["py.enum.strenum-only", "py-fastapi-enum-location"]. No new
+  record minted here.
+- Nesting-depth / catch-all-utils caps are consumed read-only from d22's
+  SIZE-NEST-1.1 (crates/enforcer-lang-common/src/rules/size_shape.rs),
+  registered against crates/enforcer-rules/rules/size-shape.json with
+  legacyIds ["py-fastapi-package-nesting-depth"]. No new record minted
+  here.
+
+=== cargo fmt -p enforcer-lang-py -p enforcer-rules --check ===
+(no output = clean)
+
+=== cargo clippy -p enforcer-lang-py -p enforcer-rules --all-targets -- -D warnings ===
+(clean; only pre-existing ts-rs serde-attribute-parse warnings from enforcer-domain, unrelated to
+this pack's own code -- same pre-existing warning class noted in proof/rules/e01-literal-scan.txt)
+
+=== MEASURED counts ===
+- 14 new Validator structs in crates/enforcer-lang-py/src/rules/fastapi_layered.rs
+  (PYFA-1.1, PYFA-2.1, PYFA-3.1, PYFA-4.1, PYFA-5.1, PYFA-6.1, PYFA-7.1,
+  PYFA-8.1, PYFA-9.1, PYFA-10.1, PYFA-11.1, PYFA-12.1, PYFA-12.2, PYFA-12.3)
+- 14 new RuleRecords in crates/enforcer-rules/rules/fastapi-layered.json
+  (disjoint from the 61-count language==python catalog and from the
+  249-count lang-common families registry)
+- 32 fixture files under crates/enforcer-lang-py/tests/fixtures/fastapi_layered/**
+  (14 canonical fail + 14 canonical pass + 4 hardening fail-variant fixtures
+  for PYFA-4.1 / PYFA-10.1 / PYFA-12.2 / PYFA-12.3)
+- 2 test files: tests/fastapi_layered_detection.rs (3 tests, incl. the new
+  hardened_rules_catch_realistic_evasions), tests/fastapi_layered_parity.rs
+  (4 tests)
+- Existing enforcer-lang-py 61-count registry-coverage test
+  (registry_coverage::every_python_rule_id_has_a_registered_validator)
+  untouched and still green -- this pack's ids do not appear in
+  rules/rules.json's language==python set.
+
+=== HARDENING PASS (2026-07-11) — missing rule BEHAVIOR filled in ===
+The 14 PYFA-* rules were already present and green; this pass closed
+false-negative gaps where a rule claimed to detect a class of anti-pattern
+but only matched one literal spelling, so realistic FastAPI code slipped
+through. No new rule ids, records, fixtures-in-catalog, or doc anchors were
+added (5-way parity unchanged); only Validator detection breadth and proof
+fixtures were extended, all within pack-owned paths.
+- PYFA-4.1 no-orm-models-in-services: was hardcoded to `from app.models`;
+  now flags any import whose module path has a whole `models` segment
+  (`from myproj.models`, `from ..models`, `from .models`, `import x.models`),
+  while `data_models` / `app.domain.order_dto` stay clean.
+- PYFA-10.1 no-sync-http: added the omitted verbs requests.patch/delete/head/
+  options/request and urllib.request.urlopen alongside get/post/put and the
+  sync httpx.Client.
+- PYFA-12.2 insecure-random-token: added random.randrange/getrandbits/sample/
+  uniform alongside choice/randint/random. (random.shuffle was deliberately
+  NOT added: it returns None / shuffles in place -- a weak token-minting
+  signal -- and the literal `random.shuffle(` contains the substring `.sh`,
+  which self-collides with the enforcer's own PORT-1.1 Linux `.sh` script
+  marker when it dogfoods this crate's source.)
+- PYFA-12.3 cors-wildcard: now whitespace-normalized and #-comment-aware, so
+  `allow_origins = [ "*" ]` is caught, not only the exact `allow_origins=["*"]`.
+
+=== KNOWN BLOCKER (honest disclosure — NOT owned by this pack) ===
+The 14 PYFA-* validators are reachable ONLY via their own cargo tests
+(detection + parity) and the fastapi-layered.json catalog; they are NOT wired
+into the runtime scan path. `enforcer-scan/src/engine.rs::build_family_validators`
+collects `enforcer_lang_py::all_validators()` (the 61 rules.json-backed PY-*
+validators), which by design (lib.rs:25-30) excludes rules::fastapi_layered.
+This is the IDENTICAL posture of sibling families d16 (fsm.json /
+enforcer_lang_common::rules::fsm) and d22 (size-shape.json /
+size_shape) — none of the "NEW-mechanism" JSON-catalog families are dispatched
+at runtime yet; the engine does not load JSON catalogs at all. Wiring these
+families into the scan engine is a shared concern owned by the Validator
+registration root (arc-08 crate skeleton) + the scan dispatcher (arc-14/f05),
+which this workpack is explicitly forbidden from touching. Reported, not
+fixed. No PYFA rule can block a real `enforcer scan`/`enforcer check` until
+that shared wiring lands.

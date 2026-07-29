@@ -1,0 +1,16 @@
+{
+  "tool": "otel-collector",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "events": [
+    {
+      "eventId": "checkout",
+      "moneyCritical": true,
+      "hasSecurityLog": false,
+      "correlationId": null,
+      "isSecurityEvent": false,
+      "sampledDropped": false
+    }
+  ]
+}

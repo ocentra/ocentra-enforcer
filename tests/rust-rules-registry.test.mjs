@@ -33,11 +33,25 @@ const SOURCE_SCAN_PATH = path.join(
   "scripts",
   "rust-rules-source-scan.mjs",
 );
-const CARGO_SCAN_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-cargo-scan.mjs",
-);
+const CARGO_SCANNER_PATHS = [
+  "rust-rules-cargo-manifest-discovery.mjs",
+  "rust-rules-cargo-manifest-dependencies.mjs",
+  "rust-rules-cargo-manifest-identity.mjs",
+  "rust-rules-cargo-manifest-package.mjs",
+  "rust-rules-cargo-manifest-line-validation.mjs",
+  "rust-rules-cargo-manifest-dependency-policy.mjs",
+  "rust-rules-cargo-manifest-path-dependencies.mjs",
+  "rust-rules-cargo-metadata.mjs",
+  "rust-rules-cargo-metadata-scope.mjs",
+  "rust-rules-cargo-metadata-dependencies.mjs",
+  "rust-rules-cargo-metadata-registry.mjs",
+  "rust-rules-cargo-command.mjs",
+  "rust-rules-cargo-gates.mjs",
+  "rust-rules-cargo-gates-build.mjs",
+  "rust-rules-cargo-gates-security.mjs",
+  "rust-rules-cargo-runner.mjs",
+].map((fileName) => path.join(PACK_ROOT, "scripts", fileName));
+const RULE_METADATA_PATH = path.join(PACK_ROOT, "src", "rule-metadata.mjs");
 
 function loadRegistry() {
   return decodeRuleRegistry(JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")));
@@ -50,7 +64,10 @@ function scannerRuleIds() {
     fs.readFileSync(PATH_CORE_PATH, "utf8"),
     fs.readFileSync(SCAN_ENGINE_PATH, "utf8"),
     fs.readFileSync(SOURCE_SCAN_PATH, "utf8"),
-    fs.readFileSync(CARGO_SCAN_PATH, "utf8"),
+    ...CARGO_SCANNER_PATHS.map((scannerPath) =>
+      fs.readFileSync(scannerPath, "utf8"),
+    ),
+    fs.readFileSync(RULE_METADATA_PATH, "utf8"),
   ].join("\n");
   return [
     ...new Set(
@@ -70,16 +87,17 @@ test("registry has the expected schema shape", () => {
     "typescript",
     "python",
     "common",
+    "iac",
   ]);
   assert.ok(Array.isArray(registry.rules));
 
   for (const rule of registry.rules) {
     assert.match(
       rule.id,
-      /^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|ARCH|BOUND|MCP|PROOF|SCAN|LIT)-[0-9]+\.[0-9]+$/u,
+      /^(RR|TS|PY|IAC|SEC|GEN|DOC|DOCENF|HAR|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|ARCH|BOUND|MCP|PROOF|SCAN|LIT)-[0-9]+\.[0-9]+$/u,
     );
     assert.ok(
-      ["rust", "typescript", "python", "common"].includes(rule.language),
+      ["rust", "typescript", "python", "common", "iac"].includes(rule.language),
     );
     assert.ok(
       [
@@ -107,6 +125,8 @@ test("registry has the expected schema shape", () => {
         "repo",
         "package",
         "scanner",
+        "infra-security",
+        "infra-toolchain",
       ].includes(rule.family),
     );
     assert.ok(["error", "warning", "info"].includes(rule.severity));
@@ -149,9 +169,14 @@ test("registry exactly covers enforced scanner rules", () => {
   );
 });
 
+test("registry rules stay deterministically sorted by ID", () => {
+  const ruleIds = loadRegistry().rules.map((rule) => rule.id);
+  assert.deepEqual(ruleIds, [...ruleIds].sort((left, right) => left.localeCompare(right)));
+});
+
 test("registry docs exist and stay inside implemented language docs", () => {
   for (const rule of loadRegistry().rules) {
-    assert.match(rule.doc, /^rules\/(?:rust|typescript|python|common)\//u);
+    assert.match(rule.doc, /^rules\/(?:rust|typescript|python|common|iac)\//u);
     const [docPath, anchor] = rule.doc.split("#");
     assert.equal(
       fs.existsSync(path.join(PACK_ROOT, docPath)),

@@ -1,0 +1,1 @@
+10.0.0.5 - - [04/Jul/2026:12:00:00 +0000] "GET /search?q=blue+widgets HTTP/1.1" 200 1024

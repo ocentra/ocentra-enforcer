@@ -1,0 +1,9 @@
+#!/bin/sh
+# Fixture for PORT-1.1: bash-only script, no unguarded platform-specific
+# markers present.
+echo "building"
+# Identifier and member substrings that begin like shell extensions are not paths.
+let digest = artifact.sha256;
+let should_emit = policy.should_emit;
+let command = process.cmdline;
+let batch_size = job.batch_size;

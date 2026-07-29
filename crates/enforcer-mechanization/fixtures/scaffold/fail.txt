@@ -1,0 +1,2 @@
+This fixture contains the literal marker SCAFFOLD_MARKER and MUST trip the
+sample oracle test's MarkerValidator.

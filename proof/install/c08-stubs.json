@@ -1,0 +1,71 @@
+{
+  "workpack": "c08",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P0 contract/schema (T3-labeled)",
+  "namedTests": [
+    "adapter-stub-contract"
+  ],
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets",
+    "cargo fmt -p enforcer-install -- --check"
+  ],
+  "result": {
+    "libTestsPassed": 143,
+    "libTestsFailed": 2,
+    "libTestsFailedAreOwnedByThisWorkpack": false,
+    "libTestsFailedDetail": "emitters::git_hooks::tests::each_flavor_writes_golden_bytes and emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes fail on this Windows checkout due to a pre-existing CRLF-vs-LF line-ending mismatch unrelated to c08; reproduced identically on origin/rust-build HEAD (edd5eb3) before any c08 change via `git stash`, confirming this is an environment artifact, not a regression introduced here.",
+    "integrationTestsPassed": 3,
+    "integrationTestsFailed": 0,
+    "integrationTestFile": "crates/enforcer-install/tests/adapter_stubs_fixtures.rs",
+    "libTestsAddedByThisWorkpack": 12,
+    "libTestsAddedBreakdown": "4 unit tests per stub x 3 stubs (gemini/cursor/zed): harness_key, plan zero-changes, apply zero-writes, verify single passing advisory check",
+    "libBaselineBeforeThisWorkpack": "131 passed + 2 pre-existing failed, measured on origin/rust-build HEAD (edd5eb3) before any c08 change via `git stash`",
+    "clippy": "clean (no warnings) for enforcer-install (remaining workspace warnings are pre-existing ts-rs serde-attribute parse notices, unrelated to c08)",
+    "fmt": "clean (no diff)",
+    "windowsDogfoodFinding": "Running the enforcer-install test binary directly (or via `cargo test -p enforcer-install`) failed with `The requested operation requires elevation. (os error 740)` on this Windows host -- a UAC installer-detection heuristic triggered by the substring \"install\" in the compiled test binary's filename (enforcer_install-*.exe). Fixed for this session by setting __COMPAT_LAYER=RunAsInvoker before invoking cargo test; no source change was needed or made. Flagged as a build/tooling note for whichever pack documents the Windows dev-loop, since any `-p enforcer-install` test run on Windows will hit this."
+  },
+  "seededViolationCases": [
+    {
+      "row": "adapter-stub-contract",
+      "case": "gemini/cursor/zed stubs conform to HarnessAdapter (plan/apply/verify all Ok, never panic)",
+      "test": "adapters::gemini::tests, adapters::cursor::tests, adapters::zed::tests (unit); adapter_stubs_fixtures::every_stub_conforms_to_the_harness_adapter_trait_and_writes_zero_files (integration, iterates all three)",
+      "fixture": "crates/enforcer-install/tests/fixtures/stubs/pristine/marker.txt",
+      "status": "PASS"
+    },
+    {
+      "row": "adapter-stub-contract",
+      "case": "apply on a stub writes zero files (before/after byte-identical snapshot of a temp-dir copy of the fixture)",
+      "test": "adapter_stubs_fixtures::every_stub_conforms_to_the_harness_adapter_trait_and_writes_zero_files; adapters::{gemini,cursor,zed}::tests::apply_writes_zero_files_against_a_temp_dir_fixture",
+      "status": "PASS"
+    },
+    {
+      "row": "adapter-stub-contract",
+      "case": "verify returns exactly one advisory (passed=true) check labeled 'deferred: no mechanization yet (T3)', never Error-severity",
+      "test": "adapters::{gemini,cursor,zed}::tests::verify_returns_a_single_passing_advisory_check; adapter_stubs_fixtures::every_stub_conforms_to_the_harness_adapter_trait_and_writes_zero_files",
+      "status": "PASS"
+    },
+    {
+      "row": "adapter-stub-contract",
+      "case": "each stub's harness key (gemini/cursor/zed) resolves through the adapter registry via --only narrowing, no panic",
+      "test": "adapter_stubs_fixtures::each_stub_harness_key_resolves_through_the_adapter_registry",
+      "status": "PASS"
+    },
+    {
+      "row": "adapter-stub-contract",
+      "case": "an unregistered harness id is a typed error, not a silent skip (registry-miss case)",
+      "test": "adapter_stubs_fixtures::an_unregistered_harness_key_is_a_typed_error_not_a_silent_skip",
+      "status": "PASS"
+    }
+  ],
+  "deviations": [
+    {
+      "topic": "no AdapterId newtype / separate registry module exists yet",
+      "detail": "The workpack's prose refers to 'the arc-23 Adapter registry' resolving stubs 'by id' via 'a typed AdapterId newtype (from enforcer-domain, arc-02)'. No such newtype or dedicated registry module exists in this checkout (edd5eb3) -- registration today is: implement crate::core::HarnessAdapter, and the caller builds its own `Vec<&dyn HarnessAdapter>` (see crate::core::select_adapters, crate::core::install/uninstall/doctor). c08 followed the existing, real pattern (identical to c03/c06/c07): harness_key() returns the static str id (\"gemini\"/\"cursor\"/\"zed\"), and adapters/mod.rs gained exactly the three `pub mod` lines this workpack owns. Registry-miss / unknown-id proof is covered via crate::core::select_adapters's existing InstallError::UnknownAdapter typed-error path (see an_unregistered_harness_key_is_a_typed_error_not_a_silent_skip), which is the real mechanism this codebase uses for 'registry miss -> fails'. If/when arc-02's AdapterId newtype and a dedicated registry module land, these three stubs' harness_key() strings are the values that would populate it -- no interface change needed on this module's side."
+    },
+    {
+      "topic": "Status::Deferred / Tier::T3 types do not exist; modeled via existing VerifyCheck shape",
+      "detail": "crate::report::VerifyCheck has only { harness, name, passed, detail } -- there is no Status or Tier enum anywhere in the workspace. 'Status::Deferred' + 'Tier::T3-labeled, not Error-severity' from the workpack prose is realized as: plan() returns zero planned_changes plus a warnings entry stating the deferred reason; verify() returns exactly one VerifyCheck with passed: true (advisory, never flips a doctor exit code) and detail == \"deferred: no mechanization yet (T3)\" (the literal T3 tag lives in the string, matching how crate::report::run_skill_asset_checks and other existing checks report state today -- string-carried detail, not a typed enum). If a real Status/Tier enum lands later, this is the one place per stub that would need updating."
+    }
+  ]
+}

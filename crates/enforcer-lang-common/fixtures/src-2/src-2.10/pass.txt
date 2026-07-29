@@ -1,0 +1,5 @@
+// Fixture for SRC-2.10: Placeholder implementation markers are forbidden
+// Clean source — no occurrence of the SRC-2.10 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

@@ -1,0 +1,7 @@
+version = 1
+revision = 1
+
+[[package]]
+name = "fixture-python-only"
+version = "0.1.0"
+source = { editable = "." }

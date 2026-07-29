@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.3: Boundary modules cannot contain domain decisions
+// Clean source — no occurrence of the BOUND-1.3 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

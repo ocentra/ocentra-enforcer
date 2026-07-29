@@ -1,0 +1,18 @@
+
+running 8 tests
+test dispatch::tests::sequential_runs_every_handler_despite_a_panic ... ok
+test envelope::tests::envelope_round_trips ... ok
+test envelope::tests::event_kind_mismatch_is_rejected_on_decode ... ok
+test envelope::tests::wire_casing_is_camel_case ... ok
+test envelope::tests::version_drifted_envelope_is_rejected_on_decode ... ok
+test event::tests::domain_event_reports_stable_kind ... ok
+test envelope::tests::digest_drifted_envelope_is_rejected_on_decode ... ok
+test dispatch::tests::concurrent_runs_every_handler_despite_a_panic_and_preserves_order ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

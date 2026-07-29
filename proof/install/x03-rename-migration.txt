@@ -1,0 +1,112 @@
+=== x03 rename-migration proof ===
+
+Scope: one-time TRANSITIONAL migration of already-installed `ocentra-enforcer`
+harness registrations + legacy `rust_rules_*`/`ocentra_enforcer_*` tool-name
+references to `enforcer` (mcp__enforcer__*), and retirement of the legacy
+`skills/rust-rules-hard-gate/` skill dir. Owns
+`crates/enforcer-install/src/migrate_legacy_name.rs` +
+`crates/enforcer-install/tests/fixtures/migrate_legacy_name/**` only.
+
+=== cargo test -p enforcer-install --lib migrate_legacy_name (named rows: rename-migration-contract, legacy-skill-retired) ===
+
+running 11 tests
+test migrate_legacy_name::tests::a_clean_config_with_no_legacy_entry_is_already_a_noop ... ok
+test migrate_legacy_name::tests::fail_fixture_legacy_config_present_is_detected_by_scan ... ok
+test migrate_legacy_name::tests::fail_fixture_unmigrated_config_still_contains_legacy_key_verbatim ... ok
+test migrate_legacy_name::tests::legacy_skill_dir_retirement_is_idempotent ... ok
+test migrate_legacy_name::tests::legacy_skill_retired ... ok
+test migrate_legacy_name::tests::malformed_config_yields_a_typed_error_not_a_silent_skip ... ok
+test migrate_legacy_name::tests::migration_outcome_round_trips_through_json ... ok
+test migrate_legacy_name::tests::missing_config_file_is_a_noop_not_an_error ... ok
+test migrate_legacy_name::tests::pass_fixture_claude_migrate_rewrites_legacy_entry_to_enforcer ... ok
+test migrate_legacy_name::tests::pass_fixture_codex_migrate_rewrites_toml_and_agents_md ... ok
+test migrate_legacy_name::tests::rename_migration_contract ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.04s
+
+=== seeded-violation cases ===
+
+- fail (migrate-legacy-config-present): a harness config still carrying the
+  old `ocentra-enforcer` server entry after migrate ran -> re-scan finds the
+  old entry.
+  Test: fail_fixture_legacy_config_present_is_detected_by_scan,
+  fail_fixture_unmigrated_config_still_contains_legacy_key_verbatim.
+  Fixture: tests/fixtures/migrate_legacy_name/claude_legacy_present/.claude.json
+  (mcpServers.ocentra-enforcer present alongside an unrelated
+  codebase-memory-mcp entry + an unrelated top-level key).
+  Result: PASS (scan() detects LegacyServerRegistration finding; raw file
+  contains the literal `ocentra-enforcer` key pre-migration).
+
+- pass (migrate-legacy-config-rewritten): migrate detects the legacy entry +
+  legacy `rust_rules_*`/`ocentra_enforcer_*` tool names, rewrites the
+  registration to `enforcer` (mcp__enforcer__*), emits one one-time notice,
+  is idempotent on re-run, and a post-migration re-scan finds zero
+  `ocentra-enforcer` entries.
+  Test: pass_fixture_claude_migrate_rewrites_legacy_entry_to_enforcer,
+  pass_fixture_codex_migrate_rewrites_toml_and_agents_md.
+  Fixtures: tests/fixtures/migrate_legacy_name/claude_legacy_present/.claude.json
+  (JSON mcpServers), tests/fixtures/migrate_legacy_name/codex_legacy_present/
+  {config.toml,AGENTS.md} (TOML mcp_servers table + the transitional
+  `<!-- ocentra-enforcer:start/end -->` AGENTS.md managed block carrying
+  `rust_rules_check`/`rust_rules_run` literals).
+  Result: PASS -- both fixtures rewrite to `mcpServers.enforcer` /
+  `[mcp_servers.enforcer]`, AGENTS.md literals become
+  `mcp__enforcer__check`/`mcp__enforcer__run`, every unrelated key/table/
+  prose line survives byte-identically, and the post-migration scan() call
+  returns zero findings for both.
+
+- detection test (rename-migration-contract): asserts detection of the
+  legacy entry + legacy tool names, the rewrite to `enforcer`, the single
+  one-time notice, idempotent re-run (second run = zero file changes),
+  a byte-for-byte-preserved timestamped backup, and the
+  zero-lingering-`ocentra` post-scan; malformed config yields a typed error,
+  not a silent skip.
+  Test: rename_migration_contract, malformed_config_yields_a_typed_error_not_a_silent_skip.
+  Result: PASS -- first migrate() call rewrites + emits exactly the
+  MIGRATION_NOTICE constant; the timestamped backup
+  (`<path>.enforcer-bak.<unix-nanos>`) is byte-identical to the
+  pre-migration file; a second migrate() call on the same target is a
+  no-op (`MigrationOutcome::is_noop() == true`, zero notice, zero
+  rewritten files) and leaves the file byte-identical to the first run's
+  output; final scan() is empty. A malformed `.claude.json` (`{ not valid
+  json`) yields `InstallError::MalformedConfig` from both scan() and
+  migrate() -- never a silent skip.
+
+- legacy-skill-retirement test (legacy-skill-retired): assert that after
+  migration the legacy `skills/rust-rules-hard-gate/` dir (incl.
+  `agents/openai.yaml`) is gone and a repo/asset scan finds zero
+  `rust-rules-hard-gate` skill/descriptor residue, while the canonical
+  `enforcer` skill remains.
+  Test: legacy_skill_retired, legacy_skill_dir_retirement_is_idempotent.
+  Result: PASS -- migrate(&[], Some(&skill_dir)) removes the temp-fixture
+  skill dir (SKILL.md + agents/openai.yaml), reports it via
+  `retired_skill_dir` + a Finding, and a second call is a no-op (dir
+  already gone, not an error). The REAL repo `skills/rust-rules-hard-gate/`
+  dir (previously containing SKILL.md + agents/openai.yaml) was deleted as
+  part of this workpack's landing; `skills/enforcer-onboarding` and
+  `skills/ocentra-enforcer` (the canonical skills, owned by x02/other
+  packs) remain untouched.
+  Post-landing repo scan: `find . -iname '*rust-rules-hard-gate*'`
+  (excluding target/ and docs/ prose, which are out of this workpack's
+  owns: scope) returns zero matches.
+
+=== cargo clippy -p enforcer-install --all-targets -- -D warnings ===
+(clippy exit code: 0 -- clean, no warnings on the owned file)
+
+=== cargo fmt -p enforcer-install --check ===
+(fmt exit code: 0 -- clean, no diff)
+
+=== full-crate regression check: cargo test -p enforcer-install ===
+245 passed, 2 failed (pre-existing, unrelated to this workpack --
+emitters::git_hooks::tests::each_flavor_writes_golden_bytes and
+emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes
+fail on a CRLF-vs-LF byte mismatch under this Windows worktree's git
+checkout line-ending config; confirmed present on a clean stash of this
+lane's changes too -- pre-existing, not touched by
+migrate_legacy_name.rs, out of this workpack's owns: scope).
+
+=== dogfood note ===
+Windows `cargo test`/`cargo clippy` invocations in this worktree required
+`__COMPAT_LAYER=RunAsInvoker` to avoid a spurious "requested operation
+requires elevation" (os error 740) on the freshly built test/clippy exe --
+set for every command in this proof run, per protocol L29.

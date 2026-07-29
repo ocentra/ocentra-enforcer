@@ -1,0 +1,5 @@
+// Fixture for ENF-1.7: Rule metadata must not drift
+// Clean source — no occurrence of the ENF-1.7 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

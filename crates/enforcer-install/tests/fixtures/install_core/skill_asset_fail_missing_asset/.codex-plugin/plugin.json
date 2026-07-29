@@ -1,0 +1,5 @@
+{
+  "name": "ocentra-enforcer",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

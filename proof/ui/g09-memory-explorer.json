@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "status": "pass",
+  "proof": "memory-explorer-seeded-kg-rag",
+  "commands": [
+    "desktop_status",
+    "load_workpack_index",
+    "load_engine_capabilities",
+    "load_desktop_rule_catalog",
+    "load_desktop_projects",
+    "inspect_project",
+    "load_scan_targets",
+    "load_project_rule_coverage",
+    "load_cached_scan",
+    "load_desktop_scan_history",
+    "memory_index_status",
+    "load_project_settings",
+    "load_scan_scope_settings",
+    "load_graph",
+    "load_memory_summary",
+    "load_graph_source_snippet",
+    "search_memory_graph",
+    "load_graph_source_snippet",
+    "load_graph",
+    "load_graph_source_snippet"
+  ],
+  "assertions": [
+    "opened memory view",
+    "ran graph search intent",
+    "opened focused graph result",
+    "rendered RAG explanation",
+    "rendered learning evidence",
+    "rendered model health",
+    "rendered parity rows"
+  ]
+}

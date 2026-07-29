@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.5: TypeScript strict mode must use compiler or ESLint JSON
+// Clean source — no occurrence of the SCAN-2.5 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

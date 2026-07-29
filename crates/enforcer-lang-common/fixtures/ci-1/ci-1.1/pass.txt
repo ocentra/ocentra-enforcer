@@ -1,0 +1,5 @@
+// Fixture for CI-1.1: CI must use npm ci
+// Clean source — no occurrence of the CI-1.1 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

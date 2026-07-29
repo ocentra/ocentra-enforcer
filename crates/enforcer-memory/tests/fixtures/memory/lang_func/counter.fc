@@ -1,0 +1,10 @@
+int add(int a, int b) {
+    return a + b;
+}
+
+() main() impure {
+    int x = add(1, 2);
+    if (x > 0) {
+        x~dump();
+    }
+}

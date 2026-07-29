@@ -1,0 +1,49 @@
+[package]
+name = "enforcer-cli"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.82"
+license.workspace = true
+repository.workspace = true
+description = "The `enforcer` binary (arc-22): the clap CLI that is ALSO the MCP stdio server behind `serve`. One distributed artifact = CLI + MCP, first-class either way. Tri-modal scope grammar (<paths...> | --base/--head | --all), exit-code-driven verdicts (internal-error vs violation exit classes never conflated), terse `Fix:` hints, NO override/bypass flag -- the only exemption is a declarative, committed, gated waiver read from enforcer-config. `lite`/`full` Cargo feature split from ONE source tree: `full` (default) pulls in coordination + ui; `lite` excludes both at compile time for a smaller headless-CI binary."
+publish = false
+
+[[bin]]
+name = "enforcer"
+path = "src/main.rs"
+
+[features]
+default = ["full"]
+full = ["enforcer-coordination", "enforcer-mcp", "enforcer-memory", "enforcer-ui"]
+lite = []
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: CLI argument parsing and JSON report rendering at the command boundary.
+clap = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Core policy, typed values, configuration, and scan execution used by every CLI command.
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: the first-class install command delegates native harness registration and verification to the installer core.
+enforcer-install = { path = "../enforcer-install", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: CLI adapters delegate MCP, proof, planning, and literal-risk work to their typed crates.
+enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0", optional = true }
+# DEPENDENCY-JUSTIFICATION: Full CLI builds expose the enforcer-memory tool mirror through the existing output boundary; lite remains headless and memory-free.
+enforcer-memory = { path = "../enforcer-memory", version = "0.1.0", optional = true }
+enforcer-proof = { path = "../enforcer-proof", version = "0.1.0" }
+enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Optional language routing, coordination, and human UI surfaces share this binary.
+enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }
+enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0", optional = true }
+enforcer-ui = { path = "../enforcer-ui", version = "0.1.0", optional = true }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Black-box CLI tests need isolated repositories and process assertions.
+tempfile = "3.27.0"
+assert_cmd = "2.2.2"
+
+[lints]
+workspace = true

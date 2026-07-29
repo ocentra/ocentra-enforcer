@@ -1,0 +1,156 @@
+[
+  {
+    "name": "nginx_sslv3_bare",
+    "input": "ssl_protocols SSLv3 TLSv1.2 TLSv1.3;",
+    "expect": "flag",
+    "branch": "SSLv3",
+    "reason": "SSLv3 enabled alongside modern versions"
+  },
+  {
+    "name": "apache_all_legacy_hardened_disable",
+    "input": "SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1",
+    "expect": "clean",
+    "branch": "explicit-disable",
+    "reason": "all legacy protocols explicitly disabled with a '-' prefix (hardening), not an enable"
+  },
+  {
+    "name": "python_sslv23_near_miss",
+    "input": "ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)",
+    "expect": "clean",
+    "branch": "SSLv2-near-miss",
+    "reason": "PROTOCOL_SSLv23 is a compat negotiate-best method name, not the literal SSLv2 token (trailing '3' blocks the match)"
+  },
+  {
+    "name": "nginx_tlsv1_bare_enable",
+    "input": "ssl_protocols TLSv1 TLSv1.2;",
+    "expect": "flag",
+    "branch": "TLSv1",
+    "reason": "bare TLSv1 (1.0) token enabled"
+  },
+  {
+    "name": "python_protocol_tlsv1",
+    "input": "context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)",
+    "expect": "flag",
+    "branch": "TLSv1",
+    "reason": "PROTOCOL_TLSv1 constructor requests legacy TLS 1.0"
+  },
+  {
+    "name": "js_minversion_tlsv1",
+    "input": "const opts = { minVersion: \"TLSv1\" };",
+    "expect": "flag",
+    "branch": "TLSv1",
+    "reason": "minVersion pinned to legacy TLSv1 (1.0)"
+  },
+  {
+    "name": "node_tlsv1_method",
+    "input": "const opts = { secureProtocol: 'TLSv1_method' };",
+    "expect": "flag",
+    "branch": "TLSv1",
+    "reason": "deprecated Node secureProtocol constant for TLS 1.0"
+  },
+  {
+    "name": "apache_tlsv1_disabled",
+    "input": "SSLProtocol all -TLSv1",
+    "expect": "clean",
+    "branch": "explicit-disable",
+    "reason": "TLSv1 explicitly disabled via '-' prefix"
+  },
+  {
+    "name": "tlsv1_clean_near_miss_dot12",
+    "input": "ssl_protocols TLSv1.2;",
+    "expect": "clean",
+    "branch": "TLSv1-near-miss",
+    "reason": "TLSv1.2 must not match the bare TLSv1 (1.0) pattern"
+  },
+  {
+    "name": "tlsv1_clean_near_miss_underscore2_method",
+    "input": "const opts = { secureProtocol: 'TLSv1_2_method' };",
+    "expect": "clean",
+    "branch": "TLSv1-near-miss",
+    "reason": "TLSv1_2_method is modern TLS 1.2, not the legacy TLSv1_method constant"
+  },
+  {
+    "name": "nginx_tlsv1_1_dot_enable",
+    "input": "ssl_protocols TLSv1.1 TLSv1.2;",
+    "expect": "flag",
+    "branch": "TLSv1.1",
+    "reason": "TLSv1.1 explicitly enabled"
+  },
+  {
+    "name": "python_protocol_tlsv1_1_underscore",
+    "input": "ctx2 = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)",
+    "expect": "flag",
+    "branch": "TLSv1.1",
+    "reason": "PROTOCOL_TLSv1_1 constructor requests legacy TLS 1.1"
+  },
+  {
+    "name": "node_tlsv1_1_method",
+    "input": "const opts = { secureProtocol: 'TLSv1_1_method' };",
+    "expect": "flag",
+    "branch": "TLSv1.1",
+    "reason": "deprecated Node secureProtocol constant for TLS 1.1"
+  },
+  {
+    "name": "apache_tlsv1_1_disabled",
+    "input": "SSLProtocol all -TLSv1.1",
+    "expect": "clean",
+    "branch": "explicit-disable",
+    "reason": "TLSv1.1 explicitly disabled via '-' prefix"
+  },
+  {
+    "name": "tlsv1_1_clean_near_miss_underscore2",
+    "input": "ctx.minimum_version = ssl.TLSVersion.TLSv1_2",
+    "expect": "clean",
+    "branch": "TLSv1.1-near-miss",
+    "reason": "TLSv1_2 must not match the TLSv1_1 underscore pattern"
+  },
+  {
+    "name": "java_sslv3_getinstance",
+    "input": "SSLContext.getInstance(\"SSLv3\");",
+    "expect": "flag",
+    "branch": "SSLv3",
+    "reason": "Java SSLContext requested with the legacy SSLv3 name"
+  },
+  {
+    "name": "modern_tlsv12_only",
+    "input": "ssl_protocols TLSv1.2 TLSv1.3;",
+    "expect": "clean",
+    "branch": "modern-clean",
+    "reason": "only modern TLS 1.2/1.3 tokens present"
+  },
+  {
+    "name": "modern_java_tlsv13",
+    "input": "SSLContext.getInstance(\"TLSv1.3\");",
+    "expect": "clean",
+    "branch": "modern-clean",
+    "reason": "modern TLSv1.3 requested"
+  },
+  {
+    "name": "combined_multi_legacy_hit",
+    "input": "ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;",
+    "expect": "flag",
+    "branch": "combined",
+    "reason": "line carries SSLv3 + TLSv1 + TLSv1.1 simultaneously alongside modern versions"
+  },
+  {
+    "name": "benign_unrelated_config",
+    "input": "server_name example.com;",
+    "expect": "clean",
+    "branch": "unrelated",
+    "reason": "no TLS/SSL version token present"
+  },
+  {
+    "name": "explicit_tlsv1_0_dot",
+    "input": "SSLContext.getInstance(\"TLSv1.0\");",
+    "expect": "flag",
+    "branch": "TLSv1.0",
+    "reason": "explicit dotted TLSv1.0 literal is legacy"
+  },
+  {
+    "name": "sslv2_bare_enable",
+    "input": "legacy_ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv2)",
+    "expect": "flag",
+    "branch": "SSLv2",
+    "reason": "PROTOCOL_SSLv2 constructor requests legacy SSLv2"
+  }
+]

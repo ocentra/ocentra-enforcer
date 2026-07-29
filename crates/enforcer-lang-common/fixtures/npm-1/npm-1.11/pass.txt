@@ -1,0 +1,5 @@
+// Fixture for NPM-1.11: Suspicious dependency names are forbidden
+// Clean source — no occurrence of the NPM-1.11 marker below.
+fn clean_example() {
+    // conformant with package-determinism
+}

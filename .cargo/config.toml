@@ -1,0 +1,14 @@
+# Workspace-level cargo configuration.
+# Owned by a01 (docs/plans/enforcer-selfhost-plan/workpacks/a01-cargo-workspace-and-toolchain.md).
+# Intentionally minimal: no custom registries/build overrides are needed yet.
+# Add target-specific build flags or registry mirrors here as later workpacks require them.
+
+[term]
+progress.when = "auto"
+
+# `libgit2-sys` omits advapi32 even though its bundled libgit2 uses Windows
+# SID, registry, and cryptographic context APIs from that system library.
+# Centralizing the deterministic target link here avoids unsafe Rust and a
+# crate-local build script.
+[target.'cfg(windows)']
+rustflags = ["-l", "advapi32"]

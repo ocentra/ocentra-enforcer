@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-federation",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-federation",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "federation_roundtrip::exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed",
+      "federation_roundtrip::personal_bundle_export_import_roundtrips_exactly",
+      "federation_roundtrip::tampering_the_signature_bytes_is_rejected_with_a_recorded_reason",
+      "federation_roundtrip::tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure",
+      "federation_roundtrip::imported_content_stays_inactive_until_a_local_landing_activates_it",
+      "federation_roundtrip::community_redaction_matches_the_committed_golden_fixture_byte_exact",
+      "federation_roundtrip::code_graph_artifact_export_then_bootstrap_import_reconstructs_identical_counts"
+    ]
+  },
+  "hardRequirements": {
+    "exactArtifactRetrieval": "covered",
+    "zeroTrustImport": "covered",
+    "signatureAndChecksumRejection": "covered",
+    "inactiveImportUntilLocalLanding": "covered",
+    "communityRedactionGolden": "covered",
+    "graphArtifactBootstrap": "covered"
+  }
+}

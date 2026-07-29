@@ -1,0 +1,4 @@
+enum WidgetState {
+  Active,
+  Inactive,
+}

@@ -5,14 +5,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { spawnCli } from "./cli-spawn.mjs";
+import { isIgnoredPath } from "../src/path-utils.mjs";
+import { DEFAULT_CONFIG } from "../src/rule-metadata.mjs";
+import { collectWaiverPolicyFindings } from "../src/check-policy.mjs";
+import { collectCiIntegrityFindings } from "../src/check-governance.mjs";
+import { policyTraversalEntries } from "../scripts/check-source-core-helpers.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const POLICY_CLI_TIMEOUT_MS = 20_000;
+const FIXED_WAIVER_NOW = new Date("2030-01-15T12:00:00.000Z");
 const assemble = (...parts) => parts.join("");
 const validatorNetworkSource = assemble(
   "export async function scan() { return fe",
   'tch("https://example.com"); }\n',
 );
+
+function utcDateDaysAfter(date, days) {
+  const shifted = new Date(date.getTime());
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
 
 function makeProject(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-policy-"));
@@ -24,9 +37,32 @@ function makeProject(files) {
   return dir;
 }
 
-function run(project, args) {
+function makeVerifyProject() {
+  return makeProject({
+    ".github/CODEOWNERS": `
+rules/** @team/enforcer
+scripts/** @team/enforcer
+src/** @team/enforcer
+mcp/** @team/enforcer
+schemas/** @team/enforcer
+profiles/** @team/enforcer
+adapters/** @team/enforcer
+.github/workflows/** @team/enforcer
+`,
+    "LICENSE": "MIT License\n",
+    "SECURITY.md": "Report a security vulnerability privately.\n",
+    "CONTRIBUTING.md": "Keep every rule, validator, fixture, registry, and schema synchronized.\n",
+    "CHANGELOG.md": "# Enforcer changes\n",
+    "docs/RELEASE_POLICY.md": "Signed release tags are required before publish.\n",
+    "src/index.mjs": "export const ready = true;\n",
+  });
+}
+
+function run(project, args, options = {}) {
   return spawnCli(process.execPath, [SCRIPT, ...args, "--root", project], {
     encoding: "utf8",
+    timeout: POLICY_CLI_TIMEOUT_MS,
+    ...options,
   });
 }
 
@@ -165,6 +201,33 @@ test("waiver policy rejects expired, broad, AI-owned, and immutable waivers", ()
   assert.equal(ids.has("WAIVER-1.10"), true);
 });
 
+test("waiver expiry validation uses an injected UTC clock", () => {
+  const project = makeProject({ "src/api.ts": "export const ready = true;\n" });
+  const waiver = {
+    ruleId: "DOC-1.1",
+    waiverId: "WAIVER-CLOCK-1",
+    owner: "platform-team",
+    issue: "OCEN-125",
+    reason: "bounded documentation rollout",
+    scope: ["src/api.ts"],
+    expires: "2030-02-01",
+    remediation: "Document the API before expiry.",
+    ciAllowed: true,
+    visible: true,
+  };
+  const config = { waivers: [waiver], maxWaiverDays: 90 };
+
+  const validIds = new Set(collectWaiverPolicyFindings(project, config, {
+    now: FIXED_WAIVER_NOW,
+  }).map((finding) => finding.ruleId));
+  const expiredIds = new Set(collectWaiverPolicyFindings(project, config, {
+    now: new Date("2030-02-02T00:00:00.000Z"),
+  }).map((finding) => finding.ruleId));
+
+  assert.equal(validIds.has("WAIVER-1.3"), false);
+  assert.equal(expiredIds.has("WAIVER-1.3"), true);
+});
+
 test("advisory documentation rule remains overridable", () => {
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({
@@ -180,7 +243,7 @@ test("advisory documentation rule remains overridable", () => {
           issue: "OCEN-124",
           reason: "temporary advisory documentation rollout",
           scope: ["src/api.ts"],
-          expires: "2026-07-15",
+          expires: utcDateDaysAfter(new Date(), 30),
           remediation: "Document this API when the public surface stabilizes.",
         },
       },
@@ -220,7 +283,7 @@ test("valid waivers are visible and suppress only waivable findings", () => {
           issue: "OCEN-123",
           reason: "temporary documentation rollout for this exact API file",
           scope: ["src/api.ts"],
-          expires: "2026-07-15",
+          expires: utcDateDaysAfter(new Date(), 30),
           remediation: "Add concise API docs when the public surface stabilizes.",
           ciAllowed: true,
           visible: true,
@@ -637,6 +700,55 @@ test("ci integrity rejects implicit shell execution in harness helpers", () => {
   assert.equal(violationIds(JSON.parse(result.stdout)).has("HAR-2.15"), true);
 });
 
+test("ci integrity recognizes local composite actions and reusable dogfood roles", () => {
+  const project = makeProject({
+    "scripts/ci-local.mjs": `
+      npm test
+      npm run test:policy
+      npm run test:multilang
+      npm run test:mcp
+      npm run enforcer:self
+      npm run enforcer:verify:ci
+    `,
+    ".github/workflows/ci.yml": `
+      on:
+        pull_request:
+        push:
+          branches: [main]
+      permissions:
+        contents: read
+      jobs:
+        workspace:
+          strategy:
+            matrix:
+              os: [ubuntu-latest, windows-latest, macos-latest]
+          runs-on: \${{ matrix.os }}
+          steps:
+            - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+            - uses: ./.github/actions/setup-enforcer
+            - run: npm run ci:local
+    `,
+    ".github/workflows/dogfood.yml": `
+      on:
+        workflow_call:
+      permissions:
+        contents: read
+      jobs:
+        dogfood:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+            - uses: ./.github/actions/setup-enforcer
+    `,
+  });
+
+  const findings = collectCiIntegrityFindings(project);
+  const ruleIds = new Set(findings.map((finding) => finding.ruleId));
+  for (const ruleId of ["CI-1.13", "CI-1.15", "CI-1.16", "CI-1.17"]) {
+    assert.equal(ruleIds.has(ruleId), false, `${ruleId} must honor workflow role semantics`);
+  }
+});
+
 test("ci integrity accepts CI-safe subprocess JSON capture", () => {
   const project = makeProject({
     "tests/json-cli.test.mjs": `
@@ -708,8 +820,7 @@ test("mutation-risk rejects policy-critical changed files and ignores ordinary d
   assert.notEqual(critical.status, 0, critical.stdout || critical.stderr);
   const criticalReport = JSON.parse(critical.stdout);
   assert.equal(violationIds(criticalReport).has("ENF-2.1"), true);
-  assert.match(JSON.stringify(criticalReport.violations[0]), /rule-coverage/u);
-  assert.match(JSON.stringify(criticalReport.violations[0]), /test:mcp/u);
+  assert.match(JSON.stringify(criticalReport.violations[0]), /PROOF-MUTATION-RISK-CI/u);
 
   const ordinary = run(project, [
     "check",
@@ -723,7 +834,8 @@ test("mutation-risk rejects policy-critical changed files and ignores ordinary d
 });
 
 test("verify local is the canonical default parity gate", () => {
-  const result = run(ROOT, ["verify", "--json"]);
+  const project = makeVerifyProject();
+  const result = run(project, ["verify", "--json"]);
   assert.equal(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
   assert.equal(report.ok, true);
@@ -736,10 +848,14 @@ test("verify local is the canonical default parity gate", () => {
   assert.equal(checkNames.has("repo-governance"), true);
   assert.equal(checkNames.has("package-determinism"), true);
   assert.equal(Array.isArray(report.warnings), true);
+  const packageManifest = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  assert.equal(packageManifest.scripts["enforcer:verify:local"].includes("--root ."), true);
+  assert.equal(fs.readFileSync(path.join(ROOT, "scripts", "ci-local.mjs"), "utf8").includes("enforcer:verify:ci"), true);
 });
 
 test("verify fast and ci select the expected gate sets", () => {
-  const fast = run(ROOT, ["verify", "fast", "--json"]);
+  const project = makeVerifyProject();
+  const fast = run(project, ["verify", "fast", "--json"]);
   assert.equal(fast.status, 0, fast.stdout || fast.stderr);
   const fastChecks = new Set(JSON.parse(fast.stdout).checks.map((check) => check.check));
   assert.equal(fastChecks.has("rule-coverage"), true);
@@ -747,7 +863,7 @@ test("verify fast and ci select the expected gate sets", () => {
   assert.equal(fastChecks.has("ci-integrity"), false);
   assert.equal(fastChecks.has("secrets"), false);
 
-  const ci = run(ROOT, ["verify", "ci", "--json"]);
+  const ci = run(project, ["verify", "ci", "--json"]);
   assert.equal(ci.status, 0, ci.stdout || ci.stderr);
   const ciReport = JSON.parse(ci.stdout);
   assert.equal(ciReport.verifyMode, "ci");
@@ -777,4 +893,58 @@ test("enforcer self source-shape enforces governed pack-local ceilings", () => {
   const report = JSON.parse(result.stdout);
   assert.equal(report.ok, true);
   assert.equal(report.violations.length, 0);
+});
+
+test("source-shape workspace traversal stays inside policy roots", () => {
+  const project = makeProject({
+    "src/index.mjs": "export const ready = true;\n",
+    "target-policy-hang/generated.mjs": "export const ignored = true;\n",
+    ".tmp-policy-hang/generated.mjs": "export const ignored = true;\n",
+  });
+  writeConfig(project, {
+    schemaVersion: 2,
+    profileName: "strict",
+    failOn: ["error"],
+    languages: ["typescript", "common"],
+    sourceShapePolicies: [
+      {
+        roots: ["src"],
+        extensions: [".mjs"],
+        kind: "typescript",
+        maxClasses: 1,
+        maxExports: 5,
+        maxFunctionLines: 80,
+        maxLines: 100,
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    policyTraversalEntries(project, {}, { roots: ["src"] }, { mode: "all" }),
+    ["src"],
+  );
+  assert.equal(isIgnoredPath("target-policy-hang/generated.mjs"), true);
+  assert.equal(isIgnoredPath(".tmp-policy-hang/generated.mjs"), true);
+  assert.equal(DEFAULT_CONFIG.ignoreDirs.includes(".tmp"), true);
+  assert.equal(isIgnoredPath("targeted-policy-hang/generated.mjs"), false);
+  assert.equal(isIgnoredPath("target_policy_hang/generated.mjs"), false);
+  assert.equal(isIgnoredPath(".tmpkeeper/generated.mjs"), false);
+
+  const result = run(project, ["check", "source-shape", "--json"], {
+    timeout: 10_000,
+  });
+  assert.equal(result.error, undefined, result.stderr);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.equal(JSON.parse(result.stdout).ok, true);
+});
+
+test("policy child timeout returns a compact diagnostic", () => {
+  const result = spawnCli(
+    process.execPath,
+    ["--input-type=module", "--eval", "setInterval(() => {}, 1_000)"],
+    { encoding: "utf8", timeout: 100 },
+  );
+  assert.equal(result.error?.code, "ETIMEDOUT");
+  assert.match(result.stderr, /spawnCli timed out after 100ms/u);
+  assert.equal(result.stderr.length < 500, true);
 });

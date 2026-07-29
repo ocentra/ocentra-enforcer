@@ -1,0 +1,4 @@
+// Fixture for CI-1.12: CI must not hide failing hard gates
+// Ported from legacy validator id `common/ci-integrity` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CI_1_12_MARKER

@@ -1,0 +1,4 @@
+// Fixture for GEN-1.1: Generated artifacts must not be committed as source
+// Ported from legacy validator id `common/generated-artifacts` (see rules/rules.json doc: rules/common/generated-artifacts.md#covered-rules).
+// This line trips the rule:
+ENFORCER_GEN_1_1_MARKER

@@ -1,0 +1,50 @@
+[package]
+name = "enforcer-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UI server / Tauri backend (arc-24 skeleton + g01 serve surface): serves scan/report data (via enforcer-scan) to a self-contained served-HTML fallback for headless use and the Tauri desktop shell, plus the Rust->TS type-generation pipeline (ts_rs export + committed generated .ts + fail-closed drift test). enforcer-mcp depends on this crate (never the reverse) to back the ocentra_enforcer_ui tool. The TS/web frontend under frontend/ is the SOLE TS surface in the product -- presentation only, types DERIVED from enforcer-domain, never hand-written. Hosts Track G feature-pack mount points (g01..g08); g01 owns src/serve.rs, the other packs fill their own directories."
+publish = false
+
+[lib]
+name = "enforcer_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "enforcer-ui-export-ts"
+path = "src/bin/export_ts.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UI action handlers compose the shared execution,
+# domain, configuration, scan, and rule-registry contracts into read-only or
+# explicitly validated presentation payloads.
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: UI commands resolve effective project policy.
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: UI commands produce typed scan and report data.
+enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: UI actions validate rule metadata and waivers.
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+# g06: read-only hub dashboard consumes the arc-16 typed coordination
+# facade (`enforcer_coordination::sync::stream::read_all_streams` +
+# `enforcer_coordination::ledger::active_claims`) -- never raw ledger-file
+# parsing of its own.
+enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
+ts-rs = { workspace = true }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: integration tests require isolated filesystem fixtures.
+tempfile = "=3.27.0"
+# DEPENDENCY-JUSTIFICATION: request parser properties prove the typed UI boundary
+# accepts the full valid input space without weakening malformed-input rejection.
+proptest = "=1.9.0"
+
+[lints]
+workspace = true

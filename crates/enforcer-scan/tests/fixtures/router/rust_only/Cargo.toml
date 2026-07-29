@@ -1,0 +1,3 @@
+[package]
+name = "fixture-rust-only"
+version = "0.1.0"

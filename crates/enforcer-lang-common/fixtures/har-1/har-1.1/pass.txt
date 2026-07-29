@@ -1,0 +1,5 @@
+// Fixture for HAR-1.1: Harnessed command failed
+// Clean source — no occurrence of the HAR-1.1 marker below.
+fn clean_example() {
+    // conformant with harness/run-capture
+}

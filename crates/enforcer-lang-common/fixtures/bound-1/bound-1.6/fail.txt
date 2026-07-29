@@ -1,0 +1,2 @@
+// Fixture for BOUND-1.6: Boundary raw type count is budgeted.
+ENFORCER_BOUND_1_6_MARKER

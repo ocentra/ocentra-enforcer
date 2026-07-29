@@ -25,7 +25,8 @@
           "rust",
           "typescript",
           "python",
-          "common"
+          "common",
+          "iac"
         ]
       },
       "minItems": 1
@@ -55,14 +56,15 @@
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|MCP|PROOF|SCAN|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|BOUND|ARCH)-[0-9]+\\.[0-9]+$"
+            "pattern": "^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|MCP|PROOF|SCAN|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|BOUND|ARCH|IAC)-[0-9]+\\.[0-9]+$"
           },
           "language": {
             "enum": [
               "rust",
               "typescript",
               "python",
-              "common"
+              "common",
+              "iac"
             ]
           },
           "family": {
@@ -90,7 +92,9 @@
               "agent-rules",
               "ci",
               "repo",
-              "package"
+              "package",
+              "infra-security",
+              "infra-toolchain"
             ]
           },
           "severity": {

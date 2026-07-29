@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.8: Security strict mode must ingest SARIF
+// Clean source — no occurrence of the SCAN-2.8 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

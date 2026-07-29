@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.1: PR-ready claims require fresh proof
+// Clean source — no occurrence of the PROOF-1.1 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

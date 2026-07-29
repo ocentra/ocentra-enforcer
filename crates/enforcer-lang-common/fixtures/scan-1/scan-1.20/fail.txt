@@ -1,0 +1,4 @@
+// Fixture for SCAN-1.20: Doctor must expose ignore globs
+// Ported from legacy validator id `common/scanner-contracts` (see rules/rules.json doc: rules/common/scanner.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SCAN_1_20_MARKER

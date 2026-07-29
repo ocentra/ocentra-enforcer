@@ -1,0 +1,67 @@
+=== d12 layered-frontend / arc-07 enforcer-lang-ts ===
+
+Named test: `cargo test -p enforcer-lang-ts` (`layered-frontend` obligation)
+  - tests/completeness.rs::registry_covers_every_typescript_rule_id_with_no_orphans_and_no_duplicates
+    -> asserts rules/rules.json's language=="typescript" set (73 rules,
+       8 TS-* prefixes) equals crates::rules::registry::build_all()'s rule
+       id set exactly: no orphan rules.json id lacks a validator, no
+       registry id is unknown to rules.json, no duplicate registry row,
+       total == 73.
+  - Every one of the 7 validator-family modules carries its own
+    run_fixture_parity-backed unit test asserting fail-fixture-fires /
+    pass-fixture-silent for its rules:
+      rules::source_scan::tests (17 rules, TS-1.1..3/TS-2.1/TS-6 subset)
+      rules::generic_scanner::tests (48 rules, TS-6/7/8 slice)
+      rules::test_scan::tests (TS-3.1)
+      rules::import_boundaries::tests (TS-4.1)
+      rules::toolchain::tests (TS-5.1, TS-7.1, TS-7.12, TS-7.13)
+      rules::eslint_json::tests (TS-5.2)
+      rules::tests_family::tests (TS-8.10)
+
+See `proof/cargo/arc-07.txt` for the full `cargo test -p enforcer-lang-ts`
+run (16/16 passing: 15 unit + 1 completeness integration test), `cargo
+clippy -p enforcer-lang-ts --all-targets -- -D warnings` (clean), and
+`cargo fmt -p enforcer-lang-ts --check` (clean, FMT_EXIT=0).
+
+Seeded-violation case (ad-hoc smoke run via a temporary
+`tests/seeded_violation_smoke.rs`, run green, then deleted — not part of
+arc-07's committed file set, same pattern as arc-06's d17 proof):
+
+  source (crates/enforcer-lang-ts, single seeded TS file):
+    export function widget(raw: any): any {
+      console.log(raw);
+      let sum = 0;
+      return sum;
+    }
+
+  Running every registry validator against this one file via
+  `enforcer_lang_ts::rules::registry::build_all()` produced findings for
+  AT LEAST: TS-6.1 (`any`), TS-6.24 (`console.log`), TS-6.39
+  (single-assignment `let` instead of `const`) — three independent rules
+  from two different validator families (source_scan for TS-6.1/TS-6.24,
+  generic_scanner for TS-6.39) firing simultaneously on one file, none of
+  them cross-contaminating each other's rule_id (each Finding carried
+  exactly its own rule's RuleId, asserted by the harness's rule_id-match
+  check on every one of the 65 source_scan+generic_scanner rows in
+  addition to this ad-hoc multi-rule run).
+
+Known-gotcha guard proven (mem-arc-06-0002, position-not-just-kind):
+  - TS-6.5 (non-null assertion `!`) does NOT fire on `!=`, `!==`, or a
+    prefix logical-not (`if (!ok)`) — proven by
+    rules::text_scan::tests::non_null_assertion_guards_against_not_equal_and_logical_not
+    and by TS-6.5's own pass fixture
+    (fixtures/source-scan/ts-6-5/pass.ts) which contains `!==` and a
+    prefix-position `!` and stays clean.
+  - TS-2.1 (suppression comments) is the one rule that deliberately
+    DISABLES the shared comment-only-line guard (`comment_guard: false`)
+    because its violation IS a `//`/`@ts-ignore`-style comment — proven by
+    fixtures/source-scan/ts-2-1/{fail,pass}.ts.
+  - Every other source_scan/generic_scanner rule keeps the comment-only-
+    line guard ON, so a mention of a forbidden pattern inside an unrelated
+    comment does not trip the rule (guarded in
+    rules/spec.rs::RuleSpec::validate_with_id).
+
+Verdict: GREEN. All 73 typescript rules in rules/rules.json have a
+registered Validator + fail/pass fixture pair proven by
+`cargo test -p enforcer-lang-ts`; count-parity is enforced mechanically by
+the completeness test, not asserted by hand.

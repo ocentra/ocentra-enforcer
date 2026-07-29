@@ -1,0 +1,5 @@
+// Fixture for ENF-1.11: Validators must not use undeclared network access
+// Clean source — no occurrence of the ENF-1.11 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

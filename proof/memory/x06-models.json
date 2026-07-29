@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "plan",
+  "proofScope": {
+    "arch": "any",
+    "capability": "ci",
+    "ciParity": false,
+    "localHardwareRequired": false,
+    "platform": "any",
+    "portability": "portable-contract",
+    "reason": "plan mode proves zero-network contract shape only, not real model parity"
+  },
+  "allowNetwork": false,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "cpuFirst": true,
+    "defaultProbeFilter": "chat",
+    "gpuAndNpuRequireProviderProbe": true,
+    "killOnTimeout": true,
+    "minimumChatTokensPerSecond": 10,
+    "modelProbeTimeoutMs": 120000,
+    "oneModelAtATime": true,
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "providerProbeTimeoutMs": 5000,
+    "reason": "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+    "requestedProbeFilter": "chat",
+    "selectedProbes": [
+      "chat-generation-gguf"
+    ],
+    "targetChatTokensPerSecondHigh": 60,
+    "targetChatTokensPerSecondLow": 40
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "exposeLlamaServer": false,
+    "externalRuntimeServersAllowed": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "managedCapabilities": [
+      "load-unload",
+      "pause-resume-cancel",
+      "timeout-kill",
+      "provider-selection",
+      "cache-policy",
+      "chat-history-policy",
+      "workload-admission"
+    ],
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "runtimeBackendContract": {
+    "llamaCpp": {
+      "backend": "gguf",
+      "executionIsolation": "enforcer-managed-child-process",
+      "externalHttpAllowed": false,
+      "managedByService": [
+        "chat",
+        "embeddings"
+      ],
+      "ownership": "enforcer-subprocess",
+      "portBindingAllowed": false,
+      "requestProtocol": "enforcer-stdio",
+      "route": "enforcer-managed-llama-cpp-subprocess",
+      "serverSurfaceAcceptedForParity": false
+    },
+    "ort": {
+      "backend": "onnx",
+      "executionIsolation": "enforcer-isolated-worker-process",
+      "externalHttpAllowed": false,
+      "managedByService": [
+        "embeddings",
+        "rerank"
+      ],
+      "ownership": "enforcer-isolated-worker",
+      "ownedCommandBuilder": "crates/enforcer-memory/src/local_runtime.rs::ort_worker_command",
+      "portBindingAllowed": false,
+      "requestProtocol": "enforcer-worker-env",
+      "route": "enforcer-isolated-ort-worker",
+      "serverSurfaceAcceptedForParity": false,
+      "workerCommandProof": "crates/enforcer-memory/tests/local_runtime.rs::ort_worker_command_uses_owned_worker_args_and_env_without_server_surface"
+    }
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
+  },
+  "chatModelSelection": {
+    "backendHint": "native",
+    "deviceReport": null,
+    "downgradeReason": null,
+    "enabled": true,
+    "providerProbePassed": false,
+    "providerProbeTimeoutMs": 5000,
+    "requestedAcceleration": "cpu",
+    "requestedBackendHint": "auto",
+    "resolvedAcceleration": "cpu",
+    "selectedDeviceId": null,
+    "selectedMainGpu": null,
+    "selection": {
+      "candidates": [
+        {
+          "activeParameterCountMillions": 3000,
+          "architecture": "moe",
+          "estimatedSizeBytes": 19500000000,
+          "preferenceRank": 120,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 22528,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "Qwen3-30B-A3B-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "Qwen/Qwen3-30B-A3B-GGUF:Q4_K_M",
+            "repoId": "Qwen/Qwen3-30B-A3B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 30000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 5629108704,
+          "preferenceRank": 100,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 12288,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "ornith-1.0-9b-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+            "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 9000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 4977169568,
+          "preferenceRank": 90,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 8192,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "gemma-4-E4B-it-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",
+            "repoId": "unsloth/gemma-4-E4B-it-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 2497280256,
+          "preferenceRank": 80,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 4096,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "Qwen3-4B-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "Qwen/Qwen3-4B-GGUF:Q4_K_M",
+            "repoId": "Qwen/Qwen3-4B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 2489758112,
+          "preferenceRank": 70,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 4096,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "google_gemma-3-4b-it-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M",
+            "repoId": "bartowski/google_gemma-3-4b-it-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        }
+      ],
+      "detectedFreeVramMib": null,
+      "reason": "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because no llama.cpp GPU memory report was available",
+      "selected": {
+        "acceleration": "auto",
+        "backend": "llama-cpp",
+        "files": [
+          {
+            "kind": "model",
+            "path": "google_gemma-3-4b-it-Q4_K_M.gguf"
+          }
+        ],
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M",
+        "repoId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "revision": "main",
+        "task": "summarization"
+      },
+      "selectedQuantization": "Q4_K_M"
+    }
+  },
+  "chatGenerationGguf": {
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "observations": [],
+  "linkedProofArtifacts": {
+    "cacheAcquisitionProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-download-local.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "network-local",
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-gemma3-4b-download-live.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "provider": "network-local",
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-download.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        "provider": "network-local",
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-reranker-download.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "onnx-community/Qwen3-Reranker-0.6B-ONNX",
+        "provider": "network-local",
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
+      }
+    ],
+    "ggufRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+        "provider": "vulkan",
+        "runtimeMode": "probe",
+        "status": "rejected-runtime-boundary"
+      }
+    ],
+    "localRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 101.9,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-chat-auto-gpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 107.8,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat-auto-select"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 8.5,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "cpu",
+        "status": "below-chat-floor"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-gemma3-4b-vulkan-live.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 78.3,
+        "minimumTokensPerSecond": 10,
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat"
+      }
+    ],
+    "negativeLearningProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-hash-mismatch.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "observationKind": "artifact-hash-mismatch",
+        "status": "portable-negative-contract"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-tokenizer-mismatch.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "observationKind": "tokenizer-hash-mismatch",
+        "status": "portable-negative-contract"
+      }
+    ],
+    "ortRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "provider": "cpu",
+        "runtimeMode": "probe",
+        "status": "usable-local-embedding"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Reranker-0.6B",
+        "provider": "cpu",
+        "runtimeMode": "probe",
+        "status": "usable-local-reranker"
+      }
+    ],
+    "planningProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-chat-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "runtimeMode": "plan",
+        "status": "chat-plan-variant"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-multi-probe-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "runtimeMode": "plan",
+        "status": "multi-probe-plan-variant"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-ort-provider-policy.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-ort-provider-policy",
+        "runtimeMode": "plan",
+        "status": "cpu-gpu-npu-provider-policy"
+      }
+    ]
+  }
+}

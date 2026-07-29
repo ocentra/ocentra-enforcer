@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ERR-CONTEXT",
+        "version": 1,
+        "title": "Bare `?` on fs I/O should carry `.with_context`",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::err_context::ErrContextValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/err-context/fail_bare_question.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/err-context/pass_with_context.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

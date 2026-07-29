@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "other.proto";
+
+message Foo {
+  string name = 1;
+  map<string, int32> counts = 2;
+}
+
+service Greeter {
+  rpc SayHello (Foo) returns (Foo);
+}
+
+enum Status {
+  OK = 0;
+}

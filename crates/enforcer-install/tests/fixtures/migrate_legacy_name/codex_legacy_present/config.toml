@@ -1,0 +1,13 @@
+[mcp_servers.other-tool]
+command = "/usr/bin/other-tool"
+
+[mcp_servers.ocentra-enforcer]
+command = "/usr/local/bin/enforcer"
+args = []
+enabled = true
+
+[mcp_servers.ocentra-enforcer.env]
+OCENTRA_LEDGER_HOME = "${HOME}/.enforcer/ledger"
+
+[misc]
+keep = "me"

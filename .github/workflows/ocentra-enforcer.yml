@@ -1,15 +1,20 @@
-name: Ocentra Enforcer
+name: Enforcer Manual Parity
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  # Manual parity is diagnostic but expensive; only the newest push on a
+  # branch should consume a runner or hold the release handoff queue.
+  group: enforcer-manual-parity-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  ocentra-enforcer:
+  local-parity:
+    name: Exact local parity diagnostic
     strategy:
       fail-fast: false
       matrix:
@@ -17,13 +22,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: 22
-          cache: npm
-      - name: Install Rust toolchain
-        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-      - name: Install Node dependencies
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+        with:
+          install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
         run: npm ci
-      - name: Run local CI parity gate
+      - name: Run the developer gate unchanged
         run: npm run ci:local

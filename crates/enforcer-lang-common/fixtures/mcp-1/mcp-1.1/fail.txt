@@ -1,0 +1,4 @@
+// Fixture for MCP-1.1: MCP must expose CLI scan and check equivalents
+// Ported from legacy validator id `common/mcp-contracts` (see rules/rules.json doc: rules/common/mcp.md#covered-rules).
+// This line trips the rule:
+ENFORCER_MCP_1_1_MARKER

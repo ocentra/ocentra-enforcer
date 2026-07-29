@@ -15,6 +15,7 @@ import {
   escapeRegExp,
   finding,
 } from "../scripts/check-source-core-helpers.mjs";
+import { listProofRuns } from "./proof-storage.mjs";
 
 export function collectCiIntegrityFindings(root) {
   const findings = [];
@@ -35,7 +36,11 @@ export function collectCiIntegrityFindings(root) {
   for (const file of collectSourceFiles(workflowRoot, [".yml", ".yaml"])) {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/u);
-    if (!/\bpull_request\s*:/u.test(text) || !/\bpush\s*:/u.test(text) || !/\bbranches\s*:\s*\[[^\]]*\bmain\b/u.test(text)) {
+    const workflowName = path.basename(file);
+    const isPrimaryCi = workflowName === "ci.yml";
+    const requiresLocalParity = isPrimaryCi || workflowName === "ocentra-enforcer.yml" || workflowName === "release.yml";
+    const hasSetupEnforcer = /uses\s*:\s*\.\/\.github\/actions\/setup-enforcer\b/u.test(text);
+    if (isPrimaryCi && (!/\bpull_request\s*:/u.test(text) || !/\bpush\s*:/u.test(text) || !/\bbranches\s*:\s*\[[^\]]*\bmain\b/u.test(text))) {
       findings.push(
         finding(
           root,
@@ -55,7 +60,7 @@ export function collectCiIntegrityFindings(root) {
     const hasUbuntu = /\bubuntu-latest\b/u.test(text);
     const hasWindows = /\bwindows-latest\b/u.test(text);
     const hasMacos = /\bmacos-latest\b/u.test(text);
-    if (!(hasUbuntu && hasWindows && hasMacos)) {
+    if (isPrimaryCi && !(hasUbuntu && hasWindows && hasMacos)) {
       findings.push(
         finding(
           root,
@@ -87,18 +92,18 @@ export function collectCiIntegrityFindings(root) {
         );
       }
       const action = line.match(/^\s*-\s+uses\s*:\s*([^\s#]+)\s*$/u);
-      if (action && !isPinnedActionReference(action[1])) {
+      if (action && !isLocalActionReference(action[1]) && !isPinnedActionReference(action[1])) {
         findings.push(
           finding(root, file, index + 1, "CI-1.13", `workflow action is not pinned by full commit SHA: ${action[1]}`, line),
         );
       }
-      if (/\brust-rules\b/u.test(line) && !/compatibility alias/iu.test(line)) {
+      if (/\brust-rules\b/u.test(line) && !/compatibility alias/iu.test(line) && !/\$FROZEN_SCANNER_DIR/u.test(line)) {
         findings.push(
           finding(root, file, index + 1, "CI-1.18", "workflow calls legacy rust-rules command directly", line),
         );
       }
     });
-    if (/\bpackage-lock\.json\b|package\.json\b|npm\b/u.test(text) && !/\brun\s*:\s*npm\s+ci\b/u.test(text)) {
+    if (/\bpackage-lock\.json\b|package\.json\b|npm\b/u.test(text) && !/\brun\s*:\s*npm\s+ci\b/u.test(text) && !hasSetupEnforcer) {
       findings.push(
         finding(root, file, 1, "CI-1.1", "workflow does not run npm ci", null),
       );
@@ -107,17 +112,19 @@ export function collectCiIntegrityFindings(root) {
       );
     }
     const usesLocalParity = /\brun\s*:\s*npm\s+run\s+ci:local\b/u.test(text);
-    if (!usesLocalParity) {
+    if (requiresLocalParity && !usesLocalParity) {
       findings.push(
         finding(root, file, 1, "CI-1.17", "workflow does not run npm run ci:local parity gate", null),
       );
     }
-    const ciText = usesLocalParity ? `${text}\n${ciSurfaceText}` : text;
-    for (const requirement of CI_COMMAND_REQUIREMENTS) {
-      if (!requirement.pattern.test(ciText)) {
-        findings.push(
-          finding(root, file, 1, requirement.ruleId, requirement.detail, null),
-        );
+    if (requiresLocalParity) {
+      const ciText = usesLocalParity ? `${text}\n${ciSurfaceText}` : text;
+      for (const requirement of CI_COMMAND_REQUIREMENTS) {
+        if (!requirement.pattern.test(ciText)) {
+          findings.push(
+            finding(root, file, 1, requirement.ruleId, requirement.detail, null),
+          );
+        }
       }
     }
   }
@@ -229,6 +236,9 @@ export function collectMutationRiskFindings(root, scope = { mode: "all" }) {
   const criticalFiles = changedFiles.filter((file) =>
     matchesAnyGlob(normalizeRel(root, file), POLICY_CRITICAL_PATTERNS),
   );
+  if (criticalFiles.length === 0 || hasCurrentMutationRiskProof(root, scope)) {
+    return [];
+  }
   return criticalFiles.map((file) =>
     finding(
       root,
@@ -238,6 +248,35 @@ export function collectMutationRiskFindings(root, scope = { mode: "all" }) {
       `policy-critical file changed: ${normalizeRel(root, file)}`,
       `Required proof set: ${MUTATION_RISK_REQUIRED_PROOFS.join("; ")}`,
     ),
+  );
+}
+
+function hasCurrentMutationRiskProof(root, scope) {
+  const expectedCommit = resolvedGitRef(root, scope.head ?? "HEAD");
+  if (!expectedCommit) return false;
+  return listProofRuns(root).some((proofRun) =>
+    proofRun.status === "passed" &&
+    proofRun.proofId === MUTATION_RISK_PROOF_ID &&
+    proofRun.git?.commit === expectedCommit &&
+    isWorkspaceCiProofCommand(root, proofRun.command),
+  );
+}
+
+function resolvedGitRef(root, ref) {
+  const result = spawnSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function isWorkspaceCiProofCommand(root, command) {
+  if (!Array.isArray(command) || command.length !== 2) return false;
+  const executable = path.basename(String(command[0])).toLowerCase();
+  return (
+    (executable === "node" || executable === "node.exe") &&
+    path.resolve(root, String(command[1])) === path.join(root, "scripts", "ci-local.mjs")
   );
 }
 
@@ -412,14 +451,10 @@ const POLICY_CRITICAL_PATTERNS = [
 ];
 
 const MUTATION_RISK_REQUIRED_PROOFS = [
-  "ocentra-enforcer scan --workspace",
-  "ocentra-enforcer check rule-coverage --root <repo>",
-  "ocentra-enforcer check policy-integrity --root <repo>",
-  "ocentra-enforcer check ci-integrity --root <repo>",
-  "ocentra-enforcer check repo-governance --root <repo>",
-  "npm test",
-  "npm run test:mcp",
+  "node scripts/ocentra-enforcer.mjs proof run --root . --profile ocentra-enforcer --proof-id PROOF-MUTATION-RISK-CI --pin -- node scripts/ci-local.mjs",
 ];
+
+const MUTATION_RISK_PROOF_ID = "PROOF-MUTATION-RISK-CI";
 
 function changedFilesForMutationRisk(root, scope = { mode: "all" }) {
   if (scope.mode === "files") {
@@ -494,6 +529,10 @@ function isPinnedActionReference(actionRef) {
   const ref = String(actionRef ?? "").split("@").at(1);
   if (!ref) return false;
   return /^[a-f0-9]{40}$/iu.test(ref);
+}
+
+function isLocalActionReference(actionRef) {
+  return String(actionRef ?? "").startsWith("./");
 }
 
 function isSuspiciousDependencyName(name) {

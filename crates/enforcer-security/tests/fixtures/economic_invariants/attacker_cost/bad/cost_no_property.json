@@ -1,0 +1,19 @@
+{
+  "moneyCriticalUnits": ["settlement"],
+  "units": [
+    {
+      "unit": "settlement",
+      "properties": {
+        "idempotent-replay": { "shape": "property", "test": "prop_same_request_twice_not_more_value" },
+        "failure-not-reward": { "shape": "property", "test": "prop_failure_not_reward" },
+        "retry-not-mutation": { "shape": "property", "test": "prop_retry_not_mutation" },
+        "partial-failure-not-profit": { "shape": "property", "test": "prop_partial_failure_not_profit" },
+        "order-not-advantage": { "shape": "property", "test": "prop_order_not_advantage" },
+        "compensation-idempotent-replay-safe": { "shape": "property", "test": "prop_compensation_idempotent_replay_safe" },
+        "time-assumptions-fail-closed": { "shape": "property", "test": "prop_time_assumptions_fail_closed" },
+        "backend-never-signs-unverifiable": { "shape": "property", "test": "prop_backend_never_signs_unverifiable" },
+        "emergency-reduces-blast": { "shape": "property", "test": "prop_emergency_reduces_blast" }
+      }
+    }
+  ]
+}

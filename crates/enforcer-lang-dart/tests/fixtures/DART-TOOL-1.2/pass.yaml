@@ -1,0 +1,7 @@
+# PASS fixture for DART-TOOL-1.2: CI runs dart analyze --fatal-infos.
+name: CI
+jobs:
+  build:
+    steps:
+      - run: dart analyze --fatal-infos
+      - run: flutter test

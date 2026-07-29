@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-MCP-1.1",
+        "version": 1,
+        "title": "MCP stdio-lane crates must never write to stdout",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::mcp_stdout::McpStdoutValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/mcp-stdout/fail_stdout_write.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/mcp-stdout/pass_stderr_tracing.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/parity-gaps/linters-frontend-rust-cfml.md#rust-mcp-11",
+        "tags": ["rust", "mcp", "d17"]
+    }
+]

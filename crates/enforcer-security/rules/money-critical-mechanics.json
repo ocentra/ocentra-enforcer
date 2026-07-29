@@ -1,0 +1,118 @@
+[
+    {
+        "ruleId": "MCM-SIGNING.1",
+        "version": 1,
+        "title": "Backend signing mechanics: client-raw/unlogged payload signing (T1, §8.6)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::signing::SigningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/signing/bad/sign_client_raw.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/signing/good/sign_reconstructed.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-SIGNING",
+        "tags": ["security", "money-critical", "track-h", "signing", "generic-value-system"],
+        "params": {
+            "doctrine": "backend MUST NOT sign a client-raw, non-reconstructable, or unverified payload"
+        }
+    },
+    {
+        "ruleId": "MCM-TIME.1",
+        "version": 1,
+        "title": "Clock-trust mechanics: client-clock use in a money path (T1, §8.7)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::time::TimeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/time/bad/client_clock.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/time/good/server_clock.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-TIME",
+        "tags": ["security", "money-critical", "track-h", "time", "generic-value-system"],
+        "params": {
+            "doctrine": "client wall-clock time is never trusted in a money path; expiry fails closed"
+        }
+    },
+    {
+        "ruleId": "MCM-BOUNDARY.1",
+        "version": 1,
+        "title": "Untrusted-internal-boundary mechanics: unauthed internal endpoint (T1, §8.8)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::boundary::BoundaryValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/boundary/bad/unauthed_internal.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/boundary/good/authed_internal.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-BOUNDARY",
+        "tags": ["security", "money-critical", "track-h", "boundary", "generic-value-system"],
+        "params": {
+            "doctrine": "internal APIs are hostile; topology gives ZERO security"
+        }
+    },
+    {
+        "ruleId": "MCM-KILLSWITCH.1",
+        "version": 1,
+        "title": "Kill-switch mechanics: not halt-all/atomic/authed/audited/replay-safe/tested (T1, §8.9)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::killswitch::KillSwitchValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/killswitch/bad/killswitch_untested.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/killswitch/good/killswitch_full.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-KILLSWITCH",
+        "tags": ["security", "money-critical", "track-h", "killswitch", "generic-value-system"],
+        "params": {
+            "requiredProperties": ["halt-all", "atomic", "authenticated", "audited", "replay-safe", "tested"]
+        }
+    },
+    {
+        "ruleId": "MCM-ECONOMIC.1",
+        "version": 1,
+        "title": "Economic-cost mechanics: free retry with non-zero backend cost (T2, §8.10)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::economic::EconomicValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/economic/bad/free_retry.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/economic/good/bounded_cost.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-ECONOMIC",
+        "tags": ["security", "money-critical", "track-h", "economic", "scored", "generic-value-system"],
+        "params": {
+            "freeRetryThreshold": 50,
+            "doctrine": "attacker-cost >= system-cost; no free retries with non-zero backend cost"
+        }
+    },
+    {
+        "ruleId": "MCM-ROLLBACK.1",
+        "version": 1,
+        "title": "Rollback/compensation mechanics: non-idempotent/non-atomic/untested rollback (T2, §8.10)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::rollback::RollbackValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/rollback/bad/rollback_nonidempotent.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical_mechanics/rollback/good/rollback_exactly_once.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h06-money-critical-mechanics.md#MCM-ROLLBACK",
+        "tags": ["security", "money-critical", "track-h", "rollback", "scored", "generic-value-system"],
+        "params": {
+            "rollbackThreshold": 40,
+            "doctrine": "idempotent/replay-safe/atomic/exactly-once; untested rollback forbidden"
+        }
+    }
+]

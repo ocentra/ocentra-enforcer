@@ -1,0 +1,205 @@
+[
+  {
+    "name": "proto_dot_write_basic",
+    "input": "obj.__proto__.isAdmin = true;",
+    "expect": "flag",
+    "branch": "proto-dot-write",
+    "reason": "direct assignment into obj.__proto__.<property> pollutes every object's shared prototype"
+  },
+  {
+    "name": "proto_dot_write_role",
+    "input": "user.__proto__.role = \"admin\";",
+    "expect": "flag",
+    "branch": "proto-dot-write",
+    "reason": "same __proto__ dot-write sink with a different gadget property (role)"
+  },
+  {
+    "name": "proto_bracket_literal_double_quote",
+    "input": "obj[\"__proto__\"][\"polluted\"] = true;",
+    "expect": "flag",
+    "branch": "proto-bracket-literal",
+    "reason": "computed bracket access to the __proto__ literal is the classic string-keyed pollution vector"
+  },
+  {
+    "name": "proto_bracket_literal_single_quote",
+    "input": "obj['__proto__']['isAdmin'] = true;",
+    "expect": "flag",
+    "branch": "proto-bracket-literal",
+    "reason": "single-quoted spelling of the same __proto__ bracket-literal sink"
+  },
+  {
+    "name": "constructor_bracket_literal_chain",
+    "input": "payload[\"constructor\"][\"prototype\"][\"isAdmin\"] = true;",
+    "expect": "flag",
+    "branch": "proto-bracket-literal",
+    "reason": "constructor.prototype reached via bracket literals is the alternative path when __proto__ is filtered"
+  },
+  {
+    "name": "prototype_bracket_literal",
+    "input": "gadget[\"prototype\"][\"x\"] = 1;",
+    "expect": "flag",
+    "branch": "proto-bracket-literal",
+    "reason": "bare prototype bracket literal is also a dangerous computed key, per the skill's Key Concepts table"
+  },
+  {
+    "name": "constructor_prototype_chain_write",
+    "input": "obj.constructor.prototype.isAdmin = true;",
+    "expect": "flag",
+    "branch": "constructor-prototype-chain",
+    "reason": "X.constructor.prototype is the documented alternative pollution path to __proto__"
+  },
+  {
+    "name": "constructor_prototype_chain_read_gadget",
+    "input": "const Base = target.constructor.prototype;",
+    "expect": "flag",
+    "branch": "constructor-prototype-chain",
+    "reason": "capturing constructor.prototype into a variable is the same reach-the-shared-prototype sink"
+  },
+  {
+    "name": "computed_merge_no_guard_simple",
+    "input": "target[key] = source[key];",
+    "expect": "flag",
+    "branch": "computed-merge-no-guard",
+    "reason": "hand-rolled computed-key merge write with no __proto__/constructor/prototype denylist anywhere in scope"
+  },
+  {
+    "name": "computed_merge_no_guard_recursive",
+    "input": "for (const key in source) {\n  target[key] = merge(target[key], source[key]);\n}",
+    "expect": "flag",
+    "branch": "computed-merge-no-guard",
+    "reason": "the idiomatic vulnerable recursive-merge loop body, still with no denylist guard present"
+  },
+  {
+    "name": "lodash_merge_req_body",
+    "input": "const merged = _.merge({}, req.body);",
+    "expect": "flag",
+    "branch": "lodash-merge-req",
+    "reason": "lodash deep merge fed straight from the request body, per agent.py's _.merge sink"
+  },
+  {
+    "name": "lodash_mergewith_req_query",
+    "input": "const out = _.mergeWith({}, req.query, customizer);",
+    "expect": "flag",
+    "branch": "lodash-mergewith-req",
+    "reason": "_.mergeWith is the same deep-merge sink with a customizer argument, fed from req.query"
+  },
+  {
+    "name": "lodash_defaultsdeep_jsonparse_req",
+    "input": "const cfg = _.defaultsDeep({}, JSON.parse(req.query.raw));",
+    "expect": "flag",
+    "branch": "lodash-defaultsdeep-req",
+    "reason": "_.defaultsDeep on a JSON.parse(req...) argument is the vendor's defaultsDeep sink"
+  },
+  {
+    "name": "jquery_extend_true_req_body",
+    "input": "jQuery.extend(true, {}, req.body);",
+    "expect": "flag",
+    "branch": "jquery-extend-req",
+    "reason": "jQuery.extend(true, ...) deep extend fed from the request body"
+  },
+  {
+    "name": "dollar_extend_true_req_body",
+    "input": "$.extend(true, settings, req.body);",
+    "expect": "flag",
+    "branch": "dollar-extend-req",
+    "reason": "$.extend(true, ...) is the jQuery alias for the same deep-extend sink"
+  },
+  {
+    "name": "object_assign_jsonparse_req",
+    "input": "Object.assign(target, JSON.parse(req.body.raw));",
+    "expect": "flag",
+    "branch": "object-assign-jsonparse-req",
+    "reason": "Object.assign used as a deep-merge sink over an attacker-controlled JSON.parse(req...) argument"
+  },
+  {
+    "name": "guarded_key_check_denylist_block",
+    "input": "if (key === \"__proto__\" || key === \"constructor\" || key === \"prototype\") continue;\ntarget[key] = source[key];",
+    "expect": "clean",
+    "branch": "computed-merge-guarded",
+    "reason": "explicit denylist guard before the computed-key write is the documented safe pattern"
+  },
+  {
+    "name": "guarded_key_check_negation_form",
+    "input": "if (key !== \"__proto__\") { target[key] = source[key]; }",
+    "expect": "clean",
+    "branch": "computed-merge-guarded",
+    "reason": "negated single-key comparison guard is still a denylist guard in the accepted comparison forms"
+  },
+  {
+    "name": "object_create_null_target",
+    "input": "const target = Object.create(null);",
+    "expect": "clean",
+    "branch": "object-create-null",
+    "reason": "Object.create(null) has no prototype chain to pollute; the skill's own remediation names it as the safe alternative"
+  },
+  {
+    "name": "object_create_null_with_non_key_bracket_write",
+    "input": "const cache = Object.create(null);\ncache[propName] = value;",
+    "expect": "clean",
+    "branch": "object-create-null",
+    "reason": "bracket variable is propName, not the literal loop variable key, and the target has no prototype to pollute"
+  },
+  {
+    "name": "map_usage_no_bracket_assignment",
+    "input": "const store = new Map();\nstore.set(key, value);",
+    "expect": "clean",
+    "branch": "map-set",
+    "reason": "Map keys never touch the Object prototype chain, unlike plain-object computed-key writes"
+  },
+  {
+    "name": "set_usage_no_bracket_assignment",
+    "input": "const seen = new Set();\nseen.add(value);",
+    "expect": "clean",
+    "branch": "map-set",
+    "reason": "Set membership has no computed-key write surface at all"
+  },
+  {
+    "name": "freeze_object_prototype",
+    "input": "Object.freeze(Object.prototype);",
+    "expect": "clean",
+    "branch": "freeze-prototype",
+    "reason": "freezing Object.prototype is the skill's documented belt-and-suspenders mitigation, not a sink"
+  },
+  {
+    "name": "lodash_merge_static_objects",
+    "input": "const merged = _.merge({}, { theme: \"dark\", locale: \"en-US\" });",
+    "expect": "clean",
+    "branch": "static-merge",
+    "reason": "both arguments are literal objects with no req./JSON.parse-derived source to pollute from"
+  },
+  {
+    "name": "object_assign_static_objects",
+    "input": "const merged = Object.assign({}, { a: 1, b: 2 });",
+    "expect": "clean",
+    "branch": "static-merge",
+    "reason": "Object.assign over two literal objects has no attacker-controlled argument"
+  },
+  {
+    "name": "computed_merge_string_cast_near_miss",
+    "input": "target[String(key)] = source[String(key)];",
+    "expect": "clean",
+    "branch": "computed-merge-string-cast",
+    "reason": "the heuristic targets the bare [key] spelling; a wrapped String(key) cast is a documented scope boundary, not a proven-safe pattern"
+  },
+  {
+    "name": "plain_array_index_assignment",
+    "input": "results[index] = values[index];",
+    "expect": "clean",
+    "branch": "array-index-not-key",
+    "reason": "the bracket variable is index, not the literal merge-loop variable key, so this is an ordinary indexed copy"
+  },
+  {
+    "name": "unrelated_lodash_call",
+    "input": "const clone = _.cloneDeep(config);",
+    "expect": "clean",
+    "branch": "unrelated-lodash-call",
+    "reason": "_.cloneDeep is not one of the tracked deep-merge/extend/assign sinks"
+  },
+  {
+    "name": "inert_object_literal",
+    "input": "const config = { theme: \"dark\" };",
+    "expect": "clean",
+    "branch": "inert-object-literal",
+    "reason": "a plain object literal with no merge, no prototype-key access, and no request-derived data"
+  }
+]

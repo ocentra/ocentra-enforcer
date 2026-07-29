@@ -1,0 +1,16 @@
+{
+  "adapter": "sca",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "findings": [
+    {
+      "ruleId": "CVE-2024-12345",
+      "severity": "High",
+      "file": "package-lock.json",
+      "line": 1,
+      "message": "lodash@4.17.11 is vulnerable to prototype pollution (CVSS 8.1).",
+      "threatId": "CWE-1321"
+    }
+  ]
+}

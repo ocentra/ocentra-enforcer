@@ -1,12 +1,9 @@
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
+unmaintained = "all"
 yanked = "deny"
-notice = "warn"
 ignore = []
 
 [licenses]
-unlicensed = "deny"
 allow = [
   "MIT",
   "Apache-2.0",
@@ -15,7 +12,21 @@ allow = [
   "ISC",
   "Unicode-3.0"
 ]
+# These crates ship CC0 license texts. Keep the exception package-scoped so
+# CC0 does not become a workspace-wide license allowance.
+exceptions = [
+  { allow = ["CC0-1.0"], crate = "notify@6.1.1" },
+  { allow = ["CC0-1.0"], crate = "tree-sitter-fennel-local@0.1.0" },
+  { allow = ["CC0-1.0"], crate = "tree-sitter-sshclientconfig-local@0.1.0" },
+]
 confidence-threshold = 0.8
+
+[[licenses.clarify]]
+crate = "tree-sitter-graphql@0.1.0"
+expression = "MIT"
+license-files = [
+  { path = "LICENSE", hash = 0xda88ff2a },
+]
 
 [bans]
 multiple-versions = "warn"

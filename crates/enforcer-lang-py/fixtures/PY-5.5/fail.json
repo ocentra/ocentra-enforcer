@@ -1,0 +1,7 @@
+[
+  {
+    "filename": "src/app.py",
+    "code": "F401",
+    "message": "imported but unused"
+  }
+]

@@ -1,0 +1,338 @@
+[
+  {
+    "name": "internal_prefix_single",
+    "input": "{\"dependencies\": {\"internal-api\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped name matching internal- prefix; vendor would flag if 404 (assumed for internal-looking names)"
+  },
+  {
+    "name": "corp_prefix_single",
+    "input": "{\"dependencies\": {\"corp-utils\": \"^2.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped name matching corp- prefix"
+  },
+  {
+    "name": "private_prefix_single",
+    "input": "{\"dependencies\": {\"private-config\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped name matching private- prefix"
+  },
+  {
+    "name": "acme_prefix_single",
+    "input": "{\"dependencies\": {\"acme-client\": \"^3.0.0\"}}",
+    "expect": "clean",
+    "reason": "unscoped name matching acme- prefix [reconciled: acme- is not an internal convention; acme-client is a real public pkg]"
+  },
+  {
+    "name": "internal_prefix_dash_only",
+    "input": "{\"dependencies\": {\"internal-\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "exact match to internal- prefix"
+  },
+  {
+    "name": "corp_prefix_dash_only",
+    "input": "{\"dependencies\": {\"corp-\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "exact match to corp- prefix"
+  },
+  {
+    "name": "private_prefix_dash_only",
+    "input": "{\"dependencies\": {\"private-\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "exact match to private- prefix"
+  },
+  {
+    "name": "acme_prefix_dash_only",
+    "input": "{\"dependencies\": {\"acme-\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "exact match to acme- prefix [reconciled: acme- removed as a bogus placeholder prefix]"
+  },
+  {
+    "name": "scoped_with_internal_suffix",
+    "input": "{\"dependencies\": {\"@myorg/internal-api\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "scoped packages require scope registration; not claimable via dependency confusion even if suffix looks internal"
+  },
+  {
+    "name": "scoped_with_corp_suffix",
+    "input": "{\"dependencies\": {\"@company/corp-utils\": \"^2.0.0\"}}",
+    "expect": "clean",
+    "reason": "scoped package, not vulnerable"
+  },
+  {
+    "name": "scoped_with_private_suffix",
+    "input": "{\"dependencies\": {\"@org/private-key\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "scoped package, not vulnerable"
+  },
+  {
+    "name": "scoped_with_acme_suffix",
+    "input": "{\"dependencies\": {\"@acme/services\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "scoped package, not vulnerable"
+  },
+  {
+    "name": "normal_package_react",
+    "input": "{\"dependencies\": {\"react\": \"^18.0.0\"}}",
+    "expect": "clean",
+    "reason": "normal public package name, vendor would find 200 on registry"
+  },
+  {
+    "name": "normal_package_lodash",
+    "input": "{\"dependencies\": {\"lodash\": \"^4.17.21\"}}",
+    "expect": "clean",
+    "reason": "normal public package name, vendor 200 on registry"
+  },
+  {
+    "name": "normal_package_express",
+    "input": "{\"dependencies\": {\"express\": \"^4.18.0\"}}",
+    "expect": "clean",
+    "reason": "normal public package name, vendor 200 on registry"
+  },
+  {
+    "name": "normal_package_webpack",
+    "input": "{\"dependencies\": {\"webpack\": \"^5.0.0\"}}",
+    "expect": "clean",
+    "reason": "normal public package name, vendor 200 on registry"
+  },
+  {
+    "name": "case_sensitive_Internal",
+    "input": "{\"dependencies\": {\"Internal-api\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "prefix matching is case-sensitive; 'Internal-' does not match 'internal-'"
+  },
+  {
+    "name": "case_sensitive_INTERNAL",
+    "input": "{\"dependencies\": {\"INTERNAL-api\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "case-sensitive prefix matching; 'INTERNAL-' does not match 'internal-'"
+  },
+  {
+    "name": "no_hyphen_internal",
+    "input": "{\"dependencies\": {\"internal\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "does not match internal- prefix (missing hyphen after 'internal')"
+  },
+  {
+    "name": "no_hyphen_corp",
+    "input": "{\"dependencies\": {\"corp\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "does not match corp- prefix (missing hyphen)"
+  },
+  {
+    "name": "no_hyphen_private",
+    "input": "{\"dependencies\": {\"private\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "does not match private- prefix (missing hyphen)"
+  },
+  {
+    "name": "no_hyphen_acme",
+    "input": "{\"dependencies\": {\"acme\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "does not match acme- prefix (missing hyphen)"
+  },
+  {
+    "name": "underscore_internal",
+    "input": "{\"dependencies\": {\"internal_api\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "underscore separator, not hyphen; 'internal_' does not match 'internal-'"
+  },
+  {
+    "name": "underscore_corp",
+    "input": "{\"dependencies\": {\"corp_utils\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "underscore separator does not match corp- prefix"
+  },
+  {
+    "name": "prefix_not_at_start_internal",
+    "input": "{\"dependencies\": {\"my-internal-api\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "internal- is a substring but not at start; name does not START with internal-"
+  },
+  {
+    "name": "prefix_not_at_start_corp",
+    "input": "{\"dependencies\": {\"my-corp-utils\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "corp- is substring but not at start of name"
+  },
+  {
+    "name": "internal_with_version_spec",
+    "input": "{\"dependencies\": {\"internal-api\": \">=1.0.0 <2.0.0\"}}",
+    "expect": "flag",
+    "reason": "version specification does not affect package name pattern matching"
+  },
+  {
+    "name": "internal_with_git_url",
+    "input": "{\"dependencies\": {\"internal-api\": \"git+https://github.com/org/internal-api.git\"}}",
+    "expect": "flag",
+    "reason": "git URL specifier does not affect package name detection"
+  },
+  {
+    "name": "internal_with_path_spec",
+    "input": "{\"dependencies\": {\"internal-api\": \"file:../internal-api\"}}",
+    "expect": "flag",
+    "reason": "path specification does not affect name pattern matching"
+  },
+  {
+    "name": "npm_alias_resolves_internal_target",
+    "input": "{\"dependencies\": {\"public-alias\": \"npm:internal-api@^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "npm alias key is public-looking, but its resolved unscoped target matches the internal naming heuristic"
+  },
+  {
+    "name": "npm_alias_resolves_scoped_target",
+    "input": "{\"dependencies\": {\"public-alias\": \"npm:@myorg/internal-api@^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "npm alias resolves to a scoped target, so the scope mitigation still applies"
+  },
+  {
+    "name": "npm_alias_resolves_normal_target",
+    "input": "{\"dependencies\": {\"public-alias\": \"npm:react@^18.0.0\"}}",
+    "expect": "clean",
+    "reason": "npm alias resolves to a normal public package name"
+  },
+  {
+    "name": "devDependencies_internal",
+    "input": "{\"devDependencies\": {\"internal-utils\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "vendor checks all 4 npm dependency types including devDependencies"
+  },
+  {
+    "name": "optionalDependencies_internal",
+    "input": "{\"optionalDependencies\": {\"internal-optional\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "vendor checks all 4 npm dependency types including optionalDependencies"
+  },
+  {
+    "name": "peerDependencies_internal",
+    "input": "{\"peerDependencies\": {\"internal-peer\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "vendor checks all 4 npm dependency types including peerDependencies"
+  },
+  {
+    "name": "duplicate_across_dependencies",
+    "input": "{\"dependencies\": {\"internal-api\": \"^1.0.0\"}, \"devDependencies\": {\"internal-api\": \"^2.0.0\"}}",
+    "expect": "flag",
+    "reason": "same package name appears in multiple sections; vendor deduplicates names to single finding"
+  },
+  {
+    "name": "mixed_internal_and_normal",
+    "input": "{\"dependencies\": {\"internal-api\": \"^1.0.0\", \"react\": \"^18.0.0\", \"lodash\": \"^4.17.21\"}}",
+    "expect": "flag",
+    "reason": "one internal-looking name flagged among normal public packages"
+  },
+  {
+    "name": "multiple_internal_patterns",
+    "input": "{\"dependencies\": {\"internal-api\": \"^1.0.0\", \"corp-utils\": \"^2.0.0\", \"private-config\": \"^1.0.0\", \"acme-client\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "multiple different internal-looking prefixes all flagged"
+  },
+  {
+    "name": "all_four_types_with_flags",
+    "input": "{\"dependencies\": {\"internal-a\": \"^1.0.0\"}, \"devDependencies\": {\"corp-b\": \"^2.0.0\"}, \"optionalDependencies\": {\"private-c\": \"^1.0.0\"}, \"peerDependencies\": {\"acme-d\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "vendor scans all 4 dependency types; one flagged internal-looking name in each section"
+  },
+  {
+    "name": "empty_manifest",
+    "input": "{}",
+    "expect": "clean",
+    "reason": "no dependencies defined"
+  },
+  {
+    "name": "null_dependencies",
+    "input": "{\"dependencies\": null, \"devDependencies\": null}",
+    "expect": "clean",
+    "reason": "null dependency fields safely handled"
+  },
+  {
+    "name": "empty_dependencies_object",
+    "input": "{\"dependencies\": {}}",
+    "expect": "clean",
+    "reason": "empty dependencies object has no packages to flag"
+  },
+  {
+    "name": "all_scoped_packages",
+    "input": "{\"dependencies\": {\"@org1/pkg1\": \"^1.0.0\", \"@org2/pkg2\": \"^2.0.0\"}}",
+    "expect": "clean",
+    "reason": "all scoped packages are safe from dependency confusion"
+  },
+  {
+    "name": "all_normal_packages",
+    "input": "{\"dependencies\": {\"react\": \"^18.0.0\", \"lodash\": \"^4.17.21\", \"express\": \"^4.18.0\"}}",
+    "expect": "clean",
+    "reason": "all normal public package names, none match internal patterns"
+  },
+  {
+    "name": "internal_api_variants",
+    "input": "{\"dependencies\": {\"internal-api-client\": \"^1.0.0\", \"internal-api-server\": \"^2.0.0\", \"internal-api-types\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "multiple variants all start with internal- prefix"
+  },
+  {
+    "name": "corp_framework",
+    "input": "{\"dependencies\": {\"corp-framework\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped corp- prefix"
+  },
+  {
+    "name": "private_key_lib",
+    "input": "{\"dependencies\": {\"private-key\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped private- prefix"
+  },
+  {
+    "name": "acme_runner",
+    "input": "{\"dependencies\": {\"acme-runner\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "unscoped acme- prefix [reconciled: acme- is not an internal naming convention]"
+  },
+  {
+    "name": "scoped_plain",
+    "input": "{\"dependencies\": {\"@npm/react\": \"^18.0.0\"}}",
+    "expect": "clean",
+    "reason": "scoped package is safe from dependency confusion"
+  },
+  {
+    "name": "hyphenated_normal",
+    "input": "{\"dependencies\": {\"super-fast-parser\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "hyphenated normal package name, does not match internal patterns"
+  },
+  {
+    "name": "single_letter_prefix_match",
+    "input": "{\"dependencies\": {\"internal-x\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "matches internal- prefix even with single character after hyphen"
+  },
+  {
+    "name": "long_name_internal_prefix",
+    "input": "{\"dependencies\": {\"internal-authentication-service-client\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "long name with internal- prefix is still flagged"
+  },
+  {
+    "name": "numbers_in_internal_name",
+    "input": "{\"dependencies\": {\"internal-api2\": \"^1.0.0\"}}",
+    "expect": "flag",
+    "reason": "numbers in name do not prevent prefix match"
+  },
+  {
+    "name": "mixed_internal_and_scoped",
+    "input": "{\"dependencies\": {\"internal-api\": \"^1.0.0\", \"@myorg/internal\": \"^1.0.0\", \"react\": \"^18.0.0\"}}",
+    "expect": "flag",
+    "reason": "unscoped internal-api flagged; scoped version is clean"
+  },
+  {
+    "name": "corporate_misspelling",
+    "input": "{\"dependencies\": {\"corporate-utils\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "starts with 'corporate', not 'corp-'; does not match prefix"
+  },
+  {
+    "name": "privately_misspelling",
+    "input": "{\"dependencies\": {\"privately-owned\": \"^1.0.0\"}}",
+    "expect": "clean",
+    "reason": "starts with 'privately', not 'private-'; does not match prefix"
+  }
+]

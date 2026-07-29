@@ -10,6 +10,7 @@ import {
   scanCommonLineRules,
 } from "./generic-common-line-rules.mjs";
 import { scanSourceOwnershipPolicy } from "./generic-common-source-ownership.mjs";
+import { scanBoundaryPolicyConfiguration } from "./generic-common-boundary-policy.mjs";
 import {
   scanPythonDocumentationHints,
   scanRustDocumentationHints,
@@ -26,6 +27,7 @@ import {
   isTestPath,
 } from "./generic-scanner-shared.mjs";
 
+/** Scans one common-language source file and returns its violations. */
 export function scanCommonFile(root, filePath) {
   const rel = normalizeRel(root, filePath);
   const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/u);
@@ -40,6 +42,14 @@ export function scanCommonFile(root, filePath) {
   scanLines.forEach((line, idx) => {
     scanCommonLineRules(context, line, idx);
   });
+  scanBoundaryPolicyConfiguration(
+    violations,
+    root,
+    filePath,
+    rel,
+    text,
+    addViolation,
+  );
   if (context.isProductionSource) {
     violations.push(...scanSourceOwnershipPolicy(root, filePath, rel, lines));
   }

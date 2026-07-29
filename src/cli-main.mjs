@@ -36,6 +36,7 @@ import {
   runDiagnostics,
   runHarness,
   runSummary,
+  triageCiLog,
 } from "./harness.mjs";
 import { runCoordinationCli } from "./coordination/runner.mjs";
 import { runProofCli } from "./proof.mjs";
@@ -142,6 +143,7 @@ const RUNS_OPS = {
   resetRuns,
   runDiagnostics,
   runSummary,
+  triageCiLog,
 };
 
 const CLI_RUNTIME = {

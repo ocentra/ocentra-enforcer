@@ -1,0 +1,5 @@
+// Fixture for SRC-2.8: Dumping-ground source filenames are forbidden
+// Clean source — no occurrence of the SRC-2.8 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

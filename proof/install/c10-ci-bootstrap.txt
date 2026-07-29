@@ -1,0 +1,59 @@
+workpack: c10-ci-integration-and-binary-bootstrap
+date: 2026-07-04
+command: cargo test -p enforcer-install (lib `ci::*` + `--test ci_fixtures`)
+
+lib ci:: unit tests: 37/37 passed
+  ci::release_pipeline    10 tests (asset naming, release matrix, smoke gate publish/block)
+  ci::installer_scripts   14 tests (sha256 vectors, install.sh/.ps1 rendering, asset resolution, checksum verify fail-closed)
+  ci::github_action        7 tests (cache key stability/uniqueness, action.yml rendering, cache-before-install ordering, version required not defaulted)
+  ci::npm_wrapper           6 tests (optional-dependency naming, npm os/cpu mapping, resolution, package.json rendering)
+
+integration --test ci_fixtures: 8/8 passed
+  checked_in_action_yml_matches_the_rust_rendered_source_of_truth ... ok
+  checked_in_install_sh_matches_the_rust_rendered_source_of_truth ... ok
+  checked_in_install_ps1_matches_the_rust_rendered_source_of_truth ... ok
+  checked_in_npm_wrapper_package_json_matches_the_rust_rendered_source_of_truth ... ok
+  smoke_fixture_pair_exists_as_a_seeded_fail_and_a_clean_pass ... ok
+  dist_workspace_toml_declares_every_platform_in_the_release_matrix ... ok
+  no_owned_ci_artifact_contains_a_hardcoded_local_absolute_path ... ok
+  the_grep_clean_check_itself_detects_a_seeded_hardcoded_path ... ok
+
+full crate regression: cargo test -p enforcer-install (lib) => 234 passed; 2 failed
+  failures (pre-existing, unrelated, CRLF checkout artifacts, excluded per c08/c09 precedent):
+    emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes
+    emitters::git_hooks::tests::each_flavor_writes_golden_bytes
+
+clippy: cargo clippy --workspace --all-targets -- -D warnings => clean
+fmt:    cargo fmt --check --all => clean on every file this pack touched
+        (one pre-existing unrelated fmt diff on crates/enforcer-plan/tests/test_templates.rs, a file
+        this pack never touched)
+
+artifacts produced:
+  crates/enforcer-install/src/ci/mod.rs
+  crates/enforcer-install/src/ci/release_pipeline.rs
+  crates/enforcer-install/src/ci/installer_scripts.rs
+  crates/enforcer-install/src/ci/github_action.rs
+  crates/enforcer-install/src/ci/npm_wrapper.rs
+  crates/enforcer-install/examples/gen_ci_artifacts.rs   (dev-only generator; keeps checked-in artifacts byte-identical to their Rust source)
+  crates/enforcer-install/tests/ci_fixtures.rs
+  crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs
+  crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs
+  .github/actions/enforcer-scan/action.yml               (generated, do not hand-edit)
+  .github/workflows/release.yml                          (hand-authored: build matrix, smoke gate, publish)
+  install.sh                                              (generated, do not hand-edit)
+  install.ps1                                             (generated, do not hand-edit)
+  packages/enforcer-cli/package.json                      (generated, do not hand-edit)
+  dist-workspace.toml
+  docs/TARGET_REPO_WIRING.md                              (fixed: E:/ocentra-enforcer/rules/INDEX.md -> `enforcer explain <ruleId>`)
+
+deviations:
+  - No live HTTP/network dependency added yet; `verify_checksum`'s fail-closed contract is proven with a
+    dependency-free textbook SHA-256 over in-memory bytes (see installer_scripts::sha256_hex), matching
+    distribution.rs's own precedent of leaving the live Downloader fetch as a follow-on fill.
+  - The pre-publish cross-platform smoke gate's actual binary invocation is authored into
+    .github/workflows/release.yml against the checked-in fail/pass fixtures, exercised for real only on a
+    release tag; release_pipeline::gate_release/SmokeResult's "any single platform fails blocks the whole
+    release" decision logic is unit-proven directly (seeded-violation case included).
+  - softprops/action-gh-release in release.yml is pinned to a version tag (v2), not a commit SHA like this
+    repo's other third-party actions, pending verification of the exact upstream SHA before first real use
+    (documented inline in the workflow) -- deliberately not fabricating an unverified hash.

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "some-other-server": {
+      "command": "/abs/path/to/some-other-server",
+      "args": [],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,10 @@
+// This fixture simulates a target source file attempting an inline rule
+// suppression. It is NOT a `.enforce/config` file and must never be read
+// as one: the project_tie loader only ever consumes declarative JSON under
+// `.enforce/config`. This file exists purely to document, and let a test
+// assert, that an inline comment-style disable has zero effect on
+// `ResolvedProjectTie` — only `Policy.rule_toggles` (declarative data) can
+// disable a rule.
+//
+// enforcer-disable RR-1.1 (fake inline disable; must be ignored)
+fn example() {}

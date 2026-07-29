@@ -1,0 +1,163 @@
+name: Rust CI
+
+on:
+  pull_request:
+    branches: [main, rust-build]
+  push:
+    branches: [main, rust-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: enforcer-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan-impacted:
+    name: Plan graph-impacted scopes
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+      docs_only: ${{ steps.plan.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
+      - name: Resolve changed graph and reverse dependents
+        id: plan
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == pull_request ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == push && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          else
+            base="$(git rev-parse HEAD^)"
+            head="${{ github.sha }}"
+          fi
+          node scripts/ci/plan-impacted.mjs --base "$base" --head "$head"
+      - name: Verify reusable workflow topology
+        run: node scripts/ci/verify-workflow-contract.mjs
+
+  impacted:
+    name: Graph-impacted crate gate
+    needs: plan-impacted
+    if: needs.plan-impacted.outputs.packages != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
+      - name: Validate affected crates and reverse dependents
+        run: node scripts/ci/run-impacted.mjs --packages "${{ needs.plan-impacted.outputs.packages }}"
+
+  workspace:
+    name: Workspace (${{ matrix.os }})
+    needs: [plan-impacted, impacted]
+    if: always() && needs.plan-impacted.result == 'success' && (needs.impacted.result == 'success' || needs.impacted.result == 'skipped') && needs.plan-impacted.outputs.docs_only != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+      - name: Deterministic dependency bootstrap
+        run: npm ci
+      - name: Cache Cargo registry and build outputs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+      - name: Windows-safe workspace format check
+        run: node scripts/check-cargo-workspace-members.mjs --fmt-check
+      - name: Workspace clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - name: Workspace tests
+        run: node scripts/check-cargo-workspace-tests.mjs
+
+  local-parity:
+    name: Exact local CI parity
+    needs: [plan-impacted, impacted]
+    if: always() && needs.plan-impacted.result == 'success' && (needs.impacted.result == 'success' || needs.impacted.result == 'skipped') && needs.plan-impacted.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+        with:
+          install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        run: npm ci
+      - name: Run the exact developer parity command
+        run: npm run ci:local
+
+  policy:
+    name: Security, dependencies, and SBOM
+    needs: plan-impacted
+    if: needs.plan-impacted.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+        with:
+          install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        run: npm ci
+      - name: RustSec advisory audit
+        run: cargo audit --deny warnings
+      - name: Cargo deny policy
+        run: cargo deny check
+      - name: Enforcer secret policy
+        run: node scripts/ocentra-enforcer.mjs check secrets --root .
+      - name: Enforcer dependency policy
+        run: node scripts/ocentra-enforcer.mjs check dependency-policy --root .
+      - name: Generate and validate SBOM
+        run: node scripts/ocentra-enforcer.mjs check sbom --root . --output target/security
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: enforcer-sbom
+          path: target/security/**
+          if-no-files-found: error
+
+  dogfood:
+    needs: plan-impacted
+    if: needs.plan-impacted.outputs.docs_only != 'true'
+    uses: ./.github/workflows/dogfood.yml
+
+  required:
+    name: required
+    if: always()
+    needs: [plan-impacted, impacted, workspace, local-parity, policy, dogfood]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforcer Required Gate
+        shell: bash
+        run: |
+          test "${{ needs.plan-impacted.result }}" = success
+          if [[ "${{ needs.plan-impacted.outputs.docs_only }}" != true ]]; then
+            test "${{ needs.workspace.result }}" = success
+            test "${{ needs.local-parity.result }}" = success
+            test "${{ needs.policy.result }}" = success
+            test "${{ needs.dogfood.result }}" = success
+          fi
+          test "${{ needs.impacted.result }}" = success -o "${{ needs.impacted.result }}" = skipped

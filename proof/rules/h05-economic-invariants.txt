@@ -1,0 +1,103 @@
+=== h05 economic/logic invariant property-suite (ECON-INVARIANT-PRESENCE.1 + ECON-INVARIANT-SHAPE.1) ===
+
+Scope: this proof covers ONLY what h05 owns —
+`crates/enforcer-security/src/rules/economic_invariants.rs` and
+`crates/enforcer-security/tests/fixtures/economic_invariants/**`. It
+consumes h01's money-critical classification manifest shape read-only
+(via the `moneyCriticalUnits` field of the INVARIANT_SUITE record) and
+does not redefine what counts as money-critical. Sibling h04
+(security-test-shape bans) is untouched.
+
+Named test: `cargo test -p enforcer-security economic_invariants`
+
+  running unittests src\lib.rs
+  test rules::economic_invariants::tests::presence_stays_clean_for_non_money_critical_unit ... ok
+  test rules::economic_invariants::tests::unparseable_source_stays_silent_for_both_validators ... ok
+  test rules::economic_invariants::tests::shape_ignores_units_outside_money_critical_scope ... ok
+  test rules::economic_invariants::tests::presence_fixture_parity_compensation ... ok
+  test rules::economic_invariants::tests::full_suite_stays_clean_across_both_validators ... ok
+  test rules::economic_invariants::tests::presence_fixture_parity_attacker_cost ... ok
+  test rules::economic_invariants::tests::presence_fixture_parity_failure_not_reward ... ok
+  test rules::economic_invariants::tests::shape_fixture_parity_idempotency ... ok
+  test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out
+
+Full crate regression (`cargo test -p enforcer-security`): 27 unit tests
++ completeness.rs (1) + economic_invariants_parity.rs (1) +
+money_critical_parity.rs (1) + threat_test_mapping_parity.rs (1) — all
+green, 0 failed.
+
+d01 rule-scaffold-parity oracle (`economic_invariants_parity.rs`,
+`h05_rule_scaffold_parity_is_clean`): loads
+`crates/enforcer-security/rules/economic-invariants.json` (2 records:
+`ECON-INVARIANT-PRESENCE.1`, `ECON-INVARIANT-SHAPE.1`), resolves both
+against the live `Validator` impls, and asserts
+`enforcer_mechanization::parity::ParityOracle::sweep` returns zero
+findings — the full 5-way chain (ruleId <-> rule-record <-> Validator <->
+{fail,pass fixtures} <-> registry) is proven for both rows.
+
+Representative fail/pass triples (per the workpack's Acceptance And
+Proof section):
+
+  `failure != reward` (T1 presence):
+    fail: tests/fixtures/economic_invariants/failure_not_reward/bad/missing_failure_not_reward.json
+      (nine invariants present, `failure-not-reward` absent)
+      -> EconomicInvariantPresenceValidator fires exactly 1 Finding
+         naming `failure-not-reward`.
+    pass: tests/fixtures/economic_invariants/full_suite/good/full_suite.json
+      (all ten invariants present, all `"shape":"property"`)
+      -> zero findings under both validators.
+
+  `same-request-twice != more-value` (T1 assertion-shape):
+    fail: tests/fixtures/economic_invariants/idempotency/bad/single_case.json
+      (`idempotent-replay` present but `"shape":"single_case"`)
+      -> EconomicInvariantShapeValidator fires exactly 1 Finding
+         containing `single_case`.
+    pass: tests/fixtures/economic_invariants/idempotency/good/property.json
+      (`idempotent-replay` present, `"shape":"property"`)
+      -> zero findings.
+
+  `attacker-cost >= system-cost` (T1 presence):
+    fail: tests/fixtures/economic_invariants/attacker_cost/bad/cost_no_property.json
+      (nine invariants present, `attacker-cost-not-below-system-cost` absent)
+    pass: tests/fixtures/economic_invariants/attacker_cost/good/cost_property.json
+      (all ten present, all property-shaped)
+
+  `compensation idempotent+replay-safe` (T1 presence):
+    fail: tests/fixtures/economic_invariants/compensation/bad/compensation_missing.json
+      (nine invariants present, `compensation-idempotent-replay-safe` absent)
+    pass: tests/fixtures/economic_invariants/compensation/good/compensation_property.json
+      (all ten present, all property-shaped)
+
+  non-money-critical scope:
+    pass: tests/fixtures/economic_invariants/plain_util/good/plain_util.json
+      (`moneyCriticalUnits: []`, a `plain_util` unit with zero
+      `properties`) -> zero findings under
+      `EconomicInvariantPresenceValidator` — no suite required at all
+      for a unit h01 has not classified money-critical.
+
+Unparseable/non-JSON source: both validators return zero findings
+(mirrors h01/h03's "unparseable source stays silent" contract) —
+proven by `unparseable_source_stays_silent_for_both_validators`.
+
+`cargo clippy -p enforcer-security --all-targets -- -D warnings`: clean.
+(Fixed one `clippy::doc_lazy_continuation` in the salvaged module's
+top-level doc comment — a `*`-separated inline list wrapped across
+`//!` lines was misparsed as an unindented markdown list continuation;
+rewritten as comma-separated prose.)
+
+`cargo fmt -p enforcer-security -- --check`: clean (ran `cargo fmt`
+once to normalize line-wrapping in the salvaged file's test module and
+in `registry.rs`'s new `use` block; re-checked clean after).
+
+Registry wiring: `src/rules/mod.rs` gained `pub mod economic_invariants;`
+(h05's seam line only); `src/rules/registry.rs` gained two
+`RegistryRow` entries (`ECON-INVARIANT-PRESENCE.1`,
+`ECON-INVARIANT-SHAPE.1`) plus the corresponding `use` import — the
+skeleton file's existing rows (arc-19, h01, h03) are untouched.
+`registry_builds_cleanly` updated from 6 to 8 expected rows and passes.
+
+Verdict: GREEN for h05's owned scope. T1 presence and T1 assertion-shape
+both individually fail-leg-proven per invariant family (failure-not-reward,
+idempotency/same-request-twice, attacker-cost, compensation), the
+non-money-critical exemption is proven, and the d01 5-way parity oracle
+sweep is clean for both rule ids.

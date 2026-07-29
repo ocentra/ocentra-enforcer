@@ -1,0 +1,32 @@
+[package]
+name = "enforcer-lang-rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rust-family Validator implementations (arc-06 skeleton + baseline): no-reexports (pub use / pub(crate) use barrel ban, keyed to arc-04's T1-NOREEXPORT.1 rule record) and d17 rust-error-handling (unwrap/expect/panic!/todo!/unimplemented!/dbg! in first-party non-cfg(test) code), built on enforcer-validator's Validator trait and syn-AST parsing."
+publish = false
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: Rust validators emit shared finding/error contracts
+# directly from the canonical domain crate and implement the validator trait.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: The Rust-family rules parse first-party Rust source
+# with a syntax tree and use source spans for precise findings.
+# PROC-MACRO-DEPENDENCY-JUSTIFICATION: syn is runtime analysis infrastructure,
+# not a compile-time code-generation dependency; the pinned version is audited
+# with the validator behavior it parses.
+syn = { version = "=2.0.118", features = ["full", "extra-traits", "visit"] }
+# PROC-MACRO-DEPENDENCY-JUSTIFICATION: proc-macro2 provides the span token
+# representation consumed by the runtime syntax analysis above.
+proc-macro2 = { version = "=1.0.106", features = ["span-locations"] }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Integration tests load the production rule catalog
+# to verify Rust validator registration and rule identity.
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+
+[lints]
+workspace = true

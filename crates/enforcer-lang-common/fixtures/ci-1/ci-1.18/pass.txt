@@ -1,0 +1,5 @@
+// Fixture for CI-1.18: CI cannot call legacy weaker commands
+// Clean source — no occurrence of the CI-1.18 marker below.
+fn clean_example() {
+    // conformant with ci-integrity
+}

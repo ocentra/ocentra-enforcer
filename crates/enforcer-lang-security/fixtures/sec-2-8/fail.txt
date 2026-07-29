@@ -1,0 +1,1 @@
+CARGO_REGISTRY_TOKEN=abcdefghijklmnopqrstuvwx

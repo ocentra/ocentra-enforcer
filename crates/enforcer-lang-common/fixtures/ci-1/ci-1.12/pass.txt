@@ -1,0 +1,5 @@
+// Fixture for CI-1.12: CI must not hide failing hard gates
+// Clean source — no occurrence of the CI-1.12 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

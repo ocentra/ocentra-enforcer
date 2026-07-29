@@ -605,6 +605,7 @@ const LITERAL_RISK_RULES_VALUE = Object.freeze(
   ]),
 );
 
+/** Maps canonical check identifiers to their execution metadata. */
 export const CHECK_RULES = Object.freeze({
   ...CHECK_RULES_VALUE,
   ...LITERAL_RISK_RULES_VALUE,
@@ -626,6 +627,7 @@ const DEFAULT_ALLOWED_LICENSES = new Set([
 
 export { DEFAULT_ALLOWED_LICENSES };
 
+/** Maps supported command aliases to canonical check identifiers. */
 export const CHECK_ALIASES = new Map([
   ["check-source-shape", "source-shape"],
   ["check-required-tests", "required-tests"],
@@ -672,7 +674,12 @@ const SCANNER_BACKED_CHECKS_VALUE = Object.freeze({
   reexports: {
     languages: ["rust", "typescript", "common"],
     ruleIds: ["RR-7.2", "RR-7.3", "TS-1.1"],
+    excludedPathPatterns: [
+      /(?:^|[/\\])vendor[/\\]/u,
+      /(?:^|[/\\])fixtures[/\\]/u,
+    ],
   },
 });
 
+/** Lists checks implemented by the scanner-backed validation path. */
 export const SCANNER_BACKED_CHECKS = SCANNER_BACKED_CHECKS_VALUE;

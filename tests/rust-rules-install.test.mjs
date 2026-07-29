@@ -5,39 +5,69 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { spawnCli } from './cli-spawn.mjs';
+import { checkStagedRatchet } from '../scripts/precommit-ratchet.mjs';
+import { maskRustCode } from '../scripts/rust-rules-path-core.mjs';
+import { makeProject, runGateArgs } from './rust-rules-install-fixture.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
+const GIT_TEST_MAX_BUFFER = 32 * 1024 * 1024;
 
-function makeProject(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rust-rules-'));
-  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'Cargo.toml'), `
-[package]
-name = "fixture"
-version = "0.1.0"
-edition = "2021"
-rust-version = "1.75"
-`, 'utf8');
-  fs.writeFileSync(path.join(dir, 'Cargo.lock'), '', 'utf8');
-  fs.writeFileSync(path.join(dir, 'rust-toolchain.toml'), '[toolchain]\nchannel = "1.75.0"\ncomponents = ["rustfmt", "clippy"]\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'clippy.toml'), '# test fixture\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'deny.toml'), '[advisories]\nyanked = "deny"\nunmaintained = "deny"\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'OWNERS'), '@ocentra/enforcer\n', 'utf8');
-  for (const [rel, content] of Object.entries(files)) {
-    const full = path.join(dir, rel);
-    fs.mkdirSync(path.dirname(full), { recursive: true });
-    fs.writeFileSync(full, content.trimStart(), 'utf8');
-  }
-  return dir;
+function git(project, args) {
+  const result = spawnSync('git', args, { cwd: project, encoding: 'utf8', maxBuffer: GIT_TEST_MAX_BUFFER });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout;
 }
 
-function runGateArgs(project, args) {
-  return spawnCli(process.execPath, [SCRIPT, ...args, '--root', project], {
-    encoding: 'utf8',
+function commitFixture(project) {
+  git(project, ['init']);
+  git(project, ['config', 'user.email', 'fixtures@example.invalid']);
+  git(project, ['config', 'user.name', 'Fixture']);
+  git(project, ['add', '.']);
+  git(project, ['commit', '-m', 'baseline']);
+}
+
+test('boundary DTO evidence recognizes underscore-separated Rust test names', () => {
+  const project = makeProject({
+    'src/boundary/dto.rs': `
+      // BOUNDARY-INVARIANT: this module owns the external DTO wire shape.
+      #[derive(serde::Serialize, serde::Deserialize)]
+      pub struct InputDto { pub value: String }
+
+      pub struct DomainValue;
+
+      impl TryFrom<InputDto> for DomainValue {
+        type Error = ();
+
+        fn try_from(dto: InputDto) -> Result<Self, Self::Error> {
+          if dto.value.is_empty() { Err(()) } else { Ok(Self) }
+        }
+      }
+
+      #[cfg(test)]
+      mod tests {
+        #[test]
+        fn wire_round_trip_is_preserved() {
+          let value = InputDto { value: "valid".to_owned() };
+          let encoded = serde_json::to_vec(&value).unwrap();
+          let decoded: InputDto = serde_json::from_slice(&encoded).unwrap();
+          assert_eq!(decoded.value, value.value);
+        }
+
+        #[test]
+        fn invalid_payload_is_rejected() {
+          let result = DomainValue::try_from(InputDto { value: String::new() });
+          assert!(result.is_err());
+        }
+      }
+    `,
   });
-}
+  const result = runGateArgs(project, ['scan', '--files', 'src/boundary/dto.rs', '--json']);
+  const report = JSON.parse(result.stdout);
+  const evidenceRules = new Set(report.violations.map((violation) => violation.ruleId));
+  assert.equal(evidenceRules.has('RR-12.18'), false, result.stdout);
+  assert.equal(evidenceRules.has('RR-14.25'), false, result.stdout);
+});
 
 test('doctor reports usable scope', () => {
   const project = makeProject({
@@ -269,6 +299,7 @@ test('adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependen
   const hook = fs.readFileSync(path.join(ROOT, 'adapters', 'git-hooks', 'pre-commit.sh'), 'utf8');
   assert.match(hook, /^#!\/bin\/sh/u);
   assert.doesNotMatch(hook, /\[\[|declare -a|function\s+[A-Za-z_]/u);
+  assert.match(hook, /precommit-ratchet\.mjs/u);
 
   const workflowNames = [
     'ocentra-enforcer.yml',
@@ -284,6 +315,26 @@ test('adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependen
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'dependency-policy.yml'), 'utf8'), /cargo-audit/u);
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'secret-scan.yml'), 'utf8'), /gitleaks/u);
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'sbom.yml'), 'utf8'), /sbom-action/u);
+});
+
+test('precommit ratchet permits staged hard-finding reductions and rejects regressions', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({ requireCargoDeny: false }),
+    'src/lib.rs': 'fn value(input: String) { let _copy = input.clone(); }\n',
+  });
+  commitFixture(project);
+
+  fs.writeFileSync(path.join(project, 'src', 'lib.rs'), 'fn value(input: String) { let _ = input; }\n');
+  git(project, ['add', 'src/lib.rs']);
+  const reduction = checkStagedRatchet({ root: project, enforcerRoot: ROOT });
+  assert.equal(reduction.ok, true, JSON.stringify(reduction));
+
+  git(project, ['commit', '-m', 'remove clone debt']);
+  fs.writeFileSync(path.join(project, 'src', 'lib.rs'), 'fn value(input: String) { let _copy = input.clone(); }\n');
+  git(project, ['add', 'src/lib.rs']);
+  const regression = checkStagedRatchet({ root: project, enforcerRoot: ROOT });
+  assert.equal(regression.ok, false, JSON.stringify(regression));
+  assert.equal(regression.increased.length > 0, true);
 });
 
 test('expanded Rust hardening rules emit deterministic CLI JSON violations', () => {
@@ -317,7 +368,7 @@ pub async fn retry_without_policy(values: Vec<u8>) {
     while retry < 3 {}
     tokio::select! { _ = async_ping() => {} }
     for item in values { compute(item); }
-    while compute(1) > 0 { async_ping().await; }
+    loop { async_ping().await; }
 }
 
 fn retry_without_policy_counter() -> u8 { 0 }
@@ -369,6 +420,9 @@ pub struct SerializedState {
 }
 `,
     'src/no_conversion_dto.rs': `
+pub struct Missing;
+
+#[derive(Deserialize)]
 pub struct MissingDto {
     pub id: String,
 }
@@ -518,4 +572,409 @@ criterion = "0.5.1"
     assert.equal(typeof violation.doc, 'string');
     assert.equal(typeof violation.snippet, 'string');
   }
+});
+
+test('Rust domain signature classifier distinguishes owned conversion APIs from raw domain leaks', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/canonical.rs': `
+#[doc = "BRAND-INVARIANT: every usize is a valid exact zero-inclusive count."]
+pub struct ZeroCount(usize);
+
+impl From<usize> for ZeroCount {
+    fn from(value: usize) -> Self { Self(value) }
+}
+
+impl PartialEq<usize> for ZeroCount {
+    fn eq(&self, other: &usize) -> bool { self.0 == *other }
+}
+
+impl std::ops::Add<usize> for ZeroCount {
+    type Output = usize;
+    fn add(self, rhs: usize) -> Self::Output { self.0 + rhs }
+}
+
+impl ZeroCount {
+    pub const fn get(self) -> usize { self.0 }
+    pub const fn is_zero(self) -> bool { self.0 == 0 }
+    pub const fn should_emit(self, configured_min: Self) -> bool {
+        self.0 >= configured_min.0
+    }
+}
+
+pub struct Bytes(Vec<u8>);
+impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
+    fn eq(&self, other: &&[u8; N]) -> bool { self.0.as_slice() == *other }
+}
+
+#[doc = "BRAND-INVARIANT: values from zero through one hundred are valid percentages."]
+pub struct Percentage(u8);
+
+impl Percentage {
+    pub fn new(value: u8) -> Result<Self, &'static str> {
+        if value <= 100 { Ok(Self(value)) } else { Err("invalid percentage") }
+    }
+
+    pub const fn value(self) -> u8 { self.0 }
+}
+
+#[doc = "BRAND-INVARIANT: the string has already passed label validation."]
+pub struct Label(String);
+
+impl Label {
+    pub fn try_new(value: String) -> Result<Self, &'static str> {
+        if value.is_empty() { Err("invalid label") } else { Ok(Self(value)) }
+    }
+
+    pub fn as_str(&self) -> &str { &self.0 }
+}
+
+impl std::ops::Deref for Label {
+    type Target = str;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[doc = "BRAND-INVARIANT: empty text is valid report output; the wrapper preserves presentation ownership."]
+pub struct RenderedReport(String);
+impl From<String> for RenderedReport {
+    fn from(value: String) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: the boolean stores one named domain state."]
+pub struct ReadyState(bool);
+impl ReadyState {
+    pub const fn get(self) -> bool { self.0 }
+}
+`,
+    'src/raw_domain.rs': `
+pub type RawCount = usize;
+
+pub struct InvalidCount(usize);
+impl From<usize> for InvalidCount {
+    fn from(value: usize) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: every usize is a valid exact zero-inclusive count."]
+pub struct WrongRawConversion(usize);
+impl From<u32> for WrongRawConversion {
+    fn from(value: u32) -> Self { Self(value as usize) }
+}
+
+#[doc = "BRAND-INVARIANT: labels are required to be non-empty."]
+pub struct InvalidLabel(String);
+impl From<String> for InvalidLabel {
+    fn from(value: String) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: labels are required to be non-empty."]
+pub struct PublicInvalidLabel(pub String);
+
+pub struct DomainService;
+impl DomainService {
+    pub fn increment_by(&mut self, amount: u32) { let _ = amount; }
+    pub fn raw_total(&self) -> u64 { 0 }
+    pub fn get_ready(&self, key: &str) -> bool { !key.is_empty() }
+}
+
+pub trait RawDomainContract {
+    fn replace_count(&mut self, count: u32);
+}
+`,
+  });
+
+  const result = runGateArgs(project, [
+    'scan',
+    '--json',
+    '--languages',
+    'rust',
+    '--files',
+    'src/canonical.rs',
+    'src/raw_domain.rs',
+  ]);
+  const report = JSON.parse(result.stdout);
+  const canonicalBoundaryFindings = report.violations.filter(
+    (violation) =>
+      violation.file === 'src/canonical.rs'
+      && ['RR-4.12', 'RR-6.1', 'RR-6.2', 'RR-6.5', 'RR-6.44'].includes(violation.ruleId),
+  );
+  assert.deepEqual(canonicalBoundaryFindings, [], result.stdout);
+
+  const rawDomainIds = new Set(
+    report.violations
+      .filter((violation) => violation.file === 'src/raw_domain.rs')
+      .map((violation) => violation.ruleId),
+  );
+  assert.equal(rawDomainIds.has('RR-6.2'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-6.5'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-6.44'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-4.12'), true, result.stdout);
+  assert.equal(
+    report.violations.some(
+      (violation) => violation.ruleId === 'RR-6.44' && violation.detail.includes('InvalidLabel'),
+    ),
+    true,
+    result.stdout,
+  );
+  assert.equal(
+    report.violations.some(
+      (violation) =>
+        violation.ruleId === 'RR-6.44'
+        && violation.detail.includes('PublicInvalidLabel'),
+    ),
+    true,
+    result.stdout,
+  );
+  assert.equal(
+    report.violations.some(
+      (violation) => violation.ruleId === 'RR-6.44' && violation.detail.includes('WrongRawConversion'),
+    ),
+    true,
+    result.stdout,
+  );
+});
+
+test('Rust masking preserves code after byte character literals and masks comments and strings', () => {
+  const source = `
+const ASCII_A: u8 = b'a';
+// impl From<usize> for CommentOnly {}
+const TEXT: &str = "impl From<usize> for StringOnly {}";
+impl From<usize> for TotalCount {}
+`;
+  const masked = maskRustCode(source);
+  assert.match(masked, /impl From<usize> for TotalCount/u);
+  assert.doesNotMatch(masked, /CommentOnly|StringOnly/u);
+});
+
+test('awaiting a Tokio lock acquisition is not reported as awaiting while holding a guard', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/lib.rs': `
+pub async fn increment(lock: tokio::sync::Mutex<u8>) {
+    *lock.lock().await += 1;
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-8.17'),
+    false,
+    result.stdout,
+  );
+});
+
+test('Rust slice type declarations are not reported as unchecked indexing', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/lib.rs': `
+pub fn values<'a>() -> &'a [u8] { &[] }
+pub fn names() -> &'static [&'static str] { &[] }
+pub fn sort_paths(paths: &mut [TracedPath]) { paths.sort_by_key(|path| path.depth); }
+pub fn normalize(vector: &mut [f32]) { vector.fill(0.0); }
+pub fn read(buf: &mut [u8]) -> usize { buf.len() }
+pub fn first(values: Vec<u8>) -> u8 { values[0] }
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
+  const report = JSON.parse(result.stdout);
+  const indexing = report.violations.filter((violation) => violation.ruleId === 'RR-5.3');
+  assert.equal(indexing.length, 1, result.stdout);
+  assert.match(indexing[0].source, /values\[0\]/u);
+});
+
+test('boundary serde classification is scoped to each adjacent struct attributes', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/boundary.rs': `
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct EventDto {
+    pub value: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct EventWire {
+    pub value: String,
+}
+
+pub struct NotWiredError {
+    pub message: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct MissingSuffix {
+    pub value: String,
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/boundary.rs']);
+  const report = JSON.parse(result.stdout);
+  const violations = report.violations.filter((violation) => violation.ruleId === 'RR-14.21');
+  assert.equal(violations.length, 1, result.stdout);
+  assert.match(violations[0].detail, /MissingSuffix/u);
+});
+
+test('base64 domain classification requires an executable raw-string shape', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/redaction.rs': `
+/// Redacts base64-looking secrets before persistence.
+pub struct Redactor {
+    pattern: String,
+}
+`,
+    'src/domain.rs': `
+pub struct UnsafePayload {
+    pub payload_base64: String,
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/redaction.rs', 'src/domain.rs']);
+  const report = JSON.parse(result.stdout);
+  const violations = report.violations.filter((violation) => violation.ruleId === 'RR-14.28');
+  assert.equal(violations.length, 1, result.stdout);
+  assert.equal(violations[0].file, 'src/domain.rs');
+  assert.match(violations[0].source, /payload_base64/u);
+});
+
+test('workspace dependency users inherit the root dependency justification', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src', 'crates'],
+    }),
+    'crates/member/Cargo.toml': `
+[package]
+name = "member"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+serde = { workspace = true }
+`,
+    'crates/member/src/lib.rs': 'pub struct Member;\n',
+  });
+  fs.appendFileSync(
+    path.join(project, 'Cargo.toml'),
+    `
+
+[workspace]
+members = ["crates/member"]
+
+[workspace.dependencies]
+# DEPENDENCY-JUSTIFICATION: shared serialization contract for workspace records.
+serde = { version = "1.0.228", features = ["derive"] }
+`,
+    'utf8',
+  );
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'crates/member/Cargo.toml']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-9.18'),
+    false,
+    result.stdout,
+  );
+});
+
+test('a substantive contiguous Cargo comment is dependency justification', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'Cargo.toml': `
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+# This client performs the optional local model download and JSON protocol
+# boundary, so it is deliberately opt-in rather than part of the default build.
+reqwest = { version = "0.12", default-features = false, optional = true }
+`,
+    'src/lib.rs': 'pub struct Fixture;\n',
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'Cargo.toml']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-9.18'),
+    false,
+    result.stdout,
+  );
+});
+
+test('erased test-harness errors are not treated as application-domain errors', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src', 'tests'],
+    }),
+    'src/lib.rs': `
+pub fn production() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+
+#[test]
+fn fixture() -> Result<(), Box<dyn std::error::Error>> {
+    let value = "fixture".to_string();
+    let copied = value.clone();
+    assert_eq!(copied, "fixture");
+    Ok(())
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
+  const report = JSON.parse(result.stdout);
+  const productionOnlyRules = new Set(['RR-4.4', 'RR-5.1', 'RR-5.2']);
+  const productionOnlyFindings = report.violations.filter((violation) =>
+    productionOnlyRules.has(violation.ruleId),
+  );
+  assert.equal(productionOnlyFindings.length, 1, result.stdout);
+  assert.equal(productionOnlyFindings[0].ruleId, 'RR-4.4');
+  assert.equal(productionOnlyFindings[0].file, 'src/lib.rs');
+});
+
+test('clone and allocation policy applies to core code but not an owned transport boundary', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+      rawTypeBoundaryGlobs: ['src/transport.rs'],
+      boundaryOwnerNote: 'Transport owns wire-format strings and graph-record allocation.',
+    }),
+    'src/core.rs': `
+pub fn core() {
+    let value = "core".to_string();
+    let _copied = value.clone();
+}
+`,
+    'src/transport.rs': `
+pub fn encode() {
+    let value = "wire".to_string();
+    let _copied = value.clone();
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/core.rs', 'src/transport.rs']);
+  const report = JSON.parse(result.stdout);
+  const findings = report.violations.filter((violation) =>
+    new Set(['RR-5.1', 'RR-5.2']).has(violation.ruleId),
+  );
+  assert.equal(findings.length, 2, result.stdout);
+  assert.equal(findings.every((violation) => violation.file === 'src/core.rs'), true);
 });

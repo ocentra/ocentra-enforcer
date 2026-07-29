@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.5: CI waiver behavior must be explicit
+// Clean source — no occurrence of the WAIVER-1.5 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

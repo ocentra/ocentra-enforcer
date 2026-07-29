@@ -1,0 +1,4 @@
+// Fixture for ENF-2.1: Policy-critical mutations require stronger proof
+// Ported from legacy validator id `common/mutation-risk` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_ENF_2_1_MARKER

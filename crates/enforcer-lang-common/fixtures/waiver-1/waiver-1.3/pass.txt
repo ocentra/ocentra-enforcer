@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.3: Expired waivers fail
+// Clean source — no occurrence of the WAIVER-1.3 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

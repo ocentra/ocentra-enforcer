@@ -1,0 +1,5 @@
+// Fixture for NPM-1.15: Package export paths must exist
+// Clean source — no occurrence of the NPM-1.15 marker below.
+fn clean_example() {
+    // conformant with common/package-determinism
+}

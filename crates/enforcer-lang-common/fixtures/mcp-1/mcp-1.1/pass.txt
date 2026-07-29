@@ -1,0 +1,5 @@
+// Fixture for MCP-1.1: MCP must expose CLI scan and check equivalents
+// Clean source — no occurrence of the MCP-1.1 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

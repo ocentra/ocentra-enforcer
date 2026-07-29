@@ -1,0 +1,236 @@
+[
+  {
+    "name": "hsts_missing_header",
+    "input": "{\"headers\": {\"Content-Type\": \"text/html\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "No HSTS header"
+  },
+  {
+    "name": "hsts_weak_max_age_1day",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=86400\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "max-age 1 day < 1 year"
+  },
+  {
+    "name": "hsts_weak_max_age_30days",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=2592000; includeSubDomains\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "max-age 30 days < 1 year"
+  },
+  {
+    "name": "hsts_weak_max_age_6months",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=15768000\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "max-age 6 months < 1 year"
+  },
+  {
+    "name": "hsts_no_max_age",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"includeSubDomains; preload\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "No max-age directive"
+  },
+  {
+    "name": "hsts_malformed_max_age",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=abc; includeSubDomains\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "max-age not numeric"
+  },
+  {
+    "name": "hsts_max_age_empty",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=; preload\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "max-age empty"
+  },
+  {
+    "name": "hsts_strong_exactly_one_year",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "max-age exactly 31536000"
+  },
+  {
+    "name": "hsts_strong_with_includesubdomains",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000; includeSubDomains\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Strong with includeSubDomains"
+  },
+  {
+    "name": "hsts_strong_with_preload",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000; preload\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Strong with preload"
+  },
+  {
+    "name": "hsts_strong_full_config",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000; includeSubDomains; preload\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Strongest HSTS config"
+  },
+  {
+    "name": "hsts_strong_two_years",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=63072000\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "max-age 2 years >> 1 year"
+  },
+  {
+    "name": "hsts_strong_case_insensitive",
+    "input": "{\"headers\": {\"strict-transport-security\": \"max-age=31536000; INCLUDESUBDOMAINS; PRELOAD\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Case-insensitive header lookup"
+  },
+  {
+    "name": "csp_missing_header",
+    "input": "{\"headers\": {\"Content-Type\": \"text/html\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "No CSP header"
+  },
+  {
+    "name": "csp_missing_only_report_only",
+    "input": "{\"headers\": {\"Content-Security-Policy-Report-Only\": \"default-src 'self'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Only report-only, no enforced CSP"
+  },
+  {
+    "name": "csp_unsafe_inline_in_script_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src 'unsafe-inline'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Has unsafe-inline"
+  },
+  {
+    "name": "csp_unsafe_inline_in_style_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"default-src 'self'; style-src 'unsafe-inline'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Has unsafe-inline in style"
+  },
+  {
+    "name": "csp_unsafe_eval_in_script_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src 'unsafe-eval'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Has unsafe-eval"
+  },
+  {
+    "name": "csp_both_unsafe_inline_and_eval",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src 'unsafe-inline' 'unsafe-eval'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Both unsafe directives"
+  },
+  {
+    "name": "csp_wildcard_as_value",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src *\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Wildcard * at end (vendor branch)"
+  },
+  {
+    "name": "csp_wildcard_with_spacing",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src 'self' * 'unsafe-inline'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Wildcard in middle (vendor branch)"
+  },
+  {
+    "name": "csp_wildcard_exact_match",
+    "input": "{\"headers\":{\"Content-Security-Policy\":\"default-src self; img-src *\"},\"cookies\":[]}",
+    "expect": "flag",
+    "reason": "Wildcard in default-src (vendor branch) [reconciled: trailing bare wildcard `img-src *`, which vendor \" * \" check and ours both flag]"
+  },
+  {
+    "name": "csp_missing_default_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"script-src 'self'; img-src https:\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "Missing default-src (vendor branch)"
+  },
+  {
+    "name": "csp_only_style_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"style-src 'self'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "No default-src fallback (vendor branch)"
+  },
+  {
+    "name": "csp_restrictive_with_default_src",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"default-src 'self'\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Clean CSP with default-src"
+  },
+  {
+    "name": "csp_multiple_directives_safe",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"default-src 'self'; script-src 'self' 'nonce-abc123'; img-src 'self' https:\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "Multiple safe directives with nonces"
+  },
+  {
+    "name": "csp_with_frame_ancestors",
+    "input": "{\"headers\": {\"Content-Security-Policy\": \"default-src 'self'; frame-ancestors 'none'\"}, \"cookies\": []}",
+    "expect": "clean",
+    "reason": "With frame-ancestors directive"
+  },
+  {
+    "name": "cookie_missing_secure",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"sid\", \"secure\": false, \"httponly\": true, \"samesite\": \"Strict\"}]}",
+    "expect": "flag",
+    "reason": "Cookie missing Secure flag"
+  },
+  {
+    "name": "cookie_missing_httponly",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"token\", \"secure\": true, \"httponly\": false, \"samesite\": \"Lax\"}]}",
+    "expect": "flag",
+    "reason": "Cookie missing HttpOnly flag"
+  },
+  {
+    "name": "cookie_missing_both_secure_httponly",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"bad\", \"secure\": false, \"httponly\": false, \"samesite\": \"Strict\"}]}",
+    "expect": "flag",
+    "reason": "Missing both Secure and HttpOnly"
+  },
+  {
+    "name": "cookie_samesite_not_set",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"auth\", \"secure\": true, \"httponly\": true, \"samesite\": null}]}",
+    "expect": "flag",
+    "reason": "SameSite not set"
+  },
+  {
+    "name": "cookie_samesite_none_string",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"cross\", \"secure\": true, \"httponly\": true, \"samesite\": \"None\"}]}",
+    "expect": "clean",
+    "reason": "SameSite=None (vendor treats as issue) [reconciled: SameSite=None + Secure + HttpOnly is an explicit, valid config; workpack accepts Strict|Lax|None]"
+  },
+  {
+    "name": "cookie_secure_httponly_strict",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"session\", \"secure\": true, \"httponly\": true, \"samesite\": \"Strict\"}]}",
+    "expect": "clean",
+    "reason": "All secure attributes"
+  },
+  {
+    "name": "cookie_secure_httponly_lax",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"pref\", \"secure\": true, \"httponly\": true, \"samesite\": \"Lax\"}]}",
+    "expect": "clean",
+    "reason": "Secure with Lax"
+  },
+  {
+    "name": "cookie_secure_httponly_none_lowercase",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"tracking\", \"secure\": true, \"httponly\": true, \"samesite\": \"none\"}]}",
+    "expect": "clean",
+    "reason": "Secure with lowercase none (valid in Rust)"
+  },
+  {
+    "name": "cookie_multiple_secure",
+    "input": "{\"headers\": {}, \"cookies\": [{\"name\": \"sid\", \"secure\": true, \"httponly\": true, \"samesite\": \"Strict\"}, {\"name\": \"uid\", \"secure\": true, \"httponly\": true, \"samesite\": \"Lax\"}]}",
+    "expect": "clean",
+    "reason": "Multiple cookies all secure"
+  },
+  {
+    "name": "combined_all_headers_strong",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000; includeSubDomains; preload\", \"Content-Security-Policy\": \"default-src 'self'; script-src 'self' 'nonce-xyz'\"}, \"cookies\": [{\"name\": \"session\", \"secure\": true, \"httponly\": true, \"samesite\": \"Strict\"}]}",
+    "expect": "clean",
+    "reason": "All security headers and cookies strong"
+  },
+  {
+    "name": "combined_hsts_weak_csp_missing",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=3600\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "HSTS too weak (1 hour)"
+  },
+  {
+    "name": "combined_hsts_strong_csp_unsafe",
+    "input": "{\"headers\": {\"Strict-Transport-Security\": \"max-age=31536000; includeSubDomains\", \"Content-Security-Policy\": \"script-src 'unsafe-inline'\"}, \"cookies\": []}",
+    "expect": "flag",
+    "reason": "HSTS good but CSP unsafe"
+  }
+]

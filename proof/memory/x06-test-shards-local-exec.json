@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-test-shards",
+  "generatedAt": "2026-07-09T16:52:04.446Z",
+  "package": "enforcer-memory",
+  "testRoot": "crates/enforcer-memory/tests",
+  "totalTargets": 245,
+  "selectedTargets": 1,
+  "shard": "all",
+  "only": "local",
+  "byCategory": {
+    "integration": 10,
+    "x06-proof": 17,
+    "model-runtime": 5,
+    "parity-live": 4,
+    "unit-core": 56,
+    "unit-languages": 153
+  },
+  "commandTemplate": "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/M",
+  "executionPolicy": {
+    "deterministicDiscovery": true,
+    "crossPlatform": true,
+    "oneCargoTestTargetPerProcess": true,
+    "avoidsMonolithicPackageTimeout": true,
+    "zeroNetwork": true
+  },
+  "result": {
+    "mode": "executed",
+    "ok": true,
+    "executedTargets": 1,
+    "failedTargets": []
+  },
+  "targets": [
+    {
+      "target": "local_runtime",
+      "category": "model-runtime",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "local_runtime",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    }
+  ]
+}

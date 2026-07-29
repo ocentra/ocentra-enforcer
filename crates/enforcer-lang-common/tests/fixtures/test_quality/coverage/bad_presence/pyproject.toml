@@ -1,0 +1,3 @@
+[tool.coverage]
+source = ["app"]
+branch = true

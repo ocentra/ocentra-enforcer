@@ -1,0 +1,180 @@
+=== cargo build --workspace ===
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.43s
+
+=== cargo test -p enforcer-lang-common ===
+test rules::change_discipline::tests::identical_markers_are_clean ... ok
+test rules::change_discipline::tests::dropped_marker_is_flagged_naming_file_and_lost_text ... ok
+test rules::change_discipline::tests::harness_fails_closed_when_validator_never_fires_on_a_real_drop ... ok
+test rules::change_discipline::tests::moved_or_reordered_marker_is_clean ... ok
+test registry::tests::every_registered_validator_has_a_unique_rule_id ... ok
+test rules::change_discipline::tests::live_x06_workpack_still_carries_at_least_two_ownerset_markers ... ok
+test port_platform::tests::no_declaration_is_unchanged_strict_default_and_still_fails ... ok
+test port_platform::tests::linux_only_scope_passes_bash_only_script ... ok
+test registry::tests::all_returns_the_expected_total_validator_count ... ok
+test rules::change_discipline::tests::ownerset_validator_unrelated_edit_pass_fixture_stays_clean ... ok
+test rules::deferred_work::tests::clean_source_with_no_markers_is_silent ... ok
+test rules::change_discipline::tests::unrelated_edit_near_marker_is_clean ... ok
+test pattern::tests::fires_on_any_marker_and_reports_line ... ok
+test port_platform::tests::explicit_all_three_platforms_declared_is_fully_relaxed ... ok
+test port_platform::tests::guarded_platform_specific_line_is_silent_even_outside_scope ... ok
+test rules::deferred_work::tests::fires_on_unmarked_stub_and_silent_on_annotated_stub ... ok
+test port_platform::tests::linux_only_scope_fails_unguarded_windows_script ... ok
+test rules::change_discipline::tests::new_marker_added_is_clean ... ok
+test rules::change_discipline::tests::one_validator_registered ... ok
+test pattern::tests::silent_when_no_marker_present ... ok
+test rules::change_discipline::tests::ownerset_validator_new_marker_added_pass_fixture_stays_clean ... ok
+test rules::change_discipline::tests::ownerset_validator_fixture_parity ... ok
+test rules::change_discipline::tests::no_markers_in_base_is_clean ... ok
+test rules::deferred_work::tests::malformed_annotation_still_fails ... ok
+test rules::deferred_work::tests::parser_accepts_well_formed_annotation ... ok
+test rules::deferred_work::tests::missing_revisit_still_fails ... ok
+test rules::deferred_work::tests::parser_rejects_non_deferred_form ... ok
+test rules::fsm::tests::fsm_singleton_stateless ... ok
+test rules::fsm::tests::fsm_status_literal_forbidden ... ok
+test rules::fsm::tests::ten_validators_registered_with_unique_rule_ids ... ok
+test rules::resilience::tests::clean_source_with_no_markers_is_silent_across_all_three ... ok
+test rules::fsm::tests::fsm_validate_before_mutate ... ok
+test rules::fsm::tests::fsm_terminal_state_no_outgoing ... ok
+test rules::fsm::tests::fsm_explicit_transitions_map ... ok
+test rules::fsm::tests::fsm_required_mandatory_fsm ... ok
+test rules::fsm::tests::fsm_enum_parse ... ok
+test rules::change_discipline::tests::ownerset_validator_x06_regression_fixture_parity ... ok
+test rules::deferred_work::tests::parser_rejects_unterminated_ref ... ok
+test rules::deferred_work::tests::well_formed_annotation_is_silent_across_languages ... ok
+test rules::fsm::tests::fsm_canonical_layout ... ok
+test rules::fsm::tests::fsm_enum_location_strenum_only ... ok
+test rules::resilience::tests::required_test_obligation_is_blocking ... ok
+test rules::resilience::tests::resilience_auditor_failure_mode_test_obligation ... ok
+test rules::resilience::tests::smell_score_and_confidence_stay_within_unit_bounds ... ok
+test rules::resilience::tests::resilience_auditor_io_timeout_smell ... ok
+test rules::fsm::tests::fsm_coverage ... ok
+test rules::size_shape::tests::size_file_length ... ok
+test rules::size_shape::tests::size_file_length_rust_override ... ok
+test rules::size_shape::tests::size_class_length ... ok
+test rules::size_shape::tests::size_class_public_method_count ... ok
+test rules::size_shape::tests::size_complexity_nesting ... ok
+test rules::size_shape::tests::size_function_length ... ok
+test rules::resilience::tests::resilience_auditor_atomic_write_smell ... ok
+test rules::resilience::tests::smells_never_carry_blocking_severity ... ok
+test rules::resilience::tests::three_validators_registered_with_unique_rule_ids ... ok
+test rules::size_shape::tests::size_param_count ... ok
+test rules::size_shape::tests::size_line_length_trailing_pragma_still_flags ... ok
+test rules::size_shape::tests::size_line_length ... ok
+test rules::size_shape::tests::size_testfile_length ... ok
+test rules::size_shape::tests::nine_validators_registered_with_unique_rule_ids ... ok
+test rules::size_shape::tests::size_ratchet_length ... ok
+test rules::size_shape::tests::size_package_nesting_depth ... ok
+test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test every_fsm_rule_passes_the_d01_five_way_parity_sweep ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test count_parity_against_rules_json_language_common_minus_sec2 ... ok
+test every_expected_rule_has_both_fixture_files_on_disk ... ok
+test every_registered_validator_fires_on_fail_and_is_silent_on_pass ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+test every_resilience_rule_passes_the_d01_five_way_parity_sweep ... ok
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test every_size_shape_rule_passes_the_d01_five_way_parity_sweep ... ok
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== cargo test -p enforcer-rules ===
+test registry::tests::rejects_duplicate_rule_ids ... ok
+test registry::tests::rejects_empty_doc_anchor ... ok
+test registry::tests::rejects_malformed_fixture_ref ... ok
+test registry::tests::rejects_malformed_validator_ref ... ok
+test rules::plan::tests::every_plan_record_fixture_path_exists_on_disk ... ok
+test rules::plan::tests::every_plan_record_has_full_5_way_linkage ... ok
+test loader::tests::rejects_malformed_json ... ok
+test registry::tests::empty_registry_reports_empty ... ok
+test loader::tests::parses_a_well_formed_catalog ... ok
+test loader::tests::rejects_duplicate_ids_across_the_same_file ... ok
+test registry::tests::loads_well_formed_records ... ok
+test version_drift::tests::content_change_with_matching_version_bump_is_clean ... ok
+test rules::plan::tests::plan_records_load_into_a_registry_without_collision ... ok
+test version_drift::tests::mismatched_rule_ids_are_not_comparable ... ok
+test version_drift::tests::content_change_without_version_bump_fails_closed ... ok
+test version_drift::tests::cosmetic_only_changes_do_not_count_as_content_drift ... ok
+test version_drift::tests::identical_records_are_unchanged ... ok
+test version_drift::tests::validator_change_without_version_bump_fails_closed ... ok
+test loader::tests::missing_file_fails_closed ... ok
+test loader::tests::loads_registry_from_disk_files ... ok
+test loader::tests::duplicate_across_two_files_fails_closed ... ok
+test version_drift::tests::version_bump_without_content_change_fails_closed ... ok
+test version_drift::tests::version_decrease_with_content_change_fails_closed ... ok
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test cyberskills_catalog_has_no_duplicate_or_malformed_records ... ok
+test cyberskills_catalog_loads_and_every_record_resolves ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test frontend_react_tier_split_matches_workpack_twelve_t1_one_t2 ... ok
+test frontend_react_catalog_loads_into_registry_with_no_duplicates ... ok
+test frontend_react_catalog_has_no_t3_rules ... ok
+test frontend_react_catalog_loads_thirteen_records ... ok
+test fe_arch_1_4_is_the_sole_t2_scored_advisory ... ok
+test fe_effect_1_1_divergence_rule_is_present_and_linked ... ok
+test every_frontend_react_record_links_to_enforcer_lang_ts_with_full_linkage ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+test fsm_catalog_loads_ten_records ... ok
+test fsm_catalog_has_no_t3_rules ... ok
+test fsm_catalog_loads_into_registry_with_no_duplicates ... ok
+test fsm_tier_split_matches_workpack_six_t1_four_t2 ... ok
+test every_fsm_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test ownerset_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test ownerset_catalog_loads_one_record ... ok
+test ownerset_record_is_tier_t1_with_change_discipline_and_owner_set_tags ... ok
+test ownerset_catalog_loads_into_registry_with_no_duplicates ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test malformed_record_is_rejected ... ok
+test no_reexports_record_loads_and_is_linked_to_lang_rust_validator ... ok
+test ocentra_parent_posture_yields_all_four_expected_records ... ok
+test seeded_version_drift_fails_closed_on_hollow_version_bump ... ok
+test legitimate_version_bump_matching_content_change_is_clean ... ok
+test a_renamed_posture_record_id_fails_closed ... ok
+test seeded_version_drift_fails_closed_on_content_change_without_bump ... ok
+test baseline_catalogs_load_into_one_registry ... ok
+test deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator ... ok
+test a_missing_posture_record_fails_closed ... ok
+test deny_wall_record_loads_and_resolves ... ok
+test duplicate_rule_id_across_catalogs_is_rejected ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test resilience_tier_split_matches_workpack_one_t1_two_t2 ... ok
+test resilience_catalog_loads_three_records ... ok
+test resilience_catalog_has_no_t3_rules ... ok
+test resilience_catalog_loads_into_registry_with_no_duplicates ... ok
+test every_resilience_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+test size_shape_catalog_loads_into_registry_with_no_duplicates ... ok
+test size_shape_tier_split_matches_workpack_six_t1_three_t2 ... ok
+test size_shape_catalog_loads_nine_records ... ok
+test size_shape_catalog_has_no_t3_rules ... ok
+test every_size_shape_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== cargo clippy -p enforcer-lang-common -p enforcer-rules --all-targets -- -D warnings ===
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.90s
+
+=== cargo fmt --check (resilience.rs + new test files) ===
+fmt exit: 0

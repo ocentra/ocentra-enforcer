@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-cli",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-cli",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "mcp_cli_live::cli_mirror_produces_the_same_envelope_json_as_the_mcp_tools_call_path",
+      "mcp_cli_live::cli_run_cli_exit_codes_are_strictly_0_or_1",
+      "mcp_cli_live::cli_json_mode_prints_the_same_raw_envelope_cli_invoke_returns",
+      "mcp_cli_live::unknown_method_yields_method_not_found_with_id_echoed",
+      "mcp_cli_live::malformed_json_yields_a_parse_error_with_id_zero"
+    ]
+  },
+  "hardRequirements": {
+    "mcpEnvelopeParity": "covered",
+    "strictExitCodes": "covered",
+    "jsonMode": "covered",
+    "compactDiagnostics": "covered"
+  }
+}

@@ -1,0 +1,4 @@
+// Fixture for BOUND-1.10: Boundary conversion functions return typed errors
+// Ported from legacy validator id `common/architecture` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
+// This line trips the rule:
+ENFORCER_BOUND_1_10_MARKER

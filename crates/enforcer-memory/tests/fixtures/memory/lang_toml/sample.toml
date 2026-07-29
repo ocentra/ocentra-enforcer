@@ -1,0 +1,8 @@
+title = "Example"
+
+[package]
+name = "widget"
+version = "0.1.0"
+
+[[bin]]
+name = "widget-cli"

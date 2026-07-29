@@ -1,0 +1,56 @@
+{
+  "workpack": "d02-baseline-grandfather-ratchet",
+  "command": "cargo test -p enforcer-scan",
+  "crate": "enforcer-scan",
+  "module": "src/rules/baseline_ratchet.rs",
+  "unitTests": {
+    "suite": "rules::baseline_ratchet::tests",
+    "count": 4,
+    "names": [
+      "fails_closed_on_a_brand_new_violation",
+      "known_violation_does_not_re_fail",
+      "ratchets_down_when_a_known_violation_is_fixed",
+      "baseline_never_grows_beyond_current_plus_prior_still_present"
+    ],
+    "result": "ok"
+  },
+  "integrationTests": {
+    "suite": "tests/baseline_ratchet.rs",
+    "count": 7,
+    "names": [
+      "clean_baseline_write_round_trips_via_persisted_record",
+      "tampered_baseline_file_fails_to_load",
+      "unchanged_run_passes_with_warnings",
+      "one_added_finding_fails",
+      "one_grown_count_fails",
+      "one_removed_finding_shrinks_the_allowance",
+      "baseline_entries_reference_real_registry_rule_ids"
+    ],
+    "result": "ok"
+  },
+  "acceptanceScenarios": {
+    "cleanBaselineWrite": "clean_baseline_write_round_trips_via_persisted_record: writes a versioned BaselineRecord (Sha256 integrity) via write_baseline, loads it back via load_baseline, asserts round-trip equality",
+    "unchangedRunPasses": "unchanged_run_passes_with_warnings: baseline == current -> passes() true, every violation demoted to warning (not dropped)",
+    "oneAddedFindingFails": "one_added_finding_fails: current adds one new (file,line) key not in baseline -> passes() false, exactly 1 error, prior 2 still warn, ratcheted baseline grows to 3",
+    "oneGrownCountFails": "one_grown_count_fails: current adds a second occurrence line inside an already-baselined file -> passes() false, exactly 1 error at the new line, growth cannot hide behind an already-flagged file",
+    "oneRemovedFindingShrinks": "one_removed_finding_shrinks_the_allowance: current drops one baselined key -> passes() true, ratcheted baseline shrinks from 2 to 1; persists the shrink to disk and proves the dropped key fails closed again if reintroduced (no silent re-grandfathering)"
+  },
+  "additionalProof": {
+    "tamperDetection": "tampered_baseline_file_fails_to_load: hand-edited baseline JSON (line field mutated post-hash) fails load_baseline's Sha256 integrity verification",
+    "ruleIdParity": "baseline_entries_reference_real_registry_rule_ids: every fixture RuleId (T1-NOREEXPORT.1) resolves in the real enforcer-rules registry loaded from crates/enforcer-rules/rules/no-reexports.json, not a fixture-only placeholder"
+  },
+  "fixtures": [
+    "crates/enforcer-scan/tests/fixtures/baseline_ratchet/clean_write.json",
+    "crates/enforcer-scan/tests/fixtures/baseline_ratchet/unchanged_pass.json",
+    "crates/enforcer-scan/tests/fixtures/baseline_ratchet/added_finding_fail.json",
+    "crates/enforcer-scan/tests/fixtures/baseline_ratchet/grown_count_fail.json",
+    "crates/enforcer-scan/tests/fixtures/baseline_ratchet/removed_finding_shrink.json"
+  ],
+  "wholeCrateResult": "cargo test -p enforcer-scan: 35 passed; 0 failed (25 lib unit + 7 baseline_ratchet integration + 3 scan_fixtures integration)",
+  "workspaceResult": "cargo test --workspace: all crates pass, 0 failed",
+  "lints": {
+    "clippy": "cargo clippy -p enforcer-scan --all-targets -- -D warnings: clean (0 errors)",
+    "fmt": "cargo fmt -p enforcer-scan -- --check: clean"
+  },
+  "status": "GREEN"
+}

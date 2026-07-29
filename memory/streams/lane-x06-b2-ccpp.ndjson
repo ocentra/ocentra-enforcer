@@ -1,0 +1,1 @@
+{"schema":1,"lane":"x06-b2-ccpp","event":"done","summary":"C+C++ core-parity extractors: languages/c.rs, languages/cpp.rs, complexity NodeKindTable::c()/::cpp(), parsers dispatch (.c->C, .h/.hpp/.hh/.hxx/.cpp/.cc/.cxx->Cpp), 23 tests green, clippy+fmt clean for owned files.","model":"claude-sonnet-5"}

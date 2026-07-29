@@ -1,0 +1,658 @@
+[
+    {
+        "ruleId": "CYBER-FRONTMATTER.1",
+        "version": 1,
+        "title": "SKILL.md frontmatter must be structurally valid with well-formed, known threat ids",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "cyberskills::frontmatter_lint::SkillFrontmatterValidValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/bad/bad_attack_id.md",
+            "pass": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/good/valid.md"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "frontmatter", "threat-vocab"]
+    },
+    {
+        "ruleId": "CYBER-IAC-S3-SSE.1",
+        "version": 1,
+        "title": "Terraform aws_s3_bucket must have server-side encryption configured",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::S3EncryptionRequiredValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/bad/no_sse.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/good/sse.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-IAC-IAM-WILDCARD.1",
+        "version": 1,
+        "title": "Terraform aws_iam_policy must not use wildcard (*) actions with Allow effect",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::IamNoWildcardActionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/bad/wildcard.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/good/scoped.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-IAC-SG-SSH.1",
+        "version": 1,
+        "title": "Terraform security group must not allow public SSH ingress from 0.0.0.0/0",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::SgNoPublicSshIngressValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/bad/public_ssh.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/good/restricted.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-BLOB-PUBLIC.1",
+        "version": 1,
+        "title": "Azure storage account must not allow public blob access",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStoragePublicBlobValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/bad/public.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/good/private.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-HTTPS.1",
+        "version": 1,
+        "title": "Azure storage account must require HTTPS-only traffic",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStorageRequireHttpsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/bad/http.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/good/https.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-TLS12.1",
+        "version": 1,
+        "title": "Azure storage account must set minimum TLS version to 1.2",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStorageMinTls12Validator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/bad/tls10.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/good/tls12.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-HEADERS-HSTS.1",
+        "version": 1,
+        "title": "HTTP response must set a strong Strict-Transport-Security header",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::HstsMissingOrWeakValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/bad/missing.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/good/strong.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "web", "headers"]
+    },
+    {
+        "ruleId": "CYBER-HEADERS-CSP.1",
+        "version": 1,
+        "title": "HTTP response must set a Content-Security-Policy without unsafe directives",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::CspMissingValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/bad/missing.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/good/restrictive.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "web", "headers"]
+    },
+    {
+        "ruleId": "CYBER-COOKIE-SECURE.1",
+        "version": 1,
+        "title": "Cookies must set Secure, HttpOnly, and an explicit SameSite attribute",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::CookieSecureHttponlySamesiteValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/bad/insecure.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/good/secure.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "web", "cookies"]
+    },
+    {
+        "ruleId": "CYBER-DEPCONFUSION.1",
+        "version": 1,
+        "title": "Unscoped internal-looking dependency name is a dependency-confusion candidate (heuristic; registry-verified detection is h12)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/good/package.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "supplychain", "dependency-confusion"]
+    },
+    {
+        "ruleId": "CYBER-WAF-SQLI.1",
+        "version": 1,
+        "title": "WAF/access log line matches a SQL-injection signature (T2 scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::waf_sqli::WafSqliSignatureValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/bad/union_select.log.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/good/benign.log.txt"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
+        "tags": ["cyberskills", "h11", "waf", "sqli", "scored"]
+    },
+    {
+        "ruleId": "CYBER-K8S-POD.1",
+        "version": 1,
+        "title": "Kubernetes workload pod spec must meet pod-security-standards (restricted) hardening",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.pod.security-hardening/bad/privileged.yaml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.pod.security-hardening/good/hardened.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "k8s", "pod-security", "manifest"]
+    },
+    {
+        "ruleId": "CYBER-DOCKER.1",
+        "version": 1,
+        "title": "Dockerfile must meet image-hardening checks (no latest/untagged base, non-root, no curl|bash, no hardcoded secret, no ADD remote URL)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.dockerfile-hardening/bad/Dockerfile",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.dockerfile-hardening/good/Dockerfile"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "container", "dockerfile", "hardening"]
+    },
+    {
+        "ruleId": "CYBER-SECRET.1",
+        "version": 1,
+        "title": "Source must not contain hardcoded provider credentials (AWS/GitHub/Stripe/Google/Slack/npm keys, PEM private keys)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::provider_credentials::ProviderCredentialValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/secret.provider-credential/bad/leaked.env",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/secret.provider-credential/good/clean.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "secret", "credentials", "gitleaks"]
+    },
+    {
+        "ruleId": "CYBER-AWS.1",
+        "version": 1,
+        "title": "AWS Terraform resources must be hardened (no public S3 ACL, no publicly-accessible RDS, encrypted EBS, no public ingress to sensitive ports)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_aws::AwsResourceHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.aws.resource-hardening/bad/public.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.aws.resource-hardening/good/hardened.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "cloud", "aws", "iac", "terraform"]
+    },
+    {
+        "ruleId": "CYBER-K8S-RBAC.1",
+        "version": 1,
+        "title": "Kubernetes RBAC must not grant wildcard permissions or bind cluster-admin",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::k8s_rbac::K8sRbacValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/bad/wildcard.yaml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/good/scoped.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "k8s", "rbac", "manifest"]
+    },
+    {
+        "ruleId": "CYBER-GCP.1",
+        "version": 1,
+        "title": "GCP Terraform resources must not be publicly exposed (public IAM member, open firewall, public Cloud SQL)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_gcp::GcpResourceHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.gcp.resource-hardening/bad/public.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.gcp.resource-hardening/good/hardened.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "cloud", "gcp", "iac", "terraform"]
+    },
+    {
+        "ruleId": "CYBER-AUTH-JWT.1",
+        "version": 1,
+        "title": "JWT verification must not accept the none algorithm or a hardcoded weak secret",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::auth_jwt::JwtSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/auth.jwt-insecure/bad/none_alg.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/auth.jwt-insecure/good/verified.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "auth", "jwt"]
+    },
+    {
+        "ruleId": "CYBER-CORS.1",
+        "version": 1,
+        "title": "CORS must not combine a wildcard/null Access-Control-Allow-Origin with credentials",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_cors::CorsMisconfigValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cors-misconfig/bad/wildcard_creds.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cors-misconfig/good/scoped.txt"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "cors"]
+    },
+    {
+        "ruleId": "CYBER-TLS.1",
+        "version": 1,
+        "title": "TLS/SSL config must not enable a legacy protocol version (SSLv2/SSLv3/TLSv1.0/TLSv1.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::net_tls::TlsLegacyVersionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-legacy/bad/legacy.conf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-legacy/good/modern.conf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "net", "tls"]
+    },
+    {
+        "ruleId": "CYBER-SSRF.1",
+        "version": 1,
+        "title": "Source must not access a cloud instance metadata endpoint (SSRF / credential theft)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_ssrf::SsrfMetadataValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.ssrf-metadata/bad/metadata.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.ssrf-metadata/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "ssrf", "sast"]
+    },
+    {
+        "ruleId": "CYBER-CMD-INJECT.1",
+        "version": 1,
+        "title": "Source must not pass a non-literal command to a shell/exec sink (command injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cmd_injection::CommandInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.command-injection/bad/inject.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.command-injection/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "command-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-PATH-TRAVERSAL.1",
+        "version": 1,
+        "title": "File operations must not use a traversal sequence or unsanitized request-derived path",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::path_traversal::PathTraversalValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.path-traversal/bad/traverse.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.path-traversal/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "path-traversal", "sast"]
+    },
+    {
+        "ruleId": "CYBER-DESERIALIZE.1",
+        "version": 1,
+        "title": "Source must not use an insecure deserialization sink (pickle/yaml.load/Marshal/readObject/unserialize)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::insecure_deser::InsecureDeserializationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.insecure-deserialization/bad/deser.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.insecure-deserialization/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "deserialization", "sast"]
+    },
+    {
+        "ruleId": "CYBER-WEAK-CRYPTO.1",
+        "version": 1,
+        "title": "Source must not use a weak/broken crypto primitive (MD5/SHA1/DES/RC4/ECB)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::weak_crypto::WeakCryptoValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/crypto.weak-algorithm/bad/weak.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/crypto.weak-algorithm/good/strong.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "crypto", "sast"]
+    },
+    {
+        "ruleId": "CYBER-TLS-VERIFY.1",
+        "version": 1,
+        "title": "Source must not disable TLS certificate/host verification (MITM enabler)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::tls_verify::TlsVerificationDisabledValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-verify-disabled/bad/insecure.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-verify-disabled/good/secure.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "net", "tls", "sast"]
+    },
+    {
+        "ruleId": "CYBER-SQLI-SOURCE.1",
+        "version": 1,
+        "title": "Source must not build a SQL query by string construction from a variable (SQL injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::sqli_source::SqlInjectionSourceValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.sql-injection-source/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.sql-injection-source/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "sql-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-SSTI.1",
+        "version": 1,
+        "title": "Source must not build template text from a variable (server-side template injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::ssti::TemplateInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.template-injection/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.template-injection/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "ssti", "sast"]
+    },
+    {
+        "ruleId": "CYBER-NOSQL-INJECT.1",
+        "version": 1,
+        "title": "Source must not pass unsanitized request input into a NoSQL query operator/$where/$regex",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::nosql_injection::NoSqlInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "nosql-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-PROTO-POLLUTION.1",
+        "version": 1,
+        "title": "JavaScript must not write to __proto__/constructor/prototype or deep-merge untrusted input without a key denylist",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::proto_pollution::PrototypePollutionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.prototype-pollution/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.prototype-pollution/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "prototype-pollution", "sast"]
+    },
+    {
+        "ruleId": "CYBER-GHA.1",
+        "version": 1,
+        "title": "GitHub Actions workflow must not use write-all perms, unpinned actions, run-step script injection, or pull_request_target with untrusted checkout",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::github_actions::GithubActionsSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ci.github-actions/bad/workflow.yml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ci.github-actions/good/workflow.yml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "ci", "github-actions", "supplychain"]
+    },
+    {
+        "ruleId": "CYBER-MASS-ASSIGN.1",
+        "version": 1,
+        "title": "Source must not bind a whole untrusted request object into a model without a field allowlist (mass assignment)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::mass_assignment::MassAssignmentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "mass-assignment", "sast"]
+    },
+    {
+        "ruleId": "CYBER-TYPE-JUGGLE.1",
+        "version": 1,
+        "title": "PHP must not use loose comparison / non-strict helpers on attacker-influenced input (type juggling)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::type_juggle::TypeJugglingValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/bad/vuln.php",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/good/safe.php"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "type-juggling", "php", "sast"]
+    },
+    {
+        "ruleId": "CYBER-OAUTH.1",
+        "version": 1,
+        "title": "OAuth client must not use implicit flow, wildcard redirect_uri, or a user-controlled redirect_uri",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::oauth_misconfig::OauthMisconfigValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.oauth-misconfig/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.oauth-misconfig/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "oauth", "sast"]
+    },
+    {
+        "ruleId": "CYBER-DOCKER-DAEMON.1",
+        "version": 1,
+        "title": "Docker daemon.json must be hardened (no insecure-registries, icc off, no-new-privileges, userns-remap, tls)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/bad/daemon.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/good/daemon.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "container", "docker-daemon", "hardening"]
+    },
+    {
+        "ruleId": "CYBER-FILELESS-MALWARE.1",
+        "version": 1,
+        "title": "Command, log, and persistence text must flag fileless-malware LOLBin and in-memory execution indicators",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessMalwareValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-malware/bad/suspicious.ps1",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-malware/good/admin.ps1"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-malware1",
+        "tags": ["cyberskills", "fileless", "powershell", "wmi", "lolbin", "detection"]
+    },
+    {
+        "ruleId": "CYBER-FILELESS-TELEMETRY.1",
+        "version": 1,
+        "title": "Fileless investigations must declare the required Sysmon, PowerShell, retention, and tooling baseline",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessTelemetryBaselineValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-telemetry/bad/baseline.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-telemetry/good/baseline.json"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-telemetry1",
+        "tags": ["cyberskills", "fileless", "sysmon", "powershell", "telemetry", "baseline"]
+    },
+    {
+        "ruleId": "CYBER-FILELESS-REPORT.1",
+        "version": 1,
+        "title": "Fileless-malware reports must preserve acquisition evidence, artifacts, IOCs, and the complete attack-chain assessment",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessAnalysisReportValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-report/bad/report.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-report/good/report.txt"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-report1",
+        "tags": ["cyberskills", "fileless", "incident-response", "report", "evidence", "attack-chain"]
+    },
+    {
+        "ruleId": "CYBER-MCP-POISON.1",
+        "version": 1,
+        "title": "MCP tool metadata must not embed prompt-injection/exfiltration directives or hidden Unicode (tool poisoning)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::mcp_tool_poisoning::McpToolPoisoningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai.mcp-tool-poisoning/bad/tools.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai.mcp-tool-poisoning/good/tools.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "ai", "mcp", "tool-poisoning", "supplychain"]
+    },
+    {
+        "ruleId": "CYBER-WEBSOCKET.1",
+        "version": 1,
+        "title": "WebSocket server must validate the handshake Origin (no wildcard CORS / unconditional verifyClient) — CSWSH",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::websocket_security::WebSocketSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "websocket", "cswsh", "sast"]
+    }
+]

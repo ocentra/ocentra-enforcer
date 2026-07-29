@@ -1,6 +1,12 @@
 # Changelog
 
-All notable Enforcer rule, validator, schema, MCP, CLI, and harness behavior
+<!-- ai-dense -->
+```yaml
+scope: rule, validator, schema, MCP, CLI, harness behavior changes -- recorded before release
+```
+<!-- /ai-dense -->
+
+All notable enforcer rule, validator, schema, MCP, CLI, and harness behavior
 changes must be recorded here before release.
 
 ## Unreleased

@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-test-shards",
+  "generatedAt": "2026-07-09T16:42:10.123Z",
+  "package": "enforcer-memory",
+  "testRoot": "crates/enforcer-memory/tests",
+  "totalTargets": 245,
+  "selectedTargets": 30,
+  "shard": "7/8",
+  "only": null,
+  "byCategory": {
+    "integration": 10,
+    "x06-proof": 17,
+    "model-runtime": 5,
+    "parity-live": 4,
+    "unit-core": 56,
+    "unit-languages": 153
+  },
+  "commandTemplate": "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/M",
+  "executionPolicy": {
+    "deterministicDiscovery": true,
+    "crossPlatform": true,
+    "oneCargoTestTargetPerProcess": true,
+    "avoidsMonolithicPackageTimeout": true,
+    "zeroNetwork": true
+  },
+  "result": {
+    "mode": "executed",
+    "ok": true,
+    "executedTargets": 30,
+    "failedTargets": []
+  },
+  "targets": [
+    {
+      "target": "local_runtime",
+      "category": "model-runtime",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "local_runtime",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "parity_trace_tools",
+      "category": "parity-live",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "parity_trace_tools",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_analysis_query",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_analysis_query",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_data_flow",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_data_flow",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_ids",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_ids",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_awk",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_awk",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_cairo",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_cairo",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_cpp",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_cpp",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_devicetree",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_devicetree",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_fennel",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_fennel",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_gleam",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_gleam",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_hare",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_hare",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_janet",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_janet",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_just",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_just",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_lua",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_lua",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_move",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_move",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_perl",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_perl",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_properties",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_properties",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_regex",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_regex",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_scheme",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_scheme",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_sql",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_sql",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_tablegen",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_tablegen",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_typescript",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_typescript",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_wolfram",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_wolfram",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_log",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_log",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_rerank",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_rerank",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_share",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_share",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_summaries",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_summaries",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_code_graph_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_code_graph_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_proof_portability",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_proof_portability",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    }
+  ]
+}

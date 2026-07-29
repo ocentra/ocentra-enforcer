@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.1: Boundary modules require invariant documentation
+// Clean source — no occurrence of the BOUND-1.1 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

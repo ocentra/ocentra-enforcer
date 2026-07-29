@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "status": "green",
+  "workpack": "x06.1",
+  "hub": "enforcer-selfhost-plan",
+  "subpack": "core/store/logs",
+  "tier": "P1 unit (T1)",
+  "namedTest": "memory-store-core",
+  "commands": [
+    "cargo build -p enforcer-memory",
+    "cargo test -p enforcer-memory",
+    "cargo build --workspace",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-memory --check"
+  ],
+  "result": {
+    "libTestsPassed": 37,
+    "integrationTestsPassed": 6,
+    "testsPassed": 43,
+    "testsFailed": 0,
+    "preExistingSliceTestsRegressed": 0,
+    "clippy": "clean (no warnings, zero #[allow])",
+    "fmt": "clean (no diff)",
+    "workspaceBuild": "clean"
+  },
+  "hardRequirements": {
+    "appendOnlyLogsWithSha256Chain": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/log.rs AppendLog<T>, built on enforcer_core::telemetry::RunTelemetrySink + verify_file_chain (d04 primitive)",
+      "l37Compliance": "chain digest is persisted to an INDEPENDENT .chain sidecar (enforcer_core::telemetry::chain_sidecar_path), never re-derived from the same data file at verify time; see tamperedChainTest"
+    },
+    "sqliteOperationalReadModel": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/sqlite.rs OperationalGraph (rusqlite, `bundled` feature -- zero system SQLite dependency)"
+    },
+    "duckdbAnalyticsReadModel": {
+      "status": "DEFERRED_WITH_TRAIT_FALLBACK",
+      "implementation": "crates/enforcer-memory/src/store/analytics.rs AnalyticsReadModel trait + InProcessAnalytics default backend",
+      "decision": "Real duckdb crate NOT linked by default: its `bundled` feature compiles DuckDB's C++ amalgamation from source, historically heavy/unreliable on this workspace's Windows toolchain with no cached-artifact CI story. Gated behind the optional `duckdb-analytics` Cargo feature (declared in Cargo.toml, dependency listed, NOT enabled by default, NOT exercised by this gate). Recorded honestly per owner-intent's fake-green definition -- no #[cfg(feature=\"duckdb-analytics\")] stub is claimed as proven.",
+      "followUp": "wire a real DuckDbAnalytics: AnalyticsReadModel impl behind duckdb-analytics in a later pass with its own build-time budget"
+    },
+    "contentAddressedArtifactManifest": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/manifest.rs ArtifactManifest (Sha256-derived enforcer_memory::ids::ArtifactId, built on enforcer_domain::hashes::Sha256 via enforcer_core::hash_chain::link_digest)"
+    },
+    "indexManifestsWithSourceHighWatermark": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/schema.rs IndexManifest + crates/enforcer-memory/src/store/manifest.rs check_index_freshness/write_index_manifest"
+    },
+    "corruptionDetectionAndQuarantine": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/log.rs read_verified: a row that fails to deserialize or breaks seq monotonicity is quarantined (QuarantinedRow{index,reason}) and reported, never silently dropped; a chain-level tamper is a hard error (integrity itself compromised), not quarantinable"
+    },
+    "noGhostProjectDatabaseCreation": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs Store::open errs MemoryError::UnknownProject and creates nothing for an uninitialized project; only Store::init creates, idempotently"
+    },
+    "windowsSafePathNormalization": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/ids.rs ProjectId::from_repo_root + rel_path/repo_root helpers reuse enforcer_domain::paths::{RepoRoot,RelPath} (normalize_separators); proven by windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store test"
+    },
+    "proceduralObservationNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_procedural/read_procedural_entries persist procedural-observations.ndjson; crates/enforcer-memory/src/observations.rs replay_procedural_and_routes_from_store projects the log",
+      "test": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store"
+    },
+    "routeChoiceNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_route_trace/read_route_trace_entries persist route-traces.ndjson; crates/enforcer-memory/src/observations.rs replay_procedural_and_routes_from_store projects the log",
+      "test": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store"
+    },
+    "modelRuntimeObservationNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_model_observation/read_model_observation_entries persist model-observations.ndjson; crates/enforcer-memory/src/model_observations.rs project_model_runtime_observations_from_store projects the log",
+      "tests": [
+        "crates/enforcer-memory/tests/model_observations.rs model_runtime_observation_persists_to_store_and_graph",
+        "crates/enforcer-memory/tests/model_observations.rs store_backed_model_runtime_observation_replays_without_duplicate_writes"
+      ]
+    },
+    "storeBackedLearningProjection": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/learning.rs project_learning_from_store replays incident observations, procedural records, route traces, model-runtime observations, learning curves, and recurrence curves from Store",
+      "tests": [
+        "crates/enforcer-memory/tests/unit_learning.rs store_learning_projection_replays_observations_into_curves",
+        "crates/enforcer-memory/tests/continuous_learning.rs store_backed_learning_projection_replays_t0_t1_t2"
+      ]
+    },
+    "legacyObservationPayloadFallbacks": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/observations.rs and crates/enforcer-memory/src/model_observations.rs replay legacy observations.ndjson payloads when native logs are empty, preserving older x05/x06 evidence streams",
+      "tests": [
+        "crates/enforcer-memory/tests/unit_observations.rs legacy_observation_payloads_replay_when_native_logs_are_empty",
+        "crates/enforcer-memory/tests/model_observations.rs projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty"
+      ]
+    }
+  },
+  "hardTests": {
+    "append": "log::tests::append_assigns_gap_free_seq_and_reads_back",
+    "supersede": "log::tests::supersede_records_the_relation_without_deleting_the_earlier_row",
+    "corruptRow": "log::tests::corrupt_row_is_quarantined_not_dropped_silently, log::tests::malformed_json_row_is_quarantined",
+    "staleIndex": "store::manifest::tests::stale_index_is_rejected_and_fresh_index_is_accepted",
+    "rebuildDeterminism": "store::sqlite::tests::rebuild_is_deterministic",
+    "unknownProject": "store::tests::opening_an_unknown_project_errors_and_creates_nothing",
+    "pathNormalization": "store::tests::windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store",
+    "l37TamperTest": "log::tests::tampered_chain_is_rejected_against_independent_sidecar",
+    "proceduralRouteReplay": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store",
+    "modelRuntimeObservationPersistence": "crates/enforcer-memory/tests/model_observations.rs model_runtime_observation_persists_to_store_and_graph",
+    "modelRuntimeObservationReplay": "crates/enforcer-memory/tests/model_observations.rs store_backed_model_runtime_observation_replays_without_duplicate_writes",
+    "learningProjection": "crates/enforcer-memory/tests/unit_learning.rs store_learning_projection_replays_observations_into_curves",
+    "continuousLearningProjection": "crates/enforcer-memory/tests/continuous_learning.rs store_backed_learning_projection_replays_t0_t1_t2",
+    "legacyObservationFallbacks": "crates/enforcer-memory/tests/unit_observations.rs legacy_observation_payloads_replay_when_native_logs_are_empty; crates/enforcer-memory/tests/model_observations.rs projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty"
+  },
+  "fakeGreenCheck": {
+    "realStreamIntegrationTest": "tests/store_real_stream.rs real_stream_file_round_trips_through_the_store",
+    "description": "Ingests memory/streams/arc-17.ndjson (a real, already-committed x05 memory-record stream, not a synthetic fixture) through enforcer_memory::ingest::parse_ndjson, content-addresses the raw bytes into ArtifactManifest with a byte-for-byte round-trip assertion, appends one ObservationLogEntry per real record into a freshly-initialized project store, drops the Store handle, reopens the log from disk via read_verified (hash-chain re-verified against the independent sidecar), and asserts zero quarantined rows plus id/ts equality against the source records.",
+    "status": "PASS"
+  },
+  "keptExtendedReplaced": {
+    "lib.rs": "EXTENDED (existing record/lesson/graph/ingest/recall/retriever modules KEPT unchanged; added pub mod error/ids/log/schema/store wiring + module docs)",
+    "Cargo.toml": "EXTENDED (added enforcer-core, enforcer-domain, sha2, rusqlite[bundled] as always-on deps; duckdb[bundled] as optional dep gated by new duckdb-analytics feature)"
+  },
+  "claimsScope": {
+    "owns": [
+      "crates/enforcer-memory/src/lib.rs (wiring only)",
+      "crates/enforcer-memory/src/error.rs",
+      "crates/enforcer-memory/src/ids.rs",
+      "crates/enforcer-memory/src/log.rs",
+      "crates/enforcer-memory/src/schema.rs",
+      "crates/enforcer-memory/src/store/mod.rs",
+      "crates/enforcer-memory/src/store/sqlite.rs",
+      "crates/enforcer-memory/src/store/analytics.rs",
+      "crates/enforcer-memory/src/store/manifest.rs",
+      "crates/enforcer-memory/src/observations.rs (Store-backed procedural/route replay integration)",
+      "crates/enforcer-memory/src/model_observations.rs (Store-backed model-runtime observation replay integration)",
+      "crates/enforcer-memory/src/learning.rs (Store-backed learning projection integration)",
+      "crates/enforcer-memory/tests/store_real_stream.rs",
+      "crates/enforcer-memory/tests/unit_observations.rs",
+      "crates/enforcer-memory/tests/model_observations.rs",
+      "crates/enforcer-memory/tests/unit_learning.rs",
+      "crates/enforcer-memory/tests/continuous_learning.rs",
+      "crates/enforcer-memory/Cargo.toml (dep additions only)",
+      "memory/streams/x06-1.ndjson",
+      "proof/memory/x06-store.json"
+    ],
+    "notTouched": "no other crate, no sibling x06 module outside the Store-backed persistence and projection surfaces named in owns"
+  },
+  "workspaceRegression": "cargo build --workspace: all crates compile clean post-change; the pre-existing 18-test slice (record/lesson/graph/ingest/recall/retriever) is untouched and still green (37 lib tests now includes those, 0 regressions)"
+}

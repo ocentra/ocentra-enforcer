@@ -1,0 +1,5 @@
+// Fixture for TEST-1.2: Weak assertions are forbidden
+// Clean source — no occurrence of the TEST-1.2 marker below.
+fn clean_example() {
+    // conformant with common/weak-assertions
+}

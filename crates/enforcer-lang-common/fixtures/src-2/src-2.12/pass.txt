@@ -1,0 +1,5 @@
+// Fixture for SRC-2.12: Duplicate function names in one module are forbidden
+// Clean source — no occurrence of the SRC-2.12 marker below.
+fn clean_example() {
+    // conformant with common/source-shape
+}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "enforcer": {
+      "command": "/abs/path/to/enforcer",
+      "args": [],
+      "env": {}
+    }
+  }
+}

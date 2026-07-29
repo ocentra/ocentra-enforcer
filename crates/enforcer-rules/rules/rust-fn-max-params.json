@@ -1,0 +1,19 @@
+[
+    {
+        "ruleId": "RUST-FN-MAX-PARAMS",
+        "version": 1,
+        "title": "Functions may take at most 5 explicit parameters",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::fn_max_params::FnMaxParamsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/fn-max-params/fail_six.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/fn-max-params/pass_input_struct.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"],
+        "params": { "maxParams": 5 }
+    }
+]

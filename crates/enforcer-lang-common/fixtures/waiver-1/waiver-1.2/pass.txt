@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.2: Waiver scope must be narrow
+// Clean source — no occurrence of the WAIVER-1.2 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

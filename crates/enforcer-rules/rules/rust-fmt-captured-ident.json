@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-FMT-CAPTURED-IDENT",
+        "version": 1,
+        "title": "Prefer inline captured format identifiers",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::fmt_captured_ident::FmtCapturedIdentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/fmt-captured-ident/fail_positional.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/fmt-captured-ident/pass_captured.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

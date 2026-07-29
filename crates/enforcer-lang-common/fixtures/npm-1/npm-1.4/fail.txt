@@ -1,0 +1,4 @@
+// Fixture for NPM-1.4: packageManager must pin npm
+// Ported from legacy validator id `common/package-determinism` (see rules/rules.json doc: rules/common/dependencies.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_4_MARKER

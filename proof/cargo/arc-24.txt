@@ -1,0 +1,46 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_ui-37db847469423ece.exe)
+
+running 9 tests
+test payload::tests::rejects_non_object_request_body ... ok
+test payload::tests::accepts_well_formed_action_request ... ok
+test payload::tests::rejects_request_with_empty_files ... ok
+test payload::tests::renders_clean_report_into_empty_state_payload ... ok
+test payload::tests::renders_mixed_report_into_expected_payload ... ok
+test serve::tests::view_mount_registry_is_non_empty_and_unique ... ok
+test payload::tests::rejects_request_missing_rule_id ... ok
+test serve::tests::fallback_shell_contains_every_view_mount ... ok
+test ts_export::tests::export_all_writes_expected_bindings ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src\bin\export_ts.rs (target\debug\deps\enforcer_ui_export_ts-22406b6c353e09e9.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\cross_lang_roundtrip.rs (target\debug\deps\cross_lang_roundtrip-def48ca2482ad92c.exe)
+
+running 2 tests
+test ui_report_payload_round_trips_without_loss ... ok
+test ui_report_payload_wire_json_matches_derived_ts_field_set ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\ts_drift.rs (target\debug\deps\ts_drift-0989cf6d56ee9af6.exe)
+
+running 2 tests
+test drift_test_passes_on_committed_bindings ... ok
+test drift_comparison_fails_on_mutated_binding ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+   Doc-tests enforcer_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.17s
+fmt check exit: 0

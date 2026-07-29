@@ -1,0 +1,5 @@
+// Fixture for SEC-1.2: Sensitive files are forbidden in source scope
+// Clean source — no occurrence of the SEC-1.2 marker below.
+fn clean_example() {
+    // conformant with common/secret-scan
+}

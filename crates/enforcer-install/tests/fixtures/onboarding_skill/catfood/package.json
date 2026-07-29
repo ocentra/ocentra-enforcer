@@ -1,0 +1,9 @@
+{
+  "name": "catfood-onboarding-fixture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Catfood onboarding fixture -- a plain TypeScript-only project, no prior enforcer awareness, no pre-existing CI. Used to prove the enforcer-onboarding skill's procedure generalizes to a build system genuinely different from this repo's own Rust shape.",
+  "scripts": {
+    "build": "tsc --noEmit"
+  }
+}

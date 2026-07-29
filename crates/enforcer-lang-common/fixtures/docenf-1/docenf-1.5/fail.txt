@@ -1,0 +1,4 @@
+// Fixture for DOCENF-1.5: Registry doc anchors must be stable lowercase anchors
+// Ported from legacy validator id `common/docs-completeness` (see rules/rules.json doc: rules/common/registry.md#covered-rules).
+// This line trips the rule:
+ENFORCER_DOCENF_1_5_MARKER

@@ -1,0 +1,4 @@
+// Fixture for PROOF-1.3: Manual-required proof cannot auto-pass
+// Ported from legacy validator id `common/proof-contracts` (see rules/rules.json doc: rules/common/proof.md#covered-rules).
+// This line trips the rule:
+ENFORCER_PROOF_1_3_MARKER

@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.11: Proof capabilities must match environment
+// Clean source — no occurrence of the PROOF-1.11 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

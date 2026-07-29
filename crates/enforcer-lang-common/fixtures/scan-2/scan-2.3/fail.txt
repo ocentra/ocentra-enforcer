@@ -1,0 +1,4 @@
+// Fixture for SCAN-2.3: Rust strict mode must ingest Clippy JSON
+// Ported from legacy validator id `common/scanner-contracts` (see rules/rules.json doc: rules/common/scanner.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SCAN_2_3_MARKER

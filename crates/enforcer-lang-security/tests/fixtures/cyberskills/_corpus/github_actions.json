@@ -1,0 +1,226 @@
+[
+  {
+    "name": "permissions_write_all_inline",
+    "input": "permissions: write-all",
+    "expect": "flag",
+    "branch": "broad_permissions.write_all_inline",
+    "reason": "A top-level `permissions: write-all` grants the GITHUB_TOKEN write access to everything."
+  },
+  {
+    "name": "permissions_write_all_case_insensitive",
+    "input": "permissions: Write-All",
+    "expect": "flag",
+    "branch": "broad_permissions.write_all_case",
+    "reason": "The write-all value match is case-insensitive."
+  },
+  {
+    "name": "permissions_top_level_contents_write_block",
+    "input": "permissions:\n  contents: write",
+    "expect": "flag",
+    "branch": "broad_permissions.contents_write_block",
+    "reason": "A top-level `permissions:` block granting `contents: write` applies to the whole workflow."
+  },
+  {
+    "name": "permissions_top_level_contents_write_blank_line_persists",
+    "input": "permissions:\n\n  contents: write",
+    "expect": "flag",
+    "branch": "broad_permissions.contents_write_blank_line",
+    "reason": "A blank line inside the top-level permissions block must not end the block before `contents: write` is seen."
+  },
+  {
+    "name": "permissions_top_level_scoped_read",
+    "input": "permissions:\n  contents: read",
+    "expect": "clean",
+    "branch": "broad_permissions.safe_read",
+    "reason": "contents: read is least-privilege and does not match the write pattern."
+  },
+  {
+    "name": "permissions_top_level_empty_object",
+    "input": "permissions: {}",
+    "expect": "clean",
+    "branch": "broad_permissions.empty",
+    "reason": "An empty permissions object grants nothing and is not write-all."
+  },
+  {
+    "name": "permissions_job_scoped_write_is_not_top_level",
+    "input": "jobs:\n  deploy:\n    permissions:\n      contents: read\n      deployments: write\n      id-token: write",
+    "expect": "clean",
+    "branch": "broad_permissions.job_scoped_write",
+    "reason": "A per-job permissions block (SKILL.md's own SECURE example) is scoped, not workflow-wide, and must not be flagged."
+  },
+  {
+    "name": "unpinned_action_tag_v4",
+    "input": "uses: actions/checkout@v4",
+    "expect": "flag",
+    "branch": "unpinned_action.tag",
+    "reason": "@v4 is a mutable tag, not a pinned 40-hex-char commit SHA."
+  },
+  {
+    "name": "unpinned_action_branch_main",
+    "input": "uses: actions/checkout@main",
+    "expect": "flag",
+    "branch": "unpinned_action.branch",
+    "reason": "@main is a mutable branch reference."
+  },
+  {
+    "name": "unpinned_action_tag_v2",
+    "input": "uses: actions/setup-node@v2",
+    "expect": "flag",
+    "branch": "unpinned_action.tag_v2",
+    "reason": "@v2 is a mutable tag on a different action."
+  },
+  {
+    "name": "pinned_action_full_sha",
+    "input": "uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11",
+    "expect": "clean",
+    "branch": "unpinned_action.pinned",
+    "reason": "A full 40-hex-char commit SHA is the immutable, pinned form."
+  },
+  {
+    "name": "pinned_action_with_trailing_comment",
+    "input": "uses: actions/checkout@791d30cfe74eaf575d3c5acd7d122116976a4fad  # v4.1.1",
+    "expect": "clean",
+    "branch": "unpinned_action.pinned_with_comment",
+    "reason": "The captured ref stops at the trailing comment, leaving a clean 40-hex-char SHA."
+  },
+  {
+    "name": "local_action_no_ref",
+    "input": "uses: ./.github/actions/local-setup",
+    "expect": "clean",
+    "branch": "unpinned_action.local",
+    "reason": "A local action path has no `@ref` at all and is out of scope for pinning."
+  },
+  {
+    "name": "docker_ref_sha256_not_misfired",
+    "input": "uses: docker://alpine@sha256:9d48c3f5c2f42f2f4c0f2f7c3d3e83f6b0c95c8bfd3c4d4b1b1b1b1b1b1b1b1b",
+    "expect": "clean",
+    "branch": "unpinned_action.docker_skip",
+    "reason": "Docker refs (`docker://...@sha256:...`) are explicitly out of scope and must not be misparsed as an unpinned uses: ref."
+  },
+  {
+    "name": "unpinned_action_ref_39_hex_chars",
+    "input": "uses: actions/checkout@c951ef23f7ad17eefaeda8e84d35d9954eafdfa",
+    "expect": "flag",
+    "branch": "unpinned_action.boundary_short",
+    "reason": "39 hex characters is one short of a full commit SHA and must not be accepted as pinned."
+  },
+  {
+    "name": "unpinned_action_ref_41_hex_chars",
+    "input": "uses: actions/checkout@f05e14965464f001095901e9959fc733d940ef38a",
+    "expect": "flag",
+    "branch": "unpinned_action.boundary_long",
+    "reason": "41 hex characters overruns the exact 40-char SHA length and must not be accepted as pinned."
+  },
+  {
+    "name": "script_injection_pull_request_title",
+    "input": "run: echo \"PR title is ${{ github.event.pull_request.title }}\"",
+    "expect": "flag",
+    "branch": "script_injection.pr_title",
+    "reason": "github.event.pull_request.title is attacker-controlled and is interpolated directly into the shell command."
+  },
+  {
+    "name": "script_injection_issue_body_run_block",
+    "input": "run: |\n  echo \"${{ github.event.issue.body }}\"",
+    "expect": "flag",
+    "branch": "script_injection.issue_body_block",
+    "reason": "The dangerous expression is inside the run: block scalar body, not just the run: line itself."
+  },
+  {
+    "name": "script_injection_head_ref",
+    "input": "run: echo \"${{ github.head_ref }}\"",
+    "expect": "flag",
+    "branch": "script_injection.head_ref",
+    "reason": "github.head_ref (the PR's source branch name) is attacker-controlled."
+  },
+  {
+    "name": "script_injection_comment_body",
+    "input": "run: echo \"${{ github.event.comment.body }}\"",
+    "expect": "flag",
+    "branch": "script_injection.comment_body",
+    "reason": "github.event.comment.body is attacker-controlled issue/PR comment text."
+  },
+  {
+    "name": "script_injection_env_context_is_safe",
+    "input": "run: echo \"${{ env.PR_TITLE }}\"",
+    "expect": "clean",
+    "branch": "script_injection.env_safe",
+    "reason": "env.* is not github.event.* or head_ref and is the recommended safe indirection."
+  },
+  {
+    "name": "script_injection_secrets_context_is_safe",
+    "input": "run: echo \"${{ secrets.DEPLOY_KEY }}\"",
+    "expect": "clean",
+    "branch": "script_injection.secrets_safe",
+    "reason": "secrets.* is not attacker-controlled event data."
+  },
+  {
+    "name": "script_injection_matrix_context_is_safe",
+    "input": "run: echo \"${{ matrix.os }}\"",
+    "expect": "clean",
+    "branch": "script_injection.matrix_safe",
+    "reason": "matrix.* is workflow-defined, not attacker-controlled."
+  },
+  {
+    "name": "script_injection_static_command_is_safe",
+    "input": "run: npm test",
+    "expect": "clean",
+    "branch": "script_injection.static_safe",
+    "reason": "A static run: command with no expression at all cannot be injected via github.event."
+  },
+  {
+    "name": "script_injection_event_only_in_env_block_is_safe",
+    "input": "env:\n  PR_TITLE: ${{ github.event.pull_request.title }}\nrun: |\n  echo \"PR title is ${PR_TITLE}\"",
+    "expect": "clean",
+    "branch": "script_injection.env_indirection_safe",
+    "reason": "github.event.pull_request.title appears only on an env: line, never inside the run: line/block, so the shell never interpolates it directly."
+  },
+  {
+    "name": "pr_target_with_untrusted_head_sha_checkout",
+    "input": "on:\n  pull_request_target:\n    types: [opened]\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}",
+    "expect": "flag",
+    "branch": "pr_target_checkout.head_sha",
+    "reason": "pull_request_target combined with checking out the PR head SHA runs untrusted fork code with a privileged token."
+  },
+  {
+    "name": "pr_target_with_untrusted_head_ref_checkout",
+    "input": "on:\n  pull_request_target:\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.ref }}",
+    "expect": "flag",
+    "branch": "pr_target_checkout.head_ref",
+    "reason": "The head.ref variant of the untrusted checkout is equally dangerous."
+  },
+  {
+    "name": "pull_request_trigger_not_target_is_safe",
+    "input": "on:\n  pull_request:\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}",
+    "expect": "clean",
+    "branch": "pr_target_checkout.plain_pull_request_safe",
+    "reason": "Plain pull_request (not pull_request_target) already runs in the fork's limited context, so checking out the head ref is not a privilege-escalation risk."
+  },
+  {
+    "name": "pr_target_without_untrusted_checkout_is_safe",
+    "input": "on:\n  pull_request_target:\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11",
+    "expect": "clean",
+    "branch": "pr_target_checkout.no_head_checkout_safe",
+    "reason": "pull_request_target with a default (base-branch) checkout and no PR head ref override is the SKILL.md-recommended safe pattern."
+  },
+  {
+    "name": "pr_target_with_static_ref_is_safe",
+    "input": "on:\n  pull_request_target:\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11\n        with:\n          ref: main",
+    "expect": "clean",
+    "branch": "pr_target_checkout.static_ref_safe",
+    "reason": "Checking out a static branch name instead of the PR head expression is not the dangerous correlation."
+  },
+  {
+    "name": "clean_prose_comment_mentions_write_all",
+    "input": "# Note: never set permissions: write-all in this repo",
+    "expect": "clean",
+    "branch": "false_positive_guard.permissions_prose",
+    "reason": "A `#` comment mentioning write-all in prose is not an actual top-level permissions: key and must not be flagged."
+  },
+  {
+    "name": "clean_prose_mentions_pull_request_target_without_checkout",
+    "input": "# We intentionally avoid the pull_request_target trigger; see docs/security.md",
+    "expect": "clean",
+    "branch": "false_positive_guard.pr_target_prose_no_checkout",
+    "reason": "The literal token pull_request_target appears in prose, but with no actions/checkout anywhere in the file the correlation's second half never fires."
+  }
+]

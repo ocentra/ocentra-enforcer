@@ -1,0 +1,107 @@
+[
+  {
+    "name": "aws_imds_ipv4",
+    "input": "requests.get(\"http://169.254.169.254/latest/meta-data/iam/security-credentials/\")",
+    "expect": "flag",
+    "branch": "aws-azure-gcp-imds-ip",
+    "reason": "Literal 169.254.169.254 (AWS/Azure/GCP IMDS link-local IP), vendor-verified in both agent.py payload tables"
+  },
+  {
+    "name": "azure_imds_same_ip",
+    "input": "curl http://169.254.169.254/metadata/instance?api-version=2021-02-01 -H Metadata:true",
+    "expect": "flag",
+    "branch": "aws-azure-gcp-imds-ip",
+    "reason": "Azure IMDS reuses the same 169.254.169.254 link-local address"
+  },
+  {
+    "name": "gcp_metadata_hostname",
+    "input": "requests.get(\"http://metadata.google.internal/computeMetadata/v1/\", headers={\"Metadata-Flavor\": \"Google\"})",
+    "expect": "flag",
+    "branch": "gcp-metadata-hostname",
+    "reason": "Literal metadata.google.internal, vendor-verified GCP metadata host"
+  },
+  {
+    "name": "gcp_metadata_hostname_mixed_case",
+    "input": "url = \"http://METADATA.GOOGLE.INTERNAL/computeMetadata/v1/instance/\"",
+    "expect": "flag",
+    "branch": "gcp-metadata-hostname",
+    "reason": "Hostname match is case-insensitive"
+  },
+  {
+    "name": "aws_ecs_task_metadata",
+    "input": "resp = requests.get(\"http://169.254.170.2/v2/credentials/\" + task_role)",
+    "expect": "flag",
+    "branch": "aws-ecs-task-metadata",
+    "reason": "Literal 169.254.170.2 (AWS ECS task metadata endpoint)"
+  },
+  {
+    "name": "alibaba_metadata",
+    "input": "fetch(\"http://100.100.100.200/latest/meta-data/ram/security-credentials/\")",
+    "expect": "flag",
+    "branch": "alibaba-metadata",
+    "reason": "Literal 100.100.100.200 (Alibaba Cloud metadata endpoint)"
+  },
+  {
+    "name": "ec2_ipv6_imds",
+    "input": "conn = http.client.HTTPConnection(\"[fd00:ec2::254]\")",
+    "expect": "flag",
+    "branch": "ec2-ipv6-imds",
+    "reason": "Literal fd00:ec2::254 (AWS EC2 IPv6 IMDS endpoint)"
+  },
+  {
+    "name": "commented_reference_still_flagged",
+    "input": "# TODO: block requests to 169.254.169.254 at the egress proxy",
+    "expect": "flag",
+    "branch": "aws-azure-gcp-imds-ip",
+    "reason": "Pure literal line-scan does not special-case comments; presence of the address text is itself the high-confidence signal, matching the doctrine of the other cyberskills line-scan validators (e.g. waf_sqli)"
+  },
+  {
+    "name": "user_supplied_url_forwarded_no_literal",
+    "input": "def fetch(user_url):\\n    return requests.get(user_url, timeout=5).text",
+    "expect": "clean",
+    "branch": "no-taint-tracking",
+    "reason": "Unvalidated forwarding of a user URL is a real SSRF risk but carries no metadata-endpoint literal; per spec this validator does not attempt taint tracking, so it stays clean here"
+  },
+  {
+    "name": "benign_external_api",
+    "input": "requests.get(\"https://api.example.com/v1/config\", timeout=5)",
+    "expect": "clean",
+    "branch": "benign",
+    "reason": "Ordinary external HTTPS API call"
+  },
+  {
+    "name": "benign_private_rfc1918_ip",
+    "input": "requests.get(\"https://10.0.4.12/health\", timeout=5)",
+    "expect": "clean",
+    "branch": "benign",
+    "reason": "Private RFC1918 address is not one of the well-known metadata literals"
+  },
+  {
+    "name": "benign_link_local_off_by_one",
+    "input": "requests.get(\"http://169.254.169.253/health\")",
+    "expect": "clean",
+    "branch": "benign-near-miss",
+    "reason": "Off-by-one address in the same /16 is not the exact IMDS literal"
+  },
+  {
+    "name": "benign_similar_hostname_not_exact",
+    "input": "requests.get(\"https://internal-metadata-service.example.com/config\")",
+    "expect": "clean",
+    "branch": "benign-near-miss",
+    "reason": "Hostname mentions 'metadata' but does not contain the literal metadata.google.internal substring"
+  },
+  {
+    "name": "benign_docs_mention_metadata_word_only",
+    "input": "# This service does not expose any instance metadata to callers.",
+    "expect": "clean",
+    "branch": "benign",
+    "reason": "The word 'metadata' alone, without any of the five literal endpoint strings, is not a match"
+  },
+  {
+    "name": "benign_allowlist_check",
+    "input": "if parsed.hostname not in ALLOWED_HOSTS:\\n    raise ValueError(\"host not allowed\")",
+    "expect": "clean",
+    "branch": "benign",
+    "reason": "Allowlist enforcement code contains no metadata endpoint literal"
+  }
+]

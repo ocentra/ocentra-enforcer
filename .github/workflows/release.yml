@@ -1,0 +1,208 @@
+name: Release
+
+# c10 -- the enforcer's OWN release pipeline (cargo-dist-style):
+# plan -> build -> host -> publish across the win/mac/linux (+musl,
+# +apple-silicon) matrix declared in dist-workspace.toml, for BOTH the
+# `full` and `lite` binary variants. This repo's OWN CI builds and
+# PUBLISHES the release; every consumer project's CI only ever POINTS AT
+# it via install.sh/install.ps1, the enforcer-scan composite Action, or
+# the optional npm wrapper (RUST_ARCHITECTURE.md, binding).
+#
+# A release is never published broken: the pre-publish cross-platform
+# smoke gate (both variants, every target platform) must pass before the
+# publish job runs. A broken/panicking binary on ANY platform blocks the
+# release entirely.
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: enforcer-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+      - uses: ocentra/ocentra-enforcer/.github/actions/setup-enforcer@af07cdf5f4b12a874c68346e9aa9e902fe6b6a4c
+        with:
+          install-policy-tools: 'true'
+      - name: Deterministic dependency bootstrap
+        if: github.event_name != 'pull_request'
+        run: npm ci
+      - name: Require the release tag commit to be on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: git merge-base --is-ancestor "${{ github.sha }}" origin/main
+      - name: Verify reusable workflow contract
+        run: node scripts/ci/verify-workflow-contract.mjs
+      - name: Exact local CI parity
+        if: github.event_name != 'pull_request'
+        run: npm run ci:local
+      - name: Workspace format contract
+        if: github.event_name != 'pull_request'
+        run: node scripts/check-cargo-workspace-members.mjs --fmt-check
+      - name: Frozen and native dogfood gate
+        if: github.event_name != 'pull_request'
+        run: |
+          node scripts/ocentra-enforcer.mjs scan --root . --languages rust --workspace
+          cargo run --locked -p xtask -- dogfood --no-toolchain
+          cargo run --locked -p xtask -- dogfood-gate --no-toolchain
+      - name: Dependency and advisory policy
+        if: github.event_name != 'pull_request'
+        run: |
+          cargo audit --deny warnings
+          cargo deny check
+      - name: Generate release SBOM
+        if: github.event_name != 'pull_request'
+        run: node scripts/ocentra-enforcer.mjs check sbom --root . --output target/security
+      - name: Preserve release policy evidence
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-security-material
+          path: |
+            target/security/**
+            proof/dogfood-manifest.json
+          if-no-files-found: error
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            variant: lite
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            variant: full
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            variant: lite
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            variant: full
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            variant: lite
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            variant: full
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            variant: lite
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            variant: full
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            variant: lite
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            variant: full
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            variant: lite
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            variant: full
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - name: Install musl toolchain
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes musl-tools
+      - name: Build (${{ matrix.variant }})
+        shell: bash
+        run: cargo build --release --locked -p enforcer-cli --no-default-features --features "${{ matrix.variant }}" --target "${{ matrix.target }}"
+      - name: Pre-publish smoke gate -- fail fixture must be a blocking violation, never a panic or silent pass
+        shell: bash
+        run: |
+          set -eu
+          bin="target/${{ matrix.target }}/release/enforcer"
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          set +e
+          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "smoke gate FAILED: expected exit 1 (Violations) on the seeded fail fixture, got $code" >&2
+            exit 1
+          fi
+      - name: Pre-publish smoke gate -- pass fixture must exit clean
+        shell: bash
+        run: |
+          set -eu
+          bin="target/${{ matrix.target }}/release/enforcer"
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs
+      - name: Package asset
+        shell: bash
+        run: |
+          set -eu
+          version="${GITHUB_REF_NAME#v}"
+          name="enforcer-v${version}-${{ matrix.variant }}-${{ matrix.target }}"
+          bin="target/${{ matrix.target }}/release/enforcer"
+          stage="target/dist/${name}"
+          mkdir -p "$stage"
+          if [ -f "$bin.exe" ]; then
+            cp "$bin.exe" "$stage/enforcer.exe"
+            (cd target/dist && 7z a "${name}.zip" "${name}")
+          else
+            cp "$bin" "$stage/enforcer"
+            tar -czf "target/dist/${name}.tar.gz" -C target/dist "${name}"
+          fi
+          (cd target/dist && sha256sum "${name}".* > "${name}.sha256" 2>/dev/null || shasum -a 256 "${name}".* > "${name}.sha256")
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-${{ matrix.target }}-${{ matrix.variant }}
+          path: |
+            target/dist/*.zip
+            target/dist/*.tar.gz
+            target/dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Attest release provenance
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45
+        with:
+          subject-path: dist/**/*
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          files: dist/**/*
+          fail_on_unmatched_files: true

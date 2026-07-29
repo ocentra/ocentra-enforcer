@@ -1,0 +1,20 @@
+config WIDGET
+	bool "Enable widget support"
+	default y
+	help
+	  Enable the widget subsystem.
+
+menuconfig WIDGET_ADVANCED
+	bool "Advanced widget options"
+	depends on WIDGET
+
+choice
+	prompt "Widget backend"
+	default WIDGET_BACKEND_SOFTWARE
+
+config WIDGET_BACKEND_SOFTWARE
+	bool "Software backend"
+
+endchoice
+
+source "drivers/widget/Kconfig"

@@ -27,6 +27,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   "cargoTestThreads",
   "allowUnsafeCode",
   "allowBuildRs",
+  "allowedBuildRsPaths",
   "allowGitDependencies",
   "allowPathDependencies",
   "publicReexportPolicy",
@@ -58,6 +59,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   "strictEmptyTestTrees",
   "generatedArtifactsMode",
   "generatedArtifactsTracked",
+  "generatedArtifactsAllowlist",
   "agentRuleMaxLines",
   "maxActiveWaivers",
   "maxWaiverDays",
@@ -168,6 +170,7 @@ function isBroadWaiverScope(scope) {
   );
 }
 
+/** Collects findings for immutable and validated configuration policy. */
 export function collectConfigLockdownFindings(root, config) {
   const packRoot = resolvePackRoot(root);
   const rules = loadRegistryRules(packRoot);
@@ -313,12 +316,13 @@ export function collectConfigLockdownFindings(root, config) {
   return findings;
 }
 
-export function collectWaiverPolicyFindings(root, config) {
+/** Collects findings for waiver validity, scope, and expiration policy. */
+export function collectWaiverPolicyFindings(root, config, options = {}) {
   const packRoot = resolvePackRoot(root);
   const registryPolicyMap = buildRegistryPolicyMap(loadRegistryRules(packRoot));
   const findings = [];
   const configPath = existingConfigPath(root) ?? root;
-  const today = startOfUtcDay(new Date());
+  const today = startOfUtcDay(options.now ?? new Date());
   const activeWaivers = config.waivers ?? [];
   const maxActiveWaivers = Number.isFinite(config.maxActiveWaivers) ? config.maxActiveWaivers : null;
   const maxWaiverDays = Number.isFinite(config.maxWaiverDays) ? config.maxWaiverDays : 90;

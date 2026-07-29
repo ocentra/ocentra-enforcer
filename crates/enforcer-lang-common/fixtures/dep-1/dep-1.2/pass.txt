@@ -1,0 +1,5 @@
+// Fixture for DEP-1.2: External npm package licenses must match policy
+// Clean source — no occurrence of the DEP-1.2 marker below.
+fn clean_example() {
+    // conformant with common/dependency-policy
+}

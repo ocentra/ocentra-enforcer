@@ -16,6 +16,7 @@ const REQUIRED_DIRS = [
   "rust",
   "typescript",
   "python",
+  "iac",
   "common",
   "ci",
   "docs",
@@ -75,6 +76,22 @@ const REQUIRED_FIXTURES = [
   "python/py-4.25-requests-no-timeout.fail.py",
   "python/py-4.29-wildcard-import.fail.py",
   "python/py-6.2-weak-assert.fail.py",
+  "iac/iac-1.1-s3-encryption.fail.tf",
+  "iac/iac-1.1-s3-encryption.pass.tf",
+  "iac/iac-1.2-open-ingress.fail.tf",
+  "iac/iac-1.2-open-ingress.pass.tf",
+  "iac/iac-1.3-hardcoded-secret.fail.tf",
+  "iac/iac-1.3-hardcoded-secret.pass.tf",
+  "iac/iac-1.4-public-access.fail.template.json",
+  "iac/iac-1.4-public-access.pass.template.json",
+  "iac/iac-1.5-wildcard-iam.fail.template.json",
+  "iac/iac-1.5-wildcard-iam.pass.template.json",
+  "iac/iac-1.6-provider-pin.fail.tf",
+  "iac/iac-1.6-provider-pin.pass.tf",
+  "iac/iac-1.7-state-encryption.fail.tf",
+  "iac/iac-1.7-state-encryption.pass.tf",
+  "iac/iac-1.8-privileged.fail.k8s.yaml",
+  "iac/iac-1.8-privileged.pass.k8s.yaml",
   "common/sec-1.1-secret.fail.txt",
   "ci/ci-1.12-ignore-exit-code.fail.yml",
   "docs/docenf-1.1-missing-sections.fail.md",
@@ -88,7 +105,33 @@ test("enforcer fixture tree has deterministic language and policy slices", () =>
     const full = path.join(FIXTURE_ROOT, rel);
     assert.equal(fs.existsSync(full), true, `${rel} exists`);
     const text = fs.readFileSync(full, "utf8");
-    assert.match(text, /\b(?:RR|TS|PY|SEC|CI|DOCENF|CFG|ENF|WAIVER)-[0-9]+\.[0-9]+\b/u);
+    const evidence = rel.startsWith("iac/") ? rel : text;
+    assert.match(evidence, /\b(?:RR|TS|PY|IAC|SEC|CI|DOCENF|CFG|ENF|WAIVER)-[0-9]+\.[0-9]+\b/iu);
+  }
+});
+
+test("central IaC evidence mirrors validator-backed native fixture pairs", () => {
+  const pairs = [
+    ["iac/iac-1.1-s3-encryption", "terraform/iac-1-1", "tf"],
+    ["iac/iac-1.2-open-ingress", "terraform/iac-1-2", "tf"],
+    ["iac/iac-1.3-hardcoded-secret", "terraform/iac-1-3", "tf"],
+    ["iac/iac-1.4-public-access", "cloudformation/iac-1-4", "template.json"],
+    ["iac/iac-1.5-wildcard-iam", "cloudformation/iac-1-5", "template.json"],
+    ["iac/iac-1.6-provider-pin", "terraform/iac-1-6", "tf"],
+    ["iac/iac-1.7-state-encryption", "terraform/iac-1-7", "tf"],
+    ["iac/iac-1.8-privileged", "kubernetes/iac-1-8", "k8s.yaml"],
+  ];
+  const nativeRoot = path.join(ROOT, "crates", "enforcer-lang-iac", "fixtures");
+
+  for (const [centralBase, nativeDir, extension] of pairs) {
+    const fail = fs.readFileSync(path.join(FIXTURE_ROOT, `${centralBase}.fail.${extension}`), "utf8");
+    const pass = fs.readFileSync(path.join(FIXTURE_ROOT, `${centralBase}.pass.${extension}`), "utf8");
+    const nativeFail = fs.readFileSync(path.join(nativeRoot, nativeDir, `fail.${extension}`), "utf8");
+    const nativePass = fs.readFileSync(path.join(nativeRoot, nativeDir, `pass.${extension}`), "utf8");
+
+    assert.equal(fail, nativeFail, `${centralBase} fail evidence matches native validator fixture`);
+    assert.equal(pass, nativePass, `${centralBase} pass evidence matches native validator fixture`);
+    assert.notEqual(fail, pass, `${centralBase} fail and pass evidence differ`);
   }
 });
 
@@ -164,7 +207,10 @@ function makeTempProject() {
 function copyFixtureGroup(project, rels, language) {
   rels.forEach((rel, index) => {
     const ext = path.extname(rel);
-    let target = path.join(language, `fixture-${index}${ext}`);
+    let target =
+      language === "typescript" && ext === ".ts"
+        ? path.join(language, "src", "domain", `fixture-${index}${ext}`)
+        : path.join(language, `fixture-${index}${ext}`);
     if (rel.endsWith("ts-6.14-index-barrel.fail.ts")) target = path.join(language, "index.ts");
     if (rel.endsWith("ts-7.1-tsconfig-not-strict.fail.json")) target = "tsconfig.json";
     if (rel.endsWith("py-6.2-weak-assert.fail.py")) target = path.join(language, "tests", "test_fixture.py");

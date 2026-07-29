@@ -1,0 +1,4 @@
+// Fixture for DOCENF-1.7: Docs must not make legacy aliases canonical
+// Ported from legacy validator id `common/docs-completeness` (see rules/rules.json doc: rules/common/registry.md#covered-rules).
+// This line trips the rule:
+ENFORCER_DOCENF_1_7_MARKER

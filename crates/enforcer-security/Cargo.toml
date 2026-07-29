@@ -1,0 +1,44 @@
+[package]
+name = "enforcer-security"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Track H money-critical & security-testing Validator implementations, plus the no-bypass meta-check (enforcer-config is the single declarative control-plane; the enforcer ships no inline-suppress escape hatch). This crate owns the crate skeleton and Validator-registration seam; feature packs (d18, h01-h08, h11) drop in src/rules/<name>.rs."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: deterministic source-pattern matching for the
+# Track H validators is implemented with reviewed regular expressions.
+regex = "=1.12.4"
+# DEPENDENCY-JUSTIFICATION: Rust-source validators parse syntax and preserve
+# spans instead of treating Rust code as unstructured text.
+# PROC-MACRO-DEPENDENCY-JUSTIFICATION: `syn` and `proc-macro2` are runtime
+# parser libraries here, never macro expansion dependencies.
+syn = { version = "=2.0.118", features = ["full", "extra-traits", "visit"] }
+proc-macro2 = { version = "=1.0.106", features = ["span-locations"] }
+# DEPENDENCY-JUSTIFICATION: Track H validators use shared decode errors,
+# branded domain values, and the common validator contract.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: property tests exercise the policy-ingestion parser
+# across generated category documents and prove stable first-occurrence mapping.
+proptest = "=1.9.0"
+# DEPENDENCY-JUSTIFICATION: external integration tests load the production
+# registry and mechanization parity harness rather than test doubles.
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
+# Test-only: the h11 cyberskills.* rule-scaffold-parity oracle sweep needs
+# the 11 source-pattern validators that live in enforcer-lang-security
+# alongside this crate's own frontmatter linter (see
+# tests/cyberskills_parity.rs). Dev-only, so it adds no runtime coupling.
+enforcer-lang-security = { path = "../enforcer-lang-security", version = "0.1.0" }
+
+[lints]
+workspace = true

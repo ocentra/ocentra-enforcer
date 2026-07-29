@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-code-graph",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-code-graph",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "code_graph_indexer::full_fixture_repo_indexes_every_supported_language_plus_text_only",
+      "unit_code_graph::symbol_extraction_produces_function_type_test_nodes",
+      "unit_code_graph::route_extraction_produces_route_edges",
+      "unit_code_graph::import_and_call_edges_are_recorded",
+      "unit_code_graph::unsupported_extension_becomes_text_only_node_not_skipped"
+    ]
+  },
+  "hardRequirements": {
+    "fileModulePackageNodes": "covered by code graph fixtures",
+    "functionsTypesTestsRoutes": "covered",
+    "importsAndCalls": "covered",
+    "textOnlyFallback": "covered",
+    "multiLanguageIndexing": "covered by fixture repo plus live parity rows"
+  }
+}

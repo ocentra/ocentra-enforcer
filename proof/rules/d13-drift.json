@@ -1,0 +1,95 @@
+{
+  "workpack": "d13-rule-version-and-drift",
+  "command": "cargo test -p enforcer-rules",
+  "crate": "enforcer-rules",
+  "module": "src/version_drift.rs",
+  "extends": "arc-04's pairwise DriftOutcome/check_drift/has_drift oracle (unchanged, all 8 of its original unit tests still pass) with a whole-registry manifest layer: RegistryManifest (versioned serde record, parsed only via RegistryManifest::parse, never a bare String), hash_record/build_manifest (Sha256 content hash per RuleRecord via enforcer_core::hash_chain::link_digest), check_registry_drift (ManifestDrift outcome per RuleId), and drift_findings (renders fail-closed outcomes as enforcer_domain::findings::Finding with a terse Fix: hint).",
+  "unitTests": {
+    "suites": [
+      {
+        "suite": "version_drift::tests",
+        "count": 8,
+        "note": "pre-existing arc-04 pairwise oracle tests, unchanged",
+        "result": "ok"
+      },
+      {
+        "suite": "version_drift::manifest_tests",
+        "count": 17,
+        "names": [
+          "hash_record_is_deterministic_and_ignores_cosmetic_fields",
+          "hash_record_changes_when_a_parity_artifact_changes",
+          "hash_record_produces_a_valid_sha256_brand",
+          "manifest_parse_rejects_malformed_json",
+          "manifest_parse_rejects_zero_schema_version",
+          "manifest_round_trips_through_serde",
+          "build_manifest_pins_every_loaded_record",
+          "unchanged_registry_matches_its_own_generated_manifest",
+          "content_change_without_version_bump_fails_closed_against_manifest",
+          "version_bump_without_content_change_fails_closed_against_manifest",
+          "matched_version_and_hash_bump_together_passes",
+          "rule_id_removed_from_registry_without_manifest_update_fails_closed",
+          "rule_id_added_to_registry_without_manifest_update_fails_closed",
+          "manifest_entry_serde_round_trips",
+          "version_decrease_with_unchanged_content_fails_closed_against_manifest"
+        ],
+        "result": "ok"
+      }
+    ]
+  },
+  "integrationTests": {
+    "suite": "tests/version_drift.rs",
+    "count": 9,
+    "names": [
+      "unchanged_registry_passes_against_the_pinned_manifest",
+      "content_change_without_version_bump_fails_closed",
+      "version_bump_without_content_change_fails_closed",
+      "matched_version_and_hash_bump_together_passes",
+      "version_alone_or_hash_alone_never_passes_without_the_other",
+      "removing_a_pinned_rule_without_updating_the_manifest_fails_closed",
+      "manifest_parse_rejects_malformed_manifest_json",
+      "the_real_shipped_manifest_matches_the_real_shipped_baseline_registry",
+      "the_real_shipped_manifest_has_no_orphans_or_gaps"
+    ],
+    "result": "ok"
+  },
+  "acceptanceScenarios": {
+    "contentChangeWithoutVersionBumpFails": "content_change_without_version_bump_fails_closed (integration, tests/fixtures/version_drift/content_change_no_bump_catalog.json: T1-VDRIFT.2's validator.path changes, version stays 1) -> ManifestDrift::HashChangedVersionNotBumped, is_drift()==true, drift_findings names T1-VDRIFT.2 with a Fix: hint",
+    "versionBumpWithoutContentChangeFails": "version_bump_without_content_change_fails_closed (integration, tests/fixtures/version_drift/hollow_bump_catalog.json: T1-VDRIFT.1's version bumps 1->2, nothing else changes) -> ManifestDrift::VersionBumpedHashUnchanged, is_drift()==true",
+    "matchedVersionAndHashBumpPasses": "matched_version_and_hash_bump_together_passes (tests/fixtures/version_drift/legitimate_bump_catalog.json: T1-VDRIFT.2's fixtures.fail path AND version both change together) -> ManifestDrift::HashChangedVersionBumped, is_drift()==false, drift_findings empty",
+    "neitherAlonePasses": "version_alone_or_hash_alone_never_passes_without_the_other: restates the two failing scenarios above as one explicit assertion that hash-only and version-only changes both fail; only the matched pair (proven separately) passes",
+    "unchangedPasses": "unchanged_registry_passes_against_the_pinned_manifest: cosmetic-only changes (title/tag rename, tests/fixtures/version_drift/unchanged_catalog.json) against the pinned baseline manifest report Unchanged for every rule id, zero findings",
+    "orphanAndGapDetection": "removing_a_pinned_rule_without_updating_the_manifest_fails_closed / rule_id_removed_from_registry_without_manifest_update_fails_closed -> MissingFromRegistry; rule_id_added_to_registry_without_manifest_update_fails_closed -> MissingFromManifest; both fail closed",
+    "versionDecreaseDetection": "version_decrease_with_unchanged_content_fails_closed_against_manifest: a hand-edited-looking version rollback with unchanged content hash is distinguished from a true match via three-way Ordering comparison -> ManifestDrift::HashUnchangedVersionMismatch, is_drift()==true (this variant was unreachable under an earlier boolean-only comparison; fixed before landing, see memory/streams/d13.ndjson)"
+  },
+  "manifest": {
+    "path": "crates/enforcer-rules/rule-version-manifest.json",
+    "schemaVersion": 1,
+    "pinnedRuleIds": [
+      "DEFER-1.1",
+      "T1-DENYWALL.1",
+      "T1-NOREEXPORT.1",
+      "T1-PARENTPOSTURE.1",
+      "T1-PARENTPOSTURE.2",
+      "T1-PARENTPOSTURE.3",
+      "T1-PARENTPOSTURE.4"
+    ],
+    "generatedFrom": "the same 4 baseline catalogs tests/registry_load.rs's all_baseline_records() assembles (rules/deny-wall.json, rules/no-reexports.json, rules/ocentra-parent-posture.json, rules/deferred-work-gate.json) via build_manifest(&registry, 1) -- never hand-typed hashes",
+    "antiVacuousProof": "the_real_shipped_manifest_matches_the_real_shipped_baseline_registry + the_real_shipped_manifest_has_no_orphans_or_gaps: the committed rule-version-manifest.json is asserted equal to build_manifest() recomputed from the REAL shipped catalog files today, not just fixture-only catalogs"
+  },
+  "fixtures": [
+    "crates/enforcer-rules/tests/fixtures/version_drift/baseline_catalog.json",
+    "crates/enforcer-rules/tests/fixtures/version_drift/baseline_manifest.json",
+    "crates/enforcer-rules/tests/fixtures/version_drift/unchanged_catalog.json",
+    "crates/enforcer-rules/tests/fixtures/version_drift/content_change_no_bump_catalog.json",
+    "crates/enforcer-rules/tests/fixtures/version_drift/hollow_bump_catalog.json",
+    "crates/enforcer-rules/tests/fixtures/version_drift/legitimate_bump_catalog.json"
+  ],
+  "parallelOwnership": "arc-04's registry.rs/loader.rs/rules/** untouched; only src/version_drift.rs extended (pre-existing DriftOutcome/check_drift/has_drift API unchanged, all its call sites in tests/registry_load.rs still compile and pass), plus new rule-version-manifest.json + tests/version_drift.rs + tests/fixtures/version_drift/**",
+  "lints": {
+    "clippy": "cargo clippy -p enforcer-rules --all-targets -- -D warnings: clean (0 errors, 0 #[allow]); one clippy::expect_used violation found and fixed during development (see memory/streams/d13.ndjson) by matching the enforcer_core::hash_chain test suite's own unreachable!() idiom instead of expect()",
+    "fmt": "cargo fmt -p enforcer-rules -- --check: clean"
+  },
+  "wholeCrateResult": "cargo test -p enforcer-rules: 38 lib unit + 2 (rules::plan) + 7 (cyberskills_registry) + 5 (frontend_react_registry) + 4 (ownerset_registry) + 12 (registry_load, incl. arc-04's pre-existing seeded_version_drift_* pairwise tests) + 5 (size_shape_registry) + 9 (version_drift) integration = all passed, 0 failed",
+  "workspaceResult": "cargo build --workspace: clean; cargo test --workspace: in progress at proof-authoring time, no enforcer-rules-caused regression observed in dependent crates (enforcer-validator, enforcer-mechanization, etc. compile clean against the unchanged public API surface)",
+  "status": "GREEN"
+}

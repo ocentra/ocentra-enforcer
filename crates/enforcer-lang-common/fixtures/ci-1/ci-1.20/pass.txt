@@ -1,0 +1,5 @@
+// Fixture for CI-1.20: Required checks must include Enforcer
+// Clean source — no occurrence of the CI-1.20 marker below.
+fn clean_example() {
+    // conformant with ci-integrity
+}

@@ -1,0 +1,5 @@
+// Fixture for HAR-2.3: Harness diagnostics must be sorted deterministically
+// Clean source — no occurrence of the HAR-2.3 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

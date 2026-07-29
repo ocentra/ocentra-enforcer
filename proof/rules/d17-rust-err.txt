@@ -1,0 +1,47 @@
+=== d17 rust-error-handling — enforcer-lang-rust::rules::error_handling ===
+
+Named test: `cargo test -p enforcer-lang-rust` (rust-err-* detection tests)
+  - rules::error_handling::tests::fires_on_unwrap_in_first_party_and_silent_on_result_propagation
+    -> run_fixture_parity against fixtures/error-handling/fail_unwrap.rs (fires)
+       and fixtures/error-handling/pass_result_propagation.rs (silent)
+  - rules::error_handling::tests::panic_todo_unimplemented_dbg_all_fire_in_first_party_code
+    -> panic!/todo!/unimplemented!/dbg! each independently trip T1-RUSTERR.1
+  - rules::error_handling::tests::unwrap_under_cfg_test_module_stays_clean
+    -> .unwrap() inside a #[cfg(test)] mod / #[test] fn stays clean (T1 exemption)
+  - rules::error_handling::tests::unparseable_source_stays_silent
+    -> malformed source does not crash or false-positive
+
+See `proof/cargo/arc-06.txt` for the full `cargo test -p enforcer-lang-rust`
+run (8/8 passing incl. no_reexports), `cargo clippy --all-targets -- -D
+warnings` (clean), and `cargo fmt --check` (clean, FMT_EXIT=0).
+
+Seeded-violation case (ad-hoc smoke run, captured here — not a committed
+test file, since workspace clippy denies `expect_used`/`unwrap_used` even
+in throwaway test targets):
+
+  source:
+    mod inner { pub struct Thing; }
+    pub use inner::Thing;
+    fn broken(raw: &str) -> i32 { raw.parse::<i32>().unwrap() }
+
+  ErrorHandlingValidator::validate() on this source -> 1 Finding,
+  rule_id == "T1-RUSTERR.1", title "rust-error-handling: `unwrap` in
+  first-party code" — confirmed by a temporary `tests/seeded_violation_smoke.rs`
+  integration test added, run green (`cargo test -p enforcer-lang-rust`
+  showed `seeded_barrel_and_unwrap_violation_trips_both_validators ... ok`),
+  then deleted (not part of arc-06's owned files). The permanent equivalent
+  seeded-violation coverage lives in the fail fixture
+  (`fixtures/error-handling/fail_unwrap.rs`) exercised by
+  `fires_on_unwrap_in_first_party_and_silent_on_result_propagation` above,
+  which is the same shape of case (`.unwrap()` in first-party code) proven
+  on every `cargo test -p enforcer-lang-rust` run going forward.
+
+  Bare `?` without `.with_context` (the T2-scored half of this row) is
+  NOT flagged by this T1 validator by design — d17's T2 scoring dimension
+  is out of scope for arc-06's baseline (arc-06 owns the T1 hard-block
+  detection only); a future d17-owning pack adds the T2 scorer.
+
+Verdict: GREEN for the T1 blocking half of d17 (unwrap/expect/panic!/
+todo!/unimplemented!/dbg! in first-party code flags; the same under
+#[cfg(test)] stays clean). T2 scoring (bare `?` w/o `.with_context`) is
+explicitly NOT claimed by this artifact.

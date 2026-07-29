@@ -536,6 +536,67 @@ test("coordination closeout releases lane claims and verifies zero active claims
   assert.deepEqual(presence.views.byClaimedPath, {});
 });
 
+test("coordination closeout requires allLanes before releasing unrelated lanes", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-lane-scope-"));
+  const targetRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "enforcer-closeout-lane-scope-target-"),
+  );
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  for (const file of ["alpha.rs", "alpha-extra.rs", "beta.rs"]) {
+    fs.writeFileSync(path.join(targetRoot, "src", file), "fn local() {}\n");
+  }
+  await coordinationInit({ stateRoot, hub: "closeout-lane-scope-hub", lane: "codex-alpha" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-alpha",
+    paths: ["src/alpha.rs", "src/alpha-extra.rs"],
+    reason: "alpha claims",
+  });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-beta",
+    paths: ["src/beta.rs"],
+    reason: "unrelated beta claim",
+  });
+
+  const laneCloseout = await coordinationCloseout({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-alpha",
+    allOwned: true,
+    repairStale: false,
+    reason: "alpha-only closeout",
+  });
+  assert.equal(laneCloseout.ok, true);
+  assert.equal(laneCloseout.filters.includeAllLanes, false);
+  assert.equal(laneCloseout.initialClaimCount, 2);
+  assert.equal(laneCloseout.releasedClaimCount, 2);
+
+  const afterLaneCloseout = await coordinationStatus({ stateRoot });
+  assert.equal(afterLaneCloseout.state.ownership.activeClaims.length, 1);
+  assert.equal(afterLaneCloseout.state.ownership.activeClaims[0].lane, "codex-beta");
+  assert.deepEqual(afterLaneCloseout.state.ownership.activeClaims[0].paths, ["src/beta.rs"]);
+
+  const crossLaneCloseout = await coordinationCloseout({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-alpha",
+    allOwned: true,
+    allLanes: true,
+    repairStale: false,
+    reason: "explicit cross-lane closeout",
+  });
+  assert.equal(crossLaneCloseout.ok, true);
+  assert.equal(crossLaneCloseout.filters.includeAllLanes, true);
+  assert.equal(crossLaneCloseout.initialClaimCount, 1);
+  assert.equal(crossLaneCloseout.releasedClaimCount, 1);
+
+  const afterCrossLaneCloseout = await coordinationStatus({ stateRoot });
+  assert.equal(afterCrossLaneCloseout.state.ownership.activeClaims.length, 0);
+});
+
 test("coordination closeout stale repair removes only selected owners", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-stale-"));
   const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-stale-target-"));

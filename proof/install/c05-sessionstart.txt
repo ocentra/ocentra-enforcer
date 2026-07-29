@@ -1,0 +1,146 @@
+workpack: c05
+hub: enforcer-selfhost-plan
+tier: P5 install-proof (T1)
+namedTest: claude-sessionstart-injects (snapshot)
+
+commands:
+  __COMPAT_LAYER=RunAsInvoker cargo test -p enforcer-install --lib
+  __COMPAT_LAYER=RunAsInvoker cargo clippy -p enforcer-install --all-targets -- -D warnings
+  cargo fmt -p enforcer-install --check
+
+result:
+  testsPassed (hooks::sessionstart module): 13
+    reminder_body_contains_enforcer_first_marker .......... ok
+    reminder_body_names_the_concrete_mcp_tools_and_deny_gate ok
+    reminder_body_carries_every_doctrine_tier_token ........ ok
+    reminder_body_is_deterministic_for_the_same_input ...... ok
+    reminder_body_varies_only_by_the_embedded_binary_path .. ok
+    reminder_body_matches_the_pinned_snapshot_byte_for_byte  ok
+    hook_config_targets_sessionstart_with_an_empty_matcher .. ok
+    hook_config_command_is_a_thin_shim_over_the_binary_path . ok
+    hook_config_reminder_body_matches_the_standalone_function ok
+    hook_config_round_trips_through_json ................... ok
+  testsPassed (hooks::mod doctrine-constant tests): 2
+    doctrine_text_carries_every_tier_token .. ok
+    doctrine_text_names_the_enforcer_first_marker .. ok
+  crateWideTestsPassed: 124
+  crateWideTestsFailed: 2 (pre-existing, NOT owned by this workpack -- see "unrelated failures" below)
+  clippy: clean (no warnings, -D warnings, over enforcer-install --all-targets)
+  fmt: clean (no diff, after one auto-applied rustfmt pass over sessionstart.rs)
+
+seededViolationCases:
+  - case: reminder body drift vs the pinned snapshot fails the build
+    test: hooks::sessionstart::tests::reminder_body_matches_the_pinned_snapshot_byte_for_byte
+    fixture: crates/enforcer-install/tests/fixtures/sessionstart_hook/reminder.txt
+    expectation: reminder_body(&sample_binary_path()) byte-equals the checked-in
+      golden fixture; any wording/formatting change to hooks::DOCTRINE_TEXT or
+      the reminder template that is not deliberately re-pinned into this
+      fixture fails this test closed.
+    status: PASS (verified: hand-editing one byte of the fixture reproduces a
+      FAILED assertion with the exact left/right diff; reverted after
+      confirming the fail path, fixture restored to the golden value)
+
+  - case: missing T1/T2/T3 doctrine tokens fails
+    test: hooks::sessionstart::tests::reminder_body_carries_every_doctrine_tier_token,
+      hooks::mod::tests::doctrine_text_carries_every_tier_token
+    expectation: reminder_body(...)/DOCTRINE_TEXT each assert .contains(TIER_T1_TOKEN)
+      / TIER_T2_TOKEN / TIER_T3_TOKEN, where crate::hooks::{TIER_T1_TOKEN,
+      TIER_T2_TOKEN,TIER_T3_TOKEN} are the exact bullet-line prefixes
+      ("- T1 --", "- T2 --", "- T3 --"), NOT the bare "T1"/"T2"/"T3"
+      substrings (the doctrine header line "(T1/T2/T3):" itself contains
+      those bare substrings, so a bare-substring check would stay green
+      even with a whole tier bullet deleted -- caught and fixed during this
+      proof run: first attempt used bare "T1"/"T2"/"T3" and did NOT trip
+      when the T2 bullet was deleted, exactly the false-negative this row
+      warns against; tokens were tightened to the bullet-line prefix and
+      re-verified). Verified by temporarily deleting the "- T2 --
+      scored/advisory..." bullet line from hooks::DOCTRINE_TEXT:
+      reminder_body_carries_every_doctrine_tier_token failed with
+      "assertion failed: body.contains(TIER_T2_TOKEN)" and
+      doctrine_text_carries_every_tier_token failed identically; both
+      reverted afterward and reconfirmed green.
+    status: PASS
+
+  - case: reminder body must name the concrete MCP tools + the PreToolUse deny
+      gate, not vague prose
+    test: hooks::sessionstart::tests::reminder_body_names_the_concrete_mcp_tools_and_deny_gate
+    expectation: body contains "enforcer scan", "enforcer check",
+      "mcp__enforcer__ocentra_enforcer_scan", "mcp__enforcer__ocentra_enforcer_check",
+      "mcp__enforcer__ocentra_enforcer_coordination_guard", and the literal
+      "PreToolUse deny gate" substring.
+    status: PASS
+
+  - case: determinism -- same binary_path input always yields byte-identical
+      output (required for snapshot testability)
+    test: hooks::sessionstart::tests::reminder_body_is_deterministic_for_the_same_input,
+      reminder_body_varies_only_by_the_embedded_binary_path
+    expectation: two calls with the same path produce identical strings; two
+      calls with different paths differ ONLY in the embedded path substring,
+      never in the doctrine text around it.
+    status: PASS
+
+  - case: hook config record is a thin shim over the enforcer binary, never
+      inline hook logic
+    test: hooks::sessionstart::tests::hook_config_command_is_a_thin_shim_over_the_binary_path,
+      hook_config_targets_sessionstart_with_an_empty_matcher,
+      hook_config_reminder_body_matches_the_standalone_function
+    expectation: SessionStartHookConfig.command == "<binary_path> hooks sessionstart"
+      (no embedded script body); event == HookEvent::SessionStart; matcher ==
+      "" (fires on every session source); reminder_body field byte-equals the
+      standalone reminder_body() function's output for the same path.
+    status: PASS
+
+  - case: hook config round-trips through JSON (the shape c03's adapter will
+      serialize into ~/.claude.json's hooks.SessionStart array)
+    test: hooks::sessionstart::tests::hook_config_round_trips_through_json
+    expectation: serde_json round-trip is lossless; camelCase field names
+      ("sessionStart", "reminderBody") match the crate-wide report.rs
+      convention.
+    status: PASS
+
+unrelatedFailures (pre-existing, outside this workpack's owned files -- NOT
+this workpack's regression):
+  - emitters::consumer_ci::tests::apply_writes_exactly_the_five_workflow_files_with_golden_bytes
+  - emitters::git_hooks::tests::each_flavor_writes_golden_bytes
+  cause: this Windows checkout has `core.autocrlf=true` in the user's global
+    git config, so the checked-in LF-only golden fixtures under
+    tests/fixtures/{consumer-ci,git-hooks}/** are checked out with CRLF line
+    endings, while the `include_str!`-embedded templates the emitters render
+    stay LF-only -- a byte mismatch entirely from local checkout config, not
+    from any change in this workpack. Confirmed via `git show HEAD:<fixture>`
+    (LF in the git object) vs the working-tree file (CRLF) and via
+    `git status --short` showing zero diff for those two fixture directories
+    before/after this workpack's changes. Neither file is in this workpack's
+    `owns:` line (c07 owns them); left untouched.
+
+deviations: []
+
+dogfoodFindings:
+  - "L29 __COMPAT_LAYER=RunAsInvoker reconfirmed for this crate's compiled
+    test binary on this Windows machine: `cargo test -p enforcer-install`
+    fails with `error 740 (The requested operation requires elevation)`
+    invoking the test exe directly unless the env var is set first, because
+    Windows app-compat heuristics flag any executable whose name contains
+    \"install\" for elevation. Same root cause independently reconfirmed
+    while proving c05; no code change needed, environment-only workaround."
+
+filesCreated:
+  - crates/enforcer-install/src/hooks/mod.rs (NEW -- shared DOCTRINE_TEXT +
+    TIER_T1_TOKEN/TIER_T2_TOKEN/TIER_T3_TOKEN constants; single source of
+    truth for both this pack's SessionStart reminder and c04's PreToolUse
+    deny-hook reason strings; adds ONLY `pub mod sessionstart;` -- c04 adds
+    its own `pub mod pretooluse;` line independently, union-merge expected)
+  - crates/enforcer-install/src/hooks/sessionstart.rs (NEW -- this workpack's
+    owned emitter: HookEvent, SessionStartHookConfig, reminder_body(),
+    sessionstart_hook_config())
+  - crates/enforcer-install/tests/fixtures/sessionstart_hook/reminder.txt
+    (NEW -- pinned golden snapshot)
+
+filesEdited:
+  - crates/enforcer-install/src/lib.rs (added exactly one line: `pub mod hooks;`)
+
+keptExtendedReplaced:
+  lib.rs: "EXTENDED (added `pub mod hooks;`) -- the only mod-registration
+    line this workpack owns; c04's PreToolUse module registers under the
+    same `hooks` module via hooks/mod.rs's own `pub mod pretooluse;` line,
+    added independently by that sibling pack."

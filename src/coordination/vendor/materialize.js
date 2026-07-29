@@ -4,22 +4,28 @@ import { parseLaneId, parseWorkerState, } from "./domain.js";
 import { assertEventHash } from "./events.js";
 import { classifyOwnership, pathOverlaps, normalizeCoordinationPath } from "./lock-policy.js";
 import { applyReleaseEvent, claimIdentityKey } from "./materialize-claim-identity.js";
+import { emptyMaterializedState, thawMaterializedState } from "./materialize-state.js";
+import { nextOrderCursor, refreshTemporalState, uniqueEvents } from "./materialize-runtime.js";
 import { laneViewsDir, viewsDir } from "./paths.js";
 import { readAllStreams } from "./stream.js";
 export async function materialize(root) {
     const { events, duplicateCount, warnings } = await readAllStreams(root);
-    for (const event of events) {
+    const result = materializeEvents(events, { duplicateCount, warnings });
+    await writeViews(root, result);
+    return result;
+}
+export function materializeEvents(events, options = {}) {
+    const unique = uniqueEvents(events, options.baseSeenEventIds);
+    const duplicateCount = (options.duplicateCount ?? 0) + unique.duplicateCount;
+    const warnings = options.warnings ?? [];
+    const baseEventCount = options.baseEventCount ?? 0;
+    for (const event of unique.events) {
         assertEventHash(event);
     }
-    const lanes = new Map();
-    const writers = new Map();
-    const workers = new Map();
-    const tasks = new Map();
-    const acks = new Map();
-    const activeClaims = new Map();
-    const editIntents = new Map();
-    const sessions = new Map();
-    for (const event of events) {
+    const { lanes, writers, workers, tasks, acks, activeClaims, editIntents, sessions } = options.baseState === undefined
+        ? emptyMaterializedState()
+        : thawMaterializedState(options.baseState);
+    for (const event of unique.events) {
         const lane = ensureLane(lanes, event.lane);
         writers.set(event.writer, {
             writer: event.writer,
@@ -216,6 +222,7 @@ export async function materialize(root) {
             }),
         }));
     }
+    refreshTemporalState(lanes, workers, sessions);
     const ownership = classifyOwnership([...activeClaims.values()], [...editIntents.values()]);
     const frozenLanes = freezeLanes(lanes);
     const activeSessions = freezeSessions(sessions);
@@ -223,7 +230,7 @@ export async function materialize(root) {
     const freeWorkers = [...frozenWorkers.values()].filter((worker) => worker.free);
     const activeTasks = [...tasks.values()].filter((task) => task.active);
     const dashboard = {
-        eventCount: events.length,
+        eventCount: baseEventCount + unique.events.length,
         duplicateCount,
         laneCount: frozenLanes.size,
         inboxCount: [...frozenLanes.values()].reduce((count, lane) => count + lane.inbox.length, 0),
@@ -235,8 +242,17 @@ export async function materialize(root) {
         conflictCount: ownership.conflicts.length,
         generatedAt: new Date().toISOString(),
     };
-    const result = { dashboard, ownership, lanes: frozenLanes, workers: frozenWorkers, tasks, sessions: activeSessions, warnings };
-    await writeViews(root, result);
+    const result = {
+        dashboard,
+        ownership,
+        lanes: frozenLanes,
+        workers: frozenWorkers,
+        tasks,
+        sessions: activeSessions,
+        seenEventIds: unique.seenEventIds,
+        orderCursor: nextOrderCursor(options.baseOrderCursor, unique.events),
+        warnings,
+    };
     return result;
 }
 export function materializedToJson(state) {
@@ -249,6 +265,8 @@ export function materializedToJson(state) {
         activeTasks: getActiveTasks(state),
         tasks: Object.fromEntries(state.tasks.entries()),
         sessions: Object.fromEntries(state.sessions.entries()),
+        seenEventIds: state.seenEventIds,
+        orderCursor: state.orderCursor,
         warnings: state.warnings,
     };
 }

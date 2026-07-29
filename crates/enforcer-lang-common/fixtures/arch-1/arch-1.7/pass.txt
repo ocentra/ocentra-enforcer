@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.7: Production source cannot import test support
+// Clean source — no occurrence of the ARCH-1.7 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

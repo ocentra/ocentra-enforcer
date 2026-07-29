@@ -1,0 +1,5 @@
+// Fixture for REPO-1.3: CODEOWNERS must protect enforcement source
+// Clean source — no occurrence of the REPO-1.3 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

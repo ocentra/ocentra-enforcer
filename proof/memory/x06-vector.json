@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-vector",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "aggregateArtifact": "proof/memory/x06-rag.json",
+  "namedTest": "x06-vector",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "retrieval_stack::semantic_query_prefers_shared_vocabulary_document_over_unrelated_ones",
+      "retrieval_stack::vector_index_manifest_detects_staleness_on_dimension_change",
+      "retrieval_stack::model_manifest_carries_the_full_version_vector"
+    ]
+  },
+  "hardRequirements": {
+    "denseVectorIndex": "covered by x06.4 VectorIndex proof in proof/memory/x06-rag.json",
+    "staleVectorDetection": "covered by retrieval_stack stale-manifest test",
+    "localDefaultState": "default CI uses deterministic degraded provider unless explicit model proof is run"
+  }
+}

@@ -1,0 +1,185 @@
+[
+    {
+        "ruleId": "SIZE-FILE-1.1",
+        "version": 1,
+        "title": "File length cap (200 lines; Rust override 400)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::FileLengthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/file/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/file/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "defaultLineCap": 200,
+            "languageOverrides": { "rust": 400 },
+            "legacyIds": ["py.size.file-function-class-limits", "FE-LEN-1.1", "RUST-LEN-1.1"]
+        }
+    },
+    {
+        "ruleId": "SIZE-FUNC-1.1",
+        "version": 1,
+        "title": "Function length cap (30 lines)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::FunctionLengthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/func/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/func/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "lineCap": 30,
+            "legacyIds": ["py.size.file-function-class-limits", "FE-LEN-1.2"]
+        }
+    },
+    {
+        "ruleId": "SIZE-CLASS-1.1",
+        "version": 1,
+        "title": "Class length + public-method-count cap (150 lines / 12 methods)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::ClassSizeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/class/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/class/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "lineCap": 150,
+            "publicMethodCap": 12,
+            "legacyIds": ["py.size.file-function-class-limits"]
+        }
+    },
+    {
+        "ruleId": "SIZE-PARAMS-1.1",
+        "version": 1,
+        "title": "Parameter-count cap (5 params)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::ParamCountValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/params/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/params/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "paramCap": 5
+        }
+    },
+    {
+        "ruleId": "SIZE-LINE-1.1",
+        "version": 1,
+        "title": "Line-length cap (120 columns, trailing-pragma-inclusive)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::LineLengthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/line/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/line/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "columnCap": 120,
+            "includesTrailingPragma": true
+        }
+    },
+    {
+        "ruleId": "SIZE-TESTFILE-1.1",
+        "version": 1,
+        "title": "Test-file length cap (300 lines)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::TestFileLengthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/testfile/bad.test.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/testfile/good.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack"],
+        "params": {
+            "lineCap": 300,
+            "consumedBy": ["d23"]
+        }
+    },
+    {
+        "ruleId": "SIZE-CX-1.1",
+        "version": 1,
+        "title": "Scored cyclomatic complexity / nesting depth",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::ComplexityNestingValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/cx/bad.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/cx/good.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack", "scored"],
+        "params": {
+            "cyclomaticComplexityFireThreshold": 10,
+            "nestingDepthCap": 3,
+            "legacyIds": ["py-fastapi-cyclomatic-complexity", "DART-SIZE-2.6", "CFML-CPLX-2.1"]
+        }
+    },
+    {
+        "ruleId": "SIZE-NEST-1.1",
+        "version": 1,
+        "title": "Package/path nesting depth (3 levels)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::PackageNestingDepthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/nesting/bad/app/core/services/domain/user/service.py",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/nesting/good/app/user_service.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "python", "scored"],
+        "params": {
+            "nestingDepthCap": 3,
+            "packageRootAnchor": "app/",
+            "legacyIds": ["py-fastapi-package-nesting-depth"]
+        }
+    },
+    {
+        "ruleId": "FE-LEN-2.1",
+        "version": 1,
+        "title": "File-length grandfather ratchet (baseline metric)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::size_shape::RatchetLengthValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/size_shape/ratchet/bad/legacy.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/size_shape/ratchet/good/legacy.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d22-size-shape-caps.md#Requirement Checklist",
+        "tags": ["size", "d22", "cross-stack", "scored", "ratchet"],
+        "params": {
+            "composesWith": "d02-baseline-grandfather-ratchet",
+            "note": "Supplies the per-file length metric only; enforcer-scan::rules::baseline_ratchet (d02) owns the recorded-baseline store and the run-level fail-closed ratchet decision."
+        }
+    }
+]

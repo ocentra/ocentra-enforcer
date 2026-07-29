@@ -1,0 +1,4 @@
+// Fixture for WAIVER-1.4: Immutable rules cannot be waived unless marked waivable
+// Ported from legacy validator id `common/waiver-policy` (see rules/rules.json doc: rules/common/policy.md#covered-rules).
+// This line trips the rule:
+ENFORCER_WAIVER_1_4_MARKER

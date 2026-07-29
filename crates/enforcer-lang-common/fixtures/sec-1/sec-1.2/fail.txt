@@ -1,0 +1,4 @@
+// Fixture for SEC-1.2: Sensitive files are forbidden in source scope
+// Ported from legacy validator id `common/secret-scan` (see rules/rules.json doc: rules/common/security.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SEC_1_2_MARKER

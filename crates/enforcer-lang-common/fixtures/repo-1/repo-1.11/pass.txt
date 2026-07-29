@@ -1,0 +1,5 @@
+// Fixture for REPO-1.11: Security policy is required
+// Clean source — no occurrence of the REPO-1.11 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

@@ -1,0 +1,5 @@
+// Fixture for MCP-1.12: MCP errors must be structured JSON
+// Clean source — no occurrence of the MCP-1.12 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

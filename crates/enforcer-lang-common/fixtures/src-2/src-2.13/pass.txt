@@ -1,0 +1,5 @@
+// Fixture for SRC-2.13: Mixed responsibility source files are forbidden
+// Clean source — no occurrence of the SRC-2.13 marker below.
+fn clean_example() {
+    // conformant with common/source-shape
+}

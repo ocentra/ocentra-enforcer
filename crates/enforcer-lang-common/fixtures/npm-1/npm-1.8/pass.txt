@@ -1,0 +1,5 @@
+// Fixture for NPM-1.8: File and path dependencies are forbidden
+// Clean source — no occurrence of the NPM-1.8 marker below.
+fn clean_example() {
+    // conformant with package-determinism
+}

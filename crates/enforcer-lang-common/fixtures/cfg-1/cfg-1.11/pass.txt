@@ -1,0 +1,5 @@
+// Fixture for CFG-1.11: Profile name must be known
+// Clean source — no occurrence of the CFG-1.11 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

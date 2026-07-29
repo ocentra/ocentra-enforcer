@@ -9,7 +9,9 @@ facades, preludes, or crate public API shape.
 - `RR-7.2`: wildcard public re-exports are forbidden.
 - `RR-7.3`: public re-exports must match project policy.
 - `RR-7.4`: dumping-ground modules such as `utils`, `helpers`, `common`, `misc`, `shared`, or `stuff` are forbidden.
-- `RR-7.5`: `build.rs` is forbidden by default unless the profile explicitly allows it.
+- `RR-7.5`: `build.rs` is forbidden by default unless its exact repo-relative
+  path is listed in `allowedBuildRsPaths`; near-matches and sibling scripts
+  remain forbidden.
 
 ## Agent Rule
 

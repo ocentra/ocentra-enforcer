@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-model-runtime-negative-proof",
+  "runtimeMode": "negative-fixture",
+  "proofScope": {
+    "arch": "any",
+    "capability": "ci",
+    "ciParity": false,
+    "localHardwareRequired": false,
+    "platform": "any",
+    "portability": "portable-negative-contract",
+    "reason": "checked-in negative fixture proves hash mismatch learning shape without network, model download, or local hardware"
+  },
+  "allowNetwork": false,
+  "case": "artifact-hash-mismatch",
+  "operation": "chat-generation-gguf",
+  "ok": false,
+  "strictCacheHash": true,
+  "error": {
+    "kind": "artifact-hash-mismatch",
+    "reason": "hash mismatch for <repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf"
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "checked-in-negative-fixture",
+      "source": "x06-model-runtime-negative-proof",
+      "runId": "x06-models-hash-mismatch",
+      "candidate": {
+        "observationKind": "artifact-hash-mismatch",
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "path": "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf",
+        "expectedSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observedSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  ]
+}

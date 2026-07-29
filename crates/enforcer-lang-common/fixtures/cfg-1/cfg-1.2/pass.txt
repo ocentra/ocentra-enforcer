@@ -1,0 +1,5 @@
+// Fixture for CFG-1.2: Immutable rules cannot be disabled
+// Clean source — no occurrence of the CFG-1.2 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

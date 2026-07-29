@@ -1,0 +1,5 @@
+// Fixture for ENF-1.5: Rule IDs must be locked
+// Clean source — no occurrence of the ENF-1.5 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-DOC-PUBLIC-ITEM",
+        "version": 1,
+        "title": "Every public item should carry a `///` doc comment",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::doc_public_item::DocPublicItemValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/doc-public-item/fail_no_doc.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/doc-public-item/pass_documented.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

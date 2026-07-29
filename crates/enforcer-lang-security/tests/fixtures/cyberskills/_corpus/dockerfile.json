@@ -1,0 +1,240 @@
+[
+  {
+    "name": "base-tag: FROM with no tag",
+    "input": "FROM python\nUSER 10001",
+    "expect": "flag",
+    "branch": "base-tag",
+    "reason": "FROM image without tag (implicit latest)"
+  },
+  {
+    "name": "base-tag: FROM with explicit :latest",
+    "input": "FROM ubuntu:latest\nUSER 10001",
+    "expect": "flag",
+    "branch": "base-tag",
+    "reason": "FROM image with explicit :latest tag"
+  },
+  {
+    "name": "base-tag: FROM with uppercase :LATEST",
+    "input": "FROM alpine:LATEST\nUSER 10001",
+    "expect": "flag",
+    "branch": "base-tag",
+    "reason": "The mutable latest tag is case-insensitive"
+  },
+  {
+    "name": "root-user: no USER instruction",
+    "input": "FROM python:3.12@sha256:abc\nRUN echo test",
+    "expect": "flag",
+    "branch": "root-user",
+    "reason": "No USER instruction (defaults to root)"
+  },
+  {
+    "name": "root-user: final USER is root",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nUSER root",
+    "expect": "flag",
+    "branch": "root-user",
+    "reason": "Last USER instruction is root"
+  },
+  {
+    "name": "curl-bash: RUN curl piped to bash",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN curl https://example.com/script.sh | bash",
+    "expect": "flag",
+    "branch": "curl-bash",
+    "reason": "RUN pipes curl output to bash shell"
+  },
+  {
+    "name": "curl-bash: RUN wget piped to sh",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN wget http://example.com/script.sh | sh",
+    "expect": "flag",
+    "branch": "curl-bash",
+    "reason": "RUN pipes wget output to sh shell"
+  },
+  {
+    "name": "secret-env: ENV PASSWORD with literal value",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nENV PASSWORD=mypassword",
+    "expect": "flag",
+    "branch": "secret-env",
+    "reason": "ENV PASSWORD with literal secret value"
+  },
+  {
+    "name": "secret-env: ARG API_KEY with literal value",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nARG API_KEY=sk-1234567890",
+    "expect": "flag",
+    "branch": "secret-env",
+    "reason": "ARG API_KEY with literal secret value"
+  },
+  {
+    "name": "add-remote: ADD with https URL",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nADD https://example.com/file.txt /app/",
+    "expect": "flag",
+    "branch": "add-remote",
+    "reason": "ADD with https:// URL as source"
+  },
+  {
+    "name": "add-remote: ADD with http URL",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nADD http://example.com/file.txt /app/",
+    "expect": "flag",
+    "branch": "add-remote",
+    "reason": "ADD with http:// URL as source"
+  },
+  {
+    "name": "apt-recommends: apt-get install without flag",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN apt-get install -y curl",
+    "expect": "flag",
+    "branch": "apt-recommends",
+    "reason": "apt-get install missing --no-install-recommends flag"
+  },
+  {
+    "name": "apt-recommends: apt install without flag",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN apt install vim",
+    "expect": "flag",
+    "branch": "apt-recommends",
+    "reason": "apt install missing --no-install-recommends flag"
+  },
+  {
+    "name": "clean: single-stage hardened",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*\nCMD [\"python\"]",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "Pinned base, non-root user, no curl|bash, no secrets, no remote ADD, apt has flag"
+  },
+  {
+    "name": "clean: multi-stage with builder and runtime",
+    "input": "FROM python:3.12@sha256:abc AS builder\nRUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*\n\nFROM python:3.12@sha256:def\nUSER 10001\nCOPY --from=builder /build /app\nCMD [\"python\"]",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "Multi-stage with hardened runtime stage and pinned bases"
+  },
+  {
+    "name": "clean: FROM scratch",
+    "input": "FROM scratch\nCOPY binary /\nCMD [\"/binary\"]",
+    "expect": "flag",
+    "branch": "root-user",
+    "reason": "FROM scratch still runs as uid 0 by default; rule correctly requires a non-root USER [reconciled]"
+  },
+  {
+    "name": "clean: FROM with digest pin",
+    "input": "FROM alpine:3.18@sha256:xyz\nUSER 10001\nRUN apk add --no-cache curl",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "FROM with tag@digest is fully pinned"
+  },
+  {
+    "name": "clean: multi-stage FROM stage reference",
+    "input": "FROM python:3.12@sha256:abc AS build\nRUN echo test\n\nFROM python:3.12@sha256:def\nUSER 10001\nCOPY --from=build /output /app",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "FROM stage reference (FROM builder pattern) is allowed"
+  },
+  {
+    "name": "clean: ENV with variable reference",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nENV PASSWORD=$BUILD_TOKEN",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "ENV PASSWORD with variable reference (not literal) is allowed"
+  },
+  {
+    "name": "clean: ARG with placeholder value",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nARG API_KEY=<please-provide>",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "ARG API_KEY with placeholder syntax is allowed"
+  },
+  {
+    "name": "clean: ENV with changeme value",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nENV SECRET=changeme",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "ENV SECRET with 'changeme' special value is allowed"
+  },
+  {
+    "name": "clean: curl without piping to shell",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN curl -o /tmp/file.txt https://example.com/file.txt",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "curl not piped to shell is allowed"
+  },
+  {
+    "name": "clean: ADD with local file path",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nADD requirements.txt /app/",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "ADD with local file (not URL) is allowed"
+  },
+  {
+    "name": "bad: ADD JSON array with remote URL",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nADD [\"https://example.com/tool\", \"/usr/local/bin/tool\"]",
+    "expect": "flag",
+    "branch": "remote-add",
+    "reason": "JSON-array ADD still fetches a remote URL and must be rejected"
+  },
+  {
+    "name": "clean: apt-get with --no-install-recommends",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN apt-get update && apt-get install -y --no-install-recommends curl",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "apt-get install with --no-install-recommends flag is allowed"
+  },
+  {
+    "name": "clean: USER with non-root numeric ID",
+    "input": "FROM python:3.12@sha256:abc\nUSER 1000\nRUN echo test",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "USER with non-root numeric ID is allowed"
+  },
+  {
+    "name": "clean: USER with non-root username",
+    "input": "FROM python:3.12@sha256:abc\nUSER appuser\nRUN echo test",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "USER with non-root username is allowed"
+  },
+  {
+    "name": "clean: wget without piping to shell",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN wget https://example.com/file.txt -O /tmp/file.txt",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "wget not piped to shell is allowed"
+  },
+  {
+    "name": "clean: ENV with empty value",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nENV PASSWORD=",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "ENV PASSWORD with empty value is allowed"
+  },
+  {
+    "name": "non-dockerfile: shell script without FROM",
+    "input": "#!/bin/bash\necho 'Hello World'\necho $PASSWORD",
+    "expect": "clean",
+    "branch": "non-dockerfile",
+    "reason": "File with no FROM line is not a Dockerfile"
+  },
+  {
+    "name": "non-dockerfile: YAML configuration without FROM",
+    "input": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod",
+    "expect": "clean",
+    "branch": "non-dockerfile",
+    "reason": "YAML file without FROM line is not a Dockerfile"
+  },
+  {
+    "name": "multi-violation: untagged base + no user + curl|bash",
+    "input": "FROM python\nRUN curl https://example.com/install.sh | bash",
+    "expect": "flag",
+    "branch": "base-tag,root-user,curl-bash",
+    "reason": "Violates base-tag (no tag), root-user (no USER), curl-bash"
+  },
+  {
+    "name": "multi-violation: latest tag + root user + secret ENV",
+    "input": "FROM ubuntu:latest\nUSER root\nENV DATABASE_PASSWORD=secretpass123",
+    "expect": "flag",
+    "branch": "base-tag,root-user,secret-env",
+    "reason": "Violates base-tag (latest), root-user (USER root), secret-env (PASSWORD)"
+  },
+  {
+    "name": "multi-violation: untagged base + apt without flag + remote ADD",
+    "input": "FROM node\nUSER 10001\nRUN apt-get install npm\nADD https://example.com/config.json /app/",
+    "expect": "flag",
+    "branch": "base-tag,apt-recommends,add-remote",
+    "reason": "Violates base-tag (no tag), apt-recommends (no flag), add-remote (https URL)"
+  }
+]

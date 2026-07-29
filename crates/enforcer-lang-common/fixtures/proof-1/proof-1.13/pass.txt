@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.13: Proof claims must list proved and unproved claims
+// Clean source — no occurrence of the PROOF-1.13 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

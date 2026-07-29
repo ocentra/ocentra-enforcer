@@ -33,6 +33,7 @@ export function buildCoordinationContext(input = {}) {
         intentFor: input.intentFor,
         blockingOwners: input.blockingOwners,
         blockerCount: input.blockerCount,
+        releaseClaimEventIds: input.releaseClaimEventIds,
         releaseEventId: input.releaseEventId,
         explicitReleaseScope: input.explicitReleaseScope,
         editIntentId: input.editIntentId,

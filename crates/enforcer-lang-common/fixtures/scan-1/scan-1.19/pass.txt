@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.19: Scope reports must include included/excluded counts
+// Clean source — no occurrence of the SCAN-1.19 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

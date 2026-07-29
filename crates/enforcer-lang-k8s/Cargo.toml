@@ -1,0 +1,20 @@
+[package]
+name = "enforcer-lang-k8s"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Typed validators for Kubernetes manifest security, RBAC, resource, and host-namespace rules."
+publish = false
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: Kubernetes family validators share the core
+# finding, path, rule, and severity vocabulary.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: this crate implements the validator interface and
+# uses its deterministic fixture-parity harness.
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true

@@ -1,0 +1,7 @@
+{
+  "tool": "proptest",
+  "toolPresent": false,
+  "outcome": "skipped",
+  "ran": 0,
+  "failures": []
+}

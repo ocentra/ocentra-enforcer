@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.12: Device proof cannot auto-pass on desktop
+// Clean source — no occurrence of the PROOF-1.12 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

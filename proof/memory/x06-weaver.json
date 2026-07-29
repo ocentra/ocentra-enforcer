@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-weaver",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-weaver",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "unit_weaver::node_created_event_triggers_embedding_task",
+      "unit_weaver::file_changed_event_invalidates_cached_summary",
+      "unit_weaver::index_report_translates_into_file_and_node_events",
+      "weaver_enrichment::failed_task_enters_dead_letter_after_retries_exhausted",
+      "weaver_enrichment::retry_succeeds_on_transient_failure",
+      "weaver_enrichment::queue_does_not_block_foreground_query"
+    ]
+  },
+  "hardRequirements": {
+    "eventDrivenQueue": "covered",
+    "semanticIndexerWorker": "covered",
+    "summaryInvalidation": "covered",
+    "deadLetterQueue": "covered",
+    "boundedRetry": "covered",
+    "foregroundQueryNotBlocked": "covered"
+  }
+}

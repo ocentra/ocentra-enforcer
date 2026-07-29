@@ -1,0 +1,14 @@
+package widget
+
+import "fmt"
+
+func helper(label string) string {
+	if label == "" {
+		return "unnamed"
+	}
+	return fmt.Sprintf("widget:%s", label)
+}
+
+templ Draw(label string) {
+	<div>{ helper(label) }</div>
+}

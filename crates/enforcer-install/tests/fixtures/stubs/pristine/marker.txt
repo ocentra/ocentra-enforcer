@@ -1,0 +1,1 @@
+c08 stub-adapter fixture: this directory's contents must be byte-identical before and after any stub adapter's plan/apply cycle runs against it. If this file (or its bytes) ever changes as a side effect of a test run, a c08 stub adapter has stopped being a safe no-op.

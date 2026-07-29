@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-fulltext",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "aggregateArtifact": "proof/memory/x06-rag.json",
+  "namedTest": "x06-fulltext",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "retrieval_stack::exact_query_returns_the_exact_match",
+      "retrieval_stack::semantic_query_prefers_shared_vocabulary_document_over_unrelated_ones",
+      "unit_search_stack::fulltext_tokenize_splits_camel_case",
+      "unit_search_stack::fulltext_tokenize_splits_snake_case",
+      "unit_search_stack::fulltext_tokenize_splits_kebab_case",
+      "unit_search_stack::fulltext_tokenize_splits_path_separators"
+    ]
+  },
+  "hardRequirements": {
+    "codeAwareTokenization": "covered by fulltext tokenization and retrieval_stack exact-query tests",
+    "exactSearch": "covered by SQLite FTS5 aggregate proof in proof/memory/x06-rag.json",
+    "zeroNetworkDefault": "covered by proof/memory/x06-rag.json degraded-provider assertions"
+  }
+}

@@ -1,0 +1,51 @@
+[package]
+name = "enforcer-harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native-tool run-adapters (cargo/tsc/ruff/pytest/eslint/pyright/bandit/SARIF...) parsed into enforcer-domain diagnostics, plus the .enforce run-storage/retention/query engine backing the run-store MCP tools and the `runs` CLI."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: harness adapters use core run execution and diagnostics.
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: adapters emit the workspace's typed findings and rule IDs.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# enforcer-validator is needed by the h12 adapters::cyberskills::gate module
+# (its severity-threshold gates are `enforcer_validator::Validator` impls,
+# same as every other rule in the workspace).
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: adapter parsers use regex for structured tool-output matching.
+# Direct until the root workspace dependency catalog adopts this pinned release.
+regex = "=1.12.4"
+# uuid is not in [workspace.dependencies]; needed for run-id generation
+# (mirrors src/harness.mjs's randomUUID). Same centralization note applies.
+uuid = { version = "=1.23.4", features = ["v4"] }
+# base64 is not in [workspace.dependencies]; needed for the diagnostic
+# fingerprint (mirrors src/harness-parsers.mjs's `base64url` digest). Same
+# centralization note applies.
+base64 = "0.22"
+# toml_edit IS in [workspace.dependencies] (a01-owned root manifest); used
+# by d11's ci_parity module to read rust-toolchain.toml's `channel` key
+# without a hand-rolled TOML scanner.
+toml_edit = { workspace = true }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: integration tests require isolated filesystem fixtures.
+tempfile = "=3.27.0"
+# DEPENDENCY-JUSTIFICATION: parser boundaries require generated totality coverage across arbitrary text.
+proptest = "=1.9.0"
+# Dev-only: the h12 dogfood-exclusion integration test
+# (tests/cyberskills_adapters.rs) mirrors h11's real-repo-walk proof, which
+# needs the resolved profile config and the scan-crate's walk/IgnoreRules.
+# Neither crate depends back on enforcer-harness, so this stays acyclic.
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: dogfood integration tests exercise scan walking and ignore rules.
+enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+
+[lints]
+workspace = true

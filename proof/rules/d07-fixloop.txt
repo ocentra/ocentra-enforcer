@@ -1,0 +1,95 @@
+=== cargo test -p enforcer-coordination (fix-loop, d07) ===
+
+--- src/fix_loop.rs + src/fix_loop/dispatch.rs unit tests (subset of `cargo test -p enforcer-coordination --lib`) ---
+
+running 9 tests
+test fix_loop::dispatch::tests::generator_reports_no_op_when_findings_empty ... ok
+test fix_loop::dispatch::tests::generator_edits_and_reports_true_on_a_match ... ok
+test fix_loop::tests::a_generator_that_lies_about_changing_anything_is_still_gated_by_rescan ... ok
+test fix_loop::tests::generator_decline_halts_the_loop_immediately ... ok
+test fix_loop::tests::regressing_fix_is_reverted_and_not_kept ... ok
+test fix_loop::tests::neutral_fix_is_reverted_and_not_kept ... ok
+test fix_loop::tests::final_state_never_has_more_findings_than_the_start ... ok
+test fix_loop::tests::improving_fix_is_kept_across_iterations ... ok
+test fix_loop::tests::loop_halts_at_iteration_cap_when_always_improving ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out (rest of the
+enforcer-coordination lib suite: api/domain/events/ledger/lock/sync, pre-existing arc-16
+coverage, untouched by this pass).
+
+--- tests/fix_loop.rs (real fixtures under tests/fixtures/fix_loop/**, PUBLIC API surface) ---
+
+running 6 tests
+test an_improving_fix_is_kept ... ok
+test a_neutral_fix_is_not_reverted_incorrectly_and_findings_stay_flat ... ok
+test a_regressing_fix_is_reverted ... ok
+test the_loop_halts_at_the_iteration_cap ... ok
+test final_findings_never_exceed_the_starting_count_across_all_fixtures ... ok
+test every_decision_is_emitted_as_a_typed_event ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+--- full crate regression (cargo test -p enforcer-coordination, all suites) ---
+lib:                 39 passed; 0 failed  (30 pre-existing arc-16 + 9 new d07 unit tests)
+tests/fix_loop.rs:    6 passed; 0 failed  (new d07 integration suite)
+doc-tests:            0 passed; 0 failed
+TOTAL:               45 passed; 0 failed; 0 ignored
+
+--- seeded-violation cases required by TEST_PROOF_EXPECTATIONS.md d07 row ---
+* neutral/regressing fix not reverted -> fails:
+    `neutral_fix_is_reverted_and_not_kept` / `regressing_fix_is_reverted_and_not_kept`
+    (unit) and `a_neutral_fix_is_not_reverted_incorrectly_and_findings_stay_flat` /
+    `a_regressing_fix_is_reverted` (integration) assert byte-for-byte restoration of the
+    pre-attempt file and an unchanged finding count -- a broken revert path fails these.
+* loop exceeds cap -> fails:
+    `loop_halts_at_iteration_cap_when_always_improving` (unit) and
+    `the_loop_halts_at_the_iteration_cap` (integration) assert `iterations.len() ==
+    MAX_ITERATIONS` and `hit_iteration_cap == true` against a fixture with more markers
+    than the cap can clear one-at-a-time; an unbounded loop would hang or overshoot.
+* final findings > start -> fails:
+    `final_state_never_has_more_findings_than_the_start` (unit) and
+    `final_findings_never_exceed_the_starting_count_across_all_fixtures` (integration,
+    all 4 fixtures) assert `findings_final <= findings_start`; `run_fix_loop` itself
+    additionally returns `CoordinationError::Rejected` if this invariant is ever
+    violated, so the check is enforced in the implementation, not just in tests.
+* a generator that LIES about having made an improving edit (`LyingGenerator` /
+    the `neutral.txt` fixture rewritten to an equally-bad string) is still gated by the
+    re-scan comparison, not by trusting `FixGenerator::attempt_fix`'s return value --
+    proving accept/revert is decided by two real `Validator::validate` calls, never by
+    a self-report.
+
+--- mechanism notes ---
+* `run_fix_loop` (crates/enforcer-coordination/src/fix_loop.rs) takes a `Finding` set,
+  dispatches a pluggable `dispatch::FixGenerator` trait object, and re-checks with the
+  SAME `enforcer_validator::validator::Validator` instance passed in.
+* Accept requires BOTH: findings strictly decrease AND no new `RuleId` appears
+  (`IterationReason::NewRuleIdIntroduced` rejects a count-decreasing edit that smuggled
+  in a different rule violation -- conjunction, not either/or).
+* Revert is a deterministic byte-for-byte snapshot/restore of the single target file
+  (`Snapshot::capture`/`Snapshot::restore`), taken before every attempt.
+* Hard iteration cap: `MAX_ITERATIONS = 8` (const, `for iteration in 1..=MAX_ITERATIONS`)
+  -- the loop cannot spin unboundedly regardless of generator behavior.
+* Every accept/revert decision is emitted as a typed `FixLoopDecisionEvent` implementing
+  `enforcer_events::event::DomainEvent` (`event_kind() == "coordination.fix_loop.decision"`),
+  passed to the caller via an `on_decision` callback -- this module stays independent of
+  any particular sink; wiring it to the d04 `enforcer_core::telemetry::RunTelemetrySink`
+  NDJSON stream is the CALLER's job (e.g. a future `enforcer-cli fix` command, d06),
+  matching the pattern d05/d06 already established (telemetry as an observer, not a
+  hard dependency baked into the producing module).
+
+--- deviation from the workpack's literal wording, honestly labeled ---
+The workpack's checklist item 5 says "logged as a d04 telemetry record via the
+`enforcer-core` NDJSON sink" -- this pass emits the typed `FixLoopDecisionEvent` and
+exposes it through `on_decision`, but does NOT itself open a `RunTelemetrySink` and
+write NDJSON lines, because `enforcer-cli fix` (the workpack's stated caller, d06) has
+not yet landed a live wiring point on this branch (d06's own proof row documents `fix`
+as `NotYetWired`/fail-closed). Wiring the callback to `RunTelemetrySink<FixLoopDecisionEvent>`
+is a one-line addition at that call site once it exists; this module's public contract
+(the `on_decision` callback) is what makes that a non-breaking follow-up rather than a
+redesign.
+
+--- workspace-wide gate (L36) ---
+`cargo build --workspace` (with `__COMPAT_LAYER=RunAsInvoker`): clean, no warnings from
+this crate.
+`cargo clippy -p enforcer-coordination --all-targets -- -D warnings`: clean.
+`cargo fmt -p enforcer-coordination -- --check`: clean.

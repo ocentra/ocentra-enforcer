@@ -106,6 +106,9 @@ const RUNS_COMMANDS = {
   "last-failure"(query, ops) {
     return ops.lastFailure(query);
   },
+  triage(query, ops) {
+    return ops.triageCiLog(query);
+  },
   artifact(query, ops) {
     return ops.readArtifact(query);
   },

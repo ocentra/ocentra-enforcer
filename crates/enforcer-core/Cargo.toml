@@ -1,0 +1,32 @@
+[package]
+name = "enforcer-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared foundation crate for the Ocentra Enforcer workspace: Result/Error, tracing setup, exit codes, two-layer redaction, append-only NDJSON sink, pure SHA-256 hash-chain, and Windows-first path/time/env helpers."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: core consumes the shared boundary DecodeError and
+# SHA-256 brand directly; enforcer-domain remains the dependency leaf.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# `regex` powers the core redaction matcher. It is intentionally direct because
+# the root workspace manifest is owned by a separate integration packet; pin the
+# resolved compatible release so this crate's build remains reproducible.
+regex = "=1.12.4"
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: property-based path normalization proof exercises
+# arbitrary Unicode and separator combinations required by RR-12.27.
+proptest = "=1.9.0"
+
+[lints]
+workspace = true

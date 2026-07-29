@@ -1,0 +1,4 @@
+// Fixture for ARCH-1.5: Adapters cannot be imported by domain
+// Ported from legacy validator id `common/architecture` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
+// This line trips the rule:
+ENFORCER_ARCH_1_5_MARKER

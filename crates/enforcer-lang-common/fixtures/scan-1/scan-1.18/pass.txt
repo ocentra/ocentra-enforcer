@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.18: Crate/package scope must resolve manifests
+// Clean source — no occurrence of the SCAN-1.18 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

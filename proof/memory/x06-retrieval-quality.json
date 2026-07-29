@@ -1,0 +1,192 @@
+{
+  "artifact": "x06-retrieval-quality",
+  "evidence": {
+    "degradedDefaultState": {
+      "acceptedAsFeatureParity": false,
+      "embedderState": "degraded-provider-unavailable",
+      "reason": "degraded mode is explicitly not feature-parity in this slice",
+      "rerankerState": "degraded-provider-unavailable"
+    },
+    "modelCapability": {
+      "embedderLoadState": "degraded-provider-unavailable",
+      "rerankerLoadState": "degraded-provider-unavailable"
+    }
+  },
+  "generatedAt": "2026-07-05T17:00:00Z",
+  "observations": [
+    {
+      "candidate": {
+        "expectedTopK": 1,
+        "observationKind": "retrieval-quality-proof",
+        "precisionAtFive": 0.2,
+        "query": "parseConfigFile",
+        "queryId": "q-retrieval-exact",
+        "recallAtFive": 1.0,
+        "recallAtTen": 1.0,
+        "returnedTopK": 5,
+        "route": "hybrid-search"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "improved": false,
+        "liftScore": 0.0,
+        "observationKind": "reranker-lift-proof",
+        "postRerankTopK": [
+          "file:config.rs",
+          "sym:config.rs:1:parseConfigFile",
+          "sym:log.rs:1:writeLog",
+          "sym:net.rs:1:openSocket",
+          "sym:config.rs:2:loadWidgetSettings"
+        ],
+        "preRerankTopK": [
+          "file:config.rs",
+          "sym:config.rs:1:parseConfigFile",
+          "sym:log.rs:1:writeLog",
+          "sym:net.rs:1:openSocket",
+          "sym:config.rs:2:loadWidgetSettings"
+        ],
+        "query": "parseConfigFile",
+        "queryId": "q-retrieval-exact"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "contextTokens": 101,
+        "naiveTokens": 2500,
+        "observationKind": "token-reduction-proof",
+        "query": "parseConfigFile",
+        "queryId": "q-retrieval-exact"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "expectedTopK": 1,
+        "observationKind": "retrieval-quality-proof",
+        "precisionAtFive": 0.2,
+        "query": "widget configuration settings",
+        "queryId": "q-retrieval-semantic",
+        "recallAtFive": 1.0,
+        "recallAtTen": 1.0,
+        "returnedTopK": 5,
+        "route": "hybrid-search"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "improved": false,
+        "liftScore": 0.0,
+        "observationKind": "reranker-lift-proof",
+        "postRerankTopK": [
+          "sym:config.rs:2:loadWidgetSettings",
+          "sym:net.rs:1:openSocket",
+          "file:config.rs",
+          "sym:log.rs:1:writeLog",
+          "sym:config.rs:1:parseConfigFile"
+        ],
+        "preRerankTopK": [
+          "sym:config.rs:2:loadWidgetSettings",
+          "sym:net.rs:1:openSocket",
+          "file:config.rs",
+          "sym:log.rs:1:writeLog",
+          "sym:config.rs:1:parseConfigFile"
+        ],
+        "query": "widget configuration settings",
+        "queryId": "q-retrieval-semantic"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "contextTokens": 101,
+        "naiveTokens": 2500,
+        "observationKind": "token-reduction-proof",
+        "query": "widget configuration settings",
+        "queryId": "q-retrieval-semantic"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "expectedTopK": 1,
+        "observationKind": "retrieval-quality-proof",
+        "precisionAtFive": 0.2,
+        "query": "network socket timeout retry",
+        "queryId": "q-retrieval-network",
+        "recallAtFive": 1.0,
+        "recallAtTen": 1.0,
+        "returnedTopK": 5,
+        "route": "hybrid-search"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "improved": false,
+        "liftScore": 0.0,
+        "observationKind": "reranker-lift-proof",
+        "postRerankTopK": [
+          "sym:net.rs:1:openSocket",
+          "sym:config.rs:1:parseConfigFile",
+          "sym:config.rs:2:loadWidgetSettings",
+          "sym:log.rs:1:writeLog",
+          "file:config.rs"
+        ],
+        "preRerankTopK": [
+          "sym:net.rs:1:openSocket",
+          "sym:config.rs:1:parseConfigFile",
+          "sym:config.rs:2:loadWidgetSettings",
+          "sym:log.rs:1:writeLog",
+          "file:config.rs"
+        ],
+        "query": "network socket timeout retry",
+        "queryId": "q-retrieval-network"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    },
+    {
+      "candidate": {
+        "contextTokens": 101,
+        "naiveTokens": 2500,
+        "observationKind": "token-reduction-proof",
+        "query": "network socket timeout retry",
+        "queryId": "q-retrieval-network"
+      },
+      "observedAt": "2026-07-05T17:00:00Z",
+      "runId": "run-x06-retrieval-quality-fixture-v1",
+      "schemaVersion": 1,
+      "source": "enforcer-memory::tests::x06_retrieval_quality"
+    }
+  ],
+  "queries": 3,
+  "schemaVersion": 1,
+  "workpack": "x06-models-harvest"
+}

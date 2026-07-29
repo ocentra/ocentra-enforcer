@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.4: Immutable rules cannot be waived unless marked waivable
+// Clean source — no occurrence of the WAIVER-1.4 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

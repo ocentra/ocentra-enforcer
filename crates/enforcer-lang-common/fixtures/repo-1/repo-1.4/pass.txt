@@ -1,0 +1,5 @@
+// Fixture for REPO-1.4: CODEOWNERS must protect schemas and adapters
+// Clean source — no occurrence of the REPO-1.4 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

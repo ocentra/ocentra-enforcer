@@ -1,0 +1,5 @@
+// Fixture for CFG-1.9: Unknown config keys are forbidden
+// Clean source — no occurrence of the CFG-1.9 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

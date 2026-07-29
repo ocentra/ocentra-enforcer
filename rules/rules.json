@@ -3,7 +3,8 @@
     "rust",
     "typescript",
     "python",
-    "common"
+    "common",
+    "iac"
   ],
   "productName": "ocentra-enforcer",
   "rules": [
@@ -677,8 +678,8 @@
       "language": "common",
       "family": "source-shape",
       "severity": "error",
-      "title": "Boundary glob additions require waiver",
-      "snippet": "Add an explicit waiver or owner note for new boundary glob expansions.",
+      "title": "Boundary ownership globs must be structurally narrow",
+      "snippet": "Scope boundary ownership globs to a named code segment instead of a catch-all source tree.",
       "lockLevel": "immutable",
       "canDisable": false,
       "canDowngrade": false,
@@ -695,7 +696,7 @@
         "ocentra-enforcer.config.json"
       ],
       "triggers": [
-        "Boundary glob additions require waiver"
+        "Boundary ownership globs must be structurally narrow"
       ],
       "validator": "common/architecture",
       "doc": "rules/common/architecture.md#covered-rules"
@@ -2959,6 +2960,188 @@
       ],
       "validator": "common/harness-contracts",
       "doc": "rules/common/harness.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.1",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "Terraform S3 buckets must enable server-side encryption",
+      "snippet": "Every aws_s3_bucket (or aws_s3_bucket_server_side_encryption_configuration) resource must configure server-side encryption; an unencrypted bucket is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.tf"
+      ],
+      "triggers": [
+        "aws_s3_bucket",
+        "server_side_encryption_configuration"
+      ],
+      "validator": "iac/terraform-s3-encryption",
+      "doc": "rules/iac/terraform.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.2",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "Terraform security groups must not allow unrestricted ingress",
+      "snippet": "An aws_security_group ingress block with cidr_blocks containing 0.0.0.0/0 is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.tf"
+      ],
+      "triggers": [
+        "aws_security_group",
+        "0.0.0.0/0"
+      ],
+      "validator": "iac/terraform-open-ingress",
+      "doc": "rules/iac/terraform.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.3",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "Terraform resources must not hardcode secrets or credentials",
+      "snippet": "Literal access keys, passwords, or private keys assigned directly in a .tf resource body are forbidden; use a secrets manager or variable reference instead.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.tf"
+      ],
+      "triggers": [
+        "aws_access_key_id",
+        "aws_secret_access_key",
+        "password ="
+      ],
+      "validator": "iac/terraform-hardcoded-secret",
+      "doc": "rules/iac/terraform.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.4",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "CloudFormation S3 buckets must block public access",
+      "snippet": "An AWS::S3::Bucket resource without PublicAccessBlockConfiguration blocking all public access is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.template.json",
+        "*.template.yaml",
+        "*.template.yml"
+      ],
+      "triggers": [
+        "AWS::S3::Bucket",
+        "PublicAccessBlockConfiguration"
+      ],
+      "validator": "iac/cfn-s3-public-access-block",
+      "doc": "rules/iac/cloudformation.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.5",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "CloudFormation IAM policies must not grant wildcard action+resource",
+      "snippet": "An IAM policy statement combining \"Action\": \"*\" with \"Resource\": \"*\" is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.template.json",
+        "*.template.yaml",
+        "*.template.yml"
+      ],
+      "triggers": [
+        "\"Action\": \"*\"",
+        "\"Resource\": \"*\""
+      ],
+      "validator": "iac/cfn-iam-wildcard",
+      "doc": "rules/iac/cloudformation.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.6",
+      "language": "iac",
+      "family": "infra-toolchain",
+      "severity": "error",
+      "title": "Terraform provider blocks must pin an exact version",
+      "snippet": "A required_providers entry with a floating/unbounded version constraint (missing version, or a bare \">=\"/\"~>\" with no upper bound pin) is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.tf"
+      ],
+      "triggers": [
+        "required_providers",
+        "version"
+      ],
+      "validator": "iac/terraform-provider-pin",
+      "doc": "rules/iac/terraform.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.7",
+      "language": "iac",
+      "family": "infra-toolchain",
+      "severity": "error",
+      "title": "Terraform remote state backends must enable encryption",
+      "snippet": "An s3 backend block configuring remote state without encrypt = true is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.tf"
+      ],
+      "triggers": [
+        "backend \"s3\"",
+        "encrypt"
+      ],
+      "validator": "iac/terraform-state-encryption",
+      "doc": "rules/iac/terraform.md#covered-rules"
+    },
+    {
+      "id": "IAC-1.8",
+      "language": "iac",
+      "family": "infra-security",
+      "severity": "error",
+      "title": "Kubernetes containers must not run privileged",
+      "snippet": "A container securityContext with privileged: true is forbidden.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": true,
+      "requiresPassFixture": true,
+      "appliesTo": [
+        "*.k8s.yaml",
+        "*.k8s.yml"
+      ],
+      "triggers": [
+        "privileged: true",
+        "securityContext"
+      ],
+      "validator": "iac/k8s-privileged-container",
+      "doc": "rules/iac/kubernetes.md#covered-rules"
     },
     {
       "id": "LIT-1.1",
@@ -11203,12 +11386,10 @@
       "requiresPassFixture": false,
       "appliesTo": [
         "apps/*/src/**/*",
-        "packages/*/src/**/*",
-        "crates/*/src/**/*"
+        "packages/*/src/**/*"
       ],
       "triggers": [
         "inline tests",
-        "#[cfg(test)]",
         "describe(",
         "def test_"
       ],

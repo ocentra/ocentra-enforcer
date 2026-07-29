@@ -1,0 +1,5 @@
+// Fixture for NPM-1.14: Package bin paths must exist
+// Clean source — no occurrence of the NPM-1.14 marker below.
+fn clean_example() {
+    // conformant with common/package-determinism
+}

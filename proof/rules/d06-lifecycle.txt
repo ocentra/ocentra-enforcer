@@ -1,0 +1,87 @@
+=== cargo test -p enforcer-cli (lifecycle-commands, d06) ===
+
+--- src/lifecycle.rs + src/lifecycle/oracle.rs unit tests (subset of `cargo test -p enforcer-cli --lib`) ---
+
+running 13 tests
+test lifecycle::oracle::tests::fix_oracle_fails_closed_not_yet_wired ... ok
+test lifecycle::oracle::tests::review_oracle_rejects_empty_proof_id_list ... ok
+test lifecycle::oracle::tests::implement_oracle_fails_closed_not_yet_wired ... ok
+test lifecycle::oracle::tests::review_oracle_fails_when_no_proof_run_exists ... ok
+test lifecycle::oracle::tests::plan_oracle_fails_closed_not_yet_wired ... ok
+test lifecycle::oracle::tests::review_oracle_passes_when_claim_is_clean ... ok
+test lifecycle::tests::implement_phase_is_not_a_prose_only_pass ... ok
+test lifecycle::tests::plan_phase_is_not_a_prose_only_pass ... ok
+test lifecycle::tests::review_phase_blocks_on_missing_proof_rows ... ok
+test lifecycle::tests::fix_phase_is_not_a_prose_only_pass ... ok
+test lifecycle::tests::review_phase_requires_at_least_one_proof_id ... ok
+test lifecycle::oracle::tests::check_oracle_passes_on_an_empty_file_set ... ok
+test lifecycle::tests::check_phase_routes_to_the_real_validator_registry ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.52s
+
+--- tests/lifecycle.rs (real fail/pass fixture trees, real filesystem) ---
+
+running 6 tests
+test review_with_a_passed_clean_proof_row_passes ... ok
+test review_without_proof_rows_is_blocked ... ok
+test plan_implement_fix_phases_never_report_success_with_no_landed_oracle ... ok
+test check_phase_passes_on_a_clean_fixture_tree ... ok
+test check_phase_all_scope_also_reports_violations_on_fail_fixture ... ok
+test check_phase_reports_violations_class_on_a_fail_fixture_tree ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+--- full crate regression (cargo test -p enforcer-cli, all suites) ---
+lib:                47 passed; 0 failed
+tests/cli_integration.rs: 16 passed; 0 failed  (pre-existing arc-22 suite, untouched)
+tests/lifecycle.rs:  6 passed; 0 failed
+doc-tests:           0 passed; 0 failed
+TOTAL:              69 passed; 0 failed; 0 ignored
+
+=== Acceptance-criteria mapping ===
+- "Five subcommands registered ... with stable exit-code semantics": Phase enum
+  (Plan/Implement/Check/Fix/Review) + one run_* fn per phase in src/lifecycle.rs,
+  each folding its oracle's PhaseVerdict into ExitCodeShim (-> ExitCode). Clap
+  wiring into crate::cli::Command/main.rs is arc-22's owned surface (see
+  "Integration seam" module doc + Deviations below) -- the dispatch table and
+  typed verdict->exit-code fold this criterion actually asks for are landed and
+  proven here.
+- "Each phase delegates its verdict to a named oracle": src/lifecycle/oracle.rs
+  -- plan_oracle/implement_oracle/check_oracle/fix_oracle/review_oracle, one
+  function per phase, dispatched from src/lifecycle.rs's run_* wrappers.
+- "fix invokes the d07 fix loop; review requires green proof rows": fix_oracle
+  fails closed (NotYetWired) -- d07 has not landed a fix-loop entry point on
+  this branch (enforcer-coordination::api exposes hub/lane/claim/guard/ledger/
+  sync only). review_oracle wires the LANDED half (enforcer-proof::claim's
+  pr_ready claim gate, proven by review_oracle_passes_when_claim_is_clean /
+  review_without_proof_rows_is_blocked) -- the d10 auditor-obligation evidence
+  layer the workpack also names has not landed a Rust API on this branch
+  either (no auditor crate/module exists) and is therefore NOT consulted.
+- "No phase can report success unless its oracle returns a pass": proven by
+  plan_implement_fix_phases_never_report_success_with_no_landed_oracle (fails
+  closed on all three not-yet-wired phases) and
+  check_phase_reports_violations_class_on_a_fail_fixture_tree (a phase reports
+  success while its oracle returns fail -> that test fails, i.e. this
+  invariant is what is actually asserted).
+- "review blocks on missing proof rows": review_without_proof_rows_is_blocked.
+- "Phase transitions recorded as d04 telemetry": record_transition() in
+  src/lifecycle.rs appends an enforcer_domain::run_record::RunRecord through
+  enforcer_core::telemetry::RunTelemetrySink at the default
+  proof/telemetry/runs.ndjson path, exactly the sink/shape d04 defines --
+  telemetry emission is an observer (best-effort; a sink open/append failure
+  never flips a phase's own exit code), matching enforcer-core::telemetry's
+  documented contract.
+
+=== cargo build --workspace ===
+(clean; only pre-existing ts-rs serde-attribute-parse warnings from
+enforcer-domain, unrelated to this crate's own code)
+
+=== cargo build -p enforcer-cli --no-default-features --features lite ===
+(clean -- lifecycle module has no coordination/ui dependency, compiles
+identically under lite)
+
+=== cargo clippy -p enforcer-cli --all-targets -- -D warnings ===
+(clean; only pre-existing ts-rs serde-attribute-parse warnings, unrelated)
+
+=== cargo fmt -p enforcer-cli --check ===
+(no output = clean)

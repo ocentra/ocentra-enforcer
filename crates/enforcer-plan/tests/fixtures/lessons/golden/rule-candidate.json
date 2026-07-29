@@ -1,0 +1,9 @@
+{
+  "lessonId": "L900-GOLDEN",
+  "domain": "harness",
+  "date": "2026-07-04",
+  "observed": "golden fixture observation",
+  "lesson": "golden fixture lesson text",
+  "ruleCandidate": true,
+  "fixturesRequired": true
+}

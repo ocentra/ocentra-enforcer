@@ -1,0 +1,4 @@
+[
+  { "name": "cargo fmt --check" },
+  { "name": "cargo deny check", "version": "0.14.0" }
+]

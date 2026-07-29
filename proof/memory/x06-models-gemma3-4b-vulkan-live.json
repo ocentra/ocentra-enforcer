@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
+  "allowNetwork": false,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "cpuFirst": true,
+    "defaultProbeFilter": "chat",
+    "gpuAndNpuRequireProviderProbe": true,
+    "killOnTimeout": true,
+    "minimumChatTokensPerSecond": 10,
+    "modelProbeTimeoutMs": 120000,
+    "oneModelAtATime": true,
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "providerProbeTimeoutMs": 5000,
+    "reason": "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+    "requestedProbeFilter": "chat",
+    "selectedProbes": [
+      "chat-generation-gguf"
+    ],
+    "targetChatTokensPerSecondHigh": 60,
+    "targetChatTokensPerSecondLow": 40
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
+    "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "explicit ENFORCER_X06_CHAT_MODEL_* override present",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "google_gemma-3-4b-it-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M",
+      "repoId": "bartowski/google_gemma-3-4b-it-GGUF",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "loaded": true,
+    "ok": true,
+    "operation": "chat-generation-gguf",
+    "report": {
+      "backendHint": "vulkan",
+      "binaryPath": "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/llama-cli.exe",
+      "durationMs": 5623,
+      "exitCode": 0,
+      "kind": "generate",
+      "loadState": "loaded",
+      "measuredTokensPerSecond": 78.3,
+      "modelPath": "<repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main/google_gemma-3-4b-it-Q4_K_M.gguf",
+      "requestedAcceleration": "gpu",
+      "stderrExcerpt": "",
+      "stdoutExcerpt": "\r\nLoading model... \r\n\r\n\r\n▄▄ ▄▄\r\n██ ██\r\n██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄\r\n██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██\r\n██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀\r\n                                    ██    ██\r\n                                    ▀▀    ▀▀\r\n\r\nbuild      : b9904-108f186d1\r\nmodel      : <repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main/google_gemma-3-4b-it-Q4_K_M.gguf\r\nftype      : Q4_K - Medium\r\nmodalities : text\r\n\r\navailable commands:\r\n  /exit or Ctrl+C     stop or exit\r\n  /regen              regenerate the last response\r\n  /clear              clear the chat history\r\n  /read <file>        add a text file\r\n  /glob <pattern>     add text files using globbing pattern\r\n\r\n\r\n> Say hello from the local chat model in one short sentence.\r\n\r\nHello there! 👋\r\n\r\n[ Prompt: 16.9 t/s | Generation: 78.3 t/s ]\r\n\r\nExiting...\r\n",
+      "timedOut": false
+    },
+    "usability": {
+      "measuredTokensPerSecond": 78.3,
+      "minChatTokensPerSecond": 10,
+      "ok": true,
+      "reason": "chat usable: measured 78.30 tokens/sec >= required 10.00; target 40.00-60.00 tokens/sec",
+      "targetChatTokensPerSecondHigh": 60,
+      "targetChatTokensPerSecondLow": 40
+    }
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "successful-local-load",
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "task": "summarization",
+        "provider": "vulkan",
+        "loadedFromLocalCache": true
+      }
+    }
+  ]
+}

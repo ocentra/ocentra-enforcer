@@ -1,0 +1,8 @@
+include "other.beancount"
+
+2020-01-01 open Assets:Cash
+2020-01-01 open Expenses:Food
+
+2020-01-02 * "Grocery store" "Weekly shopping"
+  Assets:Cash       -10.00 USD
+  Expenses:Food      10.00 USD

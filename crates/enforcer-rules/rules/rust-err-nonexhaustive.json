@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ERR-NONEXHAUSTIVE",
+        "version": 1,
+        "title": "Public error enums must carry #[non_exhaustive]",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::nonexhaustive::NonExhaustiveValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/nonexhaustive/fail_enum.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/nonexhaustive/pass_enum.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

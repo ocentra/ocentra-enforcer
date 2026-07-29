@@ -1,0 +1,18 @@
+{
+  "name": "enforcer-cli",
+  "version": "0.1.0",
+  "description": "Thin JS shim for the enforcer binary (npx enforcer ...). Per-platform optionalDependencies each bundle the matching release binary; the default CI-facing variant is lite (lite). cargo install from source remains a documented fallback for platforms without a prebuilt asset.",
+  "bin": {
+    "enforcer": "./bin/enforcer.js"
+  },
+  "optionalDependencies": {
+    "enforcer-cli-win32-x64": "0.1.0",
+    "enforcer-cli-darwin-x64": "0.1.0",
+    "enforcer-cli-darwin-arm64": "0.1.0",
+    "enforcer-cli-linux-x64": "0.1.0",
+    "enforcer-cli-linux-x64-musl": "0.1.0",
+    "enforcer-cli-linux-arm64": "0.1.0"
+  },
+  "os": ["win32", "darwin", "linux"],
+  "cpu": ["x64", "arm64"]
+}

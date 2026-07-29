@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.10: Scanner output must be sorted
+// Clean source — no occurrence of the SCAN-1.10 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

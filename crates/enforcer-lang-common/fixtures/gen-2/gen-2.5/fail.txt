@@ -1,0 +1,4 @@
+// Fixture for GEN-2.5: Generated schema files must be reproducible
+// Ported from legacy validator id `common/generated-artifacts` (see rules/rules.json doc: rules/common/generated-artifacts.md#covered-rules).
+// This line trips the rule:
+ENFORCER_GEN_2_5_MARKER

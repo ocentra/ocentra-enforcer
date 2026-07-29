@@ -1,0 +1,23 @@
+[
+    {
+        "ruleId": "T1-NOREEXPORT.1",
+        "version": 1,
+        "title": "No re-export barrels (pub use / pub(crate) use)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "no_reexports::NoReexportsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/no-reexports/fail_barrel.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/no-reexports/pass_direct_paths.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "reexports", "consumer-repo"],
+        "params": {
+            "bannedForms": ["pub use", "pub(crate) use"],
+            "rejectedIdiom": "const _ = size_of (keep-alive idiom)",
+            "requireDirectModulePathImports": true
+        }
+    }
+]

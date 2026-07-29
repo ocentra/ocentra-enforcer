@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.13: Public facade can expose only stable API
+// Clean source — no occurrence of the ARCH-1.13 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

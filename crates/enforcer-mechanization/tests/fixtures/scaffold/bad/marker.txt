@@ -1,0 +1,2 @@
+This fixture carries the literal SCAFFOLD_MARKER and MUST trip the
+round-trip scaffold test's MarkerValidator.

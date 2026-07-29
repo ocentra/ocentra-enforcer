@@ -1,0 +1,29 @@
+[package]
+name = "enforcer-lang-security"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Per-family Validator implementations for the security source-pattern rule family (SEC-1, SEC-2, 22 rules): secret-scan (inline secrets + sensitive file paths) and the security slice of the shared generic-scanner engine. Built on enforcer-validator's Validator trait and run_fixture_parity harness."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Kubernetes manifests are YAML; JSON is a YAML subset, so one parser
+# deserializes both `kubectl -o json` output and raw `*.yaml` manifests for
+# the cyberskills k8s pod-security rules (see rules/cyberskills/k8s_pod_security.rs).
+serde_yaml = "0.9"
+# DEPENDENCY-JUSTIFICATION: Security validators use deterministic regular-expression
+# matching for secret detection and CyberSkills source-pattern rules.
+regex = "=1.12.4"
+# DEPENDENCY-JUSTIFICATION: Security validators emit the shared typed findings and
+# consume the domain rule and severity vocabulary used by routed scan reports.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This crate implements the shared Validator trait and
+# fixture-parity contract for security rule families.
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true

@@ -1,0 +1,28 @@
+[package]
+name = "enforcer-lang-cfml"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "e-pack-cfml: the CFML/ColdFusion Validator crate. Implements every language==\"coldfusion\" rule against the enforcer-validator Validator trait (arc-05), reusing enforcer-lang-common's d16/d22 cross-stack FSM/size mechanisms rather than duplicating them, plus a graceful-skip CFLint shell-out advisory adapter, proven via the arc-05 fixture/parity harness."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: CFML validators emit the shared core finding/error
+# contracts and preserve branded domain rule and severity values.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This language adapter implements the common
+# validator trait and shares deterministic cross-stack pattern mechanisms.
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+enforcer-lang-common = { path = "../enforcer-lang-common", version = "0.1.0" }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Registry integration tests load CFML rule catalogs
+# through the production rule registry.
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+
+[lints]
+workspace = true

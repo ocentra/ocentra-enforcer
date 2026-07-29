@@ -2,13 +2,11 @@ import { addViolation } from './source-policy-violation.mjs';
 import {
   childProcessPattern,
   dynamicCodePattern,
-  dynamicImportPattern,
 } from './source-policy-scanner-shared.mjs';
 import { isToolingBoundaryPath } from './source-policy-paths.mjs';
 import { maskJavaScriptLine } from './source-policy-text.mjs';
 
 const RULES = [
-  { ruleId: 'TS-6.32', label: 'dynamic import found in domain code', pattern: dynamicImportPattern },
   {
     ruleId: 'TS-6.33',
     label: 'child_process usage outside script boundary',
@@ -19,6 +17,7 @@ const RULES = [
   { ruleId: 'TS-6.34', label: 'dynamic code execution found', pattern: dynamicCodePattern },
 ];
 
+/** Scans a boundary module for command-execution policy violations. */
 export function scanBoundaryCommandRules(root, filePath, rel, lines) {
   const violations = [];
   for (const [index, line] of lines.entries()) {

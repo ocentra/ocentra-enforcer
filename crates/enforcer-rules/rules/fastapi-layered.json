@@ -1,0 +1,268 @@
+[
+    {
+        "ruleId": "PYFA-1.1",
+        "version": 1,
+        "title": "No repository symbol referenced in routers/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoRepoInRoutersValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-repo-in-routers/fail/routers/orders.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-repo-in-routers/pass/routers/orders.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-repo-in-routers"]
+        }
+    },
+    {
+        "ruleId": "PYFA-2.1",
+        "version": 1,
+        "title": "No Session/AsyncSession param inside services/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoSessionInServicesValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-session-in-services/fail/services/order_service.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-session-in-services/pass/services/order_service.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-session-in-services"]
+        }
+    },
+    {
+        "ruleId": "PYFA-3.1",
+        "version": 1,
+        "title": "No commit/begin/rollback inside services/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoTransactionInServicesValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-transaction-in-services/fail/services/payment_service.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-transaction-in-services/pass/services/payment_service.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-transaction-in-services"]
+        }
+    },
+    {
+        "ruleId": "PYFA-4.1",
+        "version": 1,
+        "title": "No ORM model import inside services/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoOrmModelsInServicesValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-orm-models-in-services/fail/services/order_service.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-orm-models-in-services/pass/services/order_service.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-orm-models-in-services"]
+        }
+    },
+    {
+        "ruleId": "PYFA-5.1",
+        "version": 1,
+        "title": "No SQLAlchemy query inside routers/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoSqlalchemyInRoutersValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-sqlalchemy-in-routers/fail/routers/orders.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-sqlalchemy-in-routers/pass/routers/orders.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-sqlalchemy-in-routers"]
+        }
+    },
+    {
+        "ruleId": "PYFA-6.1",
+        "version": 1,
+        "title": "HTTPException raised only inside routers/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::HttpExceptionLocationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/httpexception-location/fail/services/order_service.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/httpexception-location/pass/routers/orders.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-httpexception-location"]
+        }
+    },
+    {
+        "ruleId": "PYFA-7.1",
+        "version": 1,
+        "title": "No repository symbol referenced in workflows/**",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoReposInWorkflowsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-repos-in-workflows/fail/workflows/order_fulfillment.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-repos-in-workflows/pass/workflows/order_fulfillment.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-repos-in-workflows"]
+        }
+    },
+    {
+        "ruleId": "PYFA-8.1",
+        "version": 1,
+        "title": "SQLAlchemy model columns must use Mapped[...]",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::ModelsMappedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/models-mapped/fail/models.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/models-mapped/pass/models.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-models-mapped"]
+        }
+    },
+    {
+        "ruleId": "PYFA-9.1",
+        "version": 1,
+        "title": "domain/** stays framework-pure (no FastAPI/HTTP)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::DomainPurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/domain-purity/fail/domain/order.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/domain-purity/pass/domain/order.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-domain-purity"]
+        }
+    },
+    {
+        "ruleId": "PYFA-10.1",
+        "version": 1,
+        "title": "No sync HTTP client in an async request path",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoSyncHttpValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-sync-http/fail/client.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-sync-http/pass/client.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-sync-http"]
+        }
+    },
+    {
+        "ruleId": "PYFA-11.1",
+        "version": 1,
+        "title": "Repository must be injected, not constructed inline",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::NoDirectRepoInstantiationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-direct-repo-instantiation/fail/service.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/no-direct-repo-instantiation/pass/service.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "layering"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-direct-repo-instantiation"]
+        }
+    },
+    {
+        "ruleId": "PYFA-12.1",
+        "version": 1,
+        "title": "No plaintext password store or compare",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::PlaintextPasswordValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/plaintext-password/fail/auth.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/plaintext-password/pass/auth.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "security"],
+        "params": {
+            "legacyIds": ["py-fastapi-plaintext-password"]
+        }
+    },
+    {
+        "ruleId": "PYFA-12.2",
+        "version": 1,
+        "title": "No insecure random.* token generation",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::InsecureRandomTokenValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/insecure-random-token/fail/tokens.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/insecure-random-token/pass/tokens.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "security"],
+        "params": {
+            "legacyIds": ["py-fastapi-insecure-random-token"]
+        }
+    },
+    {
+        "ruleId": "PYFA-12.3",
+        "version": 1,
+        "title": "No CORS wildcard origin",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-py",
+            "path": "rules::fastapi_layered::CorsWildcardValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/cors-wildcard/fail/main.py",
+            "pass": "crates/enforcer-lang-py/tests/fixtures/fastapi_layered/cors-wildcard/pass/main.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-python.md#Requirement Checklist",
+        "tags": ["fastapi", "python", "e-pack-python", "security"],
+        "params": {
+            "legacyIds": ["py-fastapi-cors-wildcard"]
+        }
+    }
+]

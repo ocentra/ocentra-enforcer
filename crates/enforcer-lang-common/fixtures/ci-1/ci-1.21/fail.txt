@@ -1,0 +1,4 @@
+// Fixture for CI-1.21: Subprocess JSON capture must be CI-safe
+// Ported from legacy validator id `ci-integrity` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CI_1_21_MARKER

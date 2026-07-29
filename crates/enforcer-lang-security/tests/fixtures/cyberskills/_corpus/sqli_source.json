@@ -1,0 +1,219 @@
+[
+  {
+    "name": "python_concat_quoted_variable",
+    "input": "cursor.execute(\"SELECT * FROM users WHERE name = '\" + name + \"'\")",
+    "expect": "flag",
+    "branch": "python.concat",
+    "reason": "String concatenation (+) splices `name` directly into a SELECT statement passed to cursor.execute()."
+  },
+  {
+    "name": "python_concat_delete_session",
+    "input": "cursor.execute(\"DELETE FROM sessions WHERE id = \" + session_id)",
+    "expect": "flag",
+    "branch": "python.concat",
+    "reason": "String concatenation splices session_id into a DELETE statement."
+  },
+  {
+    "name": "python_concat_multiple_variables",
+    "input": "db.execute(\"SELECT * FROM orders WHERE status = '\" + status + \"' AND id = \" + order_id)",
+    "expect": "flag",
+    "branch": "python.concat",
+    "reason": "Two variables (status, order_id) are concatenated into a SELECT statement reaching db.execute()."
+  },
+  {
+    "name": "python_percent_quoted_placeholder",
+    "input": "cursor.execute(\"SELECT * FROM accounts WHERE email = '%s'\" % email)",
+    "expect": "flag",
+    "branch": "python.percent_format",
+    "reason": "The `%` operator interpolates email directly into the SQL text, unlike the two-argument execute(sql, params) form."
+  },
+  {
+    "name": "python_percent_tuple_operand",
+    "input": "cursor.execute(\"SELECT * FROM t WHERE id = %s\" % (user_id,))",
+    "expect": "flag",
+    "branch": "python.percent_format",
+    "reason": "The `%` operator is applied to the SQL string with a tuple operand, formatting user_id into the text before it reaches execute()."
+  },
+  {
+    "name": "python_percent_multiple_specifiers",
+    "input": "cursor.execute(\"UPDATE t SET name = '%s' WHERE id = %d\" % (name, id))",
+    "expect": "flag",
+    "branch": "python.percent_format",
+    "reason": "Two `%` conversion specifiers are filled in via the % operator before the string reaches execute()."
+  },
+  {
+    "name": "python_dot_format_single_placeholder",
+    "input": "cursor.execute(\"SELECT * FROM users WHERE id = {}\".format(user_id))",
+    "expect": "flag",
+    "branch": "python.dot_format",
+    "reason": ".format() is chained directly onto the SQL string literal, splicing user_id into the query text."
+  },
+  {
+    "name": "python_dot_format_two_placeholders",
+    "input": "cursor.execute(\"UPDATE orders SET status = '{}' WHERE id = {}\".format(status, order_id))",
+    "expect": "flag",
+    "branch": "python.dot_format",
+    "reason": ".format() fills two placeholders in an UPDATE statement before it reaches execute()."
+  },
+  {
+    "name": "python_dot_format_executemany",
+    "input": "cursor.executemany(\"DELETE FROM logs WHERE id = {}\".format(log_id))",
+    "expect": "flag",
+    "branch": "python.dot_format",
+    "reason": ".format() splices log_id into a DELETE statement passed to executemany()."
+  },
+  {
+    "name": "python_fstring_select",
+    "input": "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")",
+    "expect": "flag",
+    "branch": "python.fstring",
+    "reason": "The f-string interpolates user_id directly into a SELECT statement passed to execute()."
+  },
+  {
+    "name": "python_fstring_delete_quoted",
+    "input": "cursor.execute(f\"DELETE FROM sessions WHERE token = '{token}'\")",
+    "expect": "flag",
+    "branch": "python.fstring",
+    "reason": "The f-string interpolates token directly into a DELETE statement."
+  },
+  {
+    "name": "python_fstring_django_raw",
+    "input": "Model.objects.raw(f\"SELECT * FROM model_table WHERE id = {id}\")",
+    "expect": "flag",
+    "branch": "python.fstring",
+    "reason": "Django's .raw() executes an f-string-built SELECT statement with an interpolated id."
+  },
+  {
+    "name": "js_template_literal_select",
+    "input": "db.query(`SELECT * FROM users WHERE id = ${userId}`)",
+    "expect": "flag",
+    "branch": "js.template_literal",
+    "reason": "The template literal interpolates userId directly into a SELECT statement passed to db.query()."
+  },
+  {
+    "name": "js_template_literal_sequelize",
+    "input": "sequelize.query(`SELECT * FROM orders WHERE status = '${status}'`)",
+    "expect": "flag",
+    "branch": "js.template_literal",
+    "reason": "sequelize.query() executes a template literal with status interpolated directly into the SQL text."
+  },
+  {
+    "name": "js_template_literal_knex_raw",
+    "input": "knex.raw(`DELETE FROM sessions WHERE token = '${token}'`)",
+    "expect": "flag",
+    "branch": "js.template_literal",
+    "reason": "knex.raw() executes a template literal with token interpolated directly into a DELETE statement."
+  },
+  {
+    "name": "js_concat_select",
+    "input": "db.query(\"SELECT * FROM users WHERE id = \" + userId)",
+    "expect": "flag",
+    "branch": "js.concat",
+    "reason": "String concatenation (+) splices userId directly into a SELECT statement passed to db.query()."
+  },
+  {
+    "name": "js_concat_delete",
+    "input": "connection.query(\"DELETE FROM logs WHERE id = \" + logId)",
+    "expect": "flag",
+    "branch": "js.concat",
+    "reason": "String concatenation splices logId into a DELETE statement."
+  },
+  {
+    "name": "js_concat_knex_raw",
+    "input": "db.raw(\"UPDATE users SET name = '\" + name + \"' WHERE id = \" + userId)",
+    "expect": "flag",
+    "branch": "js.concat",
+    "reason": "Two variables are concatenated into an UPDATE statement passed to db.raw()."
+  },
+  {
+    "name": "clean_qmark_placeholder",
+    "input": "cursor.execute(\"SELECT * FROM t WHERE id = ?\", [id])",
+    "expect": "clean",
+    "branch": "clean.parameterized_qmark",
+    "reason": "The `?` placeholder plus a separate params list is the safe, parameterized form — no interpolation into the SQL text."
+  },
+  {
+    "name": "clean_percent_s_with_params_tuple",
+    "input": "cursor.execute(\"SELECT * FROM t WHERE id = %s\", (id,))",
+    "expect": "clean",
+    "branch": "clean.percent_s_tuple",
+    "reason": "`%s` here is the DB driver's own placeholder syntax bound via a separate params tuple (comma, not a `%` operator, follows the SQL string), not string formatting."
+  },
+  {
+    "name": "clean_dollar_positional_param",
+    "input": "db.query(\"SELECT * FROM t WHERE id = $1\", [id])",
+    "expect": "clean",
+    "branch": "clean.dollar_positional",
+    "reason": "node-postgres's $1 positional placeholder plus a separate params array binds id safely; nothing is spliced into the string."
+  },
+  {
+    "name": "clean_named_colon_param",
+    "input": "cursor.execute(\"SELECT * FROM t WHERE id = :id\", {\"id\": id})",
+    "expect": "clean",
+    "branch": "clean.named_params",
+    "reason": "The :id named placeholder is bound from a separate params dict, not interpolated into the string."
+  },
+  {
+    "name": "clean_named_at_param",
+    "input": "db.query(\"SELECT * FROM t WHERE id = @id\", { id: userId })",
+    "expect": "clean",
+    "branch": "clean.named_params",
+    "reason": "The @id named placeholder is bound from a separate params object, not interpolated into the string."
+  },
+  {
+    "name": "clean_orm_filter_django",
+    "input": "User.objects.filter(id=user_id)",
+    "expect": "clean",
+    "branch": "clean.orm_builder",
+    "reason": "Django's ORM query builder never assembles a raw SQL string and does not call execute/query/raw."
+  },
+  {
+    "name": "clean_orm_query_builder",
+    "input": "db.select().where(id.eq(user_id))",
+    "expect": "clean",
+    "branch": "clean.orm_builder",
+    "reason": "A fluent query-builder call chain (.select()/.where()) never constructs or executes a raw SQL string."
+  },
+  {
+    "name": "clean_static_sql_no_variable",
+    "input": "cursor.execute(\"SELECT * FROM users WHERE active = true\")",
+    "expect": "clean",
+    "branch": "clean.static_sql",
+    "reason": "A fully static SQL string literal with no variable, concatenation, or interpolation is not injectable."
+  },
+  {
+    "name": "clean_fstring_no_sql_keyword",
+    "input": "report_path = f\"/exports/{user_id}/report.csv\"",
+    "expect": "clean",
+    "branch": "clean.fstring_non_sql",
+    "reason": "An f-string with no DB sink call and no SQL keyword is building a file path, not a SQL statement."
+  },
+  {
+    "name": "clean_log_fstring",
+    "input": "logger.info(f\"User {user_id} logged in successfully\")",
+    "expect": "clean",
+    "branch": "clean.log_fstring",
+    "reason": "logger.info() is not a DB sink; the f-string here builds a log message, not SQL."
+  },
+  {
+    "name": "clean_prose_comment_mentions_select",
+    "input": "# Historical note: this used to run SELECT * FROM users directly via string concat",
+    "expect": "clean",
+    "branch": "clean.prose_guard",
+    "reason": "Bare prose mentioning SELECT and concatenation is not a call-site pattern and must not be flagged."
+  },
+  {
+    "name": "clean_query_selector_false_positive_guard",
+    "input": "element.querySelector(\".sql-editor\")",
+    "expect": "clean",
+    "branch": "clean.false_positive_guard",
+    "reason": "querySelector() is a DOM API whose name merely starts with \"query\"; the sink pattern requires \"query\" immediately followed by `(`, which querySelector( does not satisfy."
+  },
+  {
+    "name": "clean_identifier_containing_query_substring",
+    "input": "historyQueryCount = get_query_count()",
+    "expect": "clean",
+    "branch": "clean.false_positive_guard",
+    "reason": "An identifier merely containing the substring \"query\" (get_query_count) must not match the .query( sink pattern, which requires a literal `.` immediately before \"query\"."
+  }
+]

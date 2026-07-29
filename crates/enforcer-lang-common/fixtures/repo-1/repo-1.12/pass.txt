@@ -1,0 +1,5 @@
+// Fixture for REPO-1.12: Contributing guide must explain rule changes
+// Clean source — no occurrence of the REPO-1.12 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

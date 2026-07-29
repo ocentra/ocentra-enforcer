@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.4: Fix snippets must stay compact
+// Clean source — no occurrence of the DOCENF-1.4 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

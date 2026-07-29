@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -8,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 // rustMessageToDiagnostic filePath messages generalDiagnostics pyright
 // ruff mypy pytest parsed.runs SARIF result dedupeDiagnostics fingerprint
 import { normalizeRel } from './path-utils.mjs';
+import { matchesRunQuery } from './harness-storage.mjs';
 import {
   dedupeDiagnostics,
   parseDiagnostics,
@@ -19,6 +21,7 @@ import {
   rustMessageToDiagnostic,
   sarifSeverity,
   sortDiagnostics,
+  triageCiText,
 } from './harness-parsers.mjs';
 
 const DEFAULT_HARNESS_CONFIG = Object.freeze({
@@ -41,6 +44,7 @@ const SECRET_REDACTION_PATTERNS = [
   /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/gu,
 ];
 
+/** Executes the configured harness command and records its result. */
 export function runHarness(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const command = args.command ?? [];
@@ -56,15 +60,40 @@ export function runHarness(args = {}) {
   const tool = args.tool ?? command[0];
   const language = args.language ?? inferLanguage(tool);
 
-  const result = spawnSync(command[0], command.slice(1), {
-    cwd,
-    encoding: 'utf8',
-    shell: false,
-    env: { ...process.env, ...(args.env ?? {}) },
-  });
+  const captureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-harness-'));
+  const stdoutPath = path.join(captureDir, 'stdout.log');
+  const stderrPath = path.join(captureDir, 'stderr.log');
+  const stdoutFd = fs.openSync(stdoutPath, 'w');
+  const stderrFd = fs.openSync(stderrPath, 'w');
+  let result;
+  try {
+    result = spawnSync(command[0], command.slice(1), {
+      cwd,
+      encoding: 'utf8',
+      shell: false,
+      env: { ...process.env, ...(args.env ?? {}) },
+      // File-backed stdio avoids the platform pipe limit while the explicit
+      // bound protects callers that replace either descriptor with a pipe.
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', stdoutFd, stderrFd],
+    });
+  } finally {
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  }
+  const capturedStdout = fs.readFileSync(stdoutPath, 'utf8');
+  const capturedStderr = fs.readFileSync(stderrPath, 'utf8');
+  fs.rmSync(captureDir, { recursive: true, force: true });
+  const spawnDiagnostic = result.error
+    ? `Harness child process failed (${result.error.code ?? 'unknown'}): ${result.error.message}`
+    : result.signal
+      ? `Harness child process terminated by signal ${result.signal}.`
+      : '';
   const endedAt = new Date().toISOString();
-  const stdout = redactSecrets(result.stdout ?? '');
-  const stderr = redactSecrets(result.stderr ?? '');
+  const stdout = redactSecrets(capturedStdout);
+  const stderr = redactSecrets(
+    [capturedStderr.trimEnd(), spawnDiagnostic].filter(Boolean).join('\n'),
+  );
   fs.writeFileSync(path.join(runDir, 'raw', 'stdout.log'), stdout, 'utf8');
   fs.writeFileSync(path.join(runDir, 'raw', 'stderr.log'), stderr, 'utf8');
 
@@ -132,6 +161,7 @@ export function runHarness(args = {}) {
   return { ok: exitCode === 0, summary, diagnostics };
 }
 
+/** Lists stored harness runs matching an optional query. */
 export function listRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   return allRuns(root, args.harness)
@@ -141,12 +171,14 @@ export function listRuns(args = {}) {
     .slice(0, args.limit ?? 20);
 }
 
+/** Summarizes recorded harness runs for a query. */
 export function runSummary(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   if (args.runId) return readSummary(root, args.runId, args.harness);
   return listRuns({ ...args, root, limit: 1 })[0] ?? null;
 }
 
+/** Returns diagnostics for one recorded harness run. */
 export function runDiagnostics(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const run = runSummary(args);
@@ -159,6 +191,7 @@ export function runDiagnostics(args = {}) {
   return { ok: true, runId: run.runId, diagnostics: filtered };
 }
 
+/** Returns the most recent recorded harness failure. */
 export function lastFailure(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const failedRun = listRuns({ ...args, root, limit: args.limit ?? 50 }).find((run) => run.status === 'failed');
@@ -167,6 +200,24 @@ export function lastFailure(args = {}) {
   return { ok: true, found: true, run: failedRun, diagnostics };
 }
 
+/** Extracts actionable diagnostics from a CI log artifact. */
+export function triageCiLog(args = {}) {
+  const root = path.resolve(args.root ?? process.cwd());
+  if (!args.file) throw new Error('runs triage requires --file <ci-log-path>.');
+  const absolute = path.resolve(root, args.file);
+  if (!isInsideRoot(root, absolute)) {
+    throw new Error(`CI log path escapes repository root: ${args.file}`);
+  }
+  if (!fs.existsSync(absolute)) throw new Error(`CI log does not exist: ${args.file}`);
+  const report = triageCiText({
+    root,
+    tool: args.tool ?? 'ci',
+    text: redactSecrets(fs.readFileSync(absolute, 'utf8')),
+  });
+  return { ...report, log: normalizeRel(root, absolute) };
+}
+
+/** Reads a stored harness artifact by run and artifact identity. */
 export function readArtifact(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const harnessConfig = normalizeHarnessConfig(args.harness);
@@ -189,6 +240,7 @@ export function readArtifact(args = {}) {
   };
 }
 
+/** Removes recorded harness runs matching an optional query. */
 export function resetRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const removed = [];
@@ -201,6 +253,7 @@ export function resetRuns(args = {}) {
   return { ok: true, root, removed };
 }
 
+/** Prunes stored harness runs according to retention arguments. */
 export function pruneRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const harnessConfig = normalizeHarnessConfig(args.harness);
@@ -391,17 +444,6 @@ function writeDuckDbStatus(root, storageRoot) {
 
 function storageDirFromSummary(summary) {
   return summary.storage?.root ?? LEGACY_STORAGE_DIR;
-}
-
-function matchesRunQuery(run, args) {
-  if (args.runId && run.runId !== args.runId) return false;
-  if (args.status && run.status !== args.status) return false;
-  if (args.tool && run.tool !== args.tool) return false;
-  if (args.crateName && run.crateName !== args.crateName) return false;
-  if (args.packageName && run.packageName !== args.packageName) return false;
-  if (args.domain && run.domain !== args.domain) return false;
-  if (args.tag && !(run.tags ?? []).includes(args.tag)) return false;
-  return true;
 }
 
 function normalizeTags(tags = []) {

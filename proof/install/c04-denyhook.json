@@ -1,0 +1,91 @@
+{
+  "workpack": "c04",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P5 install-proof (T1 bridge)",
+  "namedTest": "claude-deny-hook-blocks",
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 104,
+    "testsFailed": 0,
+    "clippy": "clean (no warnings)",
+    "fmt": "clean (no diff)"
+  },
+  "seededViolationCases": [
+    {
+      "case": "seeded violating edit -> exit=deny with exact ruleId + fix",
+      "test": "seeded_violating_edit_denies_with_exact_rule_id_and_fix (tests/pretooluse_hook_fixtures.rs, real enforcer subprocess)",
+      "fixture": "crates/enforcer-install/tests/fixtures/pretooluse_hook/violating/candidate.rs",
+      "expectation": "a first-party `.unwrap()` fires T1-RUSTERR.1 (Severity::Error); enforcer check exits 1; classify() returns HookDecision::Deny whose reason contains the exact RuleId `T1-RUSTERR.1` and a `Fix:` hint",
+      "status": "PASS"
+    },
+    {
+      "case": "conforming edit -> allow",
+      "test": "conforming_edit_allows (tests/pretooluse_hook_fixtures.rs, real enforcer subprocess)",
+      "fixture": "crates/enforcer-install/tests/fixtures/pretooluse_hook/conforming/candidate.rs",
+      "expectation": "typed Result propagation, no banned methods/macros; enforcer check exits 0; classify() returns HookDecision::Allow",
+      "status": "PASS"
+    },
+    {
+      "case": "T2-only finding -> allow-with-warning, never deny",
+      "test": "t2_only_finding_allows_with_warning_never_denies (tests/pretooluse_hook_fixtures.rs, real enforcer subprocess)",
+      "fixture": "crates/enforcer-install/tests/fixtures/pretooluse_hook/t2_only/candidate.rs",
+      "expectation": "ENFORCER_LIT_1_1_MARKER fires LIT-1.1 (Severity::Warning) with no T1 violation present; classify() returns HookDecision::AllowWithWarning (never Deny) whose reason contains `LIT-1.1`",
+      "status": "PASS"
+    },
+    {
+      "case": "fail-closed: enforcer invocation failure/timeout (exit_code: None) -> deny",
+      "test": "missing_exit_code_fail_closes_to_deny (src/hooks/pretooluse.rs unit test, hand-built CheckOutcome)",
+      "expectation": "classify() denies whenever the subprocess never produced an exit code",
+      "status": "PASS"
+    },
+    {
+      "case": "fail-closed: nonzero exit with an unparseable report body -> deny (never silently downgraded to allow)",
+      "test": "nonzero_exit_with_unparseable_report_fail_closes_to_deny",
+      "expectation": "a Violations-class exit code alone is sufficient to deny even if this hook's text parser cannot recover a specific RuleId from the report",
+      "status": "PASS"
+    },
+    {
+      "case": "clean run (exit 0, no findings) -> allow",
+      "test": "zero_exit_with_no_findings_allows",
+      "expectation": "classify() returns HookDecision::Allow",
+      "status": "PASS"
+    },
+    {
+      "case": "matcher/intercepted-tools equivalence",
+      "test": "matcher_matches_intercepted_tools_exactly",
+      "expectation": "MATCHER (\"Edit|Write|MultiEdit\") and INTERCEPTED_TOOLS/should_intercept() never drift against each other; Read/Bash are not intercepted",
+      "status": "PASS"
+    },
+    {
+      "case": "hook-config emitter shape",
+      "test": "build_hook_config_points_at_the_given_binary_and_matcher, render_settings_entry_shapes_a_claude_hooks_array_entry, render_settings_entry_is_idempotent_to_render_twice",
+      "expectation": "PreToolUseHookConfig carries the given absolute binary path + Edit|Write|MultiEdit matcher; render_settings_entry() shapes the exact Claude hooks.PreToolUse[] entry ({matcher, hooks:[{type:command, command, timeout}]}); rendering twice is byte-identical (idempotent to install)",
+      "status": "PASS"
+    },
+    {
+      "case": "shared doctrine constant names all three tiers (for c05 SessionStart reuse, no drift)",
+      "test": "doctrine_summary_names_all_three_tiers",
+      "expectation": "DOCTRINE_SUMMARY contains T1/T2/T3 tokens",
+      "status": "PASS"
+    }
+  ],
+  "keptExtendedReplaced": {
+    "src/hooks/mod.rs": "NEW -- module-tree wiring only (pub mod pretooluse;), documents c05 sessionstart.rs as the disjoint sibling.",
+    "src/hooks/pretooluse.rs": "NEW -- the c04 emitter: INTERCEPTED_TOOLS/MATCHER/DOCTRINE_SUMMARY constants; HookDecision (Allow/AllowWithWarning/Deny); CheckOutcome; parse_findings() (parses enforcer-cli::output::render_finding's exact stdout shape back into RuleId+Fix: hint pairs); classify() (pure T1/T2/allow decision logic, fail-closed on missing exit code or unparseable-nonzero); run_enforcer_check() (the one real process-spawn point); PreToolUseHookConfig + build_hook_config() + render_settings_entry() (the Claude hooks.PreToolUse[] JSON shape).",
+    "lib.rs": "EXTENDED (added `pub mod hooks;`)",
+    "Cargo.toml": "EXTENDED -- added enforcer-cli as a dev-dependency (test-only; no cycle, enforcer-cli does not depend on enforcer-install) so the seeded-fixture integration test can shell out to the real enforcer binary built alongside this crate's own tests.",
+    "tests/fixtures/pretooluse_hook/**": "NEW -- violating/candidate.rs (T1-RUSTERR.1 unwrap), conforming/candidate.rs (typed Result propagation), t2_only/candidate.rs (LIT-1.1 marker, no T1 violation).",
+    "tests/pretooluse_hook_fixtures.rs": "NEW -- the real-subprocess seeded-fixture proof (the three acceptance-row cases); locates the enforcer-cli binary relative to the test executable's own path in the shared target/ dir, since CARGO_BIN_EXE_enforcer is not set for a dev-dependency's [[bin]] target (see deviations)."
+  },
+  "deviations": [
+    "Cargo's CARGO_BIN_EXE_<name> env var (both env! at compile time and std::env::var at runtime) is only set for a crate's OWN [[bin]] target, never for a dev-dependency's binary -- confirmed empirically. tests/pretooluse_hook_fixtures.rs instead resolves the built enforcer binary via std::env::current_exe() plus two .parent() calls (both crates' outputs land in the same shared target/<profile>/ dir). Recorded in memory/streams/c04.ndjson (mem-c04-0002) for future packs needing the same pattern.",
+    "enforcer coordination (and enforcer install/plan/proof) are unwired stubs in the compiled enforcer binary today (crates/enforcer-cli/src/main.rs dispatch() prints an internal-error placeholder for each) -- the workpack's 'enforcer check/scan + coordination guard' phrasing is honored via enforcer check (the one real, working entry point); the coordination-guard leg of the invocation is architecturally reserved (HOOK_ARGS/PreToolUseHookConfig do not hardcode a nonexistent CLI verb) rather than faked, and will compose automatically once arc-16's coordination guard CLI surface lands.",
+    "The emitted hook's argv carries a --hook-mode=pretooluse marker not read by today's enforcer check grammar (reserved for a future stdin-JSON hook-payload mode); until then the hook degrades to a plain `enforcer check <path>` invocation, which is what this pack's tests exercise end-to-end.",
+    "On Windows, `cargo test -p enforcer-install`'s compiled test binary name (enforcer_install-<hash>.exe) trips a UAC elevation heuristic (os error 740) unrelated to real permissions; __COMPAT_LAYER=RunAsInvoker in the shell env resolves it. Recorded in memory/streams/c04.ndjson (mem-c04-0001)."
+  ],
+  "workspaceRegression": "cargo build --workspace: all crates compile clean post-change; Cargo.lock diff is a single-line addition (no dependency-graph churn)."
+}

@@ -167,6 +167,8 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     (tool) => tool.name === "ocentra_enforcer_coordination_closeout",
   );
   assert.deepEqual(closeoutTool.inputSchema.properties.action.enum, ["closeout"]);
+  assert.equal(closeoutTool.inputSchema.properties.allOwned.type, "boolean");
+  assert.equal(closeoutTool.inputSchema.properties.allLanes.type, "boolean");
   assert.equal(closeoutTool.inputSchema.properties.releaseOwned.type, "boolean");
   assert.equal(closeoutTool.inputSchema.properties.repairStale.type, "boolean");
 
@@ -448,9 +450,12 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       profile: "ocentra-parent",
       scope: "files",
       files: ["src/lib.rs"],
+      languages: ["rust"],
     },
   });
   assert.equal(scan.result.isError, true);
+  const scanReport = JSON.parse(scan.result.content[0].text);
+  assert.deepEqual(scanReport.languages, ["rust"]);
   assert.match(scan.result.content[0].text, /RR-7\.3/u);
 
   const route = await client.request(5, "tools/call", {

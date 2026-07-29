@@ -1,0 +1,4 @@
+// Fixture for NPM-1.10: Dependency licenses must match policy
+// Ported from legacy validator id `dependency-policy` (see rules/rules.json doc: rules/common/dependencies.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_10_MARKER

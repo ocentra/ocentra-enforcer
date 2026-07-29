@@ -1,0 +1,19 @@
+[package]
+name = "tree-sitter-capnp-local"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = """
+Vendored Cap'n Proto tree-sitter grammar (language-parity wave). Not
+published; local path-dependency only. See src/lib.rs for why.
+"""
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tree-sitter-language = "0.1"
+
+[build-dependencies]
+cc = "1"

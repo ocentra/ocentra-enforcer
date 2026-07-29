@@ -1,0 +1,4 @@
+upstream=https://github.com/postsolar/tree-sitter-purescript
+tag=v0.3.0
+commit=f541f95ffd6852fbbe88636317c613285bc105af
+license=MIT

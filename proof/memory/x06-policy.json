@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-policy",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-policy-filters",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "retrieval_stack::hard_filters_exclude_a_document_from_the_full_pipeline_result",
+      "share::tests::personal_export_still_requires_consent",
+      "share::tests::team_export_without_consent_is_rejected",
+      "share::tests::community_export_drops_creator_even_if_supplied",
+      "model_cache::absolute_artifact_paths_are_rejected",
+      "model_runtime::parent_policy_cache_and_integrity_states_are_represented",
+      "federation_roundtrip::tampering_the_signature_bytes_is_rejected_with_a_recorded_reason",
+      "unit_diagnostics::redaction_truncates_oversized_field_values_and_never_leaks_full_source_text"
+    ]
+  },
+  "hardRequirements": {
+    "retrievalPolicyFilters": "covered",
+    "explicitExportConsent": "covered",
+    "communityCreatorRedaction": "covered",
+    "cacheSourcePolicyAndIntegrity": "covered",
+    "noAbsoluteModelArtifactPaths": "covered",
+    "zeroTrustImportPolicy": "covered",
+    "diagnosticRedactionPolicy": "covered"
+  }
+}

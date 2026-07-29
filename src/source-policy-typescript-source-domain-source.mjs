@@ -4,12 +4,14 @@ import {
   defaultExportPattern,
   exportedArrowNoReturnPattern,
   exportedFunctionNoReturnPattern,
+  isExportedFunctionMissingReturnType,
   exportedObjectLiteralPattern,
   manualBrandPattern,
   nakedDomainAliasPattern,
   zodSourcePatterns,
 } from './source-policy-scanner-shared.mjs';
-import { isTypeScriptTypedPath } from './source-policy-paths.mjs';
+import { isConfigBoundaryPath, isTypeScriptTypedPath } from './source-policy-paths.mjs';
+import { isGeneratedSourceFile } from './source-policy-helpers.mjs';
 import { maskJavaScriptLine } from './source-policy-text.mjs';
 
 const SOURCE_RULES = [
@@ -19,7 +21,7 @@ const SOURCE_RULES = [
     ruleId: 'TS-6.13',
     label: 'TypeScript default export found',
     pattern: defaultExportPattern,
-    skipWhen: (rel) => !isTypeScriptTypedPath(rel),
+    skipWhen: (rel) => !isTypeScriptTypedPath(rel) || isConfigBoundaryPath(rel),
   },
   { ruleId: 'TS-6.14', label: 'Index barrel re-export found', pattern: barrelReexportPattern },
   {
@@ -49,11 +51,7 @@ function scanRuleSet(root, filePath, rel, lines, rules) {
     for (const rule of rules) {
       if (rule.skipWhen && rule.skipWhen(rel)) continue;
       const patterns = rule.patterns ?? [rule.pattern];
-      const matched = patterns.some((pattern) =>
-        rule.ruleId === "TS-1.2" && pattern.source.includes("zod")
-          ? pattern.test(line)
-          : pattern.test(masked),
-      );
+      const matched = isLineMatchingRule(line, masked, rule, patterns);
       if (matched) {
         addViolation(violations, root, filePath, 1, rule.ruleId, rule.label, line);
       }
@@ -62,6 +60,20 @@ function scanRuleSet(root, filePath, rel, lines, rules) {
   return violations;
 }
 
+function isLineMatchingRule(line, masked, rule, patterns) {
+  return patterns.some((pattern) => {
+    if (pattern === exportedFunctionNoReturnPattern && rule.ruleId === "TS-6.37") {
+      return isExportedFunctionMissingReturnType(line);
+    }
+    if (rule.ruleId === "TS-1.2" && pattern.source.includes("zod")) {
+      return pattern.test(line);
+    }
+    return pattern.test(masked);
+  });
+}
+
+/** Scans TypeScript source-only rules for one source file. */
 export function scanTypeScriptSourceRulesOnly(root, filePath, rel, lines) {
+  if (isGeneratedSourceFile(lines)) return [];
   return scanRuleSet(root, filePath, rel, lines, SOURCE_RULES);
 }

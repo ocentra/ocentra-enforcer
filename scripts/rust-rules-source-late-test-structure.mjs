@@ -1,7 +1,10 @@
 import { addViolation, firstLineMatching, lineNumberAtIndex } from "./rust-rules-path-core.mjs";
+import { collectTestFunctions } from "./rust-rules-source-test-structure-helpers.mjs";
 
+/** Applies Rust test-structure rules to a source scan context. */
 export function applyTestStructureRules({
   source,
+  masked,
   originalLines,
   root,
   filePath,
@@ -13,17 +16,18 @@ export function applyTestStructureRules({
     const lineNo = firstLineMatching(originalLines, /#\s*\[\s*should_panic/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.20", "#[should_panic] lacks PANIC-CONTRACT evidence.", originalLines[lineNo - 1] ?? null);
   }
-  for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{\s*\}/gu)) {
-    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-    addViolation(violations, root, filePath, lineNo, "RR-12.24", "empty test body found.", originalLines[lineNo - 1] ?? null);
-  }
-  for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
-    const body = match.groups?.body ?? "";
-    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-    if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !/\bassert(?:_eq|_ne)?!\s*\(|\bmatches!\s*\(/u.test(body)) {
+  for (const testFunction of collectTestFunctions(masked)) {
+    const body = masked.slice(testFunction.bodyStart, testFunction.bodyEnd);
+    const originalBody = source.slice(testFunction.bodyStart, testFunction.bodyEnd);
+    const lineNo = lineNumberAtIndex(source, testFunction.start);
+    if (body.trim() === "") {
+      addViolation(violations, root, filePath, lineNo, "RR-12.24", "empty test body found.", originalLines[lineNo - 1] ?? null);
+      continue;
+    }
+    if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !/\b(?:prop_)?assert(?:_eq|_ne)?!\s*\(|\bmatches!\s*\(|\bassert_[A-Za-z0-9_]*\s*\(|\brun_fixture_parity\s*\(/u.test(body)) {
       addViolation(violations, root, filePath, lineNo, "RR-12.25", "construction-only test lacks behavioral assertion.", originalLines[lineNo - 1] ?? null);
     }
-    if (/\b(?:toMatchSnapshot|insta::assert|snapshot)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(body) && !/\bREDACT|redact/u.test(body)) {
+    if (/\b(?:toMatchSnapshot|insta::assert)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(originalBody) && !/\bREDACT|redact/u.test(originalBody)) {
       addViolation(violations, root, filePath, lineNo, "RR-12.26", "snapshot test includes volatile value without redaction.", originalLines[lineNo - 1] ?? null);
     }
   }

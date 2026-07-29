@@ -56,9 +56,45 @@ Per language, resolve the tree-sitter grammar for Rust, in preference order:
   after G2.1+G2.2: Tier-2 39 remaining (of 49; done: JS pre-existing, Ruby, Lua, Elixir,
   Bash, Haskell, OCaml, Erlang, R, Perl = 10), Tier-1 29 remaining (of 30; done: Clojure),
   Tier-0 45 remaining (of 45; none done). Total remaining: 113, not the 74 first assumed.
-- **Next: G2.3** — all 39 remaining Tier-2 languages (highest remaining depth), 5 workers
-  per the L47 session-limit-sizing lesson (not 8). Tier-1 (29) + Tier-0 (45) follow in
-  G2.4/G2.5.
+- **G2.3 DONE:** all 39 remaining Tier-2 languages — completes ALL 49 baseline Tier-2
+  languages. 5 workers per the L47 session-limit-sizing lesson.
+- **G2.4 DONE (pushed, merged with Codex's concurrent RAG work at f31c92b):** all 29 Tier-1
+  languages — completes ALL Tier-1 (excl. dead `CBM_LANG_NIM`). AWK, Fish, Zsh, Tcl, Scheme,
+  Racket, SQL, HCL, Nix, Protobuf, Prisma, Pkl, Cap'n Proto, Thrift, Smithy, WIT, LLVM IR,
+  TableGen, MATLAB, Luau, Teal, Fennel, Meson, Kconfig, CFML, Go Template, DeviceTree, Pine,
+  Smali. **103/158 baseline languages now done: all Tier-3, all Tier-2, all Tier-1.**
+  Mid-wave, a lost-update collision (concurrent claim/edit/release cycles across 5 parallel
+  workers) silently wiped 20 of 29 languages' shared-file contributions back to pre-edit
+  state — only fixtures/tests survived (uniquely-named, no contention). Caught only by a
+  systematic post-hoc grep sweep for every expected `parse_<lang>` function, not any error
+  signal. Recovered via: orchestrator directly re-implemented 4 languages (Capnp/EmacsLisp/
+  Smithy/Pine) from real grammar probes; 4 fresh redo workers recovered the other 20 using
+  research salvaged from the original (wiped) reports, this time with surgical Edit-tool
+  calls only + immediate grep self-verification before releasing any claim. See L48 in
+  `refs/orchestration-lessons.md` for the full lesson and fix.
+- **G2.5 DONE (pushed as b231ef1, merged with Codex's concurrent RAG/model-runtime commits):**
+  42 of 45 Tier-0 languages — Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree*,
+  Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI,
+  Janet, Jinja2, JSDoc, JSON, JSON5, KDL, Linker Script, Liquid, Markdown, Mermaid, PO,
+  Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML,
+  Vue, XML, YAML (* DeviceTree landed in G2.4, not this wave — listed in the Tier-0 roster but
+  onboarded earlier). 4 workers, hardened surgical-edit protocol from L48 — **no collision this
+  wave**, confirming the fix held. One worker (G2.5d) briefly violated the no-Monitor rule
+  without causing damage, noted in `refs/orchestration-lessons.md` as a minor process note, not
+  a new numbered lesson. K8s and Kustomize deliberately deferred (need a filename-gated
+  semantic pass over YAML this crate doesn't have yet).
+  G2.5d deliberately left `parsers/mod.rs`/`code_graph.rs` untouched for its 11 languages
+  (Requirements/RON/RST/SOQL/SOSL/SSHConfig/Svelte/TOML/Vue/XML/YAML) to avoid collision risk
+  with concurrent siblings — correct call, but it meant those 11 had `LangSpec`+`generic.rs`
+  but were never reachable through the actual dispatch chain (`Language` enum, `classify()`,
+  `parse_file()`, `LanguageTag`). Orchestrator found this via `grep -c "Language::$lang\b"`
+  returning 0 for all 11 and wired it directly, including redirecting `.toml`/`.yaml` off the
+  old dead `ConfigToml`/`ConfigYaml` fallbacks onto the real extractors.
+  **Also found during closeout, not caused by this wave:** diffing the C baseline's
+  `CBM_LANG_*` identifiers against every `spec.rs` function surfaced that **Agda and FORM** are
+  listed as "done" in this doc's Tier-2 roster but were never actually onboarded — no
+  `LangSpec`, no extractor, no dispatch. Flagged in `00-OVERVIEW.md`, not silently dropped.
+  **154/158 done** (158 baseline − K8s/Kustomize deferred − Agda/FORM gap).
 
 ## Fixtures & tests
 Per language: one small source file under `tests/fixtures/memory/lang_<x>/` exercising a

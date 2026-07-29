@@ -1,13 +1,43 @@
 node_modules/
 target/
-coverage/
+# Cargo validation packets use isolated target directories so concurrent
+# crate checks do not contend for the same build cache. They are generated.
+target-*/
+# The same packets sometimes emit root-level archives/reports named
+# `target-*`; they are generated evidence, never integration source.
+target-*.json
+target-*.txt
+target-*.tar
+target-*.tar.gz
+
+# Local proof/scan packets use temporary work directories. Keep both the
+# canonical directory and packet-specific siblings out of integration.
+.tmp/
+.tmp-*/
+# Some harnesses emit a temporary report as a file rather than a directory.
+.tmp-*
+model/
+/coverage/
 dist/
 build/
 .turbo/
 .DS_Store
 *.log
 .enforce/
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/
+crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/*
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/proofs/
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/proofs/**
 .ocentra-enforcer/
 .ledger/
 db/
 views/
+_test.out
+_test.err
+
+# d06 lifecycle tests exercise `enforcer_core::telemetry::RunTelemetrySink`
+# at its default relative path (`proof/telemetry/runs.ndjson`); `cargo test`
+# runs with the crate dir as cwd, so a nested `<crate>/proof/telemetry/`
+# can appear there rather than at the repo root. Never a real proof
+# artifact -- always test-run pollution.
+crates/*/proof/telemetry/

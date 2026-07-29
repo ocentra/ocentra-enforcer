@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.6: Generated code cannot depend on domain internals
+// Clean source — no occurrence of the ARCH-1.6 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

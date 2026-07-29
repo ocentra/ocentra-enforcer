@@ -1,0 +1,5 @@
+// Fixture for SRC-2.1: File line budget must be respected
+// Clean source — no occurrence of the SRC-2.1 marker below.
+fn clean_example() {
+    // conformant with source-shape-check
+}

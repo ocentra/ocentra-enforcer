@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.12: Scanner must skip binary files safely
+// Clean source — no occurrence of the SCAN-1.12 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

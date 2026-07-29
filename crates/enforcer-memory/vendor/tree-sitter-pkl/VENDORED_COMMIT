@@ -1,0 +1,3 @@
+upstream=https://github.com/apple/tree-sitter-pkl
+commit=5893fb5dc832ea51a9bff3f84462528c766ecd7d
+license=Apache-2.0

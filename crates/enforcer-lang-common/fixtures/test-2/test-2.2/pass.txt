@@ -1,0 +1,5 @@
+// Fixture for TEST-2.2: Tests must live in organized test roots
+// Clean source — no occurrence of the TEST-2.2 marker below.
+fn clean_example() {
+    // conformant with common/required-tests
+}

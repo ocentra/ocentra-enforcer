@@ -1,0 +1,8 @@
+Enforcer-first: this repository has the `enforcer` mechanical-enforcement gate installed at `/opt/enforcer/bin/enforcer`. Prefer `enforcer scan`/`enforcer check` (or the `mcp__enforcer__ocentra_enforcer_scan` / `mcp__enforcer__ocentra_enforcer_check` MCP tools) and the coordination guard (`mcp__enforcer__ocentra_enforcer_coordination_guard`) BEFORE editing files — a PreToolUse deny gate also blocks T1 violations on write, so running the check first avoids a blocked edit.
+
+Enforcer-first: before any edit, run `enforcer scan`/`enforcer check` (or the `mcp__enforcer__ocentra_enforcer_scan`/`_check` MCP tools) and the coordination guard (`mcp__enforcer__ocentra_enforcer_coordination_guard`) before writing. A self-review is never a substitute for the mechanical gate.
+
+Mechanical-enforcement doctrine (T1/T2/T3):
+- T1 — hard/deterministic validator, fail-closed. A PreToolUse deny-hook blocks the write and names the exact `ruleId` + `Fix:` hint.
+- T2 — scored/advisory but still mechanical (regex/AST/heuristic emitting score+confidence); surfaced as a warning, never blocks.
+- T3 — justified prose, only when mechanization is impossible; always labeled `advisory, no mechanization possible + <reason>`.

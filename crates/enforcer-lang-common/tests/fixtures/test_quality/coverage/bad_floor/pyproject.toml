@@ -1,0 +1,4 @@
+[tool.coverage]
+source = ["app"]
+branch = true
+fail_under = 40

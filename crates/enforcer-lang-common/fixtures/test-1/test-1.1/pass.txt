@@ -1,0 +1,5 @@
+// Fixture for TEST-1.1: Test doubles are forbidden by default
+// Clean source — no occurrence of the TEST-1.1 marker below.
+fn clean_example() {
+    // conformant with common/test-doubles
+}

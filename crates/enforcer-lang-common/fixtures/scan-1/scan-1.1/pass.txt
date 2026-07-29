@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.1: Scanner must mask string literals where appropriate
+// Clean source — no occurrence of the SCAN-1.1 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

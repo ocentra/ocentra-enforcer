@@ -1,0 +1,191 @@
+[
+  {
+    "name": "python_hashlib_md5",
+    "input": "digest = hashlib.md5(password.encode()).hexdigest()",
+    "expect": "flag",
+    "branch": "weak_hash.python.md5",
+    "reason": "hashlib.md5( is a direct MD5 hash call site."
+  },
+  {
+    "name": "python_hashlib_sha1",
+    "input": "digest = hashlib.sha1(data).hexdigest()",
+    "expect": "flag",
+    "branch": "weak_hash.python.sha1",
+    "reason": "hashlib.sha1( is a direct SHA1 hash call site."
+  },
+  {
+    "name": "java_messagedigest_md5",
+    "input": "MessageDigest md = MessageDigest.getInstance(\"MD5\");",
+    "expect": "flag",
+    "branch": "weak_hash.java.md5",
+    "reason": "MessageDigest.getInstance(\"MD5\") requests the broken MD5 algorithm."
+  },
+  {
+    "name": "java_messagedigest_sha1",
+    "input": "MessageDigest md = MessageDigest.getInstance(\"SHA1\");",
+    "expect": "flag",
+    "branch": "weak_hash.java.sha1",
+    "reason": "MessageDigest.getInstance(\"SHA1\") requests the broken SHA1 algorithm."
+  },
+  {
+    "name": "java_messagedigest_sha1_dashed",
+    "input": "MessageDigest md = MessageDigest.getInstance(\"SHA-1\");",
+    "expect": "flag",
+    "branch": "weak_hash.java.sha1",
+    "reason": "The dashed SHA-1 spelling is the same broken algorithm as SHA1."
+  },
+  {
+    "name": "node_createhash_md5",
+    "input": "const h = crypto.createHash(\"md5\").update(body).digest(\"hex\");",
+    "expect": "flag",
+    "branch": "weak_hash.node.md5",
+    "reason": "createHash(\"md5\") is a direct MD5 hash call site."
+  },
+  {
+    "name": "node_createhash_sha1",
+    "input": "const h = crypto.createHash('sha1').update(body).digest('hex');",
+    "expect": "flag",
+    "branch": "weak_hash.node.sha1",
+    "reason": "createHash('sha1') is a direct SHA1 hash call site."
+  },
+  {
+    "name": "python_des3_constructor",
+    "input": "cipher = DES3.new(key, DES3.MODE_CBC, iv)",
+    "expect": "flag",
+    "branch": "weak_cipher.python.des3",
+    "reason": "DES3.new( constructs a 3DES cipher, a broken/weak block cipher."
+  },
+  {
+    "name": "python_arc4_constructor",
+    "input": "cipher = ARC4.new(key)",
+    "expect": "flag",
+    "branch": "weak_cipher.python.rc4",
+    "reason": "ARC4.new( constructs an RC4 stream cipher, which is broken."
+  },
+  {
+    "name": "java_cipher_getinstance_des",
+    "input": "Cipher c = Cipher.getInstance(\"DES/CBC/PKCS5Padding\");",
+    "expect": "flag",
+    "branch": "weak_cipher.java.des",
+    "reason": "Cipher.getInstance(\"DES/...\") requests the broken DES cipher."
+  },
+  {
+    "name": "java_cipher_getinstance_rc4",
+    "input": "Cipher c = Cipher.getInstance(\"RC4\");",
+    "expect": "flag",
+    "branch": "weak_cipher.java.rc4",
+    "reason": "Cipher.getInstance(\"RC4\") requests the broken RC4 cipher."
+  },
+  {
+    "name": "node_createcipheriv_des_ede3",
+    "input": "const c = crypto.createCipheriv('des-ede3-cbc', key, iv);",
+    "expect": "flag",
+    "branch": "weak_cipher.node.des3",
+    "reason": "createCipheriv('des-ede3-cbc', ...) selects 3DES, a broken/weak cipher."
+  },
+  {
+    "name": "node_createcipher_rc4",
+    "input": "const c = crypto.createCipher('rc4', key);",
+    "expect": "flag",
+    "branch": "weak_cipher.node.rc4",
+    "reason": "createCipher('rc4', ...) selects the broken RC4 cipher."
+  },
+  {
+    "name": "python_mode_ecb_standalone",
+    "input": "cipher = AES.new(key, AES.MODE_ECB)",
+    "expect": "flag",
+    "branch": "ecb_mode.python",
+    "reason": "MODE_ECB selects ECB, which does not provide semantic security."
+  },
+  {
+    "name": "java_aes_ecb_transformation",
+    "input": "Cipher c = Cipher.getInstance(\"AES/ECB/PKCS5Padding\");",
+    "expect": "flag",
+    "branch": "ecb_mode.java",
+    "reason": "\"AES/ECB/...\" transformation string selects ECB mode."
+  },
+  {
+    "name": "js_math_random_reset_token",
+    "input": "const resetToken = Math.random().toString(36).slice(2);",
+    "expect": "flag",
+    "branch": "weak_random.token",
+    "reason": "Math.random() is not a CSPRNG and is used here to build a reset token."
+  },
+  {
+    "name": "js_math_random_session_secret",
+    "input": "session.secret = Math.random().toString(16);",
+    "expect": "flag",
+    "branch": "weak_random.session_secret",
+    "reason": "Math.random() is used to derive a session secret, which is predictable."
+  },
+  {
+    "name": "clean_python_sha256",
+    "input": "digest = hashlib.sha256(salt + password.encode()).hexdigest()",
+    "expect": "clean",
+    "branch": "weak_hash.python.safe",
+    "reason": "SHA-256 is a modern, non-broken hash algorithm."
+  },
+  {
+    "name": "clean_java_sha256",
+    "input": "MessageDigest md = MessageDigest.getInstance(\"SHA-256\");",
+    "expect": "clean",
+    "branch": "weak_hash.java.safe",
+    "reason": "SHA-256 does not match the MD5/SHA1 call-site patterns."
+  },
+  {
+    "name": "clean_node_sha256",
+    "input": "const h = crypto.createHash(\"sha256\").update(body).digest(\"hex\");",
+    "expect": "clean",
+    "branch": "weak_hash.node.safe",
+    "reason": "createHash(\"sha256\") is not MD5 or SHA1."
+  },
+  {
+    "name": "clean_python_aes_gcm",
+    "input": "cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)",
+    "expect": "clean",
+    "branch": "weak_cipher.python.safe",
+    "reason": "AES-GCM is a modern authenticated cipher mode, not DES/3DES/RC4/ECB."
+  },
+  {
+    "name": "clean_java_aes_gcm",
+    "input": "Cipher c = Cipher.getInstance(\"AES/GCM/NoPadding\");",
+    "expect": "clean",
+    "branch": "weak_cipher.java.safe",
+    "reason": "AES/GCM does not match the DES/DESede/RC4 or /ECB patterns."
+  },
+  {
+    "name": "clean_node_aes_gcm",
+    "input": "const c = crypto.createCipheriv('aes-256-gcm', key, iv);",
+    "expect": "clean",
+    "branch": "weak_cipher.node.safe",
+    "reason": "aes-256-gcm does not match the des/rc4 createCipher(iv) patterns."
+  },
+  {
+    "name": "clean_secrets_token",
+    "input": "const resetToken = crypto.randomBytes(32).toString('hex');",
+    "expect": "clean",
+    "branch": "weak_random.safe",
+    "reason": "crypto.randomBytes is a CSPRNG; no Math.random() call is present."
+  },
+  {
+    "name": "clean_math_random_no_secret_context",
+    "input": "const jitterMs = Math.random() * 50;",
+    "expect": "clean",
+    "branch": "weak_random.benign",
+    "reason": "Math.random() with no token/secret/session/auth keyword on the line is a benign non-crypto use (e.g. UI jitter)."
+  },
+  {
+    "name": "clean_prose_comment_mentions_md5",
+    "input": "# Historical note: this module used to call MD5 and SHA1 directly.",
+    "expect": "clean",
+    "branch": "weak_hash.prose",
+    "reason": "Bare prose mentioning MD5/SHA1 is not a call-site pattern and must not be flagged."
+  },
+  {
+    "name": "clean_identifier_containing_des_substring",
+    "input": "designKey.rotate(currentEpoch)",
+    "expect": "clean",
+    "branch": "weak_cipher.false_positive_guard",
+    "reason": "An identifier merely containing the substring \"des\" (designKey) must not match the DES constructor pattern, which requires \".new(\" immediately after DES/DES3."
+  }
+]

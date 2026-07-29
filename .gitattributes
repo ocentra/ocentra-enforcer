@@ -1,0 +1,66 @@
+# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
+# so `cargo fmt --check` (rustfmt.toml newline_style = "Unix") passes on every OS,
+# regardless of the machine's core.autocrlf. Scripts stay LF for sh compatibility.
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.sh    text eol=lf
+*.tsx   text eol=lf
+*.dart  text eol=lf
+*.cfm   text eol=lf
+*.cfc   text eol=lf
+*.cflintrc text eol=lf
+Cargo.lock text eol=lf
+# Windows-native scripts keep CRLF
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+# Binaries
+*.png   binary
+*.ico   binary
+*.onnx  binary
+*.tpl   text eol=lf
+*.txt   text eol=lf
+# extensionless + fixture files (L17 tail: golden-byte tests need stable checkout EOL)
+pre-commit text eol=lf
+*.tpl text eol=lf
+crates/enforcer-install/tests/fixtures/** text eol=lf
+crates/enforcer-install/src/emitters/templates/** text eol=lf
+crates/enforcer-config/tests/fixtures/project_tie/** text eol=lf
+crates/enforcer-scan/tests/fixtures/router/** text eol=lf
+*.py    text eol=lf
+*.qux   text eol=lf
+memory/streams/f03.ndjson text eol=lf
+memory/streams/f05.ndjson text eol=lf
+memory/streams/x06-1.ndjson text eol=lf
+memory/streams/d09.ndjson text eol=lf
+memory/streams/h08.ndjson text eol=lf
+memory/streams/lane-x06-3-graphalgs.ndjson text eol=lf
+memory/streams/lane-x06-4-retrieval.ndjson text eol=lf
+memory/streams/lane-x06-5-weaver.ndjson text eol=lf
+husky-pre-commit text eol=lf
+# generated installer artifacts: LF to match their Rust-rendered source-of-truth (overrides *.ps1 eol=crlf)
+install.ps1 text eol=lf
+install.sh text eol=lf
+# h08 policy-ingest .mdc spec fixtures
+*.mdc text eol=lf
+# x06.6 continuous-learning fixtures + memory streams
+*.ndjson text eol=lf
+# x06.8: the .codebase-memory persistence artifact is a binary blob
+# rebuilt deterministically by `index_repository`/`artifacts::export_graph_artifact`
+# on every machine that reindexes -- a merge conflict on it should always
+# resolve to "keep mine and reindex", never a byte-level content merge.
+*.zst merge=ours binary
+# x06.8 redaction golden fixtures: byte-exact test input, LF pinned
+# explicitly even though *.ndjson above already covers it, so the pin is
+# self-documenting at this specific path.
+crates/enforcer-memory/tests/fixtures/memory/redaction/* text eol=lf
+# x06 wave-B language-extractor fixtures (.go/.java/.c/.cpp/.cs/.php etc.):
+# LF pinned path-scoped so real source files elsewhere keep default policy
+# (L34/L35: new fixture extensions are pinned the same commit they land).
+crates/enforcer-memory/tests/fixtures/memory/lang_*/** text eol=lf

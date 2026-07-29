@@ -1,0 +1,8 @@
+{
+  "tool": "cargo-llvm-cov",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "linePct": 87.5,
+  "branchPct": 82.0
+}

@@ -1,0 +1,5 @@
+// Fixture for CFG-1.12: Config changes require policy self-check
+// Clean source — no occurrence of the CFG-1.12 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

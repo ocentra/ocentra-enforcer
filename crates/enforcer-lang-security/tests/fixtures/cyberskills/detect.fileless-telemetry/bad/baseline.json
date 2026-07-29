@@ -1,0 +1,22 @@
+{
+  "kind": "fileless-telemetry-baseline",
+  "sysmon": {
+    "processCreation": true,
+    "wmiEvents": [19, 20],
+    "registryChanges": false,
+    "networkConnections": true
+  },
+  "powershell": {
+    "scriptBlockLogging": false,
+    "moduleLogging": true,
+    "eventIds": []
+  },
+  "windowsEventLog": {
+    "retentionDays": 0
+  },
+  "tools": {
+    "volatility3": false,
+    "processMonitor": true,
+    "autoruns": false
+  }
+}

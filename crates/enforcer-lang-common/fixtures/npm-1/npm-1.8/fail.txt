@@ -1,0 +1,4 @@
+// Fixture for NPM-1.8: File and path dependencies are forbidden
+// Ported from legacy validator id `package-determinism` (see rules/rules.json doc: rules/common/dependencies.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_8_MARKER

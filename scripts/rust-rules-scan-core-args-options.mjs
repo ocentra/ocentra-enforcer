@@ -127,6 +127,12 @@ export const VALUE_OPTIONS = {
   "--crate": (args, value) => {
     args.crateName = value;
   },
+  "--base": (args, value) => {
+    args.scope = { ...args.scope, mode: "diff", base: value };
+  },
+  "--head": (args, value) => {
+    args.scope = { ...args.scope, mode: "diff", head: value };
+  },
   "--min-score": (args, value) => {
     args.literalRiskMinScore = Number(value);
   },

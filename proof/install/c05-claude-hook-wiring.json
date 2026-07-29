@@ -1,0 +1,68 @@
+{
+  "workpack": "c05-claude-hook-wiring",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P5 install-proof (T1)",
+  "namedTest": "claude-adapter hook registration (temp `~/.claude.json`)",
+  "commands": [
+    "cargo build -p enforcer-cli",
+    "$env:__COMPAT_LAYER='RunAsInvoker'; cargo test -p enforcer-install -- --nocapture",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 327,
+    "testsFailed": 0,
+    "breakdown": {
+      "unit (src/lib.rs, incl. 17 adapters::claude::tests)": 271,
+      "integration (tests/claude_adapter_fixtures.rs)": 5,
+      "integration (other enforcer-install fixture suites and regressions)": 51,
+      "doc-tests": 0
+    },
+    "clippy": "clean (no warnings under -D warnings)",
+    "fmt": "clean (no diff)"
+  },
+  "seededViolationCases": [
+    {
+      "case": "fresh Claude fixture install writes SessionStart + PreToolUse hook entries and verify returns all green",
+      "test": "adapters::claude::tests::full_install_apply_then_verify_all_green, claude_adapter_fixtures::pass_fixture_install_then_verify_is_all_green",
+      "fixture": "crates/enforcer-install/tests/fixtures/claude_adapter/pass/.claude.json",
+      "expectation": "plan proposes the ~/.claude.json MCP upsert plus a second ~/.claude.json hook-wiring change, skill, descriptor, and CLAUDE.md block; apply writes hooks.SessionStart[0] and hooks.PreToolUse[0]; verify returns passing `sessionstart-hook-present` and `pretooluse-hook-present` checks",
+      "status": "PASS"
+    },
+    {
+      "case": "non-destructive merge preserves unrelated hook entries and re-install removes stale enforcer duplicates by command",
+      "test": "adapters::claude::tests::hook_merge_preserves_unrelated_entries_and_replaces_stale_enforcer_entries, claude_adapter_fixtures::pass_fixture_preserves_unrelated_hook_entries_and_removes_only_enforcer_hooks",
+      "expectation": "existing non-enforcer SessionStart/PreToolUse hook entries stay in place; stale enforcer entries with the same command are replaced by the current exact config; install->uninstall strips only the enforcer hook rows and restores the pre-state value byte-for-byte",
+      "status": "PASS"
+    },
+    {
+      "case": "missing hook rows are failed checks, not silent skips",
+      "test": "adapters::claude::tests::verify_fails_when_hook_entries_are_missing",
+      "expectation": "verify() returns present `sessionstart-hook-present` and `pretooluse-hook-present` checks with passed:false when ~/.claude.json has the MCP registration and descriptor but lacks the hooks map entries",
+      "status": "PASS"
+    },
+    {
+      "case": "empty-home round trip removes empty hook and mcp scaffolding on uninstall",
+      "test": "adapters::claude::tests::empty_home_round_trip_drops_empty_json_scaffolding",
+      "expectation": "install on `{}` writes the enforcer MCP and hook entries; uninstall removes `mcpServers` and `hooks` once they become empty so ~/.claude.json returns to `{}` instead of leaving empty scaffolding behind",
+      "status": "PASS"
+    },
+    {
+      "case": "descriptor-specific failures remain isolated from hook verification",
+      "test": "adapters::claude::tests::verify_fails_when_descriptor_missing, adapters::claude::tests::verify_fails_when_descriptor_corrupt, claude_adapter_fixtures::descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip",
+      "expectation": "hook checks stay first-class in the verify report, while a missing/corrupt descriptor still returns the named `agent-descriptor-present` failed check rather than skipping or downgrading the harness state",
+      "status": "PASS"
+    }
+  ],
+  "keptExtendedReplaced": {
+    "crates/enforcer-install/src/adapters/claude.rs": "EXTENDED -- ClaudeAdapter now computes, merges, verifies, and removes the c05 SessionStart and c04 PreToolUse hook entries inside ~/.claude.json's top-level hooks map, preserving unrelated hooks, replacing stale enforcer-owned rows by command identity, and dropping empty hooks/mcp scaffolding on uninstall.",
+    "crates/enforcer-install/src/hooks/sessionstart.rs": "EXTENDED -- added the SessionStart hooks-map renderer so the adapter can register the emitter as the exact Claude wire shape rather than serializing ad-hoc JSON in the adapter.",
+    "crates/enforcer-install/tests/claude_adapter_fixtures.rs": "EXTENDED -- fixture proof now asserts the installed hook rows are present in the pass fixture and adds a dedicated unrelated-hook preservation / exact uninstall cleanup integration test.",
+    "proof/install/c05-claude-hook-wiring.json": "NEW -- artifact-backed proof for the Claude hook registration path."
+  },
+  "deviations": [
+    "On Windows, `cargo test -p enforcer-install`'s lib test binary still trips the UAC name heuristic (`os error 740`) unless the shell sets `__COMPAT_LAYER=RunAsInvoker`; this is an environment/runtime quirk, not a hook-wiring product failure.",
+    "The full `enforcer-install` suite still needs `cargo build -p enforcer-cli` first so `tests/pretooluse_hook_fixtures.rs` can find `target/debug/enforcer.exe`; this is the existing c04 real-binary prerequisite and was honored explicitly in the proof commands rather than hidden."
+  ],
+  "workspaceRegression": "After building enforcer-cli once, `$env:__COMPAT_LAYER='RunAsInvoker'; cargo test -p enforcer-install -- --nocapture` passed all 327 tests, including the real c04 PreToolUse fixture suite and the new Claude hook registration coverage."
+}

@@ -1,0 +1,52 @@
+FILELESS MALWARE ANALYSIS REPORT
+Incident: INC-2026-0001
+Attack Type: Fileless
+
+INITIAL ACCESS
+Vector: Phishing email
+LOLBin Chain: WINWORD.EXE -> mshta.exe -> powershell.exe
+
+PERSISTENCE MECHANISM
+Filter Name: WindowsUpdateCheck
+Filter Query: SELECT * FROM __InstanceModificationEvent WITHIN 300
+Consumer: CommandLineEventConsumer
+Command: powershell.exe -enc REDACTED
+
+DECODED PAYLOAD
+Layer 1: encoded PowerShell decoded and preserved as evidence
+
+REGISTRY PAYLOADS
+HKCU Run payload: not observed
+
+MEMORY ARTIFACTS
+PID 4012: reflective assembly evidence recorded
+
+EXTRACTED IOCs
+C2: malicious.example.invalid
+
+MITRE ATT&CK
+T1059.001 PowerShell; T1546.003 WMI Event Subscription
+
+EVIDENCE ACQUISITION
+Memory Capture: captured before reboot
+Capture Timing: before reboot and containment
+Malfind: exported for suspicious processes
+Executable VAD: reviewed for executable private regions
+PowerShell Command Line: extracted from memory and event logs
+PowerShell History Strings: searched for invoke-, iex, downloadstring, and encodedcommand
+YARA Result: two-of-four fileless PowerShell markers evaluated
+Sysmon Events: 19, 20, 21 exported
+PowerShell Event 4104: exported
+Registry Export: collected
+WMI Subscription Export: collected
+Process Monitor Evidence: captured during controlled observation
+Autoruns Evidence: WMI, scheduled-task, and registry locations reviewed
+Scheduled Task Assessment: not observed
+
+ATTACK CHAIN
+Phase 1 - Initial Access: phishing document
+Phase 2 - Execution: PowerShell in-memory load
+Phase 3 - Persistence: WMI event subscription
+Phase 4 - Privilege Escalation: not observed
+Phase 5 - Lateral Movement: not observed
+Phase 6 - Exfiltration: HTTPS C2

@@ -1,0 +1,5 @@
+// Fixture for CI-1.9: CI must run dependency policy
+// Clean source — no occurrence of the CI-1.9 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

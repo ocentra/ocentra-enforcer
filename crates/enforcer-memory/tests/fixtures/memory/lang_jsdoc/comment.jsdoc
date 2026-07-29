@@ -1,0 +1,5 @@
+/**
+ * Does a thing.
+ * @param {string} foo desc
+ * @returns {number} the count
+ */

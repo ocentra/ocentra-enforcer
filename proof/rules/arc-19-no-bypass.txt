@@ -1,0 +1,83 @@
+=== arc-19 enforcer-security crate skeleton + no-bypass meta-check (H00-1.1) ===
+
+Scope: this proof covers ONLY what arc-19 owns — the `enforcer-security`
+crate skeleton (`Cargo.toml`, `src/lib.rs`, `src/rules/` module-root,
+`Validator`-registration seam in `src/rules/registry.rs`) and the
+no-bypass meta-check validator (`src/rules/no_bypass.rs`). It does NOT
+prove the Track H money-critical/security-testing feature packs
+(h01-h08, h11, d18) — those are separate workpacks that deps: arc-19 and
+land their own registry rows + fixtures atop this skeleton.
+
+Named test: `cargo test -p enforcer-security`
+
+  running unittests src\lib.rs (target\debug\deps\enforcer_security-*.exe)
+  test rules::no_bypass::tests::silent_on_clean_source ... ok
+  test rules::no_bypass::tests::fires_on_eslint_disable ... ok
+  test rules::no_bypass::tests::fires_on_python_noqa_and_type_ignore ... ok
+  test rules::registry::tests::registry_builds_cleanly ... ok
+  test rules::no_bypass::tests::no_bypass_fixture_parity ... ok
+  test rules::no_bypass::tests::fires_on_rust_inline_allow ... ok
+  test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+  running tests\completeness.rs
+  test registry_has_no_duplicates_and_contains_no_bypass_row ... ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+  Doc-tests enforcer_security: 0 passed; 0 failed
+
+Total: 7/7 passing.
+
+Seeded-violation case (fail/pass fixture pair, committed, exercised by
+`no_bypass_fixture_parity` on every `cargo test -p enforcer-security`
+run going forward):
+
+  fail fixture: crates/enforcer-security/tests/fixtures/no-bypass/bad/sample.rs
+    #[allow(clippy::unwrap_used)]
+    fn risky_balance_update(raw: &str) -> i64 {
+        raw.parse::<i64>().unwrap()
+    }
+  -> NoBypassValidator::validate() fires exactly 1 Finding, rule_id ==
+     "H00-1.1" (the inline `#[allow(...)]` lint-disable escape hatch).
+
+  pass fixture: crates/enforcer-security/tests/fixtures/no-bypass/good/sample.rs
+    fn safe_balance_update(raw: &str) -> Result<i64, std::num::ParseIntError> {
+        raw.parse::<i64>()
+    }
+  -> same logic with no inline suppression directive -> zero findings.
+
+Additional unit coverage beyond the fixture pair (same file,
+`rules::no_bypass::tests`):
+  - `fires_on_rust_inline_allow`: bare `#[allow(clippy::unwrap_used)]` line.
+  - `fires_on_eslint_disable`: `// eslint-disable-next-line no-eval`.
+  - `fires_on_python_noqa_and_type_ignore`: both `# noqa` and
+    `# type: ignore` fire independently (2 findings from 2 lines).
+  - `silent_on_clean_source`: ordinary comment + code, zero findings —
+    proves the check is not comment-guarded into false silence NOR
+    trigger-happy on unrelated comments.
+
+Design note: unlike most line-scan validators in this workspace (see
+`enforcer-lang-security`'s `text_scan` module doc), this validator is
+deliberately NOT comment-guarded — the violation shape (`// eslint-disable`,
+`# noqa`, `@ts-ignore`, ad-hoc `enforcer-disable`/`enforcer-ignore`/
+`enforcer-bypass`, `clippy::allow` on the deny wall) IS itself a comment
+or attribute, so skipping comment-only lines would defeat the entire
+check.
+
+Doctrine enforced: `enforcer-config` is the single declarative
+control-plane; the ONLY legitimate exemption path is a declarative,
+committed, gated waiver (owner+reason+ruleId) read from there — never an
+inline comment. This validator does not itself read `enforcer-config`
+(that wiring is the scan orchestrator's job, arc-14+); it unconditionally
+bans the inline escape-hatch shape at the source-text level, in every
+scanned file regardless of source language.
+
+`cargo clippy -p enforcer-security --all-targets -- -D warnings`: clean
+(0 warnings after fixing one `clippy::vec_init_then_push` in
+`registry.rs::build_all`, switched to `vec![...]`).
+
+`cargo fmt -p enforcer-security -- --check`: clean (no diff).
+
+Verdict: GREEN for arc-19's owned scope (crate skeleton + no-bypass
+meta-check, fail/pass fixture parity, clippy, fmt). Track H feature-pack
+validators (h01-h08, h11) and the d18 security-stop family are explicitly
+NOT claimed by this artifact — they are separate downstream workpacks.

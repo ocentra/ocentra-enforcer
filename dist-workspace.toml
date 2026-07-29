@@ -1,0 +1,61 @@
+# c10 — cargo-dist-style release manifest for the enforcer's OWN release
+# pipeline (RUST_ARCHITECTURE.md, "Distribution" + "CI integration for
+# CONSUMER projects (c10)", binding).
+#
+# This repo's OWN CI builds and PUBLISHES the release; every consumer
+# project's CI only ever POINTS AT it (installer scripts / the
+# `enforcer-scan` composite GitHub Action / the optional npm wrapper —
+# see `crates/enforcer-install/src/ci/**`). This file declares the shape
+# cargo-dist (or an equivalent hand-built pipeline matching it) drives;
+# the Rust-side source of truth for asset naming, the release matrix, and
+# the pre-publish smoke gate lives in
+# `crates/enforcer-install/src/ci/release_pipeline.rs` — this manifest
+# must never diverge from that module's understanding of the matrix.
+
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.28.0"
+ci = ["github"]
+installers = ["shell", "powershell"]
+# Every platform in RUST_ARCHITECTURE.md's Distribution matrix: win/mac/
+# linux incl. musl + apple-silicon. Mirrors
+# `enforcer_install::distribution::TargetPlatform::all()` exactly — CI-
+# runner platform coverage is independent of what platform a TARGET
+# project itself builds for (RUST_ARCHITECTURE.md, binding); we do NOT
+# cross-compile the enforcer itself onto e.g. a phone target.
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-gnu",
+]
+# Built and released as distinct assets per platform for BOTH the `full`
+# and `lite` (arc-22 Cargo feature split) variants — see
+# `BinaryVariant::all()` in `release_pipeline.rs`. cargo-dist's own
+# variant axis is expressed via one release profile per feature set;
+# the installer/GH Action/npm wrapper default to `lite` for CI use.
+[dist.variants.full]
+features = ["full"]
+
+[dist.variants.lite]
+features = ["lite"]
+
+# Pre-publish cross-platform smoke gate (RUST_ARCHITECTURE.md, binding:
+# "a release is never published broken"): run the built binary through a
+# minimal fail/pass smoke fixture on EVERY target platform, both
+# variants, before any GitHub Release goes live. A broken/panicking
+# binary on ANY platform blocks the release entirely — see
+# `release_pipeline::gate_release`, which this CI step's pass/fail
+# decision must match exactly (never an averaged/partial pass).
+[dist.smoke-test]
+required = true
+fixture = "crates/enforcer-install/tests/fixtures/ci/smoke"
+
+# `cargo install` from source remains a documented FALLBACK for platforms
+# without a prebuilt asset — never the primary path.
+[dist.fallback]
+cargo-install = true

@@ -1,0 +1,18 @@
+{
+  "branch": "main",
+  "expected_contexts": [
+    "Rust CI / rust-ci (ubuntu-latest)",
+    "Rust CI / rust-ci (windows-latest)",
+    "Rust CI / rust-ci (macos-latest)",
+    "Ocentra Enforcer / ocentra-enforcer"
+  ],
+  "observed_contexts": [
+    "Rust CI / rust-ci (ubuntu-latest)",
+    "Rust CI / rust-ci (windows-latest)",
+    "Rust CI / rust-ci (macos-latest)",
+    "Ocentra Enforcer / ocentra-enforcer"
+  ],
+  "attested": true,
+  "exit_code": 0,
+  "refusals": []
+}

@@ -1,0 +1,107 @@
+[
+  {
+    "name": "wildcard_and_credentials_same_line",
+    "input": "add_header 'Access-Control-Allow-Origin' '*' always; add_header 'Access-Control-Allow-Credentials' 'true' always;",
+    "expect": "flag",
+    "branch": "same-line-wildcard-creds",
+    "reason": "Wildcard ACAO and ACAC true set on one nginx add_header line (Error)"
+  },
+  {
+    "name": "wildcard_and_credentials_cross_line",
+    "input": "res.header('Access-Control-Allow-Origin', '*');\nres.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');\nres.header('Access-Control-Allow-Credentials', 'true');",
+    "expect": "flag",
+    "branch": "cross-line-wildcard-creds",
+    "reason": "Wildcard ACAO and ACAC true set on separate res.header calls (Error)"
+  },
+  {
+    "name": "null_origin_and_credentials",
+    "input": "Access-Control-Allow-Origin: null\nAccess-Control-Allow-Credentials: true",
+    "expect": "flag",
+    "branch": "null-origin-creds",
+    "reason": "null ACAO combined with ACAC true (Error) - sandboxed iframe / data: URI exploit"
+  },
+  {
+    "name": "null_origin_same_line_credentials",
+    "input": "add_header 'Access-Control-Allow-Origin' 'null' always; add_header 'Access-Control-Allow-Credentials' 'true' always;",
+    "expect": "flag",
+    "branch": "same-line-null-creds",
+    "reason": "null ACAO and ACAC true set on one line (Error)"
+  },
+  {
+    "name": "wildcard_without_credentials_warning",
+    "input": "Access-Control-Allow-Origin: *\nAccess-Control-Allow-Methods: GET, POST",
+    "expect": "flag",
+    "branch": "wildcard-only-warning",
+    "reason": "Bare wildcard ACAO with no ACAC true present is only Warning (still permissive)"
+  },
+  {
+    "name": "null_without_credentials_warning",
+    "input": "Access-Control-Allow-Origin: null",
+    "expect": "flag",
+    "branch": "null-only-warning",
+    "reason": "null ACAO with no ACAC true present is only Warning"
+  },
+  {
+    "name": "wildcard_with_credentials_explicitly_false",
+    "input": "Access-Control-Allow-Origin: *\nAccess-Control-Allow-Credentials: false",
+    "expect": "flag",
+    "branch": "wildcard-only-warning",
+    "reason": "ACAC set to false does not match the ACAC-true predicate, so only the Warning-level wildcard-alone branch fires"
+  },
+  {
+    "name": "case_insensitive_wildcard_creds",
+    "input": "ACCESS-CONTROL-ALLOW-ORIGIN: *\naccess-control-allow-credentials: TRUE",
+    "expect": "flag",
+    "branch": "cross-line-wildcard-creds",
+    "reason": "Header names/values are matched case-insensitively"
+  },
+  {
+    "name": "json_style_wildcard_creds",
+    "input": "{\"headers\": {\"Access-Control-Allow-Origin\": \"*\", \"Access-Control-Allow-Credentials\": true}}",
+    "expect": "flag",
+    "branch": "same-line-wildcard-creds",
+    "reason": "JSON-shaped header dump with both on one physical line"
+  },
+  {
+    "name": "scoped_origin_with_credentials_clean",
+    "input": "Access-Control-Allow-Origin: https://app.example.com\nAccess-Control-Allow-Credentials: true",
+    "expect": "clean",
+    "branch": "scoped-origin-clean",
+    "reason": "Scoped real-domain origin with credentials is the spec-compliant, correct pattern"
+  },
+  {
+    "name": "credentials_alone_no_acao_clean",
+    "input": "Access-Control-Allow-Credentials: true\nAccess-Control-Allow-Methods: GET, POST",
+    "expect": "clean",
+    "branch": "credentials-alone-clean",
+    "reason": "ACAC true with no ACAO header present at all has nothing to combine with"
+  },
+  {
+    "name": "subdomain_glob_wildcard_not_bare_clean",
+    "input": "Access-Control-Allow-Origin: *.example.com\nAccess-Control-Allow-Credentials: true",
+    "expect": "clean",
+    "branch": "subdomain-glob-clean",
+    "reason": "*.example.com is a subdomain-glob value, not a literal bare wildcard ACAO"
+  },
+  {
+    "name": "header_name_prefix_no_false_positive_clean",
+    "input": "Access-Control-Allow-Origin-Whitelist: *\nAccess-Control-Allow-Credentials: true",
+    "expect": "clean",
+    "branch": "header-name-prefix-clean",
+    "reason": "A differently-named header sharing the ACAO prefix must not false-positive"
+  },
+  {
+    "name": "comment_mentioning_header_no_value_clean",
+    "input": "// TODO: do not set Access-Control-Allow-Origin permissively\nAccess-Control-Allow-Credentials: true",
+    "expect": "clean",
+    "branch": "prose-mention-clean",
+    "reason": "Mentioning the header name in prose without a wildcard/null value assignment does not flag"
+  },
+  {
+    "name": "no_cors_headers_at_all_clean",
+    "input": "app.get('/health', (req, res) => res.sendStatus(200));",
+    "expect": "clean",
+    "branch": "no-headers-clean",
+    "reason": "No CORS headers present at all"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-indexing",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-indexing",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "code_graph_indexer::unchanged_files_are_skipped_across_reindex_runs",
+      "code_graph_indexer::changed_file_is_reindexed_and_deleted_file_becomes_tombstone",
+      "unit_code_graph::fast_mode_skips_git_history_full_mode_computes_it",
+      "unit_code_graph::persistence_true_writes_artifact_and_bootstrap_reimports_same_counts"
+    ]
+  },
+  "hardRequirements": {
+    "skipUnchangedFiles": "covered",
+    "reindexChangedFiles": "covered",
+    "deletedFileTombstone": "covered",
+    "gitHistoryMode": "covered",
+    "artifactBootstrap": "covered"
+  }
+}

@@ -1,0 +1,125 @@
+=== cargo build --workspace ===
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s
+
+=== cargo test -p enforcer-lang-common ===
+test pattern::tests::silent_when_no_marker_present ... ok
+test pattern::tests::fires_on_any_marker_and_reports_line ... ok
+test port_platform::tests::guarded_platform_specific_line_is_silent_even_outside_scope ... ok
+test port_platform::tests::linux_only_scope_fails_unguarded_windows_script ... ok
+test port_platform::tests::linux_only_scope_passes_bash_only_script ... ok
+test port_platform::tests::no_declaration_is_unchanged_strict_default_and_still_fails ... ok
+test port_platform::tests::explicit_all_three_platforms_declared_is_fully_relaxed ... ok
+test rules::deferred_work::tests::clean_source_with_no_markers_is_silent ... ok
+test rules::deferred_work::tests::malformed_annotation_still_fails ... ok
+test rules::deferred_work::tests::missing_revisit_still_fails ... ok
+test registry::tests::every_registered_validator_has_a_unique_rule_id ... ok
+test registry::tests::all_returns_the_expected_total_validator_count ... ok
+test rules::deferred_work::tests::parser_accepts_well_formed_annotation ... ok
+test rules::deferred_work::tests::parser_rejects_non_deferred_form ... ok
+test rules::deferred_work::tests::parser_rejects_unterminated_ref ... ok
+test rules::deferred_work::tests::well_formed_annotation_is_silent_across_languages ... ok
+test rules::fsm::tests::ten_validators_registered_with_unique_rule_ids ... ok
+test rules::size_shape::tests::nine_validators_registered_with_unique_rule_ids ... ok
+test rules::fsm::tests::fsm_terminal_state_no_outgoing ... ok
+test rules::fsm::tests::fsm_status_literal_forbidden ... ok
+test rules::fsm::tests::fsm_enum_parse ... ok
+test rules::size_shape::tests::size_class_length ... ok
+test rules::fsm::tests::fsm_coverage ... ok
+test rules::deferred_work::tests::fires_on_unmarked_stub_and_silent_on_annotated_stub ... ok
+test rules::fsm::tests::fsm_canonical_layout ... ok
+test rules::fsm::tests::fsm_validate_before_mutate ... ok
+test rules::fsm::tests::fsm_explicit_transitions_map ... ok
+test rules::fsm::tests::fsm_required_mandatory_fsm ... ok
+test rules::fsm::tests::fsm_singleton_stateless ... ok
+test rules::fsm::tests::fsm_enum_location_strenum_only ... ok
+test rules::size_shape::tests::size_file_length_rust_override ... ok
+test rules::size_shape::tests::size_class_public_method_count ... ok
+test rules::size_shape::tests::size_function_length ... ok
+test rules::size_shape::tests::size_complexity_nesting ... ok
+test rules::size_shape::tests::size_line_length_trailing_pragma_still_flags ... ok
+test rules::size_shape::tests::size_line_length ... ok
+test rules::size_shape::tests::size_package_nesting_depth ... ok
+test rules::size_shape::tests::size_file_length ... ok
+test rules::size_shape::tests::size_param_count ... ok
+test rules::size_shape::tests::size_testfile_length ... ok
+test rules::size_shape::tests::size_ratchet_length ... ok
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test every_fsm_rule_passes_the_d01_five_way_parity_sweep ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test count_parity_against_rules_json_language_common_minus_sec2 ... ok
+test every_expected_rule_has_both_fixture_files_on_disk ... ok
+test every_registered_validator_fires_on_fail_and_is_silent_on_pass ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.43s
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test every_size_shape_rule_passes_the_d01_five_way_parity_sweep ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== cargo test -p enforcer-rules ===
+test loader::tests::rejects_duplicate_ids_across_the_same_file ... ok
+test loader::tests::rejects_malformed_json ... ok
+test registry::tests::empty_registry_reports_empty ... ok
+test loader::tests::parses_a_well_formed_catalog ... ok
+test registry::tests::loads_well_formed_records ... ok
+test registry::tests::rejects_empty_doc_anchor ... ok
+test registry::tests::rejects_malformed_fixture_ref ... ok
+test registry::tests::rejects_malformed_validator_ref ... ok
+test rules::plan::tests::every_plan_record_has_full_5_way_linkage ... ok
+test loader::tests::missing_file_fails_closed ... ok
+test registry::tests::rejects_duplicate_rule_ids ... ok
+test rules::plan::tests::plan_records_load_into_a_registry_without_collision ... ok
+test version_drift::tests::content_change_with_matching_version_bump_is_clean ... ok
+test version_drift::tests::content_change_without_version_bump_fails_closed ... ok
+test version_drift::tests::cosmetic_only_changes_do_not_count_as_content_drift ... ok
+test version_drift::tests::identical_records_are_unchanged ... ok
+test rules::plan::tests::every_plan_record_fixture_path_exists_on_disk ... ok
+test version_drift::tests::mismatched_rule_ids_are_not_comparable ... ok
+test version_drift::tests::validator_change_without_version_bump_fails_closed ... ok
+test version_drift::tests::version_bump_without_content_change_fails_closed ... ok
+test version_drift::tests::version_decrease_with_content_change_fails_closed ... ok
+test loader::tests::loads_registry_from_disk_files ... ok
+test loader::tests::duplicate_across_two_files_fails_closed ... ok
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test fsm_catalog_has_no_t3_rules ... ok
+test fsm_tier_split_matches_workpack_six_t1_four_t2 ... ok
+test fsm_catalog_loads_ten_records ... ok
+test fsm_catalog_loads_into_registry_with_no_duplicates ... ok
+test every_fsm_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test malformed_record_is_rejected ... ok
+test deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator ... ok
+test a_renamed_posture_record_id_fails_closed ... ok
+test legitimate_version_bump_matching_content_change_is_clean ... ok
+test a_missing_posture_record_fails_closed ... ok
+test baseline_catalogs_load_into_one_registry ... ok
+test deny_wall_record_loads_and_resolves ... ok
+test duplicate_rule_id_across_catalogs_is_rejected ... ok
+test no_reexports_record_loads_and_is_linked_to_lang_rust_validator ... ok
+test seeded_version_drift_fails_closed_on_content_change_without_bump ... ok
+test seeded_version_drift_fails_closed_on_hollow_version_bump ... ok
+test ocentra_parent_posture_yields_all_four_expected_records ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test size_shape_catalog_loads_nine_records ... ok
+test every_size_shape_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test size_shape_tier_split_matches_workpack_six_t1_three_t2 ... ok
+test size_shape_catalog_loads_into_registry_with_no_duplicates ... ok
+test size_shape_catalog_has_no_t3_rules ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== cargo clippy -p enforcer-lang-common -p enforcer-rules --all-targets -- -D warnings ===
+    Checking enforcer-validator v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a27e5e5bbed3de270\crates\enforcer-validator)
+    Checking enforcer-rules v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a27e5e5bbed3de270\crates\enforcer-rules)
+    Checking enforcer-mechanization v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a27e5e5bbed3de270\crates\enforcer-mechanization)
+    Checking enforcer-lang-common v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a27e5e5bbed3de270\crates\enforcer-lang-common)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.83s
+
+=== cargo fmt -p enforcer-lang-common -p enforcer-rules -- --check ===
+fmt exit: 0

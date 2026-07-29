@@ -1,0 +1,56 @@
+[package]
+name = "xtask"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.82"
+license.workspace = true
+repository.workspace = true
+description = "Workspace task runner: a10's native dogfood loop (`xtask dogfood` -- the enforcer's own Rust rules, baseline-gated, plus cargo fmt/clippy/deny/audit over crates/**) and z01's terminal composing proof gate (`xtask dogfood-gate` -- composes a10 + e01 literal-scan + b02 plan-structure into one PASS/FAIL manifest, hash-chained into the enforcer-proof journal)."
+publish = false
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: serde derives back the boundary DTOs (manifest,
+# ceiling) this task runner persists; workspace-pinned version.
+serde = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: serde_json is the manifest/baseline wire format
+# already used across the workspace; workspace-pinned version.
+serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: thiserror derives the typed error surfaces
+# (DogfoodError/GateError), same as every other workspace crate.
+thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-core supplies the hash-chain, clock,
+# and redaction primitives the proof journal entry requires.
+enforcer-core = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-domain supplies the branded
+# RepoRoot/RelPath/Sha256/Finding types the gate composes over.
+enforcer-domain = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-config resolves ocentra-enforcer.
+# config.json (ignore globs, cargo-deny/audit requiredness) for the
+# self-scan scope.
+enforcer-config = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-scan is the engine + d02
+# baseline-ratchet this dogfood loop runs on the workspace's own crates.
+enforcer-scan = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-rules loads the shipped rule catalogs
+# the manifest's ruleset fingerprint is computed over.
+enforcer-rules = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-validator supplies the Validator
+# trait the b02 PLAN-* validators are invoked through.
+enforcer-validator = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-proof owns the tamper-evident
+# hash-chained journal the z01 gate appends its verdict to.
+enforcer-proof = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-literal-scan is the e01 T2 floor the
+# z01 gate composes (same entry point `enforcer advise literals` uses).
+enforcer-literal-scan = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: enforcer-plan supplies the b02 PLAN-*
+# structure validators the gate reports over the live plan.
+enforcer-plan = { workspace = true }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: tempfile isolates fixture repos in the
+# dogfood/gate tests; pinned to the workspace's locked version line.
+tempfile = "3.27.0"
+
+[lints]
+workspace = true

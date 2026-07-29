@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "eventType": "run",
+  "epochMs": 1700000000000,
+  "command": "check",
+  "ruleIdsInScope": 3,
+  "findings": { "error": 1, "warning": 2, "info": 0 },
+  "durationMs": 250,
+  "exitStatus": "mystery-status"
+}

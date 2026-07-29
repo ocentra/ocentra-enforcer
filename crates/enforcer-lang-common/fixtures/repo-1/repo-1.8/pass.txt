@@ -1,0 +1,5 @@
+// Fixture for REPO-1.8: Node version policy must be bounded
+// Clean source — no occurrence of the REPO-1.8 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

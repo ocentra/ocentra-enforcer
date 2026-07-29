@@ -1,0 +1,53 @@
+[package]
+name = "enforcer-ui-desktop"
+version = "0.1.0"
+description = "Ocentra Enforcer desktop control surface"
+authors = ["Ocentra"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+# DEPENDENCY-JUSTIFICATION: Tauri's reviewed build helper generates the desktop
+# application context consumed by `tauri::generate_context!`.
+# BUILD-DEPENDENCY-JUSTIFICATION: the deterministic helper reads only the
+# checked-in Tauri configuration and emits Cargo rebuild metadata.
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: serialization is the typed boundary between Tauri
+# commands and the frontend invoke payloads.
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+# DEPENDENCY-JUSTIFICATION: Tauri owns the native desktop runtime and command
+# registration surface.
+tauri = { version = "2.11.5", features = [] }
+# DEPENDENCY-JUSTIFICATION: desktop commands delegate graph indexing and
+# presentation to the canonical memory and UI crates.
+enforcer-memory = { path = "../../../enforcer-memory" }
+enforcer-ui = { path = "../../../enforcer-ui" }
+# DEPENDENCY-JUSTIFICATION: the g03 desktop waiver command parses branded
+# RuleId values (enforcer-domain) and validates/persists the strict waiver
+# registry shape (enforcer-rules) instead of shelling to the Node bridge.
+enforcer-domain = { path = "../../../enforcer-domain" }
+enforcer-rules = { path = "../../../enforcer-rules" }
+# DEPENDENCY-JUSTIFICATION: desktop commands call the typed coordination,
+# configuration, proof, and installation domain APIs directly.
+enforcer-coordination = { path = "../../../enforcer-coordination" }
+enforcer-config = { path = "../../../enforcer-config" }
+enforcer-proof = { path = "../../../enforcer-proof" }
+# DEPENDENCY-JUSTIFICATION: desktop adapter inventory and setup readiness call
+# the production installer discovery API.
+enforcer-install = { path = "../../../enforcer-install" }
+# DEPENDENCY-JUSTIFICATION: assurance, harness-history, and literal-risk panels
+# are backed by their production Rust crates.
+enforcer-security = { path = "../../../enforcer-security" }
+enforcer-harness = { path = "../../../enforcer-harness" }
+enforcer-literal-scan = { path = "../../../enforcer-literal-scan" }
+# DEPENDENCY-JUSTIFICATION: project-relative scan scope patterns are compiled
+# and evaluated with the same deterministic glob semantics as the desktop UI.
+globset = "0.4"

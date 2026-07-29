@@ -1,0 +1,22 @@
+[package]
+name = "enforcer-lang-dart"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "e-pack-dart: the Dart/Flutter-family Validator crate. Implements every language==\"dart\" rule against the enforcer-validator Validator trait (arc-05), reusing enforcer-lang-common's shared PatternValidator engine (arc-09) and its d16/d22 cross-stack FSM/size mechanisms rather than duplicating them, proven via the arc-05 fixture/parity harness."
+publish = false
+
+[dependencies]
+serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Dart validators share core finding/error contracts
+# and domain rule/severity vocabulary with the rest of the enforcement engine.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: this crate implements the validator interface and
+# reuses the common pattern engine for deterministic fixture parity.
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+enforcer-lang-common = { path = "../enforcer-lang-common", version = "0.1.0" }
+
+[lints]
+workspace = true

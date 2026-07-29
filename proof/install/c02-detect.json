@@ -1,0 +1,86 @@
+{
+  "workpack": "c02",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P1 unit (T1)",
+  "namedTest": "harness-autodetect (temp-home fixtures + capability-manifest rows)",
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 74,
+    "testsFailed": 0,
+    "clippy": "clean (no warnings)",
+    "fmt": "clean (no diff)"
+  },
+  "seededViolationCases": [
+    {
+      "case": "empty home -> no false positive",
+      "test": "detect::tests::empty_home_yields_no_false_positives, empty_home_fixture_detects_no_harness_present",
+      "fixture": "crates/enforcer-install/tests/fixtures/detect/empty-home",
+      "expectation": "every KNOWN_HARNESS_IDS entry reports present:false with evidence; no capability manifest emitted",
+      "status": "PASS"
+    },
+    {
+      "case": "seeded .claude/.codex dirs detected present, exact set (no superset)",
+      "test": "detect::tests::seeded_claude_and_codex_dirs_are_detected_present",
+      "expectation": "claude+codex present:true; every other known harness stays present:false",
+      "status": "PASS"
+    },
+    {
+      "case": "env-override precedence wrong -> fails",
+      "test": "detect::tests::env_override_takes_precedence_over_the_default_dir, detect::tests::env_override_pointing_at_a_real_dir_is_detected_present",
+      "expectation": "CODEX_HOME override wins over the conventional ~/.codex default even when the default exists and the override target does not (and vice versa)",
+      "status": "PASS"
+    },
+    {
+      "case": "missing HOME/USERPROFILE -> absent with evidence, not a panic",
+      "test": "detect::tests::missing_home_env_yields_absent_with_evidence_not_a_panic",
+      "expectation": "every harness reports present:false with an explanatory Evidence entry; no panic",
+      "status": "PASS"
+    },
+    {
+      "case": "capability manifest: Codex-marker fixture (agents/openai.yaml, allow_implicit_invocation: true)",
+      "test": "detect::tests::caps_codex_fixture_declares_implicit_invocation_and_cross_session_messaging, caps_codex_fixture_declares_implicit_invocation_yes",
+      "fixture": "crates/enforcer-install/tests/fixtures/detect/caps-codex/.codex/agents/openai.yaml",
+      "expectation": "implicitInvocation: Yes + strong crossSessionMessaging: Yes, both with Evidence; every other of the six primitives stays Unknown/Support::Unknown (never inherited to Yes)",
+      "status": "PASS"
+    },
+    {
+      "case": "capability manifest: bare .claude fixture (no markers)",
+      "test": "detect::tests::caps_claude_bare_fixture_declares_unprovable_fields_unknown, caps_claude_bare_fixture_declares_every_capability_unknown",
+      "fixture": "crates/enforcer-install/tests/fixtures/detect/caps-claude-bare/.claude",
+      "expectation": "all six capability fields (maxConcurrentAgents, subAgentNestingDepth, backgroundTasks, scheduledTasks, crossSessionMessaging, implicitInvocation) fail-closed to Unknown/Support::Unknown",
+      "status": "PASS"
+    },
+    {
+      "case": "Codex marker present but allow_implicit_invocation: false -> Support::No, not silently Yes/Unknown-drift into siblings",
+      "test": "detect::tests::codex_marker_without_the_true_flag_is_support_no_not_yes",
+      "expectation": "implicitInvocation: No; crossSessionMessaging stays Unknown (not upgraded from a false marker)",
+      "status": "PASS"
+    },
+    {
+      "case": "detection purity: identical inputs -> identical output",
+      "test": "detect::tests::detection_is_pure_same_inputs_yield_identical_output",
+      "expectation": "two detect_harnesses() calls against the same injected EnvSource/FsSource produce equal Vec<DetectedHarness>",
+      "status": "PASS"
+    },
+    {
+      "case": "wire shape: camelCase serde round-trip",
+      "test": "detect::tests::detected_harness_round_trips_through_json_camel_case, detect::tests::harness_id_serde_rejects_malformed_ids",
+      "expectation": "DetectedHarness/HarnessCapabilities serialize camelCase (homePath, implicitInvocation, crossSessionMessaging, ...); HarnessId rejects malformed raw strings at the serde boundary",
+      "status": "PASS"
+    }
+  ],
+  "keptExtendedReplaced": {
+    "detect.rs": "NEW (c02 owns this file per arc-23 skeleton mount-point comment in lib.rs). Pure detect_harnesses(env, fs) over injected EnvSource/FsSource traits (RealEnv/RealFs the only ambient-global touch point); HarnessId branded newtype defined crate-locally (deviation note in module doc -- workpack's owns: line does not grant enforcer-domain/src/ids.rs; flagged for a follow-up promotion); Evidence/Cap/Support/CapValue/SupportValue/HarnessCapabilities/DetectedHarness all serde camelCase; probe_specs() covers all 11 KNOWN_HARNESS_IDS (claude/codex/gemini/antigravity/cursor/windsurf/zed/opencode/aider/kilocode/kiro) with env-override-then-default-dir precedence; capability_manifest_for() currently has one concrete detector (Codex agents/openai.yaml allow_implicit_invocation) and fail-closed defaults everywhere else.",
+    "lib.rs": "EXTENDED (added `pub mod detect;`)",
+    "tests/fixtures/detect/**": "NEW -- empty-home/, caps-codex/.codex/agents/openai.yaml, caps-claude-bare/.claude/marker.txt (checked-in fixtures per the workpack's named Fixtures: row, in addition to the tempdir-generated fixtures inside detect.rs's own unit tests)",
+    "tests/detect_fixtures.rs": "NEW -- integration proof over the checked-in fixtures, distinct from src/detect.rs's tempdir-based unit tests"
+  },
+  "deviations": [
+    "HarnessId defined crate-locally in enforcer-install::detect rather than promoted into enforcer-domain::ids -- the c02 workpack's `owns:` line grants only crates/enforcer-install/src/detect.rs (+ fixtures), not enforcer-domain/src/ids.rs. Shape matches the enforcer_domain::ids::branded_string! family exactly (parse-at-boundary TryFrom<String>, serde(try_from/into = \"String\"), no bare constructor) so a follow-up promotion is a pure move. Flagged for the orchestrator/hub."
+  ],
+  "workspaceRegression": "cargo build --workspace: all crates compile clean post-change (detect module addition only touches enforcer-install)"
+}

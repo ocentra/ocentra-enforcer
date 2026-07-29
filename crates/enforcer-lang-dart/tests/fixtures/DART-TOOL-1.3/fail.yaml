@@ -1,0 +1,7 @@
+# FAIL fixture for DART-TOOL-1.3: CI has no format-check gate step.
+name: CI
+jobs:
+  build:
+    steps:
+      - run: dart analyze --fatal-infos
+      - run: flutter test

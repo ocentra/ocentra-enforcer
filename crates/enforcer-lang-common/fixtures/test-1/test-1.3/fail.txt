@@ -1,0 +1,4 @@
+// Fixture for TEST-1.3: Hidden, focused, or ignored tests are forbidden
+// Ported from legacy validator id `common/skipped-focused-tests` (see rules/rules.json doc: rules/common/tests.md#covered-rules).
+// This line trips the rule:
+ENFORCER_TEST_1_3_MARKER

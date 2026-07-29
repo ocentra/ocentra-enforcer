@@ -1,0 +1,4 @@
+// Fixture for CFG-1.1: Strict profiles must fail on errors
+// Ported from legacy validator id `common/config-lockdown` (see rules/rules.json doc: rules/common/policy.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CFG_1_1_MARKER

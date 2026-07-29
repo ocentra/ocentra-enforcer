@@ -1,0 +1,5 @@
+// Fixture for LIT-1.7: SQL fragment literals require review
+// Clean source — no occurrence of the LIT-1.7 marker below.
+fn clean_example() {
+    // conformant with common/literal-risk
+}

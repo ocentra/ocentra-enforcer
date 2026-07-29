@@ -1,0 +1,26 @@
+[package]
+name = "enforcer-literal-scan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Scored (T2) string-literal risk scanner (arc-13): folded in from the standalone Tools/ocentra-literal-scan tool. SKELETON per WORKPACK_INDEX -- e01 owns the enforcer-validator bridge (src/bridge.rs); this crate owns the scanner engine itself, retargeted onto enforcer-domain/enforcer-core brands at its public boundary."
+publish = false
+
+[lib]
+name = "enforcer_literal_scan"
+path = "src/lib.rs"
+
+[[bin]]
+name = "enforcer-literal-scan"
+path = "src/main.rs"
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: The literal scanner emits branded domain findings,
+# uses core error contracts, and exposes the validator bridge.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true

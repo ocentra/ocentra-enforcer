@@ -42,11 +42,42 @@ So "adding a language" = declare its node-type name arrays + register extension 
 
 **Tier 1 (30):** AWK, Cap'n Proto, CFML, Clojure, Emacs Lisp, Fennel, Fish, Go Template, HCL, Kconfig, LLVM IR, Luau, MATLAB, Meson, Nix, Pine, Pkl, Prisma, Protobuf, Racket, Scheme, Smali, Smithy, SQL, TableGen, Tcl, Teal, Thrift, WIT, Zsh
 
-**Tier 0 (45):** Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree, Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON, JSON5, K8s, KDL, Kustomize, Linker Script, Liquid, Markdown, Mermaid, PO, Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
+**Tier 0 (45):** Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree, Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON, JSON5, K8s†, KDL, Kustomize†, Linker Script, Liquid, Markdown, Mermaid, PO, Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML — all landed via G2.5 except † (deliberately deferred, see above).
 
-## Where we stand (our 10)
+## Where we stand — two separate finish lines, don't conflate them
 
-Rust, TypeScript, Python, Go, Java, C, C++, C#, PHP at Tier 3; JavaScript at Tier 2 (matches baseline — JS gets no decorators/inherits walker there either). **Missing: 25 Tier-3 + ~47 Tier-2 + all Tier-1/0.** TSX is a distinct grammar/spec from TS in the baseline — we currently fold it into TS; it needs its own spec row.
+**Finish line 1 — onboarding (recognize the language, extract defs/calls/imports): 156/158
+done.** Only K8s and Kustomize remain, both *deliberately deferred* (need a filename-gated
+semantic pass layered on YAML — `cbm_extract_k8s()` in the baseline, `cbm.h:614` — that this
+crate's YAML pipeline doesn't have yet; documented at the deferral site in `parsers/mod.rs`).
+Every other registered language, all 34 Tier-3 + 49 Tier-2 + 30 Tier-1 + 43 of 45 Tier-0, is
+landed on `rust-build`. TSX has its own spec row (distinct from TS, matching the baseline).
+
+**Finish line 2 — full parity (the actual bar: same extraction *depth* as the C baseline, not
+just presence): NOT done.** See wave G3 (`03-WAVE-G3-rich-and-parity.md`) — inheritance and
+route edges are close to greenfield for ~20+ of the 34 Tier-3 languages (onboarded with those
+explicitly deferred, no generic engine fallback exists yet for either), decorators are only
+partially verified, and none of this has been live-verified against the actual C binary yet.
+Scoped, not started.
+
+Landed via: G1/G1b (engine + original 10), G2.1 (11 langs), G2.2 (24 langs), G2.3 (39 langs,
+completing Tier-2 as then understood), G2.4 (29 langs, completing Tier-1 — see the
+lost-update-collision lesson in `refs/orchestration-lessons.md`: 20 of 29 G2.4 languages were
+silently wiped mid-wave by a concurrent-write race and had to be recovered via systematic
+post-hoc grep verification), G2.5 (42 Tier-0 langs, closing a dispatch-wiring gap G2.5d
+deliberately left open for 11 of its languages — `LangSpec`+`generic.rs` existed but were
+never reachable via `Language`/`classify()`/`parse_file()`/`LanguageTag`; wired by the
+orchestrator directly), G2.6 (Agda + FORM — found genuinely missing during G2.5's closeout
+audit against the C baseline's `CBM_LANG_*` identifiers, despite being listed as "done" in an
+earlier version of this doc's Tier-2 roster; the roster was wrong, not the code — onboarded
+from the baseline's own vendored grammars, since neither has a maintained crates.io crate).
+
+**Remaining onboarding gap: K8s and Kustomize only** — deferred, not missed, for the reason
+above.
+
+Note: `CBM_LANG_NIM` does not appear in the baseline's live `lang_specs.c` identifiers at all
+(prior sessions treated it as a dead stub to subtract from 158 — it isn't present to subtract
+in the first place under the current baseline checkout, so the working total is 158, not 157).
 
 ## The real long pole: grammar sourcing
 
@@ -55,7 +86,7 @@ Not extractor logic — tree-sitter grammar availability for Rust. Mainstream ~4
 ## Wave plan (see sibling files)
 
 - **G1** — build the generic spec-table extractor engine in Rust; prove it reproduces our existing 10 on their current fixtures (no regression). `01-WAVE-G1-engine.md`
-- **G2** — port the 158 spec rows (data copy from lang_specs.c) + onboard grammars in staged batches (mainstream deep-tier → bulk → exotic). `02-WAVE-G2-spec-and-grammars.md`
+- **G2** — port the 158 spec rows (data copy from lang_specs.c) + onboard grammars in staged batches (mainstream deep-tier → bulk → exotic). **Done through G2.6** — 156/158, only K8s/Kustomize deferred. `02-WAVE-G2-spec-and-grammars.md`
 - **G3** — rich-tier passes (inherits/deep-type-refs/decorators/routes) for Tier-3 langs + full live parity re-verification vs the C binary across the language set; regenerate proof. `03-WAVE-G3-rich-and-parity.md`
 
 ## Non-negotiables (carry from prior waves)

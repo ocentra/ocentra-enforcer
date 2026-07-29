@@ -15,67 +15,43 @@ import {
   isEnforcerToolingPath,
   isImportLikeLine,
   isTestPath,
-  rawConfigBoundaryText,
 } from "./generic-scanner-shared.mjs";
+import { scanBoundaryRules } from "./generic-common-boundary-ownership.mjs";
+import { domainSignatureLeaksBoundaryType } from "./generic-common-boundary-signatures.mjs";
 
 function addSourceOwnershipViolation(violations, root, filePath, line, ruleId, detail, source) {
   addViolation(violations, root, filePath, line, ruleId, detail, source);
 }
 
-function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
-  if (!BOUNDARY_PATH_RE.test(rel)) return;
-  if (!/\bBOUNDARY-INVARIANT:/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.1", "boundary file lacks BOUNDARY-INVARIANT documentation.", rel);
+function rustImportTargetsDifferentQualifiedModule(rel, importText) {
+  if (!rel.endsWith(".rs")) return false;
+  const sourceSegments = rel
+    .replace(/^(?:.*?\/)?src\//u, "")
+    .replace(/(?:\/mod)?\.rs$/u, "")
+    .split("/")
+    .filter(Boolean);
+  const basename = sourceSegments.at(-1);
+  if (!basename) return false;
+
+  const imports = importText.matchAll(
+    /\buse\s+(?<root>crate|self|super)::(?<path>[A-Za-z_][A-Za-z0-9_:]*)/gu,
+  );
+  for (const match of imports) {
+    const importedSegments = (match.groups?.path ?? "").split("::").filter(Boolean);
+    const basenameIndex = importedSegments.lastIndexOf(basename);
+    if (basenameIndex < 0) continue;
+    const importedModuleSegments = importedSegments.slice(0, basenameIndex + 1);
+    let resolved;
+    if (match.groups?.root === "crate") {
+      resolved = importedModuleSegments;
+    } else if (match.groups?.root === "super") {
+      resolved = [...sourceSegments.slice(0, -1), ...importedModuleSegments];
+    } else {
+      resolved = [...sourceSegments, ...importedModuleSegments];
+    }
+    if (resolved.join("::") !== sourceSegments.join("::")) return true;
   }
-  if (/\braw(?:Input|Dto|DTO|Payload|Body)?\b|:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u.test(text) && !/\b(?:toDomain|fromRaw|parse|decode|validate)\b/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);
-  }
-  if (/\b(?:if|switch|match)\b[\s\S]{0,120}\b(?:business|domain|role|plan|entitlement|policy)\b/iu.test(text)) {
-    addSourceOwnershipViolation(
-      violations,
-      root,
-      filePath,
-      firstMatchingLine(lines, /\b(?:business|domain|role|plan|entitlement|policy)\b/iu),
-      "BOUND-1.3",
-      "domain decision logic found in boundary file.",
-      rel,
-    );
-  }
-  if (!/\b(?:invalid|malformed|negative|reject|throws?|pytest\.raises)\b/iu.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.5", "boundary file lacks negative invalid-input coverage marker.", rel);
-  }
-  const rawTypeCount = countTextMatches(text, /\b(?:Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/g);
-  if (rawTypeCount > 3) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.6", `boundary raw type count ${rawTypeCount} exceeds budget 3.`, rel);
-  }
-  if (!/\b(?:BOUNDARY-WAIVER|boundaryOwnerNote|waiverId)\b/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.7", "boundary file lacks waiver/owner marker for boundary expansion.", rel);
-  }
-  if (/^(?:utils?|helpers?)\./iu.test(rel.split("/").at(-1) ?? "")) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.8", "boundary file uses utility/helper filename.", rel);
-  }
-  if (/\b(?:export\s+)?(?:function|const|def|fn)\s+\w+[^){]*\([^)]*(?:Dto|DTO|Payload|Raw|Request)[^)]*\)[^{;]*(?:Dto|DTO|Payload|Raw|Request)/u.test(text)) {
-    addSourceOwnershipViolation(
-      violations,
-      root,
-      filePath,
-      firstMatchingLine(lines, /(?:Dto|DTO|Payload|Raw|Request)/u),
-      "BOUND-1.9",
-      "boundary DTO leaks into public/domain signature.",
-      rel,
-    );
-  }
-  if (/\b(?:toDomain|fromRaw|parse|decode|convert)\w*\s*\([^)]*\)\s*(?::|->)\s*(?:string|str|boolean|bool|void|unknown|any)\b/iu.test(text)) {
-    addSourceOwnershipViolation(
-      violations,
-      root,
-      filePath,
-      firstMatchingLine(lines, /\b(?:toDomain|fromRaw|parse|decode|convert)/iu),
-      "BOUND-1.10",
-      "boundary conversion returns untyped primitive/error shape.",
-      rel,
-    );
-  }
+  return false;
 }
 
 function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, text, importText) {
@@ -87,11 +63,13 @@ function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, 
   if (domainFile && /(?:\/boundary|\/boundaries|\/transport|\/codec|\/decoder|\/adapter|\/adapters)/iu.test(importText)) {
     addSourceOwnershipViolation(violations, root, filePath, firstMatchingLine(lines, /(?:^\s*import\b|^\s*export\b.*\bfrom\b|^\s*(?:const|let|var)\s+\w+\s*=\s*require\(|^\s*use\s+)/u), "BOUND-1.4", "domain file imports boundary/adapter module.", rel);
   }
-  if (!enforcerToolingFile && (rawConfigBoundaryText(text) || /rawTypeBoundaryGlobs/u.test(text)) && !/\b(?:boundaryOwnerNote|waiverId|BOUNDARY-WAIVER)\b/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.7", "boundary glob addition lacks waiver or owner note.", rel);
-  }
-  if (!enforcerToolingFile && (COPIED_BLOCK_RE.test(text) || hasLargeRepeatedBlock(lines))) {
+  const copiedBlockClaim = [...text.matchAll(new RegExp(COPIED_BLOCK_RE.source, "giu"))]
+    .some((match) => !/\b(?:no code is|not|never)[\s\S]{0,80}$/iu.test(text.slice(Math.max(0, (match.index ?? 0) - 80), match.index)));
+  if (!enforcerToolingFile && (copiedBlockClaim || hasLargeRepeatedBlock(lines))) {
     addSourceOwnershipViolation(violations, root, filePath, firstMatchingLine(lines, COPIED_BLOCK_RE), "SRC-2.11", "copied or repeated source block found.", rel);
+  }
+  if (domainFile && !BOUNDARY_PATH_RE.test(rel) && domainSignatureLeaksBoundaryType(text)) {
+    addSourceOwnershipViolation(violations, root, filePath, firstMatchingLine(lines, /(?:Dto|DTO|Payload|Raw|Request)/u), "BOUND-1.9", "boundary DTO leaks into public/domain signature.", rel);
   }
   const duplicateFunction = firstDuplicateFunctionName(lines);
   if (duplicateFunction) {
@@ -135,7 +113,7 @@ function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, 
   if (!isCoordinationVendorToolingPath(rel) && /(?:^|\/)(?:main|cli|bin)\.(?:ts|tsx|js|mjs|rs|py)$/iu.test(rel) && /(?:\/domain|\/core|\/infra|\/db)/iu.test(importText) && !/(?:\/app|\/application|\/boundary)/iu.test(importText)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "ARCH-1.8", "CLI/main imports outside application boundary.", rel);
   }
-  if (!enforcerToolingFile && (/(?:circular import|cycle detected|imports itself)/iu.test(text) || importsOwnModule(rel, text))) {
+  if (!enforcerToolingFile && (/(?:circular import|cycle detected|imports itself)/iu.test(importText) || importsOwnModule(rel, importText))) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "ARCH-1.9", "circular import marker or self-import found.", rel);
   }
   const exportCount = countTextMatches(text, /^\s*export\s+(?:class|function|const|let|var|type|interface|enum|default|\{|\*)/gmu);
@@ -153,6 +131,7 @@ function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, 
   }
 }
 
+/** Scans source ownership declarations for policy violations. */
 export function scanSourceOwnershipPolicy(root, filePath, rel, lines) {
   const violations = [];
   const text = lines.join("\n");

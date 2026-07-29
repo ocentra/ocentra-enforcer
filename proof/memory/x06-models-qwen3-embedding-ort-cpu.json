@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
+  "allowNetwork": true,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "defaultProbeFilter": "chat",
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "reason": "one real model probe at a time by default to avoid resource contention or host instability",
+    "requestedProbeFilter": "embedding-onnx",
+    "selectedProbes": [
+      "qwen-embedding-onnx"
+    ]
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
+    "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "ornith-1.0-9b-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "dimension": 1024,
+    "head": [
+      -0.26558440923690796,
+      -0.7536291480064392,
+      -0.9868749380111694,
+      -7.677463054656982,
+      -1.208500623703003,
+      1.13072669506073,
+      0.4902366101741791,
+      4.636831283569336
+    ],
+    "ok": true,
+    "operation": "qwen-embedding-onnx",
+    "workerTask": "embedding",
+    "provider": "cpu",
+    "ownership": "enforcer-isolated-worker",
+    "requestProtocol": "enforcer-worker-env",
+    "externalServerAllowed": false,
+    "portBindingAllowed": false,
+    "killOnTimeout": true,
+    "timeoutMs": 30000,
+    "providerResolution": {
+      "requestedProvider": "cpu",
+      "resolvedProvider": "cpu",
+      "availableProviders": [
+        "cpu"
+      ],
+      "providerProbePassed": true,
+      "downgradeReason": null
+    }
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "successful-local-load",
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "task": "embedding",
+        "provider": "cpu",
+        "loadedFromLocalCache": true
+      }
+    }
+  ]
+}

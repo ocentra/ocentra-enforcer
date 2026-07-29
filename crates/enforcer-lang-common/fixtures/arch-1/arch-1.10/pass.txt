@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.10: Import boundary config requires tests
+// Clean source — no occurrence of the ARCH-1.10 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

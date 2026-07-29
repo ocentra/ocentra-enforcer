@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.10: Waivers require remediation plans
+// Clean source — no occurrence of the WAIVER-1.10 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

@@ -1,0 +1,45 @@
+[package]
+name = "enforcer-events"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Typed in-process event runtime using canonical enforcer-domain values, with contract-verified storage, panic-isolated dispatch, journaling, queueing, and request/response."
+publish = false
+
+[dependencies]
+# DEPENDENCY-JUSTIFICATION: timestamped event envelopes and durable journal records.
+chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde", "std"] }
+# DEPENDENCY-JUSTIFICATION: async stream and future composition for event delivery.
+futures = "0.3.31"
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "rt", "sync", "time"] }
+# DEPENDENCY-JUSTIFICATION: canonical event IDs, statuses, counts, durations, and journal brands shared across crates.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "contract"
+path = "tests/contract/mod.rs"
+
+[[test]]
+name = "integration"
+path = "tests/integration/mod.rs"
+
+[[test]]
+name = "journal_replay"
+path = "tests/journal_replay/mod.rs"
+
+[[test]]
+name = "unit"
+path = "tests/unit/mod.rs"
+
+[[test]]
+name = "version_skew"
+path = "tests/version-skew/mod.rs"

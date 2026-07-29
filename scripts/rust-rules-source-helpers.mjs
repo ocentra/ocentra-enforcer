@@ -1,5 +1,6 @@
 export {
   collectFunctionSignatures,
+  enclosingRustScope,
   functionName,
   functionParams,
 } from "./rust-rules-source-signatures.mjs";

@@ -1,0 +1,5 @@
+// Fixture for GEN-2.9: Generated code cannot live in domain modules
+// Clean source — no occurrence of the GEN-2.9 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

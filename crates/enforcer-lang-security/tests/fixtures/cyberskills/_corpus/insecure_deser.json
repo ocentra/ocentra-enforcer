@@ -1,0 +1,156 @@
+[
+  {
+    "name": "python_pickle_loads",
+    "input": "obj = pickle.loads(request.cookies['session'])",
+    "expect": "flag",
+    "branch": "python-pickle",
+    "reason": "pickle.loads() on an attacker-controlled cookie is the canonical pickle RCE sink"
+  },
+  {
+    "name": "python_pickle_load_file",
+    "input": "with open(path, 'rb') as f:\n    obj = pickle.load(f)",
+    "expect": "flag",
+    "branch": "python-pickle",
+    "reason": "pickle.load() reading from a file handle is equally unsafe on untrusted files"
+  },
+  {
+    "name": "python_cpickle_loads",
+    "input": "obj = cPickle.loads(data)",
+    "expect": "flag",
+    "branch": "python-pickle",
+    "reason": "cPickle.loads() is the Python 2 C-accelerated pickle module, same sink"
+  },
+  {
+    "name": "python_marshal_loads",
+    "input": "code_obj = marshal.loads(cached_bytes)",
+    "expect": "flag",
+    "branch": "python-marshal",
+    "reason": "marshal.loads() has no security guarantees for untrusted bytes"
+  },
+  {
+    "name": "python_yaml_load_default_loader",
+    "input": "config = yaml.load(user_supplied_yaml)",
+    "expect": "flag",
+    "branch": "python-yaml",
+    "reason": "yaml.load() without SafeLoader can construct arbitrary Python objects"
+  },
+  {
+    "name": "python_yaml_load_full_loader_still_unsafe",
+    "input": "config = yaml.load(user_supplied_yaml, Loader=yaml.FullLoader)",
+    "expect": "flag",
+    "branch": "python-yaml",
+    "reason": "FullLoader is not SafeLoader; the spec's only exemption is SafeLoader"
+  },
+  {
+    "name": "ruby_marshal_load",
+    "input": "obj = Marshal.load(params[:blob])",
+    "expect": "flag",
+    "branch": "ruby-marshal",
+    "reason": "Ruby Marshal.load() on untrusted input executes attacker-controlled object graphs"
+  },
+  {
+    "name": "ruby_yaml_load",
+    "input": "config = YAML.load(uploaded_file.read)",
+    "expect": "flag",
+    "branch": "ruby-yaml",
+    "reason": "Ruby YAML.load() (Psych) can instantiate arbitrary objects from the document"
+  },
+  {
+    "name": "php_unserialize",
+    "input": "$user = unserialize($_COOKIE['user_data']);",
+    "expect": "flag",
+    "branch": "php-unserialize",
+    "reason": "classic PHP object injection sink via unserialize() on a client-controlled cookie"
+  },
+  {
+    "name": "java_object_input_stream_construction",
+    "input": "ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());",
+    "expect": "flag",
+    "branch": "java-ois",
+    "reason": "constructing ObjectInputStream over untrusted network bytes is the ysoserial entry point"
+  },
+  {
+    "name": "java_read_object_call",
+    "input": "MyPayload payload = (MyPayload) ois.readObject();",
+    "expect": "flag",
+    "branch": "java-readobject",
+    "reason": "readObject() is the Java deserialization magic method gadget chains ride in on"
+  },
+  {
+    "name": "dotnet_binary_formatter",
+    "input": "var formatter = new BinaryFormatter();",
+    "expect": "flag",
+    "branch": "dotnet-binaryformatter",
+    "reason": "BinaryFormatter is unsafe by design and deprecated by Microsoft for this reason"
+  },
+  {
+    "name": "clean_python_json_loads",
+    "input": "obj = json.loads(request.cookies['session'])",
+    "expect": "clean",
+    "branch": "python-pickle",
+    "reason": "json.loads() has no gadget-chain surface; not a pickle/marshal call"
+  },
+  {
+    "name": "clean_python_pickle_dumps_not_loads",
+    "input": "payload = pickle.dumps(obj)",
+    "expect": "clean",
+    "branch": "python-pickle",
+    "reason": "pickle.dumps() serializes, it does not deserialize attacker input"
+  },
+  {
+    "name": "clean_python_yaml_safe_load",
+    "input": "config = yaml.safe_load(user_supplied_yaml)",
+    "expect": "clean",
+    "branch": "python-yaml",
+    "reason": "yaml.safe_load() is PyYAML's documented safe-loading spelling"
+  },
+  {
+    "name": "clean_python_yaml_load_with_safe_loader",
+    "input": "config = yaml.load(user_supplied_yaml, Loader=yaml.SafeLoader)",
+    "expect": "clean",
+    "branch": "python-yaml",
+    "reason": "explicit Loader=yaml.SafeLoader is the safe-loading idiom the spec exempts"
+  },
+  {
+    "name": "clean_python_near_miss_identifier_not_module",
+    "input": "obj = custom_pickle.loads(data)",
+    "expect": "clean",
+    "branch": "python-pickle",
+    "reason": "custom_pickle is a distinct identifier (word char before \"pickle\"), not the pickle/cPickle module"
+  },
+  {
+    "name": "clean_ruby_yaml_safe_load",
+    "input": "config = YAML.safe_load(uploaded_file.read)",
+    "expect": "clean",
+    "branch": "ruby-yaml",
+    "reason": "YAML.safe_load is Ruby's safe-loading counterpart to Python's yaml.safe_load"
+  },
+  {
+    "name": "clean_php_json_decode_not_unserialize",
+    "input": "$user = json_decode($_COOKIE['user_data'], true);",
+    "expect": "clean",
+    "branch": "php-unserialize",
+    "reason": "json_decode() is the recommended safe replacement for unserialize()"
+  },
+  {
+    "name": "clean_php_near_miss_identifier_not_call",
+    "input": "function json_unserialize_helper($x) { return $x; }",
+    "expect": "clean",
+    "branch": "php-unserialize",
+    "reason": "json_unserialize_helper is one identifier, not a call to the unserialize() sink"
+  },
+  {
+    "name": "clean_java_object_mapper",
+    "input": "MyPayload payload = objectMapper.readValue(body, MyPayload.class);",
+    "expect": "clean",
+    "branch": "java-ois",
+    "reason": "Jackson's ObjectMapper.readValue() is data-only JSON binding, not Java native serialization"
+  },
+  {
+    "name": "clean_dotnet_json_serializer",
+    "input": "var data = JsonSerializer.Deserialize<MyPayload>(json);",
+    "expect": "clean",
+    "branch": "dotnet-binaryformatter",
+    "reason": "System.Text.Json's JsonSerializer is the recommended data-only replacement"
+  }
+]

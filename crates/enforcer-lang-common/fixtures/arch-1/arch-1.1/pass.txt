@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.1: Domain cannot import infrastructure
+// Clean source — no occurrence of the ARCH-1.1 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

@@ -1,0 +1,126 @@
+=== cargo test -p enforcer-domain ===
+running 35 tests
+test hashes::tests::rejects_malformed_digests ... ok
+test hashes::tests::accepts_core_hash_chain_output ... ok
+test findings::tests::violation_requires_error_severity ... ok
+test ids::tests::threat_id_accepts_mitre_cwe_owasp_and_rejects_junk ... ok
+test paths::tests::rel_path_accepts_relative_and_normalizes_backslashes ... ok
+test ids::tests::serde_round_trips_valid_ids ... ok
+test hashes::tests::serde_round_trip_preserves_wire_form ... ok
+test ids::tests::hub_and_lane_ids_validate ... ok
+test ids::tests::correlation_and_causation_ids_validate ... ok
+test ids::tests::serde_rejects_malformed_at_the_boundary ... ok
+test findings::tests::scan_scope_wire_form_is_lowercase ... ok
+test ids::tests::rule_id_accepts_valid_and_rejects_malformed ... ok
+test findings::tests::finding_wire_form_is_camel_case ... ok
+test findings::tests::report_round_trips_and_boundary_rejects_bad_violation ... ok
+test paths::tests::resolve_joins_root_and_rel_typed_so_only_relpath_is_accepted ... ok
+test paths::tests::resolve_and_relativize_round_trip ... ok
+test paths::tests::serde_boundary_enforces_path_rules ... ok
+test records::tests::scan_event_round_trips ... ok
+test run_record::tests::new_computes_scope_count_from_slice ... ok
+test records::tests::boundary_rejects_unknown_event_type_and_bad_ids ... ok
+test records::tests::run_event_round_trips_with_camel_case_and_version ... ok
+test records::tests::diagnostic_record_round_trips ... ok
+test run_record::tests::boundary_rejects_unknown_exit_status ... ok
+test run_record::tests::finding_counts_total_sums_all_severities ... ok
+test records::tests::artifact_ref_round_trips_with_branded_digest ... ok
+test severity::tests::severity_wire_form_is_lowercase ... ok
+test severity::tests::tier_wire_form_round_trips ... ok
+test paths::tests::relativize_strips_root_and_validates_the_remainder ... ok
+test paths::tests::repo_root_rejects_relative_and_empty ... ok
+test paths::tests::repo_root_accepts_absolute_forms_and_normalizes ... ok
+test records::tests::records_ride_the_core_ndjson_sink ... ok
+test paths::tests::rel_path_rejects_absolute_and_escaping ... ok
+test paths::tests::relativize_rejects_paths_outside_the_root_or_equal_to_it ... ok
+test run_record::tests::wire_form_is_camel_case_and_round_trips ... ok
+test severity::tests::severity_rejects_unknown_variants ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+
+   Doc-tests enforcer_domain
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+TEST_EXIT=0
+
+=== cargo build --workspace ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 52m 20s
+WSBUILD_EXIT=0
+
+=== cargo clippy -p enforcer-domain --all-targets -- -D warnings ===
+(only pre-existing ts-rs macro "failed to parse serde attribute" notices, present
+workspace-wide on every #[serde(try_from = "String", into = "String")] /
+#[serde(skip_serializing_if = ...)] attribute; zero clippy lint warnings, zero
+-D warnings violations, zero #[allow] added by this workpack)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11m 00s
+CLIPPY_EXIT=0
+
+=== compile-reject fixture (manual, proved at review time -- see acceptance
+criterion "private field + distinct types make RelPath substituting for
+RepoRoot a compile error") ===
+The following does NOT compile against crates/enforcer-domain/src/paths.rs:
+
+    fn takes_root(_r: &enforcer_domain::paths::RepoRoot) {}
+    fn bad(rel: enforcer_domain::paths::RelPath) {
+        takes_root(&rel); // expected `&RepoRoot`, found `&RelPath`
+    }
+
+    fn bad_resolve(
+        root: &enforcer_domain::paths::RepoRoot,
+        other_root: &enforcer_domain::paths::RepoRoot,
+    ) {
+        root.resolve(other_root); // expected `&RelPath`, found `&RepoRoot`
+    }
+
+Both fail with E0308 (mismatched types): RepoRoot(String) and RelPath(String)
+are distinct newtypes with private inner fields and no From/Into conversion
+between them; RepoRoot::resolve's signature is
+`fn resolve(&self, rel: &RelPath) -> String`, so there is no overload
+accepting a second RepoRoot, and no method anywhere in the module accepts
+two RelPaths as a base.
+
+=== seeded-violation cases (Requirement Checklist / Acceptance And Proof) ===
+- absolute-passed-as-relative -> RelPath::try_from fails closed:
+  paths::tests::rel_path_rejects_absolute_and_escaping
+  (`/abs/path`, `C:\abs` both rejected)
+- `..` escape above root -> RelPath::try_from fails closed:
+  paths::tests::rel_path_rejects_absolute_and_escaping (`../escape`,
+  `a/../../escape`)
+- Windows/POSIX separator normalization at mint time:
+  paths::tests::repo_root_accepts_absolute_forms_and_normalizes (drive-letter,
+  UNC, POSIX roots all normalize to forward-slash form),
+  paths::tests::rel_path_accepts_relative_and_normalizes_backslashes
+- serde boundary rejects malformed input, never falls back to a default:
+  paths::tests::serde_boundary_enforces_path_rules
+- relativize fails closed when the path does not fall under the root, or
+  equals the root with no remainder to strip (never silently returns an
+  empty RelPath):
+  paths::tests::relativize_rejects_paths_outside_the_root_or_equal_to_it
+- resolve/relativize round-trip (root.relativize(root.resolve(rel)) == rel):
+  paths::tests::resolve_and_relativize_round_trip
+
+=== kept / extended / replaced ===
+crates/enforcer-domain/src/paths.rs: EXTENDED (pre-existing RepoRoot/RelPath
+branded newtypes -- private field, parse-at-boundary TryFrom<String>/FromStr,
+serde try_from/into, ts_rs::TS, Windows-drive/UNC/POSIX detection, `..`-escape
+rejection -- were already landed and already consumed by ~20 files across
+enforcer-validator, enforcer-lang-rust, enforcer-ui, enforcer-cli,
+enforcer-coordination, enforcer-memory). This workpack added the two missing
+Requirement Checklist items: RepoRoot::resolve(&RelPath) -> String and
+RepoRoot::relativize(&str) -> Result<RelPath, DecodeError>, plus 4 new tests.
+No consumer import path changed (module stays `paths`, not the workpack's
+literal `path.rs`, to avoid an unrelated ~20-file rename).
+
+=== deviations ===
+- Workpack names the owned file `crates/enforcer-domain/src/path.rs`
+  (singular); the module that actually exists and is wired into ~20 consumer
+  files is `crates/enforcer-domain/src/paths.rs` (plural, `pub mod paths;` in
+  lib.rs). Extended paths.rs in place rather than creating/renaming to
+  path.rs, to avoid breaking every existing `enforcer_domain::paths::...`
+  import for a purely cosmetic path match. All other Requirement Checklist
+  items (private field, parse-at-boundary constructor, serde+TS derive,
+  separator normalization, fail-closed `..`-escape rejection) were already
+  present before this workpack ran and are unchanged.

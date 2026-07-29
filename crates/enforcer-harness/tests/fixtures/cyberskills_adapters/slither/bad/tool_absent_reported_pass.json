@@ -1,0 +1,7 @@
+{
+  "adapter": "slither",
+  "toolPresent": false,
+  "outcome": "pass",
+  "ran": 0,
+  "findings": []
+}

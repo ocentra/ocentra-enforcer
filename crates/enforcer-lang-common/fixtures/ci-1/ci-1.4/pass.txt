@@ -1,0 +1,5 @@
+// Fixture for CI-1.4: CI must run multi-language tests
+// Clean source — no occurrence of the CI-1.4 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

@@ -1,0 +1,4 @@
+// Fixture for REPO-1.15: Generated schema artifacts must not drift
+// Ported from legacy validator id `repo-governance` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_REPO_1_15_MARKER

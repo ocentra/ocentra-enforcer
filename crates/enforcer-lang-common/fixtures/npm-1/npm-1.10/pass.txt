@@ -1,0 +1,5 @@
+// Fixture for NPM-1.10: Dependency licenses must match policy
+// Clean source — no occurrence of the NPM-1.10 marker below.
+fn clean_example() {
+    // conformant with dependency-policy
+}

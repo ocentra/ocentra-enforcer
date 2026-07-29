@@ -1,0 +1,5 @@
+// Fixture for CI-1.15: CI must run on pull requests and main
+// Clean source — no occurrence of the CI-1.15 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

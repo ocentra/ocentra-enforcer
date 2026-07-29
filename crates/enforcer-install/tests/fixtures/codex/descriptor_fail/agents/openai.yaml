@@ -1,0 +1,5 @@
+This is a hand-corrupted descriptor: no `display_name:`/
+`allow_implicit_invocation: true` fields at all, so
+`CodexAdapter::validate_agent_descriptor` must reject it and `verify`
+must report `passed: false` for the `agent-descriptor-present` check —
+never a silent skip.

@@ -1,0 +1,5 @@
+// Fixture for ENF-1.8: Violation reports must be complete
+// Clean source — no occurrence of the ENF-1.8 marker below.
+fn clean_example() {
+    // conformant with common/report-shape
+}

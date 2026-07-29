@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.6: Waivers must remain visible in output
+// Clean source — no occurrence of the WAIVER-1.6 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

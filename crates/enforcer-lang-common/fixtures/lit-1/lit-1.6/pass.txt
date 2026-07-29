@@ -1,0 +1,5 @@
+// Fixture for LIT-1.6: Raw JSON blob literals require review
+// Clean source — no occurrence of the LIT-1.6 marker below.
+fn clean_example() {
+    // conformant with common/literal-risk
+}

@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.10: Boundary conversion functions return typed errors
+// Clean source — no occurrence of the BOUND-1.10 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

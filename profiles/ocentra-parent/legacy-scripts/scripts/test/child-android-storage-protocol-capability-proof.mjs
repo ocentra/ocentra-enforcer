@@ -202,7 +202,7 @@ async function assertScriptWiring() {
   const packageJson = JSON.parse(await readRepoFile('package.json'));
   const schemaDomainPackage = JSON.parse(await readRepoFile('packages/schema-domain/package.json'));
   const script = packageJson.scripts['test:child-android-storage-protocol-capability-proof'];
-  if (script !== `node scripts/test/${proofMode}.mjs`) {
+  if (script !== `node scripts/enforcer/run-ocentra-enforcer.mjs proof run --proof ocentra-parent.${proofMode}`) {
     throw new Error('Missing root test:child-android-storage-protocol-capability-proof script.');
   }
   if (!schemaDomainPackage.exports['./child-android-storage-protocol-proof']) {

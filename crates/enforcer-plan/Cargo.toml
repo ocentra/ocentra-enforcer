@@ -1,0 +1,48 @@
+[package]
+name = "enforcer-plan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Track B: the plan scaffolder (emits workpack-skeleton documents) and the PLAN-* structure validators (agent-capsule / owns-deps-tier / required-sections / disjoint-owns parallel-safety / resume-state / stale-proof-row checks) that enforce the plan-document contract this workspace's own docs/plans/** are authored under."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Plan validation emits shared core findings, uses
+# branded domain values, resolves workspace configuration, and evaluates the
+# canonical rule and validator contracts.
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Plan resolution reads the typed effective policy
+# before evaluating plan and workpack validation rules.
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Plan findings are anchored to canonical registered
+# rule definitions rather than duplicated local identifiers.
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: PLAN validators implement the shared validation
+# contract consumed by scan and proof execution surfaces.
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+# b04 orchestrator binding drives the arc-16 hub/lane/claim/guard/closeout API
+# read-only through its public surface (Hub/CallerContext/claim_all/release/
+# closeout) — no parallel coordination store per the workpack's own note.
+enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
+
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Plan parser properties exercise arbitrary
+# workpack text and prove the typed parser remains total and panic-free.
+proptest = "=1.9.0"
+# DEPENDENCY-JUSTIFICATION: External plan tests use isolated temporary trees
+# to verify scaffold overwrite and filesystem validation behavior.
+tempfile = "=3.27.0"
+# b05's `tests/self_validate.rs` integration test asserts the
+# `commands/plan.rs` `/plan` command emitter dispatches through the real
+# `enforcer` binary invocation (not a stub). Dev-only, test-scoped edge;
+# `enforcer-install` does not depend on `enforcer-plan` (no cycle).
+enforcer-install = { path = "../enforcer-install", version = "0.1.0" }
+
+[lints]
+workspace = true

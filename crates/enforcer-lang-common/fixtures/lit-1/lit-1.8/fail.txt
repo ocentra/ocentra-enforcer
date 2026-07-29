@@ -1,0 +1,4 @@
+// Fixture for LIT-1.8: Shell fragment literals require review
+// Ported from legacy validator id `common/literal-risk` (see rules/rules.json doc: rules/common/literal-risk.md#covered-rules).
+// This line trips the rule:
+ENFORCER_LIT_1_8_MARKER

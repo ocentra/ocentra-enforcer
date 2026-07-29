@@ -1,0 +1,5 @@
+// Fixture for CONTRACT-1.1: Single-source contract values must not be copied
+// Clean source — no occurrence of the CONTRACT-1.1 marker below.
+fn clean_example() {
+    // conformant with common/single-source-contracts
+}

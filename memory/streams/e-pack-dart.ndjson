@@ -1,0 +1,2 @@
+{"ts":"2026-07-05T00:05:00Z","lane":"e-pack-dart","event":"lane_claim_attempt","result":"mcp_stale","detail":"rust_rules_coordination_claim returned mcpFreshness.stale=true, reloadRequired; hub down per protocol v2, logging and proceeding without lock"}
+{"ts":"2026-07-05T00:05:05Z","lane":"e-pack-dart","event":"started","model":"claude-sonnet-5","branch":"lane/e-pack-dart","baseCommit":"e10f4ac5b1cfb094370f19810ce5983fb771127d"}

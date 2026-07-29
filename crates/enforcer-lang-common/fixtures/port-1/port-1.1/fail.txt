@@ -1,0 +1,5 @@
+# Fixture for PORT-1.1: platform-specific script commands must be guarded
+# Under the Undeclared scope (no supportedPlatforms declared), this
+# unguarded Windows-only invocation fails regardless of platform.
+call build.ps1 --release
+run scripts/build.sh

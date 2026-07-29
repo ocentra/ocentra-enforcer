@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.11: Public API surface is budgeted
+// Clean source — no occurrence of the ARCH-1.11 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

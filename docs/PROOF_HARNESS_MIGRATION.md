@@ -1,9 +1,16 @@
-# Proof Harness Migration Contract
+# Internal Proof Harness Migration Reference
 
-Proof collection is now an Enforcer-owned v1 surface. The first implementation
-does not delete any product repo proof script, but it provides the reusable
-contracts, routing, local storage, CLI, MCP tools, and claim validation needed
-to migrate those scripts safely.
+<!-- ai-dense -->
+```yaml
+direction: "target repos expose artifacts/config; the enforcer owns proof runners, diagnostics, harness storage"
+authority_chain: "Rust source/generated artifact is truth -> mirrors (TS/Python) checked only -> enforcer validates both -> legacy scripts become thin calls or are deleted after parity"
+deletion_rule: "inventory -> map enforcer proof definitions -> PROOF-LEGACY-PARITY green -> rewire -> delete only after green parity"
+```
+<!-- /ai-dense -->
+
+This file records a proposed replacement pattern for proof collection. It is
+not current product behavior. The reusable Rust types and storage contracts
+exist, but the native proof CLI and Rust MCP proof tools are not wired.
 
 This file records the intended replacement pattern so product repos can stop
 using legacy TypeScript domain packages as proof authority.
@@ -11,32 +18,32 @@ using legacy TypeScript domain packages as proof authority.
 ## Direction
 
 Product repos should expose product artifacts and product configuration.
-Enforcer should own reusable proof runners, structured diagnostics, and harness
-storage.
+The enforcer should own reusable proof runners, structured diagnostics, and
+harness storage.
 
 For a Rust-owned contract, the authority chain should be:
 
 1. Rust source or Rust-generated artifact is the source of truth.
 2. Optional generated TypeScript/Python artifacts are checked as mirrors only.
-3. Enforcer validates the source and mirrors through named checks.
-4. Proof scripts in the product repo become thin calls into Enforcer or are
+3. the enforcer validates the source and mirrors through named checks.
+4. Proof scripts in the product repo become thin calls into the enforcer or are
    deleted after parity.
 
 Do not retain a TypeScript domain package only because old proof scripts import
 it. If runtime consumers are gone and only proof scripts remain, the migration
-path is to replace those scripts with Enforcer checks against Rust/generated
+path is to replace those scripts with the enforcer checks against Rust/generated
 outputs.
 
-## Implemented v1 Surface
+## Intended Surface
 
 - `proof/INDEX.md`: agent decision tree for proof routing.
-- `proof/proofs.json`: Effect Schema validated proof registry.
-- `ocentra-enforcer proof route`: route by files, plan, capability, or proof id.
-- `ocentra-enforcer proof inventory`: read-only legacy proof script inventory.
-- `ocentra-enforcer proof run`: run proof through bounded local artifacts.
-- `ocentra-enforcer proof claim --pr-ready`: reject missing, stale, failed,
+- `proof/proofs.json`: typed/serde-validated proof registry.
+- planned `enforcer proof route`: route by files, plan, capability, or proof id.
+- planned `enforcer proof inventory`: read-only proof script inventory.
+- planned `enforcer proof run`: run proof through bounded local artifacts.
+- planned `enforcer proof claim --pr-ready`: reject missing, stale, failed,
   manual-required, or artifact-broken claims.
-- `ocentra_enforcer_proof_*`: MCP equivalents for route, run, status,
+- planned `mcp__enforcer__proof_*`: MCP equivalents for route, run, status,
   inventory, claim, last failure, diagnostics, artifact, reset, prune, and
   export.
 
@@ -72,21 +79,20 @@ The inventory now emits a migration matrix with:
 
 ## Parent-Specific Interpretation
 
-For Ocentra Parent, `packages/agent-protocol-domain` should not remain alive
-only because `scripts/test/*proof*.mjs` imports it. The replacement is an
-Enforcer proof definition that validates `crates/agent-protocol` and any
-generated/mirrored artifacts directly.
+This section is historical migration guidance for an internal consumer, not a
+claim about the Enforcer product surface.
 
 Deletion rule:
 
-1. Run `ocentra-enforcer proof inventory --root <Parent> --json` for compact
+1. Run `enforcer proof inventory --root <Parent> --json` for compact
    counts, then `--include-scripts --limit <n>` for one migration batch.
-2. Add or map Enforcer proof definitions for the script family being migrated.
+2. Add or map enforcer proof definitions for the script family being
+   migrated.
 3. Run old-vs-new parity through `PROOF-LEGACY-PARITY`.
-4. Rewire Parent npm scripts to thin Enforcer calls.
+4. Rewire Parent's legacy scripts to thin enforcer calls.
 5. Delete the old proof scripts only after the parity report is green.
 
-Deleting proof output under `.enforce/proofs` is safe. It only means proof must
-be recollected. Deleting legacy proof scripts is different: do that only after a
-machine-readable parity report proves the Enforcer proof is equivalent or
-stricter and CI can recollect it.
+Deleting proof output under `.enforce/proofs` is safe. It only means proof
+must be recollected. Deleting legacy proof scripts is different: do that
+only after a machine-readable parity report proves the enforcer proof is
+equivalent or stricter and CI can recollect it.

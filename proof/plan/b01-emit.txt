@@ -1,0 +1,39 @@
+=== cargo test -p enforcer-plan ===
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_plan-574baa5a7a982a66.exe)
+
+running 5 tests
+test scaffolder::tests::plan_name_accepts_kebab_case_and_rejects_malformed ... ok
+test scaffolder::tests::scaffold_refuses_invalid_name_before_any_io ... ok
+test scaffolder::tests::checklist_derives_from_supplied_facts_not_hardcoded ... ok
+test scaffolder::tests::scaffold_refuses_overwrite_without_force ... ok
+test scaffolder::tests::scaffold_force_overwrites ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\scaffolder.rs (target\debug\deps\scaffolder-6db294d7bd593f9c.exe)
+
+running 8 tests
+test scaffolder_rejects_invalid_name_seeded_violation ... ok
+test checklist_is_derived_from_scope_facts_not_boilerplate ... ok
+test structural_cross_check_zero_findings ... ok
+test resume_state_carries_required_sections ... ok
+test structural_cross_check_detects_seeded_corruption ... ok
+test scaffolder_emit_matches_golden_tree ... ok
+test scaffolder_refuses_overwrite_without_force_seeded_violation ... ok
+test scaffolder_determinism_two_runs_identical ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests enforcer_plan
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo clippy -p enforcer-plan --all-targets -- -D warnings ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
+
+=== cargo fmt -p enforcer-plan -- --check ===
+fmt exit: 0

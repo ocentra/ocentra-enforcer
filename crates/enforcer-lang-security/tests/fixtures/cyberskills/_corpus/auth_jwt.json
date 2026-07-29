@@ -1,0 +1,128 @@
+[
+  {
+    "name": "none_alg_double_quoted_array",
+    "input": "jwt.verify(token, '', { algorithms: [\"none\"] });",
+    "expect": "flag",
+    "branch": "none-algorithm",
+    "reason": "algorithms array contains the literal \"none\""
+  },
+  {
+    "name": "none_alg_singular_single_quoted",
+    "input": "const opts = { algorithm: 'none' };",
+    "expect": "flag",
+    "branch": "none-algorithm",
+    "reason": "singular algorithm key set to 'none', no array brackets"
+  },
+  {
+    "name": "none_alg_header_literal_capitalized",
+    "input": "header = {\"alg\": \"None\", \"typ\": \"JWT\"}",
+    "expect": "flag",
+    "branch": "none-algorithm",
+    "reason": "bare alg header field, capitalized None variant"
+  },
+  {
+    "name": "none_alg_python_kwarg_uppercase",
+    "input": "jwt.decode(token, key, algorithms=[\"NONE\"])",
+    "expect": "flag",
+    "branch": "none-algorithm",
+    "reason": "Python kwarg assignment (=) with uppercase NONE"
+  },
+  {
+    "name": "none_alg_mixed_case",
+    "input": "ALG: 'nOnE',",
+    "expect": "flag",
+    "branch": "none-algorithm",
+    "reason": "vendor test_alg_none tries none/None/NONE/nOnE variants"
+  },
+  {
+    "name": "hardcoded_secret_jwt_sign_double_quoted",
+    "input": "return jwt.sign(payload, \"secret\");",
+    "expect": "flag",
+    "branch": "hardcoded-secret",
+    "reason": "6-char literal secret passed to jwt.sign"
+  },
+  {
+    "name": "hardcoded_secret_jwt_verify_single_quoted",
+    "input": "jwt.verify(token, 'abc123')",
+    "expect": "flag",
+    "branch": "hardcoded-secret",
+    "reason": "6-char literal secret passed to jwt.verify"
+  },
+  {
+    "name": "hardcoded_secret_jsonwebtoken_alias",
+    "input": "jsonwebtoken.sign(data, \"test1234\")",
+    "expect": "flag",
+    "branch": "hardcoded-secret",
+    "reason": "jsonwebtoken. alias, 8-char literal secret"
+  },
+  {
+    "name": "hardcoded_secret_exactly_15_chars_boundary",
+    "input": "jwt.sign(payload, \"123456789012345\")",
+    "expect": "flag",
+    "branch": "hardcoded-secret",
+    "reason": "15-char literal is still \"shorter than 16\""
+  },
+  {
+    "name": "clean_exactly_16_chars_boundary",
+    "input": "jwt.sign(payload, \"1234567890123456\")",
+    "expect": "clean",
+    "branch": "hardcoded-secret",
+    "reason": "16-char literal meets the minimum length, not flagged"
+  },
+  {
+    "name": "clean_long_hardcoded_secret",
+    "input": "jwt.sign(payload, \"aVeryLongSecretKeyThatExceedsSixteenChars\")",
+    "expect": "clean",
+    "branch": "hardcoded-secret",
+    "reason": "long literal (still hardcoded, but out of scope for this length-based check)"
+  },
+  {
+    "name": "clean_secret_from_variable",
+    "input": "jwt.sign(payload, SECRET, { algorithm: 'HS256' });",
+    "expect": "clean",
+    "branch": "hardcoded-secret",
+    "reason": "secret is a variable reference, not a quoted literal"
+  },
+  {
+    "name": "clean_secret_from_env",
+    "input": "jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });",
+    "expect": "clean",
+    "branch": "hardcoded-secret",
+    "reason": "secret loaded from environment, no quoted literal argument"
+  },
+  {
+    "name": "clean_safe_algorithm_allowlist",
+    "input": "jwt.verify(token, SECRET, { algorithms: [\"HS256\"] });",
+    "expect": "clean",
+    "branch": "none-algorithm",
+    "reason": "explicit safe algorithm, not \"none\""
+  },
+  {
+    "name": "clean_safe_algorithm_singular",
+    "input": "const opts = { algorithm: 'RS256' };",
+    "expect": "clean",
+    "branch": "none-algorithm",
+    "reason": "singular algorithm set to RS256, a real signing algorithm"
+  },
+  {
+    "name": "clean_near_miss_none_substring_not_exact_value",
+    "input": "algorithm: \"none-of-the-above\"",
+    "expect": "clean",
+    "branch": "none-algorithm",
+    "reason": "value is not exactly \"none\" (has trailing text), so the closing quote does not immediately follow the none literal"
+  },
+  {
+    "name": "clean_near_miss_algorithm_inside_identifier",
+    "input": "signingAlgorithmSelector: \"none\",",
+    "expect": "clean",
+    "branch": "none-algorithm",
+    "reason": "\"algorithm\" is embedded inside a longer camelCase identifier, not its own token"
+  },
+  {
+    "name": "clean_decode_without_verify_option_not_flagged",
+    "input": "const claims = jwt.decode(token);",
+    "expect": "clean",
+    "branch": "skipped-unverified-decode",
+    "reason": "unverified jwt.decode() with no verify option is deliberately not flagged (false-positive magnet per spec)"
+  }
+]

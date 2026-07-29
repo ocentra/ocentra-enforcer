@@ -1,126 +1,74 @@
-# Target Repo Wiring
+# Target Repository Wiring
 
-Target repos should not copy Ocentra Enforcer source. They should call the
-installed enforcer with an explicit `root`.
+<!-- ai-dense -->
+```yaml
+integration_order: "path scope -> diff scope -> workspace scope -> CI/MCP adoption"
+scoped_commands: "check/scan/verify accept paths OR --base/--head OR --all"
+verify_command: "verify combines a named mode with the same explicit scope grammar"
+mcp: "current Rust MCP wires status, coordination status and claim, and UI only"
+rules: "use the released command help and rule documentation; do not depend on a checkout-local rules path"
+release_boundary: "consumer automation must use a released binary and its tested command contract"
+```
+<!-- /ai-dense -->
 
-## Dry-Run First
+This guide describes the current, supportable integration boundary. It is not
+a release-installation promise: verify command and MCP-tool help from the
+actual Enforcer build before wiring a repository or CI job.
 
-From anywhere:
+## Current CLI contract
+
+During local development, invoke the CLI through Cargo:
 
 ```powershell
-ocentra-enforcer init --root C:/path/to/target-repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+cargo run -p enforcer-cli -- check path/to/file
+cargo run -p enforcer-cli -- scan --base origin/main --head HEAD
+cargo run -p enforcer-cli -- verify --mode local --all
 ```
 
-Review the file plan before writing anything.
+`check`, `scan`, and `verify` accept exactly one scope:
 
-## What Init Is Supposed To Write
+- one or more paths;
+- a `--base <ref>` and `--head <ref>` diff pair; or
+- `--all` for the workspace.
 
-The default adapter set plans:
+`verify` also takes a named verification mode. The CLI does not treat a
+configuration file, a profile, or a target root as a substitute for an
+explicit scope. Consult `enforcer --help` and command help for the exact build
+you install.
 
-- `ocentra-enforcer.config.json`, tiny target repo config.
-- `.mcp.json`, project MCP config pointing to the external enforcer path.
-- `.git/hooks/pre-commit`, plain Git pre-commit hook.
-- `.github/workflows/ocentra-enforcer.yml`.
-- `.github/workflows/codeql.yml`.
-- `.github/workflows/dependency-policy.yml`.
-- `.github/workflows/secret-scan.yml`.
-- `.github/workflows/sbom.yml`.
+## MCP use
 
-Husky is not default. Add `husky` only when requested or when the target repo
-already uses Husky.
+The current Rust MCP server wires server status, coordination status,
+exact-path coordination claim, and UI launch/status. Route, scan, check,
+diagnostics, proof, and broader coordination tools may be visible in discovery
+but currently return a not-wired response. Run target validation through the
+CLI commands above until those delegates are connected.
 
-## Minimal Manual Wiring
+MCP coordination is optional. When enabled, its ledger and exact-file claims
+belong to the Enforcer installation, not to the target repository.
 
-If you do not want generated files yet, create only a target repo script or doc
-that calls:
+When a rule needs an explanation, use the command help and rule documentation
+shipped with the release under test. Do not make CI or an assistant depend on a
+hardcoded checkout-local rule path.
 
-```powershell
-ocentra-enforcer scan --root . --profile strict --files Cargo.toml
-ocentra-enforcer scan --root . --profile strict --languages typescript,python,common --files src tests
-ocentra-enforcer check no-zod-source --root . --profile strict --files src/index.ts
-ocentra-enforcer check validation-bypass --root . --profile strict --files src/index.ts
-ocentra-enforcer check weak-assertions --root . --profile strict --files tests/example.test.ts
-ocentra-enforcer check placeholder-implementation --root . --profile strict --files src/index.ts
-ocentra-enforcer check source-shape --root . --profile strict --workspace
-ocentra-enforcer check required-tests --root . --profile strict --workspace
-ocentra-enforcer run --root . --tool tsc -- npx tsc --noEmit --pretty false
-ocentra-enforcer doctor --root . --profile strict --workspace
-```
+## CI and release integration
 
-## Config vs Profile
+Automated installation, package distribution, and CI adapters must use a
+released binary and a documented command contract. Until that release surface
+is available, build from this workspace and keep CI wiring explicit rather
+than copying provisional commands into consumer repositories.
 
-Use `profile` when policy is owned by the enforcer pack:
+CI should run fresh validation and retain the report it produced. A stored
+artifact may support review, but it never replaces the validation run itself.
 
-```text
-profile = strict
-profile = ocentra-parent
-```
+## Integration sequence
 
-Use `configPath` when the target repo owns policy:
+1. Keep the repository's existing guards in place.
+2. Prove Enforcer on a path scope, then a diff scope, then `--all`.
+3. Add an MCP or CI integration only after its exact commands or tools work in that
+   environment.
+4. Retire duplicated wrappers only after the replacement has equivalent,
+   validated coverage.
 
-```text
-configPath = C:/path/to/target-repo/ocentra-enforcer.config.json
-```
-
-Do not pass both unless you intentionally want `configPath` to win.
-
-Minimal target repo policy:
-
-```json
-{
-  "schemaVersion": 2,
-  "profileName": "my-project",
-  "languages": ["rust", "typescript", "python", "common"],
-  "failOn": ["error"],
-  "rules": {
-    "DOC-1.1": { "enabled": true, "severity": "warning" }
-  },
-  "tools": {
-    "cargoDoc": { "enabled": false, "severity": "warning" },
-    "cargoDeny": { "enabled": true, "severity": "error" }
-  }
-}
-```
-
-`violations` fail hooks/CI/MCP. `warnings` are reported but do not fail unless
-`failOn` includes `warning`.
-
-## Scopes
-
-Use the smallest honest scope:
-
-- File: `scan --files <file-or-dir>...`
-- Crate/package: `scan --crate <cargo-package-name>` or `cargo --crate <cargo-package-name>`
-- Diff: `scan --base origin/main --head HEAD`
-- Full repo: `scan --workspace` or `cargo --workspace`
-
-`cargo` mode adds cargo gates when the selected scope allows them. `scan` mode
-is faster and deterministic for source/config policy.
-
-## Codex Runtime Flow
-
-When Codex is working in a target repo:
-
-1. Read target repo instructions first.
-2. Read `E:/ocentra-enforcer/rules/INDEX.md`.
-3. Call MCP `ocentra_enforcer_route` with target `root`, profile/config, and exact touched files.
-4. Open only docs returned by the route result.
-5. Run `ocentra_enforcer_scan` for broad source/config policy, or `ocentra_enforcer_check` for migrated named guards such as `source-shape`, `required-tests`, `single-source-contracts`, `dependency-policy`, `sbom`, and scanner-backed Parent checks.
-6. Run native tool checks through `ocentra_enforcer_run`.
-7. Query `ocentra_enforcer_last_failure` or `ocentra_enforcer_diagnostics` before opening raw terminal artifacts.
-8. Treat `violations` as hard failures. Report `warnings`, but do not block completion unless the profile `failOn` includes `warning`.
-
-## Consumer Migration Sequence
-
-1. Keep the target repo's existing guards until parity is proven.
-2. Wire the target repo to the external Enforcer install.
-3. Prove file-scope, crate/package-scope, diff-scope, and workspace behavior.
-4. Replace generic guard logic with thin wrappers.
-5. Point wrappers at `ocentra-enforcer check <name>`, `scan`, or `run` as appropriate.
-6. Remove duplicated repo-local generic guard scripts only after parity.
-
-Do not keep generic ledger, hub, lane, mail, exact-file-claim, or architecture
-tooling in a consumer repo long term. Those are Enforcer coordination concerns.
-Consumer repos should keep only product-specific dev server logic, release
-packaging, proof semantics, and thin wrappers/config while parity is being
-proven.
+Use the smallest honest scope while editing and a workspace gate before a
+release or merge decision.

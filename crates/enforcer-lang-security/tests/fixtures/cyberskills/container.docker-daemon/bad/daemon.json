@@ -1,0 +1,11 @@
+{
+  "icc": true,
+  "userns-remap": "",
+  "no-new-privileges": false,
+  "insecure-registries": ["registry.internal.example.com:5000"],
+  "experimental": true,
+  "live-restore": false,
+  "tls": false,
+  "tlsverify": false,
+  "log-driver": "json-file"
+}

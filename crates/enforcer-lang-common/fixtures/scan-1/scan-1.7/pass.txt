@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.7: Scanner must support Windows drive paths
+// Clean source — no occurrence of the SCAN-1.7 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

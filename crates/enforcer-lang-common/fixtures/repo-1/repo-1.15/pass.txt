@@ -1,0 +1,5 @@
+// Fixture for REPO-1.15: Generated schema artifacts must not drift
+// Clean source — no occurrence of the REPO-1.15 marker below.
+fn clean_example() {
+    // conformant with repo-governance
+}

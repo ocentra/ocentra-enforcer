@@ -1,0 +1,71 @@
+[
+    {
+        "ruleId": "DART-NAME-3.1",
+        "version": 1,
+        "title": "Boolean identifier prefix (is/has/can/should)",
+        "tier": "T3",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "n/a (T3 advisory row: no validator by design)"
+        },
+        "fixtures": {
+            "fail": "n/a",
+            "pass": "n/a"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": [
+            "dart",
+            "flutter",
+            "e-pack-dart",
+            "naming",
+            "advisory, no mechanization possible + a correct boolean can carry a non-prefixed domain name (e.g. `active`) and prefix intent is not decidable from the token"
+        ],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-IMP-2.1",
+        "version": 1,
+        "title": "part/part of reserved for codegen only",
+        "tier": "T3",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "n/a (T3 advisory row: no validator by design)"
+        },
+        "fixtures": {
+            "fail": "n/a",
+            "pass": "n/a"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": [
+            "dart",
+            "flutter",
+            "e-pack-dart",
+            "imports",
+            "advisory, no mechanization possible + distinguishing an intentional hand-authored part from a codegen part requires design intent not present in source"
+        ],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-STATE-2.1",
+        "version": 1,
+        "title": "Bloc conventions (@freezed states, past-tense events, no Bloc->Bloc)",
+        "tier": "T3",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "n/a (T3 advisory row: no validator by design)"
+        },
+        "fixtures": {
+            "fail": "n/a",
+            "pass": "n/a"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": [
+            "dart",
+            "flutter",
+            "e-pack-dart",
+            "state",
+            "advisory, no mechanization possible + past-tense event naming and cross-Bloc call intent are design-judgment, not statically decidable"
+        ],
+        "params": {}
+    }
+]
