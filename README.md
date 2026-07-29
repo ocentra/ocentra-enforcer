@@ -81,8 +81,8 @@ cargo run -p enforcer-cli -- serve --help
 ```
 
 The current CLI surface is `check`, `scan`, `serve`, `ui`, `install`, `plan`,
-`proof`, `coordination` (alias `ledger`), `verify`, `advise`, `architecture`,
-and `onboard`. `check`, `scan`, and `verify` accept one
+`proof`, `coordination` (alias `ledger`), `memory`, `verify`, `advise`,
+`architecture`, `onboard`, and `hook`. `check`, `scan`, and `verify` accept one
 explicit scope: paths, a `--base`/`--head` diff pair, or `--all`; `verify`
 also selects a named verification mode. Use `--help` as the source of truth
 for the build you are running.
@@ -90,7 +90,11 @@ for the build you are running.
 `install` is currently a no-argument, user-level operation that registers the
 native binary with all supported harness adapters and runs its internal health
 check. The visible `plan`, `proof`, and `coordination` command groups are
-reserved boundaries and currently return a not-wired error.
+reserved boundaries; this build does not yet expose subcommands for them.
+
+`memory cli` forwards a requested codebase-memory operation to the native
+memory transport. `hook pretooluse` evaluates a Claude Code edit/write payload
+from standard input before the write is accepted.
 
 The Rust MCP server currently executes four tool families: server status,
 coordination status, exact-path coordination claim, and UI launch/status.

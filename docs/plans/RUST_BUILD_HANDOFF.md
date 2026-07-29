@@ -72,8 +72,8 @@ documentation warnings but no hard findings.
 The authoritative frozen scan is stable at zero findings across 1,235 files.
 The prior CI run exposed one genuine Ubuntu native-parser `SIGSEGV`; the
 regression was reproduced locally and fixed by narrowing the supplementary-
-plane guard to the two affected external scanners. A full code-SHA CI run for
-the final pushed tip remains a merge prerequisite.
+plane guard around the Bash, Just, and Odin native grammar paths. A full
+code-SHA CI run for the final pushed tip remains a merge prerequisite.
 Historical counts such as 8,310 or the earlier branch-native 309/281 baseline
 must not be used as the current global result.
 
