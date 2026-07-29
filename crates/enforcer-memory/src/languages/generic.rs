@@ -20875,8 +20875,13 @@ pub fn zsh_quirks() -> Quirks {
 
 /// Parse Zsh source through the generic engine. Grammar:
 /// `tree-sitter-zsh` (crates.io, maintained) -- see
-/// `tests/unit_languages_zsh.rs`.
+/// `tests/unit_languages_zsh.rs`. Its native scanner is not total for
+/// supplementary-plane input on Linux, so reject that input before crossing
+/// the native boundary.
 pub fn parse_zsh(source: &str) -> ParsedFile {
+    if super::has_unsafe_external_scanner_input(source) {
+        return ParsedFile::default();
+    }
     let spec = LangSpec::zsh();
     let quirks = zsh_quirks();
     let language: tree_sitter::Language = tree_sitter_zsh::LANGUAGE.into();

@@ -416,6 +416,10 @@ fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() -> Result<()
         generic::parse_odin("\u{90a47}\u{57257}"),
         Default::default()
     );
+    // `tree-sitter-zsh` can segfault on Linux for supplementary-plane input;
+    // keep that third-party scanner behind the same narrow ABI guard as Bash,
+    // Just, and Odin.
+    assert_eq!(generic::parse_zsh("\u{c44ab}\\"), Default::default());
     assert_eq!(generic::parse_d("module café;"), Default::default());
     Ok(())
 }
