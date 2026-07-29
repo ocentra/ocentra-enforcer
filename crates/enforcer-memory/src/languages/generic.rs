@@ -7207,8 +7207,13 @@ pub fn bash_quirks() -> Quirks {
 /// has never had one in this crate) -- correctness is instead verified
 /// directly against the `tree-sitter-bash` crate's own `node-types.json`
 /// plus real parse trees (see [`LangSpec::bash`]'s doc comment and
-/// `tests/unit_languages_bash.rs`).
+/// `tests/unit_languages_bash.rs`). The native Bash grammar path is not total
+/// for supplementary-plane input on Linux, so reject that input before
+/// crossing the native boundary.
 pub fn parse_bash(source: &str) -> ParsedFile {
+    if super::has_unsafe_external_scanner_input(source) {
+        return ParsedFile::default();
+    }
     let spec = LangSpec::bash();
     let quirks = bash_quirks();
     let language: tree_sitter::Language = tree_sitter_bash::LANGUAGE.into();

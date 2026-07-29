@@ -183,6 +183,11 @@ fn malformed_source_does_not_panic() {
 }
 
 #[test]
+fn supplementary_plane_input_is_rejected_before_native_scanner() {
+    assert_eq!(parse_bash("\u{c44ab}\\"), Default::default());
+}
+
+#[test]
 fn fixture_file_parses_without_panic() -> TestResult {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join(FIXTURE_DIR).join("widget.sh");

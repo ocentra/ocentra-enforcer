@@ -30,7 +30,7 @@ pub(crate) fn has_unsafe_tree_sitter_input(source: &str) -> bool {
     })
 }
 
-/// `tree-sitter-just` and `tree-sitter-odin` external scanners are unsafe for
+/// The Bash, Just, and Odin native grammar paths are unsafe for
 /// supplementary-plane code points. Keep this narrower than the shared ABI
 /// guard: grammars such as Rust legitimately parse astral Unicode in string
 /// literals and function bodies.

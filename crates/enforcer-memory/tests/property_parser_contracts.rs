@@ -403,6 +403,7 @@ fn direct_tree_sitter_entrypoints_reject_binary_and_control_input() -> Result<()
 
     let hostile_control_source = "fn hostile() {}\u{1b}\u{7f}";
     assert_eq!(generic::parse_d(hostile_control_source), Default::default());
+    assert_eq!(generic::parse_bash("\u{c44ab}\\"), Default::default());
     // U+202E is a bidi format control rather than `char::is_control()` and
     // previously reached tree-sitter-just's native scanner, which could
     // segfault on Linux instead of returning an empty parse.
