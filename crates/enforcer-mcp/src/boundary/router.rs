@@ -5000,6 +5000,36 @@ mod tests {
             .all(|row| row["ruleId"] == "RR-7.2" || row["ruleId"] == "RR-7.3")));
         Ok(())
     }
+
+    #[test]
+    fn generated_artifacts_direct_route_reports_frozen_marker_rule(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let file = temp.path().join("src/generated.rs");
+        std::fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        let slashes = ['/', '/'].iter().collect::<String>();
+        let marker = ["auto", "-generated"].concat();
+        std::fs::write(
+            &file,
+            format!("{slashes} <{marker}>\npub const VALUE: u8 = 1;\n"),
+        )?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"generated-artifacts","scope":"files","files":["src/generated.rs"]}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("generated-artifacts did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|rows| rows
+            .iter()
+            .any(|row| row["ruleId"] == "GEN-1.1" && row["file"] == "src/generated.rs")));
+        Ok(())
+    }
     #[test]
     fn unavailable_default_checks_refuse_explicitly() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;

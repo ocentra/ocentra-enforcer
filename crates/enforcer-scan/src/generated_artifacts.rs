@@ -3,6 +3,7 @@
 //! a fixture happens to contain a marker string.
 
 use std::num::NonZeroU32;
+use std::path::Path;
 use std::process::Command;
 
 use enforcer_domain::findings::{
@@ -35,6 +36,10 @@ pub fn check(
     tracked: bool,
     allowlist: &[String],
 ) -> Result<Report, String> {
+    // The frozen check always searches the requested source scope for GEN-1.1
+    // markers. Tracked mode adds a separate Git inventory for GEN-1.2 rather
+    // than widening the marker scan to every tracked file.
+    let mut findings = marker_findings(root, files);
     let candidates = if tracked {
         tracked_files(root)?
     } else {
@@ -43,17 +48,31 @@ pub fn check(
     let rule_id: RuleId = "GEN-1.2"
         .parse()
         .map_err(|error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string())?;
-    let mut findings = candidates
-        .into_iter()
-        .filter(|file| {
-            is_generated_artifact_path(file.as_str())
-                && !allowlist
-                    .iter()
-                    .any(|pattern| glob_matches(pattern, file.as_str()))
+    findings.extend(
+        candidates
+            .into_iter()
+            .filter(|file| {
+                let generated = if tracked {
+                    is_generated_artifact_path(file.as_str())
+                } else {
+                    is_scoped_generated_output_path(file.as_str())
+                };
+                generated
+                    && (!tracked
+                        || !allowlist
+                            .iter()
+                            .any(|pattern| glob_matches(pattern, file.as_str())))
+            })
+            .filter_map(|file| finding(rule_id.clone(), file)),
+    );
+    findings.sort_by(|left, right| {
+        left.file.as_str().cmp(right.file.as_str()).then_with(|| {
+            left.snippet
+                .as_ref()
+                .map_or("", |value| value.as_str())
+                .cmp(right.snippet.as_ref().map_or("", |value| value.as_str()))
         })
-        .filter_map(|file| finding(rule_id.clone(), file))
-        .collect::<Vec<_>>();
-    findings.sort_by(|left, right| left.file.as_str().cmp(right.file.as_str()));
+    });
     let violations = findings
         .iter()
         .cloned()
@@ -71,6 +90,121 @@ pub fn check(
         waived: Vec::new(),
         findings,
     })
+}
+
+fn is_scoped_generated_output_path(path: &str) -> bool {
+    let path = path.replace('\\', "/");
+    path.starts_with("output/")
+        || path.starts_with("test-results/")
+        || path.starts_with("playwright-report/")
+}
+
+fn marker_findings(root: &RepoRoot, files: &[RelPath]) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    for file in files
+        .iter()
+        .filter(|file| is_generated_marker_source_file(file.as_str()))
+    {
+        let Ok(source) = std::fs::read_to_string(Path::new(root.as_str()).join(file.as_str()))
+        else {
+            continue;
+        };
+        findings.extend(
+            source
+                .lines()
+                .enumerate()
+                .filter_map(|(index, line)| marker_finding(file, index + 1, line)),
+        );
+    }
+    findings
+}
+
+fn is_generated_marker_source_file(path: &str) -> bool {
+    let path = path.replace('\\', "/");
+    let lower = path.to_ascii_lowercase();
+    let is_source_extension = [
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".py", ".rs",
+    ]
+    .iter()
+    .any(|extension| lower.ends_with(extension));
+    is_source_extension
+        && !lower.ends_with(".d.ts")
+        && !is_test_path(&lower)
+        && [
+            "src/",
+            "apps/",
+            "packages/",
+            "crates/",
+            "tools/",
+            "scripts/",
+        ]
+        .iter()
+        .any(|root| lower.starts_with(root))
+}
+
+fn is_test_path(path: &str) -> bool {
+    path.contains("/test/")
+        || path.contains("/tests/")
+        || path.contains("/__tests__/")
+        || path.starts_with("test/")
+        || path.starts_with("tests/")
+        || path.ends_with(".test.js")
+        || path.ends_with(".test.jsx")
+        || path.ends_with(".test.ts")
+        || path.ends_with(".test.tsx")
+        || path.ends_with(".test.mjs")
+        || path.ends_with(".test.cjs")
+        || path.ends_with(".test.mts")
+        || path.ends_with(".test.cts")
+        || path.ends_with(".spec.js")
+        || path.ends_with(".spec.jsx")
+        || path.ends_with(".spec.ts")
+        || path.ends_with(".spec.tsx")
+        || path.ends_with(".spec.mjs")
+        || path.ends_with(".spec.cjs")
+        || path.ends_with(".spec.mts")
+        || path.ends_with(".spec.cts")
+        || path.rsplit('/').next().is_some_and(|name| {
+            name.starts_with("test_") && name.ends_with(".py") || name.ends_with("_test.py")
+        })
+}
+
+fn marker_finding(file: &RelPath, line_number: usize, source: &str) -> Option<Finding> {
+    let comment = source_comment(file.as_str(), source)?;
+    let comment = comment.to_ascii_lowercase();
+    if !(comment.contains("@generated")
+        || comment.contains("<auto-generated>")
+        || comment.contains("generated by"))
+    {
+        return None;
+    }
+    let line_number = u32::try_from(line_number).ok().and_then(NonZeroU32::new)?;
+    Some(Finding {
+        rule_id: "GEN-1.1".parse().ok()?,
+        severity: Severity::Error,
+        title: FindingTitle::new("Generated artifacts must not be committed as source".to_owned())
+            .ok()?,
+        detail: FindingDetail::new(
+            "Generated artifact marker found in tracked source scope.".to_owned(),
+        )
+        .ok()?,
+        snippet: FindingSnippet::new(source.trim().to_owned()).ok(),
+        file: file.clone(),
+        line: FindingLine::known(SourceLine::try_new(line_number)),
+    })
+}
+
+fn source_comment<'a>(path: &str, line: &'a str) -> Option<&'a str> {
+    if path.ends_with(".py") {
+        return line.find('#').and_then(|index| line.get(index..));
+    }
+    let slash = line.find("//");
+    let block = line.find("/*");
+    match (slash, block) {
+        (Some(left), Some(right)) => line.get(left.min(right)..),
+        (Some(index), None) | (None, Some(index)) => line.get(index..),
+        (None, None) => None,
+    }
 }
 
 fn tracked_files(root: &RepoRoot) -> Result<Vec<RelPath>, String> {
@@ -99,7 +233,7 @@ fn finding(rule_id: RuleId, file: RelPath) -> Option<Finding> {
 }
 
 // The frozen config uses minimatch-style allowlist patterns.  This compact
-// matcher covers the path glob subset used by that boundary (`*` and `**`).
+// matcher covers the path glob subset used by that boundary (`*`, `**`, and `?`).
 fn glob_matches(pattern: &str, path: &str) -> bool {
     fn matches(pattern: &[u8], path: &[u8]) -> bool {
         let Some((&pattern_head, pattern_tail)) = pattern.split_first() else {
@@ -116,6 +250,12 @@ fn glob_matches(pattern: &str, path: &str) -> bool {
             };
             let can_consume = is_double_star || path_head != b'/';
             return matches_empty || (can_consume && matches(pattern, path_tail));
+        }
+        if pattern_head == b'?' {
+            let Some((&path_head, path_tail)) = path.split_first() else {
+                return false;
+            };
+            return path_head != b'/' && matches(pattern_tail, path_tail);
         }
         match path.split_first() {
             Some((&path_head, path_tail)) if pattern_head == path_head => {
@@ -136,6 +276,11 @@ mod tests {
     use enforcer_domain::findings::{ReportOutcome, ScanScope};
     use enforcer_domain::paths::{RelPath, RepoRoot};
 
+    fn generated_comment(marker: &str) -> String {
+        let slashes = ['/', '/'].iter().collect::<String>();
+        format!("{slashes} {marker}\n")
+    }
+
     #[test]
     fn classifier_matches_frozen_mjs_roots_and_segments() {
         assert!(is_generated_artifact_path("output/run.json"));
@@ -146,13 +291,79 @@ mod tests {
     fn allowlist_is_narrow_and_glob_aware() {
         assert!(glob_matches("docs/generated/**", "docs/generated/api.json"));
         assert!(!glob_matches("docs/generated/**", "src/generated/api.json"));
+        assert!(glob_matches("output/run?.json", "output/run1.json"));
+        assert!(!glob_matches("output/run?.json", "output/run12.json"));
+    }
+
+    #[test]
+    fn marker_scanning_matches_frozen_source_only_semantics(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::create_dir_all(temp.path().join("docs"))?;
+        std::fs::create_dir_all(temp.path().join("src/tests"))?;
+        std::fs::write(
+            temp.path().join("src/generated.rs"),
+            generated_comment(&["Gener", "ated by a tool"].concat()),
+        )?;
+        std::fs::write(temp.path().join("docs/policy.md"), "@generated example\n")?;
+        std::fs::write(
+            temp.path().join("src/tests/example.rs"),
+            generated_comment(&["@", "generated"].concat()),
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let files = [
+            "src/generated.rs".parse()?,
+            "docs/policy.md".parse()?,
+            "src/tests/example.rs".parse()?,
+        ];
+        let report = check(&root, ScanScope::Files, &files, false, &[])?;
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert_eq!(report.findings.len(), 1);
+        assert_eq!(report.findings[0].rule_id.as_str(), "GEN-1.1");
+        assert_eq!(report.findings[0].file.as_str(), "src/generated.rs");
+        Ok(())
+    }
+
+    #[test]
+    fn scope_mode_matches_frozen_root_paths_without_allowlist(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let root: RepoRoot = "C:/fixture".parse()?;
+        let files = [
+            "src/generated/client.rs".parse()?,
+            "output/report.json".parse()?,
+        ];
+        let report = check(
+            &root,
+            ScanScope::Files,
+            &files,
+            false,
+            &["output/**".to_owned()],
+        )?;
+        assert_eq!(report.findings.len(), 1);
+        assert_eq!(report.findings[0].rule_id.as_str(), "GEN-1.2");
+        assert_eq!(report.findings[0].file.as_str(), "output/report.json");
+        Ok(())
     }
     #[test]
-    fn rejects_generated_scope_path_unless_allowlisted() -> Result<(), Box<dyn std::error::Error>> {
-        let root: RepoRoot = "C:/fixture".parse()?;
+    fn tracked_mode_honors_generated_path_allowlist() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("output"))?;
+        std::fs::write(temp.path().join("output/report.json"), "{}")?;
+        let init = std::process::Command::new("git")
+            .arg("init")
+            .current_dir(temp.path())
+            .status()?;
+        assert!(init.success());
+        let add = std::process::Command::new("git")
+            .args(["add", "output/report.json"])
+            .current_dir(temp.path())
+            .status()?;
+        assert!(add.success());
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
         let file: RelPath = "output/report.json".parse()?;
         assert_eq!(
-            check(&root, ScanScope::Files, &[file.clone()], false, &[])?.ok,
+            check(&root, ScanScope::Files, &[file.clone()], true, &[])?.ok,
             ReportOutcome::Violations
         );
         assert_eq!(
@@ -160,7 +371,7 @@ mod tests {
                 &root,
                 ScanScope::Files,
                 &[file],
-                false,
+                true,
                 &["output/**".to_owned()]
             )?
             .ok,

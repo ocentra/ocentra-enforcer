@@ -225,7 +225,7 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
-                "generated-artifacts" => ["GEN-1.2"]
+                "generated-artifacts" => ["GEN-1.1", "GEN-1.2"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
