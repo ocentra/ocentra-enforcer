@@ -121,6 +121,53 @@ fn stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end(
 }
 
 #[test]
+fn stdio_server_keeps_validation_history_for_its_process_lifetime(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = tempfile::tempdir()?;
+    std::fs::create_dir_all(root.path().join("src"))?;
+    std::fs::write(
+        root.path().join("src/lib.rs"),
+        "mod inner { pub struct Thing; }\npub use inner::Thing;\n",
+    )?;
+    let mut child = Command::new(smoke_binary_path()?)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let mut reader = BufReader::new(child.stdout.take().ok_or("child has no stdout")?);
+    let scan = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":1, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_scan","arguments":{"root":root.path().to_string_lossy(),"files":["src/lib.rs"]}}
+        }),
+    )?;
+    assert_eq!(scan["result"]["ok"], serde_json::json!(false));
+    let status = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_run_status","arguments":{"root":root.path().to_string_lossy(),"tool":"scan"}}
+        }),
+    )?;
+    assert_eq!(
+        status["result"]["summaryType"],
+        serde_json::json!("validation")
+    );
+    assert_eq!(
+        status["result"]["summary"]["kind"],
+        serde_json::json!("scan")
+    );
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
+
+#[test]
 fn stdio_smoke_doctor_reaches_native_repository_engine() -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
     std::fs::create_dir_all(fixture.path().join("src"))?;

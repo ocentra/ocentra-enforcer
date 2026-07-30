@@ -37,6 +37,8 @@ use enforcer_domain::{
 };
 
 use crate::gate::{self, GateArgs};
+use crate::validation_history::{ValidationHistory, ValidationKind};
+use std::sync::{Arc, Mutex};
 
 /// The outcome of routing one `tools/call`.
 #[derive(Debug, Clone)]
@@ -56,6 +58,7 @@ pub enum DispatchOutcome {
 pub struct DispatchContext {
     pub freshness: McpFreshness,
     pub cli_path: ArtifactPath,
+    pub validation_history: Arc<Mutex<ValidationHistory>>,
 }
 
 /// Route one `tools/call`. `name` is taken as received on the wire (may be
@@ -101,8 +104,9 @@ pub fn dispatch(
     }
 
     match canonical.as_str() {
-        "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
-        "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
+        "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args, ctx)),
+        "ocentra_enforcer_check" => DispatchOutcome::Result(check(args, ctx)),
+        "ocentra_enforcer_run_status" => DispatchOutcome::Result(run_status(args, ctx)),
         "ocentra_enforcer_doctor" => DispatchOutcome::Result(doctor(args)),
         "ocentra_enforcer_diagnostics" => DispatchOutcome::Result(diagnostics(args)),
         "ocentra_enforcer_last_failure" => DispatchOutcome::Result(last_failure(args)),
@@ -149,7 +153,7 @@ fn gate_args_from(args: &serde_json::Value) -> GateArgs {
 /// the Rust engine executes correctly today. Unsupported legacy options are
 /// rejected at the MCP boundary rather than silently ignored or delegated
 /// back to the frozen MJS implementation.
-fn scan(args: &serde_json::Value) -> serde_json::Value {
+fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     const SUPPORTED_FIELDS: &[&str] = &[
         "root",
         "scope",
@@ -203,6 +207,16 @@ fn scan(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(err) => json_error(&err),
     }
+}
+
+fn scan(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
+    let report = scan_unrecorded(args);
+    if report.get("error").is_none() {
+        if let Some(root) = args.get("root").and_then(serde_json::Value::as_str) {
+            record_validation_at_root(ctx, root, ValidationKind::Scan, &report);
+        }
+    }
+    report
 }
 
 fn parse_scan_languages(
@@ -322,7 +336,7 @@ fn parse_scan_scope(
 
 /// Native MCP check adapter. A named check is accepted only once its exact
 /// frozen-MJS rule mapping is backed by a runtime-wired Rust validator.
-fn check(args: &serde_json::Value) -> serde_json::Value {
+fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     let Some(name) = args.get("check").and_then(serde_json::Value::as_str) else {
         return json_error("check requires a named `check`");
     };
@@ -333,7 +347,7 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
         return json_error("check arguments must be an object");
     };
     scan_args.remove("check");
-    let mut report = scan(&serde_json::Value::Object(scan_args));
+    let mut report = scan_unrecorded(&serde_json::Value::Object(scan_args));
     let Some(object) = report.as_object_mut() else {
         return json_error("native scan produced an invalid report shape");
     };
@@ -358,7 +372,114 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
         "check".to_owned(),
         serde_json::Value::String(name.to_owned()),
     );
+    if let Some(root) = args.get("root").and_then(serde_json::Value::as_str) {
+        record_validation_at_root(ctx, root, ValidationKind::Check, &report);
+    }
     report
+}
+
+fn record_validation(
+    ctx: &DispatchContext,
+    root: &str,
+    kind: ValidationKind,
+    report: &serde_json::Value,
+) {
+    if let Ok(mut history) = ctx.validation_history.lock() {
+        history.record(root, kind, report);
+    }
+}
+
+fn record_validation_at_root(
+    ctx: &DispatchContext,
+    root: &str,
+    kind: ValidationKind,
+    report: &serde_json::Value,
+) {
+    let root = root
+        .parse::<RepoRoot>()
+        .map(|root| root.as_str().to_owned())
+        .unwrap_or_else(|_| root.to_owned());
+    record_validation(ctx, &root, kind, report);
+}
+
+/// Frozen-MJS-compatible status envelope: durable harness summary wins over
+/// transient validation history, while validation history remains observable.
+fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
+    let (root, config, query, _, _, artifact_kind, limit_bytes) =
+        match decode_harness_query(args, "run_status") {
+            Ok(value) => value,
+            Err(error) => return json_error(&error),
+        };
+    let summary = match enforcer_harness::query::run_summary(
+        std::path::Path::new(root.as_str()),
+        &config,
+        &query,
+    ) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    let validation_summary = ctx.validation_history.lock().ok().and_then(|history| {
+        history.latest(
+            root.as_str(),
+            args.get("tool").and_then(serde_json::Value::as_str),
+        )
+    });
+    let artifact = if summary.is_some() && args.get("artifact").is_some() {
+        match enforcer_harness::query::read_artifact(
+            std::path::Path::new(root.as_str()),
+            &config,
+            &query,
+            artifact_kind,
+            limit_bytes,
+        ) {
+            Ok((true, Some(run_id), text, _)) => {
+                let path = summary
+                    .as_ref()
+                    .and_then(|run| run.get("artifacts"))
+                    .and_then(|artifacts| artifacts.get(artifact_kind.as_str()))
+                    .and_then(serde_json::Value::as_str);
+                match path {
+                    Some(path) => Some(
+                        serde_json::json!({"ok":true,"runId":run_id,"artifact":artifact_kind.as_str(),"path":path,"text":text}),
+                    ),
+                    None => {
+                        Some(serde_json::json!({"ok":false,"text":"","message":"Unknown artifact"}))
+                    }
+                }
+            }
+            Ok((false, _, text, Some(message))) => {
+                Some(serde_json::json!({"ok":false,"text":text,"message":message}))
+            }
+            Ok((false, _, text, None)) => {
+                Some(serde_json::json!({"ok":false,"text":text,"message":"No harness run found."}))
+            }
+            Ok((true, None, _, _)) => {
+                Some(serde_json::json!({"ok":false,"text":"","message":"No harness run found."}))
+            }
+            Err(error) => {
+                Some(serde_json::json!({"ok":false,"text":"","message":error.to_string()}))
+            }
+        }
+    } else {
+        None
+    };
+    let summary_type = if summary.is_some() {
+        "harness"
+    } else if validation_summary.is_some() {
+        "validation"
+    } else {
+        "none"
+    };
+    let mut result = serde_json::json!({
+        "ok": true,
+        "summary": summary.clone().or_else(|| validation_summary.clone()).unwrap_or(serde_json::Value::Null),
+        "summaryType": summary_type,
+        "validationSummary": validation_summary,
+    });
+    if let Some(artifact) = artifact {
+        result["artifact"] = artifact;
+    }
+    result
 }
 
 /// Native repository-readiness doctor. This intentionally invokes
@@ -1073,6 +1194,9 @@ mod tests {
         DispatchContext {
             freshness,
             cli_path: ArtifactPath::from_path(std::path::Path::new("/abs/enforcer")),
+            validation_history: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::validation_history::ValidationHistory::default(),
+            )),
         }
     }
 
@@ -1226,6 +1350,39 @@ mod tests {
         let findings = value["findings"].as_array().ok_or("missing findings")?;
         assert!(!findings.is_empty());
         assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.2"));
+        Ok(())
+    }
+
+    #[test]
+    fn run_status_returns_process_local_validation_after_final_check_shape(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(src.join("schema.ts"), "import { z } from \"zod\";\n")?;
+        let context = ctx(McpFreshness::Fresh);
+        let check = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({ "root": temp.path().to_string_lossy(), "check": "no-zod-source", "files": ["src/schema.ts"] }),
+            &context,
+        );
+        assert!(matches!(check, DispatchOutcome::Result(_)));
+        let status = dispatch(
+            &tool("ocentra_enforcer_run_status")?,
+            &serde_json::json!({ "root": temp.path().to_string_lossy(), "tool": "check" }),
+            &context,
+        );
+        let DispatchOutcome::Result(value) = status else {
+            return Err("run status did not produce a result".into());
+        };
+        assert_eq!(value["summaryType"], serde_json::json!("validation"));
+        assert_eq!(value["summary"]["kind"], serde_json::json!("check"));
+        assert_eq!(
+            value["summary"]["check"],
+            serde_json::json!("no-zod-source")
+        );
+        assert_eq!(value["summary"]["ruleIds"], serde_json::json!(["TS-1.2"]));
+        assert!(value.get("artifact").is_none());
         Ok(())
     }
 

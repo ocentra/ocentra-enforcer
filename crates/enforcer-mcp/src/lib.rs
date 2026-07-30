@@ -84,3 +84,4 @@ pub mod sink;
 #[path = "boundary/tool_surface.rs"]
 pub mod tool_surface;
 pub mod transport;
+pub mod validation_history;

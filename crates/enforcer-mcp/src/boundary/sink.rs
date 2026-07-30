@@ -176,6 +176,9 @@ pub fn default_dispatch_context(cli_path: impl AsRef<std::path::Path>) -> Dispat
     DispatchContext {
         freshness: McpFreshness::Fresh,
         cli_path: ArtifactPath::from_path(cli_path.as_ref()),
+        validation_history: std::sync::Arc::new(std::sync::Mutex::new(
+            crate::validation_history::ValidationHistory::default(),
+        )),
     }
 }
 
