@@ -192,6 +192,8 @@ pub enum PolicyAction {
     /// inventory when configuration or `--tracked` requests it.
     #[command(name = "generated-artifacts")]
     GeneratedArtifacts(GeneratedArtifactsArgs),
+    #[command(name = "single-source-contracts")]
+    SingleSourceContracts(SingleSourceContractsArgs),
 }
 
 /// Output selection for the native Cargo SBOM policy.
@@ -215,6 +217,12 @@ pub struct GeneratedArtifactsArgs {
     /// Include Git tracked files even when project configuration uses scope mode.
     #[arg(long)]
     pub tracked: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct SingleSourceContractsArgs {
+    #[arg(long)]
+    pub config_path: Option<PathBuf>,
 }
 
 /// Arguments for the architecture-policy check.

@@ -14,7 +14,7 @@ use enforcer_scan::{engine, walk};
 
 use crate::cli::{
     ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs, PolicyAction,
-    RequiredTestsArgs, SbomArgs, ScopeArgs, VerifyArgs,
+    RequiredTestsArgs, SbomArgs, ScopeArgs, SingleSourceContractsArgs, VerifyArgs,
 };
 use crate::output;
 
@@ -161,6 +161,56 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
         PolicyAction::Sbom(args) => run_sbom_policy(args),
         PolicyAction::RequiredTests(args) => run_required_tests_policy(args),
         PolicyAction::GeneratedArtifacts(args) => run_generated_artifacts_policy(args),
+        PolicyAction::SingleSourceContracts(args) => run_single_source_contracts_policy(args),
+    }
+}
+
+fn run_single_source_contracts_policy(args: &SingleSourceContractsArgs) -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(value) => value,
+        Err(error) => {
+            output::print_internal_error(&error);
+            return ExitCode::InternalError;
+        }
+    };
+    let resolved =
+        match enforcer_scan::scope::resolve(&enforcer_domain::scan_types::ScopeRequest::All, &root)
+        {
+            Ok(value) => value,
+            Err(error) => {
+                output::print_usage_error(&error.to_string());
+                return ExitCode::UsageError;
+            }
+        };
+    let files = match walk::walk(Path::new(root.as_str()), &walk::IgnoreRules::default()) {
+        Ok(value) => value,
+        Err(error) => {
+            output::print_internal_error(&format!("walk failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    let config = args
+        .config_path
+        .as_ref()
+        .map(|path| path.to_string_lossy().to_string());
+    match enforcer_scan::single_source_contracts::check(
+        &root,
+        resolved.kind,
+        &files,
+        config.as_deref(),
+    ) {
+        Ok(report) => {
+            output::print_report(&report);
+            if report.ok == ReportOutcome::Clean {
+                ExitCode::Success
+            } else {
+                ExitCode::Violations
+            }
+        }
+        Err(error) => {
+            output::print_internal_error(&error);
+            ExitCode::InternalError
+        }
     }
 }
 

@@ -222,6 +222,25 @@ pub fn execute_generated_artifacts(
     })
 }
 
+pub fn execute_single_source_contracts(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    config_path: Option<&str>,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report =
+        crate::single_source_contracts::check(repo_root, resolved.kind, &files, config_path)
+            .map_err(|reason| NativeScanError::Io {
+                operation: "single-source-contracts check",
+                reason,
+            })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the resolved, config-driven source-shape policy.  This is kept
 /// separate from the broad family scan because the policy selects files by
 /// configured roots and extensions, then applies ordered path overrides.

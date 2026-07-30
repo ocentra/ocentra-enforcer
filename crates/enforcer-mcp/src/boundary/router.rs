@@ -1001,7 +1001,10 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
-    } else if name == "source-shape" || name == "architecture-policy" {
+    } else if name == "source-shape"
+        || name == "architecture-policy"
+        || name == "single-source-contracts"
+    {
         [NATIVE_SCAN_FIELDS, &["configPath"]].concat()
     } else {
         NATIVE_SCAN_FIELDS.to_vec()
@@ -1028,6 +1031,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
         "architecture-policy" => named_architecture_policy_unrecorded(&native_args),
+        "single-source-contracts" => named_single_source_contracts_unrecorded(&native_args),
         _ => scan_unrecorded(&native_args),
     };
     let Some(object) = report.as_object_mut() else {
@@ -1141,6 +1145,21 @@ fn named_architecture_policy_unrecorded(args: &serde_json::Value) -> serde_json:
             Ok(report)
         })
         .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_single_source_contracts_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_single_source_contracts(
+        &request,
+        &root,
+        args.get("configPath").and_then(serde_json::Value::as_str),
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+    .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_required_tests_unrecorded(args: &serde_json::Value) -> serde_json::Value {
