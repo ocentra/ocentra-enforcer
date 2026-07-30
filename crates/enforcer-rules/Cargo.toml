@@ -24,6 +24,9 @@ enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: property tests exercise strict JSON boundary
 # decoding across generated whitespace and unknown-field inputs.
 proptest = "1.9.0"
+# DEPENDENCY-JUSTIFICATION: CyberSkills attribution tests fingerprint the
+# checked-in vendor source before permitting a native rule mapping.
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

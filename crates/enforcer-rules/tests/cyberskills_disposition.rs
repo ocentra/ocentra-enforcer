@@ -9,6 +9,7 @@ use std::{collections::BTreeSet, path::PathBuf};
 use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 const DISPOSITION_JSON: &str = include_str!("../dispositions/cyberskills-disposition.json");
 const NATIVE_RULES_JSON: &str = include_str!("../rules/cyberskills.json");
@@ -37,6 +38,17 @@ fn field<'a>(record: &'a Value, name: &str) -> Result<&'a str, Box<dyn std::erro
         .get(name)
         .and_then(Value::as_str)
         .ok_or_else(|| format!("record missing string {name}: {record}").into())
+}
+
+fn evidence_field<'a>(
+    evidence: &'a Value,
+    name: &str,
+) -> Result<&'a str, Box<dyn std::error::Error>> {
+    evidence
+        .get(name)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| format!("evidence missing non-empty string {name}: {evidence}").into())
 }
 
 fn source_catalog_ids() -> BTreeSet<String> {
@@ -115,11 +127,6 @@ fn disposition_covers_the_entire_catalog_once_with_honest_totals(
         817,
         "every catalog skill needs one disposition"
     );
-    assert_eq!(totals["catalogRows"], 817);
-    assert_eq!(totals["nativeMapped"], 0);
-    assert_eq!(totals["unported"], 282);
-    assert_eq!(totals["adapterDeferred"], 399);
-    assert_eq!(totals["advisoryProse"], 136);
 
     let mut ids = BTreeSet::new();
     let mut paths = BTreeSet::new();
@@ -148,10 +155,32 @@ fn disposition_covers_the_entire_catalog_once_with_honest_totals(
         *disposition_counts.entry(disposition).or_insert(0usize) += 1;
         assert!(!field(record, "rationale")?.trim().is_empty());
     }
-    assert_eq!(disposition_counts.get("unported"), Some(&282));
-    assert_eq!(disposition_counts.get("adapter-deferred"), Some(&399));
-    assert_eq!(disposition_counts.get("advisory-prose"), Some(&136));
-    assert_eq!(disposition_counts.get("native"), None);
+    let expected_totals = [
+        ("catalogRows", records.len()),
+        (
+            "nativeMapped",
+            *disposition_counts.get("native").unwrap_or(&0),
+        ),
+        (
+            "unported",
+            *disposition_counts.get("unported").unwrap_or(&0),
+        ),
+        (
+            "adapterDeferred",
+            *disposition_counts.get("adapter-deferred").unwrap_or(&0),
+        ),
+        (
+            "advisoryProse",
+            *disposition_counts.get("advisory-prose").unwrap_or(&0),
+        ),
+    ];
+    for (key, count) in expected_totals {
+        assert_eq!(
+            totals.get(key).and_then(Value::as_u64),
+            Some(count as u64),
+            "manifest total {key} must be derived from records"
+        );
+    }
     assert_eq!(
         ids,
         source_catalog_ids(),
@@ -189,6 +218,62 @@ fn explicit_registry_targets_exist_and_have_per_skill_evidence(
                     native_ids.contains(rule_id),
                     "native target missing from registry: {rule_id}"
                 );
+                let evidence_path = field(record, "evidencePath")?;
+                let evidence_absolute_path = root.join(evidence_path);
+                let evidence: Value =
+                    serde_json::from_str(&std::fs::read_to_string(&evidence_absolute_path)?)?;
+                assert_eq!(
+                    evidence.get("schemaVersion").and_then(Value::as_u64),
+                    Some(1)
+                );
+                assert_eq!(evidence_field(&evidence, "catalogId")?, id);
+                assert_eq!(
+                    evidence_field(&evidence, "sourcePath")?,
+                    field(record, "sourcePath")?
+                );
+                assert_eq!(evidence_field(&evidence, "nativeRuleId")?, rule_id);
+                assert_eq!(evidence_field(&evidence, "coverage")?, "narrowed-predicate");
+                for key in ["predicate", "notProved"] {
+                    evidence_field(&evidence, key)?;
+                }
+                for key in ["nativeValidatorPath", "failFixture", "passFixture"] {
+                    let evidence_value = evidence_field(&evidence, key)?;
+                    assert!(
+                        root.join(evidence_value).is_file(),
+                        "evidence {key} path missing for {id}: {evidence_value}"
+                    );
+                }
+                let source_path = evidence_field(&evidence, "sourcePath")?;
+                let source = std::fs::read(&root.join(source_path))?;
+                let source_sha256 = evidence_field(&evidence, "sourceSha256")?;
+                assert!(
+                    source_sha256.len() == 64
+                        && source_sha256
+                            .bytes()
+                            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()),
+                    "evidence sourceSha256 must be lowercase hexadecimal for {id}"
+                );
+                assert_eq!(
+                    format!("{:x}", Sha256::digest(source)),
+                    source_sha256,
+                    "vendor source fingerprint drifted for {id}"
+                );
+                let source_text = std::fs::read_to_string(root.join(source_path))?;
+                let anchors = evidence
+                    .get("sourceAnchors")
+                    .and_then(Value::as_array)
+                    .filter(|anchors| !anchors.is_empty())
+                    .ok_or_else(|| format!("evidence sourceAnchors missing for {id}"))?;
+                for anchor in anchors {
+                    let anchor = anchor
+                        .as_str()
+                        .filter(|anchor| !anchor.trim().is_empty())
+                        .ok_or_else(|| format!("invalid source anchor for {id}"))?;
+                    assert!(
+                        source_text.contains(anchor),
+                        "source anchor drifted for {id}: {anchor}"
+                    );
+                }
                 mapped += 1;
             }
             "adapter-deferred" if adapter.is_some() => {
@@ -221,9 +306,9 @@ fn explicit_registry_targets_exist_and_have_per_skill_evidence(
         }
     }
 
-    assert_eq!(
-        mapped, 0,
-        "there is currently no explicit per-skill vendor-to-registry mapping; do not infer one from theme similarity"
+    assert!(
+        mapped > 0,
+        "at least one native mapping needs checked-in evidence"
     );
     Ok(())
 }

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "exploiting-type-juggling-vulnerabilities",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-type-juggling-vulnerabilities/SKILL.md",
+  "sourceSha256": "e2a5f701c3b3a40b481c4642e2e7e7705834440f0655e2ee48e14fe6e502b016",
+  "sourceAnchors": ["loose comparison (== instead of ===)", "Magic Hash"],
+  "nativeRuleId": "CYBER-TYPE-JUGGLE.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/type_juggle.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/bad/vuln.php",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/good/safe.php",
+  "coverage": "narrowed-predicate",
+  "predicate": "Static PHP detection of loose comparison, non-strict helpers, and magic-hash shapes on attacker-controlled input.",
+  "notProved": "Interactive request mutation and complete runtime authentication bypass validation."
+}

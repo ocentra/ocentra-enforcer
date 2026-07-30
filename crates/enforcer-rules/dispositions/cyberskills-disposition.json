@@ -5,10 +5,10 @@
   "mappingPolicy": "A nativeRuleId or adapterRuleId may be set only with an explicit per-skill evidence path; category or theme similarity is not evidence.",
   "totals": {
     "catalogRows": 817,
-    "nativeMapped": 0,
-    "unported": 282,
-    "adapterDeferred": 399,
-    "advisoryProse": 136
+    "nativeMapped": 6,
+    "unported": 278,
+    "adapterDeferred": 398,
+    "advisoryProse": 135
   },
   "records": [
     {
@@ -91,13 +91,15 @@
     {
       "catalogId": "exploiting-mass-assignment-in-rest-apis",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md",
-      "disposition": "unported",
+      "disposition": "native",
       "catalogTier": "T1",
       "plannedRuleId": "api.mass-assignment.unexpected-field-binding",
       "inputKind": "json-request",
       "predicate": "Detect ORM autobinding of unexpected fields (role, isAdmin, verified, price) that bypass authorization",
       "conversion": "easy",
-      "rationale": "Catalog candidate only; no explicit vendor-skill-to-native-CYBER rule mapping is yet evidenced."
+      "rationale": "A bounded static-source mass-assignment predicate is evidenced; live endpoint exploitation remains out of scope.",
+      "nativeRuleId": "CYBER-MASS-ASSIGN.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/mass-assignment.json"
     },
     {
       "catalogId": "implementing-api-security-testing-with-42crunch",
@@ -465,13 +467,15 @@
     {
       "catalogId": "hardening-docker-daemon-configuration",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-daemon-configuration/SKILL.md",
-      "disposition": "unported",
+      "disposition": "native",
       "catalogTier": "T1",
       "plannedRuleId": "container.docker-daemon-hardening",
       "inputKind": "json-config",
       "predicate": "Verify daemon.json settings against CIS Docker daemon hardening benchmarks",
       "conversion": "easy",
-      "rationale": "Catalog candidate only; no explicit vendor-skill-to-native-CYBER rule mapping is yet evidenced."
+      "rationale": "A bounded daemon.json hardening predicate is evidenced; host configuration and all CIS controls remain out of scope.",
+      "nativeRuleId": "CYBER-DOCKER-DAEMON.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/docker-daemon.json"
     },
     {
       "catalogId": "escaping-containers-to-host",
@@ -2027,13 +2031,15 @@
     {
       "catalogId": "exploiting-type-juggling-vulnerabilities",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-type-juggling-vulnerabilities/SKILL.md",
-      "disposition": "unported",
+      "disposition": "native",
       "catalogTier": "T2",
       "plannedRuleId": "auth.php.type-juggling-bypass",
       "inputKind": "http-headers",
       "predicate": "Detect PHP type juggling auth bypass via magic hash and type coercion payloads",
       "conversion": "easy",
-      "rationale": "Catalog candidate only; no explicit vendor-skill-to-native-CYBER rule mapping is yet evidenced."
+      "rationale": "A bounded static PHP loose-comparison predicate is evidenced; interactive runtime bypass testing remains out of scope.",
+      "nativeRuleId": "CYBER-TYPE-JUGGLE.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/type-juggling.json"
     },
     {
       "catalogId": "analyzing-azure-activity-logs-for-threats",
@@ -2071,13 +2077,15 @@
     {
       "catalogId": "exploiting-nosql-injection-vulnerabilities",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-nosql-injection-vulnerabilities/SKILL.md",
-      "disposition": "unported",
+      "disposition": "native",
       "catalogTier": "T2",
       "plannedRuleId": "db.nosql.operator-injection",
       "inputKind": "http-request",
       "predicate": "Detect MongoDB/NoSQL operator injection ($ne, $gt, $exists, $regex) in query parameters and response changes",
       "conversion": "medium",
-      "rationale": "Catalog candidate only; no explicit vendor-skill-to-native-CYBER rule mapping is yet evidenced."
+      "rationale": "A bounded static NoSQL operator-injection predicate is evidenced; live response-differential testing remains out of scope.",
+      "nativeRuleId": "CYBER-NOSQL-INJECT.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/nosql-injection.json"
     },
     {
       "catalogId": "implementing-siem-use-case-tuning",
@@ -3380,10 +3388,12 @@
     {
       "catalogId": "auditing-terraform-infrastructure-for-security",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
-      "disposition": "adapter-deferred",
+      "disposition": "native",
       "catalogTier": "ADAPTER",
       "externalTool": "checkov, tfsec, terrascan",
-      "rationale": "Requires an external engine or live system; no explicit per-skill adapter record is registered yet."
+      "rationale": "A bounded static Terraform wildcard-Allow predicate is evidenced; the vendor external-tool workflow and broader checks remain out of scope.",
+      "nativeRuleId": "CYBER-IAC-IAM-WILDCARD.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/terraform-iam-wildcard.json"
     },
     {
       "catalogId": "auditing-tls-certificate-transparency-logs",
@@ -6315,9 +6325,11 @@
     {
       "catalogId": "exploiting-websocket-vulnerabilities",
       "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-websocket-vulnerabilities/SKILL.md",
-      "disposition": "advisory-prose",
+      "disposition": "native",
       "catalogTier": "PROSE",
-      "rationale": "Advisory/procedural corpus material, not a directly executable native policy."
+      "rationale": "A bounded static WebSocket Origin-validation predicate is evidenced; live handshake and exploit testing remain out of scope.",
+      "nativeRuleId": "CYBER-WEBSOCKET.1",
+      "evidencePath": "docs/plans/enforcer-selfhost-plan/refs/cyberskills-attribution/websocket-origin.json"
     },
     {
       "catalogId": "generating-threat-intelligence-reports",
