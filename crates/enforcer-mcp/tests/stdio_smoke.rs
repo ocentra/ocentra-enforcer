@@ -121,6 +121,27 @@ fn stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end(
 }
 
 #[test]
+fn stdio_smoke_doctor_reaches_native_repository_engine() -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    std::fs::create_dir_all(fixture.path().join("src"))?;
+    std::fs::write(fixture.path().join("src/lib.rs"), "pub fn stdio_doctor() {}\n")?;
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary).arg("/abs/path/to/enforcer").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+    let reply = round_trip(&mut stdin, &mut reader, &serde_json::json!({
+        "jsonrpc":"2.0", "id":1, "method":"tools/call",
+        "params":{"name":"ocentra_enforcer_doctor","arguments":{"root":fixture.path().to_string_lossy(),"files":["src/lib.rs"]}}
+    }))?;
+    assert_eq!(reply["result"]["command"], serde_json::json!("doctor"));
+    assert_eq!(reply["result"]["checks"].as_array().map(Vec::len), Some(6));
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
+
+#[test]
 fn stdio_smoke_legacy_alias_call_resolves_end_to_end() -> Result<(), Box<dyn std::error::Error>> {
     let binary = smoke_binary_path()?;
     let mut child = Command::new(binary)

@@ -231,6 +231,17 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
             "required": ["check"],
         });
     }
+    if name == "ocentra_enforcer_doctor" {
+        return serde_json::json!({
+            "type": "object", "additionalProperties": false,
+            "properties": {
+                "root": { "type": "string" }, "configPath": { "type": "string" },
+                "profile": { "type": "string" }, "scope": { "type": "string", "enum": ["files", "workspace", "crate", "diff"] },
+                "files": { "type": "array", "items": { "type": "string" } }, "crateName": { "type": "string" },
+                "base": { "type": "string" }, "head": { "type": "string" }
+            }
+        });
+    }
     if name == "ocentra_enforcer_ui" {
         return serde_json::json!({
             "type": "object",

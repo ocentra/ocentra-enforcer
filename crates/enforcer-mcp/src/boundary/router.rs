@@ -20,7 +20,7 @@
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, Hub};
 use enforcer_domain::{
     boundary::mcp::{execution_mode, write_intent},
-    config_types::CrateName,
+    config_types::{ConfigProfileName, CrateName},
     coordination_types::{
         ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
         CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
@@ -98,6 +98,7 @@ pub fn dispatch(
     match canonical.as_str() {
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
+        "ocentra_enforcer_doctor" => DispatchOutcome::Result(doctor(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
         "ocentra_enforcer_ui_logic_coupling_scan" => {
@@ -345,6 +346,58 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
         serde_json::Value::String(name.to_owned()),
     );
     report
+}
+
+/// Native repository-readiness doctor. This intentionally invokes
+/// `enforcer-scan::doctor`, not the separate user-harness registration doctor.
+fn doctor(args: &serde_json::Value) -> serde_json::Value {
+    const SUPPORTED_FIELDS: &[&str] = &[
+        "root", "configPath", "profile", "scope", "files", "crateName", "base", "head",
+    ];
+    let Some(object) = args.as_object() else {
+        return json_error("doctor arguments must be an object");
+    };
+    if let Some(field) = object.keys().find(|field| !SUPPORTED_FIELDS.contains(&field.as_str())) {
+        return json_error(&format!("doctor does not support `{field}`"));
+    }
+    let root = match args.get("root").and_then(serde_json::Value::as_str) {
+        Some(value) => value.parse::<RepoRoot>().map_err(|error| error.to_string()),
+        None => std::env::current_dir()
+            .map_err(|error| error.to_string())
+            .and_then(|path| path.to_string_lossy().parse::<RepoRoot>().map_err(|error| error.to_string())),
+    };
+    let root = match root { Ok(value) => value, Err(error) => return json_error(&error.to_string()) };
+    let files = match args.get("files") {
+        None => None,
+        Some(serde_json::Value::Array(values)) => values.iter().map(|value| value.as_str().map(std::path::PathBuf::from)).collect(),
+        Some(_) => return json_error("doctor `files` must be an array"),
+    };
+    let scope = match parse_scan_scope(args.get("scope"), files, args) {
+        Ok(value) => value, Err(error) => return json_error(&error),
+    };
+    let config_path = args.get("configPath").and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json"));
+    let config = match args.get("profile").and_then(serde_json::Value::as_str) {
+        Some(profile) => ConfigProfileName::try_new(profile.to_owned()).map_err(|error| error.to_string())
+            .and_then(|profile| enforcer_config::resolve::resolve_profile_only(&profile).map_err(|error| error.to_string())),
+        None => enforcer_config::load_project_config(&config_path).map_err(|error| error.to_string()),
+    };
+    let config = match config { Ok(value) => value, Err(error) => return json_error(&error) };
+    let request = enforcer_scan::doctor::DoctorRequest::new(
+        root.clone(),
+        enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages: Vec::new() },
+        config,
+    );
+    match enforcer_scan::doctor::run(&request) {
+        Ok(report) => serde_json::json!({
+            "ok": report.ok(), "command": report.command(), "root": root.as_str(),
+            "profileName": report.profile_name(),
+            "checks": report.checks().iter().map(|check| serde_json::json!({"name": check.name(), "ok": check.ok(), "detail": check.detail()})).collect::<Vec<_>>(),
+            "violations": [],
+        }),
+        Err(error) => json_error(&error.to_string()),
+    }
 }
 
 /// Native MCP route adapter. The route plan is built by `enforcer-scan` from
@@ -712,6 +765,23 @@ mod tests {
         };
         assert_eq!(value["ok"], serde_json::json!(true));
         assert!(value["toolCount"].as_u64().is_some_and(|count| count > 0));
+        Ok(())
+    }
+
+    #[test]
+    fn doctor_dispatches_to_the_native_repository_readiness_engine(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn doctor_fixture() {}\n")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_doctor")?,
+            &serde_json::json!({ "root": temp.path().to_string_lossy(), "files": ["src/lib.rs"] }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else { return Err("doctor did not produce a result".into()); };
+        assert_eq!(value["command"], serde_json::json!("doctor"));
+        assert!(value["checks"].as_array().is_some_and(|checks| checks.len() == 6));
         Ok(())
     }
 
