@@ -1499,7 +1499,10 @@ fn named_literal_risk_unrecorded(args: &serde_json::Value) -> serde_json::Value 
     if hard_categories.is_err() || hard_rules.is_err() {
         return json_error("literal-risk hardCategories and hardRuleIds must be string arrays");
     }
-    let hard_categories = hard_categories.unwrap_or_default();
+    // Frozen standalone literal-risk semantics always treat secret-shaped
+    // findings as hard, even when callers do not repeat the default category.
+    let mut hard_categories = hard_categories.unwrap_or_default();
+    hard_categories.insert("secret-like");
     let hard_rules = hard_rules.unwrap_or_default();
     match enforcer_literal_scan::run_scan(&options) {
         Ok(report) => {
