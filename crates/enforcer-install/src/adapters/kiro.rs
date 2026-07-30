@@ -37,7 +37,7 @@ use enforcer_domain::install_types::{
 };
 use enforcer_domain::install_types::{InstallBinaryPath, InstallRequestContext, InstallRootPath};
 use enforcer_domain::paths::RepoRoot;
-use enforcer_mcp::name::SERVER_NAME;
+use enforcer_domain::mcp_types::SERVER_NAME;
 
 /// This adapter's registration key, matching [`crate::report::HarnessKey`].
 /// The Kiro [`HarnessAdapter`]. Rooted at a `home` directory (the parent

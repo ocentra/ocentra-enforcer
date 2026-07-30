@@ -86,6 +86,7 @@ pub mod doctor;
 pub mod emitters;
 #[path = "boundary/error.rs"]
 pub mod error;
+pub mod factory;
 pub mod hooks;
 #[path = "boundary/install_requests.rs"]
 pub mod install_requests;

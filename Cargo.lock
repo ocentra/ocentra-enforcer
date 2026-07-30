@@ -1016,7 +1016,6 @@ dependencies = [
  "enforcer-cli",
  "enforcer-config",
  "enforcer-domain",
- "enforcer-mcp",
  "serde",
  "serde_json",
  "sha2",

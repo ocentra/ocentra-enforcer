@@ -4,7 +4,7 @@ use enforcer_install::migrate_legacy_name::{
     migrate, ConfigTarget, MigrationFindingDto, MigrationOutcomeDto, RewrittenFileDto,
     LEGACY_SERVER_NAME,
 };
-use enforcer_mcp::name::SERVER_NAME;
+use enforcer_domain::mcp_types::SERVER_NAME;
 
 #[test]
 fn migration_refuses_a_dual_server_registration_without_writing(
