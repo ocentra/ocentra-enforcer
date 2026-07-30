@@ -1057,7 +1057,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "import-boundaries" => named_import_boundaries_unrecorded(&native_args),
         "literal-risk" => named_literal_risk_unrecorded(&native_args),
         "reexports" => named_reexports_unrecorded(&native_args),
-        "no-zod-source" | "no-naked-domain-strings" | "rust-string-boundaries"
+        "no-naked-domain-strings" | "rust-string-boundaries" => named_rust_string_boundaries_unrecorded(&native_args),
+        "no-zod-source"
         | "no-test-doubles" | "weak-assertions" | "skipped-focused-tests"
         | "validation-bypass" | "placeholder-implementation"
         | "cross-platform-script-commands" => named_check_rejection(
@@ -1348,6 +1349,37 @@ fn named_reexports_unrecorded(args: &serde_json::Value) -> serde_json::Value {
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_rust_string_boundaries_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => {
+            return json_error(&format!(
+                "cannot load no-naked-domain-strings config: {error}"
+            ))
+        }
+    };
+    enforcer_scan::boundary::native_scan::execute_rust_string_boundaries_policy(
+        &request, &root, &config,
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+    .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_literal_risk_unrecorded(args: &serde_json::Value) -> serde_json::Value {
@@ -3611,6 +3643,60 @@ mod tests {
         let findings = value["findings"].as_array().ok_or("missing findings")?;
         assert!(!findings.is_empty());
         assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn naked_domain_string_alias_uses_native_rust_policy_and_skips_generated_paths(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src/generated"))?;
+        std::fs::write(
+            temp.path().join("src/generated/value.rs"),
+            "pub fn raw(value: String) { }",
+        )?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"rust-string-boundaries","scope":"files","files":["src/generated/value.rs"],"languages":["rust"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native alias did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("rust-string-boundaries"));
+        assert_eq!(value["ok"], serde_json::json!(true));
+        Ok(())
+    }
+
+    #[test]
+    fn naked_domain_string_policy_refuses_unsupported_language_requests(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/value.ts"),
+            "export const value = 'raw';",
+        )?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"no-naked-domain-strings","scope":"files","files":["src/value.ts"],"languages":["typescript"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native policy did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("only rust")));
         Ok(())
     }
 

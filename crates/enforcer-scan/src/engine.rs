@@ -424,6 +424,15 @@ pub fn run_reexports_policy(
     Ok(fold_report(scope.kind, findings))
 }
 
+/// Run the Rust-native portion of the named string-boundary policy.
+pub fn run_rust_string_boundaries_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    config: &enforcer_domain::config_types::EffectiveConfig,
+) -> Result<Report, String> {
+    crate::string_boundaries::check(scope, files, config)
+}
+
 /// Enforce that first-party package and crate roots have an organized test
 /// tree. This is deliberately a filesystem policy rather than a marker
 /// validator: `TEST-2.1` is about project structure, not source text.

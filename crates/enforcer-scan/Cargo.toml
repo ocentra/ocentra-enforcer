@@ -14,6 +14,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Runtime literal policy stores reviewed regex allow patterns; native compilation is required to preserve their exact semantics.
+regex = "=1.12.4"
 # DEPENDENCY-JUSTIFICATION: TypeScript declarations mirror scan-facing typed records at the UI boundary.
 ts-rs = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }

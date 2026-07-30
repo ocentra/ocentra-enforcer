@@ -84,6 +84,9 @@ pub enum NativeScanError {
     UnsupportedCrate {
         name: CrateName,
     },
+    UnsupportedLanguagePolicy {
+        reason: String,
+    },
     GitDiff {
         base: CommitRef,
         head: CommitRef,
@@ -101,6 +104,7 @@ impl std::fmt::Display for NativeScanError {
             Self::UnsupportedCrate { name } => {
                 write!(formatter, "native scan crate `{name}` was not found")
             }
+            Self::UnsupportedLanguagePolicy { reason } => formatter.write_str(reason),
             Self::GitDiff { base, head, reason } => write!(
                 formatter,
                 "native scan diff `{}..{}` could not be resolved: {reason}",
@@ -188,6 +192,36 @@ pub fn execute_reexports_policy(
     let (resolved, files) = resolve_files(request, repo_root)?;
     let report =
         engine::run_reexports_policy(&resolved, &files).map_err(NativeScanError::Decode)?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
+/// Execute the Rust-only implementation of `no-naked-domain-strings`.
+pub fn execute_rust_string_boundaries_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    config: &enforcer_domain::config_types::EffectiveConfig,
+) -> Result<NativeScanResult, NativeScanError> {
+    if request
+        .languages
+        .iter()
+        .any(|language| !matches!(language, NativeScanLanguage::Rust))
+    {
+        return Err(NativeScanError::UnsupportedLanguagePolicy {
+            reason: "no-naked-domain-strings native implementation currently supports only rust; TypeScript and Python remain explicitly unsupported".to_owned(),
+        });
+    }
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report =
+        engine::run_rust_string_boundaries_policy(&resolved, &files, config).map_err(|reason| {
+            NativeScanError::Io {
+                operation: "rust string-boundaries check",
+                reason,
+            }
+        })?;
     Ok(NativeScanResult {
         scope: resolved.kind,
         scanned_files: files,
