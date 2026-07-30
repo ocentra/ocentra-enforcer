@@ -184,44 +184,16 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
         .iter()
         .map(|&name| {
             let rule_ids = match name {
-                // These nine entries are the frozen MJS scanner-backed
-                // checks. Their reports are produced by the real native scan
-                // engine and then filtered to the same rule family; the
-                // remaining frozen names retain an empty list until their
-                // distinct native engines land.
-                "no-zod-source" => ["TS-1.2"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "no-test-doubles" => ["TEST-1.1", "TS-8.8"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "cross-platform-script-commands" => ["PORT-1.1"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
+                // A nonempty row is an executable native named-check
+                // contract, not merely a frozen-MJS rule-family reference.
+                // Checks without a narrow native implementation deliberately
+                // retain their empty default below; the router returns an
+                // explicit refusal instead of claiming a filtered broad scan.
                 "no-naked-domain-strings" => ["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
-                "weak-assertions" => ["TEST-1.2"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "skipped-focused-tests" => ["TS-3.1", "PY-2.1", "TEST-1.3"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "validation-bypass" => ["RR-2.1", "RR-2.2", "TS-2.1", "PY-1.1", "PY-1.2"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "placeholder-implementation" => ["RR-4.2", "RR-4.3", "SRC-1.2"]
-                    .into_iter()
-                    .filter_map(|raw| raw.parse::<RuleId>().ok())
-                    .collect(),
-                "reexports" => ["RR-7.2", "RR-7.3", "TS-1.1"]
+                "reexports" => ["T1-NOREEXPORT.1"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
@@ -888,7 +860,10 @@ mod tests {
         let Some(zod) = backing.iter().find(|(name, _)| *name == "no-zod-source") else {
             return Err("no-zod-source must be declared".into());
         };
-        assert!(is_wired(zod));
+        assert!(
+            !is_wired(zod),
+            "declared frozen checks without a narrow native engine must not be advertised as wired"
+        );
         let wired: BTreeSet<&str> = backing
             .iter()
             .filter(|entry| is_wired(entry))
@@ -897,14 +872,7 @@ mod tests {
         assert_eq!(
             wired,
             BTreeSet::from([
-                "no-zod-source",
-                "no-test-doubles",
-                "cross-platform-script-commands",
                 "no-naked-domain-strings",
-                "weak-assertions",
-                "skipped-focused-tests",
-                "validation-bypass",
-                "placeholder-implementation",
                 "reexports",
                 "secrets",
                 "dependency-policy",
@@ -916,6 +884,8 @@ mod tests {
                 "required-tests",
                 "source-shape",
                 "architecture-policy",
+                "single-source-contracts",
+                "ai-rule-index",
             ])
         );
         Ok(())

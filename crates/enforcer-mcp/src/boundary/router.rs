@@ -3653,7 +3653,8 @@ mod tests {
     }
 
     #[test]
-    fn check_no_zod_source_filters_to_its_native_rule() -> Result<(), Box<dyn std::error::Error>> {
+    fn check_no_zod_source_refuses_until_a_narrow_native_policy_lands(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -3675,12 +3676,13 @@ mod tests {
         let DispatchOutcome::Result(value) = outcome else {
             return Err("native check did not produce a result".into());
         };
-        assert_eq!(value["command"], serde_json::json!("check"));
         assert_eq!(value["check"], serde_json::json!("no-zod-source"));
         assert_eq!(value["ok"], serde_json::json!(false));
-        let findings = value["findings"].as_array().ok_or("missing findings")?;
-        assert!(!findings.is_empty());
-        assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.2"));
+        assert_eq!(
+            value["error"]["code"],
+            serde_json::json!("native_engine_not_implemented")
+        );
+        assert!(value.get("findings").is_none());
         Ok(())
     }
 
@@ -3691,8 +3693,8 @@ mod tests {
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
         std::fs::write(
-            src.join("barrel.ts"),
-            "export { value } from \"./value\";\n",
+            src.join("lib.rs"),
+            "mod inner { pub struct Value; }\npub use inner::Value;\n",
         )?;
 
         let outcome = dispatch(
@@ -3701,8 +3703,8 @@ mod tests {
                 "root": temp.path().to_string_lossy(),
                 "check": "reexports",
                 "scope": "files",
-                "files": ["src/barrel.ts"],
-                "languages": ["typescript"],
+                "files": ["src/lib.rs"],
+                "languages": ["rust"],
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -3713,7 +3715,9 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(false));
         let findings = value["findings"].as_array().ok_or("missing findings")?;
         assert!(!findings.is_empty());
-        assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.1"));
+        assert!(findings
+            .iter()
+            .all(|finding| finding["ruleId"] == "T1-NOREEXPORT.1"));
         Ok(())
     }
 
@@ -4091,7 +4095,7 @@ mod tests {
     }
 
     #[test]
-    fn run_status_returns_process_local_validation_after_final_check_shape(
+    fn run_status_does_not_record_a_refused_named_check_as_validation(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
@@ -4112,13 +4116,8 @@ mod tests {
         let DispatchOutcome::Result(value) = status else {
             return Err("run status did not produce a result".into());
         };
-        assert_eq!(value["summaryType"], serde_json::json!("validation"));
-        assert_eq!(value["summary"]["kind"], serde_json::json!("check"));
-        assert_eq!(
-            value["summary"]["check"],
-            serde_json::json!("no-zod-source")
-        );
-        assert_eq!(value["summary"]["ruleIds"], serde_json::json!(["TS-1.2"]));
+        assert_eq!(value["summaryType"], serde_json::json!("none"));
+        assert_eq!(value["summary"], serde_json::Value::Null);
         assert!(value.get("artifact").is_none());
         Ok(())
     }
@@ -4995,9 +4994,9 @@ mod tests {
             return Err("reexports did not dispatch".into());
         };
         assert_eq!(value["check"], serde_json::json!("reexports"));
-        assert!(value["findings"].as_array().is_some_and(|rows| rows
-            .iter()
-            .all(|row| row["ruleId"] == "RR-7.2" || row["ruleId"] == "RR-7.3")));
+        assert!(value["findings"]
+            .as_array()
+            .is_some_and(|rows| rows.iter().all(|row| row["ruleId"] == "T1-NOREEXPORT.1")));
         Ok(())
     }
 
@@ -5035,8 +5034,6 @@ mod tests {
         let temp = tempfile::tempdir()?;
         for check in [
             "no-zod-source",
-            "no-naked-domain-strings",
-            "rust-string-boundaries",
             "no-test-doubles",
             "weak-assertions",
             "skipped-focused-tests",
@@ -5052,7 +5049,10 @@ mod tests {
                 return Err("refusal did not dispatch".into());
             };
             assert_eq!(value["ok"], serde_json::json!(false));
-            assert_eq!(value["error"]["code"],serde_json::json!("narrow_native_engine_not_implemented: broad scan filtering is not a named-policy implementation"));
+            assert_eq!(
+                value["error"]["code"],
+                serde_json::json!("native_engine_not_implemented")
+            );
         }
         Ok(())
     }
