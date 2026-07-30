@@ -13,10 +13,10 @@ use enforcer_domain::config_types::{
     ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson,
     ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope,
     GeneratedArtifactsMode, Glob, HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays,
-    HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner,
-    PolicyReason, PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern,
-    RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
-    SourceShapeOverride, SourceShapePolicy, StrictEmptyTestTrees,
+    HarnessRunLimit, ImportBoundaryPolicy, InlineTestPolicy, NativeMode, NativeTie, NativeTool,
+    Platform, PolicyOwner, PolicyReason, PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy,
+    RegexPattern, RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs,
+    SourceShapeKind, SourceShapeOverride, SourceShapePolicy, StrictEmptyTestTrees,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -808,6 +808,8 @@ pub struct WireEffectiveConfig {
     pub source_shape_overrides: Vec<WireSourceShapeOverride>,
     #[serde(default)]
     pub architecture_policy_checks: Vec<String>,
+    #[serde(default)]
+    pub import_boundary_policies: Vec<WireImportBoundaryPolicy>,
     #[serde(default = "default_agent_rule_max_lines")]
     pub agent_rule_max_lines: usize,
     #[serde(default)]
@@ -826,6 +828,19 @@ pub struct WireEffectiveConfig {
     pub ignore_file_globs: Vec<WireGlob>,
     #[serde(default)]
     pub boundary_owner_note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WireImportBoundaryPolicy {
+    #[serde(default)]
+    pub roots: Vec<String>,
+    #[serde(default)]
+    pub forbidden_imports: Vec<WireGlob>,
+    #[serde(default)]
+    pub allowed_imports: Vec<WireGlob>,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -892,6 +907,30 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .into_iter()
                 .map(ArchitecturePolicyCheck::try_new)
                 .collect::<Result<_, _>>()?,
+            import_boundary_policies: value
+                .import_boundary_policies
+                .into_iter()
+                .map(|policy| {
+                    Ok(ImportBoundaryPolicy {
+                        roots: policy
+                            .roots
+                            .into_iter()
+                            .map(RelPath::try_from)
+                            .collect::<Result<_, _>>()?,
+                        forbidden_imports: policy
+                            .forbidden_imports
+                            .into_iter()
+                            .map(TryInto::try_into)
+                            .collect::<Result<_, DecodeError>>()?,
+                        allowed_imports: policy
+                            .allowed_imports
+                            .into_iter()
+                            .map(TryInto::try_into)
+                            .collect::<Result<_, DecodeError>>()?,
+                        message: policy.message.map(ConfigField::from_owned),
+                    })
+                })
+                .collect::<Result<_, DecodeError>>()?,
             agent_rule_max_lines: value.agent_rule_max_lines,
             strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
             private_rust_test_module_allowlist: value
@@ -1146,6 +1185,20 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .architecture_policy_checks
                 .into_iter()
                 .map(|value| value.as_str().to_owned())
+                .collect(),
+            import_boundary_policies: value
+                .import_boundary_policies
+                .into_iter()
+                .map(|policy| WireImportBoundaryPolicy {
+                    roots: policy.roots.into_iter().map(String::from).collect(),
+                    forbidden_imports: policy
+                        .forbidden_imports
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    allowed_imports: policy.allowed_imports.into_iter().map(Into::into).collect(),
+                    message: policy.message.map(|value| value.as_str().to_owned()),
+                })
                 .collect(),
             agent_rule_max_lines: value.agent_rule_max_lines,
             strict_empty_test_trees: value.strict_empty_test_trees.into_wire(),

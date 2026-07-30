@@ -1033,6 +1033,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     } else if name == "ai-rule-index" {
         [NATIVE_SCAN_FIELDS, &["configPath", "maxLines"]].concat()
     } else if name == "source-shape"
+        || name == "import-boundaries"
         || name == "architecture-policy"
         || name == "single-source-contracts"
     {
@@ -1387,7 +1388,21 @@ fn named_import_boundaries_unrecorded(args: &serde_json::Value) -> serde_json::V
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    enforcer_scan::boundary::native_scan::execute_import_boundaries_policy(&request, &root)
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => return json_error(&format!("cannot load import-boundaries config: {error}")),
+    };
+    enforcer_scan::boundary::native_scan::execute_import_boundaries_policy(&request, &root, &config)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
@@ -4898,9 +4913,13 @@ mod tests {
         let file = temp.path().join("src/domain/model.ts");
         std::fs::create_dir_all(file.parent().ok_or("parent")?)?;
         std::fs::write(&file, "import value from '../infrastructure/value';\n")?;
+        std::fs::write(
+            temp.path().join("boundaries.json"),
+            r#"{"schemaVersion":2,"profileName":"default","importBoundaryPolicies":[{"roots":["src/domain"],"forbiddenImports":["../infrastructure/**"],"message":"domain boundary"}]}"#,
+        )?;
         let DispatchOutcome::Result(value) = dispatch(
             &tool("ocentra_enforcer_check")?,
-            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"import-boundaries","scope":"files","files":["src/domain/model.ts"]}),
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"import-boundaries","scope":"files","files":["src/domain/model.ts"],"configPath":"boundaries.json"}),
             &ctx(McpFreshness::Fresh),
         ) else {
             return Err("native import-boundaries did not produce a result".into());
@@ -4910,6 +4929,10 @@ mod tests {
         assert!(value["findings"]
             .as_array()
             .is_some_and(|rows| rows.iter().all(|row| row["ruleId"] == "TS-4.1")));
+        assert_eq!(
+            value["findings"][0]["detail"],
+            serde_json::json!("domain boundary")
+        );
         Ok(())
     }
 

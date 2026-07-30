@@ -602,6 +602,7 @@ pub struct EffectiveConfig {
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
+    pub import_boundary_policies: Vec<ImportBoundaryPolicy>,
     pub agent_rule_max_lines: usize,
     pub strict_empty_test_trees: StrictEmptyTestTrees,
     pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
@@ -610,6 +611,15 @@ pub struct EffectiveConfig {
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "Configured TypeScript/JavaScript import-boundary policy."]
+pub struct ImportBoundaryPolicy {
+    pub roots: Vec<crate::paths::RelPath>,
+    pub forbidden_imports: Vec<Glob>,
+    pub allowed_imports: Vec<Glob>,
+    pub message: Option<ConfigField>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -211,10 +211,14 @@ pub fn execute_staged_secret_policy(
 pub fn execute_import_boundaries_policy(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
+    config: &enforcer_domain::config_types::EffectiveConfig,
 ) -> Result<NativeScanResult, NativeScanError> {
     let (resolved, files) = resolve_files(request, repo_root)?;
-    let report =
-        engine::run_import_boundaries_policy(&resolved, &files).map_err(NativeScanError::Decode)?;
+    let report = crate::import_boundaries::check(repo_root, resolved.kind, &files, config)
+        .map_err(|reason| NativeScanError::Io {
+            operation: "import-boundaries check",
+            reason,
+        })?;
     Ok(NativeScanResult {
         scope: resolved.kind,
         scanned_files: files,
