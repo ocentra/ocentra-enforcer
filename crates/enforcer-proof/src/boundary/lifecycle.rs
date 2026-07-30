@@ -6,6 +6,7 @@
 //! typed domain inputs and the existing project read-model DTO rather than
 //! giving each transport its own JSON persistence implementation.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use enforcer_core::error::{Error, Result};
@@ -13,15 +14,112 @@ use enforcer_core::redaction::Redactor;
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::proof_types::{JournalEventType, ProofId, ProofRunId};
 
+use crate::boundary::proof_query::{ProofInventoryQuery, ProofRouteQuery, ProofStatusQuery};
 use crate::boundary::read_model::ProjectProofSnapshotDto;
-use crate::harness::{run_proof, ProofDefinitionEnvelope, RunOutcome, RunProofArgs};
-use crate::journal::{JournalRecordEnvelope, ProofJournal, JOURNAL_SCHEMA_VERSION};
+use crate::harness::{
+    ProofDefinitionEnvelope, ProofRegistryEnvelope, RouteRequest, RunOutcome, RunProofArgs,
+    merge_proof_definitions, route_proofs, run_proof,
+};
+use crate::journal::{JOURNAL_SCHEMA_VERSION, JournalRecordEnvelope, ProofJournal};
 use crate::read_model::{
-    read_project_proof_snapshot, PROJECT_PROOF_JOURNAL, PROJECT_PROOF_RUN_FILE,
+    PROJECT_PROOF_JOURNAL, PROJECT_PROOF_RUN_FILE, read_project_proof_snapshot,
 };
 
 /// Maximum bytes a caller may read from a declared artifact in one request.
 pub const MAX_DECLARED_ARTIFACT_BYTES: u64 = 256 * 1024;
+/// The frozen proof query default. Limits are clamped to avoid accidental
+/// repository-sized MCP responses.
+pub const DEFAULT_PROOF_QUERY_LIMIT: usize = 20;
+pub const MAX_PROOF_QUERY_LIMIT: usize = 100;
+
+/// Compact proof definition returned by the proof-route boundary.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompactProofDefinitionDto {
+    pub id: String,
+    pub title: String,
+    pub family: String,
+    pub severity: String,
+    pub collector: String,
+    pub capabilities: Vec<String>,
+    pub docs: Vec<String>,
+}
+
+/// Native equivalent of the frozen `proof_route` response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofRouteDto {
+    pub ok: bool,
+    pub product_name: String,
+    pub profile_name: String,
+    pub index: String,
+    pub scope: serde_json::Value,
+    pub docs: Vec<String>,
+    pub proofs: Vec<CompactProofDefinitionDto>,
+}
+
+/// Native equivalent of the frozen bounded `proof_status` response.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofStatusDto {
+    pub ok: bool,
+    pub root: String,
+    pub runs: Vec<crate::envelope::ProofRunEnvelope>,
+}
+
+/// One deliberately compact legacy script inventory row. The content-derived
+/// fields mirror the frozen inventory's useful classification dimensions.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofScriptDto {
+    pub path: String,
+    pub name: String,
+    pub family: String,
+    pub plan_bucket: String,
+    pub proof_types: Vec<String>,
+    pub capabilities: Vec<String>,
+    pub signals: ProofScriptSignalsDto,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofScriptSignalsDto {
+    pub spawn: bool,
+    pub writes_proof: bool,
+    pub reads_proof: bool,
+    pub manual_or_device: bool,
+    pub imports_built_or_schema_parse: bool,
+}
+
+/// Native equivalent of the frozen inventory aggregate, with script rows
+/// opt-in and bounded.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofInventoryDto {
+    pub ok: bool,
+    pub root: String,
+    pub scripts_root: String,
+    pub totals: ProofInventoryTotalsDto,
+    pub by_family: BTreeMap<String, usize>,
+    pub by_proof_type: BTreeMap<String, usize>,
+    pub by_capability: BTreeMap<String, usize>,
+    pub script_rows_included: bool,
+    pub script_limit: usize,
+    pub omitted_script_count: usize,
+    pub scripts: Vec<ProofScriptDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofInventoryTotalsDto {
+    pub scripts: usize,
+    pub proof_named: usize,
+    pub spawn_commands: usize,
+    pub writes_proof: usize,
+    pub reads_proof: usize,
+    pub manual_or_device: usize,
+    pub imports_built_or_schema_parse: usize,
+}
 
 /// Opened native lifecycle rooted at one repository.  All persistence stays
 /// beneath `<root>/.enforce/proofs`; caller supplied relative paths are never
@@ -46,6 +144,116 @@ impl NativeProofLifecycle {
     /// Current public read model.  This reuses the crate-owned DTO boundary.
     pub fn snapshot(&self) -> Result<ProjectProofSnapshotDto> {
         read_project_proof_snapshot(&self.root).map(Into::into)
+    }
+
+    /// Route against the Rust-owned packaged proof catalog. The target
+    /// repository root is deliberately not used as the pack root: callers may
+    /// inspect any repository without allowing it to replace Enforcer policy.
+    pub fn route(&self, query: &ProofRouteQuery) -> Result<ProofRouteDto> {
+        let profile_name = query.profile.as_ref().map_or(
+            "strict",
+            enforcer_domain::config_types::ConfigProfileName::as_str,
+        );
+        let registry = load_pack_registry(&resolve_pack_root()?, profile_name)?;
+        let request = RouteRequest {
+            proof_id: query.proof_id.clone(),
+            files: query.files.clone(),
+            plan: query.plan.clone(),
+            capability: query.capability.clone(),
+            scope: query.scope.clone(),
+        };
+        let routed = route_proofs(&registry, &request);
+        let mut docs = routed
+            .iter()
+            .flat_map(|proof| proof.docs.iter().cloned())
+            .collect::<Vec<_>>();
+        docs.sort();
+        docs.dedup();
+        let proofs = routed.into_iter().map(compact_proof).collect();
+        Ok(ProofRouteDto {
+            ok: true,
+            product_name: registry.product_name,
+            profile_name: profile_name.to_owned(),
+            index: "proof/INDEX.md".to_owned(),
+            scope: route_scope_dto(query),
+            docs,
+            proofs,
+        })
+    }
+
+    /// Read only persisted, valid run envelopes, then filter and bound before
+    /// returning. This intentionally does not project the full read-model
+    /// snapshot through the MCP response.
+    pub fn status(&self, query: &ProofStatusQuery) -> Result<ProofStatusDto> {
+        let mut runs = self.persisted_runs()?;
+        runs.retain(|run| {
+            query.proof_id.as_ref().is_none_or(|id| &run.proof_id == id)
+                && query.status.is_none_or(|status| run.status == status)
+        });
+        runs.sort_by(|left, right| right.started_at.cmp(&left.started_at));
+        runs.truncate(query.limit.min(MAX_PROOF_QUERY_LIMIT));
+        Ok(ProofStatusDto {
+            ok: true,
+            root: self.root.to_string_lossy().into_owned(),
+            runs,
+        })
+    }
+
+    /// Safely inspect only repository-contained `scripts/test/**/*.mjs` files.
+    /// Symlinks are not followed, and optional rows are bounded after stable
+    /// lexical ordering, so one query cannot become a repository snapshot.
+    pub fn inventory(&self, query: &ProofInventoryQuery) -> Result<ProofInventoryDto> {
+        let scripts_root = self.root.join("scripts").join("test");
+        let scripts = collect_inventory_scripts(&self.root, &scripts_root)?;
+        let mut by_family = BTreeMap::new();
+        let mut by_proof_type = BTreeMap::new();
+        let mut by_capability = BTreeMap::new();
+        let mut totals = ProofInventoryTotalsDto {
+            scripts: scripts.len(),
+            proof_named: 0,
+            spawn_commands: 0,
+            writes_proof: 0,
+            reads_proof: 0,
+            manual_or_device: 0,
+            imports_built_or_schema_parse: 0,
+        };
+        for script in &scripts {
+            if script.name.contains("proof") {
+                totals.proof_named += 1;
+            }
+            totals.spawn_commands += usize::from(script.signals.spawn);
+            totals.writes_proof += usize::from(script.signals.writes_proof);
+            totals.reads_proof += usize::from(script.signals.reads_proof);
+            totals.manual_or_device += usize::from(script.signals.manual_or_device);
+            totals.imports_built_or_schema_parse +=
+                usize::from(script.signals.imports_built_or_schema_parse);
+            increment(&mut by_family, &script.family);
+            for value in &script.proof_types {
+                increment(&mut by_proof_type, value);
+            }
+            for value in &script.capabilities {
+                increment(&mut by_capability, value);
+            }
+        }
+        let limit = query.limit.min(MAX_PROOF_QUERY_LIMIT);
+        let selected = if query.include_scripts {
+            scripts.iter().take(limit).cloned().collect()
+        } else {
+            Vec::new()
+        };
+        Ok(ProofInventoryDto {
+            ok: true,
+            root: self.root.to_string_lossy().into_owned(),
+            scripts_root: "scripts/test".to_owned(),
+            totals,
+            by_family,
+            by_proof_type,
+            by_capability,
+            script_rows_included: query.include_scripts,
+            script_limit: if query.include_scripts { limit } else { 0 },
+            omitted_script_count: scripts.len().saturating_sub(selected.len()),
+            scripts: selected,
+        })
     }
 
     /// Serialize the canonical public snapshot for an export transport.
@@ -241,6 +449,26 @@ impl NativeProofLifecycle {
         serde_json::from_slice(&std::fs::read(path)?).map_err(Into::into)
     }
 
+    fn persisted_runs(&self) -> Result<Vec<crate::envelope::ProofRunEnvelope>> {
+        let runs_root = self.proof_root.join("runs");
+        if !runs_root.is_dir() {
+            return Ok(Vec::new());
+        }
+        let mut runs = Vec::new();
+        for entry in std::fs::read_dir(runs_root)? {
+            let entry = entry?;
+            let metadata = entry.file_type()?;
+            if !metadata.is_dir() || metadata.is_symlink() {
+                continue;
+            }
+            let path = entry.path().join(PROJECT_PROOF_RUN_FILE);
+            if path.is_file() {
+                runs.push(serde_json::from_slice(&std::fs::read(path)?)?);
+            }
+        }
+        Ok(runs)
+    }
+
     fn append_event(
         &self,
         event: &str,
@@ -275,9 +503,354 @@ impl NativeProofLifecycle {
     }
 }
 
+fn resolve_pack_root() -> Result<PathBuf> {
+    let configured = std::env::var_os("ENFORCER_PACK_ROOT").map(PathBuf::from);
+    let source_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .map(Path::to_path_buf);
+    let working_ancestors = std::env::current_dir()
+        .ok()
+        .into_iter()
+        .flat_map(|cwd| cwd.ancestors().map(Path::to_path_buf).collect::<Vec<_>>());
+    configured
+        .into_iter()
+        .chain(source_root)
+        .chain(working_ancestors)
+        .find(|candidate| candidate.join("proof").join("proofs.json").is_file())
+        .ok_or_else(|| {
+            Error::InvalidConfig(
+                "cannot locate native proof pack; set ENFORCER_PACK_ROOT to a directory containing proof/proofs.json"
+                    .to_owned(),
+            )
+        })
+}
+
+fn load_pack_registry(pack_root: &Path, profile: &str) -> Result<ProofRegistryEnvelope> {
+    if !is_safe_profile(profile) {
+        return Err(Error::InvalidConfig(
+            "invalid proof profile name".to_owned(),
+        ));
+    }
+    let base: ProofRegistryEnvelope =
+        serde_json::from_slice(&std::fs::read(pack_root.join("proof").join("proofs.json"))?)?;
+    let profile_path = pack_root.join("profiles").join(profile).join("proofs.json");
+    if !profile_path.is_file() {
+        return Ok(base);
+    }
+    let overlay: ProofRegistryEnvelope = serde_json::from_slice(&std::fs::read(profile_path)?)?;
+    Ok(merge_proof_definitions(&base, &overlay))
+}
+
+fn is_safe_profile(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_'))
+}
+
+fn compact_proof(proof: &ProofDefinitionEnvelope) -> CompactProofDefinitionDto {
+    CompactProofDefinitionDto {
+        id: proof.id.as_str().to_owned(),
+        title: proof.title.clone(),
+        family: proof.family.as_str().to_owned(),
+        severity: match proof.severity {
+            enforcer_domain::severity::Severity::Error => "error",
+            enforcer_domain::severity::Severity::Warning => "warning",
+            enforcer_domain::severity::Severity::Info => "info",
+        }
+        .to_owned(),
+        collector: proof.collector.as_str().to_owned(),
+        capabilities: proof
+            .capabilities
+            .iter()
+            .map(|capability| capability.as_str().to_owned())
+            .collect(),
+        docs: proof.docs.clone(),
+    }
+}
+
+fn route_scope_dto(query: &ProofRouteQuery) -> serde_json::Value {
+    if let Some(proof_id) = &query.proof_id {
+        return serde_json::json!({"mode":"proof","proofId":proof_id.as_str()});
+    }
+    if !query.files.is_empty() {
+        return serde_json::json!({"mode":"files","files":query.files.iter().map(RelPath::as_str).collect::<Vec<_>>()});
+    }
+    if let Some(plan) = &query.plan {
+        return serde_json::json!({"mode":"plan","plan":plan});
+    }
+    if let Some(capability) = &query.capability {
+        return serde_json::json!({"mode":"capability","capability":capability.as_str()});
+    }
+    serde_json::json!({"mode":query.scope.as_deref().unwrap_or("workspace")})
+}
+
+fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<ProofScriptDto>> {
+    if !scripts_root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut files = Vec::new();
+    let mut directories = vec![scripts_root.to_path_buf()];
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() {
+                continue;
+            }
+            if file_type.is_dir() {
+                directories.push(entry.path());
+            } else if file_type.is_file()
+                && entry.path().extension().and_then(|value| value.to_str()) == Some("mjs")
+            {
+                files.push(entry.path());
+            }
+        }
+    }
+    files.sort();
+    files
+        .into_iter()
+        .map(|path| classify_inventory_script(root, &path))
+        .collect()
+}
+
+fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScriptDto> {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| Error::InvalidConfig("proof script is outside repository root".to_owned()))?;
+    let path =
+        RelPath::try_from(relative.to_string_lossy().replace('\\', "/")).map_err(Error::Decode)?;
+    let name = path
+        .as_str()
+        .rsplit('/')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let source = std::fs::read_to_string(root.join(path.as_str()))?;
+    let lower = format!("{name}\n{source}").to_ascii_lowercase();
+    let signals = ProofScriptSignalsDto {
+        spawn: source.contains("spawn") || source.contains("execFile") || source.contains("exec("),
+        writes_proof: source.contains("writeFile")
+            || source.contains("appendFile")
+            || source.contains("writeJson"),
+        reads_proof: source.contains("readJson")
+            || source.contains("loadProof")
+            || (source.contains("readFile")
+                && (source.contains("proof") || source.contains("test-results"))),
+        manual_or_device: lower.contains("manual-required")
+            || lower.contains("physical")
+            || lower.contains("android_serial")
+            || lower.contains("adb")
+            || lower.contains("ios")
+            || lower.contains("simulator")
+            || lower.contains("device"),
+        imports_built_or_schema_parse: source.contains("dist/")
+            || source.contains("await import")
+            || source.contains("Schema.parse")
+            || source.contains(".parse("),
+    };
+    let capabilities = inventory_capabilities(&lower);
+    let proof_types = inventory_proof_types(&name, &source, &lower, &signals);
+    Ok(ProofScriptDto {
+        path: path.as_str().to_owned(),
+        name,
+        family: inventory_family(&lower),
+        plan_bucket: inventory_plan_bucket(&path),
+        proof_types,
+        capabilities,
+        signals,
+    })
+}
+
+fn inventory_family(lower: &str) -> String {
+    if [
+        "android",
+        "ios",
+        "device",
+        "physical",
+        "simulator",
+        "xcode",
+        "adb",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
+    {
+        return "device-manual".to_owned();
+    }
+    if [
+        "junit",
+        "pytest",
+        "vitest",
+        "jest",
+        "playwright",
+        "test-results",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
+    {
+        return "test-report".to_owned();
+    }
+    if ["sarif", "codeql", "security", "secret", "audit"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+    {
+        return "security-report".to_owned();
+    }
+    if ["parity", "contract", "boundary", "schema"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+    {
+        return "contract-parity".to_owned();
+    }
+    if ["event", "network", "lan", "message", "codec"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+    {
+        return "event-network".to_owned();
+    }
+    "command".to_owned()
+}
+
+fn inventory_capabilities(lower: &str) -> Vec<String> {
+    let mut capabilities = vec!["local".to_owned()];
+    for value in [
+        "ci", "windows", "linux", "macos", "wsl", "browser", "network", "cloud",
+    ] {
+        if lower.contains(value) {
+            capabilities.push(value.to_owned());
+        }
+    }
+    if lower.contains("android") {
+        capabilities.push(
+            if lower.contains("emulator") {
+                "android-emulator"
+            } else {
+                "android-device"
+            }
+            .to_owned(),
+        );
+    }
+    if lower.contains("ios") {
+        capabilities.push(
+            if lower.contains("ios-device") {
+                "ios-device"
+            } else {
+                "ios-simulator"
+            }
+            .to_owned(),
+        );
+    }
+    if lower.contains("manual-required") || lower.contains("physical") {
+        capabilities.push("manual-required".to_owned());
+    }
+    capabilities.sort();
+    capabilities.dedup();
+    capabilities
+}
+
+fn inventory_proof_types(
+    name: &str,
+    source: &str,
+    lower: &str,
+    signals: &ProofScriptSignalsDto,
+) -> Vec<String> {
+    let mut values = Vec::new();
+    if signals.manual_or_device {
+        values.push("manual-evidence".to_owned());
+    }
+    if source.contains("claimsProved")
+        || source.contains("claimsNotProved")
+        || source.contains("mustNotClaim")
+    {
+        values.push("claim-integrity".to_owned());
+    }
+    if lower.contains("parity")
+        || lower.contains("contract")
+        || lower.contains("schema")
+        || source.contains("Schema.parse")
+    {
+        values.push("contract-parity".to_owned());
+    }
+    if ["event", "network", "lan", "message"]
+        .iter()
+        .any(|needle| name.contains(needle))
+    {
+        values.push("runtime-event-contract".to_owned());
+    }
+    if ["sarif", "codeql", "security", "secret", "audit"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+    {
+        values.push("security-report".to_owned());
+    }
+    if ["vitest", "playwright", "cargo test", "npm run test"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+    {
+        values.push("test-report".to_owned());
+    }
+    if signals.spawn {
+        values.push("command-execution".to_owned());
+    }
+    if signals.writes_proof {
+        values.push("artifact-snapshot".to_owned());
+    }
+    if values.is_empty() {
+        values.push("command-execution".to_owned());
+    }
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn inventory_plan_bucket(path: &RelPath) -> String {
+    path.as_str()
+        .trim_end_matches(".mjs")
+        .split('/')
+        .next_back()
+        .map(|name| name.split('-').take(2).collect::<Vec<_>>().join("-"))
+        .filter(|bucket| !bucket.is_empty())
+        .unwrap_or_else(|| "unclassified".to_owned())
+}
+
+fn increment(values: &mut BTreeMap<String, usize>, key: &str) {
+    *values.entry(key.to_owned()).or_default() += 1;
+}
+
 fn now_iso() -> String {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| format!("{}Z", d.as_secs()))
         .unwrap_or_else(|_| "0Z".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::load_pack_registry;
+    use enforcer_core::error::Result;
+
+    #[test]
+    fn pack_catalog_merges_a_safe_profile_over_the_base_definition() -> Result<()> {
+        let fixture = tempfile::tempdir()?;
+        let proof = fixture.path().join("proof");
+        let profile = fixture.path().join("profiles").join("strict");
+        std::fs::create_dir_all(&proof)?;
+        std::fs::create_dir_all(&profile)?;
+        std::fs::write(
+            proof.join("proofs.json"),
+            r#"{"schemaVersion":1,"productName":"base","proofs":[{"id":"proof.one","title":"base","family":"command","severity":"error","collector":"command"}]}"#,
+        )?;
+        std::fs::write(
+            profile.join("proofs.json"),
+            r#"{"schemaVersion":2,"productName":"ignored","proofs":[{"id":"proof.one","title":"profile","family":"command","severity":"warning","collector":"command"}]}"#,
+        )?;
+        let catalog = load_pack_registry(fixture.path(), "strict")?;
+        assert_eq!(catalog.schema_version, 2);
+        assert_eq!(catalog.product_name, "base");
+        assert_eq!(catalog.proofs.len(), 1);
+        assert_eq!(catalog.proofs[0].title, "profile");
+        assert!(load_pack_registry(fixture.path(), "../escape").is_err());
+        Ok(())
+    }
 }

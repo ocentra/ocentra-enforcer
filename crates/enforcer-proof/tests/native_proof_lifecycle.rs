@@ -4,6 +4,7 @@
 use enforcer_core::error::Result;
 use enforcer_domain::proof_types::{ProofId, ProofRunId};
 use enforcer_proof::boundary::lifecycle::NativeProofLifecycle;
+use enforcer_proof::boundary::proof_query::{ProofInventoryQuery, ProofStatusQuery};
 use enforcer_proof::harness::RunProofArgs;
 
 fn args(root: std::path::PathBuf, run: &str, command: Vec<String>) -> Result<RunProofArgs> {
@@ -68,5 +69,55 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
         lifecycle.read_declared_artifact(&run, &safe),
         Err(enforcer_core::error::Error::Io(_))
     ));
+    Ok(())
+}
+
+#[test]
+fn persisted_status_is_filtered_sorted_and_bounded_without_a_project_snapshot() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    let command = if cfg!(windows) {
+        vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
+    } else {
+        vec!["true".to_owned()]
+    };
+    lifecycle.run(&args(root.clone(), "query-a", command)?, None)?;
+    let command = if cfg!(windows) {
+        vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
+    } else {
+        vec!["true".to_owned()]
+    };
+    lifecycle.run(&args(root, "query-b", command)?, None)?;
+    let response = lifecycle.status(&ProofStatusQuery {
+        proof_id: Some(ProofId::try_from("native.lifecycle".to_owned())?),
+        status: None,
+        limit: 1,
+    })?;
+    assert_eq!(response.runs.len(), 1);
+    assert_eq!(response.runs[0].proof_id.as_str(), "native.lifecycle");
+    Ok(())
+}
+
+#[test]
+fn inventory_is_safe_and_optional_rows_are_bounded() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let scripts = fixture.path().join("scripts/test");
+    std::fs::create_dir_all(&scripts)?;
+    std::fs::write(scripts.join("one-proof.mjs"), "spawn('x');")?;
+    std::fs::write(scripts.join("two.mjs"), "writeFile('proof.md', 'x');")?;
+    let lifecycle = NativeProofLifecycle::open(fixture.path())?;
+    let hidden = lifecycle.inventory(&ProofInventoryQuery {
+        include_scripts: false,
+        limit: 1,
+    })?;
+    assert_eq!(hidden.totals.scripts, 2);
+    assert!(hidden.scripts.is_empty());
+    let bounded = lifecycle.inventory(&ProofInventoryQuery {
+        include_scripts: true,
+        limit: 1,
+    })?;
+    assert_eq!(bounded.scripts.len(), 1);
+    assert_eq!(bounded.omitted_script_count, 1);
     Ok(())
 }

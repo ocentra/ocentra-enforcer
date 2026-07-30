@@ -152,14 +152,14 @@ pub fn dispatch(
             DispatchOutcome::Result(coordination(canonical.as_str(), args))
         }
         "ocentra_enforcer_ui" => DispatchOutcome::Result(ui_tool(args)),
-        "ocentra_enforcer_proof_route"
-        | "ocentra_enforcer_proof_run"
-        | "ocentra_enforcer_proof_status"
+        "ocentra_enforcer_proof_route" => DispatchOutcome::Result(proof_route(args)),
+        "ocentra_enforcer_proof_status" => DispatchOutcome::Result(proof_status(args)),
+        "ocentra_enforcer_proof_inventory" => DispatchOutcome::Result(proof_inventory(args)),
+        "ocentra_enforcer_proof_run"
         | "ocentra_enforcer_proof_artifact"
         | "ocentra_enforcer_proof_claim"
         | "ocentra_enforcer_proof_export"
         | "ocentra_enforcer_proof_import_legacy"
-        | "ocentra_enforcer_proof_inventory"
         | "ocentra_enforcer_proof_last_failure"
         | "ocentra_enforcer_proof_parity"
         | "ocentra_enforcer_proof_prune"
@@ -201,7 +201,7 @@ fn explain(args: &serde_json::Value) -> serde_json::Value {
                 "ruleId": raw_rule_id,
                 "error": error.to_string(),
                 "kind": "invalid_rule_id",
-            })
+            });
         }
     };
     match crate::registry::explain_rule(&rule_id) {
@@ -244,7 +244,7 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
     ) {
         Ok(value) => value,
         Err(error) => {
-            return serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            return serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()});
         }
     };
     match operation {
@@ -268,13 +268,13 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let proof_id = match proof.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"});
                 }
             };
             let run_id = match run.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"});
                 }
             };
             let canonical_root = std::path::Path::new(root)
@@ -330,13 +330,13 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let run_id = match run.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"});
                 }
             };
             let path = match enforcer_domain::paths::RelPath::try_from(artifact.to_owned()) {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid artifact path"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid artifact path"});
                 }
             };
             match lifecycle.read_declared_artifact(&run_id, &path) {
@@ -391,13 +391,13 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let proof_id = match proof.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"});
                 }
             };
             let run_id = match run.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"});
                 }
             };
             match lifecycle.import_legacy(&proof_id, &run_id, &roots) {
@@ -419,7 +419,7 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let run_id = match run.parse() {
                 Ok(value) => value,
                 Err(_) => {
-                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"});
                 }
             };
             match lifecycle.parity(&run_id, &roots) {
@@ -440,6 +440,212 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             }
         },
     }
+}
+
+/// Thin proof-route transport adapter: JSON is decoded here; catalog loading,
+/// merging, and route selection remain in `enforcer-proof`.
+fn proof_route(args: &serde_json::Value) -> serde_json::Value {
+    let lifecycle = match proof_lifecycle_for_root(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_route", error),
+    };
+    let query = match decode_proof_route_query(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_route", error),
+    };
+    match lifecycle.route(&query) {
+        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
+            proof_query_error("ocentra_enforcer_proof_route", error.to_string())
+        }),
+        Err(error) => proof_query_error("ocentra_enforcer_proof_route", error.to_string()),
+    }
+}
+
+/// Thin proof-status adapter. The lifecycle reads only persisted run envelopes
+/// and returns a filtered bounded collection rather than a generic snapshot.
+fn proof_status(args: &serde_json::Value) -> serde_json::Value {
+    let lifecycle = match proof_lifecycle_for_root(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_status", error),
+    };
+    let query = match decode_proof_status_query(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_status", error),
+    };
+    match lifecycle.status(&query) {
+        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
+            proof_query_error("ocentra_enforcer_proof_status", error.to_string())
+        }),
+        Err(error) => proof_query_error("ocentra_enforcer_proof_status", error.to_string()),
+    }
+}
+
+/// Thin proof-inventory adapter. The lifecycle owns safe script discovery and
+/// compact aggregate formation.
+fn proof_inventory(args: &serde_json::Value) -> serde_json::Value {
+    let lifecycle = match proof_lifecycle_for_root(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_inventory", error),
+    };
+    let query = match decode_proof_inventory_query(args) {
+        Ok(value) => value,
+        Err(error) => return proof_query_error("ocentra_enforcer_proof_inventory", error),
+    };
+    match lifecycle.inventory(&query) {
+        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
+            proof_query_error("ocentra_enforcer_proof_inventory", error.to_string())
+        }),
+        Err(error) => proof_query_error("ocentra_enforcer_proof_inventory", error.to_string()),
+    }
+}
+
+fn proof_lifecycle_for_root(
+    args: &serde_json::Value,
+) -> std::result::Result<enforcer_proof::boundary::lifecycle::NativeProofLifecycle, String> {
+    let root = match args.get("root") {
+        None => std::path::PathBuf::from("."),
+        Some(serde_json::Value::String(value)) => std::path::PathBuf::from(value),
+        Some(_) => return Err("root must be a string".to_owned()),
+    };
+    enforcer_proof::boundary::lifecycle::NativeProofLifecycle::open(&root)
+        .map_err(|error| error.to_string())
+}
+
+fn decode_proof_route_query(
+    args: &serde_json::Value,
+) -> std::result::Result<enforcer_proof::boundary::proof_query::ProofRouteQuery, String> {
+    let proof_id = optional_proof_id(args, "proofId")?;
+    let files = optional_rel_paths(args, "files")?;
+    let plan = optional_string(args, "plan")?;
+    let capability = optional_string(args, "capability")?
+        .map(|value| {
+            value.parse().map_err(
+                |error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string(),
+            )
+        })
+        .transpose()?;
+    let scope = optional_string(args, "scope")?;
+    if scope
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "workspace" | "files" | "crate" | "diff"))
+    {
+        return Err("scope must be one of workspace, files, crate, or diff".to_owned());
+    }
+    let profile = optional_string(args, "profile")?
+        .map(|value| {
+            enforcer_domain::config_types::ConfigProfileName::try_new(value)
+                .map_err(|error| error.to_string())
+        })
+        .transpose()?;
+    Ok(enforcer_proof::boundary::proof_query::ProofRouteQuery {
+        proof_id,
+        files,
+        plan,
+        capability,
+        scope,
+        profile,
+    })
+}
+
+fn decode_proof_status_query(
+    args: &serde_json::Value,
+) -> std::result::Result<enforcer_proof::boundary::proof_query::ProofStatusQuery, String> {
+    let status = optional_string(args, "status")?
+        .map(|value| parse_proof_status(&value))
+        .transpose()?;
+    Ok(enforcer_proof::boundary::proof_query::ProofStatusQuery {
+        proof_id: optional_proof_id(args, "proofId")?,
+        status,
+        limit: optional_limit(args)?,
+    })
+}
+
+fn decode_proof_inventory_query(
+    args: &serde_json::Value,
+) -> std::result::Result<enforcer_proof::boundary::proof_query::ProofInventoryQuery, String> {
+    let include_scripts = match args.get("includeScripts") {
+        None => false,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return Err("includeScripts must be a boolean".to_owned()),
+    };
+    Ok(enforcer_proof::boundary::proof_query::ProofInventoryQuery {
+        include_scripts,
+        limit: optional_limit(args)?,
+    })
+}
+
+fn optional_proof_id(
+    args: &serde_json::Value,
+    field: &str,
+) -> std::result::Result<Option<enforcer_domain::proof_types::ProofId>, String> {
+    optional_string(args, field)?
+        .map(|value| {
+            value.parse().map_err(
+                |error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string(),
+            )
+        })
+        .transpose()
+}
+
+fn optional_rel_paths(
+    args: &serde_json::Value,
+    field: &str,
+) -> std::result::Result<Vec<RelPath>, String> {
+    match args.get(field) {
+        None => Ok(Vec::new()),
+        Some(serde_json::Value::Array(values)) => values
+            .iter()
+            .map(|value| {
+                let Some(value) = value.as_str() else {
+                    return Err(format!("{field} must contain only strings"));
+                };
+                RelPath::try_from(value.to_owned()).map_err(|error| error.to_string())
+            })
+            .collect(),
+        Some(_) => Err(format!("{field} must be an array")),
+    }
+}
+
+fn optional_string(
+    args: &serde_json::Value,
+    field: &str,
+) -> std::result::Result<Option<String>, String> {
+    match args.get(field) {
+        None => Ok(None),
+        Some(serde_json::Value::String(value)) => Ok(Some(value.clone())),
+        Some(_) => Err(format!("{field} must be a string")),
+    }
+}
+
+fn optional_limit(args: &serde_json::Value) -> std::result::Result<usize, String> {
+    match args.get("limit") {
+        None => Ok(enforcer_proof::boundary::lifecycle::DEFAULT_PROOF_QUERY_LIMIT),
+        Some(value) => value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or_else(|| "limit must be a non-negative integer".to_owned()),
+    }
+}
+
+fn parse_proof_status(
+    value: &str,
+) -> std::result::Result<enforcer_domain::proof_types::ProofStatus, String> {
+    match value {
+        "passed" => Ok(enforcer_domain::proof_types::ProofStatus::Passed),
+        "failed" => Ok(enforcer_domain::proof_types::ProofStatus::Failed),
+        "manual-required" => Ok(enforcer_domain::proof_types::ProofStatus::ManualRequired),
+        "unavailable" => Ok(enforcer_domain::proof_types::ProofStatus::Unavailable),
+        "waived" => {
+            Err("status `waived` has no native persisted ProofStatus representation".to_owned())
+        }
+        _ => {
+            Err("status must be passed, failed, manual-required, unavailable, or waived".to_owned())
+        }
+    }
+}
+
+fn proof_query_error(operation: &str, error: String) -> serde_json::Value {
+    serde_json::json!({"ok":false,"operation":operation,"error":error})
 }
 
 fn gate_args_from(args: &serde_json::Value) -> GateArgs {
@@ -938,11 +1144,13 @@ fn validation_summary_json(summary: &ValidationSummary) -> serde_json::Value {
             compact.insert("fileCount".to_owned(), serde_json::json!(file_count.0));
             compact.insert(
                 "sampleFiles".to_owned(),
-                serde_json::json!(scope
-                    .sample_files
-                    .iter()
-                    .map(String::from)
-                    .collect::<Vec<_>>()),
+                serde_json::json!(
+                    scope
+                        .sample_files
+                        .iter()
+                        .map(String::from)
+                        .collect::<Vec<_>>()
+                ),
             );
         }
         fields.insert("scope".to_owned(), serde_json::Value::Object(compact));
@@ -1267,7 +1475,7 @@ fn decode_harness_query(
             Some(_) => {
                 return Err(format!(
                     "{operation} `severity` must be `error`, `warning`, or `info`"
-                ))
+                ));
             }
             None => None,
         },
@@ -1285,7 +1493,7 @@ fn decode_harness_query(
         Some(_) => {
             return Err(format!(
                 "{operation} `artifact` must be stdout, stderr, diagnostics, or events"
-            ))
+            ));
         }
     };
     let limit_bytes = match args.get("limitBytes") {
@@ -1453,7 +1661,7 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
             value.as_str()
         }
         Some(_) => {
-            return json_error("native MCP route supports only `files` or `workspace` scope")
+            return json_error("native MCP route supports only `files` or `workspace` scope");
         }
     };
     if scope_name == "files" && requested_files.is_empty() {
@@ -1504,7 +1712,7 @@ fn test_doctrine_scan(args: &serde_json::Value) -> serde_json::Value {
         None => match std::env::current_dir() {
             Ok(path) => path.to_string_lossy().into_owned(),
             Err(err) => {
-                return json_error(&format!("cannot resolve default test-doctrine root: {err}"))
+                return json_error(&format!("cannot resolve default test-doctrine root: {err}"));
             }
         },
         Some(serde_json::Value::String(value)) => value.clone(),
@@ -1536,7 +1744,7 @@ fn ui_logic_coupling_scan(args: &serde_json::Value) -> serde_json::Value {
         None => match std::env::current_dir() {
             Ok(path) => path.to_string_lossy().into_owned(),
             Err(err) => {
-                return json_error(&format!("cannot resolve default UI coupling root: {err}"))
+                return json_error(&format!("cannot resolve default UI coupling root: {err}"));
             }
         },
         Some(serde_json::Value::String(value)) => value.clone(),
@@ -2094,7 +2302,7 @@ fn json_error(message: &str) -> serde_json::Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{dispatch, DispatchContext, DispatchOutcome};
+    use super::{DispatchContext, DispatchOutcome, dispatch};
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
 
@@ -2115,25 +2323,128 @@ mod tests {
     }
 
     #[test]
-    fn proof_tools_project_the_native_lifecycle_snapshot() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn proof_status_returns_a_bounded_filtered_run_collection_not_a_snapshot()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
+        let root = temp.path().to_string_lossy();
+        for (run_id, proof_id) in [("status-a", "status.alpha"), ("status-b", "status.beta")] {
+            let outcome = dispatch(
+                &tool("ocentra_enforcer_proof_run")?,
+                &serde_json::json!({
+                    "root":root,"proofId":proof_id,"runId":run_id,
+                    "command": if cfg!(windows) { serde_json::json!(["cmd","/C","exit 0"]) } else { serde_json::json!(["true"]) }
+                }),
+                &ctx(McpFreshness::Fresh),
+            );
+            let DispatchOutcome::Result(value) = outcome else {
+                return Err("proof run did not produce a native result".into());
+            };
+            assert_eq!(value["ok"], serde_json::json!(true));
+        }
         let outcome = dispatch(
             &tool("ocentra_enforcer_proof_status")?,
-            &serde_json::json!({"root":temp.path().to_string_lossy()}),
+            &serde_json::json!({"root":root,"proofId":"status.alpha","status":"passed","limit":1}),
             &ctx(McpFreshness::Fresh),
         );
         let DispatchOutcome::Result(value) = outcome else {
             return Err("proof tool did not produce a native result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(true));
-        assert!(value["snapshot"].is_object());
+        assert!(value.get("snapshot").is_none());
+        assert_eq!(value["runs"].as_array().map(Vec::len), Some(1));
+        assert_eq!(
+            value["runs"][0]["proofId"],
+            serde_json::json!("status.alpha")
+        );
+        let invalid = dispatch(
+            &tool("ocentra_enforcer_proof_status")?,
+            &serde_json::json!({"root":root,"limit":1.5}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = invalid else {
+            return Err("invalid proof status did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
         Ok(())
     }
 
     #[test]
-    fn pass_fixture_canned_request_yields_expected_tool_result(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn proof_route_uses_the_native_pack_not_the_target_repository_root()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_proof_route")?,
+            &serde_json::json!({
+                "root":temp.path().to_string_lossy(),"profile":"strict","scope":"workspace"
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("proof route did not produce a native result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["profileName"], serde_json::json!("strict"));
+        assert!(value["proofs"].is_array());
+        assert!(value.get("snapshot").is_none());
+
+        let invalid = dispatch(
+            &tool("ocentra_enforcer_proof_route")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"profile":"../escape"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = invalid else {
+            return Err("invalid proof route did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        Ok(())
+    }
+
+    #[test]
+    fn proof_inventory_is_repo_contained_and_only_returns_opted_in_bounded_rows()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let scripts = temp.path().join("scripts/test");
+        std::fs::create_dir_all(&scripts)?;
+        std::fs::write(
+            scripts.join("alpha-proof.mjs"),
+            "spawn('x'); writeFile('proof.md', 'x');",
+        )?;
+        std::fs::write(scripts.join("beta.mjs"), "await import('dist/x');")?;
+        let absent_rows = dispatch(
+            &tool("ocentra_enforcer_proof_inventory")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"limit":1}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = absent_rows else {
+            return Err("proof inventory did not produce a result".into());
+        };
+        assert_eq!(value["totals"]["scripts"], serde_json::json!(2));
+        assert_eq!(value["scripts"].as_array().map(Vec::len), Some(0));
+        assert_eq!(value["omittedScriptCount"], serde_json::json!(2));
+
+        let rows = dispatch(
+            &tool("ocentra_enforcer_proof_inventory")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"includeScripts":true,"limit":1}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = rows else {
+            return Err("bounded proof inventory did not produce a result".into());
+        };
+        assert_eq!(value["scripts"].as_array().map(Vec::len), Some(1));
+        assert_eq!(
+            value["scripts"][0]["path"],
+            serde_json::json!("scripts/test/alpha-proof.mjs")
+        );
+        assert_eq!(
+            value["scripts"][0]["signals"]["spawn"],
+            serde_json::json!(true)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pass_fixture_canned_request_yields_expected_tool_result()
+    -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_mcp_status")?,
             &serde_json::json!({}),
@@ -2148,8 +2459,8 @@ mod tests {
     }
 
     #[test]
-    fn doctor_dispatches_to_the_native_repository_readiness_engine(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn doctor_dispatches_to_the_native_repository_readiness_engine()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("src"))?;
         std::fs::write(
@@ -2165,9 +2476,11 @@ mod tests {
             return Err("doctor did not produce a result".into());
         };
         assert_eq!(value["command"], serde_json::json!("doctor"));
-        assert!(value["checks"]
-            .as_array()
-            .is_some_and(|checks| checks.len() == 6));
+        assert!(
+            value["checks"]
+                .as_array()
+                .is_some_and(|checks| checks.len() == 6)
+        );
         Ok(())
     }
 
@@ -2193,15 +2506,17 @@ mod tests {
             return Err("native scan did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(value["findings"].as_array().is_some_and(|findings| findings
-            .iter()
-            .any(|finding| finding["ruleId"] == "T1-NOREEXPORT.1")));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .any(|finding| finding["ruleId"] == "T1-NOREEXPORT.1")
+        }));
         Ok(())
     }
 
     #[test]
-    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_scan")?,
@@ -2215,15 +2530,17 @@ mod tests {
             return Err("native scan did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(value["error"]
-            .as_str()
-            .is_some_and(|message| message.contains("does not support `profile`")));
+        assert!(
+            value["error"]
+                .as_str()
+                .is_some_and(|message| message.contains("does not support `profile`"))
+        );
         Ok(())
     }
 
     #[test]
-    fn scan_language_filter_reaches_the_native_typed_contract(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn scan_language_filter_reaches_the_native_typed_contract()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2246,9 +2563,11 @@ mod tests {
         let DispatchOutcome::Result(value) = outcome else {
             return Err("native scan did not produce a result".into());
         };
-        assert!(value["findings"].as_array().is_some_and(|findings| findings
-            .iter()
-            .all(|finding| finding["ruleId"] != "T1-NOREEXPORT.1")));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .all(|finding| finding["ruleId"] != "T1-NOREEXPORT.1")
+        }));
         Ok(())
     }
 
@@ -2285,8 +2604,8 @@ mod tests {
     }
 
     #[test]
-    fn check_reexports_filters_a_real_native_scan_to_its_declared_family(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn check_reexports_filters_a_real_native_scan_to_its_declared_family()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2318,8 +2637,8 @@ mod tests {
     }
 
     #[test]
-    fn run_status_returns_process_local_validation_after_final_check_shape(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn run_status_returns_process_local_validation_after_final_check_shape()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2373,15 +2692,17 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(true));
         assert_eq!(value["scope"]["kind"], serde_json::json!("repo"));
         assert_eq!(value["languages"], serde_json::json!(["rust"]));
-        assert!(value["rulePacks"]
-            .as_array()
-            .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
+        assert!(
+            value["rulePacks"]
+                .as_array()
+                .is_some_and(|packs| packs.iter().any(|pack| pack == "rust"))
+        );
         Ok(())
     }
 
     #[test]
-    fn test_doctrine_scan_dispatches_to_the_native_rust_analyzer(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn test_doctrine_scan_dispatches_to_the_native_rust_analyzer()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("tests"))?;
         std::fs::write(
@@ -2407,15 +2728,17 @@ mod tests {
             value["detected"]["unit"]["present"],
             serde_json::json!(true)
         );
-        assert!(value["missing"]
-            .as_array()
-            .is_some_and(|missing| missing.iter().any(|item| item["category"] == "security")));
+        assert!(
+            value["missing"]
+                .as_array()
+                .is_some_and(|missing| missing.iter().any(|item| item["category"] == "security"))
+        );
         Ok(())
     }
 
     #[test]
-    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
@@ -2452,15 +2775,17 @@ mod tests {
             return Err("native diagnostics query did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(value["error"]
-            .as_str()
-            .is_some_and(|message| message.contains("non-negative integer")));
+        assert!(
+            value["error"]
+                .as_str()
+                .is_some_and(|message| message.contains("non-negative integer"))
+        );
         Ok(())
     }
 
     #[test]
-    fn run_dispatches_through_typed_boundary_and_native_harness_engine(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn run_dispatches_through_typed_boundary_and_native_harness_engine()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path().to_string_lossy();
         let outcome = dispatch(
@@ -2501,8 +2826,8 @@ mod tests {
     }
 
     #[test]
-    fn fail_fixture_malformed_request_unknown_tool_is_rejected(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn fail_fixture_malformed_request_unknown_tool_is_rejected()
+    -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("not_a_real_tool")?,
             &serde_json::json!({}),
@@ -2513,8 +2838,8 @@ mod tests {
     }
 
     #[test]
-    fn legacy_alias_resolves_to_the_same_handler_as_canonical(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn legacy_alias_resolves_to_the_same_handler_as_canonical()
+    -> Result<(), Box<dyn std::error::Error>> {
         let canonical = dispatch(
             &tool("ocentra_enforcer_mcp_status")?,
             &serde_json::json!({}),
@@ -2556,8 +2881,8 @@ mod tests {
     }
 
     #[test]
-    fn explain_reads_the_native_rule_catalog_and_never_needs_mjs(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn explain_reads_the_native_rule_catalog_and_never_needs_mjs()
+    -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_explain")?,
             &serde_json::json!({"ruleId":"RR-6.1"}),
@@ -2572,9 +2897,11 @@ mod tests {
             value["source"],
             serde_json::json!("native-rust-rule-catalog")
         );
-        assert!(value["fixHint"]
-            .as_str()
-            .is_some_and(|hint| !hint.is_empty()));
+        assert!(
+            value["fixHint"]
+                .as_str()
+                .is_some_and(|hint| !hint.is_empty())
+        );
         Ok(())
     }
 
@@ -2602,8 +2929,8 @@ mod tests {
     }
 
     #[test]
-    fn coordination_claim_end_to_end_against_a_real_temp_hub(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn coordination_claim_end_to_end_against_a_real_temp_hub()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path();
         let file_a = root.join("crate_a.rs");
@@ -2638,8 +2965,8 @@ mod tests {
     /// runs" requirement at the router boundary (not just in
     /// `enforcer-ui`'s own unit tests).
     #[test]
-    fn ui_tool_loopback_default_reports_url_without_launching(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn ui_tool_loopback_default_reports_url_without_launching()
+    -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_ui")?,
             &serde_json::json!({}),
@@ -2657,8 +2984,8 @@ mod tests {
     /// reports the fail-closed refusal as DATA (never panics, never
     /// binds), still `launched: false`.
     #[test]
-    fn ui_tool_remote_without_token_reports_refusal_without_launching(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn ui_tool_remote_without_token_reports_refusal_without_launching()
+    -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_ui")?,
             &serde_json::json!({ "host": "0.0.0.0" }),
@@ -2688,8 +3015,8 @@ mod tests {
     /// Full native coordination lifecycle against an isolated ledger: no
     /// process-global default root may leak into MCP coordination calls.
     #[test]
-    fn coordination_tools_use_the_requested_temp_ledger_and_preserve_write_safety(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn coordination_tools_use_the_requested_temp_ledger_and_preserve_write_safety()
+    -> Result<(), Box<dyn std::error::Error>> {
         let ledger = tempfile::tempdir()?;
         let root = ledger.path().to_string_lossy().to_string();
         let common = serde_json::json!({
