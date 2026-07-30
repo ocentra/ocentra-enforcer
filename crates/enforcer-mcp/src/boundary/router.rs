@@ -1022,10 +1022,12 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
             ],
         ]
         .concat()
+    } else if name == "dependency-policy" {
+        ["check", "root"].to_vec()
     } else if name == "secrets" {
         [NATIVE_SCAN_FIELDS, &["staged"]].concat()
     } else if name == "sbom" {
-        [NATIVE_SCAN_FIELDS, &["output"]].concat()
+        ["check", "root", "output", "dryRun"].to_vec()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
     } else if name == "ai-rule-index" {
@@ -1290,13 +1292,34 @@ fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
         return json_error("sbom requires a `root` path");
     };
-    let root = std::path::PathBuf::from(root_raw);
-    let output = match args.get("output") {
-        Some(serde_json::Value::String(value)) => root.join(value),
-        Some(_) => return json_error("sbom `output` must be a string"),
-        None => root.join("target").join("enforcer-sbom"),
+    let root = match root_raw.parse::<RepoRoot>() {
+        Ok(root) => root,
+        Err(error) => return json_error(&error.to_string()),
     };
-    match enforcer_scan::sbom_policy::generate_current_workspace(&root, &output) {
+    let root_path = std::path::Path::new(root.as_str());
+    let output = match args.get("output") {
+        Some(serde_json::Value::String(value)) => root_path.join(value),
+        Some(_) => return json_error("sbom `output` must be a string"),
+        None => root_path.join("target").join("security"),
+    };
+    let dry_run = match args.get("dryRun") {
+        None | Some(serde_json::Value::Bool(false)) => false,
+        Some(serde_json::Value::Bool(true)) => true,
+        Some(_) => return json_error("sbom `dryRun` must be a boolean"),
+    };
+    if dry_run {
+        return serde_json::json!({
+            "ok": true,
+            "command": "check",
+            "check": "sbom",
+            "dryRun": true,
+            "violations": [],
+            "warnings": [],
+            "waived": [],
+            "findings": [],
+        });
+    }
+    match enforcer_scan::sbom_policy::generate_current_workspace(root_path, &output) {
         Ok(artifact) => serde_json::json!({
             "ok": true,
             "command": "check",
@@ -3844,6 +3867,22 @@ mod tests {
         assert!(value["findings"]
             .as_array()
             .is_some_and(|findings| findings.iter().all(|finding| finding["ruleId"] == "RR-9.3")));
+        let narrowed = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "dependency-policy",
+                "scope": "files",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = narrowed else {
+            return Err("narrowed dependency policy did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]["code"]
+            .as_str()
+            .is_some_and(|code| code.starts_with("native_option_not_implemented:")));
         Ok(())
     }
 
@@ -3868,6 +3907,47 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(true));
         let artifact = value["artifact"].as_str().ok_or("missing sbom artifact")?;
         assert!(std::path::Path::new(artifact).is_file());
+        Ok(())
+    }
+
+    #[test]
+    fn check_sbom_dry_run_is_no_write_and_rejects_non_boolean_option(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let output = temp.path().join("unwritten-output");
+        let dry_run = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "sbom",
+                "output": output.to_string_lossy(),
+                "dryRun": true,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = dry_run else {
+            return Err("SBOM dry run did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["dryRun"], serde_json::json!(true));
+        assert!(value.get("artifact").is_none());
+        assert!(!output.exists());
+        let invalid = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "sbom",
+                "dryRun": "yes",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = invalid else {
+            return Err("invalid SBOM dry run did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("dryRun` must be a boolean")));
         Ok(())
     }
 
