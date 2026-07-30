@@ -3773,6 +3773,71 @@ mod tests {
     }
 
     #[test]
+    fn check_required_tests_honors_configured_strict_empty_trees(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let strict = tempfile::tempdir()?;
+        std::fs::create_dir_all(strict.path().join("crates/app/tests/unit"))?;
+        std::fs::write(
+            strict.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","strictEmptyTestTrees":true}"#,
+        )?;
+        std::fs::write(
+            strict.path().join("crates/app/Cargo.toml"),
+            "[package]\nname=\"strict-app\"\nversion=\"0.1.0\"\n",
+        )?;
+        std::fs::write(
+            strict.path().join("crates/app/tests/integration.rs"),
+            "#[test]\nfn ok() {}\n",
+        )?;
+        std::fs::write(strict.path().join("crates/app/tests/unit/.gitkeep"), "")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": strict.path().to_string_lossy(),
+                "check": "required-tests",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("strict required-tests check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings.iter().any(|finding| {
+                finding["ruleId"] == "TEST-2.1" && finding["file"] == "crates/app/tests/unit"
+            })
+        }));
+
+        let clean = tempfile::tempdir()?;
+        std::fs::create_dir_all(clean.path().join("crates/app/tests"))?;
+        std::fs::write(
+            clean.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","strictEmptyTestTrees":true}"#,
+        )?;
+        std::fs::write(
+            clean.path().join("crates/app/Cargo.toml"),
+            "[package]\nname=\"clean-app\"\nversion=\"0.1.0\"\n",
+        )?;
+        std::fs::write(
+            clean.path().join("crates/app/tests/integration.rs"),
+            "#[test]\nfn ok() {}\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": clean.path().to_string_lossy(),
+                "check": "required-tests",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("clean required-tests check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        Ok(())
+    }
+
+    #[test]
     fn check_secrets_staged_is_git_index_scoped_and_rejects_non_boolean_option(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
