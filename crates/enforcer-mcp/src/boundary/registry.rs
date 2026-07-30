@@ -225,6 +225,10 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "generated-artifacts" => ["GEN-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
                 // Dedicated native engines: these names are not filtered
                 // full scans. The router decodes the shared typed scan scope
                 // then invokes the corresponding narrow engine.
@@ -254,6 +258,10 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
                 "rust-string-boundaries" => ["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "required-tests" => ["TEST-2.1", "TEST-2.2"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),

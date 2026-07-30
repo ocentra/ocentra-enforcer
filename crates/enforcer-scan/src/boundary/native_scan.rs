@@ -167,6 +167,33 @@ pub fn execute_secret_policy(
     })
 }
 
+/// Execute the structural test-tree policy. `strict_empty_test_trees` is a
+/// typed policy choice, not an ignored MCP option.
+pub fn execute_required_test_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    strict_empty_test_trees: bool,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = engine::run_required_test_policy(&resolved, &files, strict_empty_test_trees);
+    Ok(NativeScanResult { scope: resolved.kind, scanned_files: files, report })
+}
+
+/// Execute the path-based generated-artifact policy.  Tracked mode obtains
+/// its own Git inventory so generated directories excluded from the ordinary
+/// source walker are still checked, matching the frozen MJS check.
+pub fn execute_generated_artifacts(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    tracked: bool,
+    allowlist: &[String],
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = crate::generated_artifacts::check(repo_root, resolved.kind, &files, tracked, allowlist)
+        .map_err(|reason| NativeScanError::Io { operation: "generated-artifacts check", reason })?;
+    Ok(NativeScanResult { scope: resolved.kind, scanned_files: files, report })
+}
+
 pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,

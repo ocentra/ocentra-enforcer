@@ -53,6 +53,7 @@ pub mod cargo_workspace_policy;
 pub mod coverage;
 pub mod doctor;
 pub mod engine;
+pub mod generated_artifacts;
 pub mod modes;
 pub mod onboard;
 pub mod outcome;

@@ -378,6 +378,204 @@ pub fn run_secret_policy(
     Ok(fold_report(scope.kind, findings))
 }
 
+/// Enforce that first-party package and crate roots have an organized test
+/// tree. This is deliberately a filesystem policy rather than a marker
+/// validator: `TEST-2.1` is about project structure, not source text.
+pub fn run_required_test_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    strict_empty_test_trees: bool,
+) -> Report {
+    let mut findings = Vec::new();
+    for workspace in ["crates", "packages", "apps"] {
+        let root = std::path::Path::new(scope.repo_root.as_str()).join(workspace);
+        let Ok(entries) = std::fs::read_dir(root) else {
+            continue;
+        };
+        for entry in entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            let project = entry.path();
+            let rel = match project
+                .strip_prefix(scope.repo_root.as_str())
+                .ok()
+                .and_then(|path| path.to_str())
+                .map(|path| path.replace('\\', "/"))
+            {
+                Some(path) => path,
+                None => continue,
+            };
+            if !project_is_in_scope(&rel, files, scope.kind) {
+                continue;
+            }
+            let manifest = if workspace == "crates" {
+                project.join("Cargo.toml")
+            } else {
+                project.join("package.json")
+            };
+            if !manifest.is_file() {
+                continue;
+            }
+            let tests = project.join("tests");
+            let has_tests = if workspace == "crates" {
+                has_extension(&tests, "rs")
+            } else {
+                has_test_script(&tests)
+            };
+            if !has_tests {
+                if let Some(finding) = required_test_finding(
+                    &scope.repo_root,
+                    &rel,
+                    &manifest,
+                    "project is missing organized tests under tests/",
+                ) {
+                    findings.push(finding);
+                }
+            }
+            if strict_empty_test_trees && tests.is_dir() {
+                findings.extend(empty_test_tree_findings(&scope.repo_root, &rel, &tests));
+            }
+        }
+    }
+    fold_report(scope.kind, findings)
+}
+
+fn project_is_in_scope(project: &str, files: &[RelPath], scope: ScanScope) -> bool {
+    !matches!(scope, ScanScope::Files | ScanScope::Diff)
+        || files.iter().any(|file| {
+            file.as_str() == project || file.as_str().starts_with(&format!("{project}/"))
+        })
+}
+
+fn has_extension(root: &std::path::Path, extension: &str) -> bool {
+    test_tree_files(root)
+        .iter()
+        .any(|path| path.extension().and_then(|value| value.to_str()) == Some(extension))
+}
+
+fn has_test_script(root: &std::path::Path) -> bool {
+    test_tree_files(root).iter().any(|path| {
+        path.file_name()
+            .and_then(|value| value.to_str())
+            .is_some_and(|name| name.contains(".test.") || name.contains(".spec."))
+    })
+}
+
+fn empty_test_tree_findings(
+    root: &RepoRoot,
+    project: &str,
+    tests: &std::path::Path,
+) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    for directory in test_tree_directories(tests) {
+        let Ok(children) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        let children = children.filter_map(Result::ok).collect::<Vec<_>>();
+        if children
+            .iter()
+            .any(|child| child.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            continue;
+        }
+        if children.is_empty() || children.iter().all(|child| child.file_name() == ".gitkeep") {
+            let suffix = directory
+                .strip_prefix(tests)
+                .ok()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .replace('\\', "/");
+            if let Some(finding) = required_test_finding(
+                root,
+                project,
+                &directory,
+                &format!("tests/{suffix} is an empty test tree"),
+            ) {
+                findings.push(finding);
+            }
+        }
+    }
+    findings
+}
+
+fn test_tree_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries.filter_map(Result::ok) {
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                pending.push(entry.path());
+            } else if entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
+}
+
+fn test_tree_directories(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut directories = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        directories.push(directory.clone());
+        let Ok(entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            pending.push(entry.path());
+        }
+    }
+    directories
+}
+
+fn required_test_finding(
+    root: &RepoRoot,
+    project: &str,
+    path: &std::path::Path,
+    detail: &str,
+) -> Option<Finding> {
+    let relative = match path.strip_prefix(root.as_str()) {
+        Ok(value) => value.to_str().unwrap_or(project),
+        Err(_) => project,
+    }
+    .replace('\\', "/");
+    let file = match RelPath::try_new(&relative) {
+        Ok(value) => value,
+        Err(_) => match RelPath::try_new(project) {
+            Ok(value) => value,
+            Err(_) => return None,
+        },
+    };
+    let rule_id = match "TEST-2.1".parse() {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let title = match FindingTitle::new("project test tree is required".to_owned()) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let detail = match FindingDetail::new(detail.to_owned()) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    Some(Finding {
+        rule_id,
+        severity: Severity::Error,
+        title,
+        detail,
+        file,
+        line: FindingLine::known(SourceLine::try_new(NonZeroU32::MIN)),
+        snippet: None,
+    })
+}
+
 fn should_scan_source(scope: &ResolvedScope, file: &RelPath) -> bool {
     let path = file.as_str();
     let is_fixture = path.starts_with("tests/fixtures/") || path.contains("/tests/fixtures/");

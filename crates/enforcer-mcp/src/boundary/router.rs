@@ -971,6 +971,15 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     if !crate::registry::NAMED_CHECKS.contains(&name) {
         return named_check_rejection(name, "unknown_named_check");
     }
+    if name == "generated-artifacts" {
+        let report = named_generated_artifacts_unrecorded(args);
+        if report.get("error").is_none() {
+            if let Some(root) = args.get("root").and_then(serde_json::Value::as_str) {
+                record_validation_at_root(ctx, root, ValidationKind::Check, &report);
+            }
+        }
+        return report;
+    }
     let backing = crate::registry::named_check_backing();
     let Some((_, rule_ids)) = backing.iter().find(|(candidate, _)| *candidate == name) else {
         return named_check_rejection(name, "missing_backing_declaration");
@@ -990,6 +999,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     ];
     let allowed_fields = if name == "sbom" {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
+    } else if name == "required-tests" {
+        [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
     } else {
         NATIVE_SCAN_FIELDS.to_vec()
     };
@@ -1011,6 +1022,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     let mut report = match name {
         "secrets" => named_policy_unrecorded(&native_args, "secrets"),
         "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
+        "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         _ => scan_unrecorded(&native_args),
     };
@@ -1049,6 +1061,44 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
     report
+}
+
+fn named_required_tests_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let strict = match args.get("strictEmptyTestTrees") {
+        None => false,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return json_error("required-tests `strictEmptyTestTrees` must be a boolean"),
+    };
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_required_test_policy(&request, &root, strict)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) { Ok(value) => value, Err(error) => return json_error(&error) };
+    let tracked = args.get("tracked").and_then(serde_json::Value::as_bool).unwrap_or(false);
+    let allowlist = match generated_artifact_allowlist(&root, args.get("configPath").and_then(serde_json::Value::as_str)) { Ok(value) => value, Err(error) => return json_error(&error) };
+    match enforcer_scan::boundary::native_scan::execute_generated_artifacts(&request, &root, tracked, &allowlist)
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| enforcer_scan::boundary::native_scan::NativeScanError::Io { operation: "generated-artifacts serialization", reason: error.to_string() })) {
+        Ok(report) => report, Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn generated_artifact_allowlist(root: &RepoRoot, config_path: Option<&str>) -> Result<Vec<String>, String> {
+    let Some(config_path) = config_path else { return Ok(Vec::new()); };
+    let path = std::path::Path::new(root.as_str()).join(config_path);
+    let raw = std::fs::read_to_string(&path).map_err(|error| format!("cannot read generated-artifacts config {}: {error}", path.display()))?;
+    let value: serde_json::Value = serde_json::from_str(&raw).map_err(|error| format!("invalid generated-artifacts config {}: {error}", path.display()))?;
+    match value.get("generatedArtifactsAllowlist") {
+        None => Ok(Vec::new()),
+        Some(serde_json::Value::Array(entries)) => entries.iter().map(|entry| entry.as_str().map(str::to_owned).ok_or_else(|| "generatedArtifactsAllowlist must contain only strings".to_owned())).collect(),
+        Some(_) => Err("generatedArtifactsAllowlist must be an array".to_owned()),
+    }
 }
 
 /// Generate a deterministic, lockfile-bound native Cargo SBOM. The output is
