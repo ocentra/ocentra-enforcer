@@ -1,0 +1,473 @@
+//! BOUNDARY-INVARIANT: raw caller choices convert only into one typed native
+//! scope and curated language filter before reaching the scan engine.
+//! Negative invalid-input coverage rejects empty file scopes and unknown crate
+//! names; no request may silently widen its scope or discard a filter.
+//!
+//! Typed native scan request boundary.
+//!
+//! This is the one execution entry point for the native scanner's supported
+//! narrowing modes.  It intentionally has no catch-all option map: callers
+//! must select exactly one typed scope and every requested language is either
+//! applied or rejected before the engine runs.
+
+use std::path::PathBuf;
+use std::process::Command;
+
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::config_types::CrateName;
+use enforcer_domain::findings::{Report, ScanScope};
+use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::scan_types::{CommitRef, LanguageFamily, ScopeRequest};
+
+use crate::engine::{self, build_family_validators};
+use crate::router::classify;
+use crate::scope;
+use crate::walk::{self, IgnoreRules};
+
+/// Language filters supported by the native scan engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeScanLanguage {
+    Rust,
+    TypeScript,
+    Python,
+    Terraform,
+    YamlOrConfig,
+}
+
+impl NativeScanLanguage {
+    fn matches(self, path: &RelPath) -> bool {
+        matches!(
+            (self, classify(path)),
+            (Self::Rust, LanguageFamily::Rust)
+                | (Self::TypeScript, LanguageFamily::TypeScript)
+                | (Self::Python, LanguageFamily::Python)
+                | (Self::Terraform, LanguageFamily::Terraform)
+                | (Self::YamlOrConfig, LanguageFamily::YamlOrConfig)
+        )
+    }
+}
+
+/// Exactly one supported native scan scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeScanScope {
+    Files(Vec<PathBuf>),
+    Workspace,
+    Crate(CrateName),
+    Diff { base: CommitRef, head: CommitRef },
+}
+
+/// Fully typed native scan request. There are no ignored options or fallback
+/// scope: unsupported input must fail while being decoded into this shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeScanRequest {
+    pub scope: NativeScanScope,
+    pub languages: Vec<NativeScanLanguage>,
+}
+
+/// Result produced by the native request path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeScanResult {
+    pub scope: ScanScope,
+    pub scanned_files: Vec<RelPath>,
+    pub report: Report,
+}
+
+/// Failure from the native request boundary. Every variant is terminal: this
+/// contract never widens a bad scope or drops an unsupported filter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeScanError {
+    Decode(DecodeError),
+    Io {
+        operation: &'static str,
+        reason: String,
+    },
+    UnsupportedCrate {
+        name: CrateName,
+    },
+    GitDiff {
+        base: CommitRef,
+        head: CommitRef,
+        reason: String,
+    },
+}
+
+impl std::fmt::Display for NativeScanError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Decode(error) => write!(formatter, "native scan input rejected: {error}"),
+            Self::Io { operation, reason } => {
+                write!(formatter, "native scan {operation} failed: {reason}")
+            }
+            Self::UnsupportedCrate { name } => {
+                write!(formatter, "native scan crate `{name}` was not found")
+            }
+            Self::GitDiff { base, head, reason } => write!(
+                formatter,
+                "native scan diff `{}..{}` could not be resolved: {reason}",
+                base.as_str(),
+                head.as_str()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for NativeScanError {}
+
+impl From<DecodeError> for NativeScanError {
+    fn from(value: DecodeError) -> Self {
+        Self::Decode(value)
+    }
+}
+
+/// Execute a typed native scan request against one repository root.
+pub fn execute(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let validators = build_family_validators()?;
+    let report = engine::run(&resolved, &files, &validators);
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
+fn resolve_files(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
+    let rules = IgnoreRules::default();
+    let (scope_request, files, kind) =
+        match &request.scope {
+            NativeScanScope::Files(paths) => {
+                if paths.is_empty() {
+                    return Err(
+                        DecodeError::new("scan.files", "must contain at least one path").into(),
+                    );
+                }
+                let scope_request = ScopeRequest::Paths(paths.clone());
+                let resolved = scope::resolve(&scope_request, repo_root)?;
+                for path in &resolved.explicit_paths {
+                    let absolute = std::path::Path::new(repo_root.as_str()).join(path.as_str());
+                    if !absolute.is_file() {
+                        return Err(DecodeError::new(
+                            "scan.files",
+                            "each requested path must identify an existing file",
+                        )
+                        .into());
+                    }
+                }
+                let files = walk::filter_explicit(&resolved.explicit_paths, &rules);
+                (scope_request, files, ScanScope::Files)
+            }
+            NativeScanScope::Workspace => {
+                let scope_request = ScopeRequest::All;
+                let files = walk::walk(std::path::Path::new(repo_root.as_str()), &rules).map_err(
+                    |error| NativeScanError::Io {
+                        operation: "workspace walk",
+                        reason: error.to_string(),
+                    },
+                )?;
+                (scope_request, files, ScanScope::Workspace)
+            }
+            NativeScanScope::Crate(name) => {
+                let scope_request = ScopeRequest::All;
+                let all_files = walk::walk(std::path::Path::new(repo_root.as_str()), &rules)
+                    .map_err(|error| NativeScanError::Io {
+                        operation: "crate discovery walk",
+                        reason: error.to_string(),
+                    })?;
+                let crate_root = find_crate_root(repo_root, &all_files, name)?;
+                let files = all_files
+                    .into_iter()
+                    .filter(|path| {
+                        path == &crate_root
+                            || path
+                                .as_str()
+                                .starts_with(&format!("{}/", crate_root.as_str()))
+                    })
+                    .collect();
+                (scope_request, files, ScanScope::Crate)
+            }
+            NativeScanScope::Diff { base, head } => {
+                let scope_request = ScopeRequest::Diff {
+                    base: base.clone(),
+                    head: head.clone(),
+                };
+                let files = diff_files(repo_root, base, head, &rules)?;
+                (scope_request, files, ScanScope::Diff)
+            }
+        };
+    let mut resolved = scope::resolve(&scope_request, repo_root)?;
+    resolved.kind = kind;
+    let files = filter_languages(files, &request.languages);
+    Ok((resolved, files))
+}
+
+fn filter_languages(files: Vec<RelPath>, languages: &[NativeScanLanguage]) -> Vec<RelPath> {
+    if languages.is_empty() {
+        return files;
+    }
+    files
+        .into_iter()
+        .filter(|path| {
+            languages
+                .iter()
+                .copied()
+                .any(|language| language.matches(path))
+        })
+        .collect()
+}
+
+fn find_crate_root(
+    repo_root: &RepoRoot,
+    files: &[RelPath],
+    crate_name: &CrateName,
+) -> Result<RelPath, NativeScanError> {
+    for manifest in files
+        .iter()
+        .filter(|path| path.as_str().ends_with("Cargo.toml"))
+    {
+        let path = std::path::Path::new(repo_root.as_str()).join(manifest.as_str());
+        let Ok(contents) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        if contents
+            .lines()
+            .any(|line| line.trim() == format!("name = \"{}\"", crate_name.as_str()))
+        {
+            let root = manifest.as_str().strip_suffix("/Cargo.toml").unwrap_or("");
+            if root.is_empty() {
+                return "Cargo.toml".parse().map_err(Into::into);
+            }
+            return root.parse().map_err(Into::into);
+        }
+    }
+    Err(NativeScanError::UnsupportedCrate {
+        name: crate_name.clone(),
+    })
+}
+
+fn diff_files(
+    repo_root: &RepoRoot,
+    base: &CommitRef,
+    head: &CommitRef,
+    rules: &IgnoreRules,
+) -> Result<Vec<RelPath>, NativeScanError> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_root.as_str())
+        .args(["diff", "--name-only", "--diff-filter=ACMR"])
+        .arg(base.as_str())
+        .arg(head.as_str())
+        .output()
+        .map_err(|error| NativeScanError::GitDiff {
+            base: base.clone(),
+            head: head.clone(),
+            reason: error.to_string(),
+        })?;
+    if !output.status.success() {
+        return Err(NativeScanError::GitDiff {
+            base: base.clone(),
+            head: head.clone(),
+            reason: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
+    }
+    let paths = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::parse)
+        .collect::<Result<Vec<RelPath>, DecodeError>>()?;
+    Ok(walk::filter_explicit(&paths, rules))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        execute, resolve_files, NativeScanError, NativeScanLanguage, NativeScanRequest,
+        NativeScanScope,
+    };
+    use enforcer_domain::config_types::CrateName;
+    use enforcer_domain::findings::ScanScope;
+    use enforcer_domain::paths::RepoRoot;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn root(path: &Path) -> Result<RepoRoot, Box<dyn std::error::Error>> {
+        Ok(path.to_string_lossy().parse()?)
+    }
+
+    fn write(
+        root: &Path,
+        relative: &str,
+        contents: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = root.join(relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(path, contents)?;
+        Ok(())
+    }
+
+    #[test]
+    fn files_scope_applies_language_filter_before_engine_execution(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(temp.path(), "src/lib.rs", "pub fn native_contract() {}")?;
+        write(
+            temp.path(),
+            "web/app.ts",
+            "export const nativeContract = true;",
+        )?;
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Files(vec!["src/lib.rs".into(), "web/app.ts".into()]),
+            languages: vec![NativeScanLanguage::Rust],
+        };
+        let (resolved, files) = resolve_files(&request, &root(temp.path())?)?;
+        assert_eq!(resolved.kind, ScanScope::Files);
+        assert_eq!(
+            files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+            ["src/lib.rs"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workspace_and_crate_scopes_are_distinct_and_crate_is_package_name_based(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"nested/member\"]\n",
+        )?;
+        write(
+            temp.path(),
+            "nested/member/Cargo.toml",
+            "[package]\nname = \"native-member\"\nversion = \"0.1.0\"\n",
+        )?;
+        write(
+            temp.path(),
+            "nested/member/src/lib.rs",
+            "pub fn member() {}",
+        )?;
+        write(temp.path(), "other/src/lib.rs", "pub fn other() {}")?;
+        let repo_root = root(temp.path())?;
+        let workspace = NativeScanRequest {
+            scope: NativeScanScope::Workspace,
+            languages: Vec::new(),
+        };
+        let crate_request = NativeScanRequest {
+            scope: NativeScanScope::Crate("native-member".parse::<CrateName>()?),
+            languages: Vec::new(),
+        };
+        let (workspace_scope, workspace_files) = resolve_files(&workspace, &repo_root)?;
+        let (crate_scope, crate_files) = resolve_files(&crate_request, &repo_root)?;
+        assert_eq!(workspace_scope.kind, ScanScope::Workspace);
+        assert_eq!(crate_scope.kind, ScanScope::Crate);
+        assert!(workspace_files.len() > crate_files.len());
+        assert_eq!(
+            crate_files
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            ["nested/member/Cargo.toml", "nested/member/src/lib.rs"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn diff_scope_uses_git_changed_files_and_execute_returns_report(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .arg("init")
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["config", "user.email", "native@example.test"])
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["config", "user.name", "Native Scan"])
+            .status()?
+            .success());
+        write(temp.path(), "Cargo.toml", "[workspace]\nmembers = []\n")?;
+        write(temp.path(), "src/old.rs", "pub fn old() {}")?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["add", "."])
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["commit", "-m", "base"])
+            .status()?
+            .success());
+        write(temp.path(), "src/new.rs", "pub fn new_file() {}")?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["add", "."])
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["commit", "-m", "head"])
+            .status()?
+            .success());
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Diff {
+                base: "HEAD~1".parse()?,
+                head: "HEAD".parse()?,
+            },
+            languages: vec![NativeScanLanguage::Rust],
+        };
+        let result = execute(&request, &root(temp.path())?)?;
+        assert_eq!(result.scope, ScanScope::Diff);
+        assert_eq!(
+            result
+                .scanned_files
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            ["src/new.rs"]
+        );
+        assert_eq!(result.report.scope, ScanScope::Diff);
+        Ok(())
+    }
+
+    #[test]
+    fn empty_or_unknown_crate_scope_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let repo_root = root(temp.path())?;
+        let empty = NativeScanRequest {
+            scope: NativeScanScope::Files(Vec::new()),
+            languages: Vec::new(),
+        };
+        assert!(matches!(
+            resolve_files(&empty, &repo_root),
+            Err(NativeScanError::Decode(_))
+        ));
+        let unknown = NativeScanRequest {
+            scope: NativeScanScope::Crate("missing".parse()?),
+            languages: Vec::new(),
+        };
+        assert!(matches!(
+            resolve_files(&unknown, &repo_root),
+            Err(NativeScanError::UnsupportedCrate { .. })
+        ));
+        Ok(())
+    }
+}
