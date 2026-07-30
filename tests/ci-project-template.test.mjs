@@ -97,6 +97,19 @@ test('workflow contract rejects caching generated Cargo target output', () => {
   assert.ok(failures.some((failure) => failure.includes('generated target output')));
 });
 
+test('workflow contract rejects legacy Node policy commands in CI', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-native-policy-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const workflow = path.join(root, '.github', 'workflows', 'ci.yml');
+  const legacyPolicy = readFileSync(workflow, 'utf8').replace(
+    './target/debug/enforcer policy secrets',
+    'node scripts/ocentra-enforcer.mjs check secrets --root .',
+  );
+  writeFileSync(workflow, legacyPolicy);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('native Rust policy commands')));
+});
+
 test('workflow contract rejects a branch-local scanner labelled as frozen', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-scanner-'));
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });

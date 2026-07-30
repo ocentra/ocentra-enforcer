@@ -12,6 +12,10 @@ export function verifyWorkflowContract(root) {
       'npm run ci:local', 'cargo audit --deny warnings', 'name: required',
       'Enforcer Required Gate',
       'needs: [plan-impacted, impacted, workspace, local-parity, policy, dogfood]',
+      'cargo build --locked --package enforcer-cli --bin enforcer',
+      './target/debug/enforcer policy secrets',
+      './target/debug/enforcer policy dependency-policy',
+      './target/debug/enforcer policy sbom --output target/security',
     ]],
     ['workflows/dogfood.yml', [
       'FROZEN_SAFETY_SCANNER_COMMIT: c078c5ceb7318caa295ca26a9496354c238a3b8f',
@@ -69,6 +73,10 @@ export function verifyWorkflowContract(root) {
     if (name === 'workflows/ci.yml'
       && /^\s+target\s*$/mu.test(content)) {
       failures.push(`${name}: Cargo cache must not archive generated target output`);
+    }
+    if (name === 'workflows/ci.yml'
+      && /node\s+scripts\/ocentra-enforcer\.mjs\s+check\s+(?:secrets|dependency-policy|sbom)\b/u.test(content)) {
+      failures.push(`${name}: policy job must use the native Rust policy commands, not legacy Node checks`);
     }
   }
   return failures;
