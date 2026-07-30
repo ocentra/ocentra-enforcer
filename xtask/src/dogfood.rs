@@ -379,6 +379,54 @@ mod tests {
     }
 
     #[test]
+    fn disposition_catalog_is_not_product_source_but_source_trigger_is_detected(
+    ) -> Result<(), std::io::Error> {
+        let temp = tempfile::tempdir()?;
+        // This is an exact applicability boundary, not a security-rule
+        // exception: the disposition catalog contains documented detector
+        // evidence, while deployable source remains in scan scope.
+        seed(
+            temp.path(),
+            "ocentra-enforcer.config.json",
+            r#"{"schemaVersion":2,"profileName":"default","ignoreFileGlobs":["crates/enforcer-rules/dispositions/**"]}"#,
+        )?;
+        let metadata_endpoint = format!("http://169.254.{}", "169.254");
+        seed(
+            temp.path(),
+            "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+            &format!(r#"{{"documentedIndicator":"{metadata_endpoint}"}}"#),
+        )?;
+        seed(temp.path(), "crates/sample/src/lib.rs", &clean_body())?;
+        let baseline_store = temp.path().join("baseline.json");
+        let ignored =
+            run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
+        assert!(
+            matches!(ignored.gate.passes(), ReportOutcome::Clean),
+            "a documented indicator in the non-executable disposition catalog must not contribute a finding"
+        );
+
+        seed(
+            temp.path(),
+            "crates/sample/src/lib.rs",
+            &format!("const METADATA: &str = \"{metadata_endpoint}\";"),
+        )?;
+        let detected =
+            run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
+        assert!(
+            detected.report.findings.iter().any(|finding| {
+                finding.rule_id.as_str() == "CYBER-SSRF.1"
+                    && finding.file.as_str() == "crates/sample/src/lib.rs"
+            }),
+            "the same indicator in deployable source must remain a CYBER-SSRF.1 finding"
+        );
+        assert!(
+            matches!(detected.gate.passes(), ReportOutcome::Violations),
+            "an unbaselined deployable-source CYBER trigger must fail closed"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn workspace_walk_includes_xtask_and_excludes_generated_target_trees(
     ) -> Result<(), std::io::Error> {
         let temp = tempfile::tempdir()?;

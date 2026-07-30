@@ -78,7 +78,8 @@
     "Tools/ocentra-literal-scan/tests/fixtures/bad/**",
     "tools/ocentra-literal-scan/tests/fixtures/bad/**",
     "Tools/ocentra-literal-scan/schemas/**",
-    "profiles/*/legacy-scripts/**"
+    "profiles/*/legacy-scripts/**",
+    "crates/enforcer-rules/dispositions/**"
   ],
   "sourceShapePolicies": [
     {
