@@ -781,13 +781,34 @@ fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     {
         return json_error(&format!("scan does not support `{unsupported}`"));
     }
-    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("scan requires a `root` path");
-    };
-    let root = match root_raw.parse::<RepoRoot>() {
+    let (root, request) = match native_scan_request(args) {
         Ok(value) => value,
-        Err(err) => return json_error(&err.to_string()),
+        Err(error) => return json_error(&error),
     };
+    let result = enforcer_scan::boundary::native_scan::execute(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()));
+    match result {
+        Ok(value) => value,
+        Err(err) => json_error(&err),
+    }
+}
+
+fn native_scan_request(
+    args: &serde_json::Value,
+) -> Result<
+    (
+        RepoRoot,
+        enforcer_scan::boundary::native_scan::NativeScanRequest,
+    ),
+    String,
+> {
+    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return Err("scan requires a `root` path".to_owned());
+    };
+    let root = root_raw
+        .parse::<RepoRoot>()
+        .map_err(|error| error.to_string())?;
     let files = match args.get("files") {
         None => None,
         Some(serde_json::Value::Array(values)) => match values
@@ -796,26 +817,22 @@ fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
             .collect::<Option<Vec<_>>>()
         {
             Some(values) => Some(values),
-            None => return json_error("scan `files` must contain only paths"),
+            None => return Err("scan `files` must contain only paths".to_owned()),
         },
-        Some(_) => return json_error("scan `files` must be an array"),
+        Some(_) => return Err("scan `files` must be an array".to_owned()),
     };
     let languages = match parse_scan_languages(args.get("languages")) {
         Ok(value) => value,
-        Err(message) => return json_error(&message),
+        Err(message) => return Err(message),
     };
     let scope = match parse_scan_scope(args.get("scope"), files, args) {
         Ok(value) => value,
-        Err(message) => return json_error(&message),
+        Err(message) => return Err(message),
     };
-    let request = enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages };
-    let result = enforcer_scan::boundary::native_scan::execute(&request, &root)
-        .map_err(|error| error.to_string())
-        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()));
-    match result {
-        Ok(value) => value,
-        Err(err) => json_error(&err),
-    }
+    Ok((
+        root,
+        enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages },
+    ))
 }
 
 fn scan(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
@@ -971,10 +988,15 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "head",
         "languages",
     ];
+    let allowed_fields = if name == "sbom" {
+        [NATIVE_SCAN_FIELDS, &["output"]].concat()
+    } else {
+        NATIVE_SCAN_FIELDS.to_vec()
+    };
     if let Some(unsupported) = args.as_object().and_then(|object| {
         object
             .keys()
-            .find(|field| !NATIVE_SCAN_FIELDS.contains(&field.as_str()))
+            .find(|field| !allowed_fields.contains(&field.as_str()))
     }) {
         return named_check_rejection(
             name,
@@ -985,7 +1007,13 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         return json_error("check arguments must be an object");
     };
     scan_args.remove("check");
-    let mut report = scan_unrecorded(&serde_json::Value::Object(scan_args));
+    let native_args = serde_json::Value::Object(scan_args);
+    let mut report = match name {
+        "secrets" => named_policy_unrecorded(&native_args, "secrets"),
+        "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
+        "sbom" => named_sbom_unrecorded(&native_args),
+        _ => scan_unrecorded(&native_args),
+    };
     let Some(object) = report.as_object_mut() else {
         return json_error("native scan produced an invalid report shape");
     };
@@ -1021,6 +1049,54 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
     report
+}
+
+/// Generate a deterministic, lockfile-bound native Cargo SBOM. The output is
+/// an explicit artifact path rather than a synthetic scanner finding.
+fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("sbom requires a `root` path");
+    };
+    let root = std::path::PathBuf::from(root_raw);
+    let output = match args.get("output") {
+        Some(serde_json::Value::String(value)) => root.join(value),
+        Some(_) => return json_error("sbom `output` must be a string"),
+        None => root.join("target").join("enforcer-sbom"),
+    };
+    match enforcer_scan::sbom_policy::generate_current_workspace(&root, &output) {
+        Ok(artifact) => serde_json::json!({
+            "ok": true,
+            "command": "check",
+            "check": "sbom",
+            "artifact": artifact.to_string_lossy(),
+            "violations": [],
+            "warnings": [],
+            "waived": [],
+            "findings": [],
+        }),
+        Err(error) => json_error(&error),
+    }
+}
+
+/// Execute named checks whose native implementation is intentionally narrower
+/// than the full language scanner.  The scan request boundary remains shared,
+/// so scope and language input cannot diverge between MCP tools.
+fn named_policy_unrecorded(args: &serde_json::Value, policy: &str) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let result = match policy {
+        "secrets" => enforcer_scan::boundary::native_scan::execute_secret_policy(&request, &root),
+        "dependency-policy" => {
+            enforcer_scan::boundary::native_scan::execute_dependency_policy(&request, &root)
+        }
+        _ => return json_error("named policy is not implemented"),
+    };
+    result
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
 }
 
 /// Return a structured refusal for a frozen check whose dedicated native
@@ -3022,6 +3098,97 @@ mod tests {
         let findings = value["findings"].as_array().ok_or("missing findings")?;
         assert!(!findings.is_empty());
         assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn check_secrets_uses_the_dedicated_sec_policy_engine() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(
+            src.join("config.rs"),
+            "const SECRET = \"0123456789abcdefghijklmnop\";\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "secrets",
+                "scope": "files",
+                "files": ["src/config.rs"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native secrets check did not produce a result".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("secrets"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings.iter().all(|finding| {
+                finding["ruleId"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with("SEC-"))
+            })
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn check_dependency_policy_uses_the_dedicated_workspace_engine(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("crates/app"))?;
+        std::fs::write(
+            temp.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/app\"]\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/app/Cargo.toml"),
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\noutside = { path = \"../../outside\" }\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "dependency-policy",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native dependency policy did not produce a result".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("dependency-policy"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"]
+            .as_array()
+            .is_some_and(|findings| findings.iter().all(|finding| finding["ruleId"] == "RR-9.3")));
+        Ok(())
+    }
+
+    #[test]
+    fn check_sbom_generates_a_lockfile_bound_native_artifact(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let output = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": workspace.to_string_lossy(),
+                "check": "sbom",
+                "output": output.path().to_string_lossy(),
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native sbom check did not produce a result".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("sbom"));
+        assert_eq!(value["ok"], serde_json::json!(true));
+        let artifact = value["artifact"].as_str().ok_or("missing sbom artifact")?;
+        assert!(std::path::Path::new(artifact).is_file());
         Ok(())
     }
 

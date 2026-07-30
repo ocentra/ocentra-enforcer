@@ -134,6 +134,39 @@ pub fn execute(
     })
 }
 
+/// Execute only the native Cargo local-path dependency policy over the typed
+/// request scope. This is deliberately distinct from a filtered full scan:
+/// callers receive the real workspace-inventory policy without unrelated
+/// language findings.
+pub fn execute_dependency_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = engine::run_dependency_policy(&resolved, &files);
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
+/// Execute only the native secret-policy registry over the typed request
+/// scope. This keeps the named `secrets` check tied to the concrete SEC
+/// validators rather than to a broad scan filtered after the fact.
+pub fn execute_secret_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = engine::run_secret_policy(&resolved, &files).map_err(NativeScanError::Decode)?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
@@ -295,8 +328,8 @@ fn diff_files(
 #[cfg(test)]
 mod tests {
     use super::{
-        execute, resolve_files, NativeScanError, NativeScanLanguage, NativeScanRequest,
-        NativeScanScope,
+        execute, execute_dependency_policy, execute_secret_policy, resolve_files, NativeScanError,
+        NativeScanLanguage, NativeScanRequest, NativeScanScope,
     };
     use enforcer_domain::config_types::CrateName;
     use enforcer_domain::findings::ScanScope;
@@ -478,6 +511,60 @@ mod tests {
             resolve_files(&unknown, &repo_root),
             Err(NativeScanError::UnsupportedCrate { .. })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn dedicated_secret_policy_uses_the_sec_registry_without_full_scan_noise(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "src/config.rs",
+            "const SECRET = \"0123456789abcdefghijklmnop\";",
+        )?;
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Files(vec!["src/config.rs".into()]),
+            languages: Vec::new(),
+        };
+        let result = execute_secret_policy(&request, &root(temp.path())?)?;
+        assert!(result.report.violations.iter().all(|finding| finding
+            .finding()
+            .rule_id
+            .as_str()
+            .starts_with("SEC-")));
+        assert!(result
+            .report
+            .violations
+            .iter()
+            .any(|finding| finding.finding().rule_id.as_str() == "SEC-1.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn dedicated_dependency_policy_uses_workspace_inventory(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"crates/app\"]\n",
+        )?;
+        write(
+            temp.path(),
+            "crates/app/Cargo.toml",
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\noutside = { path = \"../../outside\" }\n",
+        )?;
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Workspace,
+            languages: Vec::new(),
+        };
+        let result = execute_dependency_policy(&request, &root(temp.path())?)?;
+        assert_eq!(result.report.violations.len(), 1);
+        assert_eq!(
+            result.report.violations[0].finding().rule_id.as_str(),
+            "RR-9.3"
+        );
         Ok(())
     }
 }

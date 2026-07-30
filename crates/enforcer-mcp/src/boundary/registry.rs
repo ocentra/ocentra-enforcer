@@ -225,6 +225,38 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                // Dedicated native engines: these names are not filtered
+                // full scans. The router decodes the shared typed scan scope
+                // then invokes the corresponding narrow engine.
+                "secrets" => [
+                    "SEC-1.1", "SEC-1.2", "SEC-2.1", "SEC-2.2", "SEC-2.3", "SEC-2.4", "SEC-2.5",
+                    "SEC-2.6", "SEC-2.7", "SEC-2.8", "SEC-2.9", "SEC-2.10", "SEC-2.11", "SEC-2.12",
+                    "SEC-2.13", "SEC-2.14", "SEC-2.15", "SEC-2.16", "SEC-2.17", "SEC-2.18",
+                    "SEC-2.19", "SEC-2.20",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
+                "dependency-policy" => ["RR-9.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "sbom" => ["SBOM-1.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "literal-risk" => ["LIT-2.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "import-boundaries" => ["TS-4.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "rust-string-boundaries" => ["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
                 _ => Vec::new(),
             };
             (name, rule_ids)
@@ -821,6 +853,12 @@ mod tests {
                 "validation-bypass",
                 "placeholder-implementation",
                 "reexports",
+                "secrets",
+                "dependency-policy",
+                "sbom",
+                "literal-risk",
+                "import-boundaries",
+                "rust-string-boundaries",
             ])
         );
         Ok(())
