@@ -57,6 +57,7 @@ pub mod onboard;
 pub mod outcome;
 pub mod router;
 pub mod rules;
+pub mod sbom_policy;
 pub mod scope;
 pub mod test_doctrine;
 pub mod ui_logic_coupling;

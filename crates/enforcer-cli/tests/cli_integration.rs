@@ -198,6 +198,48 @@ fn native_secrets_policy_accepts_runtime_configuration_reference(
 }
 
 #[test]
+fn native_sbom_policy_writes_a_deterministic_schema_validated_artifact(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::write(
+        temp.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/app\"]\nresolver = \"2\"\n",
+    )?;
+    std::fs::create_dir_all(temp.path().join("crates/app/src"))?;
+    std::fs::write(
+        temp.path().join("crates/app/Cargo.toml"),
+        "[package]\nname = \"fixture-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/app/src/lib.rs"),
+        "pub fn answer() -> u8 { 42 }\n",
+    )?;
+    std::fs::write(
+        temp.path().join("Cargo.lock"),
+        "version = 4\n\n[[package]]\nname = \"fixture-app\"\nversion = \"0.1.0\"\n",
+    )?;
+    let output = temp.path().join("sbom-output");
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "sbom", "--output"])
+        .arg(&output)
+        .status()?;
+    assert!(status.success());
+    let artifact = output.join("cargo-sbom.json");
+    let first = std::fs::read_to_string(&artifact)?;
+    let decoded: enforcer_scan::sbom_policy::CargoSbomDto = serde_json::from_str(&first)?;
+    enforcer_scan::sbom_policy::validate(&decoded).map_err(std::io::Error::other)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "sbom", "--output"])
+        .arg(&output)
+        .status()?;
+    assert!(status.success());
+    assert_eq!(first, std::fs::read_to_string(artifact)?);
+    Ok(())
+}
+
+#[test]
 fn inline_test_policy_keeps_rust_unit_tests_exempt_in_the_real_cli_binary(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;

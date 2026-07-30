@@ -83,6 +83,11 @@ pub fn print_report(report: &Report) {
     }
 }
 
+/// Render a successful artifact path through the sole CLI stdout boundary.
+pub fn print_artifact_path(path: &std::path::Path) {
+    emit_stdout(&format!("enforcer: artifact written: {}", path.display()));
+}
+
 /// Print a usage-error message to stderr (clap parse failures that this
 /// crate itself detects post-parse, e.g. "no scope given").
 pub fn print_usage_error(message: &str) {

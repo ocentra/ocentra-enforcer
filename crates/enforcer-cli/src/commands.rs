@@ -12,7 +12,9 @@ use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::scan_types::ResolvedScope;
 use enforcer_scan::{engine, walk};
 
-use crate::cli::{ArchitectureAction, ArchitectureCheckArgs, PolicyAction, ScopeArgs, VerifyArgs};
+use crate::cli::{
+    ArchitectureAction, ArchitectureCheckArgs, PolicyAction, SbomArgs, ScopeArgs, VerifyArgs,
+};
 use crate::output;
 
 /// Resolve the repo root to scan/check against: the current working
@@ -131,6 +133,7 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
     match action {
         PolicyAction::DependencyPolicy => run_dependency_policy(),
         PolicyAction::Secrets => run_secret_policy(),
+        PolicyAction::Sbom(args) => run_sbom_policy(args),
     }
 }
 
@@ -206,6 +209,31 @@ fn run_secret_policy() -> ExitCode {
         ExitCode::Success
     } else {
         ExitCode::Violations
+    }
+}
+
+/// `enforcer policy sbom --output <directory>`: emit an Enforcer-owned
+/// document bound to the exact locked Cargo resolution.
+fn run_sbom_policy(args: &SbomArgs) -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let root_path = Path::new(root.as_str());
+    match enforcer_scan::sbom_policy::generate_current_workspace(root_path, &args.output) {
+        Ok(artifact) => {
+            // The output sink intentionally owns process output. The artifact
+            // path is not a finding; it is the successful command result.
+            output::print_artifact_path(&artifact);
+            ExitCode::Success
+        }
+        Err(error) => {
+            output::print_internal_error(&format!("native SBOM generation failed: {error}"));
+            ExitCode::InternalError
+        }
     }
 }
 

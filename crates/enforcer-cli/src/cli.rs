@@ -179,6 +179,19 @@ pub enum PolicyAction {
     /// wrapper around the legacy Node collector.
     #[command(name = "secrets")]
     Secrets,
+    /// Generate a deterministic, schema-validated Cargo SBOM from the locked
+    /// dependency resolution. The output is native Rust JSON, not a copied
+    /// Node/npm artifact.
+    #[command(name = "sbom")]
+    Sbom(SbomArgs),
+}
+
+/// Output selection for the native Cargo SBOM policy.
+#[derive(Debug, Args)]
+pub struct SbomArgs {
+    /// Directory into which `cargo-sbom.json` is written.
+    #[arg(long, default_value = "target/security")]
+    pub output: PathBuf,
 }
 
 /// Arguments for the architecture-policy check.
