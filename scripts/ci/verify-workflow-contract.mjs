@@ -18,7 +18,7 @@ export function verifyWorkflowContract(root) {
       './target/debug/enforcer policy sbom --output target/security',
     ]],
     ['workflows/dogfood.yml', [
-      'FROZEN_SAFETY_SCANNER_COMMIT: c078c5ceb7318caa295ca26a9496354c238a3b8f',
+      'FROZEN_SAFETY_SCANNER_COMMIT: 267af94b701bd592e01a47649e3c18c26ee04239',
       'FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner',
       'git -C "$FROZEN_SCANNER_DIR" fetch --depth=1 origin "$FROZEN_SAFETY_SCANNER_COMMIT"',
       'test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"',

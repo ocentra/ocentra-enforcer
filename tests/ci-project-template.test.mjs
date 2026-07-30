@@ -84,6 +84,19 @@ test('checked-in workflows satisfy the reusable contract', () => {
   assert.deepEqual(verifyWorkflowContract(process.cwd()), []);
 });
 
+test('workflow contract requires the corrected immutable frozen scanner revision', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-pin-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
+  const outdatedPin = readFileSync(dogfood, 'utf8').replace(
+    '267af94b701bd592e01a47649e3c18c26ee04239',
+    'c078c5ceb7318caa295ca26a9496354c238a3b8f',
+  );
+  writeFileSync(dogfood, outdatedPin);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('267af94b701bd592e01a47649e3c18c26ee04239')));
+});
+
 test('workflow contract rejects caching generated Cargo target output', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-target-cache-'));
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
