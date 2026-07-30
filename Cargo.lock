@@ -1140,6 +1140,7 @@ dependencies = [
  "enforcer-core",
  "enforcer-domain",
  "enforcer-harness",
+ "enforcer-literal-scan",
  "enforcer-proof",
  "enforcer-rules",
  "enforcer-scan",

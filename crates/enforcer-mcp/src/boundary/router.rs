@@ -4351,4 +4351,29 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn check_literal_risk_rejects_malformed_alias_types() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        for args in [
+            serde_json::json!({"literalRiskMinScore":"high"}),
+            serde_json::json!({"literalRiskIncludeLow":"yes"}),
+            serde_json::json!({"literalRiskHardCategories":"secret-like"}),
+        ] {
+            let mut args = args;
+            args["root"] = serde_json::json!(temp.path().to_string_lossy());
+            args["check"] = serde_json::json!("literal-risk");
+            let DispatchOutcome::Result(value) = dispatch(
+                &tool("ocentra_enforcer_check")?,
+                &args,
+                &ctx(McpFreshness::Fresh),
+            ) else {
+                return Err("literal-risk malformed input did not produce a result".into());
+            };
+            assert_eq!(value["ok"], serde_json::json!(false));
+            assert_ne!(value.get("error"), Some(&serde_json::Value::Null));
+        }
+        Ok(())
+    }
 }
