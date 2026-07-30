@@ -167,6 +167,21 @@ pub fn execute_secret_policy(
     })
 }
 
+/// Execute the dedicated TypeScript import-boundary rule only.
+pub fn execute_import_boundaries_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report =
+        engine::run_import_boundaries_policy(&resolved, &files).map_err(NativeScanError::Decode)?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the structural test-tree policy. `strict_empty_test_trees` is a
 /// typed policy choice, not an ignored MCP option.
 pub fn execute_required_test_policy(

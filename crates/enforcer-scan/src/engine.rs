@@ -378,6 +378,31 @@ pub fn run_secret_policy(
     Ok(fold_report(scope.kind, findings))
 }
 
+/// Run only the concrete TypeScript import-boundary validator. This avoids
+/// the broad scan-and-filter adapter used by generic named MCP checks.
+pub fn run_import_boundaries_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validator = enforcer_lang_ts::rules::import_boundaries::ImportBoundariesValidator::new()?;
+    let mut findings = files
+        .par_iter()
+        .filter(|file| matches!(classify(file), LanguageFamily::TypeScript))
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .flat_map_iter(|(file, source)| {
+            validator.validate(ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            })
+        })
+        .collect::<Vec<_>>();
+    findings.sort_by(|left, right| {
+        (&left.file, left.line, &left.rule_id).cmp(&(&right.file, right.line, &right.rule_id))
+    });
+    Ok(fold_report(scope.kind, findings))
+}
+
 /// Enforce that first-party package and crate roots have an organized test
 /// tree. This is deliberately a filesystem policy rather than a marker
 /// validator: `TEST-2.1` is about project structure, not source text.

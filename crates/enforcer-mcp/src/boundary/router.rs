@@ -1029,6 +1029,11 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     let mut report = match name {
         "secrets" => named_policy_unrecorded(&native_args, "secrets"),
         "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
+        "import-boundaries" => named_import_boundaries_unrecorded(&native_args),
+        "literal-risk" => named_check_rejection(
+            "literal-risk",
+            "native_report_adapter_not_implemented:literal-risk has a distinct report and option contract",
+        ),
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
@@ -1289,6 +1294,17 @@ fn named_policy_unrecorded(args: &serde_json::Value, policy: &str) -> serde_json
         _ => return json_error("named policy is not implemented"),
     };
     result
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_import_boundaries_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_import_boundaries_policy(&request, &root)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
@@ -4111,6 +4127,44 @@ mod tests {
             ),
             DispatchOutcome::StaleRefused(_)
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn check_import_boundaries_uses_only_the_native_ts_validator(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let file = temp.path().join("src/domain/model.ts");
+        std::fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        std::fs::write(&file, "import value from '../infrastructure/value';\n")?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"import-boundaries","scope":"files","files":["src/domain/model.ts"]}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("native import-boundaries did not produce a result".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("import-boundaries"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"]
+            .as_array()
+            .is_some_and(|rows| rows.iter().all(|row| row["ruleId"] == "TS-4.1")));
+        Ok(())
+    }
+
+    #[test]
+    fn check_literal_risk_refuses_incompatible_canonical_adapter(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"literal-risk"}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("literal-risk refusal did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["error"]["code"], serde_json::json!("native_report_adapter_not_implemented:literal-risk has a distinct report and option contract"));
         Ok(())
     }
 }
