@@ -128,6 +128,7 @@ fn write_secret_policy_scope_config(root: &std::path::Path) -> std::io::Result<(
 fn write_ignored_secret_policy_sources(root: &std::path::Path) -> std::io::Result<()> {
     let fixture = root.join("crates/sample/fixtures/fail.ts");
     let vendor = root.join("vendor/example/SKILL.md");
+    let test = root.join("tests/native-policy-secret-fixture.ts");
     std::fs::create_dir_all(
         fixture
             .parent()
@@ -138,8 +139,13 @@ fn write_ignored_secret_policy_sources(root: &std::path::Path) -> std::io::Resul
             .parent()
             .ok_or_else(|| std::io::Error::other("vendor file has no parent"))?,
     )?;
+    std::fs::create_dir_all(
+        test.parent()
+            .ok_or_else(|| std::io::Error::other("test file has no parent"))?,
+    )?;
     std::fs::write(fixture, inline_secret_source())?;
-    std::fs::write(vendor, inline_secret_source())
+    std::fs::write(vendor, inline_secret_source())?;
+    std::fs::write(test, inline_secret_source())
 }
 
 fn run_check(
@@ -265,6 +271,7 @@ fn native_secrets_policy_still_rejects_product_source_with_configured_exclusions
     assert!(stdout.contains("src/config.ts:1 SEC-1.1"));
     assert!(!stdout.contains("crates/sample/fixtures/fail.ts"));
     assert!(!stdout.contains("vendor/example/SKILL.md"));
+    assert!(!stdout.contains("tests/native-policy-secret-fixture.ts"));
     Ok(())
 }
 

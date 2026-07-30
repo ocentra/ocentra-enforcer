@@ -9,7 +9,7 @@ use std::path::Path;
 use enforcer_domain::core_types::ExitCode;
 use enforcer_domain::findings::ReportOutcome;
 use enforcer_domain::paths::RepoRoot;
-use enforcer_domain::scan_types::ResolvedScope;
+use enforcer_domain::scan_types::{IgnoreDirectorySegment, ResolvedScope};
 use enforcer_scan::{engine, walk};
 
 use crate::cli::{
@@ -58,15 +58,23 @@ fn resolve_files(
         .collect())
 }
 
-/// Load the project's authoritative walk exclusions once at the CLI boundary.
-/// Every native command that enumerates repository files must use these rules:
-/// fixtures, vendored corpora, and generated paths are not product source.
-fn load_ignore_rules(root: &RepoRoot) -> Result<walk::IgnoreRules, String> {
+/// Load the authoritative policy-source exclusions once at the CLI boundary.
+///
+/// Project configuration owns its declared exclusions. Native policies also
+/// exclude every test tree: tests intentionally contain counterfeit secrets
+/// and other negative cases, rather than deployable product source.
+fn load_policy_ignore_rules(root: &RepoRoot) -> Result<walk::IgnoreRules, String> {
     let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
     let config = enforcer_config::load_project_config_with_env(&config_path)
         .map_err(|error| error.to_string())?;
+    let test_tree = IgnoreDirectorySegment::try_new(String::from("tests"))
+        .map_err(|error| error.to_string())?;
+    let mut ignore_dirs = config.ignore_dirs;
+    if !ignore_dirs.iter().any(|directory| directory == &test_tree) {
+        ignore_dirs.push(test_tree);
+    }
     Ok(walk::IgnoreRules::new(
-        config.ignore_dirs,
+        ignore_dirs,
         config.ignore_file_globs,
     ))
 }
@@ -162,7 +170,7 @@ fn run_dependency_policy() -> ExitCode {
         }
     };
     let request = enforcer_domain::scan_types::ScopeRequest::All;
-    let ignore_rules = match load_ignore_rules(&root) {
+    let ignore_rules = match load_policy_ignore_rules(&root) {
         Ok(rules) => rules,
         Err(err) => {
             output::print_config_error(&err);
@@ -204,7 +212,7 @@ fn run_secret_policy() -> ExitCode {
         }
     };
     let request = enforcer_domain::scan_types::ScopeRequest::All;
-    let ignore_rules = match load_ignore_rules(&root) {
+    let ignore_rules = match load_policy_ignore_rules(&root) {
         Ok(rules) => rules,
         Err(err) => {
             output::print_config_error(&err);
