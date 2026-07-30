@@ -25,17 +25,27 @@ pub struct PruneOutcome {
 /// (authoritative writes only ever remove from the authoritative root —
 /// legacy runs are read-only and never pruned by this engine).
 pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutcome> {
+    prune_selected_runs(repo_root, config, true)
+}
+
+fn prune_selected_runs(
+    repo_root: &Path,
+    config: &HarnessConfig,
+    authoritative_only: bool,
+) -> Result<PruneOutcome> {
     let storage_root = crate::config::storage_root(config, repo_root)?;
     let mut runs = all_runs(repo_root, config)?;
     // Only consider runs actually stored under the authoritative root for
     // removal — legacy-root runs are immutable history.
     let storage_root_rel = crate::legacy::normalize_rel(repo_root, &storage_root);
-    runs.retain(|r| {
-        r.get("storage")
-            .and_then(|s| s.get("root"))
-            .and_then(Value::as_str)
-            == Some(storage_root_rel.as_str())
-    });
+    if authoritative_only {
+        runs.retain(|r| {
+            r.get("storage")
+                .and_then(|s| s.get("root"))
+                .and_then(Value::as_str)
+                == Some(storage_root_rel.as_str())
+        });
+    }
 
     runs.sort_by(|a, b| {
         let sa = a
@@ -144,7 +154,13 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
         if !remove.contains(&run_id) || keep.contains(&run_id) {
             continue;
         }
-        let run_dir = storage_root.join("runs").join(&run_id);
+        let run_root = run
+            .get("storage")
+            .and_then(|storage| storage.get("root"))
+            .and_then(Value::as_str)
+            .map(|relative| repo_root.join(relative))
+            .unwrap_or_else(|| storage_root.clone());
+        let run_dir = run_root.join("runs").join(&run_id);
         if run_dir.exists() {
             std::fs::remove_dir_all(&run_dir)?;
             removed.push(HarnessRunId::from_adapter(&run_id));
@@ -153,6 +169,13 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
 
     crate::storage::rewrite_manifest(repo_root, &storage_root)?;
     Ok(PruneOutcome { removed })
+}
+
+/// Frozen-MJS compatibility only: applies the historical prune algorithm to
+/// both readable roots. Native callers must use [`prune_runs`], which keeps
+/// legacy history read-only as the safer default.
+pub fn prune_runs_frozen_compat(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutcome> {
+    prune_selected_runs(repo_root, config, false)
 }
 
 fn epoch_millis() -> i64 {
@@ -380,6 +403,67 @@ mod tests {
             crate::query::list_runs(dir.path(), &config, &crate::query::RunQuery::default())?;
         assert!(runs.is_empty());
         assert!(!crate::config::storage_root(&config, dir.path())?.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn frozen_compat_prunes_eligible_legacy_runs_without_weakening_native_default() -> Result<()> {
+        let dir = tempfile::TempDir::new()?;
+        let permissive = HarnessConfig::default();
+        record(
+            dir.path(),
+            "legacy-old",
+            0,
+            "2020-01-01T00:00:00Z",
+            &permissive,
+        )?;
+        let authoritative = crate::config::storage_root(&permissive, dir.path())?
+            .join("runs")
+            .join("legacy-old");
+        let legacy_root = crate::config::legacy_storage_root(dir.path());
+        std::fs::create_dir_all(legacy_root.join("runs"))?;
+        let legacy = legacy_root.join("runs").join("legacy-old");
+        std::fs::rename(&authoritative, &legacy)?;
+        let summary_path = legacy.join("summary.json");
+        let mut summary: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&summary_path)?)?;
+        summary["storage"]["root"] = serde_json::json!(".ocentra-enforcer");
+        std::fs::write(
+            &summary_path,
+            format!("{}\n", serde_json::to_string_pretty(&summary)?),
+        )?;
+        let restrictive = HarnessConfig {
+            max_runs: Some(HarnessRunLimit::from_value(0)),
+            max_runs_per_tool: Some(HarnessRunLimit::from_value(0)),
+            max_failed_runs: Some(HarnessRunLimit::from_value(0)),
+            prune_after_days: None,
+            ..HarnessConfig::default()
+        };
+
+        let native = super::prune_runs(dir.path(), &restrictive)?;
+        assert!(
+            native.removed.is_empty(),
+            "native retention must leave legacy history read-only"
+        );
+        assert!(
+            legacy.exists(),
+            "native retention must not delete the legacy run"
+        );
+        assert_eq!(crate::query::all_runs(dir.path(), &restrictive)?.len(), 1);
+
+        let frozen = super::prune_runs_frozen_compat(dir.path(), &restrictive)?;
+        assert_eq!(
+            frozen
+                .removed
+                .iter()
+                .map(|id| id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["legacy-old"]
+        );
+        assert!(
+            !legacy.exists(),
+            "frozen compatibility prune must delete an eligible legacy run"
+        );
         Ok(())
     }
 }

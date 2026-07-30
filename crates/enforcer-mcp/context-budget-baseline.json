@@ -1,9 +1,9 @@
 {
   "version": 1,
   "surface": {
-    "toolCount": 98,
-    "totalBytes": 19888,
-    "estimatedTokens": 4972
+    "toolCount": 102,
+    "totalBytes": 30229,
+    "estimatedTokens": 7557
   },
   "tolerancePct": 10.0
 }

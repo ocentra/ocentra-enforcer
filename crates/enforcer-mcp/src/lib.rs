@@ -70,6 +70,7 @@
 
 #[path = "boundary/aliases.rs"]
 pub mod aliases;
+pub mod application;
 pub mod boundary;
 pub mod fingerprint;
 #[path = "boundary/gate.rs"]

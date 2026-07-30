@@ -70,6 +70,7 @@ pub mod adapters;
 pub mod ci_parity;
 pub mod config;
 pub mod duckdb_seam;
+pub mod execution;
 pub mod legacy;
 pub mod parsers;
 pub mod query;

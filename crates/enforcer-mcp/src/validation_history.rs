@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, VecDeque};
 
+use enforcer_domain::boundary::validation::McpReportLabelText;
 use enforcer_domain::paths::RepoRoot;
 
 const HISTORY_LIMIT: usize = 20;
@@ -23,13 +24,13 @@ pub enum ValidationKind {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ReportLabel(String);
 
-impl ReportLabel {}
-
-impl From<String> for ReportLabel {
-    fn from(value: String) -> Self {
-        Self(value)
+impl ReportLabel {
+    /// Retain label text already validated by the MCP boundary adapter.
+    pub(crate) fn try_new(value: McpReportLabelText) -> Self {
+        Self(value.into_inner())
     }
 }
+
 impl From<&ReportLabel> for String {
     fn from(value: &ReportLabel) -> Self {
         // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
@@ -140,7 +141,7 @@ impl ValidationHistory {
 mod tests {
     use std::collections::BTreeMap;
 
-    use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::{boundary::validation::McpReportLabelText, paths::RepoRoot};
 
     use super::{
         ReportLabel, ValidationCounts, ValidationHistory, ValidationKind, ValidationSummary,
@@ -161,12 +162,14 @@ mod tests {
             outcome: super::ValidationOutcome::Failed,
             root: root()?,
             profile_name: None,
-            at: ValidationTimestamp::parse(ReportLabel::from(
+            at: ValidationTimestamp::parse(ReportLabel::try_new(McpReportLabelText::try_new(
                 "1970-01-01T00:00:00.000Z".to_owned(),
-            )),
+            )?)),
             by_severity: BTreeMap::new(),
             counts: ValidationCounts::default(),
-            rule_ids: vec![ReportLabel::from("RR-TEST".to_owned())],
+            rule_ids: vec![ReportLabel::try_new(McpReportLabelText::try_new(
+                "RR-TEST".to_owned(),
+            )?)],
             docs: Vec::new(),
             scope: None,
         })
@@ -196,6 +199,28 @@ mod tests {
                 .latest(&root()?, Some(ValidationKind::Scan))
                 .map(|entry| entry.kind),
             Some(ValidationKind::Scan)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn try_new_rejects_invalid_blank_and_control_character_labels() {
+        for invalid in ["   ", "bad\nlabel"] {
+            assert!(McpReportLabelText::try_new(invalid.to_owned()).is_err());
+        }
+    }
+
+    #[test]
+    fn empty_label_is_rejected_before_epoch_fallback_conversion(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+        assert!(McpReportLabelText::try_new(String::new()).is_err());
+
+        let input = McpReportLabelText::try_new("1970-01-01T00:00:00.000Z".to_owned())?;
+        let timestamp = ValidationTimestamp::parse(ReportLabel::try_new(input));
+
+        assert_eq!(
+            String::from(&timestamp),
+            "1970-01-01T00:00:00.000Z".to_owned()
         );
         Ok(())
     }

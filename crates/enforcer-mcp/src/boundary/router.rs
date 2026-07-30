@@ -19,7 +19,10 @@
 
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, Hub};
 use enforcer_domain::{
-    boundary::mcp::{execution_mode, write_intent},
+    boundary::{
+        mcp::{execution_mode, write_intent},
+        validation::McpReportLabelText,
+    },
     config_types::{ConfigProfileName, CrateName, HarnessArtifactByteLimit, HarnessRunLimit},
     coordination_types::{
         ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
@@ -109,11 +112,13 @@ pub fn dispatch(
     match canonical.as_str() {
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args, ctx)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args, ctx)),
+        "ocentra_enforcer_run" => DispatchOutcome::Result(run_harness(args)),
         "ocentra_enforcer_run_status" => DispatchOutcome::Result(run_status(args, ctx)),
         "ocentra_enforcer_doctor" => DispatchOutcome::Result(doctor(args)),
         "ocentra_enforcer_diagnostics" => DispatchOutcome::Result(diagnostics(args)),
         "ocentra_enforcer_last_failure" => DispatchOutcome::Result(last_failure(args)),
         "ocentra_enforcer_artifact" => DispatchOutcome::Result(artifact(args)),
+        "ocentra_enforcer_prune_runs" => DispatchOutcome::Result(prune_runs(args)),
         "ocentra_enforcer_reset_runs" => DispatchOutcome::Result(reset_runs(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
@@ -422,16 +427,24 @@ fn validation_summary_from_report(
     for finding in findings {
         finding_count += 1;
         if let Some(severity) = finding.get("severity").and_then(serde_json::Value::as_str) {
-            by_severity
-                .entry(ReportLabel::from(severity.to_owned()))
-                .or_insert(SeverityCount(0))
-                .0 += 1;
+            if let Ok(label) =
+                McpReportLabelText::try_new(severity.to_owned()).map(ReportLabel::try_new)
+            {
+                by_severity.entry(label).or_insert(SeverityCount(0)).0 += 1;
+            }
         }
         if let Some(rule_id) = finding.get("ruleId").and_then(serde_json::Value::as_str) {
-            rule_ids.insert(ReportLabel::from(rule_id.to_owned()));
+            if let Ok(label) =
+                McpReportLabelText::try_new(rule_id.to_owned()).map(ReportLabel::try_new)
+            {
+                rule_ids.insert(label);
+            }
         }
         if let Some(doc) = finding.get("doc").and_then(serde_json::Value::as_str) {
-            docs.insert(ReportLabel::from(doc.to_owned()));
+            if let Ok(label) = McpReportLabelText::try_new(doc.to_owned()).map(ReportLabel::try_new)
+            {
+                docs.insert(label);
+            }
         }
     }
     let timestamp = enforcer_core::platform::epoch_millis()
@@ -448,7 +461,11 @@ fn validation_summary_from_report(
         },
         root,
         profile_name: boundary_label(report.get("profileName")),
-        at: ValidationTimestamp::parse(ReportLabel::from(timestamp)),
+        at: ValidationTimestamp::parse(
+            McpReportLabelText::try_new(timestamp)
+                .map(ReportLabel::try_new)
+                .unwrap_or_else(|_| ReportLabel::try_new(McpReportLabelText::epoch_fallback())),
+        ),
         by_severity,
         counts: ValidationCounts {
             findings: FindingCount(finding_count),
@@ -472,9 +489,11 @@ fn validation_summary_from_report(
 }
 
 fn boundary_label(value: Option<&serde_json::Value>) -> Option<ReportLabel> {
-    value
-        .and_then(serde_json::Value::as_str)
-        .map(|text| ReportLabel::from(text.to_owned()))
+    value.and_then(serde_json::Value::as_str).and_then(|text| {
+        McpReportLabelText::try_new(text.to_owned())
+            .ok()
+            .map(ReportLabel::try_new)
+    })
 }
 
 fn compact_validation_scope(scope: Option<&serde_json::Value>) -> Option<CompactScope> {
@@ -487,7 +506,11 @@ fn compact_validation_scope(scope: Option<&serde_json::Value>) -> Option<Compact
                 .iter()
                 .take(20)
                 .filter_map(serde_json::Value::as_str)
-                .map(|file| ReportLabel::from(file.to_owned()))
+                .filter_map(|file| {
+                    McpReportLabelText::try_new(file.to_owned())
+                        .ok()
+                        .map(ReportLabel::try_new)
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -580,6 +603,32 @@ fn validation_summary_json(summary: &ValidationSummary) -> serde_json::Value {
         fields.insert("scope".to_owned(), serde_json::Value::Object(compact));
     }
     object
+}
+
+fn run_harness(args: &serde_json::Value) -> serde_json::Value {
+    let request = match crate::boundary::harness_run::decode_run(args) {
+        Ok(request) => request,
+        Err(error) => return json_error(&error),
+    };
+    match crate::application::harness_run::execute(request) {
+        Ok(outcome) => {
+            serde_json::json!({"ok": outcome.status == HarnessRunStatus::Passed, "summary": outcome.summary, "diagnostics": outcome.diagnostics.iter().map(|diagnostic| serde_json::json!({"runId":diagnostic.run_id.as_str(),"tool":diagnostic.tool.as_str(),"language":diagnostic.language.as_str(),"severity":format!("{:?}", diagnostic.severity).to_ascii_lowercase(),"ruleId":diagnostic.rule_id.as_str(),"file":diagnostic.file.as_str(),"line":diagnostic.line.get(),"message":diagnostic.message.as_str(),"source":diagnostic.source.as_ref().map(|value| value.as_str()),"fingerprint":diagnostic.fingerprint.as_ref().map(|value| value.as_str())})).collect::<Vec<_>>() })
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn prune_runs(args: &serde_json::Value) -> serde_json::Value {
+    let request = match crate::boundary::harness_run::decode_prune(args) {
+        Ok(request) => request,
+        Err(error) => return json_error(&error),
+    };
+    match crate::application::harness_run::prune_frozen_compat(&request) {
+        Ok(outcome) => {
+            serde_json::json!({"ok": true, "root": request.repo_root.as_str(), "removed": outcome.removed})
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
 }
 
 /// Frozen-MJS-compatible status envelope: durable harness summary wins over
@@ -1673,6 +1722,48 @@ mod tests {
         assert!(value["error"]
             .as_str()
             .is_some_and(|message| message.contains("non-negative integer")));
+        Ok(())
+    }
+
+    #[test]
+    fn run_dispatches_through_typed_boundary_and_native_harness_engine(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path().to_string_lossy();
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_run")?,
+            &serde_json::json!({
+                "root": root,
+                "runId": "mcp-native-run",
+                "tool": "rustc",
+                "language": "rust",
+                "command": ["rustc", "--version"],
+                "tags": ["mcp-e2e"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native run did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(
+            value["summary"]["runId"],
+            serde_json::json!("mcp-native-run")
+        );
+
+        let status = dispatch(
+            &tool("ocentra_enforcer_run_status")?,
+            &serde_json::json!({"root": root, "runId": "mcp-native-run"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(status) = status else {
+            return Err("native run status did not produce a result".into());
+        };
+        assert_eq!(status["ok"], serde_json::json!(true));
+        assert_eq!(
+            status["summary"]["runId"],
+            serde_json::json!("mcp-native-run")
+        );
         Ok(())
     }
 

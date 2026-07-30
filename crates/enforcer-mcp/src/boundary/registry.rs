@@ -220,6 +220,20 @@ fn canonical_description(name: &str) -> String {
 }
 
 fn canonical_input_schema(name: &str) -> serde_json::Value {
+    if name == "ocentra_enforcer_run" {
+        return serde_json::json!({"type":"object","additionalProperties":false,"required":["command"],"properties":{"root":{"type":"string"},"profile":{"type":"string"},"tool":{"type":"string"},"language":{"type":"string","enum":["rust","typescript","python","common"]},"cwd":{"type":"string"},"runId":{"type":"string"},"crateName":{"type":"string"},"packageName":{"type":"string"},"domain":{"type":"string"},"command":{"type":"array","items":{"type":"string"}},"tags":{"type":"array","items":{"type":"string"}}}});
+    }
+    if matches!(
+        name,
+        "ocentra_enforcer_run_status"
+            | "ocentra_enforcer_diagnostics"
+            | "ocentra_enforcer_last_failure"
+            | "ocentra_enforcer_artifact"
+            | "ocentra_enforcer_prune_runs"
+            | "ocentra_enforcer_reset_runs"
+    ) {
+        return serde_json::json!({"type":"object","additionalProperties":false,"properties":{"root":{"type":"string"},"runId":{"type":"string"},"limit":{"type":"integer","minimum":0},"diagnosticLimit":{"type":"integer","minimum":0},"severity":{"type":"string","enum":["error","warning","info"]},"status":{"type":"string","enum":["passed","failed"]},"file":{"type":"string"},"tool":{"type":"string"},"crateName":{"type":"string"},"packageName":{"type":"string"},"domain":{"type":"string"},"tag":{"type":"string"},"artifact":{"type":"string","enum":["stdout","stderr","diagnostics","events"]},"limitBytes":{"type":"integer","minimum":0}}});
+    }
     if name == "ocentra_enforcer_check" {
         return serde_json::json!({
             "type": "object",
