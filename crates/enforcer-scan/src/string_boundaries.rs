@@ -279,7 +279,8 @@ fn finding(
         .map_err(|error| error.to_string())?,
         file,
         line: FindingLine::known(SourceLine::try_new(
-            NonZeroU32::new(line as u32).ok_or("line overflow")?,
+            NonZeroU32::new(u32::try_from(line).map_err(|_| "line overflow")?)
+                .ok_or("line overflow")?,
         )),
         snippet: FindingSnippet::new(snippet.trim().to_owned()).ok(),
     })
@@ -287,7 +288,7 @@ fn finding(
 
 #[cfg(test)]
 mod tests {
-    use super::{has_string_literal, rr_6_1, rr_6_5};
+    use super::{finding, has_string_literal, rr_6_1, rr_6_5};
     use enforcer_domain::paths::RelPath;
 
     #[test]
@@ -324,5 +325,13 @@ mod tests {
     fn literal_classifier_requires_a_closed_literal() {
         assert!(has_string_literal("let value = \"runtime\";"));
         assert!(!has_string_literal("let value = quoted;"));
+    }
+
+    #[test]
+    fn finding_rejects_line_numbers_outside_the_domain_range(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let file: RelPath = "crates/example/src/service.rs".parse()?;
+        assert!(finding("RR-6.1", file, usize::MAX, "title", "source").is_err());
+        Ok(())
     }
 }
