@@ -56,8 +56,8 @@ use enforcer_domain::install_types::{
     InstallBinaryPath, InstallReport, InstallReportText, InstallRequestContext, InstallRootPath,
     InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
-use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::mcp_types::SERVER_NAME;
+use enforcer_domain::paths::RepoRoot;
 
 /// Env var every adapter (Claude included) sets on the registered MCP
 /// server entry, consistent with the Codex adapter (workpack c03/c06

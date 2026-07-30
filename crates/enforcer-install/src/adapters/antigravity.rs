@@ -37,8 +37,8 @@ use enforcer_domain::install_types::{
     InstallReportText, InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
 use enforcer_domain::install_types::{InstallBinaryPath, InstallRequestContext, InstallRootPath};
-use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::mcp_types::SERVER_NAME;
+use enforcer_domain::paths::RepoRoot;
 
 /// The Antigravity [`HarnessAdapter`]. Rooted at a `home` directory (the
 /// parent of `.gemini/config/mcp_config.json`) and a `binary_path` fixed

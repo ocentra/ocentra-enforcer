@@ -35,8 +35,8 @@ use enforcer_domain::install_types::{
     InstallBinaryPath, InstallReport, InstallReportText, InstallRequestContext, InstallRootPath,
     InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
-use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::mcp_types::SERVER_NAME;
+use enforcer_domain::paths::RepoRoot;
 
 /// This adapter's registration key, matching [`crate::report::HarnessKey`].
 /// The Windsurf [`HarnessAdapter`]. Rooted at a `home` directory (the

@@ -62,8 +62,8 @@ use enforcer_domain::install_types::{
     InstallBinaryPath, InstallReport, InstallReportText, InstallRequestContext, InstallRootPath,
     InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
-use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::mcp_types::SERVER_NAME;
+use enforcer_domain::paths::RepoRoot;
 
 /// Env var this adapter sets on the registered MCP server entry, matching
 /// [`crate::adapters::claude::LEDGER_HOME_ENV`] (shared literal, kept local

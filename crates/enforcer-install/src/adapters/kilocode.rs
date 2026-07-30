@@ -48,8 +48,8 @@ use enforcer_domain::install_types::{
     InstallReportText, InstallVerifyCheck, InstallVerifyReport, PlannedInstallChange,
 };
 use enforcer_domain::install_types::{InstallBinaryPath, InstallRequestContext, InstallRootPath};
-use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::mcp_types::SERVER_NAME;
+use enforcer_domain::paths::RepoRoot;
 
 /// This adapter's registration key, matching [`crate::report::HarnessKey`].
 /// The KiloCode [`HarnessAdapter`]. Rooted at a `vscode_user_data_dir`

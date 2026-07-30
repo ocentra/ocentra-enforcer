@@ -46,28 +46,52 @@ pub fn adapter_registry(
     let binary = binary.as_path().to_path_buf();
     let adapters: Vec<Box<dyn HarnessAdapter>> = vec![
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(AntigravityAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            AntigravityAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(ClaudeAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            ClaudeAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(CodexAdapter::try_new(
-            std::env::var_os("CODEX_HOME")
-                .filter(|value| !value.is_empty())
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| home_path.join(".codex")),
-            // CLONE-JUSTIFICATION: Codex retains its own binary path.
-            binary.clone(),
-        ).map_err(InstallError::from)?),
+        Box::new(
+            CodexAdapter::try_new(
+                std::env::var_os("CODEX_HOME")
+                    .filter(|value| !value.is_empty())
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| home_path.join(".codex")),
+                // CLONE-JUSTIFICATION: Codex retains its own binary path.
+                binary.clone(),
+            )
+            .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(CursorAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            CursorAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(GeminiAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            GeminiAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(KiloCodeAdapter::try_new(config_root.join("Code").join("User"), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            KiloCodeAdapter::try_new(config_root.join("Code").join("User"), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(KiroAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            KiroAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         // CLONE-JUSTIFICATION: this adapter retains its own binary path.
-        Box::new(WindsurfAdapter::try_new(home_path.to_path_buf(), binary.clone()).map_err(InstallError::from)?),
+        Box::new(
+            WindsurfAdapter::try_new(home_path.to_path_buf(), binary.clone())
+                .map_err(InstallError::from)?,
+        ),
         Box::new(ZedAdapter::try_new(config_root.join("Zed"), binary).map_err(InstallError::from)?),
         Box::new(AiderAdapter::new()),
         Box::new(OpenCodeAdapter::new()),
@@ -92,7 +116,22 @@ mod tests {
             .map(|adapter| adapter.harness_key().as_str().to_owned())
             .collect::<Vec<_>>();
         keys.sort_unstable();
-        assert_eq!(keys, ["aider", "antigravity", "claude", "codex", "cursor", "gemini", "kilocode", "kiro", "opencode", "windsurf", "zed"]);
+        assert_eq!(
+            keys,
+            [
+                "aider",
+                "antigravity",
+                "claude",
+                "codex",
+                "cursor",
+                "gemini",
+                "kilocode",
+                "kiro",
+                "opencode",
+                "windsurf",
+                "zed"
+            ]
+        );
         Ok(())
     }
 }
