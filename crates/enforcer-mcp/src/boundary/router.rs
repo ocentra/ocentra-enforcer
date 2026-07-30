@@ -100,6 +100,9 @@ pub fn dispatch(
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
+        "ocentra_enforcer_ui_logic_coupling_scan" => {
+            DispatchOutcome::Result(ui_logic_coupling_scan(args))
+        }
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
@@ -372,6 +375,38 @@ fn test_doctrine_scan(args: &serde_json::Value) -> serde_json::Value {
             )),
         },
         Err(err) => json_error(&format!("native test-doctrine analysis failed: {err}")),
+    }
+}
+
+/// Native, advisory ARCH-1.16 adapter. It returns evidence only; no scan or
+/// CI policy is changed by this dedicated report tool.
+fn ui_logic_coupling_scan(args: &serde_json::Value) -> serde_json::Value {
+    let root_raw = match args.get("root") {
+        None => match std::env::current_dir() {
+            Ok(path) => path.to_string_lossy().into_owned(),
+            Err(err) => {
+                return json_error(&format!("cannot resolve default UI coupling root: {err}"))
+            }
+        },
+        Some(serde_json::Value::String(value)) => value.clone(),
+        Some(_) => return json_error("ui_logic_coupling_scan `root` must be a string"),
+    };
+    let root = match root_raw.parse::<RepoRoot>() {
+        Ok(value) => value,
+        Err(err) => return json_error(&err.to_string()),
+    };
+    match enforcer_scan::ui_logic_coupling::analyze(&root) {
+        Ok(report) => match serde_json::to_value(report) {
+            Ok(serde_json::Value::Object(mut value)) => {
+                value.insert("ok".to_owned(), serde_json::Value::Bool(true));
+                serde_json::Value::Object(value)
+            }
+            Ok(_) => json_error("native UI coupling analysis produced an invalid report shape"),
+            Err(err) => json_error(&format!(
+                "failed to encode native UI coupling report: {err}"
+            )),
+        },
+        Err(err) => json_error(&format!("native UI coupling analysis failed: {err}")),
     }
 }
 

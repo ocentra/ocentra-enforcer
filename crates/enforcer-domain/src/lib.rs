@@ -47,5 +47,6 @@ pub mod security_types;
 pub mod severity;
 pub mod telemetry_types;
 pub mod test_doctrine_types;
+pub mod ui_logic_coupling_types;
 pub mod ui_types;
 pub mod xtask_types;

@@ -359,3 +359,35 @@ fn stdio_smoke_test_doctrine_reaches_the_native_rust_analyzer(
     assert!(child.wait()?.success());
     Ok(())
 }
+
+#[test]
+fn stdio_smoke_ui_logic_coupling_reaches_the_native_advisory_analyzer(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    std::fs::create_dir_all(fixture.path().join("src/components"))?;
+    std::fs::write(
+        fixture.path().join("src/components/Orders.tsx"),
+        "import { api } from '/lib/api';\napi.load();",
+    )?;
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+    let reply = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "name": "ocentra_enforcer_ui_logic_coupling_scan", "arguments": { "root": fixture.path().to_string_lossy() } } }),
+    )?;
+    assert_eq!(reply["result"]["ok"], true);
+    assert_eq!(reply["result"]["rule"]["id"], "ARCH-1.16");
+    assert_eq!(reply["result"]["summary"]["hardFindings"], 1);
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
