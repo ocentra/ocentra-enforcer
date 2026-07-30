@@ -16,7 +16,7 @@ use enforcer_domain::config_types::{
     HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner,
     PolicyReason, PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern,
     RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
-    SourceShapeOverride, SourceShapePolicy,
+    SourceShapeOverride, SourceShapePolicy, StrictEmptyTestTrees,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -886,7 +886,7 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .into_iter()
                 .map(ArchitecturePolicyCheck::try_new)
                 .collect::<Result<_, _>>()?,
-            strict_empty_test_trees: value.strict_empty_test_trees,
+            strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
                 .into_iter()
@@ -1140,7 +1140,7 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .into_iter()
                 .map(|value| value.as_str().to_owned())
                 .collect(),
-            strict_empty_test_trees: value.strict_empty_test_trees,
+            strict_empty_test_trees: value.strict_empty_test_trees.into_wire(),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
                 .into_iter()

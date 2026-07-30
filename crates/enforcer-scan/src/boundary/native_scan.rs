@@ -241,7 +241,7 @@ pub fn execute_required_test_policy(
     let report = engine::run_required_test_policy(
         &resolved,
         &files,
-        strict_empty_test_trees || config.strict_empty_test_trees,
+        strict_empty_test_trees || config.strict_empty_test_trees.requires_nonempty(),
         &config.private_rust_test_module_allowlist,
     );
     Ok(NativeScanResult {

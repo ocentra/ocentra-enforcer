@@ -342,7 +342,7 @@ fn run_required_tests_policy(args: &RequiredTestsArgs) -> ExitCode {
     let report = enforcer_scan::engine::run_required_test_policy(
         &resolved,
         &files,
-        args.strict_empty_test_trees || config.strict_empty_test_trees,
+        args.strict_empty_test_trees || config.strict_empty_test_trees.requires_nonempty(),
         &config.private_rust_test_module_allowlist,
     );
     output::print_report(&report);

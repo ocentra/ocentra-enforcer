@@ -281,12 +281,16 @@ fn source_object_path(source: &str, path: &str) -> Result<String, String> {
         return Err(format!("{path} must be ObjectName.PropertyName"));
     }
     let (object, property_path) = path.split_at(dot);
-    let property_path = &property_path[1..];
+    let property_path = property_path
+        .get(1..)
+        .ok_or_else(|| format!("{path} property path is invalid"))?;
     let (property, index) = match property_path.split_once('[') {
         Some((property, suffix)) if suffix.ends_with(']') => (
             property,
             Some(
-                suffix[..suffix.len() - 1]
+                suffix
+                    .get(..suffix.len().saturating_sub(1))
+                    .ok_or_else(|| format!("{path} array index is invalid"))?
                     .parse::<usize>()
                     .map_err(|_| format!("{path} array index is invalid"))?,
             ),
@@ -369,8 +373,14 @@ fn quoted_values(value: &str) -> Vec<String> {
 fn contains_literal(text: &str, value: &str) -> bool {
     let valid = |c: char| c.is_ascii_alphanumeric() || matches!(c, '@' | '.' | '_' | '/' | '-');
     text.match_indices(value).any(|(at, _)| {
-        !text[..at].chars().next_back().is_some_and(valid)
-            && !text[at + value.len()..].chars().next().is_some_and(valid)
+        !text
+            .get(..at)
+            .and_then(|prefix| prefix.chars().next_back())
+            .is_some_and(valid)
+            && !text
+                .get(at.saturating_add(value.len())..)
+                .and_then(|suffix| suffix.chars().next())
+                .is_some_and(valid)
     })
 }
 fn root_path(root: &RepoRoot, path: &str) -> std::path::PathBuf {

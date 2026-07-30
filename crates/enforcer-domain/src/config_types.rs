@@ -559,6 +559,35 @@ pub enum GeneratedArtifactsMode {
     Tracked,
 }
 
+/// Whether empty or placeholder-only test trees are a configuration error.
+/// This domain value prevents a raw transport boolean from leaking into scan
+/// policy decisions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[doc = "Canonical domain representation for StrictEmptyTestTrees."]
+pub enum StrictEmptyTestTrees {
+    #[default]
+    Permissive,
+    Required,
+}
+impl StrictEmptyTestTrees {
+    #[must_use]
+    pub const fn requires_nonempty(self) -> bool {
+        matches!(self, Self::Required)
+    }
+    #[must_use]
+    pub const fn from_wire(value: bool) -> Self {
+        if value {
+            Self::Required
+        } else {
+            Self::Permissive
+        }
+    }
+    #[must_use]
+    pub const fn into_wire(self) -> bool {
+        self.requires_nonempty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[doc = "Canonical domain representation for EffectiveConfig."]
 pub struct EffectiveConfig {
@@ -573,7 +602,7 @@ pub struct EffectiveConfig {
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
-    pub strict_empty_test_trees: bool,
+    pub strict_empty_test_trees: StrictEmptyTestTrees,
     pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
     pub generated_artifacts_mode: GeneratedArtifactsMode,
     pub generated_artifacts_allowlist: Vec<Glob>,
