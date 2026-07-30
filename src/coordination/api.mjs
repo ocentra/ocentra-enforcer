@@ -232,7 +232,7 @@ export async function coordinationClaim(args = {}) {
     pathList(args.paths),
   );
   if (paths.length === 0) throw new Error("coordination claim requires paths");
-  const baseContext = contextFor({ ...args, repoRoot: args.root, cwd: args.root });
+  const baseContext = contextFor(args);
   const claimContext = buildClaimContext(args, baseContext);
   const writer = writerId(config.nodeId, lane);
   const request = buildRequestClaim({
