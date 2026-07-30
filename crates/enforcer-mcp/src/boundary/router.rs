@@ -1963,12 +1963,87 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
         "ocentra_enforcer_coordination_mail" => coordination_mail(args),
         "ocentra_enforcer_coordination_guard" => coordination_guard(args),
         "ocentra_enforcer_coordination_compact" => coordination_compact(args),
+        "ocentra_enforcer_coordination_report" => coordination_report(args),
+        "ocentra_enforcer_coordination_index" => coordination_index(args),
+        "ocentra_enforcer_coordination_notify" => coordination_notify(args),
         unsupported => serde_json::json!({
             "ok": false,
             "operation": unsupported,
             "refusal": "native coordination engine has no durable backing for this frozen operation yet",
             "code": "native_coordination_operation_unavailable",
         }),
+    }
+}
+
+fn coordination_report(args: &serde_json::Value) -> serde_json::Value {
+    let (hub, lane, caller) = match coordination_context(args, "coordination_report") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let Some(summary_raw) = args.get("summary").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_report requires `summary`");
+    };
+    let summary =
+        match enforcer_domain::coordination_types::CoordinationReportSummary::parse(summary_raw) {
+            Ok(value) => value,
+            Err(error) => return json_error(&error.to_string()),
+        };
+    let title = match enforcer_domain::coordination_types::CoordinationReportTitle::parse(
+        args.get("title")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or(summary_raw),
+    ) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    match api::report(&hub, &lane, title, summary, &caller) {
+        Ok(event) => serde_json::json!({"ok":true,"event":event}),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_index(args: &serde_json::Value) -> serde_json::Value {
+    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_index requires a `root` ledger path");
+    };
+    match enforcer_coordination::ledger::materialize(std::path::Path::new(root)) {
+        Ok(snapshot) => serde_json::json!({
+            "ok":true,
+            "indexKind":"derived-stream-replay",
+            "digest":snapshot.digest,
+            "eventCount":snapshot.events.len(),
+            "activeClaims":snapshot.active_claims.len(),
+            "reports":snapshot.reports,
+            "workers":snapshot.workers,
+            "tasks":snapshot.tasks,
+            "inbox":snapshot.inbox,
+        }),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_notify(args: &serde_json::Value) -> serde_json::Value {
+    let (hub, lane, _caller) = match coordination_context(args, "coordination_notify") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let state_file = args
+        .get("stateFile")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from);
+    let peek = args
+        .get("peek")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    match api::notify(
+        &hub,
+        &lane,
+        enforcer_coordination::api::boundary::NotifyRequest { peek, state_file },
+    ) {
+        Ok(result) => {
+            serde_json::json!({"ok":true,"targetLane":result.target_lane,"wakeRequests":result.wake_requests,"peek":result.peek})
+        }
+        Err(error) => json_error(&error.to_string()),
     }
 }
 

@@ -454,6 +454,16 @@ non_blank_coordination_brand!(
     "A non-blank message body carried by coordination mail."
 );
 non_blank_coordination_brand!(
+    CoordinationReportTitle,
+    "coordinationReportTitle",
+    "A non-blank title carried by a durable coordination report."
+);
+non_blank_coordination_brand!(
+    CoordinationReportSummary,
+    "coordinationReportSummary",
+    "A non-blank summary carried by a durable coordination report."
+);
+non_blank_coordination_brand!(
     CoordinationStreamName,
     "coordinationStreamName",
     "The canonical name of a coordination event stream."
@@ -683,6 +693,7 @@ pub enum CoordinationEventKind {
     Release,
     Message,
     Acknowledgement,
+    Report,
 }
 
 impl CoordinationEventKind {
@@ -692,6 +703,7 @@ impl CoordinationEventKind {
             Self::Release => "release",
             Self::Message => "message",
             Self::Acknowledgement => "ack",
+            Self::Report => "report",
         }
     }
 }

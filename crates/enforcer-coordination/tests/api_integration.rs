@@ -6,14 +6,15 @@
 use std::path::Path;
 
 use enforcer_coordination::api::{
-    acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, open,
-    release, send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
+    acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, notify,
+    open, release, report, send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
 };
 use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
 use enforcer_domain::coordination_types::{
     ClaimEventId, ClaimPath, CoordinationBranch, CoordinationLedgerRoot, CoordinationMessageBody,
-    CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
+    CoordinationProjectId, CoordinationRepoRoot, CoordinationReportSummary,
+    CoordinationReportTitle, CoordinationWorktree,
 };
 use enforcer_domain::ids::{HubName, LaneId};
 use enforcer_domain::scan_types::CommitRef;
@@ -255,6 +256,86 @@ fn release_and_message_acknowledgement_are_public_operations(
         acknowledgement.message_id.as_deref(),
         Some(message.id.as_str())
     );
+    Ok(())
+}
+
+#[test]
+fn report_replay_index_and_notifier_cursor_are_durable_but_not_authoritative(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let primary: LaneId = "primary".parse()?;
+    let worker: LaneId = "worker-a".parse()?;
+    let worker_context = caller("wt-worker", "worker-branch")?;
+    let primary_context = caller("wt-primary", "primary-branch")?;
+    let message = send_message(
+        &hub,
+        &worker,
+        primary.clone(),
+        CoordinationMessageBody::from_static("Please review the handoff.")?,
+        &worker_context,
+    )?;
+    let report_event = report(
+        &hub,
+        &worker,
+        CoordinationReportTitle::from_static("handoff")?,
+        CoordinationReportSummary::from_static("BLOCKED waiting on review")?,
+        &worker_context,
+    )?;
+    assert_eq!(report_event.kind, "report");
+
+    let first = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    let second = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    assert_eq!(
+        first.digest, second.digest,
+        "stream replay index must be stable"
+    );
+    assert_eq!(first.reports.len(), 1);
+    assert_eq!(first.inbox.get("primary").map(Vec::len), Some(1));
+
+    let peek = notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: true,
+            state_file: None,
+        },
+    )?;
+    assert_eq!(
+        peek.wake_requests.len(),
+        2,
+        "inbox plus blocked report wake-up"
+    );
+    let delivered = notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: None,
+        },
+    )?;
+    assert_eq!(delivered.wake_requests.len(), 2);
+    assert!(notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: None
+        }
+    )?
+    .wake_requests
+    .is_empty());
+    acknowledge_message(
+        &hub,
+        &primary,
+        ClaimEventId::parse(message.id)?,
+        &primary_context,
+    )?;
+    let after_ack = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    assert!(after_ack.inbox["primary"][0]
+        .acknowledged_by
+        .iter()
+        .any(|writer| writer.ends_with(".primary")));
     Ok(())
 }
 

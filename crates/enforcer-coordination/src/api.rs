@@ -39,11 +39,12 @@ use enforcer_domain::coordination_types::{
     ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope,
     CompactionKeepCount, CoordinationBranch, CoordinationEventKind, CoordinationLedgerRoot,
     CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
-    CoordinationRejection, CoordinationRepoRoot, CoordinationRepository, CoordinationWorktree,
-    LockKind, NodeId, NodeName, Operation, WriterId,
+    CoordinationRejection, CoordinationRepoRoot, CoordinationReportSummary,
+    CoordinationReportTitle, CoordinationRepository, CoordinationWorktree, LockKind, NodeId,
+    NodeName, Operation, WriterId,
 };
 
-mod boundary;
+pub mod boundary;
 
 use boundary::{
     append_event, decode_hub_config, encode_hub_config, now_iso, AppendEventArgs, EventContextRefs,
@@ -114,6 +115,17 @@ pub struct Hub {
 pub fn open(root: CoordinationLedgerRoot) -> Result<Hub> {
     let config = load_identity(root.as_path())?;
     Ok(Hub { root, config })
+}
+
+/// Read unacknowledged inbox and primary-lane report wake-ups. With `peek`,
+/// no cursor is advanced; otherwise only the derived notifier cursor is
+/// atomically replaced after the canonical stream was successfully replayed.
+pub fn notify(
+    hub: &Hub,
+    lane: &LaneId,
+    request: boundary::NotifyRequest,
+) -> Result<boundary::NotifyResponseDto> {
+    boundary::notify(hub, lane, request)
 }
 
 /// Compact an already-authorized ledger without creating an identity or
@@ -361,6 +373,39 @@ pub fn send_message(
             metadata: EventMetadata {
                 to: Some(recipient_lane),
                 body: Some(body),
+                ..Default::default()
+            },
+        },
+    )
+}
+
+/// Append a durable lane report. Reports are canonical append-only events;
+/// read models may project them but never become the authority.
+pub fn report(
+    hub: &Hub,
+    lane: &LaneId,
+    title: CoordinationReportTitle,
+    summary: CoordinationReportSummary,
+    caller: &CallerContext,
+) -> Result<HubEventResponse> {
+    // CLONE-JUSTIFICATION: the persisted report owns its context while the API retains the borrowed caller identity.
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default())?;
+    append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: CoordinationEventKind::Report,
+            paths: None,
+            reason: None,
+            context: Some(EventContextRefs {
+                claim: &context,
+                caller,
+            }),
+            metadata: EventMetadata {
+                title: Some(title),
+                summary: Some(summary),
                 ..Default::default()
             },
         },

@@ -121,6 +121,58 @@ fn stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end(
 }
 
 #[test]
+fn stdio_coordination_report_index_and_notify_replay_the_real_temp_ledger(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ledger = tempfile::tempdir()?;
+    let mut child = Command::new(smoke_binary_path()?)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let mut reader = BufReader::new(child.stdout.take().ok_or("child has no stdout")?);
+    let root = ledger.path().to_string_lossy();
+    let report = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0","id":1,"method":"tools/call",
+            "params":{"name":"ocentra_enforcer_coordination_report","arguments": {"root":root,"hub":"test-hub","lane":"worker-a","worktreeRoot":"C:/wt","branch":"rust-build","projectId":"test-project","summary":"BLOCKED needs primary review"}}
+        }),
+    )?;
+    assert_eq!(report["result"]["ok"], true);
+    assert_eq!(report["result"]["event"]["type"], "report");
+    let index = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0","id":2,"method":"tools/call",
+            "params":{"name":"ocentra_enforcer_coordination_index","arguments":{"root":root}}
+        }),
+    )?;
+    assert_eq!(index["result"]["ok"], true);
+    assert_eq!(index["result"]["indexKind"], "derived-stream-replay");
+    assert_eq!(index["result"]["reports"].as_array().map(Vec::len), Some(1));
+    let notify = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0","id":3,"method":"tools/call",
+            "params":{"name":"ocentra_enforcer_coordination_notify","arguments":{"root":root,"hub":"test-hub","lane":"primary","worktreeRoot":"C:/primary","branch":"rust-build","projectId":"test-project","peek":true}}
+        }),
+    )?;
+    assert_eq!(notify["result"]["ok"], true);
+    assert_eq!(
+        notify["result"]["wakeRequests"].as_array().map(Vec::len),
+        Some(1)
+    );
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
+
+#[test]
 fn stdio_server_keeps_validation_history_for_its_process_lifetime(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let root = tempfile::tempdir()?;
