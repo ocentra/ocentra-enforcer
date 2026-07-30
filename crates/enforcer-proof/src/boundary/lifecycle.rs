@@ -17,12 +17,12 @@ use enforcer_domain::proof_types::{JournalEventType, ProofId, ProofRunId};
 use crate::boundary::proof_query::{ProofInventoryQuery, ProofRouteQuery, ProofStatusQuery};
 use crate::boundary::read_model::ProjectProofSnapshotDto;
 use crate::harness::{
-    ProofDefinitionEnvelope, ProofRegistryEnvelope, RouteRequest, RunOutcome, RunProofArgs,
-    merge_proof_definitions, route_proofs, run_proof,
+    merge_proof_definitions, route_proofs, run_proof, ProofDefinitionEnvelope,
+    ProofRegistryEnvelope, RouteRequest, RunOutcome, RunProofArgs,
 };
-use crate::journal::{JOURNAL_SCHEMA_VERSION, JournalRecordEnvelope, ProofJournal};
+use crate::journal::{JournalRecordEnvelope, ProofJournal, JOURNAL_SCHEMA_VERSION};
 use crate::read_model::{
-    PROJECT_PROOF_JOURNAL, PROJECT_PROOF_RUN_FILE, read_project_proof_snapshot,
+    read_project_proof_snapshot, PROJECT_PROOF_JOURNAL, PROJECT_PROOF_RUN_FILE,
 };
 
 /// Maximum bytes a caller may read from a declared artifact in one request.
