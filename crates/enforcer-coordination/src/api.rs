@@ -33,13 +33,14 @@ use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::ledger::active_claims;
 use crate::lock::{blockers_for_request, enrich_claim, ClaimContext, RawClaim};
-use crate::sync::stream::read_all_streams;
+use crate::sync::{retention, stream::read_all_streams};
 use enforcer_domain::coordination_types::{
     ClaimContextPresence, ClaimEventId, ClaimFilterMatch, ClaimGroup, ClaimLane,
-    ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope, CoordinationBranch,
-    CoordinationEventKind, CoordinationLedgerRoot, CoordinationMessageBody,
-    CoordinationOwnerIdentity, CoordinationProjectId, CoordinationRejection, CoordinationRepoRoot,
-    CoordinationRepository, CoordinationWorktree, LockKind, NodeId, NodeName, Operation, WriterId,
+    ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope,
+    CompactionKeepCount, CoordinationBranch, CoordinationEventKind, CoordinationLedgerRoot,
+    CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
+    CoordinationRejection, CoordinationRepoRoot, CoordinationRepository, CoordinationWorktree,
+    LockKind, NodeId, NodeName, Operation, WriterId,
 };
 
 mod boundary;
@@ -113,6 +114,16 @@ pub struct Hub {
 pub fn open(root: CoordinationLedgerRoot) -> Result<Hub> {
     let config = load_identity(root.as_path())?;
     Ok(Hub { root, config })
+}
+
+/// Compact an already-authorized ledger without creating an identity or
+/// accepting an untyped retention value at the transport boundary.
+///
+/// The caller must obtain a [`Hub`] through [`open`] first. This keeps a
+/// compaction request from turning a misspelled or absent ledger root into a
+/// newly initialized authority as a side effect.
+pub fn compact(hub: &Hub, keep_latest: CompactionKeepCount) -> Result<retention::CompactionResult> {
+    retention::compact_ledger(&hub.root, keep_latest)
 }
 
 /// L1: idempotent init. If an identity already exists at `root`, it is

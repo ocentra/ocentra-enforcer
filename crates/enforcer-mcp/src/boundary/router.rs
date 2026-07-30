@@ -645,6 +645,7 @@ fn parse_proof_status(
 }
 
 fn proof_query_error(operation: &str, error: String) -> serde_json::Value {
+    let error = serde_json::Value::String(error);
     serde_json::json!({"ok":false,"operation":operation,"error":error})
 }
 
@@ -1144,13 +1145,11 @@ fn validation_summary_json(summary: &ValidationSummary) -> serde_json::Value {
             compact.insert("fileCount".to_owned(), serde_json::json!(file_count.0));
             compact.insert(
                 "sampleFiles".to_owned(),
-                serde_json::json!(
-                    scope
-                        .sample_files
-                        .iter()
-                        .map(String::from)
-                        .collect::<Vec<_>>()
-                ),
+                serde_json::json!(scope
+                    .sample_files
+                    .iter()
+                    .map(String::from)
+                    .collect::<Vec<_>>()),
             );
         }
         fields.insert("scope".to_owned(), serde_json::Value::Object(compact));
@@ -1187,15 +1186,14 @@ fn prune_runs(args: &serde_json::Value) -> serde_json::Value {
 /// Frozen-MJS-compatible status envelope: durable harness summary wins over
 /// transient validation history, while validation history remains observable.
 fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
-    let (root, config, query, _, _, artifact_kind, limit_bytes) =
-        match decode_harness_query(args, "run_status") {
-            Ok(value) => value,
-            Err(error) => return json_error(&error),
-        };
+    let request = match decode_harness_query(args, "run_status") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
     let summary = match enforcer_harness::query::run_summary(
-        std::path::Path::new(root.as_str()),
-        &config,
-        &query,
+        std::path::Path::new(request.root.as_str()),
+        &request.config,
+        &request.query,
     ) {
         Ok(value) => value,
         Err(error) => return json_error(&error.to_string()),
@@ -1206,25 +1204,27 @@ fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Va
             Some("check") => Some(ValidationKind::Check),
             _ => None,
         };
-        history.latest(&root, filter).map(validation_summary_json)
+        history
+            .latest(&request.root, filter)
+            .map(validation_summary_json)
     });
     let artifact = if summary.is_some() && args.get("artifact").is_some() {
         match enforcer_harness::query::read_artifact(
-            std::path::Path::new(root.as_str()),
-            &config,
-            &query,
-            artifact_kind,
-            limit_bytes,
+            std::path::Path::new(request.root.as_str()),
+            &request.config,
+            &request.query,
+            request.artifact,
+            request.limit_bytes,
         ) {
             Ok((true, Some(run_id), text, _)) => {
                 let path = summary
                     .as_ref()
                     .and_then(|run| run.get("artifacts"))
-                    .and_then(|artifacts| artifacts.get(artifact_kind.as_str()))
+                    .and_then(|artifacts| artifacts.get(request.artifact.as_str()))
                     .and_then(serde_json::Value::as_str);
                 match path {
                     Some(path) => Some(
-                        serde_json::json!({"ok":true,"runId":run_id,"artifact":artifact_kind.as_str(),"path":path,"text":text}),
+                        serde_json::json!({"ok":true,"runId":run_id,"artifact":request.artifact.as_str(),"path":path,"text":text}),
                     ),
                     None => {
                         Some(serde_json::json!({"ok":false,"text":"","message":"Unknown artifact"}))
@@ -1254,9 +1254,14 @@ fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Va
     } else {
         "none"
     };
+    let selected_summary = summary
+        .as_ref()
+        .or(validation_summary.as_ref())
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
     let mut result = serde_json::json!({
         "ok": true,
-        "summary": summary.clone().or_else(|| validation_summary.clone()).unwrap_or(serde_json::Value::Null),
+        "summary": selected_summary,
         "summaryType": summary_type,
         "validationSummary": validation_summary,
     });
@@ -1302,7 +1307,7 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
     };
     let root = match root {
         Ok(value) => value,
-        Err(error) => return json_error(&error.to_string()),
+        Err(error) => return json_error(&error),
     };
     let files = match args.get("files") {
         None => None,
@@ -1338,8 +1343,9 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    let root_text = root.as_str().to_owned();
     let request = enforcer_scan::doctor::DoctorRequest::new(
-        root.clone(),
+        root,
         enforcer_scan::boundary::native_scan::NativeScanRequest {
             scope,
             languages: Vec::new(),
@@ -1348,7 +1354,7 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
     );
     match enforcer_scan::doctor::run(&request) {
         Ok(report) => serde_json::json!({
-            "ok": report.ok(), "command": report.command(), "root": root.as_str(),
+            "ok": report.ok(), "command": report.command(), "root": root_text,
             "profileName": report.profile_name(),
             "checks": report.checks().iter().map(|check| serde_json::json!({"name": check.name(), "ok": check.ok(), "detail": check.detail()})).collect::<Vec<_>>(),
             "violations": [],
@@ -1357,24 +1363,24 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
     }
 }
 
+/// Typed result from the frozen harness-query wire adapter.
+struct HarnessQueryRequest {
+    root: RepoRoot,
+    config: enforcer_domain::config_types::HarnessConfig,
+    query: enforcer_harness::query::RunQuery,
+    diagnostics: enforcer_harness::query::DiagnosticsFilter,
+    diagnostic_limit: Option<HarnessRunLimit>,
+    artifact: HarnessArtifactKind,
+    limit_bytes: Option<HarnessArtifactByteLimit>,
+}
+
 /// Shared typed adapter for the frozen harness-query tools. The raw JSON
 /// shape stops here; all storage selection and filtering remains owned by
 /// `enforcer-harness`.
 fn decode_harness_query(
     args: &serde_json::Value,
     operation: &str,
-) -> Result<
-    (
-        RepoRoot,
-        enforcer_domain::config_types::HarnessConfig,
-        enforcer_harness::query::RunQuery,
-        enforcer_harness::query::DiagnosticsFilter,
-        Option<HarnessRunLimit>,
-        HarnessArtifactKind,
-        Option<HarnessArtifactByteLimit>,
-    ),
-    String,
-> {
+) -> Result<HarnessQueryRequest, String> {
     const SUPPORTED_FIELDS: &[&str] = &[
         "root",
         "runId",
@@ -1504,27 +1510,27 @@ fn decode_harness_query(
             .map(Some)?,
         None => None,
     };
-    Ok((
+    Ok(HarnessQueryRequest {
         root,
         config,
         query,
         diagnostics,
-        optional_limit("diagnosticLimit")?,
+        diagnostic_limit: optional_limit("diagnosticLimit")?,
         artifact,
         limit_bytes,
-    ))
+    })
 }
 
 fn diagnostics(args: &serde_json::Value) -> serde_json::Value {
-    let (root, config, query, filter, _, _, _) = match decode_harness_query(args, "diagnostics") {
+    let request = match decode_harness_query(args, "diagnostics") {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
     match enforcer_harness::query::run_diagnostics(
-        std::path::Path::new(root.as_str()),
-        &config,
-        &query,
-        &filter,
+        std::path::Path::new(request.root.as_str()),
+        &request.config,
+        &request.query,
+        &request.diagnostics,
     ) {
         Ok((true, Some(run_id), diagnostics)) => serde_json::json!({
             "ok": true, "runId": run_id, "diagnostics": diagnostics,
@@ -1540,16 +1546,15 @@ fn diagnostics(args: &serde_json::Value) -> serde_json::Value {
 }
 
 fn last_failure(args: &serde_json::Value) -> serde_json::Value {
-    let (root, config, query, _, diagnostic_limit, _, _) =
-        match decode_harness_query(args, "last_failure") {
-            Ok(value) => value,
-            Err(error) => return json_error(&error),
-        };
+    let request = match decode_harness_query(args, "last_failure") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
     match enforcer_harness::query::last_failure(
-        std::path::Path::new(root.as_str()),
-        &config,
-        &query,
-        diagnostic_limit,
+        std::path::Path::new(request.root.as_str()),
+        &request.config,
+        &request.query,
+        request.diagnostic_limit,
     ) {
         Ok((true, Some(run), diagnostics)) => serde_json::json!({
             "ok": true, "found": true, "run": run, "diagnostics": diagnostics,
@@ -1565,35 +1570,34 @@ fn last_failure(args: &serde_json::Value) -> serde_json::Value {
 }
 
 fn artifact(args: &serde_json::Value) -> serde_json::Value {
-    let (root, config, query, _, _, artifact, limit_bytes) =
-        match decode_harness_query(args, "artifact") {
-            Ok(value) => value,
-            Err(error) => return json_error(&error),
-        };
+    let request = match decode_harness_query(args, "artifact") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
     match enforcer_harness::query::read_artifact(
-        std::path::Path::new(root.as_str()),
-        &config,
-        &query,
-        artifact,
-        limit_bytes,
+        std::path::Path::new(request.root.as_str()),
+        &request.config,
+        &request.query,
+        request.artifact,
+        request.limit_bytes,
     ) {
         Ok((true, Some(run_id), text, _)) => {
             let path = enforcer_harness::query::run_summary(
-                std::path::Path::new(root.as_str()),
-                &config,
-                &query,
+                std::path::Path::new(request.root.as_str()),
+                &request.config,
+                &request.query,
             )
             .ok()
             .flatten()
             .and_then(|run| {
                 run.get("artifacts")?
-                    .get(artifact.as_str())?
+                    .get(request.artifact.as_str())?
                     .as_str()
                     .map(str::to_owned)
             });
             match path {
                 Some(path) => serde_json::json!({
-                    "ok": true, "runId": run_id, "artifact": artifact.as_str(), "path": path, "text": text,
+                    "ok": true, "runId": run_id, "artifact": request.artifact.as_str(), "path": path, "text": text,
                 }),
                 None => {
                     json_error("native artifact query did not resolve the selected artifact path")
@@ -1617,14 +1621,17 @@ fn artifact(args: &serde_json::Value) -> serde_json::Value {
 /// the shared frozen-schema adapter, but reset intentionally has no filter:
 /// it removes every candidate storage root, exactly as the legacy tool does.
 fn reset_runs(args: &serde_json::Value) -> serde_json::Value {
-    let (root, config, _, _, _, _, _) = match decode_harness_query(args, "reset_runs") {
+    let request = match decode_harness_query(args, "reset_runs") {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    match enforcer_harness::storage::reset_runs(std::path::Path::new(root.as_str()), &config) {
+    match enforcer_harness::storage::reset_runs(
+        std::path::Path::new(request.root.as_str()),
+        &request.config,
+    ) {
         Ok(removed) => serde_json::json!({
             "ok": true,
-            "root": root.as_str(),
+            "root": request.root.as_str(),
             "removed": removed.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
         }),
         Err(error) => json_error(&error.to_string()),
@@ -1857,6 +1864,7 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
         "ocentra_enforcer_coordination_message" => coordination_message(args),
         "ocentra_enforcer_coordination_mail" => coordination_mail(args),
         "ocentra_enforcer_coordination_guard" => coordination_guard(args),
+        "ocentra_enforcer_coordination_compact" => coordination_compact(args),
         unsupported => serde_json::json!({
             "ok": false,
             "operation": unsupported,
@@ -1864,6 +1872,80 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
             "code": "native_coordination_operation_unavailable",
         }),
     }
+}
+
+/// Compact a previously initialized ledger.  Unlike initialization and claim
+/// paths, compaction must never create authority as a side effect: its root,
+/// hub identity, and retention count are all checked before any stream write.
+fn coordination_compact(args: &serde_json::Value) -> serde_json::Value {
+    let root_raw = match args.get("root").and_then(serde_json::Value::as_str) {
+        Some(value) => value,
+        None => return json_error("coordination_compact requires a `root` ledger path"),
+    };
+    let requested_hub = match args.get("hub").and_then(serde_json::Value::as_str) {
+        Some(value) => match value.parse::<HubName>() {
+            Ok(hub) => hub,
+            Err(error) => return json_error(&error.to_string()),
+        },
+        None => return json_error("coordination_compact requires a `hub` name"),
+    };
+    let lane_raw = match args.get("lane").and_then(serde_json::Value::as_str) {
+        Some(value) => value,
+        None => return json_error("coordination_compact requires a `lane` id"),
+    };
+    if let Err(error) = lane_raw.parse::<LaneId>() {
+        return json_error(&error.to_string());
+    }
+    let root = match CoordinationLedgerRoot::parse(std::path::Path::new(root_raw)) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    let keep_latest = match compact_keep_latest(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let hub = match api::open(root) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    if hub.config.hub != requested_hub {
+        return serde_json::json!({
+            "ok": false,
+            "code": "coordination_hub_mismatch",
+            "error": "coordination_compact hub does not match the initialized ledger authority",
+        });
+    }
+    match api::compact(&hub, keep_latest) {
+        Ok(result) => serde_json::json!({
+            "ok": true,
+            "hub": hub.config.hub.as_str(),
+            "keepLatest": keep_latest.value().get(),
+            "compactedStreams": result.compacted_streams.into_iter().map(|stream| serde_json::json!({
+                "stream": stream.stream.as_str(),
+                "archivedEvents": stream.archived_events.value(),
+                "retainedEvents": stream.retained_events.value(),
+                "archivePath": stream.archive_path.as_path(),
+            })).collect::<Vec<_>>(),
+        }),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn compact_keep_latest(
+    args: &serde_json::Value,
+) -> Result<enforcer_domain::coordination_types::CompactionKeepCount, String> {
+    let raw = args.get("keepLatest").map_or(Ok(250_usize), |value| {
+        value
+            .as_u64()
+            .ok_or_else(|| "coordination_compact keepLatest must be a positive integer".to_owned())
+            .and_then(|value| {
+                usize::try_from(value)
+                    .map_err(|_error| "coordination_compact keepLatest is too large".to_owned())
+            })
+    })?;
+    let positive = std::num::NonZeroUsize::new(raw)
+        .ok_or_else(|| "coordination_compact keepLatest must be a positive integer".to_owned())?;
+    Ok(enforcer_domain::coordination_types::CompactionKeepCount::new(positive))
 }
 
 fn coordination_event_rows(root: &std::path::Path, kind: &str, field: &str) -> serde_json::Value {
@@ -1983,7 +2065,7 @@ fn coordination_release(args: &serde_json::Value) -> serde_json::Value {
                 .as_str()
                 .ok_or("release paths must contain strings")
                 .and_then(|value| {
-                    ClaimPath::parse(value).map_err(|_| "release path failed validation")
+                    ClaimPath::parse(value).map_err(|_error| "release path failed validation")
                 })
         })
         .collect::<Result<Vec<_>, _>>()
@@ -2302,7 +2384,7 @@ fn json_error(message: &str) -> serde_json::Value {
 
 #[cfg(test)]
 mod tests {
-    use super::{DispatchContext, DispatchOutcome, dispatch};
+    use super::{dispatch, DispatchContext, DispatchOutcome};
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
 
@@ -2323,8 +2405,8 @@ mod tests {
     }
 
     #[test]
-    fn proof_status_returns_a_bounded_filtered_run_collection_not_a_snapshot()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn proof_status_returns_a_bounded_filtered_run_collection_not_a_snapshot(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path().to_string_lossy();
         for (run_id, proof_id) in [("status-a", "status.alpha"), ("status-b", "status.beta")] {
@@ -2369,8 +2451,8 @@ mod tests {
     }
 
     #[test]
-    fn proof_route_uses_the_native_pack_not_the_target_repository_root()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn proof_route_uses_the_native_pack_not_the_target_repository_root(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_proof_route")?,
@@ -2400,8 +2482,8 @@ mod tests {
     }
 
     #[test]
-    fn proof_inventory_is_repo_contained_and_only_returns_opted_in_bounded_rows()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn proof_inventory_is_repo_contained_and_only_returns_opted_in_bounded_rows(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let scripts = temp.path().join("scripts/test");
         std::fs::create_dir_all(&scripts)?;
@@ -2443,8 +2525,8 @@ mod tests {
     }
 
     #[test]
-    fn pass_fixture_canned_request_yields_expected_tool_result()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn pass_fixture_canned_request_yields_expected_tool_result(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_mcp_status")?,
             &serde_json::json!({}),
@@ -2459,8 +2541,8 @@ mod tests {
     }
 
     #[test]
-    fn doctor_dispatches_to_the_native_repository_readiness_engine()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn doctor_dispatches_to_the_native_repository_readiness_engine(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("src"))?;
         std::fs::write(
@@ -2476,11 +2558,9 @@ mod tests {
             return Err("doctor did not produce a result".into());
         };
         assert_eq!(value["command"], serde_json::json!("doctor"));
-        assert!(
-            value["checks"]
-                .as_array()
-                .is_some_and(|checks| checks.len() == 6)
-        );
+        assert!(value["checks"]
+            .as_array()
+            .is_some_and(|checks| checks.len() == 6));
         Ok(())
     }
 
@@ -2515,8 +2595,8 @@ mod tests {
     }
 
     #[test]
-    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_scan")?,
@@ -2530,17 +2610,15 @@ mod tests {
             return Err("native scan did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(
-            value["error"]
-                .as_str()
-                .is_some_and(|message| message.contains("does not support `profile`"))
-        );
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not support `profile`")));
         Ok(())
     }
 
     #[test]
-    fn scan_language_filter_reaches_the_native_typed_contract()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn scan_language_filter_reaches_the_native_typed_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2604,8 +2682,8 @@ mod tests {
     }
 
     #[test]
-    fn check_reexports_filters_a_real_native_scan_to_its_declared_family()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn check_reexports_filters_a_real_native_scan_to_its_declared_family(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2637,8 +2715,8 @@ mod tests {
     }
 
     #[test]
-    fn run_status_returns_process_local_validation_after_final_check_shape()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn run_status_returns_process_local_validation_after_final_check_shape(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
         std::fs::create_dir_all(&src)?;
@@ -2692,17 +2770,15 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(true));
         assert_eq!(value["scope"]["kind"], serde_json::json!("repo"));
         assert_eq!(value["languages"], serde_json::json!(["rust"]));
-        assert!(
-            value["rulePacks"]
-                .as_array()
-                .is_some_and(|packs| packs.iter().any(|pack| pack == "rust"))
-        );
+        assert!(value["rulePacks"]
+            .as_array()
+            .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
         Ok(())
     }
 
     #[test]
-    fn test_doctrine_scan_dispatches_to_the_native_rust_analyzer()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn test_doctrine_scan_dispatches_to_the_native_rust_analyzer(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("tests"))?;
         std::fs::write(
@@ -2728,17 +2804,15 @@ mod tests {
             value["detected"]["unit"]["present"],
             serde_json::json!(true)
         );
-        assert!(
-            value["missing"]
-                .as_array()
-                .is_some_and(|missing| missing.iter().any(|item| item["category"] == "security"))
-        );
+        assert!(value["missing"]
+            .as_array()
+            .is_some_and(|missing| missing.iter().any(|item| item["category"] == "security")));
         Ok(())
     }
 
     #[test]
-    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
@@ -2775,17 +2849,15 @@ mod tests {
             return Err("native diagnostics query did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(
-            value["error"]
-                .as_str()
-                .is_some_and(|message| message.contains("non-negative integer"))
-        );
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("non-negative integer")));
         Ok(())
     }
 
     #[test]
-    fn run_dispatches_through_typed_boundary_and_native_harness_engine()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn run_dispatches_through_typed_boundary_and_native_harness_engine(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path().to_string_lossy();
         let outcome = dispatch(
@@ -2826,8 +2898,8 @@ mod tests {
     }
 
     #[test]
-    fn fail_fixture_malformed_request_unknown_tool_is_rejected()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn fail_fixture_malformed_request_unknown_tool_is_rejected(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("not_a_real_tool")?,
             &serde_json::json!({}),
@@ -2838,8 +2910,8 @@ mod tests {
     }
 
     #[test]
-    fn legacy_alias_resolves_to_the_same_handler_as_canonical()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn legacy_alias_resolves_to_the_same_handler_as_canonical(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let canonical = dispatch(
             &tool("ocentra_enforcer_mcp_status")?,
             &serde_json::json!({}),
@@ -2881,8 +2953,8 @@ mod tests {
     }
 
     #[test]
-    fn explain_reads_the_native_rule_catalog_and_never_needs_mjs()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn explain_reads_the_native_rule_catalog_and_never_needs_mjs(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_explain")?,
             &serde_json::json!({"ruleId":"RR-6.1"}),
@@ -2897,11 +2969,9 @@ mod tests {
             value["source"],
             serde_json::json!("native-rust-rule-catalog")
         );
-        assert!(
-            value["fixHint"]
-                .as_str()
-                .is_some_and(|hint| !hint.is_empty())
-        );
+        assert!(value["fixHint"]
+            .as_str()
+            .is_some_and(|hint| !hint.is_empty()));
         Ok(())
     }
 
@@ -2929,8 +2999,8 @@ mod tests {
     }
 
     #[test]
-    fn coordination_claim_end_to_end_against_a_real_temp_hub()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn coordination_claim_end_to_end_against_a_real_temp_hub(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path();
         let file_a = root.join("crate_a.rs");
@@ -2965,8 +3035,8 @@ mod tests {
     /// runs" requirement at the router boundary (not just in
     /// `enforcer-ui`'s own unit tests).
     #[test]
-    fn ui_tool_loopback_default_reports_url_without_launching()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn ui_tool_loopback_default_reports_url_without_launching(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_ui")?,
             &serde_json::json!({}),
@@ -2984,8 +3054,8 @@ mod tests {
     /// reports the fail-closed refusal as DATA (never panics, never
     /// binds), still `launched: false`.
     #[test]
-    fn ui_tool_remote_without_token_reports_refusal_without_launching()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn ui_tool_remote_without_token_reports_refusal_without_launching(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcome = dispatch(
             &tool("ocentra_enforcer_ui")?,
             &serde_json::json!({ "host": "0.0.0.0" }),
@@ -3015,8 +3085,8 @@ mod tests {
     /// Full native coordination lifecycle against an isolated ledger: no
     /// process-global default root may leak into MCP coordination calls.
     #[test]
-    fn coordination_tools_use_the_requested_temp_ledger_and_preserve_write_safety()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn coordination_tools_use_the_requested_temp_ledger_and_preserve_write_safety(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let ledger = tempfile::tempdir()?;
         let root = ledger.path().to_string_lossy().to_string();
         let common = serde_json::json!({
@@ -3103,6 +3173,122 @@ mod tests {
             unavailable["code"],
             serde_json::json!("native_coordination_operation_unavailable")
         );
+        Ok(())
+    }
+
+    /// Frozen `coordination_compact` has a real native retention backing: it
+    /// archives only eligible historical events, leaves current live evidence
+    /// available, verifies initialized hub authority, and remains subject to
+    /// the router's stale-write refusal before any filesystem mutation.
+    #[test]
+    fn coordination_compact_archives_eligible_events_without_losing_current_evidence(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ledger = tempfile::tempdir()?;
+        let root = ledger.path().to_string_lossy().to_string();
+        let common = serde_json::json!({
+            "root": root,
+            "hub": "compact-e2e",
+            "lane": "lane-a",
+            "worktreeRoot": "E:/compact-e2e",
+            "branch": "rust-build",
+            "projectId": "compact-e2e"
+        });
+
+        let DispatchOutcome::Result(initialized) = dispatch(
+            &tool("ocentra_enforcer_coordination_init")?,
+            &common,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("compact fixture init was not dispatched".into());
+        };
+        assert_eq!(initialized["ok"], serde_json::json!(true));
+
+        for body in ["one", "two", "three", "four"] {
+            let mut message = common.clone();
+            message["to"] = serde_json::json!("lane-b");
+            message["body"] = serde_json::json!(body);
+            let DispatchOutcome::Result(sent) = dispatch(
+                &tool("ocentra_enforcer_coordination_message")?,
+                &message,
+                &ctx(McpFreshness::Fresh),
+            ) else {
+                return Err("compact fixture message was not dispatched".into());
+            };
+            assert_eq!(sent["ok"], serde_json::json!(true));
+        }
+
+        let mut compact = common;
+        compact["keepLatest"] = serde_json::json!(2);
+        let DispatchOutcome::Result(result) = dispatch(
+            &tool("ocentra_enforcer_coordination_compact")?,
+            &compact,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("compact was not dispatched".into());
+        };
+        assert_eq!(result["ok"], serde_json::json!(true));
+        assert_eq!(result["keepLatest"], serde_json::json!(2));
+        assert_eq!(
+            result["compactedStreams"][0]["archivedEvents"],
+            serde_json::json!(2)
+        );
+        assert_eq!(
+            result["compactedStreams"][0]["retainedEvents"],
+            serde_json::json!(2)
+        );
+        let live_event_count =
+            enforcer_coordination::sync::stream::list_stream_files(ledger.path())?
+                .into_iter()
+                .map(|stream| {
+                    std::fs::read_to_string(ledger.path().join("streams").join(stream.as_str()))
+                        .map(|contents| {
+                            contents
+                                .lines()
+                                .filter(|line| !line.trim().is_empty())
+                                .count()
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .sum::<usize>();
+        assert_eq!(live_event_count, 2, "current evidence must stay live");
+
+        let mut wrong_hub = compact.clone();
+        wrong_hub["hub"] = serde_json::json!("other-hub");
+        let DispatchOutcome::Result(mismatch) = dispatch(
+            &tool("ocentra_enforcer_coordination_compact")?,
+            &wrong_hub,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("hub mismatch did not produce a result".into());
+        };
+        assert_eq!(
+            mismatch["code"],
+            serde_json::json!("coordination_hub_mismatch")
+        );
+
+        let absent = ledger.path().join("absent-ledger");
+        let DispatchOutcome::Result(bad_root) = dispatch(
+            &tool("ocentra_enforcer_coordination_compact")?,
+            &serde_json::json!({"root":absent.to_string_lossy(),"hub":"compact-e2e","lane":"lane-a","keepLatest":2}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("bad root did not produce a result".into());
+        };
+        assert_eq!(bad_root["ok"], serde_json::json!(false));
+        assert!(
+            !absent.exists(),
+            "compact must not initialize a missing root"
+        );
+
+        assert!(matches!(
+            dispatch(
+                &tool("ocentra_enforcer_coordination_compact")?,
+                &compact,
+                &ctx(McpFreshness::Stale),
+            ),
+            DispatchOutcome::StaleRefused(_)
+        ));
         Ok(())
     }
 }

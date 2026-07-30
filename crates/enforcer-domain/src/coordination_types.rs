@@ -563,6 +563,10 @@ impl FindingCount {
 pub struct CoordinationEventCount(usize);
 
 impl CoordinationEventCount {
+    pub const fn value(self) -> usize {
+        self.0
+    }
+
     pub fn from_collection<T>(values: &[T]) -> Self {
         Self(values.len())
     }
