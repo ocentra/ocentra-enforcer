@@ -1144,7 +1144,7 @@ fn named_ai_rule_index_unrecorded(args: &serde_json::Value) -> serde_json::Value
         Ok(config) => config,
         Err(error) => return json_error(&format!("cannot load ai-rule-index config: {error}")),
     };
-    let max_lines = max_lines.or(Some(config.agent_rule_max_lines));
+    let max_lines = max_lines.or(Some(config.agent_rule_max_lines.get()));
     enforcer_scan::boundary::native_scan::execute_ai_rule_index(&request, &root, max_lines)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))

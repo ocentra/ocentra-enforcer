@@ -603,7 +603,7 @@ pub struct EffectiveConfig {
     pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
     pub import_boundary_policies: Vec<ImportBoundaryPolicy>,
-    pub agent_rule_max_lines: usize,
+    pub agent_rule_max_lines: AgentRuleLineBudget,
     pub strict_empty_test_trees: StrictEmptyTestTrees,
     pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
     pub generated_artifacts_mode: GeneratedArtifactsMode,
@@ -620,6 +620,19 @@ pub struct ImportBoundaryPolicy {
     pub forbidden_imports: Vec<Glob>,
     pub allowed_imports: Vec<Glob>,
     pub message: Option<ConfigField>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc = "Canonical configured line budget for AI rule files; zero is meaningful."]
+pub struct AgentRuleLineBudget(usize);
+impl AgentRuleLineBudget {
+    pub const fn new(value: usize) -> Self {
+        Self(value)
+    }
+    #[must_use]
+    pub const fn get(self) -> usize {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

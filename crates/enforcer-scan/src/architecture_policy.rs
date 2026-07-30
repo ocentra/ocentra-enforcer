@@ -58,6 +58,12 @@ pub fn canonical_checks(config: &EffectiveConfig) -> Vec<String> {
 }
 fn canonical(value: &str) -> &str {
     match value {
+        "check-source-shape" => "source-shape",
+        "check-required-tests" => "required-tests",
+        "check-single-source-contracts" => "single-source-contracts",
+        "check-ai-rule-index" => "ai-rule-index",
+        "check-dependency-policy" => "dependency-policy",
+        "write-sbom" => "sbom",
         "rust-string-boundaries" => "no-naked-domain-strings",
         other => other,
     }
@@ -230,12 +236,16 @@ mod tests {
         let temp = tempfile::tempdir()?;
         std::fs::write(
             temp.path().join("c.json"),
-            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":["rust-string-boundaries","no-naked-domain-strings","architecture-policy","generated-artifacts"]}"#,
+            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":["rust-string-boundaries","no-naked-domain-strings","check-source-shape","source-shape","architecture-policy","generated-artifacts"]}"#,
         )?;
         let config = load_project_config(&temp.path().join("c.json"))?;
         assert_eq!(
             canonical_checks(&config),
-            vec!["no-naked-domain-strings", "generated-artifacts"]
+            vec![
+                "no-naked-domain-strings",
+                "source-shape",
+                "generated-artifacts"
+            ]
         );
         Ok(())
     }

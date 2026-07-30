@@ -10,13 +10,14 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 
 use enforcer_domain::config_types::{
-    ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson,
-    ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope,
-    GeneratedArtifactsMode, Glob, HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays,
-    HarnessRunLimit, ImportBoundaryPolicy, InlineTestPolicy, NativeMode, NativeTie, NativeTool,
-    Platform, PolicyOwner, PolicyReason, PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy,
-    RegexPattern, RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs,
-    SourceShapeKind, SourceShapeOverride, SourceShapePolicy, StrictEmptyTestTrees,
+    AgentRuleLineBudget, ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping,
+    ConfigField, ConfigJson, ConfigProfileName, ConfigSource, CrateName, EffectiveConfig,
+    EnforcerScope, GeneratedArtifactsMode, Glob, HarnessArtifactByteLimit, HarnessConfig,
+    HarnessRetentionDays, HarnessRunLimit, ImportBoundaryPolicy, InlineTestPolicy, NativeMode,
+    NativeTie, NativeTool, Platform, PolicyOwner, PolicyReason,
+    PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern, RuleEnabled,
+    RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride,
+    SourceShapePolicy, StrictEmptyTestTrees,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -931,7 +932,7 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                     })
                 })
                 .collect::<Result<_, DecodeError>>()?,
-            agent_rule_max_lines: value.agent_rule_max_lines,
+            agent_rule_max_lines: AgentRuleLineBudget::new(value.agent_rule_max_lines),
             strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
@@ -1200,7 +1201,7 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                     message: policy.message.map(|value| value.as_str().to_owned()),
                 })
                 .collect(),
-            agent_rule_max_lines: value.agent_rule_max_lines,
+            agent_rule_max_lines: value.agent_rule_max_lines.get(),
             strict_empty_test_trees: value.strict_empty_test_trees.into_wire(),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
@@ -1530,13 +1531,13 @@ mod harness_config_tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let default_profile = ConfigProfileName::new("default".to_owned())?;
         let absent = crate::resolve::resolve_profile_only(&default_profile)?;
-        assert_eq!(absent.agent_rule_max_lines, 220);
+        assert_eq!(absent.agent_rule_max_lines.get(), 220);
         let project = ConfigJson::from_owned(
             r#"{"schemaVersion":2,"profileName":"default","agentRuleMaxLines":0}"#.to_owned(),
         );
         let source = ConfigSource::from_owned("test project config".to_owned());
         let effective: EffectiveConfig = crate::resolve::resolve(Some(&project), &source)?;
-        assert_eq!(effective.agent_rule_max_lines, 0);
+        assert_eq!(effective.agent_rule_max_lines.get(), 0);
         let encoded = serde_json::to_value(WireEffectiveConfig::from(effective))?;
         assert_eq!(encoded["agentRuleMaxLines"], 0);
         Ok(())
