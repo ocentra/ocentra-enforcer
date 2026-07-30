@@ -184,6 +184,7 @@ fn stdio_smoke_scan_reaches_the_native_rust_engine() -> Result<(), Box<dyn std::
                 "arguments": {
                     "root": fixture.path().to_string_lossy(),
                     "files": ["src/lib.rs"],
+                    "languages": ["rust"],
                 },
             },
         }),

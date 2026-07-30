@@ -1,6 +1,5 @@
 //! Boundary tool router: dispatches a `tools/call` request to the right engine
-//! crate. No business logic lives here (per the crate charter) — every
-//! handler is a thin adapter: decode typed args, call the sibling crate's
+//! crate. Each handler is a thin adapter: decode typed args, call the sibling crate's
 //! real function, encode the typed result as camelCase JSON.
 //!
 //! Three cross-cutting concerns apply to every dispatch, in order:
@@ -21,6 +20,7 @@
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, Hub};
 use enforcer_domain::{
     boundary::mcp::{execution_mode, write_intent},
+    config_types::CrateName,
     coordination_types::{
         ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
         CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
@@ -112,8 +112,7 @@ pub fn dispatch(
         // Every other registered tool is a real delegate seam owned by a
         // sibling pack's future wiring pass; this skeleton reports it as
         // registered-but-not-yet-wired rather than silently no-op'ing or
-        // fabricating a result, honoring the "no business logic here"
-        // charter while staying observable.
+        // fabricating a result, while staying observable.
         other if crate::registry::CANONICAL_TOOLS.contains(&other) => {
             DispatchOutcome::Result(serde_json::json!({
                 "ok": false,
@@ -141,19 +140,24 @@ fn gate_args_from(args: &serde_json::Value) -> GateArgs {
 /// rejected at the MCP boundary rather than silently ignored or delegated
 /// back to the frozen MJS implementation.
 fn scan(args: &serde_json::Value) -> serde_json::Value {
-    if args.get("base").is_some()
-        || args.get("head").is_some()
-        || args.get("crateName").is_some()
-        || args.get("languages").is_some()
-        || args.get("configPath").is_some()
-        || args.get("profile").is_some()
-        || args.get("cargo").is_some()
+    const SUPPORTED_FIELDS: &[&str] = &[
+        "root",
+        "scope",
+        "files",
+        "crateName",
+        "base",
+        "head",
+        "languages",
+    ];
+    let Some(object) = args.as_object() else {
+        return json_error("scan arguments must be an object");
+    };
+    if let Some(unsupported) = object
+        .keys()
+        .find(|field| !SUPPORTED_FIELDS.contains(&field.as_str()))
     {
-        return json_error(
-            "native MCP scan does not yet implement diff, crate, language, config, profile, or cargo options",
-        );
+        return json_error(&format!("scan does not support `{unsupported}`"));
     }
-
     let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
         return json_error("scan requires a `root` path");
     };
@@ -162,76 +166,147 @@ fn scan(args: &serde_json::Value) -> serde_json::Value {
         Err(err) => return json_error(&err.to_string()),
     };
     let files = match args.get("files") {
-        None => Vec::new(),
+        None => None,
         Some(serde_json::Value::Array(values)) => match values
             .iter()
             .map(|value| value.as_str().map(std::path::PathBuf::from))
             .collect::<Option<Vec<_>>>()
         {
-            Some(values) => values,
+            Some(values) => Some(values),
             None => return json_error("scan `files` must contain only paths"),
         },
         Some(_) => return json_error("scan `files` must be an array"),
     };
-    let all = match args.get("all") {
-        None => false,
-        Some(serde_json::Value::Bool(value)) => *value,
-        Some(_) => return json_error("scan `all` must be a boolean"),
+    let languages = match parse_scan_languages(args.get("languages")) {
+        Ok(value) => value,
+        Err(message) => return json_error(&message),
     };
-    if all && !files.is_empty() {
-        return json_error("scan accepts either `files` or `all`, not both");
-    }
-    let scope = match args.get("scope") {
-        None => None,
-        Some(serde_json::Value::String(value)) if value == "files" || value == "workspace" => {
-            Some(value.as_str())
-        }
-        Some(_) => return json_error("native MCP scan supports only `files` or `workspace` scope"),
+    let scope = match parse_scan_scope(args.get("scope"), files, args) {
+        Ok(value) => value,
+        Err(message) => return json_error(&message),
     };
-    if scope == Some("files") && files.is_empty() {
-        return json_error("scan `scope: files` requires at least one file");
+    let request = enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages };
+    let result = enforcer_scan::boundary::native_scan::execute(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()));
+    match result {
+        Ok(value) => value,
+        Err(err) => json_error(&err),
     }
-    if scope == Some("workspace") && (!files.is_empty() || all) {
-        return json_error("scan `scope: workspace` cannot combine with `files` or `all`");
-    }
+}
 
-    let request = if all || files.is_empty() {
-        enforcer_domain::scan_types::ScopeRequest::All
-    } else {
-        enforcer_domain::scan_types::ScopeRequest::Paths(files)
+fn parse_scan_languages(
+    raw: Option<&serde_json::Value>,
+) -> Result<Vec<enforcer_scan::boundary::native_scan::NativeScanLanguage>, String> {
+    let Some(raw) = raw else {
+        return Ok(Vec::new());
     };
-    let scope = match enforcer_scan::scope::resolve(&request, &root) {
-        Ok(value) => value,
-        Err(err) => return json_error(&err.to_string()),
+    let Some(values) = raw.as_array() else {
+        return Err("scan `languages` must be an array".to_owned());
     };
-    let all_files = match enforcer_scan::walk::walk(
-        std::path::Path::new(root.as_str()),
-        &enforcer_scan::walk::IgnoreRules::default(),
-    ) {
-        Ok(value) => value,
-        Err(err) => return json_error(&format!("scan walk failed: {err}")),
-    };
-    let files = if scope.explicit_paths.is_empty() {
-        all_files
-    } else {
-        all_files
-            .into_iter()
-            .filter(|file| {
-                scope
-                    .explicit_paths
-                    .iter()
-                    .any(|path| file.as_str().starts_with(path.as_str()))
-            })
-            .collect()
-    };
-    let validators = match enforcer_scan::engine::build_family_validators() {
-        Ok(value) => value,
-        Err(err) => return json_error(&format!("failed to build scan validators: {err}")),
-    };
-    let report = enforcer_scan::engine::run(&scope, &files, &validators);
-    match serde_json::to_value(report) {
-        Ok(value) => value,
-        Err(err) => json_error(&format!("failed to encode scan report: {err}")),
+    values
+        .iter()
+        .map(|value| match value.as_str() {
+            Some("rust") => Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::Rust),
+            Some("typescript") => {
+                Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::TypeScript)
+            }
+            Some("python") => Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::Python),
+            Some("terraform") => {
+                Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::Terraform)
+            }
+            Some("yaml-or-config") => {
+                Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::YamlOrConfig)
+            }
+            Some(value) => Err(format!("scan does not support language `{value}`")),
+            None => Err("scan `languages` must contain only strings".to_owned()),
+        })
+        .collect()
+}
+
+fn parse_scan_scope(
+    scope: Option<&serde_json::Value>,
+    files: Option<Vec<std::path::PathBuf>>,
+    args: &serde_json::Value,
+) -> Result<enforcer_scan::boundary::native_scan::NativeScanScope, String> {
+    let requested = scope.and_then(serde_json::Value::as_str);
+    if scope.is_some() && requested.is_none() {
+        return Err("scan `scope` must be a string".to_owned());
+    }
+    let scope = requested.unwrap_or_else(|| {
+        if files.is_some() {
+            "files"
+        } else if args.get("crateName").is_some() {
+            "crate"
+        } else if args.get("base").is_some() || args.get("head").is_some() {
+            "diff"
+        } else {
+            "workspace"
+        }
+    });
+    match scope {
+        "files" => {
+            if args.get("crateName").is_some()
+                || args.get("base").is_some()
+                || args.get("head").is_some()
+            {
+                return Err(
+                    "scan `scope: files` cannot combine with crate or diff options".to_owned(),
+                );
+            }
+            let Some(files) = files else {
+                return Err("scan `scope: files` requires `files`".to_owned());
+            };
+            Ok(enforcer_scan::boundary::native_scan::NativeScanScope::Files(files))
+        }
+        "workspace" => {
+            if files.is_some()
+                || args.get("crateName").is_some()
+                || args.get("base").is_some()
+                || args.get("head").is_some()
+            {
+                return Err(
+                    "scan `scope: workspace` cannot combine with narrowing options".to_owned(),
+                );
+            }
+            Ok(enforcer_scan::boundary::native_scan::NativeScanScope::Workspace)
+        }
+        "crate" => {
+            if files.is_some() || args.get("base").is_some() || args.get("head").is_some() {
+                return Err(
+                    "scan `scope: crate` cannot combine with files or diff options".to_owned(),
+                );
+            }
+            let Some(name) = args.get("crateName").and_then(serde_json::Value::as_str) else {
+                return Err("scan `scope: crate` requires `crateName`".to_owned());
+            };
+            let name = name
+                .parse::<CrateName>()
+                .map_err(|error| error.to_string())?;
+            Ok(enforcer_scan::boundary::native_scan::NativeScanScope::Crate(name))
+        }
+        "diff" => {
+            if files.is_some() || args.get("crateName").is_some() {
+                return Err("scan `scope: diff` cannot combine with files or crateName".to_owned());
+            }
+            let Some(base) = args.get("base").and_then(serde_json::Value::as_str) else {
+                return Err("scan `scope: diff` requires `base`".to_owned());
+            };
+            let Some(head) = args.get("head").and_then(serde_json::Value::as_str) else {
+                return Err("scan `scope: diff` requires `head`".to_owned());
+            };
+            Ok(
+                enforcer_scan::boundary::native_scan::NativeScanScope::Diff {
+                    base: base
+                        .parse::<CommitRef>()
+                        .map_err(|error| error.to_string())?,
+                    head: head
+                        .parse::<CommitRef>()
+                        .map_err(|error| error.to_string())?,
+                },
+            )
+        }
+        _ => Err("scan supports only `files`, `workspace`, `crate`, or `diff` scope".to_owned()),
     }
 }
 
@@ -579,7 +654,7 @@ fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
 /// I/O and never binds a socket -- silent-agent-safe by construction (see
 /// that function's doc comment on the f04 gate not having landed yet).
 /// This handler's only job is JSON<->typed decoding, matching every other
-/// handler's "no business logic here" charter.
+/// handler's transport-adapter charter.
 fn ui_tool(args: &serde_json::Value) -> serde_json::Value {
     let host = args
         .get("host")
@@ -669,14 +744,14 @@ mod tests {
     }
 
     #[test]
-    fn scan_rejects_unsupported_legacy_options_instead_of_ignoring_them(
+    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_scan")?,
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
-                "languages": ["rust"],
+                "profile": "strict",
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -686,7 +761,38 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(false));
         assert!(value["error"]
             .as_str()
-            .is_some_and(|message| message.contains("does not yet implement")));
+            .is_some_and(|message| message.contains("does not support `profile`")));
+        Ok(())
+    }
+
+    #[test]
+    fn scan_language_filter_reaches_the_native_typed_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(
+            src.join("lib.rs"),
+            "mod inner { pub struct Thing; }\npub use inner::Thing;\n",
+        )?;
+        std::fs::write(src.join("app.ts"), "export const value = true;\n")?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "scope": "files",
+                "files": ["src/lib.rs", "src/app.ts"],
+                "languages": ["typescript"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native scan did not produce a result".into());
+        };
+        assert!(value["findings"].as_array().is_some_and(|findings| findings
+            .iter()
+            .all(|finding| finding["ruleId"] != "T1-NOREEXPORT.1")));
         Ok(())
     }
 

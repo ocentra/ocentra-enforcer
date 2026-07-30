@@ -257,6 +257,22 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
             "properties": { "root": { "type": "string", "description": "Target repository root; defaults to the server working directory." } },
         });
     }
+    if name == "ocentra_enforcer_scan" {
+        return serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "root": { "type": "string" },
+                "scope": { "type": "string", "enum": ["files", "workspace", "crate", "diff"] },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "crateName": { "type": "string" },
+                "base": { "type": "string" },
+                "head": { "type": "string" },
+                "languages": { "type": "array", "items": { "type": "string", "enum": ["rust", "typescript", "python", "terraform", "yaml-or-config"] } }
+            },
+            "required": ["root"]
+        });
+    }
     serde_json::json!({
         "type": "object",
         "additionalProperties": true,
