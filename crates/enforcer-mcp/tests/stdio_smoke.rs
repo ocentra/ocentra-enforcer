@@ -253,3 +253,50 @@ fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
     assert!(child.wait()?.success());
     Ok(())
 }
+
+#[test]
+fn stdio_smoke_route_reaches_the_native_rust_route_engine() -> Result<(), Box<dyn std::error::Error>>
+{
+    let fixture = tempfile::tempdir()?;
+    let src = fixture.path().join("src");
+    std::fs::create_dir_all(&src)?;
+    std::fs::write(src.join("lib.rs"), "pub struct RouteFixture;\n")?;
+
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+
+    let reply = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "ocentra_enforcer_route",
+                "arguments": {
+                    "root": fixture.path().to_string_lossy(),
+                    "scope": "files",
+                    "files": ["src/lib.rs"],
+                },
+            },
+        }),
+    )?;
+    assert_eq!(reply["result"]["ok"], serde_json::json!(true));
+    assert_eq!(reply["result"]["languages"], serde_json::json!(["rust"]));
+    assert!(reply["result"]["rulePacks"]
+        .as_array()
+        .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
+
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}

@@ -28,7 +28,7 @@ use enforcer_domain::{
     ids::{HubName, LaneId},
     mcp_types::{ArtifactPath, McpActionName, McpFreshness, McpToolName},
     paths::RepoRoot,
-    scan_types::CommitRef,
+    scan_types::{CommitRef, RouteScope},
 };
 
 use crate::gate::{self, GateArgs};
@@ -98,6 +98,7 @@ pub fn dispatch(
     match canonical.as_str() {
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
+        "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
@@ -265,6 +266,79 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
         serde_json::Value::String(name.to_owned()),
     );
     report
+}
+
+/// Native MCP route adapter. The route plan is built by `enforcer-scan` from
+/// the same walked paths and resolved project tie that native scan consumers
+/// use; this boundary only validates the wire scope and projects the result.
+fn route(args: &serde_json::Value) -> serde_json::Value {
+    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("route requires a `root` path");
+    };
+    let root = match root_raw.parse::<RepoRoot>() {
+        Ok(value) => value,
+        Err(err) => return json_error(&err.to_string()),
+    };
+    let requested_files = match args.get("files") {
+        None => Vec::new(),
+        Some(serde_json::Value::Array(values)) => match values
+            .iter()
+            .map(|value| value.as_str().map(str::to_owned))
+            .collect::<Option<Vec<_>>>()
+        {
+            Some(values) => values,
+            None => return json_error("route `files` must contain only paths"),
+        },
+        Some(_) => return json_error("route `files` must be an array"),
+    };
+    let scope_name = match args.get("scope") {
+        None if requested_files.is_empty() => "workspace",
+        None => "files",
+        Some(serde_json::Value::String(value)) if value == "workspace" || value == "files" => {
+            value.as_str()
+        }
+        Some(_) => {
+            return json_error("native MCP route supports only `files` or `workspace` scope")
+        }
+    };
+    if scope_name == "files" && requested_files.is_empty() {
+        return json_error("route `scope: files` requires at least one file");
+    }
+    if scope_name == "workspace" && !requested_files.is_empty() {
+        return json_error("route `scope: workspace` cannot combine with `files`");
+    }
+
+    let root_path = std::path::Path::new(root.as_str());
+    let mut paths =
+        match enforcer_scan::walk::walk(root_path, &enforcer_scan::walk::IgnoreRules::default()) {
+            Ok(value) => value,
+            Err(err) => return json_error(&format!("route walk failed: {err}")),
+        };
+    if scope_name == "files" {
+        paths.retain(|path| requested_files.iter().any(|file| path.as_str() == file));
+        if paths.is_empty() {
+            return json_error("route `files` did not resolve to any walked source files");
+        }
+    }
+    let tie =
+        match enforcer_config::project_tie::load_project_tie(&root_path.join(".enforce/config")) {
+            Ok(value) => value,
+            Err(err) => return json_error(&format!("route config failed: {err}")),
+        };
+    let scope = if scope_name == "workspace" {
+        RouteScope::Workspace
+    } else {
+        RouteScope::Repo
+    };
+    let plan = enforcer_scan::router::plan::build_route_plan(&paths, &scope, &tie);
+    match serde_json::to_value(plan) {
+        Ok(serde_json::Value::Object(mut value)) => {
+            value.insert("ok".to_owned(), serde_json::Value::Bool(true));
+            serde_json::Value::Object(value)
+        }
+        Ok(_) => json_error("native route produced an invalid report shape"),
+        Err(err) => json_error(&format!("failed to encode route plan: {err}")),
+    }
 }
 
 /// `ocentra_enforcer_mcp_status` — never write-gated (read-only server
@@ -576,6 +650,35 @@ mod tests {
         let findings = value["findings"].as_array().ok_or("missing findings")?;
         assert!(!findings.is_empty());
         assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.2"));
+        Ok(())
+    }
+
+    #[test]
+    fn route_dispatches_to_the_native_rust_route_engine() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(src.join("lib.rs"), "pub struct RouteFixture;\n")?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_route")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "scope": "files",
+                "files": ["src/lib.rs"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native route did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["scope"]["kind"], serde_json::json!("repo"));
+        assert_eq!(value["languages"], serde_json::json!(["rust"]));
+        assert!(value["rulePacks"]
+            .as_array()
+            .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
         Ok(())
     }
 
