@@ -151,6 +151,10 @@ fn default_supported_platforms() -> Vec<WirePlatform> {
     Platform::all().into_iter().map(Into::into).collect()
 }
 
+const fn default_agent_rule_max_lines() -> usize {
+    220
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct WireCrateName(pub String);
@@ -804,6 +808,8 @@ pub struct WireEffectiveConfig {
     pub source_shape_overrides: Vec<WireSourceShapeOverride>,
     #[serde(default)]
     pub architecture_policy_checks: Vec<String>,
+    #[serde(default = "default_agent_rule_max_lines")]
+    pub agent_rule_max_lines: usize,
     #[serde(default)]
     pub strict_empty_test_trees: bool,
     #[serde(default)]
@@ -886,6 +892,7 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .into_iter()
                 .map(ArchitecturePolicyCheck::try_new)
                 .collect::<Result<_, _>>()?,
+            agent_rule_max_lines: value.agent_rule_max_lines,
             strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
@@ -1140,6 +1147,7 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .into_iter()
                 .map(|value| value.as_str().to_owned())
                 .collect(),
+            agent_rule_max_lines: value.agent_rule_max_lines,
             strict_empty_test_trees: value.strict_empty_test_trees.into_wire(),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist
@@ -1430,8 +1438,11 @@ pub struct WireProjectConfig {
 
 #[cfg(test)]
 mod harness_config_tests {
-    use super::WireHarnessConfig;
-    use enforcer_domain::config_types::{HarnessConfig, HarnessRunLimit};
+    use super::{WireEffectiveConfig, WireHarnessConfig};
+    use enforcer_domain::config_types::{
+        ConfigJson, ConfigProfileName, ConfigSource, EffectiveConfig, HarnessConfig,
+        HarnessRunLimit,
+    };
 
     #[test]
     fn wire_harness_config_preserves_unlimited_and_explicit_zero() -> Result<(), serde_json::Error>
@@ -1458,6 +1469,23 @@ mod harness_config_tests {
         assert_eq!(encoded["maxRunsPerTool"], 0);
         assert_eq!(encoded["maxFailedRuns"], 0);
         assert_eq!(encoded["pruneAfterDays"], serde_json::Value::Null);
+        Ok(())
+    }
+
+    #[test]
+    fn wire_effective_config_defaults_and_preserves_agent_rule_line_budget(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let default_profile = ConfigProfileName::new("default".to_owned())?;
+        let absent = crate::resolve::resolve_profile_only(&default_profile)?;
+        assert_eq!(absent.agent_rule_max_lines, 220);
+        let project = ConfigJson::from_owned(
+            r#"{"schemaVersion":2,"profileName":"default","agentRuleMaxLines":0}"#.to_owned(),
+        );
+        let source = ConfigSource::from_owned("test project config".to_owned());
+        let effective: EffectiveConfig = crate::resolve::resolve(Some(&project), &source)?;
+        assert_eq!(effective.agent_rule_max_lines, 0);
+        let encoded = serde_json::to_value(WireEffectiveConfig::from(effective))?;
+        assert_eq!(encoded["agentRuleMaxLines"], 0);
         Ok(())
     }
 }

@@ -602,6 +602,7 @@ pub struct EffectiveConfig {
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
+    pub agent_rule_max_lines: usize,
     pub strict_empty_test_trees: StrictEmptyTestTrees,
     pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
     pub generated_artifacts_mode: GeneratedArtifactsMode,

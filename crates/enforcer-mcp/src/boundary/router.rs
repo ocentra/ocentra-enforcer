@@ -1031,7 +1031,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
     } else if name == "ai-rule-index" {
-        [NATIVE_SCAN_FIELDS, &["maxLines"]].concat()
+        [NATIVE_SCAN_FIELDS, &["configPath", "maxLines"]].concat()
     } else if name == "source-shape"
         || name == "architecture-policy"
         || name == "single-source-contracts"
@@ -1116,15 +1116,34 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
 fn named_ai_rule_index_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     let max_lines = match args.get("maxLines") {
         None => None,
-        Some(serde_json::Value::Number(value)) => {
-            value.as_u64().and_then(|value| usize::try_from(value).ok())
-        }
+        Some(serde_json::Value::Number(value)) => match value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+        {
+            Some(value) => Some(value),
+            None => return json_error("ai-rule-index `maxLines` must be a non-negative integer"),
+        },
         Some(_) => return json_error("ai-rule-index `maxLines` must be a non-negative integer"),
     };
     let (root, request) = match native_scan_request(args) {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => return json_error(&format!("cannot load ai-rule-index config: {error}")),
+    };
+    let max_lines = max_lines.or(Some(config.agent_rule_max_lines));
     enforcer_scan::boundary::native_scan::execute_ai_rule_index(&request, &root, max_lines)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
@@ -4181,6 +4200,78 @@ mod tests {
                 .as_str()
                 .is_some_and(|error| error.contains(expected)));
         }
+        Ok(())
+    }
+
+    #[test]
+    fn check_ai_rule_index_uses_project_budget_and_rejects_fractional_override(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join(".ocentra-ai/rules"))?;
+        std::fs::write(
+            temp.path().join("AGENTS.md"),
+            ".ocentra-ai/rules/INDEX.md\n",
+        )?;
+        std::fs::write(
+            temp.path().join(".ocentra-ai/rules/INDEX.md"),
+            "child.mdc\n",
+        )?;
+        std::fs::write(
+            temp.path().join(".ocentra-ai/rules/child.mdc"),
+            "one\ntwo\nthree\n",
+        )?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","agentRuleMaxLines":2}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "ai-rule-index",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("configured ai-rule-index check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings.iter().any(|finding| {
+                finding["file"] == ".ocentra-ai/rules/child.mdc" && finding["line"] == 3
+            })
+        }));
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","agentRuleMaxLines":3}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "ai-rule-index",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("clean ai-rule-index check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "ai-rule-index",
+                "maxLines": 2.5,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("invalid ai-rule-index override did not produce a result".into());
+        };
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("must be a non-negative integer")));
         Ok(())
     }
 
