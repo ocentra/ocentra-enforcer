@@ -3952,6 +3952,46 @@ mod tests {
     }
 
     #[test]
+    fn check_sbom_default_output_matches_the_native_cli_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("crates/app/src"))?;
+        std::fs::write(
+            temp.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/app\"]\nresolver = \"2\"\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/app/Cargo.toml"),
+            "[package]\nname = \"default-output-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/app/src/lib.rs"),
+            "pub fn app() {}\n",
+        )?;
+        std::fs::write(
+            temp.path().join("Cargo.lock"),
+            "version = 4\n\n[[package]]\nname = \"default-output-app\"\nversion = \"0.1.0\"\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "sbom",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("default-output SBOM check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert!(temp
+            .path()
+            .join("target/security/cargo-sbom.json")
+            .is_file());
+        Ok(())
+    }
+
+    #[test]
     fn run_status_returns_process_local_validation_after_final_check_shape(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
