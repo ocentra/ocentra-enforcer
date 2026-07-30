@@ -40,9 +40,10 @@ fn current_repo_root() -> Result<RepoRoot, String> {
 fn resolve_files(
     root: &RepoRoot,
     resolved: &ResolvedScope,
+    ignore_rules: &walk::IgnoreRules,
 ) -> std::io::Result<Vec<enforcer_domain::paths::RelPath>> {
     let root_path = Path::new(root.as_str());
-    let all_files = walk::walk(root_path, &walk::IgnoreRules::default())?;
+    let all_files = walk::walk(root_path, ignore_rules)?;
     if resolved.explicit_paths.is_empty() {
         return Ok(all_files);
     }
@@ -55,6 +56,19 @@ fn resolve_files(
                 .any(|explicit| file.as_str().starts_with(explicit.as_str()))
         })
         .collect())
+}
+
+/// Load the project's authoritative walk exclusions once at the CLI boundary.
+/// Every native command that enumerates repository files must use these rules:
+/// fixtures, vendored corpora, and generated paths are not product source.
+fn load_ignore_rules(root: &RepoRoot) -> Result<walk::IgnoreRules, String> {
+    let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = enforcer_config::load_project_config_with_env(&config_path)
+        .map_err(|error| error.to_string())?;
+    Ok(walk::IgnoreRules::new(
+        config.ignore_dirs,
+        config.ignore_file_globs,
+    ))
 }
 
 /// Run the scan engine over a resolved [`ScopeArgs`] and render the
@@ -89,7 +103,9 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
             return ExitCode::UsageError;
         }
     };
-    let files = match resolve_files(&root, &resolved) {
+    let ignore_rules =
+        walk::IgnoreRules::new(config.ignore_dirs.clone(), config.ignore_file_globs.clone());
+    let files = match resolve_files(&root, &resolved, &ignore_rules) {
         Ok(files) => files,
         Err(err) => {
             output::print_internal_error(&format!("walk failed: {err}"));
@@ -146,6 +162,13 @@ fn run_dependency_policy() -> ExitCode {
         }
     };
     let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let ignore_rules = match load_ignore_rules(&root) {
+        Ok(rules) => rules,
+        Err(err) => {
+            output::print_config_error(&err);
+            return ExitCode::ConfigError;
+        }
+    };
     let resolved = match enforcer_scan::scope::resolve(&request, &root) {
         Ok(resolved) => resolved,
         Err(err) => {
@@ -153,7 +176,7 @@ fn run_dependency_policy() -> ExitCode {
             return ExitCode::UsageError;
         }
     };
-    let files = match resolve_files(&root, &resolved) {
+    let files = match resolve_files(&root, &resolved, &ignore_rules) {
         Ok(files) => files,
         Err(err) => {
             output::print_internal_error(&format!("walk failed: {err}"));
@@ -181,6 +204,13 @@ fn run_secret_policy() -> ExitCode {
         }
     };
     let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let ignore_rules = match load_ignore_rules(&root) {
+        Ok(rules) => rules,
+        Err(err) => {
+            output::print_config_error(&err);
+            return ExitCode::ConfigError;
+        }
+    };
     let resolved = match enforcer_scan::scope::resolve(&request, &root) {
         Ok(resolved) => resolved,
         Err(err) => {
@@ -188,7 +218,7 @@ fn run_secret_policy() -> ExitCode {
             return ExitCode::UsageError;
         }
     };
-    let files = match resolve_files(&root, &resolved) {
+    let files = match resolve_files(&root, &resolved, &ignore_rules) {
         Ok(files) => files,
         Err(err) => {
             output::print_internal_error(&format!("walk failed: {err}"));
