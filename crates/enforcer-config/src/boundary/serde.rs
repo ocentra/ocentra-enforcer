@@ -932,7 +932,7 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                     })
                 })
                 .collect::<Result<_, DecodeError>>()?,
-            agent_rule_max_lines: AgentRuleLineBudget::new(value.agent_rule_max_lines),
+            agent_rule_max_lines: AgentRuleLineBudget::from_config(value.agent_rule_max_lines),
             strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
             private_rust_test_module_allowlist: value
                 .private_rust_test_module_allowlist

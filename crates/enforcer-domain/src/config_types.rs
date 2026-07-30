@@ -626,7 +626,7 @@ pub struct ImportBoundaryPolicy {
 #[doc = "Canonical configured line budget for AI rule files; zero is meaningful."]
 pub struct AgentRuleLineBudget(usize);
 impl AgentRuleLineBudget {
-    pub const fn new(value: usize) -> Self {
+    pub const fn from_config(value: usize) -> Self {
         Self(value)
     }
     #[must_use]
