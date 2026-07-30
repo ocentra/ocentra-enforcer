@@ -66,6 +66,34 @@ fn write_inline_test_policy(root: &std::path::Path, policy: &str) -> std::io::Re
     )
 }
 
+fn write_dependency_policy_fixture(
+    root: &std::path::Path,
+    external_path: bool,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(root.join("crates").join("core"))?;
+    std::fs::create_dir_all(root.join("crates").join("app"))?;
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/core\", \"crates/app\"]\nresolver = \"2\"\n",
+    )?;
+    std::fs::write(
+        root.join("crates").join("core").join("Cargo.toml"),
+        "[package]\nname = \"core\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )?;
+    let dependency_path = if external_path {
+        "../outside"
+    } else {
+        "../core"
+    };
+    std::fs::write(
+        root.join("crates").join("app").join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\ncore = {{ path = \"{dependency_path}\" }}\n"
+        ),
+    )?;
+    Ok(())
+}
+
 fn run_check(
     root: &std::path::Path,
     extra_args: &[&str],
@@ -96,6 +124,32 @@ fn fail_fixture_paths_mode_exits_non_zero_with_violations_class(
         Some(1),
         "a rule violation must exit with the Violations class (1), not a generic non-zero"
     );
+    Ok(())
+}
+
+#[test]
+fn native_dependency_policy_rejects_external_local_cargo_path(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_dependency_policy_fixture(temp.path(), true)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "dependency-policy"])
+        .status()?;
+    assert_eq!(status.code(), Some(1));
+    Ok(())
+}
+
+#[test]
+fn native_dependency_policy_accepts_declared_workspace_member_path(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_dependency_policy_fixture(temp.path(), false)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "dependency-policy"])
+        .status()?;
+    assert!(status.success());
     Ok(())
 }
 

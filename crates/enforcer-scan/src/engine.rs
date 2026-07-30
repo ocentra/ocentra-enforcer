@@ -305,6 +305,34 @@ pub fn run_with_inline_test_policy(
     fold_report(scope.kind, all_findings)
 }
 
+/// Run the native Cargo local-path dependency policy over a resolved scope.
+///
+/// This is deliberately narrower than [`run_with_inline_test_policy`]: CI's
+/// dependency-policy gate needs the real Cargo-manifest invariant, not every
+/// language family piggybacking on a generic source scan. The implementation
+/// still uses the same UTF-8 read boundary and complete workspace manifest
+/// inventory as the full engine, so a scoped member cannot hide an external
+/// path behind an unscanned sibling manifest.
+pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report {
+    let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
+        .par_iter()
+        .filter(|file| file.as_str().ends_with("Cargo.toml"))
+        .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
+        .collect();
+    if let Ok(workspace_manifest) = RelPath::try_new("Cargo.toml") {
+        if !sources.iter().any(|(file, _)| file == &workspace_manifest) {
+            sources.push((
+                workspace_manifest.clone(),
+                read_file_utf8(&scope.repo_root, &workspace_manifest),
+            ));
+        }
+    }
+    let workspace_inventory = workspace_manifest_inventory(&scope.repo_root);
+    let findings =
+        cargo_workspace_policy::findings_for_sources_with_inventory(&sources, &workspace_inventory);
+    fold_report(scope.kind, findings)
+}
+
 fn should_scan_source(scope: &ResolvedScope, file: &RelPath) -> bool {
     let path = file.as_str();
     let is_fixture = path.starts_with("tests/fixtures/") || path.contains("/tests/fixtures/");

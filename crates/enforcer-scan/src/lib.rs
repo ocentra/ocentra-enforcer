@@ -49,7 +49,7 @@
 //! modules directly, e.g. `enforcer_scan::engine::scan`.
 
 pub mod boundary;
-pub(crate) mod cargo_workspace_policy;
+pub mod cargo_workspace_policy;
 pub mod coverage;
 pub mod engine;
 pub mod modes;

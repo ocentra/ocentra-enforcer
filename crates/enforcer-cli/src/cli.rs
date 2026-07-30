@@ -112,6 +112,11 @@ pub enum Command {
         #[command(subcommand)]
         action: ArchitectureAction,
     },
+    /// Native CI policy checks that have a real Rust implementation.
+    Policy {
+        #[command(subcommand)]
+        action: PolicyAction,
+    },
     /// f02 ratchet-first onboarding: create `.enforce/`, write (or
     /// preserve) the project profile, capture a baseline over every
     /// current violation, and register the project. Explicit and
@@ -159,6 +164,16 @@ pub struct MemoryCliArgs {
 pub enum ArchitectureAction {
     /// Run the architecture-policy/import-boundaries checks.
     Check(ArchitectureCheckArgs),
+}
+
+/// Native CI policy check actions. Each action is only exposed once backed by
+/// a concrete Rust engine; unsupported legacy checks are intentionally absent.
+#[derive(Debug, Subcommand)]
+pub enum PolicyAction {
+    /// Reject local Cargo path dependencies that are neither a declared
+    /// workspace member nor an in-crate vendored grammar dependency.
+    #[command(name = "dependency-policy")]
+    DependencyPolicy,
 }
 
 /// Arguments for the architecture-policy check.

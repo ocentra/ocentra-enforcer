@@ -12,7 +12,7 @@ use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::scan_types::ResolvedScope;
 use enforcer_scan::{engine, walk};
 
-use crate::cli::{ArchitectureAction, ArchitectureCheckArgs, ScopeArgs, VerifyArgs};
+use crate::cli::{ArchitectureAction, ArchitectureCheckArgs, PolicyAction, ScopeArgs, VerifyArgs};
 use crate::output;
 
 /// Resolve the repo root to scan/check against: the current working
@@ -123,6 +123,46 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
 /// pretending a subsetting engine exists when it does not.
 pub fn run_verify(args: &VerifyArgs) -> ExitCode {
     run_scoped_check(&args.scope)
+}
+
+/// `enforcer policy dependency-policy`: run the native Cargo local-path
+/// dependency policy against the whole current workspace.
+pub fn run_policy(action: &PolicyAction) -> ExitCode {
+    match action {
+        PolicyAction::DependencyPolicy => run_dependency_policy(),
+    }
+}
+
+fn run_dependency_policy() -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let resolved = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            output::print_usage_error(&err.to_string());
+            return ExitCode::UsageError;
+        }
+    };
+    let files = match resolve_files(&root, &resolved) {
+        Ok(files) => files,
+        Err(err) => {
+            output::print_internal_error(&format!("walk failed: {err}"));
+            return ExitCode::InternalError;
+        }
+    };
+    let report = enforcer_scan::engine::run_dependency_policy(&resolved, &files);
+    output::print_report(&report);
+    if report.ok == ReportOutcome::Clean {
+        ExitCode::Success
+    } else {
+        ExitCode::Violations
+    }
 }
 
 /// `enforcer advise literals`. Routes to `enforcer-literal-scan`'s

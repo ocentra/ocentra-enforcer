@@ -129,6 +129,7 @@ fn dispatch(command: &Command) -> ExitCode {
         Command::Architecture { action } => match action {
             ArchitectureAction::Check(_) => commands::run_architecture(action),
         },
+        Command::Policy { action } => commands::run_policy(action),
         Command::Onboard(args) => onboard::run_onboard(args),
         Command::Hook {
             action: HookAction::PreToolUse,
