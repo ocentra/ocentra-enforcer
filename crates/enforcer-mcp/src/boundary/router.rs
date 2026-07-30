@@ -3876,6 +3876,48 @@ mod tests {
     }
 
     #[test]
+    fn check_required_tests_honors_explicit_file_scope() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("crates/covered/tests"))?;
+        std::fs::create_dir_all(temp.path().join("crates/missing/src"))?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        std::fs::write(
+            temp.path().join("crates/covered/Cargo.toml"),
+            "[package]\nname=\"covered\"\nversion=\"0.1.0\"\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/covered/tests/integration.rs"),
+            "#[test]\nfn ok() {}\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/missing/Cargo.toml"),
+            "[package]\nname=\"missing\"\nversion=\"0.1.0\"\n",
+        )?;
+        std::fs::write(
+            temp.path().join("crates/missing/src/lib.rs"),
+            "pub fn missing() {}\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "required-tests",
+                "scope": "files",
+                "files": ["crates/covered/tests/integration.rs"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("scoped required-tests check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        Ok(())
+    }
+
+    #[test]
     fn check_secrets_staged_is_git_index_scoped_and_rejects_non_boolean_option(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;

@@ -32,12 +32,8 @@ fn current_repo_root() -> Result<RepoRoot, String> {
 /// Resolve a scope request into the concrete file list the engine should
 /// read. `Paths` mode intersects the walked tree with the caller's
 /// explicit paths (files pass through directly; directories are expanded
-/// by re-walking rooted at the directory); `All`/`Diff` walk the whole
-/// tree (a `Diff` git-range restriction is not implemented by
-/// `enforcer-scan` yet -- this skeleton walks the full tree for `Diff`
-/// too rather than silently scanning zero files, and callers relying on
-/// true diff-scoping should track that gap, not assume it is silently
-/// narrower).
+/// by re-walking rooted at the directory); `All` walks the whole tree and
+/// `Diff` resolves the Git range to changed paths before filtering.
 fn resolve_files(
     root: &RepoRoot,
     resolved: &ResolvedScope,
@@ -45,6 +41,24 @@ fn resolve_files(
 ) -> std::io::Result<Vec<enforcer_domain::paths::RelPath>> {
     let root_path = Path::new(root.as_str());
     let all_files = walk::walk(root_path, ignore_rules)?;
+    if resolved.kind == enforcer_domain::findings::ScanScope::Diff {
+        let Some((base, head)) = &resolved.diff_range else {
+            return Ok(Vec::new());
+        };
+        let output = std::process::Command::new("git")
+            .args(["diff", "--name-only", base.as_str(), head.as_str()])
+            .current_dir(root.as_str())
+            .output()?;
+        if !output.status.success() {
+            return Err(std::io::Error::other("git diff --name-only failed"));
+        }
+        let changed = String::from_utf8_lossy(&output.stdout);
+        let changed: std::collections::BTreeSet<_> = changed.lines().collect();
+        return Ok(all_files
+            .into_iter()
+            .filter(|file| changed.contains(file.as_str()))
+            .collect());
+    }
     if resolved.explicit_paths.is_empty() {
         return Ok(all_files);
     }
@@ -322,7 +336,13 @@ fn run_required_tests_policy(args: &RequiredTestsArgs) -> ExitCode {
             return ExitCode::ConfigError;
         }
     };
-    let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let request = match crate::scope::resolve_request(&args.scope) {
+        Ok(request) => request,
+        Err(message) => {
+            output::print_usage_error(&message);
+            return ExitCode::UsageError;
+        }
+    };
     let resolved = match enforcer_scan::scope::resolve(&request, &root) {
         Ok(resolved) => resolved,
         Err(error) => {

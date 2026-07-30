@@ -473,6 +473,9 @@ pub fn run_required_test_policy(
             if !manifest.is_file() {
                 continue;
             }
+            if workspace != "crates" && !project.join("src").is_dir() {
+                continue;
+            }
             let tests = project.join("tests");
             let has_tests = if workspace == "crates" {
                 has_extension(&tests, "rs")
@@ -563,18 +566,13 @@ fn inline_test_marker<'a>(file: &RelPath, lines: &[&'a str]) -> Option<(usize, &
     if file.as_str().ends_with(".rs") {
         return lines
             .iter()
-            .position(|line| line.trim() == "#[cfg(test)]")
+            .position(|line| is_rust_inline_test_marker(line))
             .map(|index| (index, "#[cfg(test)]"));
     }
     if file.as_str().ends_with(".py") {
         return lines
             .iter()
-            .position(|line| {
-                let trimmed = line.trim_start();
-                trimmed
-                    .strip_prefix("def test_")
-                    .is_some_and(|rest| rest.contains('('))
-            })
+            .position(|line| is_python_inline_test_marker(line))
             .and_then(|index| lines.get(index).map(|line| (index, line.trim())));
     }
     if matches!(
@@ -587,6 +585,25 @@ fn inline_test_marker<'a>(file: &RelPath, lines: &[&'a str]) -> Option<(usize, &
             .and_then(|index| lines.get(index).map(|line| (index, line.trim())));
     }
     None
+}
+
+fn is_rust_inline_test_marker(line: &str) -> bool {
+    let compact: String = line
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    compact.starts_with("#[cfg(test)]")
+}
+
+fn is_python_inline_test_marker(line: &str) -> bool {
+    let Some(rest) = line.strip_prefix("def test_") else {
+        return false;
+    };
+    let identifier_length = rest
+        .chars()
+        .take_while(|character| character.is_ascii_alphanumeric() || *character == '_')
+        .count();
+    identifier_length > 0 && rest[identifier_length..].trim_start().starts_with('(')
 }
 
 fn is_typescript_inline_test(line: &str) -> bool {
@@ -638,13 +655,23 @@ fn is_allowlisted_private_rust_test_module(
         == 1
         && lines
             .get(index + 1)
-            .is_some_and(|line| line.trim() == format!("#[path = \"{expected_path}\"]"))
+            .is_some_and(|line| is_private_test_path_attribute(line, expected_path))
         && lines
             .get(index + 2)
             .is_some_and(|line| line.trim() == format!("mod {};", entry.module_name()))
         && std::path::Path::new(root.as_str())
             .join(entry.module_file().as_str())
             .is_file()
+}
+
+fn is_private_test_path_attribute(line: &str, expected_path: &str) -> bool {
+    let Some(after_path) = line.trim().strip_prefix("#[path") else {
+        return false;
+    };
+    let Some(after_equals) = after_path.trim_start().strip_prefix('=') else {
+        return false;
+    };
+    after_equals.trim_start() == format!("\"{expected_path}\"]")
 }
 
 fn inline_test_finding(file: &RelPath, line_number: usize, snippet: &str) -> Option<Finding> {
@@ -674,12 +701,20 @@ fn has_test_script(root: &std::path::Path) -> bool {
                 [".test.", ".spec."]
                     .iter()
                     .any(|marker| name.contains(marker))
-                    && matches!(
-                        name.rsplit('.').next(),
-                        Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts" | "tsx" | "jsx")
-                    )
+                    && is_typescript_test_filename(name)
             })
     })
+}
+
+fn is_typescript_test_filename(name: &str) -> bool {
+    let Some(extension) = name.rsplit('.').next() else {
+        return false;
+    };
+    let extension = extension
+        .strip_prefix('c')
+        .or_else(|| extension.strip_prefix('m'))
+        .unwrap_or(extension);
+    matches!(extension, "ts" | "tsx")
 }
 
 fn empty_test_tree_findings(
@@ -1109,6 +1144,83 @@ mod tests {
         let files = walk(temp.path(), &IgnoreRules::default())?;
         let report = run_required_test_policy(&resolved, &files, true, &allowlist);
         assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_matches_frozen_project_and_private_module_shapes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "packages/no-src/package.json",
+            "{\"name\":\"no-src\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/package.json",
+            "{\"name\":\"js-only\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/src/view.ts",
+            "export const view = 1;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/tests/view.test.js",
+            "test('x', () => {});\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/package.json",
+            "{\"name\":\"typescript\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/src/view.ts",
+            "export const view = 1;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/tests/view.spec.mtsx",
+            "test('x', () => {});\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/Cargo.toml",
+            "[package]\nname=\"example\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/tests/integration.rs",
+            "#[test]\nfn ok() {}\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib.rs",
+            "#[cfg(test)]\n#[path=\"lib_private_tests.rs\"]\nmod lib_private_tests;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib_private_tests.rs",
+            "#[test]\nfn ok() {}\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let allowlist = vec![PrivateRustTestModuleAllowlistEntry::try_new(
+            "crates/example/src/lib.rs".parse()?,
+            "crates/example/src/lib_private_tests.rs".parse()?,
+            "lib_private_tests".to_owned(),
+        )?];
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, false, &allowlist);
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert_eq!(report.findings.len(), 1, "{:?}", report.findings);
+        assert_eq!(
+            report.findings[0].file.as_str(),
+            "packages/js-only/package.json"
+        );
         Ok(())
     }
 

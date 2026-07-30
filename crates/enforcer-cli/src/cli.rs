@@ -212,6 +212,9 @@ pub struct RequiredTestsArgs {
     /// when the project configuration does not require strict empty trees.
     #[arg(long)]
     pub strict_empty_test_trees: bool,
+    /// Limit the policy to explicit paths, a Git diff, or the full workspace.
+    #[command(flatten)]
+    pub scope: ScopeArgs,
 }
 
 #[derive(Debug, Args)]
@@ -344,6 +347,30 @@ mod tests {
             Command::Check(scope) => assert_eq!(scope.paths.len(), 1),
             other => return Err(format!("expected Check, got {other:?}").into()),
         }
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_accepts_the_standard_scope_modes() -> Result<(), Box<dyn std::error::Error>> {
+        let paths = parse(&["policy", "required-tests", "crates/example/src/lib.rs"])?;
+        let all = parse(&["policy", "required-tests", "--all"])?;
+        let diff = parse(&[
+            "policy",
+            "required-tests",
+            "--base",
+            "main",
+            "--head",
+            "HEAD",
+        ])?;
+        assert!(
+            matches!(paths.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.paths.len() == 1)
+        );
+        assert!(
+            matches!(all.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.all)
+        );
+        assert!(
+            matches!(diff.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.base.as_deref() == Some("main") && args.scope.head.as_deref() == Some("HEAD"))
+        );
         Ok(())
     }
 

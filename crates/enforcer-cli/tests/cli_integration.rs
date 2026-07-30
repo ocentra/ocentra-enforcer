@@ -158,6 +158,43 @@ fn run_check(
     Ok(cmd.status()?)
 }
 
+fn run_required_tests(
+    root: &std::path::Path,
+    extra_args: &[&str],
+) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
+    Ok(Command::new(binary_path()?)
+        .current_dir(root)
+        .args(["policy", "required-tests"])
+        .args(extra_args)
+        .status()?)
+}
+
+#[test]
+fn required_tests_policy_honors_explicit_file_scope() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("crates/covered/tests"))?;
+    std::fs::create_dir_all(temp.path().join("crates/missing/src"))?;
+    std::fs::write(
+        temp.path().join("crates/covered/Cargo.toml"),
+        "[package]\nname=\"covered\"\nversion=\"0.1.0\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/covered/tests/integration.rs"),
+        "#[test]\nfn ok() {}\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/missing/Cargo.toml"),
+        "[package]\nname=\"missing\"\nversion=\"0.1.0\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/missing/src/lib.rs"),
+        "pub fn missing() {}\n",
+    )?;
+    assert!(run_required_tests(temp.path(), &["crates/covered/tests/integration.rs"])?.success());
+    assert_eq!(run_required_tests(temp.path(), &["--all"])?.code(), Some(1));
+    Ok(())
+}
+
 #[test]
 fn pass_fixture_paths_mode_exits_zero() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
