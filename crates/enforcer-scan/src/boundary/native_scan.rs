@@ -241,6 +241,26 @@ pub fn execute_single_source_contracts(
     })
 }
 
+pub fn execute_ai_rule_index(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    max_lines: Option<usize>,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report =
+        crate::ai_rule_index::check(repo_root, resolved.kind, max_lines).map_err(|reason| {
+            NativeScanError::Io {
+                operation: "ai-rule-index check",
+                reason,
+            }
+        })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the resolved, config-driven source-shape policy.  This is kept
 /// separate from the broad family scan because the policy selects files by
 /// configured roots and extensions, then applies ordered path overrides.

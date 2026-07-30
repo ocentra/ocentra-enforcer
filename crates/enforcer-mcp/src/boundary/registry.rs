@@ -275,6 +275,10 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "ai-rule-index" => ["AI-1.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
                 "architecture-policy" => [
                     "RR-7.2",
                     "RR-7.3",

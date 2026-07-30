@@ -194,6 +194,8 @@ pub enum PolicyAction {
     GeneratedArtifacts(GeneratedArtifactsArgs),
     #[command(name = "single-source-contracts")]
     SingleSourceContracts(SingleSourceContractsArgs),
+    #[command(name = "ai-rule-index")]
+    AiRuleIndex(AiRuleIndexArgs),
 }
 
 /// Output selection for the native Cargo SBOM policy.
@@ -223,6 +225,11 @@ pub struct GeneratedArtifactsArgs {
 pub struct SingleSourceContractsArgs {
     #[arg(long)]
     pub config_path: Option<PathBuf>,
+}
+#[derive(Debug, Args)]
+pub struct AiRuleIndexArgs {
+    #[arg(long)]
+    pub max_lines: Option<usize>,
 }
 
 /// Arguments for the architecture-policy check.

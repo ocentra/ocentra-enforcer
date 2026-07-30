@@ -1001,6 +1001,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
+    } else if name == "ai-rule-index" {
+        [NATIVE_SCAN_FIELDS, &["maxLines"]].concat()
     } else if name == "source-shape"
         || name == "architecture-policy"
         || name == "single-source-contracts"
@@ -1032,6 +1034,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "source-shape" => named_source_shape_unrecorded(&native_args),
         "architecture-policy" => named_architecture_policy_unrecorded(&native_args),
         "single-source-contracts" => named_single_source_contracts_unrecorded(&native_args),
+        "ai-rule-index" => named_ai_rule_index_unrecorded(&native_args),
         _ => scan_unrecorded(&native_args),
     };
     let Some(object) = report.as_object_mut() else {
@@ -1069,6 +1072,23 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
     report
+}
+fn named_ai_rule_index_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let max_lines = match args.get("maxLines") {
+        None => None,
+        Some(serde_json::Value::Number(value)) => {
+            value.as_u64().and_then(|value| usize::try_from(value).ok())
+        }
+        Some(_) => return json_error("ai-rule-index `maxLines` must be a non-negative integer"),
+    };
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_ai_rule_index(&request, &root, max_lines)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_source_shape_unrecorded(args: &serde_json::Value) -> serde_json::Value {

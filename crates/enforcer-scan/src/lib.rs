@@ -48,6 +48,7 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_scan::engine::scan`.
 
+pub mod ai_rule_index;
 pub mod architecture_policy;
 pub mod boundary;
 pub mod cargo_workspace_policy;

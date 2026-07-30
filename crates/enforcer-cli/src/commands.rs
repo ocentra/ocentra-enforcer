@@ -13,8 +13,8 @@ use enforcer_domain::scan_types::{IgnoreDirectorySegment, ResolvedScope};
 use enforcer_scan::{engine, walk};
 
 use crate::cli::{
-    ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs, PolicyAction,
-    RequiredTestsArgs, SbomArgs, ScopeArgs, SingleSourceContractsArgs, VerifyArgs,
+    AiRuleIndexArgs, ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs,
+    PolicyAction, RequiredTestsArgs, SbomArgs, ScopeArgs, SingleSourceContractsArgs, VerifyArgs,
 };
 use crate::output;
 
@@ -162,6 +162,34 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
         PolicyAction::RequiredTests(args) => run_required_tests_policy(args),
         PolicyAction::GeneratedArtifacts(args) => run_generated_artifacts_policy(args),
         PolicyAction::SingleSourceContracts(args) => run_single_source_contracts_policy(args),
+        PolicyAction::AiRuleIndex(args) => run_ai_rule_index_policy(args),
+    }
+}
+fn run_ai_rule_index_policy(args: &AiRuleIndexArgs) -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(error) => {
+            output::print_internal_error(&error);
+            return ExitCode::InternalError;
+        }
+    };
+    match enforcer_scan::ai_rule_index::check(
+        &root,
+        enforcer_domain::findings::ScanScope::Workspace,
+        args.max_lines,
+    ) {
+        Ok(report) => {
+            output::print_report(&report);
+            if report.ok == ReportOutcome::Clean {
+                ExitCode::Success
+            } else {
+                ExitCode::Violations
+            }
+        }
+        Err(error) => {
+            output::print_internal_error(&error);
+            ExitCode::InternalError
+        }
     }
 }
 
