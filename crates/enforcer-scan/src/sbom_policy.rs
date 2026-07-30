@@ -168,7 +168,9 @@ fn is_sha256(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_from_metadata, validate, CargoSbomDto};
+    use super::{
+        build_from_metadata, validate, CargoSbomComponentDto, CargoSbomDto, CargoSbomMetadataDto,
+    };
 
     const METADATA: &str = r#"{
         "packages": [
@@ -193,6 +195,29 @@ mod tests {
         let decoded: CargoSbomDto =
             serde_json::from_str(&encoded).map_err(|error| error.to_string())?;
         assert_eq!(decoded, original);
+        Ok(())
+    }
+
+    #[test]
+    fn cargo_sbom_nested_dtos_round_trip_preserve_external_schema() -> Result<(), String> {
+        let document = build_from_metadata(METADATA, b"locked dependency graph")?;
+        let original_metadata: CargoSbomMetadataDto = document.metadata;
+        let encoded_metadata =
+            serde_json::to_string(&original_metadata).map_err(|error| error.to_string())?;
+        let decoded_metadata: CargoSbomMetadataDto =
+            serde_json::from_str(&encoded_metadata).map_err(|error| error.to_string())?;
+        assert_eq!(decoded_metadata, original_metadata);
+
+        let original_component: CargoSbomComponentDto = document
+            .components
+            .into_iter()
+            .next()
+            .ok_or_else(|| "fixture SBOM contains no component".to_owned())?;
+        let encoded_component =
+            serde_json::to_string(&original_component).map_err(|error| error.to_string())?;
+        let decoded_component: CargoSbomComponentDto =
+            serde_json::from_str(&encoded_component).map_err(|error| error.to_string())?;
+        assert_eq!(decoded_component, original_component);
         Ok(())
     }
 

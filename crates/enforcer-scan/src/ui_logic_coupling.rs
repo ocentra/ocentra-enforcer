@@ -176,22 +176,24 @@ fn has_data_fetch(text: &str) -> bool {
     .any(|needle| lower(text).contains(needle))
 }
 fn binding_is_called(name: &str, text: &str) -> bool {
-    let bytes = text.as_bytes();
     let needle = format!("{name}.");
     let mut offset = 0;
-    while let Some(index) = text[offset..].find(&needle) {
+    while let Some(index) = text
+        .get(offset..)
+        .and_then(|remaining| remaining.find(&needle))
+    {
         let start = offset + index + needle.len();
-        let rest = &text[start..];
-        let method = rest
-            .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-            .count();
-        if method > 0 && rest[method..].trim_start().starts_with('(') {
+        let Some(rest) = text.get(start..) else {
+            break;
+        };
+        let after_method = rest.trim_start_matches(|character: char| {
+            character.is_ascii_alphanumeric() || character == '_'
+        });
+        if after_method.len() < rest.len() && after_method.trim_start().starts_with('(') {
             return true;
         }
         offset = start;
     }
-    let _ = bytes;
     false
 }
 fn scan_file(
@@ -286,6 +288,17 @@ mod tests {
             "import { api } from '/services/orders';\nexport const Orders = () => null;",
         )])?;
         assert_eq!(report["summary"]["totalFindings"], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn non_ascii_text_before_a_member_call_is_scanned_without_panicking(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = report_for(&[(
+            "src/components/Orders.tsx",
+            "import { api } from '/lib/api';\nconst label = 'café';\napi.load();",
+        )])?;
+        assert_eq!(report["summary"]["hardFindings"], 1);
         Ok(())
     }
 }
