@@ -220,7 +220,13 @@ fn glob_matches(pattern: &str, path: &str) -> bool {
 }
 
 fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) -> Vec<Finding> {
-    let lines = source.lines().collect::<Vec<_>>();
+    // This deliberately preserves the final empty line, matching the frozen
+    // checker's `text.split(/\\r?\\n/)` accounting. `str::lines()` would make
+    // a trailing newline disappear and accept a file at its line budget.
+    let lines = source
+        .split('\n')
+        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+        .collect::<Vec<_>>();
     let mut out = Vec::new();
     let starts = function_starts(&lines, kind);
     let metrics = Metrics::from_lines(&lines, kind, &starts);
@@ -345,7 +351,7 @@ impl Metrics {
         };
         for line in lines {
             let trim = line.trim_start();
-            metrics.branches += branch_count(trim, kind);
+            metrics.branches += usize::from(branch_count(trim, kind));
             if matches!(kind, SourceShapeKind::Python) && trim.starts_with("class ") {
                 metrics.classes += 1;
             }
@@ -374,12 +380,7 @@ fn function_starts(lines: &[&str], kind: SourceShapeKind) -> Vec<usize> {
         .filter_map(|(index, line)| {
             let trim = line.trim_start();
             let yes = match kind {
-                SourceShapeKind::Rust => {
-                    trim.starts_with("fn ")
-                        || trim.starts_with("pub fn ")
-                        || trim.starts_with("async fn ")
-                        || trim.starts_with("pub async fn ")
-                }
+                SourceShapeKind::Rust => rust_function_start(trim),
                 SourceShapeKind::Python => {
                     trim.starts_with("def ") || trim.starts_with("async def ")
                 }
@@ -393,23 +394,71 @@ fn function_starts(lines: &[&str], kind: SourceShapeKind) -> Vec<usize> {
         })
         .collect()
 }
-fn branch_count(line: &str, kind: SourceShapeKind) -> usize {
-    let words: &[&str] = match kind {
-        SourceShapeKind::Python => &[
-            "if ", "elif ", "for ", "while ", "try", "except", "with ", "match ", "case ",
-        ],
-        _ => &["if ", "for ", "while ", "loop", "match", "=>"],
-    };
-    words
+fn rust_function_start(line: &str) -> bool {
+    let mut rest = line;
+    if let Some(after_pub) = rest.strip_prefix("pub") {
+        let Some(after_visibility) = after_pub.strip_prefix(' ').or_else(|| {
+            after_pub
+                .strip_prefix('(')
+                .and_then(|tail| tail.find(')').and_then(|end| tail.get(end + 1..)))
+                .and_then(|tail| tail.strip_prefix(' '))
+        }) else {
+            return false;
+        };
+        rest = after_visibility;
+    }
+    let rest = rest.strip_prefix("async ").unwrap_or(rest);
+    rest.strip_prefix("fn ").is_some_and(|name| {
+        name.chars()
+            .next()
+            .is_some_and(|value| value.is_alphanumeric() || value == '_')
+    })
+}
+
+/// The frozen helper's `countMatches` increments once per *line* that matches
+/// its regex, rather than once for each token occurrence. Preserve that
+/// intentionally coarse lexical metric here.
+fn branch_count(line: &str, kind: SourceShapeKind) -> bool {
+    match kind {
+        SourceShapeKind::Python => [
+            "if", "elif", "for", "while", "try", "except", "with", "match", "case",
+        ]
         .iter()
-        .map(|word| line.match_indices(word).count())
-        .sum()
+        .any(|word| contains_word(line, word)),
+        SourceShapeKind::Typescript | SourceShapeKind::Common => {
+            ["if", "else", "for", "while", "switch", "case", "catch"]
+                .iter()
+                .any(|word| contains_word(line, word))
+                || line.contains('?') && line.contains(':')
+        }
+        SourceShapeKind::Rust => {
+            ["if", "else", "for", "while", "loop", "match"]
+                .iter()
+                .any(|word| contains_word(line, word))
+                || line.contains("=>")
+        }
+    }
+}
+
+fn contains_word(line: &str, word: &str) -> bool {
+    line.match_indices(word).any(|(index, _)| {
+        let Some(before_text) = line.get(..index) else {
+            return false;
+        };
+        let Some(after_text) = line.get(index.saturating_add(word.len())..) else {
+            return false;
+        };
+        let before = before_text.chars().next_back();
+        let after = after_text.chars().next();
+        !before.is_some_and(|value| value == '_' || value.is_alphanumeric())
+            && !after.is_some_and(|value| value == '_' || value.is_alphanumeric())
+    })
 }
 fn brace_nesting(lines: &[&str]) -> usize {
     let mut depth: usize = 0;
     let mut max: usize = 0;
     for line in lines {
-        for byte in line.bytes() {
+        for byte in mask_brace_sensitive_line(line).bytes() {
             match byte {
                 b'{' => {
                     depth += 1;
@@ -421,6 +470,38 @@ fn brace_nesting(lines: &[&str]) -> usize {
         }
     }
     max
+}
+
+/// Match the frozen brace metric: comments and quoted text do not create code
+/// nesting. This is intentionally lexical, not a Rust parser.
+fn mask_brace_sensitive_line(line: &str) -> String {
+    let mut output = String::with_capacity(line.len());
+    let mut quote = None;
+    let mut escaped = false;
+    let mut chars = line.chars().peekable();
+    while let Some(value) = chars.next() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if value == '\\' {
+                escaped = true;
+            } else if value == delimiter {
+                quote = None;
+            }
+            output.push(' ');
+            continue;
+        }
+        if value == '/' && chars.peek() == Some(&'/') {
+            break;
+        }
+        if matches!(value, '\'' | '\"' | '`') {
+            quote = Some(value);
+            output.push(' ');
+        } else {
+            output.push(value);
+        }
+    }
+    output
 }
 fn python_nesting(lines: &[&str]) -> usize {
     lines
@@ -451,7 +532,7 @@ fn block_end(lines: &[&str], start: usize, kind: SourceShapeKind) -> usize {
     let mut depth: usize = 0;
     let mut opened = false;
     for (index, line) in lines.iter().enumerate().skip(start) {
-        for byte in line.bytes() {
+        for byte in mask_brace_sensitive_line(line).bytes() {
             if byte == b'{' {
                 depth += 1;
                 opened = true;
@@ -568,7 +649,7 @@ mod tests {
         std::fs::create_dir_all(temp.path().join("src"))?;
         std::fs::write(
             temp.path().join("src/a.rs"),
-            "fn a() { if yes { if again { } } }\n",
+            "fn a() {\n    if yes {\n        if again { }\n    }\n}\n",
         )?;
         std::fs::write(
             temp.path().join("config.json"),
@@ -584,6 +665,59 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(ids.contains(&"SRC-2.6"));
         assert!(ids.contains(&"SRC-2.7"));
+        Ok(())
+    }
+
+    #[test]
+    fn rust_shape_matches_frozen_line_and_visibility_semantics(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/a.rs"),
+            "pub(crate) fn one() {}\nfn two() {}\nlet ignored = \"{ nested }\"; // { also ignored }\n",
+        )?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".rs"],"kind":"rust","maxFunctions":1,"maxNestingDepth":1,"maxLines":3}]}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let report = check(&root, ScanScope::Files, &["src/a.rs".parse()?], &config)?;
+        let ids = report
+            .findings
+            .iter()
+            .map(|finding| finding.rule_id.as_str())
+            .collect::<Vec<_>>();
+        assert!(ids.contains(&"SRC-1.1"));
+        assert!(ids.contains(&"SRC-2.1"));
+        assert!(!ids.contains(&"SRC-2.6"));
+        Ok(())
+    }
+
+    #[test]
+    fn workspace_execution_discovers_policy_candidates_and_rejects_them(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "fn one() {}\nfn two() {}\n")?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".rs"],"kind":"rust","maxFunctions":1}]}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let request = crate::boundary::native_scan::NativeScanRequest {
+            scope: crate::boundary::native_scan::NativeScanScope::Workspace,
+            languages: Vec::new(),
+        };
+        let result =
+            crate::boundary::native_scan::execute_source_shape_policy(&request, &root, &config)?;
+        assert!(result
+            .scanned_files
+            .iter()
+            .any(|path| path.as_str() == "src/lib.rs"));
+        assert_eq!(result.report.ok, ReportOutcome::Violations);
         Ok(())
     }
 }
