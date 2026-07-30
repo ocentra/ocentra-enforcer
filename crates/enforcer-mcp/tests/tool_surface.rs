@@ -136,6 +136,12 @@ fn live_registry_currently_passes_the_committed_baseline() -> Result<(), Box<dyn
     // commit" requirement.
     let baseline = load_baseline(&committed_baseline_path())?;
     let live = measure_current_surface();
+    // Exact frozen-schema parity deliberately expanded every coordination
+    // descriptor from a permissive placeholder to its complete strict wire
+    // contract. Pin the reviewed post-expansion shape; the 10% ratchet below
+    // remains unchanged and rejects any unreviewed future growth.
+    assert_eq!(usize::from(live.tool_count()), 102);
+    assert_eq!(usize::from(live.total_bytes()), 145_039);
     let outcome = enforcer_core::context_budget::evaluate(live, baseline);
     assert!(
         decision(&outcome) == BudgetGateDecision::Pass,

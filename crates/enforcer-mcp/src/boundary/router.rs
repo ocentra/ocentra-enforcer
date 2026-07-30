@@ -112,6 +112,7 @@ pub fn dispatch(
     match canonical.as_str() {
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args, ctx)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args, ctx)),
+        "ocentra_enforcer_explain" => DispatchOutcome::Result(explain(args)),
         "ocentra_enforcer_run" => DispatchOutcome::Result(run_harness(args)),
         "ocentra_enforcer_run_status" => DispatchOutcome::Result(run_status(args, ctx)),
         "ocentra_enforcer_doctor" => DispatchOutcome::Result(doctor(args)),
@@ -178,6 +179,55 @@ pub fn dispatch(
             }))
         }
         _ => DispatchOutcome::UnknownTool,
+    }
+}
+
+/// Native `ocentra_enforcer_explain`: decode the public id at this boundary,
+/// then resolve it from the Rust-compiled rule catalog.  A missing/malformed
+/// id is an explicit rejection, never a best-effort MJS subprocess fallback.
+fn explain(args: &serde_json::Value) -> serde_json::Value {
+    let Some(raw_rule_id) = args.get("ruleId").and_then(serde_json::Value::as_str) else {
+        return serde_json::json!({
+            "ok": false,
+            "error": "ruleId is required and must be a string",
+            "kind": "invalid_input",
+        });
+    };
+    let rule_id = match raw_rule_id.parse::<enforcer_domain::ids::RuleId>() {
+        Ok(value) => value,
+        Err(error) => {
+            return serde_json::json!({
+                "ok": false,
+                "ruleId": raw_rule_id,
+                "error": error.to_string(),
+                "kind": "invalid_rule_id",
+            })
+        }
+    };
+    match crate::registry::explain_rule(&rule_id) {
+        Ok(Some(rule)) => serde_json::json!({
+            "ok": true,
+            "ruleId": rule.rule_id.to_string(),
+            "language": rule.language,
+            "family": rule.family,
+            "severity": rule.severity,
+            "title": rule.title,
+            "fixHint": rule.fix_hint,
+            "doc": rule.doc_anchor,
+            "source": "native-rust-rule-catalog",
+        }),
+        Ok(None) => serde_json::json!({
+            "ok": false,
+            "ruleId": raw_rule_id,
+            "error": "rule id is not present in the native Rust rule catalog",
+            "kind": "rule_not_found",
+        }),
+        Err(error) => serde_json::json!({
+            "ok": false,
+            "ruleId": raw_rule_id,
+            "error": error,
+            "kind": "native_catalog_error",
+        }),
     }
 }
 
@@ -2502,6 +2552,52 @@ mod tests {
             &ctx(McpFreshness::Stale),
         );
         assert!(matches!(outcome, DispatchOutcome::Result(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn explain_reads_the_native_rule_catalog_and_never_needs_mjs(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_explain")?,
+            &serde_json::json!({"ruleId":"RR-6.1"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("explain did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["ruleId"], serde_json::json!("RR-6.1"));
+        assert_eq!(
+            value["source"],
+            serde_json::json!("native-rust-rule-catalog")
+        );
+        assert!(value["fixHint"]
+            .as_str()
+            .is_some_and(|hint| !hint.is_empty()));
+        Ok(())
+    }
+
+    #[test]
+    fn explain_rejects_unknown_or_malformed_rule_ids() -> Result<(), Box<dyn std::error::Error>> {
+        let unknown = dispatch(
+            &tool("ocentra_enforcer_explain")?,
+            &serde_json::json!({"ruleId":"RR-999.999"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(unknown) = unknown else {
+            return Err("unknown explain did not produce a result".into());
+        };
+        assert_eq!(unknown["kind"], serde_json::json!("rule_not_found"));
+        let malformed = dispatch(
+            &tool("ocentra_enforcer_explain")?,
+            &serde_json::json!({"ruleId":"not a rule"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(malformed) = malformed else {
+            return Err("malformed explain did not produce a result".into());
+        };
+        assert_eq!(malformed["kind"], serde_json::json!("invalid_rule_id"));
         Ok(())
     }
 

@@ -12,6 +12,54 @@
 use crate::boundary::tool_descriptor::ToolDescriptorDto;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::mcp_types::McpToolName;
+use std::collections::BTreeMap;
+use std::sync::OnceLock;
+
+/// A native explanation record projected from the checked-in Rust pack rule
+/// catalog.  This is deliberately a small, typed read model: MCP consumes no
+/// MJS process and does not invent hints when a rule is absent.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RuleExplanationDto {
+    #[serde(rename = "id")]
+    pub rule_id: RuleId,
+    pub language: String,
+    pub family: String,
+    pub severity: String,
+    pub title: String,
+    #[serde(rename = "snippet")]
+    pub fix_hint: String,
+    #[serde(rename = "doc")]
+    pub doc_anchor: String,
+}
+
+#[derive(serde::Deserialize)]
+struct RuleCatalog {
+    rules: Vec<RuleExplanationDto>,
+}
+
+/// Resolve the native checked-in rule catalog once, fail-closed on a malformed
+/// catalog, and look up a branded [`RuleId`].  The source is compiled into the
+/// Rust binary so `ocentra_enforcer_explain` has no MJS runtime dependency.
+pub fn explain_rule(rule_id: &RuleId) -> Result<Option<RuleExplanationDto>, String> {
+    static CATALOG: OnceLock<Result<BTreeMap<RuleId, RuleExplanationDto>, String>> =
+        OnceLock::new();
+    let catalog = CATALOG.get_or_init(|| {
+        let parsed: RuleCatalog =
+            serde_json::from_str(include_str!("../../../../rules/rules.json"))
+                .map_err(|error| format!("native rule catalog is malformed: {error}"))?;
+        let mut indexed = BTreeMap::new();
+        for entry in parsed.rules {
+            if indexed.insert(entry.rule_id.clone(), entry).is_some() {
+                return Err("native rule catalog contains a duplicate rule id".to_owned());
+            }
+        }
+        Ok(indexed)
+    });
+    catalog
+        .as_ref()
+        .map(|entries| entries.get(rule_id).cloned())
+        .map_err(Clone::clone)
+}
 
 /// Every CANONICAL (`ocentra_enforcer_*`) tool name this server registers,
 /// grouped by family for readability. This is the source of truth the
@@ -261,6 +309,21 @@ fn canonical_description(name: &str) -> String {
 }
 
 fn canonical_input_schema(name: &str) -> serde_json::Value {
+    if name == "ocentra_enforcer_mcp_status" {
+        return serde_json::json!({"type":"object","additionalProperties":false,"properties":{}});
+    }
+    if name == "ocentra_enforcer_explain" {
+        return serde_json::json!({"type":"object","additionalProperties":false,"required":["ruleId"],"properties":{"ruleId":{"type":"string"}}});
+    }
+    if name == "ocentra_enforcer_route" {
+        return common_input_schema_with(serde_json::Map::from_iter([(
+            "ruleId".to_owned(),
+            serde_json::json!({"type":"string"}),
+        )]));
+    }
+    if name.starts_with("ocentra_enforcer_coordination_") {
+        return coordination_input_schema(name);
+    }
     if matches!(
         name,
         "ocentra_enforcer_proof_route"
@@ -334,15 +397,7 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
         });
     }
     if name == "ocentra_enforcer_doctor" {
-        return serde_json::json!({
-            "type": "object", "additionalProperties": false,
-            "properties": {
-                "root": { "type": "string" }, "configPath": { "type": "string" },
-                "profile": { "type": "string" }, "scope": { "type": "string", "enum": ["files", "workspace", "crate", "diff"] },
-                "files": { "type": "array", "items": { "type": "string" } }, "crateName": { "type": "string" },
-                "base": { "type": "string" }, "head": { "type": "string" }
-            }
-        });
+        return common_input_schema_with(serde_json::Map::new());
     }
     if matches!(
         name,
@@ -393,34 +448,285 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
         });
     }
     if name == "ocentra_enforcer_scan" {
-        return serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "root": { "type": "string" },
-                "scope": { "type": "string", "enum": ["files", "workspace", "crate", "diff"] },
-                "files": { "type": "array", "items": { "type": "string" } },
-                "crateName": { "type": "string" },
-                "base": { "type": "string" },
-                "head": { "type": "string" },
-                "languages": { "type": "array", "items": { "type": "string", "enum": ["rust", "typescript", "python", "terraform", "yaml-or-config"] } }
-            },
-            "required": ["root"]
-        });
+        return common_input_schema_with(serde_json::Map::from_iter([
+            ("cargo".to_owned(), serde_json::json!({"type":"boolean"})),
+            (
+                "diagnosticLimit".to_owned(),
+                serde_json::json!({"type":"number"}),
+            ),
+            (
+                "summaryOnly".to_owned(),
+                serde_json::json!({"type":"boolean"}),
+            ),
+            (
+                "groupBy".to_owned(),
+                serde_json::json!({"type":"string","enum":["file","slice"]}),
+            ),
+            (
+                "includeScope".to_owned(),
+                serde_json::json!({"type":"boolean"}),
+            ),
+        ]));
     }
-    serde_json::json!({
-        "type": "object",
-        "additionalProperties": true,
-    })
+    // A newly registered tool must supply an explicit schema; accepting an
+    // unbounded object would silently violate MCP-1.3.
+    serde_json::json!({"type":"object","additionalProperties":false,"properties":{}})
+}
+
+fn common_input_schema_with(
+    extra: serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Value {
+    let mut properties = serde_json::Map::from_iter([
+        ("root".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "configPath".to_owned(),
+            serde_json::json!({"type":"string"}),
+        ),
+        ("profile".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "scope".to_owned(),
+            serde_json::json!({"type":"string","enum":["workspace","files","crate","diff"]}),
+        ),
+        (
+            "files".to_owned(),
+            serde_json::json!({"type":"array","items":{"type":"string"}}),
+        ),
+        ("crateName".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "languages".to_owned(),
+            serde_json::json!({"type":"array","items":{"type":"string","enum":["rust","typescript","python","common"]}}),
+        ),
+        ("base".to_owned(), serde_json::json!({"type":"string"})),
+        ("head".to_owned(), serde_json::json!({"type":"string"})),
+    ]);
+    properties.extend(extra);
+    serde_json::json!({"type":"object","additionalProperties":false,"properties":properties})
+}
+
+fn coordination_input_schema(name: &str) -> serde_json::Value {
+    let mut properties = serde_json::Map::from_iter([
+        ("root".to_owned(), serde_json::json!({"type":"string"})),
+        ("stateRoot".to_owned(), serde_json::json!({"type":"string"})),
+        ("hub".to_owned(), serde_json::json!({"type":"string"})),
+        ("lane".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "paths".to_owned(),
+            serde_json::json!({"type":"array","items":{"type":"string"}}),
+        ),
+        (
+            "changedPaths".to_owned(),
+            serde_json::json!({"type":"array","items":{"type":"string"}}),
+        ),
+        ("reason".to_owned(), serde_json::json!({"type":"string"})),
+        ("summary".to_owned(), serde_json::json!({"type":"string"})),
+        ("owner".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "operation".to_owned(),
+            serde_json::json!({"type":"string","enum":["inspect","edit","commit","push","rebase","merge","pr_ready"]}),
+        ),
+        (
+            "lockKind".to_owned(),
+            serde_json::json!({"type":"string","enum":["writeLock","globalWriteLock","branchLease","workReservation"]}),
+        ),
+        (
+            "onConflict".to_owned(),
+            serde_json::json!({"type":"string","enum":["fail","intent"]}),
+        ),
+        (
+            "claimGroup".to_owned(),
+            serde_json::json!({"type":"string"}),
+        ),
+        ("waitMs".to_owned(), serde_json::json!({"type":"number"})),
+        ("from".to_owned(), serde_json::json!({"type":"string"})),
+        ("to".to_owned(), serde_json::json!({"type":"string"})),
+        ("subject".to_owned(), serde_json::json!({"type":"string"})),
+        ("body".to_owned(), serde_json::json!({"type":"string"})),
+        ("message".to_owned(), serde_json::json!({"type":"string"})),
+        ("messageId".to_owned(), serde_json::json!({"type":"string"})),
+        ("taskId".to_owned(), serde_json::json!({"type":"string"})),
+        ("state".to_owned(), serde_json::json!({"type":"string"})),
+        ("sessionId".to_owned(), serde_json::json!({"type":"string"})),
+        ("action".to_owned(), serde_json::json!({"type":"string"})),
+        ("peer".to_owned(), serde_json::json!({"type":"string"})),
+        ("peerUrl".to_owned(), serde_json::json!({"type":"string"})),
+        ("url".to_owned(), serde_json::json!({"type":"string"})),
+        ("name".to_owned(), serde_json::json!({"type":"string"})),
+        ("token".to_owned(), serde_json::json!({"type":"string"})),
+        ("tokenEnv".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "mode".to_owned(),
+            serde_json::json!({"type":"string","enum":["pull","push","both"]}),
+        ),
+        ("host".to_owned(), serde_json::json!({"type":"string"})),
+        ("port".to_owned(), serde_json::json!({"type":"number"})),
+        (
+            "keepLatest".to_owned(),
+            serde_json::json!({"type":"number"}),
+        ),
+        ("projectId".to_owned(), serde_json::json!({"type":"string"})),
+        ("repoRoot".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "worktreeRoot".to_owned(),
+            serde_json::json!({"type":"string"}),
+        ),
+        ("cwd".to_owned(), serde_json::json!({"type":"string"})),
+        ("gitRemote".to_owned(), serde_json::json!({"type":"string"})),
+        ("branch".to_owned(), serde_json::json!({"type":"string"})),
+        ("commit".to_owned(), serde_json::json!({"type":"string"})),
+        (
+            "codexThreadId".to_owned(),
+            serde_json::json!({"type":"string"}),
+        ),
+        (
+            "codexSessionId".to_owned(),
+            serde_json::json!({"type":"string"}),
+        ),
+        ("stateFile".to_owned(), serde_json::json!({"type":"string"})),
+        ("peek".to_owned(), serde_json::json!({"type":"boolean"})),
+        ("dryRun".to_owned(), serde_json::json!({"type":"boolean"})),
+        ("write".to_owned(), serde_json::json!({"type":"boolean"})),
+        ("focused".to_owned(), serde_json::json!({"type":"boolean"})),
+        (
+            "allowPrimaryWithoutClaims".to_owned(),
+            serde_json::json!({"type":"boolean"}),
+        ),
+        (
+            "allowMergeRisks".to_owned(),
+            serde_json::json!({"type":"boolean"}),
+        ),
+        ("all".to_owned(), serde_json::json!({"type":"boolean"})),
+        ("allOwned".to_owned(), serde_json::json!({"type":"boolean"})),
+        ("allLanes".to_owned(), serde_json::json!({"type":"boolean"})),
+        (
+            "allowOtherNode".to_owned(),
+            serde_json::json!({"type":"boolean"}),
+        ),
+        (
+            "releaseOwned".to_owned(),
+            serde_json::json!({"type":"boolean"}),
+        ),
+        (
+            "repairStale".to_owned(),
+            serde_json::json!({"type":"boolean"}),
+        ),
+        ("limit".to_owned(), serde_json::json!({"type":"number"})),
+    ]);
+    let action = match name {
+        "ocentra_enforcer_coordination_claim" => Some(vec!["claim"]),
+        "ocentra_enforcer_coordination_release" => Some(vec!["release"]),
+        "ocentra_enforcer_coordination_closeout" => Some(vec!["closeout"]),
+        "ocentra_enforcer_coordination_report" => Some(vec!["report"]),
+        "ocentra_enforcer_coordination_message" => Some(vec!["message", "send"]),
+        _ => None,
+    };
+    if let Some(actions) = action {
+        properties.insert(
+            "action".to_owned(),
+            serde_json::json!({"type":"string","enum":actions}),
+        );
+    }
+    serde_json::json!({"type":"object","additionalProperties":false,"properties":properties})
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        build_tool_descriptors, is_wired, named_check_backing, tool_surface_bytes, CANONICAL_TOOLS,
-        NAMED_CHECKS,
+        build_tool_descriptors, is_wired, named_check_backing, tool_surface_bytes,
+        RuleExplanationDto, CANONICAL_TOOLS, NAMED_CHECKS,
     };
     use std::collections::BTreeSet;
+
+    fn normalized_schema(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(object) => {
+                let mut normalized = serde_json::Map::new();
+                for (key, value) in object {
+                    if key != "description" && key != "default" && key != "minimum" {
+                        let normalized_value = normalized_schema(value);
+                        // Frozen MJS uses JSON's single `number` wire type;
+                        // native schemas may advertise integral limits for a
+                        // stricter decoder. Compare the portable MCP shape.
+                        if key == "type" && normalized_value == serde_json::json!("integer") {
+                            normalized.insert(key.clone(), serde_json::json!("number"));
+                        } else {
+                            normalized.insert(key.clone(), normalized_value);
+                        }
+                    }
+                }
+                serde_json::Value::Object(normalized)
+            }
+            serde_json::Value::Array(values) => {
+                serde_json::Value::Array(values.iter().map(normalized_schema).collect())
+            }
+            other => other.clone(),
+        }
+    }
+
+    #[test]
+    fn frozen_mjs_canonical_contract_matches_rust_except_documented_ui_tool(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // This is a test-only parity oracle. The production Rust MCP never
+        // executes MJS; it compares checked-in frozen tool declarations to
+        // the Rust registry at build/test time so contract drift is visible.
+        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let script = "import { TOOLS } from './mcp/rust-rules-mcp-tool-registry.mjs'; console.log(JSON.stringify(TOOLS.filter((tool) => tool.name.startsWith('ocentra_enforcer_'))));";
+        let output = std::process::Command::new("node")
+            .arg("--input-type=module")
+            .arg("--eval")
+            .arg(script)
+            .current_dir(workspace)
+            .output()?;
+        assert!(
+            output.status.success(),
+            "frozen MJS registry must load: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let frozen: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)?;
+        let frozen_by_name: std::collections::BTreeMap<String, serde_json::Value> = frozen
+            .into_iter()
+            .map(|tool| {
+                tool["name"]
+                    .as_str()
+                    .map(|name| (name.to_owned(), tool["inputSchema"].clone()))
+                    .ok_or("frozen tool must have a string name")
+            })
+            .collect::<Result<_, _>>()?;
+        let rust_by_name: std::collections::BTreeMap<String, serde_json::Value> =
+            build_tool_descriptors()
+                .into_iter()
+                .filter(|tool| tool.name.starts_with("ocentra_enforcer_"))
+                .filter(|tool| tool.name != "ocentra_enforcer_ui")
+                .map(|tool| (tool.name, tool.input_schema))
+                .collect();
+        assert_eq!(
+            rust_by_name.keys().collect::<Vec<_>>(),
+            frozen_by_name.keys().collect::<Vec<_>>(),
+            "Rust may add only the documented native UI tool; frozen canonical names must otherwise match"
+        );
+        for (name, frozen_schema) in frozen_by_name {
+            assert_eq!(
+                normalized_schema(&rust_by_name[&name]),
+                normalized_schema(&frozen_schema),
+                "normalized schema mismatch for {name}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rule_explanation_dto_round_trips_through_the_external_catalog_shape(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = r#"{
+            "id":"RR-6.1","language":"rust","family":"domain","severity":"error",
+            "title":"No raw string types","snippet":"Use a branded type.",
+            "doc":"rules/rust/domain.md#covered-rules"
+        }"#;
+        let decoded: RuleExplanationDto = serde_json::from_str(raw)?;
+        let encoded = serde_json::to_string(&decoded)?;
+        let round_tripped: RuleExplanationDto = serde_json::from_str(&encoded)?;
+        assert_eq!(decoded, round_tripped);
+        Ok(())
+    }
 
     #[test]
     fn canonical_tools_list_has_no_duplicates() {
