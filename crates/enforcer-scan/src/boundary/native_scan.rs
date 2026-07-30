@@ -169,12 +169,12 @@ pub(crate) fn resolve_files_with_rules(
                         .into());
                     }
                 }
-                let files = walk::filter_explicit(&resolved.explicit_paths, &rules);
+                let files = walk::filter_explicit(&resolved.explicit_paths, rules);
                 (scope_request, files, ScanScope::Files)
             }
             NativeScanScope::Workspace => {
                 let scope_request = ScopeRequest::All;
-                let files = walk::walk(std::path::Path::new(repo_root.as_str()), &rules).map_err(
+                let files = walk::walk(std::path::Path::new(repo_root.as_str()), rules).map_err(
                     |error| NativeScanError::Io {
                         operation: "workspace walk",
                         reason: error.to_string(),
@@ -184,7 +184,7 @@ pub(crate) fn resolve_files_with_rules(
             }
             NativeScanScope::Crate(name) => {
                 let scope_request = ScopeRequest::All;
-                let all_files = walk::walk(std::path::Path::new(repo_root.as_str()), &rules)
+                let all_files = walk::walk(std::path::Path::new(repo_root.as_str()), rules)
                     .map_err(|error| NativeScanError::Io {
                         operation: "crate discovery walk",
                         reason: error.to_string(),
@@ -206,7 +206,7 @@ pub(crate) fn resolve_files_with_rules(
                     base: base.clone(),
                     head: head.clone(),
                 };
-                let files = diff_files(repo_root, base, head, &rules)?;
+                let files = diff_files(repo_root, base, head, rules)?;
                 (scope_request, files, ScanScope::Diff)
             }
         };
