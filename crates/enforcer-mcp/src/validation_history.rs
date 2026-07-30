@@ -144,8 +144,8 @@ mod tests {
     use enforcer_domain::{boundary::validation::McpReportLabelText, paths::RepoRoot};
 
     use super::{
-        HISTORY_LIMIT, ReportLabel, ValidationCounts, ValidationHistory, ValidationKind,
-        ValidationSummary, ValidationTimestamp,
+        ReportLabel, ValidationCounts, ValidationHistory, ValidationKind, ValidationSummary,
+        ValidationTimestamp, HISTORY_LIMIT,
     };
 
     fn root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
@@ -176,8 +176,8 @@ mod tests {
     }
 
     #[test]
-    fn retains_newest_twenty_case_folded_per_root_and_filters_kind()
-    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    fn retains_newest_twenty_case_folded_per_root_and_filters_kind(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let mut history = ValidationHistory::default();
         history.record(summary(ValidationKind::Scan)?);
         history.record(summary(ValidationKind::Check)?);
@@ -204,8 +204,8 @@ mod tests {
     }
 
     #[test]
-    fn try_new_rejects_invalid_blank_and_control_character_labels()
-    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    fn try_new_rejects_invalid_blank_and_control_character_labels(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         for invalid in ["   ", "bad\nlabel"] {
             let error = McpReportLabelText::try_new(invalid.to_owned())
                 .err()
@@ -229,8 +229,8 @@ mod tests {
     }
 
     #[test]
-    fn empty_label_is_rejected_before_epoch_fallback_conversion()
-    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    fn empty_label_is_rejected_before_epoch_fallback_conversion(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let error = McpReportLabelText::try_new(String::new())
             .err()
             .ok_or_else(|| {
