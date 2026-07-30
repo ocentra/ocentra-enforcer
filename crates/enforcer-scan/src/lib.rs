@@ -58,4 +58,5 @@ pub mod outcome;
 pub mod router;
 pub mod rules;
 pub mod scope;
+pub mod test_doctrine;
 pub mod walk;

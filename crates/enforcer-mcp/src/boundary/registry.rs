@@ -34,6 +34,8 @@ pub const CANONICAL_TOOLS: &[&str] = &[
     "ocentra_enforcer_reset_runs",
     "ocentra_enforcer_route",
     "ocentra_enforcer_doctor",
+    // project-posture analysis (native `enforcer-scan` delegate)
+    "ocentra_enforcer_test_doctrine_scan",
     // proof family (arc-17 delegate)
     "ocentra_enforcer_proof_run",
     "ocentra_enforcer_proof_status",
@@ -206,6 +208,9 @@ fn canonical_description(name: &str) -> String {
              binds a socket or launches the surface itself (silent-agent-safe)."
                 .to_owned()
         }
+        "ocentra_enforcer_test_doctrine_scan" => {
+            "Analyze project test posture from native filesystem, manifest, and CI evidence; never runs tests or shells out.".to_owned()
+        }
         other => format!("Ocentra Enforcer tool: {other}."),
     }
 }
@@ -230,6 +235,15 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
                 "host": { "type": "string" },
                 "port": { "type": "integer" },
                 "token": { "type": "string" },
+            },
+        });
+    }
+    if name == "ocentra_enforcer_test_doctrine_scan" {
+        return serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "root": { "type": "string", "description": "Target repository root; defaults to the server working directory." },
             },
         });
     }

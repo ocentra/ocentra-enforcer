@@ -99,6 +99,7 @@ pub fn dispatch(
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
+        "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
@@ -338,6 +339,39 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
         }
         Ok(_) => json_error("native route produced an invalid report shape"),
         Err(err) => json_error(&format!("failed to encode route plan: {err}")),
+    }
+}
+
+/// Native MCP adapter for the test-doctrine posture analysis. The analyzer
+/// owns all filesystem and evidence interpretation; this boundary only
+/// decodes the branded root and encodes its typed report.
+fn test_doctrine_scan(args: &serde_json::Value) -> serde_json::Value {
+    let root_raw = match args.get("root") {
+        None => match std::env::current_dir() {
+            Ok(path) => path.to_string_lossy().into_owned(),
+            Err(err) => {
+                return json_error(&format!("cannot resolve default test-doctrine root: {err}"))
+            }
+        },
+        Some(serde_json::Value::String(value)) => value.clone(),
+        Some(_) => return json_error("test_doctrine_scan `root` must be a string"),
+    };
+    let root = match root_raw.parse::<RepoRoot>() {
+        Ok(value) => value,
+        Err(err) => return json_error(&err.to_string()),
+    };
+    match enforcer_scan::test_doctrine::analyze(&root) {
+        Ok(report) => match serde_json::to_value(report) {
+            Ok(serde_json::Value::Object(mut value)) => {
+                value.insert("ok".to_owned(), serde_json::Value::Bool(true));
+                serde_json::Value::Object(value)
+            }
+            Ok(_) => json_error("native test-doctrine analysis produced an invalid report shape"),
+            Err(err) => json_error(&format!(
+                "failed to encode native test-doctrine report: {err}"
+            )),
+        },
+        Err(err) => json_error(&format!("native test-doctrine analysis failed: {err}")),
     }
 }
 
@@ -679,6 +713,40 @@ mod tests {
         assert!(value["rulePacks"]
             .as_array()
             .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
+        Ok(())
+    }
+
+    #[test]
+    fn test_doctrine_scan_dispatches_to_the_native_rust_analyzer(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("tests"))?;
+        std::fs::write(
+            temp.path().join("package.json"),
+            r#"{ "dependencies": { "express": "1" } }"#,
+        )?;
+        std::fs::write(
+            temp.path().join("tests/unit.test.ts"),
+            "it('works', () => {});",
+        )?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_test_doctrine_scan")?,
+            &serde_json::json!({ "root": temp.path().to_string_lossy() }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native test-doctrine scan did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["nature"]["isWebApi"], serde_json::json!(true));
+        assert_eq!(
+            value["detected"]["unit"]["present"],
+            serde_json::json!(true)
+        );
+        assert!(value["missing"]
+            .as_array()
+            .is_some_and(|missing| missing.iter().any(|item| item["category"] == "security")));
         Ok(())
     }
 
