@@ -32,7 +32,7 @@ use crate::domain::{self, HubConfig};
 use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::ledger::active_claims;
-use crate::lock::{ClaimContext, RawClaim, blockers_for_request, enrich_claim};
+use crate::lock::{blockers_for_request, enrich_claim, ClaimContext, RawClaim};
 use crate::sync::{retention, stream::read_all_streams};
 use enforcer_domain::coordination_types::{
     ClaimContextPresence, ClaimEventId, ClaimFilterMatch, ClaimGroup, ClaimLane,
@@ -47,8 +47,8 @@ use enforcer_domain::coordination_types::{
 pub mod boundary;
 
 use boundary::{
-    AppendEventArgs, EventContextRefs, EventMetadata, append_event, decode_hub_config,
-    encode_hub_config, now_iso,
+    append_event, decode_hub_config, encode_hub_config, now_iso, AppendEventArgs, EventContextRefs,
+    EventMetadata,
 };
 
 /// Maximum exact file paths per SINGLE claim event, preserved from the
