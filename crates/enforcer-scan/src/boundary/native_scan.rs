@@ -134,11 +134,21 @@ pub fn execute(
     })
 }
 
-fn resolve_files(
+pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
 ) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
-    let rules = IgnoreRules::default();
+    resolve_files_with_rules(request, repo_root, &IgnoreRules::default())
+}
+
+/// Resolve a native request through caller-supplied, already-validated ignore
+/// rules.  This is shared by scan execution and readiness doctoring so both
+/// select the same files for the same typed scope.
+pub(crate) fn resolve_files_with_rules(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    rules: &IgnoreRules,
+) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
     let (scope_request, files, kind) =
         match &request.scope {
             NativeScanScope::Files(paths) => {

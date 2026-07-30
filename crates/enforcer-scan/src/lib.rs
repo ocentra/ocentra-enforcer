@@ -51,6 +51,7 @@
 pub mod boundary;
 pub mod cargo_workspace_policy;
 pub mod coverage;
+pub mod doctor;
 pub mod engine;
 pub mod modes;
 pub mod onboard;
