@@ -27,6 +27,7 @@ use enforcer_domain::{
     },
     ids::{HubName, LaneId},
     mcp_types::{ArtifactPath, McpActionName, McpFreshness, McpToolName},
+    paths::RepoRoot,
     scan_types::CommitRef,
 };
 
@@ -95,6 +96,7 @@ pub fn dispatch(
     }
 
     match canonical.as_str() {
+        "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
@@ -125,6 +127,92 @@ fn gate_args_from(args: &serde_json::Value) -> GateArgs {
             .get("action")
             .and_then(serde_json::Value::as_str)
             .and_then(|value| McpActionName::try_new(value).ok()),
+    }
+}
+
+/// Native Rust scan adapter. This deliberately accepts only the scope modes
+/// the Rust engine executes correctly today. Unsupported legacy options are
+/// rejected at the MCP boundary rather than silently ignored or delegated
+/// back to the frozen MJS implementation.
+fn scan(args: &serde_json::Value) -> serde_json::Value {
+    if args.get("base").is_some()
+        || args.get("head").is_some()
+        || args.get("crateName").is_some()
+        || args.get("languages").is_some()
+        || args.get("configPath").is_some()
+        || args.get("profile").is_some()
+        || args.get("cargo").is_some()
+    {
+        return json_error(
+            "native MCP scan does not yet implement diff, crate, language, config, profile, or cargo options",
+        );
+    }
+
+    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("scan requires a `root` path");
+    };
+    let root = match root_raw.parse::<RepoRoot>() {
+        Ok(value) => value,
+        Err(err) => return json_error(&err.to_string()),
+    };
+    let files = match args.get("files") {
+        None => Vec::new(),
+        Some(serde_json::Value::Array(values)) => match values
+            .iter()
+            .map(|value| value.as_str().map(std::path::PathBuf::from))
+            .collect::<Option<Vec<_>>>()
+        {
+            Some(values) => values,
+            None => return json_error("scan `files` must contain only paths"),
+        },
+        Some(_) => return json_error("scan `files` must be an array"),
+    };
+    let all = match args.get("all") {
+        None => false,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return json_error("scan `all` must be a boolean"),
+    };
+    if all && !files.is_empty() {
+        return json_error("scan accepts either `files` or `all`, not both");
+    }
+
+    let request = if all || files.is_empty() {
+        enforcer_domain::scan_types::ScopeRequest::All
+    } else {
+        enforcer_domain::scan_types::ScopeRequest::Paths(files)
+    };
+    let scope = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(value) => value,
+        Err(err) => return json_error(&err.to_string()),
+    };
+    let all_files = match enforcer_scan::walk::walk(
+        std::path::Path::new(root.as_str()),
+        &enforcer_scan::walk::IgnoreRules::default(),
+    ) {
+        Ok(value) => value,
+        Err(err) => return json_error(&format!("scan walk failed: {err}")),
+    };
+    let files = if scope.explicit_paths.is_empty() {
+        all_files
+    } else {
+        all_files
+            .into_iter()
+            .filter(|file| {
+                scope
+                    .explicit_paths
+                    .iter()
+                    .any(|path| file.as_str().starts_with(path.as_str()))
+            })
+            .collect()
+    };
+    let validators = match enforcer_scan::engine::build_family_validators() {
+        Ok(value) => value,
+        Err(err) => return json_error(&format!("failed to build scan validators: {err}")),
+    };
+    let report = enforcer_scan::engine::run(&scope, &files, &validators);
+    match serde_json::to_value(report) {
+        Ok(value) => value,
+        Err(err) => json_error(&format!("failed to encode scan report: {err}")),
     }
 }
 
@@ -355,6 +443,56 @@ mod tests {
         };
         assert_eq!(value["ok"], serde_json::json!(true));
         assert!(value["toolCount"].as_u64().is_some_and(|count| count > 0));
+        Ok(())
+    }
+
+    #[test]
+    fn scan_dispatches_to_the_native_rust_engine() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(
+            src.join("lib.rs"),
+            "mod inner { pub struct Thing; }\npub use inner::Thing;\n",
+        )?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "files": ["src/lib.rs"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native scan did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| findings
+            .iter()
+            .any(|finding| finding["ruleId"] == "T1-NOREEXPORT.1")));
+        Ok(())
+    }
+
+    #[test]
+    fn scan_rejects_unsupported_legacy_options_instead_of_ignoring_them(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "languages": ["rust"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native scan did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not yet implement")));
         Ok(())
     }
 
