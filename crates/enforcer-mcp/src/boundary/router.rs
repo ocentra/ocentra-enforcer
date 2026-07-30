@@ -997,7 +997,32 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "head",
         "languages",
     ];
-    let allowed_fields = if name == "sbom" {
+    let allowed_fields = if name == "literal-risk" {
+        [
+            NATIVE_SCAN_FIELDS,
+            &[
+                "minScore",
+                "includeLow",
+                "includeIgnored",
+                "includeUnknownCode",
+                "respectGitignore",
+                "maxFileBytes",
+                "failAbove",
+                "hardCategories",
+                "hardRuleIds",
+                "literalRiskMinScore",
+                "literalRiskIncludeLow",
+                "literalRiskIncludeIgnored",
+                "literalRiskIncludeUnknownCode",
+                "literalRiskRespectGitignore",
+                "literalRiskMaxFileBytes",
+                "literalRiskFailAbove",
+                "literalRiskHardCategories",
+                "literalRiskHardRuleIds",
+            ],
+        ]
+        .concat()
+    } else if name == "sbom" {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
@@ -1030,10 +1055,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "secrets" => named_policy_unrecorded(&native_args, "secrets"),
         "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
         "import-boundaries" => named_import_boundaries_unrecorded(&native_args),
-        "literal-risk" => named_check_rejection(
-            "literal-risk",
-            "native_report_adapter_not_implemented:literal-risk has a distinct report and option contract",
-        ),
+        "literal-risk" => named_literal_risk_unrecorded(&native_args),
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
@@ -1308,6 +1330,164 @@ fn named_import_boundaries_unrecorded(args: &serde_json::Value) -> serde_json::V
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_literal_risk_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    use enforcer_domain::scan_types::{
+        LiteralFileByteLimit, LiteralRiskScore, LiteralScanPaths, LiteralScanRoot,
+        LiteralScanToggle,
+    };
+    let mut normalized = args.clone();
+    if let Some(object) = normalized.as_object_mut() {
+        for (alias, canonical) in [
+            ("literalRiskMinScore", "minScore"),
+            ("literalRiskIncludeLow", "includeLow"),
+            ("literalRiskIncludeIgnored", "includeIgnored"),
+            ("literalRiskIncludeUnknownCode", "includeUnknownCode"),
+            ("literalRiskRespectGitignore", "respectGitignore"),
+            ("literalRiskMaxFileBytes", "maxFileBytes"),
+            ("literalRiskFailAbove", "failAbove"),
+            ("literalRiskHardCategories", "hardCategories"),
+            ("literalRiskHardRuleIds", "hardRuleIds"),
+        ] {
+            if !object.contains_key(canonical) {
+                if let Some(value) = object.get(alias).cloned() {
+                    object.insert(canonical.to_owned(), value);
+                }
+            }
+        }
+    }
+    let args = &normalized;
+    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("literal-risk requires a `root` path");
+    };
+    let score = |name: &str, default: u8| -> Result<LiteralRiskScore, String> {
+        let value = args.get(name).map_or(Ok(default), |value| {
+            value
+                .as_u64()
+                .and_then(|n| u8::try_from(n).ok())
+                .ok_or_else(|| format!("literal-risk `{name}` must be an integer from 0 to 100"))
+        })?;
+        std::num::NonZeroU8::new(value)
+            .map(LiteralRiskScore::try_from)
+            .transpose()
+            .map(|value| value.unwrap_or(LiteralRiskScore::ZERO))
+            .map_err(|error| error.to_string())
+    };
+    let boolean = |name: &str, default: bool| -> Result<bool, String> {
+        args.get(name).map_or(Ok(default), |value| {
+            value
+                .as_bool()
+                .ok_or_else(|| format!("literal-risk `{name}` must be a boolean"))
+        })
+    };
+    let files: Result<Vec<std::path::PathBuf>, String> = match args.get("files") {
+        None => Ok(Vec::new()),
+        Some(serde_json::Value::Array(values)) => values
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| "literal-risk `files` must be strings".to_owned())
+            })
+            .collect::<Result<Vec<_>, _>>(),
+        Some(_) => Err("literal-risk `files` must be an array".to_owned()),
+    };
+    let files = match files {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let max_bytes: Result<Option<LiteralFileByteLimit>, String> = match args.get("maxFileBytes") {
+        None => Ok(None),
+        Some(value) => value
+            .as_u64()
+            .and_then(std::num::NonZeroU64::new)
+            .map(LiteralFileByteLimit::try_from_nonzero)
+            .ok_or_else(|| "literal-risk `maxFileBytes` must be a positive integer".to_owned())
+            .map(Some),
+    };
+    let max_bytes = match max_bytes {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let mut options = enforcer_literal_scan::CliOptions {
+        root: LiteralScanRoot::from(std::path::PathBuf::from(root)),
+        files: LiteralScanPaths::from(files),
+        ..enforcer_literal_scan::CliOptions::default()
+    };
+    let min_score = match score("minScore", 40) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    options.min_score = min_score;
+    let fail_above = match args.get("failAbove") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(_) => match score("failAbove", 0) {
+            Ok(value) => Some(value),
+            Err(error) => return json_error(&error),
+        },
+    };
+    options.fail_above = fail_above;
+    for (name, target) in [
+        ("includeLow", &mut options.include_low),
+        ("includeIgnored", &mut options.include_ignored),
+        ("includeUnknownCode", &mut options.include_unknown_code),
+        ("respectGitignore", &mut options.respect_gitignore),
+    ] {
+        let default = name == "includeLow" || name == "respectGitignore";
+        match boolean(name, default) {
+            Ok(value) => *target = LiteralScanToggle::from(value),
+            Err(error) => return json_error(&error),
+        }
+    }
+    if let Some(value) = max_bytes {
+        options.max_file_bytes = value;
+    }
+    let hard_categories = string_set(args, "hardCategories");
+    let hard_rules = string_set(args, "hardRuleIds");
+    if hard_categories.is_err() || hard_rules.is_err() {
+        return json_error("literal-risk hardCategories and hardRuleIds must be string arrays");
+    }
+    let hard_categories = hard_categories.unwrap_or_default();
+    let hard_rules = hard_rules.unwrap_or_default();
+    match enforcer_literal_scan::run_scan(&options) {
+        Ok(report) => {
+            let map = |finding: &enforcer_literal_scan::Finding, fallback: &str| {
+                let category = finding.category.wire_name();
+                let rule = finding.rule_id.as_str();
+                let blocking = finding.blocking.is_blocking()
+                    || hard_categories.contains(category)
+                    || hard_rules.contains(rule);
+                serde_json::json!({"ruleId":rule,"severity":if blocking {"error"} else {fallback},"file":finding.file.to_string(),"line":finding.line.get(),"detail":finding.reason.to_string(),"snippet":finding.literal_preview.to_string(),"category":category,"score":finding.score.get(),"confidence":finding.confidence.wire_name(),"fileRole":finding.file_role.wire_name(),"literalKind":finding.literal_kind.wire_name(),"literalPreview":finding.literal_preview.to_string(),"literalHash":finding.literal_hash.to_string(),"blocking":blocking,"source":finding.context.to_string()})
+            };
+            let findings = report
+                .hard_findings
+                .iter()
+                .map(|f| map(f, "error"))
+                .chain(report.literal_risks.iter().map(|f| map(f, "warning")))
+                .collect::<Vec<_>>();
+            let ok = !findings
+                .iter()
+                .any(|row| row.get("blocking") == Some(&serde_json::Value::Bool(true)));
+            serde_json::json!({"ok":ok,"check":"literal-risk","findings":findings,"violations":[],"warnings":[],"waived":[],"literalRiskReport":{"summary":{"filesDiscovered":report.summary.files_discovered.get(),"filesScanned":report.summary.files_scanned.get(),"literalRisks":report.summary.literal_risks.get(),"hardFindings":report.summary.hard_findings.get()},"options":{"minScore":options.min_score.get(),"includeLow":options.include_low.is_enabled(),"includeIgnored":options.include_ignored.is_enabled(),"includeUnknownCode":options.include_unknown_code.is_enabled(),"respectGitignore":options.respect_gitignore.is_enabled(),"failAbove":options.fail_above.map(|value|value.get())}}})
+        }
+        Err(error) => json_error(&format!("literal-risk native scan failed: {error}")),
+    }
+}
+fn string_set<'a>(
+    args: &'a serde_json::Value,
+    name: &str,
+) -> Result<std::collections::BTreeSet<&'a str>, ()> {
+    args.get(name)
+        .map_or(Ok(std::collections::BTreeSet::new()), |value| {
+            value.as_array().ok_or(()).and_then(|values| {
+                values
+                    .iter()
+                    .map(|value| value.as_str().ok_or(()))
+                    .collect()
+            })
+        })
 }
 
 /// Return a structured refusal for a frozen check whose dedicated native
@@ -4153,18 +4333,22 @@ mod tests {
     }
 
     #[test]
-    fn check_literal_risk_refuses_incompatible_canonical_adapter(
+    fn check_literal_risk_adapts_native_report_and_aliases(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let DispatchOutcome::Result(value) = dispatch(
             &tool("ocentra_enforcer_check")?,
-            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"literal-risk"}),
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"literal-risk","minScore":40,"literalRiskIncludeLow":true,"hardCategories":[]}),
             &ctx(McpFreshness::Fresh),
         ) else {
-            return Err("literal-risk refusal did not produce a result".into());
+            return Err("literal-risk adapter did not produce a result".into());
         };
-        assert_eq!(value["ok"], serde_json::json!(false));
-        assert_eq!(value["error"]["code"], serde_json::json!("native_report_adapter_not_implemented:literal-risk has a distinct report and option contract"));
+        assert!(value.get("error").is_none());
+        assert!(value["literalRiskReport"]["options"].is_object());
+        assert_eq!(
+            value["literalRiskReport"]["options"]["includeLow"],
+            serde_json::json!(true)
+        );
         Ok(())
     }
 }
