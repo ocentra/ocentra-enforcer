@@ -500,6 +500,58 @@ impl ArchitecturePolicyCheck {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrivateRustTestModuleAllowlistEntry {
+    owner_file: crate::paths::RelPath,
+    module_file: crate::paths::RelPath,
+    // BRAND-INVARIANT: `try_new` accepts only a Rust identifier ending in
+    // `_private_tests` that exactly matches the module file basename.
+    module_name: String,
+}
+
+impl PrivateRustTestModuleAllowlistEntry {
+    pub fn try_new(
+        owner_file: crate::paths::RelPath,
+        module_file: crate::paths::RelPath,
+        module_name: String,
+    ) -> Result<Self, DecodeError> {
+        let valid_name = module_name.ends_with("_private_tests")
+            && module_name
+                .chars()
+                .next()
+                .is_some_and(|character| character == '_' || character.is_ascii_alphabetic())
+            && module_name
+                .chars()
+                .all(|character| character == '_' || character.is_ascii_alphanumeric());
+        let same_directory = owner_file
+            .as_str()
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            == module_file
+                .as_str()
+                .rsplit_once('/')
+                .map(|(directory, _)| directory);
+        let expected_file = format!("{module_name}.rs");
+        if !valid_name || !same_directory || !module_file.as_str().ends_with(&expected_file) {
+            return Err(DecodeError::new("privateRustTestModuleAllowlist", "entries require same-directory Rust owner/module paths and a *_private_tests module name"));
+        }
+        Ok(Self {
+            owner_file,
+            module_file,
+            module_name,
+        })
+    }
+    pub fn owner_file(&self) -> &crate::paths::RelPath {
+        &self.owner_file
+    }
+    pub fn module_file(&self) -> &crate::paths::RelPath {
+        &self.module_file
+    }
+    pub fn module_name(&self) -> &str {
+        &self.module_name
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[doc = "Canonical domain representation for EffectiveConfig."]
 pub struct EffectiveConfig {
@@ -514,6 +566,8 @@ pub struct EffectiveConfig {
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
+    pub strict_empty_test_trees: bool,
+    pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,

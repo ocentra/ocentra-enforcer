@@ -31,7 +31,7 @@ use rayon::prelude::IntoParallelRefIterator;
 use std::num::NonZeroU32;
 
 use enforcer_domain::boundary::validation::ValidationSourceText;
-use enforcer_domain::config_types::InlineTestPolicy;
+use enforcer_domain::config_types::{InlineTestPolicy, PrivateRustTestModuleAllowlistEntry};
 use enforcer_domain::findings::{
     Finding, FindingDetail, FindingLine, FindingSnippet, FindingTitle, Report, ReportOutcome,
     ScanScope, Violation,
@@ -385,6 +385,7 @@ pub fn run_required_test_policy(
     scope: &ResolvedScope,
     files: &[RelPath],
     strict_empty_test_trees: bool,
+    private_rust_test_module_allowlist: &[PrivateRustTestModuleAllowlistEntry],
 ) -> Report {
     let mut findings = Vec::new();
     for workspace in ["crates", "packages", "apps"] {
@@ -438,7 +439,81 @@ pub fn run_required_test_policy(
             }
         }
     }
+    findings.extend(required_rust_inline_test_findings(
+        scope,
+        files,
+        private_rust_test_module_allowlist,
+    ));
     fold_report(scope.kind, findings)
+}
+
+fn required_rust_inline_test_findings(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    allowlist: &[PrivateRustTestModuleAllowlistEntry],
+) -> Vec<Finding> {
+    files
+        .iter()
+        .filter(|file| file.as_str().ends_with(".rs") && file.as_str().contains("/src/"))
+        .filter_map(|file| {
+            let source = std::fs::read_to_string(
+                std::path::Path::new(scope.repo_root.as_str()).join(file.as_str()),
+            )
+            .ok()?;
+            let lines = source.lines().collect::<Vec<_>>();
+            let index = lines
+                .iter()
+                .position(|line| line.trim() == "#[cfg(test)]")?;
+            if is_allowlisted_private_rust_test_module(
+                &scope.repo_root,
+                file,
+                &lines,
+                index,
+                allowlist,
+            ) {
+                return None;
+            }
+            inline_test_finding(file, index + 1)
+        })
+        .collect()
+}
+
+fn is_allowlisted_private_rust_test_module(
+    root: &RepoRoot,
+    file: &RelPath,
+    lines: &[&str],
+    index: usize,
+    allowlist: &[PrivateRustTestModuleAllowlistEntry],
+) -> bool {
+    let Some(entry) = allowlist.iter().find(|entry| entry.owner_file() == file) else {
+        return false;
+    };
+    let expected_path = entry
+        .module_file()
+        .as_str()
+        .rsplit('/')
+        .next()
+        .unwrap_or_default();
+    lines
+        .iter()
+        .filter(|line| line.trim() == "#[cfg(test)]")
+        .count()
+        == 1
+        && lines
+            .get(index + 1)
+            .is_some_and(|line| line.trim() == format!("#[path = \"{expected_path}\"]"))
+        && lines
+            .get(index + 2)
+            .is_some_and(|line| line.trim() == format!("mod {};", entry.module_name()))
+        && std::path::Path::new(root.as_str())
+            .join(entry.module_file().as_str())
+            .is_file()
+}
+
+fn inline_test_finding(file: &RelPath, line_number: usize) -> Option<Finding> {
+    let rule_id = "TEST-2.2".parse().ok()?;
+    let line = SourceLine::try_new(NonZeroU32::new(u32::try_from(line_number).ok()?)?);
+    Some(Finding { rule_id, severity: Severity::Error, title: FindingTitle::new("inline test in production source".to_owned()).ok()?, detail: FindingDetail::new("move this test into the crate's tests/ directory, or configure one exact private Rust test-module allowlist entry".to_owned()).ok()?, file: file.clone(), line: FindingLine::known(line), snippet: Some(FindingSnippet::new("#[cfg(test)]".to_owned()).ok()?) })
 }
 
 fn project_is_in_scope(project: &str, files: &[RelPath], scope: ScanScope) -> bool {
@@ -812,9 +887,10 @@ fn fold_report(scope: ScanScope, findings: impl IntoIterator<Item = Finding>) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{build_family_validators, fold_report, run};
+    use super::{build_family_validators, fold_report, run, run_required_test_policy};
+    use enforcer_domain::config_types::PrivateRustTestModuleAllowlistEntry;
     use enforcer_domain::findings::{Finding, FindingLine, ReportOutcome, ScanScope};
-    use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::paths::{RelPath, RepoRoot};
     use enforcer_domain::scan_types::ScopeRequest;
     use enforcer_domain::severity::Severity;
     use enforcer_domain::telemetry_types::SourceLine;
@@ -828,6 +904,67 @@ mod tests {
             std::fs::create_dir_all(parent)?;
         }
         std::fs::write(path, contents)
+    }
+
+    #[test]
+    fn required_tests_fails_for_missing_tests_and_strict_empty_tree(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "crates/missing/Cargo.toml",
+            "[package]\nname=\"missing\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(temp.path(), "crates/missing/tests/unit/.gitkeep", "")?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, true, &[]);
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.rule_id.as_str() == "TEST-2.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_allows_only_the_exact_private_rust_module_shape(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "crates/example/Cargo.toml",
+            "[package]\nname=\"example\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/tests/integration.rs",
+            "#[test]\nfn organized() {}\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib.rs",
+            "#[cfg(test)]\n#[path = \"lib_private_tests.rs\"]\nmod lib_private_tests;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib_private_tests.rs",
+            "#[test]\nfn private() {}\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let owner: RelPath = "crates/example/src/lib.rs".parse()?;
+        let module: RelPath = "crates/example/src/lib_private_tests.rs".parse()?;
+        let allowlist = vec![PrivateRustTestModuleAllowlistEntry::try_new(
+            owner,
+            module,
+            "lib_private_tests".to_owned(),
+        )?];
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, true, &allowlist);
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
     }
 
     #[test]

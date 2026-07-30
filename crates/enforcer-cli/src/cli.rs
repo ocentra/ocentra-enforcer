@@ -184,6 +184,10 @@ pub enum PolicyAction {
     /// Node/npm artifact.
     #[command(name = "sbom")]
     Sbom(SbomArgs),
+    /// Enforce organized test trees, empty-tree strict mode from project
+    /// configuration, and exact private Rust test-module allowlists.
+    #[command(name = "required-tests")]
+    RequiredTests(RequiredTestsArgs),
 }
 
 /// Output selection for the native Cargo SBOM policy.
@@ -192,6 +196,14 @@ pub struct SbomArgs {
     /// Directory into which `cargo-sbom.json` is written.
     #[arg(long, default_value = "target/security")]
     pub output: PathBuf,
+}
+
+#[derive(Debug, Args)]
+pub struct RequiredTestsArgs {
+    /// Treat empty/placeholder-only test category directories as failures even
+    /// when the project configuration does not require strict empty trees.
+    #[arg(long)]
+    pub strict_empty_test_trees: bool,
 }
 
 /// Arguments for the architecture-policy check.

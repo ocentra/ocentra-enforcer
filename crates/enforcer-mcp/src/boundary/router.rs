@@ -1153,10 +1153,17 @@ fn named_required_tests_unrecorded(args: &serde_json::Value) -> serde_json::Valu
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    enforcer_scan::boundary::native_scan::execute_required_test_policy(&request, &root, strict)
-        .map_err(|error| error.to_string())
-        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
-        .unwrap_or_else(|error| json_error(&error))
+    let config_path = std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => return json_error(&format!("cannot load required-tests config: {error}")),
+    };
+    enforcer_scan::boundary::native_scan::execute_required_test_policy(
+        &request, &root, &config, strict,
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+    .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json::Value {

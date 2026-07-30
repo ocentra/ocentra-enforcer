@@ -14,8 +14,9 @@ use enforcer_domain::config_types::{
     ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope, Glob,
     HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays, HarnessRunLimit,
     InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner, PolicyReason,
-    PublicReexportPolicy, RegexPattern, RuleEnabled, RuntimeLiteralPolicy, RustScanScope,
-    ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride, SourceShapePolicy,
+    PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern, RuleEnabled,
+    RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride,
+    SourceShapePolicy,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -804,11 +805,23 @@ pub struct WireEffectiveConfig {
     #[serde(default)]
     pub architecture_policy_checks: Vec<String>,
     #[serde(default)]
+    pub strict_empty_test_trees: bool,
+    #[serde(default)]
+    pub private_rust_test_module_allowlist: Vec<WirePrivateRustTestModuleAllowlistEntry>,
+    #[serde(default)]
     pub ignore_dirs: Vec<String>,
     #[serde(default)]
     pub ignore_file_globs: Vec<WireGlob>,
     #[serde(default)]
     pub boundary_owner_note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WirePrivateRustTestModuleAllowlistEntry {
+    pub owner_file: String,
+    pub module_file: String,
+    pub module_name: String,
 }
 
 impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
@@ -843,6 +856,18 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .into_iter()
                 .map(ArchitecturePolicyCheck::try_new)
                 .collect::<Result<_, _>>()?,
+            strict_empty_test_trees: value.strict_empty_test_trees,
+            private_rust_test_module_allowlist: value
+                .private_rust_test_module_allowlist
+                .into_iter()
+                .map(|entry| {
+                    PrivateRustTestModuleAllowlistEntry::try_new(
+                        entry.owner_file.parse()?,
+                        entry.module_file.parse()?,
+                        entry.module_name,
+                    )
+                })
+                .collect::<Result<_, DecodeError>>()?,
             ignore_dirs: value
                 .ignore_dirs
                 .into_iter()
@@ -1074,6 +1099,16 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .architecture_policy_checks
                 .into_iter()
                 .map(|value| value.as_str().to_owned())
+                .collect(),
+            strict_empty_test_trees: value.strict_empty_test_trees,
+            private_rust_test_module_allowlist: value
+                .private_rust_test_module_allowlist
+                .into_iter()
+                .map(|entry| WirePrivateRustTestModuleAllowlistEntry {
+                    owner_file: entry.owner_file().as_str().to_owned(),
+                    module_file: entry.module_file().as_str().to_owned(),
+                    module_name: entry.module_name().to_owned(),
+                })
                 .collect(),
             ignore_dirs: value
                 .ignore_dirs
