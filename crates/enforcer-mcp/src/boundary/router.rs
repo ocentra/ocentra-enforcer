@@ -131,6 +131,21 @@ pub fn dispatch(
         }
         "ocentra_enforcer_coordination_claim" => DispatchOutcome::Result(coordination_claim(args)),
         "ocentra_enforcer_ui" => DispatchOutcome::Result(ui_tool(args)),
+        "ocentra_enforcer_proof_route"
+        | "ocentra_enforcer_proof_run"
+        | "ocentra_enforcer_proof_status"
+        | "ocentra_enforcer_proof_artifact"
+        | "ocentra_enforcer_proof_claim"
+        | "ocentra_enforcer_proof_export"
+        | "ocentra_enforcer_proof_import_legacy"
+        | "ocentra_enforcer_proof_inventory"
+        | "ocentra_enforcer_proof_last_failure"
+        | "ocentra_enforcer_proof_parity"
+        | "ocentra_enforcer_proof_prune"
+        | "ocentra_enforcer_proof_reset"
+        | "ocentra_enforcer_proof_diagnostics" => {
+            DispatchOutcome::Result(proof_unavailable(canonical.as_str()))
+        }
         // Every other registered tool is a real delegate seam owned by a
         // sibling pack's future wiring pass; this skeleton reports it as
         // registered-but-not-yet-wired rather than silently no-op'ing or
@@ -144,6 +159,15 @@ pub fn dispatch(
         }
         _ => DispatchOutcome::UnknownTool,
     }
+}
+
+fn proof_unavailable(operation: &str) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "operation": operation,
+        "error": "native proof lifecycle persistence adapter is not yet wired; refusing to fabricate a proof result",
+        "code": "native_proof_lifecycle_unavailable",
+    })
 }
 
 fn gate_args_from(args: &serde_json::Value) -> GateArgs {
@@ -1480,6 +1504,26 @@ mod tests {
                 crate::validation_history::ValidationHistory::default(),
             )),
         }
+    }
+
+    #[test]
+    fn proof_tools_refuse_with_a_typed_native_lifecycle_error_not_a_fake_success(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_proof_run")?,
+            &serde_json::json!({"root":"."}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("proof tool did not produce an explicit refusal".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["code"], "native_proof_lifecycle_unavailable");
+        assert_ne!(
+            value["error"],
+            "ocentra_enforcer_proof_run is registered but not yet wired to its engine delegate"
+        );
+        Ok(())
     }
 
     #[test]

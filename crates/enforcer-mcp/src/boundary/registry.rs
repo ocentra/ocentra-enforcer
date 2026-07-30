@@ -261,6 +261,35 @@ fn canonical_description(name: &str) -> String {
 }
 
 fn canonical_input_schema(name: &str) -> serde_json::Value {
+    if matches!(
+        name,
+        "ocentra_enforcer_proof_route"
+            | "ocentra_enforcer_proof_run"
+            | "ocentra_enforcer_proof_status"
+            | "ocentra_enforcer_proof_inventory"
+            | "ocentra_enforcer_proof_import_legacy"
+            | "ocentra_enforcer_proof_parity"
+            | "ocentra_enforcer_proof_claim"
+            | "ocentra_enforcer_proof_last_failure"
+            | "ocentra_enforcer_proof_diagnostics"
+            | "ocentra_enforcer_proof_artifact"
+            | "ocentra_enforcer_proof_reset"
+            | "ocentra_enforcer_proof_prune"
+            | "ocentra_enforcer_proof_export"
+    ) {
+        return serde_json::json!({"type":"object","additionalProperties":false,"properties":{
+            "root":{"type":"string"},"profile":{"type":"string"},
+            "scope":{"type":"string","enum":["workspace","files","crate","diff"]},
+            "files":{"type":"array","items":{"type":"string"}},"plan":{"type":"string"},
+            "capability":{"type":"string","enum":["ci","local","windows","linux","macos","wsl","android-emulator","android-device","ios-simulator","ios-device","browser","network","cloud","manual-required"]},
+            "proofId":{"type":"string"},"proofIds":{"type":"array","items":{"type":"string"}},"runId":{"type":"string"},
+            "command":{"type":"array","items":{"type":"string"}},"tags":{"type":"array","items":{"type":"string"}},
+            "artifact":{"type":"string"},"legacyPaths":{"type":"array","items":{"type":"string"}},
+            "limit":{"type":"number"},"diagnosticLimit":{"type":"number"},"limitBytes":{"type":"number"},
+            "includeScripts":{"type":"boolean"},"status":{"type":"string","enum":["passed","failed","manual-required","unavailable","waived"]},
+            "pin":{"type":"boolean"},"claimId":{"type":"string"},"prReady":{"type":"boolean"},"allowDirty":{"type":"boolean"},"dryRun":{"type":"boolean"}
+        }});
+    }
     if name == "ocentra_enforcer_run" {
         return serde_json::json!({"type":"object","additionalProperties":false,"required":["command"],"properties":{"root":{"type":"string"},"profile":{"type":"string"},"tool":{"type":"string"},"language":{"type":"string","enum":["rust","typescript","python","common"]},"cwd":{"type":"string"},"runId":{"type":"string"},"crateName":{"type":"string"},"packageName":{"type":"string"},"domain":{"type":"string"},"command":{"type":"array","items":{"type":"string"}},"tags":{"type":"array","items":{"type":"string"}}}});
     }
