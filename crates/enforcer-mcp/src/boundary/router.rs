@@ -25,8 +25,8 @@ use enforcer_domain::{
     },
     config_types::{ConfigProfileName, CrateName, HarnessArtifactByteLimit, HarnessRunLimit},
     coordination_types::{
-        ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
-        CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
+        ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CoordinationBranch,
+        CoordinationLedgerRoot, CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
     },
     harness_types::{
         HarnessArtifactKind, HarnessDomainName, HarnessPackageName, HarnessRunId, HarnessRunStatus,
@@ -1080,23 +1080,67 @@ fn named_required_tests_unrecorded(args: &serde_json::Value) -> serde_json::Valu
 }
 
 fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json::Value {
-    let (root, request) = match native_scan_request(args) { Ok(value) => value, Err(error) => return json_error(&error) };
-    let tracked = args.get("tracked").and_then(serde_json::Value::as_bool).unwrap_or(false);
-    let allowlist = match generated_artifact_allowlist(&root, args.get("configPath").and_then(serde_json::Value::as_str)) { Ok(value) => value, Err(error) => return json_error(&error) };
-    match enforcer_scan::boundary::native_scan::execute_generated_artifacts(&request, &root, tracked, &allowlist)
-        .and_then(|result| serde_json::to_value(result.report).map_err(|error| enforcer_scan::boundary::native_scan::NativeScanError::Io { operation: "generated-artifacts serialization", reason: error.to_string() })) {
-        Ok(report) => report, Err(error) => json_error(&error.to_string()),
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let tracked = args
+        .get("tracked")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let allowlist = match generated_artifact_allowlist(
+        &root,
+        args.get("configPath").and_then(serde_json::Value::as_str),
+    ) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    match enforcer_scan::boundary::native_scan::execute_generated_artifacts(
+        &request, &root, tracked, &allowlist,
+    )
+    .and_then(|result| {
+        serde_json::to_value(result.report).map_err(|error| {
+            enforcer_scan::boundary::native_scan::NativeScanError::Io {
+                operation: "generated-artifacts serialization",
+                reason: error.to_string(),
+            }
+        })
+    }) {
+        Ok(report) => report,
+        Err(error) => json_error(&error.to_string()),
     }
 }
 
-fn generated_artifact_allowlist(root: &RepoRoot, config_path: Option<&str>) -> Result<Vec<String>, String> {
-    let Some(config_path) = config_path else { return Ok(Vec::new()); };
+fn generated_artifact_allowlist(
+    root: &RepoRoot,
+    config_path: Option<&str>,
+) -> Result<Vec<String>, String> {
+    let Some(config_path) = config_path else {
+        return Ok(Vec::new());
+    };
     let path = std::path::Path::new(root.as_str()).join(config_path);
-    let raw = std::fs::read_to_string(&path).map_err(|error| format!("cannot read generated-artifacts config {}: {error}", path.display()))?;
-    let value: serde_json::Value = serde_json::from_str(&raw).map_err(|error| format!("invalid generated-artifacts config {}: {error}", path.display()))?;
+    let raw = std::fs::read_to_string(&path).map_err(|error| {
+        format!(
+            "cannot read generated-artifacts config {}: {error}",
+            path.display()
+        )
+    })?;
+    let value: serde_json::Value = serde_json::from_str(&raw).map_err(|error| {
+        format!(
+            "invalid generated-artifacts config {}: {error}",
+            path.display()
+        )
+    })?;
     match value.get("generatedArtifactsAllowlist") {
         None => Ok(Vec::new()),
-        Some(serde_json::Value::Array(entries)) => entries.iter().map(|entry| entry.as_str().map(str::to_owned).ok_or_else(|| "generatedArtifactsAllowlist must contain only strings".to_owned())).collect(),
+        Some(serde_json::Value::Array(entries)) => entries
+            .iter()
+            .map(|entry| {
+                entry.as_str().map(str::to_owned).ok_or_else(|| {
+                    "generatedArtifactsAllowlist must contain only strings".to_owned()
+                })
+            })
+            .collect(),
         Some(_) => Err("generatedArtifactsAllowlist must be an array".to_owned()),
     }
 }
@@ -2094,12 +2138,116 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
         "ocentra_enforcer_coordination_notify" => coordination_notify(args),
         "ocentra_enforcer_coordination_peer" => coordination_peer(args),
         "ocentra_enforcer_coordination_sync" => coordination_sync(args),
+        "ocentra_enforcer_coordination_ensure" => coordination_ensure(args),
+        "ocentra_enforcer_coordination_repair" => coordination_repair(args),
         unsupported => serde_json::json!({
             "ok": false,
             "operation": unsupported,
             "refusal": "native coordination engine has no durable backing for this frozen operation yet",
             "code": "native_coordination_operation_unavailable",
         }),
+    }
+}
+
+fn coordination_ensure(args: &serde_json::Value) -> serde_json::Value {
+    let host = args
+        .get("host")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("127.0.0.1");
+    let port = match args.get("port") {
+        None => 8787_u16,
+        Some(value) => value
+            .as_u64()
+            .and_then(|value| u16::try_from(value).ok())
+            .unwrap_or(0),
+    };
+    if port == 0 {
+        return json_error("coordination_ensure `port` must be a u16");
+    }
+    let token = match args.get("token") {
+        None => None,
+        Some(serde_json::Value::String(value)) if !value.is_empty() => Some(value.as_str()),
+        Some(_) => return json_error("coordination_ensure `token` must be a non-empty string"),
+    };
+    match enforcer_coordination::daemon::boundary::ensure(host, port, token) {
+        Ok(status) => serde_json::json!({"ok":true,"service":status}),
+        Err(error) => json_error(&error),
+    }
+}
+
+fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
+    let action = args
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("stale-claims");
+    if !matches!(action, "stale-claims" | "claim-conflicts" | "conflicts") {
+        return serde_json::json!({"ok":false,"code":"native_repair_substrate_not_implemented","error":"legacy-hash and sequence repair require the durable stream-integrity substrate"});
+    }
+    let (hub, lane, caller) = match coordination_context(args, "coordination_repair") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let Some(raw_paths) = args.get("paths").and_then(serde_json::Value::as_array) else {
+        return json_error("coordination_repair stale-claims requires exact `paths`");
+    };
+    let paths = match raw_paths
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or("repair paths must be strings")
+                .and_then(|path| {
+                    ClaimPath::parse(path).map_err(|_| "repair path failed validation")
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(paths) if !paths.is_empty() => paths,
+        Ok(_) => return json_error("coordination_repair paths must not be empty"),
+        Err(error) => return json_error(&error),
+    };
+    let owners = match args.get("owners").or_else(|| args.get("owner")) {
+        None => None,
+        Some(serde_json::Value::String(owner)) => match ClaimWriter::parse(owner.to_owned()) {
+            Ok(owner) => Some(vec![owner]),
+            Err(error) => return json_error(&error.to_string()),
+        },
+        Some(serde_json::Value::Array(values)) => match values
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or("repair owners must be strings")
+            })
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(owners) => match owners
+                .into_iter()
+                .map(ClaimWriter::parse)
+                .collect::<Result<Vec<_>, _>>()
+            {
+                Ok(owners) => Some(owners),
+                Err(error) => return json_error(&error.to_string()),
+            },
+            Err(error) => return json_error(error),
+        },
+        Some(_) => return json_error("repair owner(s) must be strings"),
+    };
+    let mode = if args.get("write").and_then(serde_json::Value::as_bool) == Some(true) {
+        enforcer_domain::coordination_types::RepairMode::Write
+    } else {
+        enforcer_domain::coordination_types::RepairMode::DryRun
+    };
+    let dry_run = matches!(
+        mode,
+        enforcer_domain::coordination_types::RepairMode::DryRun
+    );
+    match api::repair_stale_claims(&hub, &lane, &paths, owners.as_deref(), &caller, mode) {
+        Ok((matched, event)) => {
+            serde_json::json!({"ok":true,"action":"stale-claims","dryRun":dry_run,"matchedClaimCount":matched.get(),"event":event,"nextStep":if dry_run {"review exact matched claims then rerun with write:true"} else {"rerun coordination health"}})
+        }
+        Err(error) => json_error(&error.to_string()),
     }
 }
 

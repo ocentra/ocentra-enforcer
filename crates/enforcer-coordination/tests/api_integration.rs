@@ -7,7 +7,8 @@ use std::path::Path;
 
 use enforcer_coordination::api::{
     acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, notify,
-    open, release, report, send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
+    open, release, repair_stale_claims, report, send_message, CallerContext, ClaimRequestArgs,
+    CloseoutFilters, Hub,
 };
 use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
@@ -104,6 +105,63 @@ fn claim_uses_explicit_caller_context() -> Result<(), Box<dyn std::error::Error>
         context.get("commit").and_then(|value| value.as_str()),
         Some("abc123")
     );
+    Ok(())
+}
+
+#[test]
+fn stale_repair_is_dry_run_first_then_appends_claim_resolve(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ledger = tempdir()?;
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("lib.rs"), "// fixture")?;
+    let hub = open_hub(ledger.path(), "test-hub", "repair")?;
+    let lane: LaneId = "repair".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    let context = caller("C:/repair", "repair")?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("lib.rs")?],
+            caller: &context,
+            reason: None,
+        },
+    )?;
+    let paths = [ClaimPath::from_static("lib.rs")?];
+    let (matched, event) = repair_stale_claims(
+        &hub,
+        &lane,
+        &paths,
+        None,
+        &context,
+        enforcer_domain::coordination_types::RepairMode::DryRun,
+    )?;
+    assert_eq!(matched.get(), 1);
+    assert!(event.is_none());
+    assert_eq!(
+        active_claims(
+            &enforcer_coordination::sync::stream::read_all_streams(ledger.path())?.events
+        )
+        .len(),
+        1
+    );
+    let (_, event) = repair_stale_claims(
+        &hub,
+        &lane,
+        &paths,
+        None,
+        &context,
+        enforcer_domain::coordination_types::RepairMode::Write,
+    )?;
+    assert_eq!(
+        event.ok_or("write must append event")?.kind,
+        "claim.resolve"
+    );
+    assert!(active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(ledger.path())?.events
+    )
+    .is_empty());
     Ok(())
 }
 

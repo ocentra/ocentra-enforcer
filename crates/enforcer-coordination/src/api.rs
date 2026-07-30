@@ -41,7 +41,7 @@ use enforcer_domain::coordination_types::{
     CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
     CoordinationRejection, CoordinationRepoRoot, CoordinationReportSummary,
     CoordinationReportTitle, CoordinationRepository, CoordinationWorktree, LockKind, NodeId,
-    NodeName, Operation, WriterId,
+    NodeName, Operation, RepairMatchCount, RepairMode, WriterId,
 };
 
 pub mod boundary;
@@ -341,6 +341,60 @@ pub fn release(
             metadata: EventMetadata::default(),
         },
     )
+}
+
+/// Resolve active claims only for exact requested paths and (when supplied)
+/// exact writers. Dry-run never appends; write mode emits one auditable
+/// `claim.resolve` event rather than mutating prior stream records.
+pub fn repair_stale_claims(
+    hub: &Hub,
+    lane: &LaneId,
+    paths: &[ClaimPath],
+    owners: Option<&[ClaimWriter]>,
+    caller: &CallerContext,
+    mode: RepairMode,
+) -> Result<(RepairMatchCount, Option<HubEventResponse>)> {
+    let active = active_claims(&read_all_streams(hub.root.as_path())?.events);
+    let matched = active
+        .into_iter()
+        .filter(|claim| {
+            claim
+                .paths
+                .iter()
+                .any(|owned| paths.iter().any(|path| path == owned))
+                && owners.is_none_or(|owners| {
+                    owners
+                        .iter()
+                        .any(|owner| owner.as_str() == claim.writer.as_str())
+                })
+        })
+        .count();
+    if matches!(mode, RepairMode::DryRun) || matched == 0 {
+        return Ok((matched.into(), None));
+    }
+    // CLONE-JUSTIFICATION: persisted event context outlives the borrowed caller request.
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default())?;
+    let event = append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: CoordinationEventKind::ClaimResolve,
+            paths: Some(paths.to_vec()),
+            reason: Some(ClaimReason::from_static("coordination stale claim repair")?),
+            context: Some(EventContextRefs {
+                claim: &context,
+                caller,
+            }),
+            metadata: EventMetadata {
+                // ALLOC-JUSTIFICATION: persisted event JSON owns selected writer values.
+                owners: owners.map(|owners| owners.iter().map(|owner| owner.as_str().to_owned()).collect()),
+                ..Default::default()
+            },
+        },
+    )?;
+    Ok((matched.into(), Some(event)))
 }
 
 /// Append a lane-addressed coordination message to the caller's own stream.

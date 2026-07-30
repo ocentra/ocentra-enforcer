@@ -344,6 +344,7 @@ pub(super) struct EventMetadata {
     pub message_id: Option<ClaimEventId>,
     pub title: Option<enforcer_domain::coordination_types::CoordinationReportTitle>,
     pub summary: Option<enforcer_domain::coordination_types::CoordinationReportSummary>,
+    pub owners: Option<Vec<String>>,
 }
 
 pub(super) fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEventResponse> {
@@ -374,7 +375,7 @@ pub(super) fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEv
             .map(|paths| paths.into_iter().map(ClaimPath::into_string).collect()),
         reason: args.reason.map(ClaimReason::into_string),
         owner: None,
-        owners: None,
+        owners: args.metadata.owners,
         state: None,
         worker_state: None,
         task_id: None,

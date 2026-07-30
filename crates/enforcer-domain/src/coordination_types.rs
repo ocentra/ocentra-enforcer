@@ -119,7 +119,9 @@ impl CoordinationPeerName {
             .then_some(Self(raw))
             .ok_or_else(|| DecodeError::new("coordinationPeerName", "expected a safe peer alias"))
     }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// HTTP endpoint for a native coordination peer.
@@ -128,14 +130,22 @@ impl CoordinationPeerName {
 pub struct CoordinationPeerUrl(String);
 impl CoordinationPeerUrl {
     pub fn parse(raw: String) -> Result<Self, DecodeError> {
-        if raw.starts_with("http://") && raw.len() > "http://".len() && !raw.chars().any(char::is_whitespace) {
+        if raw.starts_with("http://")
+            && raw.len() > "http://".len()
+            && !raw.chars().any(char::is_whitespace)
+        {
             // ALLOC-JUSTIFICATION: endpoint brand owns its canonical no-trailing-slash form.
             Ok(Self(raw.trim_end_matches('/').to_owned()))
         } else {
-            Err(DecodeError::new("coordinationPeerUrl", "expected a non-empty http:// peer endpoint"))
+            Err(DecodeError::new(
+                "coordinationPeerUrl",
+                "expected a non-empty http:// peer endpoint",
+            ))
         }
     }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Environment-variable name holding a peer bearer token, never the token itself.
@@ -149,12 +159,23 @@ impl std::fmt::Debug for CoordinationPeerTokenEnv {
 }
 impl CoordinationPeerTokenEnv {
     pub fn parse(raw: String) -> Result<Self, DecodeError> {
-        let valid = !raw.is_empty() && raw.len() <= 128 && raw.chars().enumerate().all(|(index, c)| {
-            c == '_' || c.is_ascii_alphanumeric() && (index > 0 || c.is_ascii_alphabetic() || c == '_')
-        });
-        valid.then_some(Self(raw)).ok_or_else(|| DecodeError::new("coordinationPeerTokenEnv", "expected a safe non-empty environment variable name"))
+        let valid = !raw.is_empty()
+            && raw.len() <= 128
+            && raw.chars().enumerate().all(|(index, c)| {
+                c == '_'
+                    || c.is_ascii_alphanumeric()
+                        && (index > 0 || c.is_ascii_alphabetic() || c == '_')
+            });
+        valid.then_some(Self(raw)).ok_or_else(|| {
+            DecodeError::new(
+                "coordinationPeerTokenEnv",
+                "expected a safe non-empty environment variable name",
+            )
+        })
     }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// `<nodeId>.<lane>` identity attached to an appended coordination event.
@@ -738,16 +759,38 @@ pub enum ProtectedSingletonStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoordinationEventKind {
     Claim,
+    ClaimResolve,
     Release,
     Message,
     Acknowledgement,
     Report,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RepairMode {
+    DryRun,
+    Write,
+}
+
+/// BRAND-INVARIANT: produced only by exact active-claim selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RepairMatchCount(usize);
+impl RepairMatchCount {
+    pub const fn get(self) -> usize {
+        self.0
+    }
+}
+impl From<usize> for RepairMatchCount {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
 impl CoordinationEventKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claim => "claim",
+            Self::ClaimResolve => "claim.resolve",
             Self::Release => "release",
             Self::Message => "message",
             Self::Acknowledgement => "ack",

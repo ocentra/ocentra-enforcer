@@ -9,6 +9,7 @@
 //! closeout-scope regression coverage.
 
 pub mod api;
+pub mod daemon;
 pub mod domain;
 pub mod error;
 pub mod events;
