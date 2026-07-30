@@ -1966,12 +1966,150 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
         "ocentra_enforcer_coordination_report" => coordination_report(args),
         "ocentra_enforcer_coordination_index" => coordination_index(args),
         "ocentra_enforcer_coordination_notify" => coordination_notify(args),
+        "ocentra_enforcer_coordination_peer" => coordination_peer(args),
+        "ocentra_enforcer_coordination_sync" => coordination_sync(args),
         unsupported => serde_json::json!({
             "ok": false,
             "operation": unsupported,
             "refusal": "native coordination engine has no durable backing for this frozen operation yet",
             "code": "native_coordination_operation_unavailable",
         }),
+    }
+}
+
+/// Persist and resolve native peer descriptors. Tokens are never persisted:
+/// the registry may name an environment variable, which is resolved only at
+/// the outbound transport boundary.
+fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
+    use enforcer_coordination::sync::peer::{self, PeerRecord};
+    use enforcer_domain::coordination_types::{
+        CoordinationLedgerRoot, CoordinationPeerName, CoordinationPeerTokenEnv, CoordinationPeerUrl,
+    };
+    let root = match args
+        .get("root")
+        .and_then(serde_json::Value::as_str)
+        .and_then(|raw| CoordinationLedgerRoot::parse(std::path::Path::new(raw)).ok())
+    {
+        Some(value) => value,
+        None => return json_error("coordination_peer requires a valid `root` ledger path"),
+    };
+    let registry_json = |registry: peer::PeerRegistry| serde_json::json!({"ok":true,"registry":{"peers":registry.peers.into_iter().map(|entry| serde_json::json!({"name":entry.name.as_str(),"url":entry.url.as_str(),"mode":"pull","tokenEnv":entry.token_env.as_ref().map(|value| value.as_str())})).collect::<Vec<_>>()}});
+    match args
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("list")
+    {
+        "list" => match peer::load_registry(&root) {
+            Ok(registry) => registry_json(registry),
+            Err(error) => json_error(&error.to_string()),
+        },
+        "add" => {
+            let parsed = (|| {
+                let name = CoordinationPeerName::parse(
+                    args.get("name")
+                        .or_else(|| args.get("peer"))
+                        .and_then(serde_json::Value::as_str)
+                        .ok_or("coordination_peer add requires `name`")?
+                        .to_owned(),
+                )
+                .map_err(|error| error.to_string())?;
+                let url = CoordinationPeerUrl::parse(
+                    args.get("url")
+                        .or_else(|| args.get("peerUrl"))
+                        .and_then(serde_json::Value::as_str)
+                        .ok_or("coordination_peer add requires `url`")?
+                        .to_owned(),
+                )
+                .map_err(|error| error.to_string())?;
+                let token_env = args
+                    .get("tokenEnv")
+                    .and_then(serde_json::Value::as_str)
+                    .map(|value| CoordinationPeerTokenEnv::parse(value.to_owned()))
+                    .transpose()
+                    .map_err(|error| error.to_string())?;
+                Ok::<_, String>(PeerRecord {
+                    name,
+                    url,
+                    token_env,
+                })
+            })();
+            match parsed
+                .and_then(|record| peer::add_peer(&root, record).map_err(|error| error.to_string()))
+            {
+                Ok(registry) => registry_json(registry),
+                Err(error) => json_error(&error),
+            }
+        }
+        "remove" => {
+            let outcome: Result<peer::PeerRegistry, String> = (|| {
+                let raw = args
+                    .get("name")
+                    .or_else(|| args.get("peer"))
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| "coordination_peer remove requires `name`".to_owned())?;
+                let name = CoordinationPeerName::parse(raw.to_owned())
+                    .map_err(|error| error.to_string())?;
+                peer::remove_peer(&root, &name).map_err(|error| error.to_string())
+            })();
+            match outcome {
+                Ok(registry) => registry_json(registry),
+                Err(error) => json_error(&error),
+            }
+        }
+        unsupported => json_error(&format!(
+            "unsupported native coordination peer action: {unsupported}"
+        )),
+    }
+}
+
+/// Import only an authenticated peer suffix. Divergence is preserved as a
+/// conflict artifact; this operation never rewrites local append-only data.
+fn coordination_sync(args: &serde_json::Value) -> serde_json::Value {
+    use enforcer_coordination::sync::peer;
+    use enforcer_domain::coordination_types::{
+        CoordinationLedgerRoot, CoordinationPeerName, CoordinationPeerUrl,
+    };
+    let root = match args
+        .get("root")
+        .and_then(serde_json::Value::as_str)
+        .and_then(|raw| CoordinationLedgerRoot::parse(std::path::Path::new(raw)).ok())
+    {
+        Some(value) => value,
+        None => return json_error("coordination_sync requires a valid `root` ledger path"),
+    };
+    let peer_raw = match args
+        .get("peer")
+        .or_else(|| args.get("url"))
+        .or_else(|| args.get("peerUrl"))
+        .and_then(serde_json::Value::as_str)
+    {
+        Some(value) => value,
+        None => return json_error("coordination_sync requires `peer`"),
+    };
+    let result = if std::path::Path::new(peer_raw).is_dir() {
+        peer::sync_local(&root, std::path::Path::new(peer_raw))
+    } else {
+        let resolved = CoordinationPeerUrl::parse(peer_raw.to_owned())
+            .map(|url| {
+                (
+                    url,
+                    args.get("token")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned),
+                )
+            })
+            .or_else(|_| {
+                let name = CoordinationPeerName::parse(peer_raw.to_owned())?;
+                let record = peer::resolve_peer(&root, &name)?;
+                Ok((record.url, peer::token_from_env(record.token_env.as_ref())?))
+            });
+        resolved.and_then(|(url, token)| peer::sync_http(&root, &url, token.as_deref()))
+    };
+    match result {
+        Ok(sync) => {
+            serde_json::json!({"ok":sync.conflicts.is_empty(),"peer":peer_raw,"result":{"imported":sync.imported,"transferredLines":sync.transferred_lines,"conflicts":sync.conflicts}})
+        }
+        Err(error) => json_error(&error.to_string()),
     }
 }
 
@@ -3335,17 +3473,26 @@ mod tests {
             ),
             DispatchOutcome::StaleRefused(_)
         ));
-        let DispatchOutcome::Result(unavailable) = dispatch(
+        let peer_root = tempfile::tempdir()?;
+        std::fs::create_dir_all(peer_root.path().join("streams"))?;
+        std::fs::write(
+            peer_root
+                .path()
+                .join("streams")
+                .join("node_peer.lane-a.ndjson"),
+            "{\"id\":\"remote-evidence\"}\n",
+        )?;
+        let mut sync_args = common.clone();
+        sync_args["peer"] = serde_json::json!(peer_root.path());
+        let DispatchOutcome::Result(synced) = dispatch(
             &tool("ocentra_enforcer_coordination_sync")?,
-            &common,
+            &sync_args,
             &ctx(McpFreshness::Fresh),
         ) else {
-            return Err("unsupported operation was not dispatched".into());
+            return Err("native sync was not dispatched".into());
         };
-        assert_eq!(
-            unavailable["code"],
-            serde_json::json!("native_coordination_operation_unavailable")
-        );
+        assert_eq!(synced["ok"], serde_json::json!(true));
+        assert_eq!(synced["result"]["imported"], serde_json::json!(1));
         Ok(())
     }
 
