@@ -170,7 +170,7 @@ fn validate_contract(
     }) {
         let text = std::fs::read_to_string(root_path(root, file.as_str())).unwrap_or_default();
         for (_, value) in &values {
-            if text.contains(value) {
+            if contains_literal(&text, value) {
                 findings.push(finding(
                     file.clone(),
                     "copied configured single-source contract value",
@@ -188,16 +188,7 @@ fn value_text(root: &RepoRoot, path: &str, spec: &serde_json::Value) -> Result<S
         return Ok(value.to_owned());
     }
     if let Some(name) = spec.get("rustConst").and_then(serde_json::Value::as_str) {
-        let needle = format!("const {name}");
-        let line = text
-            .lines()
-            .find(|line| line.contains(&needle))
-            .ok_or("rust const missing")?;
-        return line
-            .split('"')
-            .nth(1)
-            .map(str::to_owned)
-            .ok_or("rust const must be string".to_owned());
+        return rust_const(&text, name);
     }
     if let Some(json_path) = spec.get("jsonPath").and_then(serde_json::Value::as_str) {
         let value: serde_json::Value =
@@ -220,46 +211,167 @@ fn value_text(root: &RepoRoot, path: &str, spec: &serde_json::Value) -> Result<S
         let (enum_name, variant) = rename
             .split_once("::")
             .ok_or("rustSerdeRename must be Enum::Variant")?;
-        let enum_start = text
-            .find(&format!("enum {enum_name}"))
-            .ok_or("serde enum missing")?;
-        let tail = text
-            .get(enum_start..)
-            .ok_or("serde enum offset is invalid")?;
-        let variant_at = tail.find(variant).ok_or("serde variant missing")?;
-        let before = tail
-            .get(..variant_at)
-            .ok_or("serde variant offset is invalid")?;
-        let rename_at = before.rfind("rename").ok_or("serde rename missing")?;
-        return before
-            .get(rename_at..)
-            .ok_or("serde rename offset is invalid")?
-            .split('"')
-            .nth(1)
-            .map(str::to_owned)
-            .ok_or("serde rename must be string".to_owned());
+        return rust_serde_rename(&text, enum_name, variant);
     }
     if let Some(object_path) = spec
         .get("sourceObjectPath")
         .and_then(serde_json::Value::as_str)
     {
-        let key = object_path
-            .rsplit('.')
-            .next()
-            .ok_or("sourceObjectPath is empty")?;
-        let marker = format!("{key}:");
-        let value = text
-            .split(&marker)
-            .nth(1)
-            .ok_or("sourceObjectPath is missing")?
-            .trim_start();
-        return value
-            .split('"')
-            .nth(1)
-            .map(str::to_owned)
-            .ok_or("sourceObjectPath must reference a quoted string".to_owned());
+        return source_object_path(&text, object_path);
     }
     Err("unsupported contract value spec".to_owned())
+}
+fn rust_const(source: &str, name: &str) -> Result<String, String> {
+    for line in source.lines() {
+        let line = line.trim();
+        let rest = line.strip_prefix("pub ").unwrap_or(line);
+        let Some(rest) = rest.strip_prefix("const ") else {
+            continue;
+        };
+        let Some(rest) = rest.strip_prefix(name) else {
+            continue;
+        };
+        if !rest.starts_with(':') || !rest.contains("&str") || !rest.contains('=') {
+            continue;
+        }
+        return quoted_after(
+            rest.split_once('=')
+                .map_or("", |(_, value)| value)
+                .trim_start(),
+        )
+        .ok_or_else(|| format!("{name} string const is missing"));
+    }
+    Err(format!("{name} string const is missing"))
+}
+fn rust_serde_rename(source: &str, enum_name: &str, variant: &str) -> Result<String, String> {
+    let marker = format!("enum {enum_name}");
+    let start = source
+        .find(&marker)
+        .ok_or_else(|| format!("{enum_name} enum is missing"))?;
+    let body = source
+        .get(start..)
+        .and_then(|tail| tail.split_once('{').map(|(_, rest)| rest))
+        .unwrap_or("");
+    let body = body.split("\n}").next().unwrap_or(body);
+    let variant_marker = format!("{variant}");
+    for (index, line) in body.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with(&variant_marker)
+            && trimmed
+                .get(variant_marker.len()..)
+                .unwrap_or("")
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
+        {
+            let prefix = body.lines().take(index).collect::<Vec<_>>().join("\n");
+            let attribute = prefix.rsplit("#[serde(rename").next().unwrap_or("");
+            if let Some(value) = quoted_after(attribute) {
+                return Ok(value);
+            }
+        }
+    }
+    Err(format!("{enum_name}::{variant} serde rename is missing"))
+}
+fn source_object_path(source: &str, path: &str) -> Result<String, String> {
+    let Some(dot) = path.rfind('.') else {
+        return Err(format!("{path} must be ObjectName.PropertyName"));
+    };
+    if dot == 0 || dot + 1 == path.len() {
+        return Err(format!("{path} must be ObjectName.PropertyName"));
+    }
+    let (object, property_path) = path.split_at(dot);
+    let property_path = &property_path[1..];
+    let (property, index) = match property_path.split_once('[') {
+        Some((property, suffix)) if suffix.ends_with(']') => (
+            property,
+            Some(
+                suffix[..suffix.len() - 1]
+                    .parse::<usize>()
+                    .map_err(|_| format!("{path} array index is invalid"))?,
+            ),
+        ),
+        Some(_) => return Err(format!("{path} array index is invalid")),
+        None => (property_path, None),
+    };
+    let object_body =
+        object_body(source, object).ok_or_else(|| format!("{path} constant object is missing"))?;
+    let marker = format!("{property}:");
+    let Some(value) = object_body.split(&marker).nth(1) else {
+        return Err(format!("{path} string literal is missing"));
+    };
+    let value = value.trim_start();
+    if let Some(index) = index {
+        let Some(array) = value
+            .strip_prefix('[')
+            .and_then(|tail| tail.split(']').next())
+        else {
+            return Err(format!("{path} array literal is missing"));
+        };
+        return quoted_values(array)
+            .get(index)
+            .cloned()
+            .ok_or_else(|| format!("{path} array entry is missing"));
+    }
+    quoted_after(value)
+        .or_else(|| parse_literal(value))
+        .ok_or_else(|| format!("{path} string literal is missing"))
+}
+fn object_body<'a>(source: &'a str, name: &str) -> Option<&'a str> {
+    let marker = format!("const {name}");
+    let start = source.find(&marker)?;
+    let assignment = source.get(start..)?.split_once('=')?.1;
+    let body = assignment.trim_start();
+    let body = if body.starts_with("defineLiteralKindGroup(") {
+        body.split_once('{')?.1
+    } else {
+        body.strip_prefix('{')?
+    };
+    Some(body.split_once('}')?.0)
+}
+fn quoted_after(value: &str) -> Option<String> {
+    let value = value.trim_start();
+    let quote = value
+        .chars()
+        .next()
+        .filter(|quote| matches!(quote, '\'' | '"' | '`'))?;
+    let tail = value.get(quote.len_utf8()..)?;
+    Some(tail.split(quote).next()?.to_owned())
+}
+fn parse_literal(value: &str) -> Option<String> {
+    let marker = ".parse(";
+    let inner = value.split_once(marker)?.1.trim_start();
+    quoted_after(inner)
+}
+fn quoted_values(value: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut rest = value;
+    while let Some(index) = rest.find(['\'', '"', '`']) {
+        let Some(quote) = rest.get(index..).and_then(|tail| tail.chars().next()) else {
+            break;
+        };
+        let Some(after) = rest.get(index + quote.len_utf8()..) else {
+            break;
+        };
+        if let Some(end) = after.find(quote) {
+            let Some(entry) = after.get(..end) else { break };
+            let Some(next) = after.get(end + quote.len_utf8()..) else {
+                break;
+            };
+            values.push(entry.to_owned());
+            rest = next;
+        } else {
+            break;
+        }
+    }
+    values
+}
+fn contains_literal(text: &str, value: &str) -> bool {
+    let valid = |c: char| c.is_ascii_alphanumeric() || matches!(c, '@' | '.' | '_' | '/' | '-');
+    text.match_indices(value).any(|(at, _)| {
+        !text[..at].chars().next_back().is_some_and(valid)
+            && !text[at + value.len()..].chars().next().is_some_and(valid)
+    })
 }
 fn root_path(root: &RepoRoot, path: &str) -> std::path::PathBuf {
     std::path::Path::new(root.as_str()).join(path)
@@ -438,6 +550,62 @@ mod tests {
         )?;
         let config = r#"{"contracts":[{"ownerPath":"src/owner.ts","scanRoots":["src"],"values":[{"name":"label","sourceObjectPath":"values.label"}]}]}"#;
         let report = check_config(temp.path(), config, &["src/owner.ts"])?;
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
+    }
+
+    #[test]
+    fn each_selector_detects_a_copied_owner_value() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(temp.path(), "src/constants.rs", "pub const CODE: &str = \"rust\";\n#[derive(serde::Serialize)]\nenum Kind {\n    #[serde(rename = \"wire\")]\n    Variant,\n}\n")?;
+        write(temp.path(), "src/objects.ts", "export const labels = { direct: \"object\", parsed: Kind.parse(\"parsed\"), entries: [\"zero\", \"one\"] } as const;\n")?;
+        write(
+            temp.path(),
+            "src/value.json",
+            "{\"nested\":{\"name\":\"json\"}}",
+        )?;
+        write(
+            temp.path(),
+            "scan/copies.rs",
+            "let all = [\"rust\", \"wire\", \"object\", \"parsed\", \"one\", \"json\"];\n",
+        )?;
+        let config = r#"{"contracts":[{"ownerPath":"src/constants.rs","scanRoots":["scan"],"values":[{"name":"rust","rustConst":"CODE"},{"name":"wire","rustSerdeRename":"Kind::Variant"}]},{"ownerPath":"src/objects.ts","scanRoots":["scan"],"values":[{"name":"direct","sourceObjectPath":"labels.direct"},{"name":"parsed","sourceObjectPath":"labels.parsed"},{"name":"indexed","sourceObjectPath":"labels.entries[1]"}]},{"ownerPath":"src/value.json","scanRoots":["scan"],"values":[{"name":"json","jsonPath":"nested.name"}]}]}"#;
+        let report = check_config(
+            temp.path(),
+            config,
+            &[
+                "src/constants.rs",
+                "src/objects.ts",
+                "src/value.json",
+                "scan/copies.rs",
+            ],
+        )?;
+        assert_eq!(
+            report
+                .findings
+                .iter()
+                .filter(|finding| finding.file.as_str() == "scan/copies.rs")
+                .count(),
+            3
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn literal_matching_respects_frozen_boundaries() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "src/owner.rs",
+            "pub const CODE: &str = \"owner\";\n",
+        )?;
+        write(
+            temp.path(),
+            "scan/safe.rs",
+            "let value = \"preownerpost\";\n",
+        )?;
+        let config = r#"{"contracts":[{"ownerPath":"src/owner.rs","scanRoots":["scan"],"values":[{"name":"code","rustConst":"CODE"}]}]}"#;
+        let report = check_config(temp.path(), config, &["src/owner.rs", "scan/safe.rs"])?;
         assert_eq!(report.ok, ReportOutcome::Clean);
         Ok(())
     }
