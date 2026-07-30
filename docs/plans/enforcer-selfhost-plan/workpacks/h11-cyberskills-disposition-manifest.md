@@ -1,9 +1,14 @@
 # H11 CyberSkills disposition manifest
 
-`crates/enforcer-rules/rules/cyberskills-disposition.json` is the retention
+`crates/enforcer-rules/dispositions/cyberskills-disposition.json` is the retention
 ledger for all 817 vendor catalog entries. It is deliberately separate from
 the native-rule catalog: a native `CYBER-*` rule is not evidence that it
 implements a particular vendor skill merely because the subjects look alike.
+
+The `rules/` directory is reserved exclusively for JSON arrays that decode as
+native `WireRuleRecord` catalogs. The disposition is a JSON object, so it lives
+under `dispositions/`; the `cyberskills_disposition` integration test verifies
+both contracts mechanically.
 
 The manifest currently records:
 

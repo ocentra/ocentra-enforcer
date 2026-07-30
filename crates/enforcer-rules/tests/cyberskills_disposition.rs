@@ -10,7 +10,7 @@ use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 use serde_json::Value;
 
-const DISPOSITION_JSON: &str = include_str!("../rules/cyberskills-disposition.json");
+const DISPOSITION_JSON: &str = include_str!("../dispositions/cyberskills-disposition.json");
 const NATIVE_RULES_JSON: &str = include_str!("../rules/cyberskills.json");
 const ADAPTER_RULES_JSON: &str = include_str!("../rules/cyberskills-adapters.json");
 const SOURCE_CATALOG: &str = include_str!(
@@ -68,6 +68,36 @@ fn source_catalog_ids() -> BTreeSet<String> {
         }
     }
     ids
+}
+
+#[test]
+fn rule_catalog_directory_contains_only_valid_rule_record_arrays(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rules_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules");
+    let mut catalog_paths: Vec<PathBuf> = std::fs::read_dir(&rules_dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("json"))
+        .collect();
+    catalog_paths.sort();
+    assert!(
+        !catalog_paths.is_empty(),
+        "rule catalog directory must not be empty"
+    );
+
+    for path in catalog_paths {
+        let raw = std::fs::read_to_string(&path)?;
+        let source = path.display().to_string();
+        let json = RuleCatalogJson::try_from(raw)?;
+        let source = RuleCatalogSource::try_from(source)?;
+        let records = parse_catalog(&json, &source)?;
+        assert!(
+            !records.is_empty(),
+            "rule catalog must contain at least one record: {}",
+            path.display()
+        );
+    }
+    Ok(())
 }
 
 #[test]
