@@ -111,23 +111,23 @@ fn validate_contract(
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|value| {
-            value_text(root, owner, &value).ok().map(|text| {
-                (
-                    value
-                        .get("name")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("value")
-                        .to_owned(),
-                    text,
-                )
-            })
+        .map(|value| {
+            let name = value
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("contract value name is required")?;
+            let text = value_text(root, owner, &value)?;
+            if text.is_empty() {
+                return Err(format!("{owner}: {name} must be a non-empty string"));
+            }
+            Ok((name.to_owned(), text))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     for mirror in &mirrors {
-        let Some(path) = mirror.get("path").and_then(serde_json::Value::as_str) else {
-            continue;
-        };
+        let path = mirror
+            .get("path")
+            .and_then(serde_json::Value::as_str)
+            .ok_or("contract mirror path is required")?;
         if !root_path(root, path).is_file() {
             continue;
         };
@@ -140,18 +140,21 @@ fn validate_contract(
             let name = value
                 .get("name")
                 .and_then(serde_json::Value::as_str)
-                .unwrap_or("");
-            if let Some((_, expected)) = values.iter().find(|(candidate, _)| candidate == name) {
-                if value_text(root, path, value).ok().as_deref() != Some(expected) {
-                    findings.push(finding(
-                        path.parse().map_err(
-                            |error: enforcer_domain::boundary::decode_error::DecodeError| {
-                                error.to_string()
-                            },
-                        )?,
-                        "mirror value does not match its owner",
-                    )?);
-                }
+                .ok_or("mirror contract value name is required")?;
+            let (_, expected) = values
+                .iter()
+                .find(|(candidate, _)| candidate == name)
+                .ok_or_else(|| format!("{path}: {name} does not match an owner value name"))?;
+            let actual = value_text(root, path, value)?;
+            if actual != *expected {
+                findings.push(finding(
+                    path.parse().map_err(
+                        |error: enforcer_domain::boundary::decode_error::DecodeError| {
+                            error.to_string()
+                        },
+                    )?,
+                    "mirror value does not match its owner",
+                )?);
             }
         }
     }
@@ -617,6 +620,50 @@ mod tests {
         let config = r#"{"contracts":[{"ownerPath":"src/owner.rs","scanRoots":["scan"],"values":[{"name":"code","rustConst":"CODE"}]}]}"#;
         let report = check_config(temp.path(), config, &["src/owner.rs", "scan/safe.rs"])?;
         assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_owner_or_mirror_value_specs_fail_closed() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "src/owner.rs",
+            "pub const CODE: &str = \"owner\";\n",
+        )?;
+        write(
+            temp.path(),
+            "src/mirror.rs",
+            "pub const CODE: &str = \"owner\";\n",
+        )?;
+        let missing_selector =
+            r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code"}]}]}"#;
+        let error = check_config(temp.path(), missing_selector, &["src/owner.rs"])
+            .expect_err("missing owner selector must reject the contract");
+        assert!(error
+            .to_string()
+            .contains("unsupported contract value spec"));
+        let unknown_mirror_name = r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code","rustConst":"CODE"}],"mirrors":[{"path":"src/mirror.rs","values":[{"name":"other","rustConst":"CODE"}]}]}]}"#;
+        let error = check_config(
+            temp.path(),
+            unknown_mirror_name,
+            &["src/owner.rs", "src/mirror.rs"],
+        )
+        .expect_err("mirror values must name an owner value");
+        assert!(error
+            .to_string()
+            .contains("does not match an owner value name"));
+        let missing_mirror_selector = r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code","rustConst":"CODE"}],"mirrors":[{"path":"src/mirror.rs","values":[{"name":"code"}]}]}]}"#;
+        let error = check_config(
+            temp.path(),
+            missing_mirror_selector,
+            &["src/owner.rs", "src/mirror.rs"],
+        )
+        .expect_err("missing mirror selector must reject the contract");
+        assert!(error
+            .to_string()
+            .contains("unsupported contract value spec"));
         Ok(())
     }
 }

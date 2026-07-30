@@ -4090,6 +4090,101 @@ mod tests {
     }
 
     #[test]
+    fn check_single_source_contracts_executes_configured_owner_mirror_and_copy_policy(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::create_dir_all(temp.path().join("scan"))?;
+        std::fs::write(
+            temp.path().join("src/owner.rs"),
+            "pub const CODE: &str = \"owner-value\";\n",
+        )?;
+        std::fs::write(
+            temp.path().join("src/mirror.rs"),
+            "pub const CODE: &str = \"wrong-value\";\n",
+        )?;
+        std::fs::write(
+            temp.path().join("scan/copy.rs"),
+            "let copied = \"owner-value\";\n",
+        )?;
+        std::fs::write(
+            temp.path().join("contracts.json"),
+            r#"{"contracts":[{"name":"wire","ownerPath":"src/owner.rs","scanRoots":["scan"],"values":[{"name":"code","rustConst":"CODE"}],"mirrors":[{"path":"src/mirror.rs","values":[{"name":"code","rustConst":"CODE"}]}]}]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "single-source-contracts",
+                "configPath": "contracts.json",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("single-source contract check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .any(|finding| finding["file"] == "src/mirror.rs")
+                && findings
+                    .iter()
+                    .any(|finding| finding["file"] == "scan/copy.rs")
+        }));
+        std::fs::write(
+            temp.path().join("src/mirror.rs"),
+            "pub const CODE: &str = \"owner-value\";\n",
+        )?;
+        std::fs::write(temp.path().join("scan/copy.rs"), "let derived = CODE;\n")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "single-source-contracts",
+                "configPath": "contracts.json",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("clean single-source contract check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        for (config, expected) in [
+            (
+                r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code"}]}]}"#,
+                "unsupported contract value spec",
+            ),
+            (
+                r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code","rustConst":"CODE"}],"mirrors":[{"path":"src/mirror.rs","values":[{"name":"other","rustConst":"CODE"}]}]}]}"#,
+                "does not match an owner value name",
+            ),
+            (
+                r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code","rustConst":"CODE"}],"mirrors":[{"path":"src/mirror.rs","values":[{"name":"code"}]}]}]}"#,
+                "unsupported contract value spec",
+            ),
+        ] {
+            std::fs::write(temp.path().join("contracts.json"), config)?;
+            let outcome = dispatch(
+                &tool("ocentra_enforcer_check")?,
+                &serde_json::json!({
+                    "root": temp.path().to_string_lossy(),
+                    "check": "single-source-contracts",
+                    "configPath": "contracts.json",
+                }),
+                &ctx(McpFreshness::Fresh),
+            );
+            let DispatchOutcome::Result(value) = outcome else {
+                return Err("malformed single-source contract did not produce a result".into());
+            };
+            assert!(value["error"]
+                .as_str()
+                .is_some_and(|error| error.contains(expected)));
+        }
+        Ok(())
+    }
+
+    #[test]
     fn route_dispatches_to_the_native_rust_route_engine() -> Result<(), Box<dyn std::error::Error>>
     {
         let temp = tempfile::tempdir()?;
