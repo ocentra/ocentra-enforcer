@@ -80,22 +80,57 @@ fn summary(root: &str, kind: ValidationKind, report: &serde_json::Value) -> serd
         values.dedup();
         values
     };
-    let mut summary = serde_json::json!({
-        "kind": kind.as_str(), "command": report.get("command").cloned().unwrap_or(serde_json::Value::Null),
-        "check": report.get("check").cloned().unwrap_or(serde_json::Value::Null), "ok": report.get("ok").cloned().unwrap_or(serde_json::Value::Null),
-        "root": root, "profileName": report.get("profileName").cloned().unwrap_or(serde_json::Value::Null),
-        "at": epoch_millis().map(iso8601_utc).unwrap_or_else(|_| "1970-01-01T00:00:00.000Z".to_owned()),
-        "bySeverity": report.get("bySeverity").cloned().unwrap_or(serde_json::Value::Object(severity)),
-        "counts": { "findings": findings.len(), "violations": report.get("violations").and_then(serde_json::Value::as_array).map_or(0, Vec::len), "warnings": report.get("warnings").and_then(serde_json::Value::as_array).map_or(0, Vec::len) },
-        "ruleIds": values("ruleId"), "docs": values("doc"), "scope": compact_scope(report.get("scope")),
-    });
-    let object = summary.as_object_mut().expect("summary is an object");
+    let mut object = serde_json::Map::new();
+    object.insert("kind".to_owned(), serde_json::json!(kind.as_str()));
+    object.insert(
+        "command".to_owned(),
+        report
+            .get("command")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    );
+    object.insert(
+        "check".to_owned(),
+        report
+            .get("check")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    );
+    object.insert(
+        "ok".to_owned(),
+        report.get("ok").cloned().unwrap_or(serde_json::Value::Null),
+    );
+    object.insert("root".to_owned(), serde_json::json!(root));
+    object.insert(
+        "profileName".to_owned(),
+        report
+            .get("profileName")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    );
+    object.insert(
+        "at".to_owned(),
+        serde_json::json!(epoch_millis()
+            .map(iso8601_utc)
+            .unwrap_or_else(|_| "1970-01-01T00:00:00.000Z".to_owned())),
+    );
+    object.insert(
+        "bySeverity".to_owned(),
+        report
+            .get("bySeverity")
+            .cloned()
+            .unwrap_or(serde_json::Value::Object(severity)),
+    );
+    object.insert("counts".to_owned(), serde_json::json!({ "findings": findings.len(), "violations": report.get("violations").and_then(serde_json::Value::as_array).map_or(0, Vec::len), "warnings": report.get("warnings").and_then(serde_json::Value::as_array).map_or(0, Vec::len) }));
+    object.insert("ruleIds".to_owned(), serde_json::json!(values("ruleId")));
+    object.insert("docs".to_owned(), serde_json::json!(values("doc")));
+    object.insert("scope".to_owned(), compact_scope(report.get("scope")));
     for field in ["command", "check", "profileName", "scope"] {
         if object.get(field).is_some_and(serde_json::Value::is_null) {
             object.remove(field);
         }
     }
-    summary
+    serde_json::Value::Object(object)
 }
 
 fn compact_scope(scope: Option<&serde_json::Value>) -> serde_json::Value {
