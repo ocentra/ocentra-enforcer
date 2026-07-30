@@ -13,9 +13,9 @@
 //! NEGATIVE-TEST: malformed and unknown tool calls are rejected by the
 //! router tests before any backing engine is invoked.
 //! BOUNDARY-INVARIANT: JSON-RPC request fields are decoded here and converted
-//! before handlers cross into domain or coordination APIs.
-//! boundaryOwnerNote: enforcer-mcp owns transport dispatch and no business
-//! or persistence decisions are introduced by this router.
+//! before handlers call typed engine adapters.
+//! boundaryOwnerNote: enforcer-mcp owns transport dispatch; durable behavior
+//! remains in the typed engine crates.
 
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, Hub};
 use enforcer_domain::{
@@ -126,10 +126,30 @@ pub fn dispatch(
             DispatchOutcome::Result(ui_logic_coupling_scan(args))
         }
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
-        "ocentra_enforcer_coordination_status" => {
-            DispatchOutcome::Result(coordination_status(args))
+        "ocentra_enforcer_coordination_status"
+        | "ocentra_enforcer_coordination_health"
+        | "ocentra_enforcer_coordination_presence"
+        | "ocentra_enforcer_coordination_streams"
+        | "ocentra_enforcer_coordination_inbox"
+        | "ocentra_enforcer_coordination_workers"
+        | "ocentra_enforcer_coordination_tasks"
+        | "ocentra_enforcer_coordination_guard"
+        | "ocentra_enforcer_coordination_init"
+        | "ocentra_enforcer_coordination_claim"
+        | "ocentra_enforcer_coordination_release"
+        | "ocentra_enforcer_coordination_closeout"
+        | "ocentra_enforcer_coordination_message"
+        | "ocentra_enforcer_coordination_mail"
+        | "ocentra_enforcer_coordination_index"
+        | "ocentra_enforcer_coordination_sync"
+        | "ocentra_enforcer_coordination_peer"
+        | "ocentra_enforcer_coordination_ensure"
+        | "ocentra_enforcer_coordination_compact"
+        | "ocentra_enforcer_coordination_repair"
+        | "ocentra_enforcer_coordination_notify"
+        | "ocentra_enforcer_coordination_report" => {
+            DispatchOutcome::Result(coordination(canonical.as_str(), args))
         }
-        "ocentra_enforcer_coordination_claim" => DispatchOutcome::Result(coordination_claim(args)),
         "ocentra_enforcer_ui" => DispatchOutcome::Result(ui_tool(args)),
         "ocentra_enforcer_proof_route"
         | "ocentra_enforcer_proof_run"
@@ -1507,6 +1527,342 @@ fn mcp_status(ctx: &DispatchContext) -> serde_json::Value {
     })
 }
 
+/// Coordination MCP family.  This boundary only projects operations that
+/// have a durable `enforcer-coordination` backing.  The remaining frozen MJS
+/// names are deliberately refused with an explicit machine-readable reason;
+/// a successful response must always correspond to a real native ledger
+/// read or append-only event.
+fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value {
+    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error(&format!("{operation} requires a `root` ledger path"));
+    };
+    let root_path = std::path::Path::new(root_raw);
+    match operation {
+        "ocentra_enforcer_coordination_status" | "ocentra_enforcer_coordination_health" => {
+            coordination_status(args)
+        }
+        "ocentra_enforcer_coordination_streams" => {
+            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+                Ok(all) => serde_json::json!({
+                    "ok": true,
+                    "eventCount": all.events.len(),
+                    "duplicateCount": all.duplicate_count.as_nonzero().map_or(0, std::num::NonZeroUsize::get),
+                    "warningCount": all.warnings.len(),
+                    "streams": enforcer_coordination::sync::stream::list_stream_files(root_path)
+                        .map(|names| names.into_iter().map(|name| name.as_str().to_owned()).collect::<Vec<_>>())
+                        .unwrap_or_default(),
+                }),
+                Err(error) => json_error(&error.to_string()),
+            }
+        }
+        "ocentra_enforcer_coordination_presence" => {
+            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+                Ok(all) => {
+                    let mut lanes = std::collections::BTreeSet::new();
+                    let mut writers = std::collections::BTreeSet::new();
+                    for event in &all.events {
+                        lanes.insert(event.lane.clone());
+                        writers.insert(event.writer.clone());
+                    }
+                    serde_json::json!({"ok":true,"laneCount":lanes.len(),"writerCount":writers.len(),"lanes":lanes,"writers":writers})
+                }
+                Err(error) => json_error(&error.to_string()),
+            }
+        }
+        "ocentra_enforcer_coordination_inbox" => {
+            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+                Ok(all) => {
+                    let lane = args.get("lane").and_then(serde_json::Value::as_str);
+                    let messages: Vec<_> = all
+                        .events
+                        .into_iter()
+                        .filter(|event| {
+                            event.kind == "message"
+                                && lane.is_none_or(|value| event.to.as_deref() == Some(value))
+                        })
+                        .collect();
+                    serde_json::json!({"ok":true,"messageCount":messages.len(),"messages":messages})
+                }
+                Err(error) => json_error(&error.to_string()),
+            }
+        }
+        "ocentra_enforcer_coordination_workers" => {
+            coordination_event_rows(root_path, "worker", "workers")
+        }
+        "ocentra_enforcer_coordination_tasks" => {
+            coordination_event_rows(root_path, "task", "tasks")
+        }
+        "ocentra_enforcer_coordination_init" => coordination_init(args),
+        "ocentra_enforcer_coordination_claim" => coordination_claim(args),
+        "ocentra_enforcer_coordination_release" => coordination_release(args),
+        "ocentra_enforcer_coordination_closeout" => coordination_closeout(args),
+        "ocentra_enforcer_coordination_message" => coordination_message(args),
+        "ocentra_enforcer_coordination_mail" => coordination_mail(args),
+        "ocentra_enforcer_coordination_guard" => coordination_guard(args),
+        unsupported => serde_json::json!({
+            "ok": false,
+            "operation": unsupported,
+            "refusal": "native coordination engine has no durable backing for this frozen operation yet",
+            "code": "native_coordination_operation_unavailable",
+        }),
+    }
+}
+
+fn coordination_event_rows(root: &std::path::Path, kind: &str, field: &str) -> serde_json::Value {
+    match enforcer_coordination::sync::stream::read_all_streams(root) {
+        Ok(all) => {
+            let rows: Vec<_> = all
+                .events
+                .into_iter()
+                .filter(|event| event.kind == kind)
+                .collect();
+            serde_json::json!({"ok":true, field:rows})
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_init(args: &serde_json::Value) -> serde_json::Value {
+    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_init requires a `root` ledger path");
+    };
+    let Some(hub_raw) = args.get("hub").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_init requires a `hub` name");
+    };
+    let Some(lane_raw) = args.get("lane").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_init requires a `lane` id");
+    };
+    let (Ok(hub), Ok(lane)) = (hub_raw.parse::<HubName>(), lane_raw.parse::<LaneId>()) else {
+        return json_error("hub/lane failed enforcer-domain brand validation");
+    };
+    match api::init(std::path::Path::new(root), &hub, &lane) {
+        Ok(config) => {
+            serde_json::json!({"ok":true,"hub":config.hub.as_str(),"defaultLane":config.default_lane.as_str(),"nodeId":config.node_id.as_str()})
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_context(
+    args: &serde_json::Value,
+    operation: &str,
+) -> Result<(Hub, LaneId, CallerContext), String> {
+    let root = args
+        .get("root")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("{operation} requires a `root` ledger path"))?;
+    let hub_raw = args
+        .get("hub")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("{operation} requires a `hub` name"))?;
+    let lane_raw = args
+        .get("lane")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("{operation} requires a `lane` id"))?;
+    let hub_name = hub_raw
+        .parse::<HubName>()
+        .map_err(|error| error.to_string())?;
+    let lane = lane_raw
+        .parse::<LaneId>()
+        .map_err(|error| error.to_string())?;
+    let root_path = std::path::Path::new(root);
+    let ledger_root =
+        CoordinationLedgerRoot::parse(root_path).map_err(|error| error.to_string())?;
+    let config = api::init(root_path, &hub_name, &lane).map_err(|error| error.to_string())?;
+    let worktree_raw = args
+        .get("worktreeRoot")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(root);
+    let worktree_root =
+        CoordinationWorktree::parse(worktree_raw).map_err(|error| error.to_string())?;
+    let branch = CoordinationBranch::parse(
+        args.get("branch")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unknown"),
+    )
+    .map_err(|error| error.to_string())?;
+    let project_id = CoordinationProjectId::parse(
+        args.get("projectId")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unknown"),
+    )
+    .map_err(|error| error.to_string())?;
+    let commit = args
+        .get("commit")
+        .and_then(serde_json::Value::as_str)
+        .map(str::parse::<CommitRef>)
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    Ok((
+        Hub {
+            root: ledger_root,
+            config,
+        },
+        lane,
+        CallerContext {
+            project_id,
+            worktree_root,
+            branch,
+            commit,
+            codex_thread_id: None,
+            codex_session_id: None,
+        },
+    ))
+}
+
+fn coordination_release(args: &serde_json::Value) -> serde_json::Value {
+    let (hub, lane, caller) = match coordination_context(args, "coordination_release") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let Some(raw_paths) = args.get("paths").and_then(serde_json::Value::as_array) else {
+        return json_error("coordination_release requires a `paths` array");
+    };
+    let paths = match raw_paths
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or("release paths must contain strings")
+                .and_then(|value| {
+                    ClaimPath::parse(value).map_err(|_| "release path failed validation")
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(value) => value,
+        Err(error) => return json_error(error),
+    };
+    let reason = match args
+        .get("reason")
+        .and_then(serde_json::Value::as_str)
+        .map(ClaimReason::parse)
+        .transpose()
+    {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    match api::release(&hub, &lane, &paths, &caller, reason.as_ref()) {
+        Ok(event) => serde_json::json!({"ok":true,"event":event}),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_closeout(args: &serde_json::Value) -> serde_json::Value {
+    let (hub, lane, caller) = match coordination_context(args, "coordination_closeout") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let mut filters = api::CloseoutFilters {
+        lane: Some(lane.clone()),
+        ..Default::default()
+    };
+    if args.get("allLanes").and_then(serde_json::Value::as_bool) == Some(true) {
+        filters.lane_scope = enforcer_domain::coordination_types::CloseoutLaneScope::AllLanes;
+    }
+    match api::closeout(&hub, &lane, &filters, &caller, None) {
+        Ok(events) => {
+            serde_json::json!({"ok":true,"releasedEventCount":events.len(),"events":events})
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_message(args: &serde_json::Value) -> serde_json::Value {
+    let (hub, lane, caller) = match coordination_context(args, "coordination_message") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let Some(to) = args.get("to").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_message requires a recipient `to`");
+    };
+    let Some(body) = args
+        .get("body")
+        .or_else(|| args.get("message"))
+        .and_then(serde_json::Value::as_str)
+    else {
+        return json_error("coordination_message requires `body`");
+    };
+    let recipient = match to.parse::<LaneId>() {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    let body = match enforcer_domain::coordination_types::CoordinationMessageBody::parse(body) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
+    match api::send_message(&hub, &lane, recipient, body, &caller) {
+        Ok(event) => serde_json::json!({"ok":true,"event":event}),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_mail(args: &serde_json::Value) -> serde_json::Value {
+    match args
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("inbox")
+    {
+        "inbox" => coordination("ocentra_enforcer_coordination_inbox", args),
+        "send" => coordination_message(args),
+        "ack" => {
+            let (hub, lane, caller) = match coordination_context(args, "coordination_mail") {
+                Ok(value) => value,
+                Err(error) => return json_error(&error),
+            };
+            let Some(id) = args.get("messageId").and_then(serde_json::Value::as_str) else {
+                return json_error("coordination_mail ack requires `messageId`");
+            };
+            let id = match enforcer_domain::coordination_types::ClaimEventId::parse(id.to_owned()) {
+                Ok(value) => value,
+                Err(error) => return json_error(&error.to_string()),
+            };
+            match api::acknowledge_message(&hub, &lane, id, &caller) {
+                Ok(event) => serde_json::json!({"ok":true,"event":event}),
+                Err(error) => json_error(&error.to_string()),
+            }
+        }
+        other => {
+            serde_json::json!({"ok":false,"operation":"ocentra_enforcer_coordination_mail","code":"unsupported_mail_action","error":format!("unsupported native mail action: {other}")})
+        }
+    }
+}
+
+fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
+    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_guard requires a `root` ledger path");
+    };
+    let Some(paths) = args
+        .get("paths")
+        .or_else(|| args.get("changedPaths"))
+        .and_then(serde_json::Value::as_array)
+    else {
+        return json_error("coordination_guard requires `paths`");
+    };
+    let requested: Vec<_> = paths.iter().filter_map(serde_json::Value::as_str).collect();
+    if requested.len() != paths.len() || requested.is_empty() {
+        return json_error("coordination_guard paths must be non-empty strings");
+    }
+    match enforcer_coordination::sync::stream::read_all_streams(std::path::Path::new(root)) {
+        Ok(all) => {
+            let active = enforcer_coordination::ledger::active_claims(&all.events);
+            let lane = args.get("lane").and_then(serde_json::Value::as_str);
+            let blockers: Vec<_> = active
+                .into_iter()
+                .filter(|claim| {
+                    lane != Some(claim.lane.as_str())
+                        && claim
+                            .paths
+                            .iter()
+                            .any(|owned| requested.iter().any(|path| owned.as_str() == *path))
+                })
+                .collect();
+            serde_json::json!({"ok":blockers.is_empty(),"allowed":blockers.is_empty(),"blockerCount":blockers.len(),"blockers":blockers.iter().map(|claim| serde_json::json!({"lane":claim.lane.as_str(),"paths":claim.paths.iter().map(ClaimPath::as_str).collect::<Vec<_>>() })).collect::<Vec<_>>()})
+        }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
 /// `ocentra_enforcer_coordination_status` — read-only; delegates to
 /// `enforcer-coordination`'s ledger projection over whatever hub root the
 /// caller names. Deliberately minimal args (`root`, `hub`, `lane`) — the
@@ -2230,6 +2586,100 @@ mod tests {
             &ctx(McpFreshness::Stale),
         );
         assert!(matches!(outcome, DispatchOutcome::Result(_)));
+        Ok(())
+    }
+
+    /// Full native coordination lifecycle against an isolated ledger: no
+    /// process-global default root may leak into MCP coordination calls.
+    #[test]
+    fn coordination_tools_use_the_requested_temp_ledger_and_preserve_write_safety(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ledger = tempfile::tempdir()?;
+        let root = ledger.path().to_string_lossy().to_string();
+        let common = serde_json::json!({
+            "root": root, "hub": "mcp-e2e", "lane": "lane-a",
+            "worktreeRoot": "E:/mcp-e2e", "branch": "rust-build", "projectId": "mcp-e2e"
+        });
+        let mut claim_args = common.clone();
+        claim_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);
+        let DispatchOutcome::Result(claim) = dispatch(
+            &tool("ocentra_enforcer_coordination_claim")?,
+            &claim_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("claim was not dispatched".into());
+        };
+        assert_eq!(claim["ok"], serde_json::json!(true));
+
+        let mut guard_args = common.clone();
+        guard_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);
+        let DispatchOutcome::Result(guard) = dispatch(
+            &tool("ocentra_enforcer_coordination_guard")?,
+            &guard_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("guard was not dispatched".into());
+        };
+        assert_eq!(guard["allowed"], serde_json::json!(true));
+
+        let mut conflicting_guard = guard_args.clone();
+        conflicting_guard["lane"] = serde_json::json!("lane-b");
+        let DispatchOutcome::Result(blocked) = dispatch(
+            &tool("ocentra_enforcer_coordination_guard")?,
+            &conflicting_guard,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("conflicting guard was not dispatched".into());
+        };
+        assert_eq!(blocked["allowed"], serde_json::json!(false));
+
+        let mut release_args = common.clone();
+        release_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);
+        let DispatchOutcome::Result(release) = dispatch(
+            &tool("ocentra_enforcer_coordination_release")?,
+            &release_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("release was not dispatched".into());
+        };
+        assert_eq!(release["ok"], serde_json::json!(true));
+
+        let DispatchOutcome::Result(second_claim) = dispatch(
+            &tool("ocentra_enforcer_coordination_claim")?,
+            &claim_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("second claim was not dispatched".into());
+        };
+        assert_eq!(second_claim["ok"], serde_json::json!(true));
+        let DispatchOutcome::Result(closeout) = dispatch(
+            &tool("ocentra_enforcer_coordination_closeout")?,
+            &common,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("closeout was not dispatched".into());
+        };
+        assert_eq!(closeout["ok"], serde_json::json!(true));
+
+        assert!(matches!(
+            dispatch(
+                &tool("ocentra_enforcer_coordination_claim")?,
+                &claim_args,
+                &ctx(McpFreshness::Stale),
+            ),
+            DispatchOutcome::StaleRefused(_)
+        ));
+        let DispatchOutcome::Result(unavailable) = dispatch(
+            &tool("ocentra_enforcer_coordination_sync")?,
+            &common,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("unsupported operation was not dispatched".into());
+        };
+        assert_eq!(
+            unavailable["code"],
+            serde_json::json!("native_coordination_operation_unavailable")
+        );
         Ok(())
     }
 }
