@@ -144,7 +144,7 @@ pub fn dispatch(
         | "ocentra_enforcer_proof_prune"
         | "ocentra_enforcer_proof_reset"
         | "ocentra_enforcer_proof_diagnostics" => {
-            DispatchOutcome::Result(proof_unavailable(canonical.as_str()))
+            DispatchOutcome::Result(proof_lifecycle(canonical.as_str(), args))
         }
         // Every other registered tool is a real delegate seam owned by a
         // sibling pack's future wiring pass; this skeleton reports it as
@@ -161,13 +161,215 @@ pub fn dispatch(
     }
 }
 
-fn proof_unavailable(operation: &str) -> serde_json::Value {
-    serde_json::json!({
-        "ok": false,
-        "operation": operation,
-        "error": "native proof lifecycle persistence adapter is not yet wired; refusing to fabricate a proof result",
-        "code": "native_proof_lifecycle_unavailable",
-    })
+/// Thin MCP projection over `enforcer-proof`'s durable lifecycle.  Read-only
+/// proof tools share the typed snapshot; mutation tools are explicit and do
+/// not fabricate legacy results when their native input is absent.
+fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Value {
+    let root = args
+        .get("root")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(".");
+    let lifecycle = match enforcer_proof::boundary::lifecycle::NativeProofLifecycle::open(
+        std::path::Path::new(root),
+    ) {
+        Ok(value) => value,
+        Err(error) => {
+            return serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+        }
+    };
+    match operation {
+        "ocentra_enforcer_proof_run" => {
+            let Some(proof) = args.get("proofId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"proofId is required"});
+            };
+            let Some(run) = args.get("runId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
+            };
+            let command = args
+                .get("command")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let proof_id = match proof.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"})
+                }
+            };
+            let run_id = match run.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                }
+            };
+            let canonical_root = std::path::Path::new(root)
+                .canonicalize()
+                .unwrap_or_else(|_| std::path::PathBuf::from(root));
+            let request = enforcer_proof::harness::RunProofArgs {
+                proof_id,
+                root: canonical_root,
+                run_id,
+                command,
+                capability: None,
+                claims_proved: Vec::new(),
+                claims_not_proved: Vec::new(),
+                pin: false,
+            };
+            match lifecycle.run(&request, None) {
+                Ok(outcome) => {
+                    serde_json::json!({"ok":outcome.ok,"operation":operation,"run":outcome.proof_run,"diagnostics":outcome.diagnostics})
+                }
+                Err(error) => {
+                    serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+                }
+            }
+        }
+        "ocentra_enforcer_proof_reset" => match lifecycle.reset() {
+            Ok(()) => serde_json::json!({"ok":true,"operation":operation}),
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+        "ocentra_enforcer_proof_prune" => {
+            let Some(value) = args.get("runId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
+            };
+            match value
+                .parse()
+                .map_err(enforcer_core::error::Error::Decode)
+                .and_then(|run_id| lifecycle.prune_run(&run_id))
+            {
+                Ok(pruned) => serde_json::json!({"ok":true,"operation":operation,"pruned":pruned}),
+                Err(error) => {
+                    serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+                }
+            }
+        }
+        "ocentra_enforcer_proof_artifact" => {
+            let Some(run) = args.get("runId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
+            };
+            let Some(artifact) = args.get("artifact").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"artifact is required"});
+            };
+            let run_id = match run.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                }
+            };
+            let path = match enforcer_domain::paths::RelPath::try_from(artifact.to_owned()) {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid artifact path"})
+                }
+            };
+            match lifecycle.read_declared_artifact(&run_id, &path) {
+                Ok(bytes) => {
+                    serde_json::json!({"ok":true,"operation":operation,"artifact":String::from_utf8_lossy(&bytes)})
+                }
+                Err(error) => {
+                    serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+                }
+            }
+        }
+        "ocentra_enforcer_proof_export" => match lifecycle.export() {
+            Ok(bytes) => {
+                serde_json::json!({"ok":true,"operation":operation,"export":String::from_utf8_lossy(&bytes)})
+            }
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+        "ocentra_enforcer_proof_claim" => match lifecycle.claim() {
+            Ok(claim) => serde_json::json!({"ok":true,"operation":operation,"claim":claim}),
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+        "ocentra_enforcer_proof_diagnostics" => match lifecycle.diagnostics() {
+            Ok(diagnostics) => {
+                serde_json::json!({"ok":true,"operation":operation,"diagnostics":diagnostics})
+            }
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+        "ocentra_enforcer_proof_last_failure" => match lifecycle.last_failure() {
+            Ok(run) => serde_json::json!({"ok":true,"operation":operation,"run":run}),
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+        "ocentra_enforcer_proof_import_legacy" => {
+            let Some(proof) = args.get("proofId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"proofId is required"});
+            };
+            let Some(run) = args.get("runId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
+            };
+            let roots: Vec<&str> = args
+                .get("legacyPaths")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| items.iter().filter_map(serde_json::Value::as_str).collect())
+                .unwrap_or_default();
+            let proof_id = match proof.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid proofId"})
+                }
+            };
+            let run_id = match run.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                }
+            };
+            match lifecycle.import_legacy(&proof_id, &run_id, &roots) {
+                Ok(run) => serde_json::json!({"ok":true,"operation":operation,"run":run}),
+                Err(error) => {
+                    serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+                }
+            }
+        }
+        "ocentra_enforcer_proof_parity" => {
+            let Some(run) = args.get("runId").and_then(serde_json::Value::as_str) else {
+                return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
+            };
+            let roots: Vec<&str> = args
+                .get("legacyPaths")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| items.iter().filter_map(serde_json::Value::as_str).collect())
+                .unwrap_or_default();
+            let run_id = match run.parse() {
+                Ok(value) => value,
+                Err(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"invalid runId"})
+                }
+            };
+            match lifecycle.parity(&run_id, &roots) {
+                Ok((coverage, deletion_ready)) => {
+                    serde_json::json!({"ok":true,"operation":operation,"coverage":coverage,"deletionReady":deletion_ready})
+                }
+                Err(error) => {
+                    serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+                }
+            }
+        }
+        _ => match lifecycle.snapshot() {
+            Ok(snapshot) => {
+                serde_json::json!({"ok":true,"operation":operation,"snapshot":snapshot})
+            }
+            Err(error) => {
+                serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
+            }
+        },
+    }
 }
 
 fn gate_args_from(args: &serde_json::Value) -> GateArgs {
@@ -1507,22 +1709,19 @@ mod tests {
     }
 
     #[test]
-    fn proof_tools_refuse_with_a_typed_native_lifecycle_error_not_a_fake_success(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn proof_tools_project_the_native_lifecycle_snapshot() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
         let outcome = dispatch(
-            &tool("ocentra_enforcer_proof_run")?,
-            &serde_json::json!({"root":"."}),
+            &tool("ocentra_enforcer_proof_status")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy()}),
             &ctx(McpFreshness::Fresh),
         );
         let DispatchOutcome::Result(value) = outcome else {
-            return Err("proof tool did not produce an explicit refusal".into());
+            return Err("proof tool did not produce a native result".into());
         };
-        assert_eq!(value["ok"], serde_json::json!(false));
-        assert_eq!(value["code"], "native_proof_lifecycle_unavailable");
-        assert_ne!(
-            value["error"],
-            "ocentra_enforcer_proof_run is registered but not yet wired to its engine delegate"
-        );
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert!(value["snapshot"].is_object());
         Ok(())
     }
 

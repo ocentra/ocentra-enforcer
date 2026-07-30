@@ -2,6 +2,7 @@
 //! Negative invalid-input coverage rejects malformed, corrupt, and unsupported payloads.
 //! Wire contracts owned by the proof crate.
 
+pub mod lifecycle;
 pub mod read_model;
 pub mod read_model_claim;
 pub mod read_model_journal;
