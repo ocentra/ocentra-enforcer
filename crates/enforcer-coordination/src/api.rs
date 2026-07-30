@@ -32,7 +32,7 @@ use crate::domain::{self, HubConfig};
 use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::ledger::active_claims;
-use crate::lock::{blockers_for_request, enrich_claim, ClaimContext, RawClaim};
+use crate::lock::{ClaimContext, RawClaim, blockers_for_request, enrich_claim};
 use crate::sync::{retention, stream::read_all_streams};
 use enforcer_domain::coordination_types::{
     ClaimContextPresence, ClaimEventId, ClaimFilterMatch, ClaimGroup, ClaimLane,
@@ -47,8 +47,8 @@ use enforcer_domain::coordination_types::{
 pub mod boundary;
 
 use boundary::{
-    append_event, decode_hub_config, encode_hub_config, now_iso, AppendEventArgs, EventContextRefs,
-    EventMetadata,
+    AppendEventArgs, EventContextRefs, EventMetadata, append_event, decode_hub_config,
+    encode_hub_config, now_iso,
 };
 
 /// Maximum exact file paths per SINGLE claim event, preserved from the
@@ -389,7 +389,12 @@ pub fn repair_stale_claims(
             }),
             metadata: EventMetadata {
                 // ALLOC-JUSTIFICATION: persisted event JSON owns selected writer values.
-                owners: owners.map(|owners| owners.iter().map(|owner| owner.as_str().to_owned()).collect()),
+                owners: owners.map(|owners| {
+                    owners
+                        .iter()
+                        .map(|owner| owner.as_str().to_owned())
+                        .collect()
+                }),
                 ..Default::default()
             },
         },
