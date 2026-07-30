@@ -174,6 +174,11 @@ pub enum PolicyAction {
     /// workspace member nor an in-crate vendored grammar dependency.
     #[command(name = "dependency-policy")]
     DependencyPolicy,
+    /// Detect committed credential material using the native `SEC-1`/`SEC-2`
+    /// secret validators. This is a real policy gate, not a marker check or a
+    /// wrapper around the legacy Node collector.
+    #[command(name = "secrets")]
+    Secrets,
 }
 
 /// Arguments for the architecture-policy check.

@@ -333,6 +333,51 @@ pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report
     fold_report(scope.kind, findings)
 }
 
+/// Run the native secret policy over a resolved source scope.
+///
+/// This is intentionally a narrow dispatch of the concrete `SEC-1` and
+/// `SEC-2` validator registry: a secrets gate must not masquerade as a full
+/// language scan, and it must not depend on the legacy Node collector. The
+/// validators own both detection and diagnostic redaction; this engine seam
+/// owns only source I/O, path-role routing, deterministic folding, and the
+/// report boundary.
+pub fn run_secret_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validators: Vec<Box<dyn Validator>> = enforcer_lang_security::rules::registry::build_all()?
+        .into_iter()
+        .map(|row| row.validator)
+        .collect();
+    let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
+        .par_iter()
+        .filter(|file| should_scan_source(scope, file))
+        .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
+        .collect();
+    sources.retain(|(file, _)| !is_native_detector_authoring_surface(file, scope));
+
+    let mut findings = sources
+        .par_iter()
+        .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
+        .map(|(file, source)| {
+            let input = ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            };
+            validators
+                .iter()
+                .flat_map(|validator| validator.validate(input))
+                .collect::<Vec<_>>()
+        })
+        .reduce(Vec::new, |mut left, mut right| {
+            left.append(&mut right);
+            left
+        });
+    findings.sort_by(|a, b| (&a.file, a.line, &a.rule_id).cmp(&(&b.file, b.line, &b.rule_id)));
+    Ok(fold_report(scope.kind, findings))
+}
+
 fn should_scan_source(scope: &ResolvedScope, file: &RelPath) -> bool {
     let path = file.as_str();
     let is_fixture = path.starts_with("tests/fixtures/") || path.contains("/tests/fixtures/");

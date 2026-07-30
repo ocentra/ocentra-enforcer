@@ -94,6 +94,20 @@ fn write_dependency_policy_fixture(
     Ok(())
 }
 
+fn write_secret_policy_fixture(
+    root: &std::path::Path,
+    contains_secret: bool,
+) -> std::io::Result<()> {
+    let dir = root.join("src");
+    std::fs::create_dir_all(&dir)?;
+    let source = if contains_secret {
+        "const api_key = \"sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ123456\";\n"
+    } else {
+        "const api_key = std::env::var(\"API_KEY\")?;\n"
+    };
+    std::fs::write(dir.join("config.ts"), source)
+}
+
 fn run_check(
     root: &std::path::Path,
     extra_args: &[&str],
@@ -148,6 +162,36 @@ fn native_dependency_policy_accepts_declared_workspace_member_path(
     let status = Command::new(binary_path()?)
         .current_dir(temp.path())
         .args(["policy", "dependency-policy"])
+        .status()?;
+    assert!(status.success());
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_rejects_and_redacts_inline_credentials(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_fixture(temp.path(), true)?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("SEC-1.1"));
+    assert!(stdout.contains("Inline secrets are forbidden"));
+    assert!(!stdout.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"));
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_accepts_runtime_configuration_reference(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_fixture(temp.path(), false)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
         .status()?;
     assert!(status.success());
     Ok(())

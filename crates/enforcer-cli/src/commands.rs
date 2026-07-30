@@ -130,6 +130,7 @@ pub fn run_verify(args: &VerifyArgs) -> ExitCode {
 pub fn run_policy(action: &PolicyAction) -> ExitCode {
     match action {
         PolicyAction::DependencyPolicy => run_dependency_policy(),
+        PolicyAction::Secrets => run_secret_policy(),
     }
 }
 
@@ -157,6 +158,49 @@ fn run_dependency_policy() -> ExitCode {
         }
     };
     let report = enforcer_scan::engine::run_dependency_policy(&resolved, &files);
+    output::print_report(&report);
+    if report.ok == ReportOutcome::Clean {
+        ExitCode::Success
+    } else {
+        ExitCode::Violations
+    }
+}
+
+/// `enforcer policy secrets`: run only the native secret validators over the
+/// current workspace. It deliberately does not piggyback on the full scan,
+/// so unrelated language findings cannot obscure the credential verdict.
+fn run_secret_policy() -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let resolved = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            output::print_usage_error(&err.to_string());
+            return ExitCode::UsageError;
+        }
+    };
+    let files = match resolve_files(&root, &resolved) {
+        Ok(files) => files,
+        Err(err) => {
+            output::print_internal_error(&format!("walk failed: {err}"));
+            return ExitCode::InternalError;
+        }
+    };
+    let report = match enforcer_scan::engine::run_secret_policy(&resolved, &files) {
+        Ok(report) => report,
+        Err(err) => {
+            output::print_internal_error(&format!(
+                "failed to build secret validator registry: {err}"
+            ));
+            return ExitCode::InternalError;
+        }
+    };
     output::print_report(&report);
     if report.ok == ReportOutcome::Clean {
         ExitCode::Success
