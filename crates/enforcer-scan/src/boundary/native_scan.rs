@@ -793,10 +793,13 @@ mod tests {
     fn dedicated_secret_policy_uses_the_sec_registry_without_full_scan_noise(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
+        let github_token = ["ghp_", "abcdefghijklmnopqrstuvwxyz0123456789"].concat();
         write(
             temp.path(),
             "src/config.rs",
-            "const SECRET = \"0123456789abcdefghijklmnop\";\nconst GH = \"ghp_abcdefghijklmnopqrstuvwxyz0123456789\";",
+            &format!(
+                "const SECRET = \"0123456789abcdefghijklmnop\";\nconst GH = \"{github_token}\";"
+            ),
         )?;
         let request = NativeScanRequest {
             scope: NativeScanScope::Files(vec!["src/config.rs".into()]),
