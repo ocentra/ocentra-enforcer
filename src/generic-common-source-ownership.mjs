@@ -39,6 +39,29 @@ function hasSiblingBoundaryConversion(filePath, text) {
   return false;
 }
 
+const BOUNDARY_DECISION_KEYWORD_RE = /\b(?:business|domain|role|plan|entitlement|policy)\b/iu;
+
+function boundaryDecisionLine(lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const decisionStart = lines[index].search(/\b(?:if|switch|match)\b/u);
+    if (decisionStart < 0) continue;
+
+    // A boundary may inspect a raw JSON field while decoding it.  The raw field
+    // name is input vocabulary, not domain decision logic.  Inspect only the
+    // decision header and remove quoted literals before looking for a domain
+    // concept; the branch expression itself must carry that concept.
+    const header = lines
+      .slice(index, Math.min(index + 8, lines.length))
+      .join("\n")
+      .slice(decisionStart)
+      .split("{")[0]
+      .replace(/(?:r#*)?"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/gu, "")
+      .replace(/\/\/.*$/gmu, "");
+    if (BOUNDARY_DECISION_KEYWORD_RE.test(header)) return index + 1;
+  }
+  return 0;
+}
+
 function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
   if (!BOUNDARY_PATH_RE.test(rel)) return;
   if (!/\bBOUNDARY-INVARIANT:/u.test(text)) {
@@ -47,12 +70,13 @@ function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
   if (/\braw(?:Input|Dto|DTO|Payload|Body)?\b|:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u.test(text) && !hasBoundaryConversion(text) && !hasSiblingBoundaryConversion(filePath, text)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);
   }
-  if (/\b(?:if|switch|match)\b[\s\S]{0,120}\b(?:business|domain|role|plan|entitlement|policy)\b/iu.test(text)) {
+  const decisionLine = boundaryDecisionLine(lines);
+  if (decisionLine > 0) {
     addSourceOwnershipViolation(
       violations,
       root,
       filePath,
-      firstMatchingLine(lines, /\b(?:business|domain|role|plan|entitlement|policy)\b/iu),
+      decisionLine,
       "BOUND-1.3",
       "domain decision logic found in boundary file.",
       rel,

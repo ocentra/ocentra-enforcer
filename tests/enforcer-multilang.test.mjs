@@ -85,6 +85,60 @@ export function toDomain(value: BranchReportDto): { checked: true } { return { c
   assert.equal(JSON.parse(fail.stdout).violations.some((finding) => finding.ruleId === "BOUND-1.2"), true);
 });
 
+test("BOUND-1.3 distinguishes raw JSON decoding from a domain decision", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "strict",
+      failOn: ["error"],
+    }),
+    "package.json": JSON.stringify({ name: "boundary-decision-fixture", version: "0.0.0" }),
+    "src/boundary/decode.rs": `
+/// BOUNDARY-INVARIANT: raw MCP input is decoded before domain use.
+// malformed input is rejected.
+fn decode(raw: &serde_json::Value) {
+    match raw.get("domain") {
+        Some(value) => parse(value),
+        None => reject(),
+    }
+}
+`,
+    "src/boundary/authorize.rs": `
+/// BOUNDARY-INVARIANT: requests are decoded before domain use.
+// malformed input is rejected.
+fn authorize(account: Account) {
+    match account.role {
+        Role::Admin => allow(),
+        Role::Reader => reject(),
+    }
+}
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "rust,common",
+    "--files",
+    "ocentra-enforcer.config.json",
+    "package.json",
+    "src/boundary/decode.rs",
+    "src/boundary/authorize.rs",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const violations = JSON.parse(result.stdout).violations;
+  assert.equal(
+    violations.some((violation) => violation.ruleId === "BOUND-1.3" && violation.file === "src/boundary/decode.rs"),
+    false,
+    "raw JSON field lookup must not be treated as a domain decision",
+  );
+  assert.equal(
+    violations.some((violation) => violation.ruleId === "BOUND-1.3" && violation.file === "src/boundary/authorize.rs"),
+    true,
+    "typed role branching must remain a boundary domain-decision violation",
+  );
+});
+
 test("DOC-1.1 associates rustdoc across attributes and ignores restricted visibility", () => {
   const findings = scanRustDocumentationHints(
     (violations, root, file, line, ruleId, detail, source) => violations.push({ ruleId, line, detail, source }),
