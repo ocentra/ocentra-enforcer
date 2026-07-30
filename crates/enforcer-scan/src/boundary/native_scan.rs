@@ -229,6 +229,22 @@ pub fn execute_source_shape_policy(
     })
 }
 
+/// Execute every configured architecture-policy member and retain its
+/// per-member outcomes for CLI/MCP aggregation.
+pub fn execute_architecture_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    config: &enforcer_domain::config_types::EffectiveConfig,
+) -> Result<crate::architecture_policy::ArchitecturePolicyAggregate, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    crate::architecture_policy::execute(repo_root, resolved.kind, &files, config).map_err(
+        |reason| NativeScanError::Io {
+            operation: "architecture-policy check",
+            reason,
+        },
+    )
+}
+
 pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,

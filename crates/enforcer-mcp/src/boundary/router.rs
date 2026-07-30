@@ -1001,7 +1001,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
-    } else if name == "source-shape" {
+    } else if name == "source-shape" || name == "architecture-policy" {
         [NATIVE_SCAN_FIELDS, &["configPath"]].concat()
     } else {
         NATIVE_SCAN_FIELDS.to_vec()
@@ -1027,6 +1027,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
+        "architecture-policy" => named_architecture_policy_unrecorded(&native_args),
         _ => scan_unrecorded(&native_args),
     };
     let Some(object) = report.as_object_mut() else {
@@ -1088,6 +1089,57 @@ fn named_source_shape_unrecorded(args: &serde_json::Value) -> serde_json::Value 
     enforcer_scan::boundary::native_scan::execute_source_shape_policy(&request, &root, &config)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_architecture_policy_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => {
+            return json_error(&format!("cannot load architecture-policy config: {error}"))
+        }
+    };
+    enforcer_scan::boundary::native_scan::execute_architecture_policy(&request, &root, &config)
+        .map_err(|error| error.to_string())
+        .and_then(|result| {
+            let mut report =
+                serde_json::to_value(result.report).map_err(|error| error.to_string())?;
+            let object = report
+                .as_object_mut()
+                .ok_or_else(|| "native architecture-policy report is not an object".to_owned())?;
+            object.insert(
+                "checks".to_owned(),
+                serde_json::Value::Array(
+                    result
+                        .checks
+                        .into_iter()
+                        .map(|check| {
+                            serde_json::json!({
+                                "check": check.check,
+                                "ok": check.ok,
+                                "unavailable": check.unavailable,
+                                "violations": check.violations,
+                            })
+                        })
+                        .collect(),
+                ),
+            );
+            Ok(report)
+        })
         .unwrap_or_else(|error| json_error(&error))
 }
 
@@ -3542,6 +3594,35 @@ mod tests {
         assert!(value["violations"]
             .as_array()
             .is_some_and(|items| !items.is_empty()));
+        Ok(())
+    }
+
+    #[test]
+    fn check_architecture_policy_aggregates_configured_native_members(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::write(
+            temp.path().join("architecture.json"),
+            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":["generated-artifacts","missing-native-check"]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "architecture-policy",
+                "configPath": "architecture.json",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["check"], serde_json::json!("architecture-policy"));
+        assert_eq!(value["checks"].as_array().map(Vec::len), Some(2));
+        assert!(value["findings"]
+            .as_array()
+            .is_some_and(|items| { items.iter().any(|item| item["ruleId"] == "ARCH-1.10") }));
         Ok(())
     }
 

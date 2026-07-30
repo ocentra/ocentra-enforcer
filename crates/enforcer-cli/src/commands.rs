@@ -308,11 +308,9 @@ pub fn run_advise_literals() -> ExitCode {
     }
 }
 
-/// `enforcer architecture check --language <lang> <scope>`. Routes
-/// `typescript` to the real `import-boundaries` validator; `rust` has no
-/// landed architecture validator yet (see module docs on
-/// `crate::architecture`) and reports that gap through the internal-error
-/// class rather than a false "clean" result.
+/// `enforcer architecture check --language <lang> <scope>`. The selected
+/// language is a compatibility argument while the configured aggregate owns
+/// its own native rule families and reports every configured member.
 pub fn run_architecture(action: &ArchitectureAction) -> ExitCode {
     match action {
         ArchitectureAction::Check(args) => run_architecture_check(args),
@@ -320,14 +318,56 @@ pub fn run_architecture(action: &ArchitectureAction) -> ExitCode {
 }
 
 fn run_architecture_check(args: &ArchitectureCheckArgs) -> ExitCode {
-    use crate::architecture::ArchitectureLanguage;
-    match args.language {
-        ArchitectureLanguage::TypeScript => run_scoped_check(&args.scope),
-        ArchitectureLanguage::Rust => {
-            output::print_internal_error(
-                "architecture-policy has no landed Rust validator yet (named-check parity \
-                 entry only, per enforcer-mcp::registry); this is a real gap, not a clean run",
-            );
+    let _language = args.language;
+    let request = match crate::scope::resolve_request(&args.scope) {
+        Ok(request) => request,
+        Err(message) => {
+            output::print_usage_error(&message);
+            return ExitCode::UsageError;
+        }
+    };
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = match enforcer_config::load_project_config_with_env(&config_path) {
+        Ok(config) => config,
+        Err(error) => {
+            output::print_config_error(&error.to_string());
+            return ExitCode::ConfigError;
+        }
+    };
+    let resolved = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(resolved) => resolved,
+        Err(error) => {
+            output::print_usage_error(&error.to_string());
+            return ExitCode::UsageError;
+        }
+    };
+    let ignore_rules =
+        walk::IgnoreRules::new(config.ignore_dirs.clone(), config.ignore_file_globs.clone());
+    let files = match resolve_files(&root, &resolved, &ignore_rules) {
+        Ok(files) => files,
+        Err(error) => {
+            output::print_internal_error(&format!("walk failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    match enforcer_scan::architecture_policy::execute(&root, resolved.kind, &files, &config) {
+        Ok(result) => {
+            output::print_report(&result.report);
+            if result.report.ok == ReportOutcome::Clean {
+                ExitCode::Success
+            } else {
+                ExitCode::Violations
+            }
+        }
+        Err(error) => {
+            output::print_internal_error(&format!("architecture-policy failed: {error}"));
             ExitCode::InternalError
         }
     }

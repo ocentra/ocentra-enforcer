@@ -478,6 +478,28 @@ pub struct SourceShapeOverride {
     pub max_branches: Option<std::num::NonZeroUsize>,
 }
 
+/// One configured member of the architecture-policy aggregate.  The string is
+/// validated at the configuration boundary; aliases are normalized by the
+/// aggregate executor so configuration order remains meaningful for display
+/// while duplicate work is never run twice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "Canonical configured architecture-policy check name."]
+pub struct ArchitecturePolicyCheck(String);
+impl ArchitecturePolicyCheck {
+    pub fn try_new(value: String) -> Result<Self, DecodeError> {
+        if value.trim().is_empty() || value.chars().any(char::is_control) {
+            return Err(DecodeError::new(
+                "architecturePolicyChecks",
+                "entries must be non-empty printable text",
+            ));
+        }
+        Ok(Self(value))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[doc = "Canonical domain representation for EffectiveConfig."]
 pub struct EffectiveConfig {
@@ -491,6 +513,7 @@ pub struct EffectiveConfig {
     pub rust_scan_scope: RustScanScope,
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
+    pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,

@@ -10,12 +10,12 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 
 use enforcer_domain::config_types::{
-    CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson, ConfigProfileName,
-    ConfigSource, CrateName, EffectiveConfig, EnforcerScope, Glob, HarnessArtifactByteLimit,
-    HarnessConfig, HarnessRetentionDays, HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie,
-    NativeTool, Platform, PolicyOwner, PolicyReason, PublicReexportPolicy, RegexPattern,
-    RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
-    SourceShapeOverride, SourceShapePolicy,
+    ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson,
+    ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope, Glob,
+    HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays, HarnessRunLimit,
+    InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner, PolicyReason,
+    PublicReexportPolicy, RegexPattern, RuleEnabled, RuntimeLiteralPolicy, RustScanScope,
+    ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride, SourceShapePolicy,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -802,6 +802,8 @@ pub struct WireEffectiveConfig {
     #[serde(default)]
     pub source_shape_overrides: Vec<WireSourceShapeOverride>,
     #[serde(default)]
+    pub architecture_policy_checks: Vec<String>,
+    #[serde(default)]
     pub ignore_dirs: Vec<String>,
     #[serde(default)]
     pub ignore_file_globs: Vec<WireGlob>,
@@ -835,6 +837,11 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .source_shape_overrides
                 .into_iter()
                 .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            architecture_policy_checks: value
+                .architecture_policy_checks
+                .into_iter()
+                .map(ArchitecturePolicyCheck::try_new)
                 .collect::<Result<_, _>>()?,
             ignore_dirs: value
                 .ignore_dirs
@@ -1062,6 +1069,11 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .source_shape_overrides
                 .into_iter()
                 .map(Into::into)
+                .collect(),
+            architecture_policy_checks: value
+                .architecture_policy_checks
+                .into_iter()
+                .map(|value| value.as_str().to_owned())
                 .collect(),
             ignore_dirs: value
                 .ignore_dirs

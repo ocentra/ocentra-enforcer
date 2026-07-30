@@ -271,6 +271,37 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "architecture-policy" => [
+                    "RR-7.2",
+                    "RR-7.3",
+                    "TS-1.1",
+                    "RR-2.1",
+                    "RR-2.2",
+                    "TS-2.1",
+                    "PY-1.1",
+                    "PY-1.2",
+                    "RR-4.2",
+                    "RR-4.3",
+                    "SRC-1.2",
+                    "TS-3.1",
+                    "PY-2.1",
+                    "TEST-1.3",
+                    "TEST-1.2",
+                    "RR-6.1",
+                    "RR-6.5",
+                    "RR-18.16",
+                    "TS-1.3",
+                    "PY-1.3",
+                    "TS-1.2",
+                    "TEST-1.1",
+                    "TS-8.8",
+                    "PORT-1.1",
+                    "GEN-1.2",
+                    "ARCH-1.10",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
                 _ => Vec::new(),
             };
             (name, rule_ids)
@@ -876,6 +907,7 @@ mod tests {
                 "generated-artifacts",
                 "required-tests",
                 "source-shape",
+                "architecture-policy",
             ])
         );
         Ok(())
