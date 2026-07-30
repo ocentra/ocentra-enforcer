@@ -47,6 +47,8 @@ mod tests {
             max_function_lines: NonZeroUsize::new(80),
             max_lines: NonZeroUsize::new(1000),
             max_types: None,
+            max_nesting_depth: NonZeroUsize::new(4),
+            max_branches: NonZeroUsize::new(12),
         };
         let wire = serde_json::to_string(&WireSourceShapePolicy::from(policy.clone()))?;
         let back: SourceShapePolicy = decode_json::<WireSourceShapePolicy>(

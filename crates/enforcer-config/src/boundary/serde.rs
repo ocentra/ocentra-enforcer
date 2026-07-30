@@ -15,7 +15,7 @@ use enforcer_domain::config_types::{
     HarnessConfig, HarnessRetentionDays, HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie,
     NativeTool, Platform, PolicyOwner, PolicyReason, PublicReexportPolicy, RegexPattern,
     RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
-    SourceShapePolicy,
+    SourceShapeOverride, SourceShapePolicy,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -637,6 +637,39 @@ pub struct WireSourceShapePolicy {
     pub max_lines: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_types: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_nesting_depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_branches: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireSourceShapeOverride {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glob: Option<WireGlob>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub globs: Vec<WireGlob>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_classes: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_exports: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_functions: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_function_lines: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_lines: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_types: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_nesting_depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_branches: Option<usize>,
 }
 fn optional_nonzero(
     value: Option<usize>,
@@ -672,6 +705,8 @@ impl TryFrom<WireSourceShapePolicy> for SourceShapePolicy {
             max_function_lines: optional_nonzero(value.max_function_lines, "maxFunctionLines")?,
             max_lines: optional_nonzero(value.max_lines, "maxLines")?,
             max_types: optional_nonzero(value.max_types, "maxTypes")?,
+            max_nesting_depth: optional_nonzero(value.max_nesting_depth, "maxNestingDepth")?,
+            max_branches: optional_nonzero(value.max_branches, "maxBranches")?,
         })
     }
 }
@@ -691,6 +726,56 @@ impl From<SourceShapePolicy> for WireSourceShapePolicy {
             max_function_lines: value.max_function_lines.map(NonZeroUsize::get),
             max_lines: value.max_lines.map(NonZeroUsize::get),
             max_types: value.max_types.map(NonZeroUsize::get),
+            max_nesting_depth: value.max_nesting_depth.map(NonZeroUsize::get),
+            max_branches: value.max_branches.map(NonZeroUsize::get),
+        }
+    }
+}
+
+impl TryFrom<WireSourceShapeOverride> for SourceShapeOverride {
+    type Error = DecodeError;
+
+    fn try_from(value: WireSourceShapeOverride) -> Result<Self, Self::Error> {
+        Ok(Self {
+            path: value.path.map(RelPath::try_from).transpose()?,
+            paths: value
+                .paths
+                .into_iter()
+                .map(RelPath::try_from)
+                .collect::<Result<_, _>>()?,
+            glob: value.glob.map(TryInto::try_into).transpose()?,
+            globs: value
+                .globs
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            max_classes: optional_nonzero(value.max_classes, "maxClasses")?,
+            max_exports: optional_nonzero(value.max_exports, "maxExports")?,
+            max_functions: optional_nonzero(value.max_functions, "maxFunctions")?,
+            max_function_lines: optional_nonzero(value.max_function_lines, "maxFunctionLines")?,
+            max_lines: optional_nonzero(value.max_lines, "maxLines")?,
+            max_types: optional_nonzero(value.max_types, "maxTypes")?,
+            max_nesting_depth: optional_nonzero(value.max_nesting_depth, "maxNestingDepth")?,
+            max_branches: optional_nonzero(value.max_branches, "maxBranches")?,
+        })
+    }
+}
+
+impl From<SourceShapeOverride> for WireSourceShapeOverride {
+    fn from(value: SourceShapeOverride) -> Self {
+        Self {
+            path: value.path.map(String::from),
+            paths: value.paths.into_iter().map(String::from).collect(),
+            glob: value.glob.map(Into::into),
+            globs: value.globs.into_iter().map(Into::into).collect(),
+            max_classes: value.max_classes.map(NonZeroUsize::get),
+            max_exports: value.max_exports.map(NonZeroUsize::get),
+            max_functions: value.max_functions.map(NonZeroUsize::get),
+            max_function_lines: value.max_function_lines.map(NonZeroUsize::get),
+            max_lines: value.max_lines.map(NonZeroUsize::get),
+            max_types: value.max_types.map(NonZeroUsize::get),
+            max_nesting_depth: value.max_nesting_depth.map(NonZeroUsize::get),
+            max_branches: value.max_branches.map(NonZeroUsize::get),
         }
     }
 }
@@ -714,6 +799,8 @@ pub struct WireEffectiveConfig {
     pub rust_scan_scope: WireRustScanScope,
     #[serde(default)]
     pub source_shape_policies: Vec<WireSourceShapePolicy>,
+    #[serde(default)]
+    pub source_shape_overrides: Vec<WireSourceShapeOverride>,
     #[serde(default)]
     pub ignore_dirs: Vec<String>,
     #[serde(default)]
@@ -741,6 +828,11 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
             rust_scan_scope: value.rust_scan_scope.try_into()?,
             source_shape_policies: value
                 .source_shape_policies
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            source_shape_overrides: value
+                .source_shape_overrides
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<_, _>>()?,
@@ -963,6 +1055,11 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
             rust_scan_scope: value.rust_scan_scope.into(),
             source_shape_policies: value
                 .source_shape_policies
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            source_shape_overrides: value
+                .source_shape_overrides
                 .into_iter()
                 .map(Into::into)
                 .collect(),

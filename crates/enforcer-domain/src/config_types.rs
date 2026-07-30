@@ -454,6 +454,28 @@ pub struct SourceShapePolicy {
     pub max_function_lines: Option<std::num::NonZeroUsize>,
     pub max_lines: Option<std::num::NonZeroUsize>,
     pub max_types: Option<std::num::NonZeroUsize>,
+    pub max_nesting_depth: Option<std::num::NonZeroUsize>,
+    pub max_branches: Option<std::num::NonZeroUsize>,
+}
+
+/// A path-selected, explicit source-shape budget adjustment.  This is typed
+/// policy data, not a waiver: it can only change the same numeric dimensions
+/// a base [`SourceShapePolicy`] exposes.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[doc = "Canonical domain representation for SourceShapeOverride."]
+pub struct SourceShapeOverride {
+    pub path: Option<RelPath>,
+    pub paths: Vec<RelPath>,
+    pub glob: Option<Glob>,
+    pub globs: Vec<Glob>,
+    pub max_classes: Option<std::num::NonZeroUsize>,
+    pub max_exports: Option<std::num::NonZeroUsize>,
+    pub max_functions: Option<std::num::NonZeroUsize>,
+    pub max_function_lines: Option<std::num::NonZeroUsize>,
+    pub max_lines: Option<std::num::NonZeroUsize>,
+    pub max_types: Option<std::num::NonZeroUsize>,
+    pub max_nesting_depth: Option<std::num::NonZeroUsize>,
+    pub max_branches: Option<std::num::NonZeroUsize>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -468,6 +490,7 @@ pub struct EffectiveConfig {
     pub cargo_dependency_policy: CargoDependencyPolicy,
     pub rust_scan_scope: RustScanScope,
     pub source_shape_policies: Vec<SourceShapePolicy>,
+    pub source_shape_overrides: Vec<SourceShapeOverride>,
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,

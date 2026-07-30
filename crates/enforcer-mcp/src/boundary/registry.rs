@@ -229,6 +229,12 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "source-shape" => [
+                    "SRC-1.1", "SRC-2.1", "SRC-2.2", "SRC-2.4", "SRC-2.5", "SRC-2.6", "SRC-2.7",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
                 // Dedicated native engines: these names are not filtered
                 // full scans. The router decodes the shared typed scan scope
                 // then invokes the corresponding narrow engine.
@@ -867,6 +873,9 @@ mod tests {
                 "literal-risk",
                 "import-boundaries",
                 "rust-string-boundaries",
+                "generated-artifacts",
+                "required-tests",
+                "source-shape",
             ])
         );
         Ok(())

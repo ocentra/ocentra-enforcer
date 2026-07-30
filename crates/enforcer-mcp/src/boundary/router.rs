@@ -1001,6 +1001,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
+    } else if name == "source-shape" {
+        [NATIVE_SCAN_FIELDS, &["configPath"]].concat()
     } else {
         NATIVE_SCAN_FIELDS.to_vec()
     };
@@ -1024,6 +1026,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
+        "source-shape" => named_source_shape_unrecorded(&native_args),
         _ => scan_unrecorded(&native_args),
     };
     let Some(object) = report.as_object_mut() else {
@@ -1061,6 +1064,31 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
     report
+}
+
+fn named_source_shape_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
+        Ok(config) => config,
+        Err(error) => return json_error(&format!("cannot load source-shape config: {error}")),
+    };
+    enforcer_scan::boundary::native_scan::execute_source_shape_policy(&request, &root, &config)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_required_tests_unrecorded(args: &serde_json::Value) -> serde_json::Value {
@@ -3487,14 +3515,21 @@ mod tests {
     }
 
     #[test]
-    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error(
+    fn check_source_shape_executes_the_config_driven_native_engine(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "fn one() {}\nfn two() {}\n")?;
+        std::fs::write(
+            temp.path().join("source.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".rs"],"kind":"rust","maxFunctions":1}]}"#,
+        )?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
                 "check": "source-shape",
+                "configPath": "source.json",
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -3503,10 +3538,10 @@ mod tests {
         };
         assert_eq!(value["ok"], serde_json::json!(false));
         assert_eq!(value["check"], serde_json::json!("source-shape"));
-        assert_eq!(
-            value["error"]["code"],
-            serde_json::json!("native_engine_not_implemented")
-        );
+        assert!(value["error"].is_null() || value.get("error").is_none());
+        assert!(value["violations"]
+            .as_array()
+            .is_some_and(|items| !items.is_empty()));
         Ok(())
     }
 
