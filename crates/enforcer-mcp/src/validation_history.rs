@@ -17,20 +17,25 @@ pub enum ValidationKind {
     Check,
 }
 
-
 /// A string decoded at the MCP boundary for opaque report labels.
 /// BRAND-INVARIANT: always owned boundary text; it is never accepted from a
 /// domain function signature and is emitted only by the router's JSON encoder.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ReportLabel(String);
 
-impl ReportLabel {
-}
+impl ReportLabel {}
 
-impl From<String> for ReportLabel { fn from(value: String) -> Self { Self(value) } }
-impl From<&ReportLabel> for String { fn from(value: &ReportLabel) -> Self { // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
-    value.0.clone()
-} }
+impl From<String> for ReportLabel {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl From<&ReportLabel> for String {
+    fn from(value: &ReportLabel) -> Self {
+        // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
+        value.0.clone()
+    }
+}
 
 /// A timestamp selected by the router after it has crossed the JSON boundary.
 /// BRAND-INVARIANT: this is either the platform UTC representation or the
@@ -38,17 +43,28 @@ impl From<&ReportLabel> for String { fn from(value: &ReportLabel) -> Self { // C
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationTimestamp(String);
 
-impl ValidationTimestamp { pub(crate) fn parse(value: ReportLabel) -> Self { Self(value.0) } }
-impl From<&ValidationTimestamp> for String { fn from(value: &ValidationTimestamp) -> Self { // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
-    value.0.clone()
-} }
+impl ValidationTimestamp {
+    pub(crate) fn parse(value: ReportLabel) -> Self {
+        Self(value.0)
+    }
+}
+impl From<&ValidationTimestamp> for String {
+    fn from(value: &ValidationTimestamp) -> Self {
+        // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
+        value.0.clone()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct FindingCount(pub(crate) usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct SeverityCount(pub(crate) u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ValidationOutcome { Passed, Failed, Unknown }
+pub(crate) enum ValidationOutcome {
+    Passed,
+    Failed,
+    Unknown,
+}
 
 /// Case-folded index key for a validated repository root.
 /// BRAND-INVARIANT: generated exclusively from a `RepoRoot`; the text is its
@@ -135,7 +151,9 @@ mod tests {
         "C:/Repo".parse()
     }
 
-    fn summary(kind: ValidationKind) -> Result<ValidationSummary, enforcer_domain::boundary::decode_error::DecodeError> {
+    fn summary(
+        kind: ValidationKind,
+    ) -> Result<ValidationSummary, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(ValidationSummary {
             kind,
             command: None,
@@ -143,7 +161,9 @@ mod tests {
             outcome: super::ValidationOutcome::Failed,
             root: root()?,
             profile_name: None,
-            at: ValidationTimestamp::parse(ReportLabel::from("1970-01-01T00:00:00.000Z".to_owned())),
+            at: ValidationTimestamp::parse(ReportLabel::from(
+                "1970-01-01T00:00:00.000Z".to_owned(),
+            )),
             by_severity: BTreeMap::new(),
             counts: ValidationCounts::default(),
             rule_ids: vec![ReportLabel::from("RR-TEST".to_owned())],
@@ -153,20 +173,28 @@ mod tests {
     }
 
     #[test]
-    fn retains_newest_twenty_case_folded_per_root_and_filters_kind() -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    fn retains_newest_twenty_case_folded_per_root_and_filters_kind(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let mut history = ValidationHistory::default();
         history.record(summary(ValidationKind::Scan)?);
         history.record(summary(ValidationKind::Check)?);
         std::iter::repeat_with(|| summary(ValidationKind::Scan))
             .take(HISTORY_LIMIT - 2)
-            .try_for_each(|entry| { history.record(entry?); Ok::<(), enforcer_domain::boundary::decode_error::DecodeError>(()) })?;
+            .try_for_each(|entry| {
+                history.record(entry?);
+                Ok::<(), enforcer_domain::boundary::decode_error::DecodeError>(())
+            })?;
 
         assert_eq!(
-            history.latest(&root()?, Some(ValidationKind::Check)).map(|entry| entry.kind),
+            history
+                .latest(&root()?, Some(ValidationKind::Check))
+                .map(|entry| entry.kind),
             Some(ValidationKind::Check)
         );
         assert_eq!(
-            history.latest(&root()?, Some(ValidationKind::Scan)).map(|entry| entry.kind),
+            history
+                .latest(&root()?, Some(ValidationKind::Scan))
+                .map(|entry| entry.kind),
             Some(ValidationKind::Scan)
         );
         Ok(())

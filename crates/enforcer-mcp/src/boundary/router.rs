@@ -381,7 +381,12 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     report
 }
 
-fn record_validation(ctx: &DispatchContext, root: RepoRoot, kind: ValidationKind, report: &serde_json::Value) {
+fn record_validation(
+    ctx: &DispatchContext,
+    root: RepoRoot,
+    kind: ValidationKind,
+    report: &serde_json::Value,
+) {
     if let Ok(mut history) = ctx.validation_history.lock() {
         history.record(validation_summary_from_report(root, kind, report));
     }
@@ -403,9 +408,13 @@ fn validation_summary_from_report(
     kind: ValidationKind,
     report: &serde_json::Value,
 ) -> ValidationSummary {
-    let findings = ["violations", "warnings"]
-        .into_iter()
-        .flat_map(|field| report.get(field).and_then(serde_json::Value::as_array).into_iter().flatten());
+    let findings = ["violations", "warnings"].into_iter().flat_map(|field| {
+        report
+            .get(field)
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+    });
     let mut by_severity = std::collections::BTreeMap::new();
     let mut rule_ids = std::collections::BTreeSet::new();
     let mut docs = std::collections::BTreeSet::new();
@@ -415,7 +424,8 @@ fn validation_summary_from_report(
         if let Some(severity) = finding.get("severity").and_then(serde_json::Value::as_str) {
             by_severity
                 .entry(ReportLabel::from(severity.to_owned()))
-                .or_insert(SeverityCount(0)).0 += 1;
+                .or_insert(SeverityCount(0))
+                .0 += 1;
         }
         if let Some(rule_id) = finding.get("ruleId").and_then(serde_json::Value::as_str) {
             rule_ids.insert(ReportLabel::from(rule_id.to_owned()));
@@ -442,8 +452,18 @@ fn validation_summary_from_report(
         by_severity,
         counts: ValidationCounts {
             findings: FindingCount(finding_count),
-            violations: FindingCount(report.get("violations").and_then(serde_json::Value::as_array).map_or(0, Vec::len)),
-            warnings: FindingCount(report.get("warnings").and_then(serde_json::Value::as_array).map_or(0, Vec::len)),
+            violations: FindingCount(
+                report
+                    .get("violations")
+                    .and_then(serde_json::Value::as_array)
+                    .map_or(0, Vec::len),
+            ),
+            warnings: FindingCount(
+                report
+                    .get("warnings")
+                    .and_then(serde_json::Value::as_array)
+                    .map_or(0, Vec::len),
+            ),
         },
         rule_ids: rule_ids.into_iter().collect(),
         docs: docs.into_iter().collect(),
@@ -476,7 +496,10 @@ fn compact_validation_scope(scope: Option<&serde_json::Value>) -> Option<Compact
         crate_name: boundary_label(object.get("crateName")),
         base: boundary_label(object.get("base")),
         head: boundary_label(object.get("head")),
-        file_count: object.get("files").and_then(serde_json::Value::as_array).map(|files| FindingCount(files.len())),
+        file_count: object
+            .get("files")
+            .and_then(serde_json::Value::as_array)
+            .map(|files| FindingCount(files.len())),
         sample_files,
     })
 }
@@ -496,19 +519,63 @@ fn validation_summary_json(summary: &ValidationSummary) -> serde_json::Value {
         "ruleIds": summary.rule_ids.iter().map(String::from).collect::<Vec<_>>(),
         "docs": summary.docs.iter().map(String::from).collect::<Vec<_>>(),
     });
-    let Some(fields) = object.as_object_mut() else { return serde_json::Value::Null; };
-    if let Some(value) = &summary.command { fields.insert("command".to_owned(), serde_json::Value::String(String::from(value))); }
-    if let Some(value) = &summary.check { fields.insert("check".to_owned(), serde_json::Value::String(String::from(value))); }
-    if let Some(value) = &summary.profile_name { fields.insert("profileName".to_owned(), serde_json::Value::String(String::from(value))); }
+    let Some(fields) = object.as_object_mut() else {
+        return serde_json::Value::Null;
+    };
+    if let Some(value) = &summary.command {
+        fields.insert(
+            "command".to_owned(),
+            serde_json::Value::String(String::from(value)),
+        );
+    }
+    if let Some(value) = &summary.check {
+        fields.insert(
+            "check".to_owned(),
+            serde_json::Value::String(String::from(value)),
+        );
+    }
+    if let Some(value) = &summary.profile_name {
+        fields.insert(
+            "profileName".to_owned(),
+            serde_json::Value::String(String::from(value)),
+        );
+    }
     if let Some(scope) = &summary.scope {
         let mut compact = serde_json::Map::new();
-        if let Some(value) = &scope.mode { compact.insert("mode".to_owned(), serde_json::Value::String(String::from(value))); }
-        if let Some(value) = &scope.crate_name { compact.insert("crateName".to_owned(), serde_json::Value::String(String::from(value))); }
-        if let Some(value) = &scope.base { compact.insert("base".to_owned(), serde_json::Value::String(String::from(value))); }
-        if let Some(value) = &scope.head { compact.insert("head".to_owned(), serde_json::Value::String(String::from(value))); }
+        if let Some(value) = &scope.mode {
+            compact.insert(
+                "mode".to_owned(),
+                serde_json::Value::String(String::from(value)),
+            );
+        }
+        if let Some(value) = &scope.crate_name {
+            compact.insert(
+                "crateName".to_owned(),
+                serde_json::Value::String(String::from(value)),
+            );
+        }
+        if let Some(value) = &scope.base {
+            compact.insert(
+                "base".to_owned(),
+                serde_json::Value::String(String::from(value)),
+            );
+        }
+        if let Some(value) = &scope.head {
+            compact.insert(
+                "head".to_owned(),
+                serde_json::Value::String(String::from(value)),
+            );
+        }
         if let Some(file_count) = scope.file_count {
             compact.insert("fileCount".to_owned(), serde_json::json!(file_count.0));
-            compact.insert("sampleFiles".to_owned(), serde_json::json!(scope.sample_files.iter().map(String::from).collect::<Vec<_>>()));
+            compact.insert(
+                "sampleFiles".to_owned(),
+                serde_json::json!(scope
+                    .sample_files
+                    .iter()
+                    .map(String::from)
+                    .collect::<Vec<_>>()),
+            );
         }
         fields.insert("scope".to_owned(), serde_json::Value::Object(compact));
     }
@@ -592,7 +659,9 @@ fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Va
         "validationSummary": validation_summary,
     });
     if let Some(artifact) = artifact {
-        if let Some(object) = result.as_object_mut() { object.insert("artifact".to_owned(), artifact); }
+        if let Some(object) = result.as_object_mut() {
+            object.insert("artifact".to_owned(), artifact);
+        }
     }
     result
 }
