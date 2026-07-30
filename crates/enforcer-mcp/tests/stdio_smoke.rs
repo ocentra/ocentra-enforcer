@@ -199,3 +199,57 @@ fn stdio_smoke_scan_reaches_the_native_rust_engine() -> Result<(), Box<dyn std::
     assert!(child.wait()?.success());
     Ok(())
 }
+
+#[test]
+fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    let src = fixture.path().join("src");
+    std::fs::create_dir_all(&src)?;
+    std::fs::write(
+        src.join("schema.ts"),
+        "import { z } from \"zod\";\nexport const value = z.string();\n",
+    )?;
+
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+
+    let reply = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "ocentra_enforcer_check",
+                "arguments": {
+                    "root": fixture.path().to_string_lossy(),
+                    "check": "no-zod-source",
+                    "scope": "files",
+                    "files": ["src/schema.ts"],
+                },
+            },
+        }),
+    )?;
+    assert_eq!(reply["result"]["command"], serde_json::json!("check"));
+    assert_eq!(reply["result"]["check"], serde_json::json!("no-zod-source"));
+    assert!(reply["result"]["findings"]
+        .as_array()
+        .is_some_and(|findings| !findings.is_empty()));
+    assert!(reply["result"]["findings"]
+        .as_array()
+        .is_some_and(|findings| findings.iter().all(|finding| finding["ruleId"] == "TS-1.2")));
+
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}

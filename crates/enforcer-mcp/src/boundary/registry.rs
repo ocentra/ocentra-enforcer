@@ -123,13 +123,24 @@ pub const NAMED_CHECKS: &[&str] = &[
 pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
     NAMED_CHECKS
         .iter()
-        .map(|&name| (name, Vec::new()))
+        .map(|&name| {
+            let rule_ids = match name {
+                // Frozen MJS `no-zod-source` filters its scanner-backed
+                // findings to TS-1.2. The Rust TypeScript registry wires the
+                // same id into enforcer-scan; router::check filters to this
+                // declared backing rather than reporting every TS finding.
+                "no-zod-source" => ["TS-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                _ => Vec::new(),
+            };
+            (name, rule_ids)
+        })
         .collect()
 }
 
-/// True once at least one [`RuleId`] backs the named check (see
-/// [`named_check_backing`]'s honest-scope note: currently always `false`
-/// until a sibling pack wires real backing ids in).
+/// True once at least one [`RuleId`] backs the named check.
 pub fn is_wired(entry: &(&'static str, Vec<RuleId>)) -> bool {
     !entry.1.is_empty()
 }
@@ -298,13 +309,17 @@ mod tests {
     }
 
     #[test]
-    fn is_wired_is_honest_about_unwired_backing() {
-        for entry in named_check_backing() {
-            assert!(
-                !is_wired(&entry),
-                "no sibling pack has wired named-check backing yet; is_wired must report false, not fabricate parity"
-            );
-        }
+    fn is_wired_reports_only_the_landed_native_mapping() -> Result<(), Box<dyn std::error::Error>> {
+        let backing = named_check_backing();
+        let Some(zod) = backing.iter().find(|(name, _)| *name == "no-zod-source") else {
+            return Err("no-zod-source must be declared".into());
+        };
+        assert!(is_wired(zod));
+        assert!(backing
+            .iter()
+            .filter(|(name, _)| *name != "no-zod-source")
+            .all(|entry| !is_wired(entry)));
+        Ok(())
     }
 
     #[test]

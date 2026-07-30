@@ -97,6 +97,7 @@ pub fn dispatch(
 
     match canonical.as_str() {
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
+        "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
         "ocentra_enforcer_mcp_status" => DispatchOutcome::Result(mcp_status(ctx)),
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
@@ -175,6 +176,19 @@ fn scan(args: &serde_json::Value) -> serde_json::Value {
     if all && !files.is_empty() {
         return json_error("scan accepts either `files` or `all`, not both");
     }
+    let scope = match args.get("scope") {
+        None => None,
+        Some(serde_json::Value::String(value)) if value == "files" || value == "workspace" => {
+            Some(value.as_str())
+        }
+        Some(_) => return json_error("native MCP scan supports only `files` or `workspace` scope"),
+    };
+    if scope == Some("files") && files.is_empty() {
+        return json_error("scan `scope: files` requires at least one file");
+    }
+    if scope == Some("workspace") && (!files.is_empty() || all) {
+        return json_error("scan `scope: workspace` cannot combine with `files` or `all`");
+    }
 
     let request = if all || files.is_empty() {
         enforcer_domain::scan_types::ScopeRequest::All
@@ -214,6 +228,43 @@ fn scan(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(err) => json_error(&format!("failed to encode scan report: {err}")),
     }
+}
+
+/// Native MCP check adapter. A named check is accepted only once its exact
+/// frozen-MJS rule mapping is backed by a runtime-wired Rust validator.
+fn check(args: &serde_json::Value) -> serde_json::Value {
+    let Some(name) = args.get("check").and_then(serde_json::Value::as_str) else {
+        return json_error("check requires a named `check`");
+    };
+    if name != "no-zod-source" {
+        return json_error(&format!("native MCP check `{name}` is not wired yet"));
+    }
+    let mut report = scan(args);
+    let Some(object) = report.as_object_mut() else {
+        return json_error("native scan produced an invalid report shape");
+    };
+    if object.contains_key("error") {
+        return report;
+    }
+    for field in ["violations", "warnings", "waived", "findings"] {
+        if let Some(serde_json::Value::Array(findings)) = object.get_mut(field) {
+            findings.retain(|finding| finding.get("ruleId") == Some(&serde_json::json!("TS-1.2")));
+        }
+    }
+    let has_violation = object
+        .get("violations")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|violations| !violations.is_empty());
+    object.insert("ok".to_owned(), serde_json::Value::Bool(!has_violation));
+    object.insert(
+        "command".to_owned(),
+        serde_json::Value::String("check".to_owned()),
+    );
+    object.insert(
+        "check".to_owned(),
+        serde_json::Value::String(name.to_owned()),
+    );
+    report
 }
 
 /// `ocentra_enforcer_mcp_status` — never write-gated (read-only server
@@ -493,6 +544,60 @@ mod tests {
         assert!(value["error"]
             .as_str()
             .is_some_and(|message| message.contains("does not yet implement")));
+        Ok(())
+    }
+
+    #[test]
+    fn check_no_zod_source_filters_to_its_native_rule() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(
+            src.join("schema.ts"),
+            "import { z } from \"zod\";\nexport const value = z.string();\n",
+        )?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "no-zod-source",
+                "scope": "files",
+                "files": ["src/schema.ts"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native check did not produce a result".into());
+        };
+        assert_eq!(value["command"], serde_json::json!("check"));
+        assert_eq!(value["check"], serde_json::json!("no-zod-source"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        let findings = value["findings"].as_array().ok_or("missing findings")?;
+        assert!(!findings.is_empty());
+        assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.2"));
+        Ok(())
+    }
+
+    #[test]
+    fn check_rejects_a_registered_name_without_native_wiring(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "weak-assertions",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("not wired yet")));
         Ok(())
     }
 
