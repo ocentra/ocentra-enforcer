@@ -342,14 +342,43 @@ fn parse_scan_scope(
     }
 }
 
-/// Native MCP check adapter. A named check is accepted only once its exact
-/// frozen-MJS rule mapping is backed by a runtime-wired Rust validator.
+/// Native MCP check adapter. A named check is executed only when its exact
+/// frozen-MJS rule mapping is backed by the native scan engine. Other frozen
+/// names are deliberately rejected with a typed result: advertising a schema
+/// entry is compatibility, not permission to fabricate a passing report.
 fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     let Some(name) = args.get("check").and_then(serde_json::Value::as_str) else {
         return json_error("check requires a named `check`");
     };
-    if name != "no-zod-source" {
-        return json_error(&format!("native MCP check `{name}` is not wired yet"));
+    if !crate::registry::NAMED_CHECKS.contains(&name) {
+        return named_check_rejection(name, "unknown_named_check");
+    }
+    let backing = crate::registry::named_check_backing();
+    let Some((_, rule_ids)) = backing.iter().find(|(candidate, _)| *candidate == name) else {
+        return named_check_rejection(name, "missing_backing_declaration");
+    };
+    if rule_ids.is_empty() {
+        return named_check_rejection(name, "native_engine_not_implemented");
+    }
+    const NATIVE_SCAN_FIELDS: &[&str] = &[
+        "check",
+        "root",
+        "scope",
+        "files",
+        "crateName",
+        "base",
+        "head",
+        "languages",
+    ];
+    if let Some(unsupported) = args.as_object().and_then(|object| {
+        object
+            .keys()
+            .find(|field| !NATIVE_SCAN_FIELDS.contains(&field.as_str()))
+    }) {
+        return named_check_rejection(
+            name,
+            &format!("native_option_not_implemented:{unsupported}"),
+        );
     }
     let Some(mut scan_args) = args.as_object().cloned() else {
         return json_error("check arguments must be an object");
@@ -362,9 +391,16 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     if object.contains_key("error") {
         return report;
     }
+    let declared_rule_ids: std::collections::BTreeSet<&str> =
+        rule_ids.iter().map(|rule_id| rule_id.as_str()).collect();
     for field in ["violations", "warnings", "waived", "findings"] {
         if let Some(serde_json::Value::Array(findings)) = object.get_mut(field) {
-            findings.retain(|finding| finding.get("ruleId") == Some(&serde_json::json!("TS-1.2")));
+            findings.retain(|finding| {
+                finding
+                    .get("ruleId")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|rule_id| declared_rule_ids.contains(rule_id))
+            });
         }
     }
     let has_violation = object
@@ -384,6 +420,19 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
     report
+}
+
+/// Return a structured refusal for a frozen check whose dedicated native
+/// engine has not landed. This must stay distinct from a clean report.
+fn named_check_rejection(name: &str, code: &str) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "check": name,
+        "error": {
+            "code": code,
+            "message": format!("native MCP check `{name}` cannot execute: {code}"),
+        },
+    })
 }
 
 fn record_validation(
@@ -1587,6 +1636,39 @@ mod tests {
     }
 
     #[test]
+    fn check_reexports_filters_a_real_native_scan_to_its_declared_family(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let src = temp.path().join("src");
+        std::fs::create_dir_all(&src)?;
+        std::fs::write(
+            src.join("barrel.ts"),
+            "export { value } from \"./value\";\n",
+        )?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "reexports",
+                "scope": "files",
+                "files": ["src/barrel.ts"],
+                "languages": ["typescript"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native check did not produce a result".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("reexports"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        let findings = value["findings"].as_array().ok_or("missing findings")?;
+        assert!(!findings.is_empty());
+        assert!(findings.iter().all(|finding| finding["ruleId"] == "TS-1.1"));
+        Ok(())
+    }
+
+    #[test]
     fn run_status_returns_process_local_validation_after_final_check_shape(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
@@ -1683,14 +1765,14 @@ mod tests {
     }
 
     #[test]
-    fn check_rejects_a_registered_name_without_native_wiring(
+    fn check_rejects_a_registered_name_without_native_wiring_with_a_typed_error(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
-                "check": "weak-assertions",
+                "check": "source-shape",
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -1698,9 +1780,11 @@ mod tests {
             return Err("native check did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(value["error"]
-            .as_str()
-            .is_some_and(|message| message.contains("not wired yet")));
+        assert_eq!(value["check"], serde_json::json!("source-shape"));
+        assert_eq!(
+            value["error"]["code"],
+            serde_json::json!("native_engine_not_implemented")
+        );
         Ok(())
     }
 

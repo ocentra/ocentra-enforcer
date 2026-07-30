@@ -93,6 +93,14 @@ pub const NAMED_CHECKS: &[&str] = &[
     "no-naked-domain-strings",
     "no-test-doubles",
     "weak-assertions",
+    "skipped-focused-tests",
+    "validation-bypass",
+    "placeholder-implementation",
+    "reexports",
+    "cross-platform-script-commands",
+    "generated-artifacts",
+    "secrets",
+    "rust-string-boundaries",
     "source-shape",
     "required-tests",
     "single-source-contracts",
@@ -128,11 +136,44 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
         .iter()
         .map(|&name| {
             let rule_ids = match name {
-                // Frozen MJS `no-zod-source` filters its scanner-backed
-                // findings to TS-1.2. The Rust TypeScript registry wires the
-                // same id into enforcer-scan; router::check filters to this
-                // declared backing rather than reporting every TS finding.
+                // These nine entries are the frozen MJS scanner-backed
+                // checks. Their reports are produced by the real native scan
+                // engine and then filtered to the same rule family; the
+                // remaining frozen names retain an empty list until their
+                // distinct native engines land.
                 "no-zod-source" => ["TS-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "no-test-doubles" => ["TEST-1.1", "TS-8.8"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "cross-platform-script-commands" => ["PORT-1.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "no-naked-domain-strings" => ["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "weak-assertions" => ["TEST-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "skipped-focused-tests" => ["TS-3.1", "PY-2.1", "TEST-1.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "validation-bypass" => ["RR-2.1", "RR-2.2", "TS-2.1", "PY-1.1", "PY-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "placeholder-implementation" => ["RR-4.2", "RR-4.3", "SRC-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "reexports" => ["RR-7.2", "RR-7.3", "TS-1.1"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
@@ -241,6 +282,24 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
             "properties": {
                 "check": { "type": "string", "enum": NAMED_CHECKS },
                 "root": { "type": "string" },
+                "configPath": { "type": "string" },
+                "profile": { "type": "string" },
+                "scope": { "type": "string", "enum": ["workspace", "files", "crate", "diff"] },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "crateName": { "type": "string" },
+                "languages": { "type": "array", "items": { "type": "string", "enum": ["rust", "typescript", "python", "common"] } },
+                "base": { "type": "string" },
+                "head": { "type": "string" },
+                "checkConfigPath": { "type": "string" },
+                "output": { "type": "string" },
+                "dryRun": { "type": "boolean" },
+                "staged": { "type": "boolean" },
+                "tracked": { "type": "boolean" },
+                "strictEmptyTestTrees": { "type": "boolean" },
+                "diagnosticLimit": { "type": "number" },
+                "summaryOnly": { "type": "boolean" },
+                "groupBy": { "type": "string", "enum": ["file", "slice"] },
+                "includeScope": { "type": "boolean" },
             },
             "required": ["check"],
         });
@@ -349,6 +408,14 @@ mod tests {
             "no-naked-domain-strings",
             "no-test-doubles",
             "weak-assertions",
+            "skipped-focused-tests",
+            "validation-bypass",
+            "placeholder-implementation",
+            "reexports",
+            "cross-platform-script-commands",
+            "generated-artifacts",
+            "secrets",
+            "rust-string-boundaries",
             "source-shape",
             "required-tests",
             "single-source-contracts",
@@ -402,10 +469,25 @@ mod tests {
             return Err("no-zod-source must be declared".into());
         };
         assert!(is_wired(zod));
-        assert!(backing
+        let wired: BTreeSet<&str> = backing
             .iter()
-            .filter(|(name, _)| *name != "no-zod-source")
-            .all(|entry| !is_wired(entry)));
+            .filter(|entry| is_wired(entry))
+            .map(|(name, _)| *name)
+            .collect();
+        assert_eq!(
+            wired,
+            BTreeSet::from([
+                "no-zod-source",
+                "no-test-doubles",
+                "cross-platform-script-commands",
+                "no-naked-domain-strings",
+                "weak-assertions",
+                "skipped-focused-tests",
+                "validation-bypass",
+                "placeholder-implementation",
+                "reexports",
+            ])
+        );
         Ok(())
     }
 
@@ -442,6 +524,38 @@ mod tests {
             .as_array()
             .ok_or("check enum must be an array")?;
         assert_eq!(schema_enum.len(), NAMED_CHECKS.len());
+        let properties = check_tool.input_schema["properties"]
+            .as_object()
+            .ok_or("check properties must be an object")?;
+        let actual: BTreeSet<&str> = properties.keys().map(String::as_str).collect();
+        let expected: BTreeSet<&str> = [
+            "check",
+            "root",
+            "configPath",
+            "profile",
+            "scope",
+            "files",
+            "crateName",
+            "languages",
+            "base",
+            "head",
+            "checkConfigPath",
+            "output",
+            "dryRun",
+            "staged",
+            "tracked",
+            "strictEmptyTestTrees",
+            "diagnosticLimit",
+            "summaryOnly",
+            "groupBy",
+            "includeScope",
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            actual, expected,
+            "check schema must match frozen MJS fields"
+        );
         Ok(())
     }
 }

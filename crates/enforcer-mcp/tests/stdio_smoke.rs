@@ -427,6 +427,48 @@ fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
 }
 
 #[test]
+fn stdio_smoke_check_unimplemented_frozen_name_returns_a_typed_refusal(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+
+    let reply = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "ocentra_enforcer_check",
+                "arguments": {
+                    "root": fixture.path().to_string_lossy(),
+                    "check": "source-shape",
+                },
+            },
+        }),
+    )?;
+    assert_eq!(reply["result"]["ok"], serde_json::json!(false));
+    assert_eq!(
+        reply["result"]["error"]["code"],
+        serde_json::json!("native_engine_not_implemented")
+    );
+
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
+
+#[test]
 fn stdio_smoke_route_reaches_the_native_rust_route_engine() -> Result<(), Box<dyn std::error::Error>>
 {
     let fixture = tempfile::tempdir()?;
