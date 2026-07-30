@@ -171,6 +171,42 @@ pub fn execute_secret_policy(
     })
 }
 
+/// Execute the native secret policy over files currently staged in Git.
+///
+/// This mirrors the standalone `secrets --staged` contract: Git selects the
+/// paths, while validation reads the working-tree source at those paths. The
+/// selection deliberately excludes deletions because there is no source left
+/// to validate.
+pub fn execute_staged_secret_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let paths = staged_files(repo_root, &IgnoreRules::default())?;
+    let staged_request = NativeScanRequest {
+        scope: NativeScanScope::Files(
+            paths
+                .into_iter()
+                .map(|path| PathBuf::from(path.as_str()))
+                .collect(),
+        ),
+        languages: request.languages.clone(),
+    };
+    if let NativeScanScope::Files(paths) = &staged_request.scope {
+        if paths.is_empty() {
+            let mut resolved = scope::resolve(&ScopeRequest::All, repo_root)?;
+            resolved.kind = ScanScope::Files;
+            let report =
+                engine::run_secret_policy(&resolved, &[]).map_err(NativeScanError::Decode)?;
+            return Ok(NativeScanResult {
+                scope: ScanScope::Files,
+                scanned_files: Vec::new(),
+                report,
+            });
+        }
+    }
+    execute_secret_policy(&staged_request, repo_root)
+}
+
 /// Execute the dedicated TypeScript import-boundary rule only.
 pub fn execute_import_boundaries_policy(
     request: &NativeScanRequest,
@@ -520,11 +556,51 @@ fn diff_files(
     Ok(walk::filter_explicit(&paths, rules))
 }
 
+fn staged_files(
+    repo_root: &RepoRoot,
+    rules: &IgnoreRules,
+) -> Result<Vec<RelPath>, NativeScanError> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_root.as_str())
+        .args([
+            "diff",
+            "--cached",
+            "--name-only",
+            "--diff-filter=ACMR",
+            "-z",
+        ])
+        .output()
+        .map_err(|error| NativeScanError::Io {
+            operation: "staged file discovery",
+            reason: error.to_string(),
+        })?;
+    if !output.status.success() {
+        return Err(NativeScanError::Io {
+            operation: "staged file discovery",
+            reason: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
+    }
+    let paths = output
+        .stdout
+        .split(|byte| *byte == b'\0')
+        .filter(|path| !path.is_empty())
+        .map(|path| {
+            std::str::from_utf8(path)
+                .map_err(|error| DecodeError::new("staged path", error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(str::parse)
+        .collect::<Result<Vec<RelPath>, DecodeError>>()?;
+    Ok(walk::filter_explicit(&paths, rules))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        execute, execute_dependency_policy, execute_secret_policy, resolve_files, NativeScanError,
-        NativeScanLanguage, NativeScanRequest, NativeScanScope,
+        execute, execute_dependency_policy, execute_secret_policy, execute_staged_secret_policy,
+        resolve_files, NativeScanError, NativeScanLanguage, NativeScanRequest, NativeScanScope,
     };
     use enforcer_domain::config_types::CrateName;
     use enforcer_domain::findings::ScanScope;
@@ -716,23 +792,67 @@ mod tests {
         write(
             temp.path(),
             "src/config.rs",
-            "const SECRET = \"0123456789abcdefghijklmnop\";",
+            "const SECRET = \"0123456789abcdefghijklmnop\";\nconst GH = \"ghp_abcdefghijklmnopqrstuvwxyz0123456789\";",
         )?;
         let request = NativeScanRequest {
             scope: NativeScanScope::Files(vec!["src/config.rs".into()]),
             languages: Vec::new(),
         };
         let result = execute_secret_policy(&request, &root(temp.path())?)?;
-        assert!(result.report.violations.iter().all(|finding| finding
-            .finding()
-            .rule_id
-            .as_str()
-            .starts_with("SEC-")));
+        assert!(result.report.violations.iter().all(|finding| {
+            matches!(finding.finding().rule_id.as_str(), "SEC-1.1" | "SEC-1.2")
+        }));
         assert!(result
             .report
             .violations
             .iter()
             .any(|finding| finding.finding().rule_id.as_str() == "SEC-1.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn staged_secret_policy_scans_only_staged_paths() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        assert!(Command::new("git")
+            .arg("init")
+            .arg(temp.path())
+            .status()?
+            .success());
+        write(
+            temp.path(),
+            "src/staged.rs",
+            "const SECRET = \"0123456789abcdefghijklmnop\";",
+        )?;
+        write(
+            temp.path(),
+            "src/unstaged.rs",
+            "const SECRET = \"abcdefghijklmnop0123456789\";",
+        )?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["add", "src/staged.rs"])
+            .status()?
+            .success());
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Workspace,
+            languages: vec![NativeScanLanguage::Rust],
+        };
+        let result = execute_staged_secret_policy(&request, &root(temp.path())?)?;
+        assert_eq!(result.scope, ScanScope::Files);
+        assert_eq!(
+            result
+                .scanned_files
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            ["src/staged.rs"]
+        );
+        assert!(result.report.violations.iter().all(|finding| {
+            finding.finding().file.as_str() == "src/staged.rs"
+                && finding.finding().rule_id.as_str().starts_with("SEC-")
+        }));
+        assert!(!result.report.violations.is_empty());
         Ok(())
     }
 

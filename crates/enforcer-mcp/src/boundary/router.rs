@@ -1022,6 +1022,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
             ],
         ]
         .concat()
+    } else if name == "secrets" {
+        [NATIVE_SCAN_FIELDS, &["staged"]].concat()
     } else if name == "sbom" {
         [NATIVE_SCAN_FIELDS, &["output"]].concat()
     } else if name == "required-tests" {
@@ -1318,7 +1320,15 @@ fn named_policy_unrecorded(args: &serde_json::Value, policy: &str) -> serde_json
         Err(error) => return json_error(&error),
     };
     let result = match policy {
-        "secrets" => enforcer_scan::boundary::native_scan::execute_secret_policy(&request, &root),
+        "secrets" => match args.get("staged") {
+            None | Some(serde_json::Value::Bool(false)) => {
+                enforcer_scan::boundary::native_scan::execute_secret_policy(&request, &root)
+            }
+            Some(serde_json::Value::Bool(true)) => {
+                enforcer_scan::boundary::native_scan::execute_staged_secret_policy(&request, &root)
+            }
+            Some(_) => return json_error("secrets `staged` must be a boolean"),
+        },
         "dependency-policy" => {
             enforcer_scan::boundary::native_scan::execute_dependency_policy(&request, &root)
         }
@@ -3322,6 +3332,7 @@ mod tests {
     use super::{dispatch, DispatchContext, DispatchOutcome};
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
+    use std::process::Command;
 
     fn tool(
         value: &str,
@@ -3735,6 +3746,72 @@ mod tests {
                     .is_some_and(|id| id.starts_with("SEC-"))
             })
         }));
+        Ok(())
+    }
+
+    #[test]
+    fn check_secrets_staged_is_git_index_scoped_and_rejects_non_boolean_option(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        assert!(Command::new("git")
+            .arg("init")
+            .arg(temp.path())
+            .status()?
+            .success());
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/staged.rs"),
+            "const SECRET = \"0123456789abcdefghijklmnop\";\n",
+        )?;
+        std::fs::write(
+            temp.path().join("src/unstaged.rs"),
+            "const SECRET = \"abcdefghijklmnop0123456789\";\n",
+        )?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["add", "src/staged.rs"])
+            .status()?
+            .success());
+        let staged = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "secrets",
+                "scope": "workspace",
+                "staged": true,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = staged else {
+            return Err("staged native secrets check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            !findings.is_empty()
+                && findings.iter().all(|finding| {
+                    finding["file"] == serde_json::json!("src/staged.rs")
+                        && finding["ruleId"]
+                            .as_str()
+                            .is_some_and(|rule_id| rule_id.starts_with("SEC-"))
+                })
+        }));
+        let invalid = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "secrets",
+                "staged": "yes",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = invalid else {
+            return Err("invalid staged option did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("staged` must be a boolean")));
         Ok(())
     }
 

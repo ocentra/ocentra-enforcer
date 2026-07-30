@@ -335,20 +335,20 @@ pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report
 
 /// Run the native secret policy over a resolved source scope.
 ///
-/// This is intentionally a narrow dispatch of the concrete `SEC-1` and
-/// `SEC-2` validator registry: a secrets gate must not masquerade as a full
-/// language scan, and it must not depend on the legacy Node collector. The
-/// validators own both detection and diagnostic redaction; this engine seam
-/// owns only source I/O, path-role routing, deterministic folding, and the
-/// report boundary.
+/// This is intentionally a narrow dispatch of the frozen standalone check's
+/// concrete `SEC-1.1` and `SEC-1.2` validators. A `secrets` gate must not
+/// masquerade as a full language scan, add the broader `SEC-2` family, or
+/// depend on the legacy Node collector. The validators own both detection and
+/// diagnostic redaction; this engine seam owns only source I/O, path-role
+/// routing, deterministic folding, and the report boundary.
 pub fn run_secret_policy(
     scope: &ResolvedScope,
     files: &[RelPath],
 ) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
-    let validators: Vec<Box<dyn Validator>> = enforcer_lang_security::rules::registry::build_all()?
-        .into_iter()
-        .map(|row| row.validator)
-        .collect();
+    let validators: Vec<Box<dyn Validator>> = vec![
+        Box::new(enforcer_lang_security::rules::secret_scan::InlineSecretsValidator::new()?),
+        Box::new(enforcer_lang_security::rules::secret_scan::SensitiveFilesValidator::new()?),
+    ];
     let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
         .par_iter()
         .filter(|file| should_scan_source(scope, file))
