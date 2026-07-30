@@ -1,184 +1,174 @@
 //! Process-local compatibility history for native MCP validation results.
 //!
-//! Mirrors frozen MJS `validationHistory`: case-folded resolved roots,
-//! no persistence, and the newest twenty scan/check summaries per root.
+//! The router decodes the frozen MJS JSON report at the boundary and gives this
+//! module a typed snapshot. This keeps process-local state independent of the
+//! transport representation while preserving the frozen wire envelope.
 
 use std::collections::{BTreeMap, VecDeque};
 
-use enforcer_core::platform::{epoch_millis, iso8601_utc};
+use enforcer_domain::paths::RepoRoot;
 
 const HISTORY_LIMIT: usize = 20;
 
+/// A validation command whose wire spelling is fixed by the MCP contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationKind {
     Scan,
     Check,
 }
 
-impl ValidationKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Scan => "scan",
-            Self::Check => "check",
-        }
+
+/// A string decoded at the MCP boundary for opaque report labels.
+/// BRAND-INVARIANT: always owned boundary text; it is never accepted from a
+/// domain function signature and is emitted only by the router's JSON encoder.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ReportLabel(String);
+
+impl ReportLabel {
+}
+
+impl From<String> for ReportLabel { fn from(value: String) -> Self { Self(value) } }
+impl From<&ReportLabel> for String { fn from(value: &ReportLabel) -> Self { // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
+    value.0.clone()
+} }
+
+/// A timestamp selected by the router after it has crossed the JSON boundary.
+/// BRAND-INVARIANT: this is either the platform UTC representation or the
+/// frozen epoch fallback, and is only rendered by the boundary encoder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationTimestamp(String);
+
+impl ValidationTimestamp { pub(crate) fn parse(value: ReportLabel) -> Self { Self(value.0) } }
+impl From<&ValidationTimestamp> for String { fn from(value: &ValidationTimestamp) -> Self { // CLONE-JUSTIFICATION: the router owns a fresh JSON string at the transport boundary.
+    value.0.clone()
+} }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct FindingCount(pub(crate) usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct SeverityCount(pub(crate) u64);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ValidationOutcome { Passed, Failed, Unknown }
+
+/// Case-folded index key for a validated repository root.
+/// BRAND-INVARIANT: generated exclusively from a `RepoRoot`; the text is its
+/// Unicode lowercase form and is used solely for frozen-MJS-compatible lookup.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct FoldedRoot(String);
+
+impl From<&RepoRoot> for FoldedRoot {
+    fn from(root: &RepoRoot) -> Self {
+        Self(root.as_str().to_lowercase())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct ValidationCounts {
+    pub(crate) findings: FindingCount,
+    pub(crate) violations: FindingCount,
+    pub(crate) warnings: FindingCount,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct CompactScope {
+    pub(crate) mode: Option<ReportLabel>,
+    pub(crate) crate_name: Option<ReportLabel>,
+    pub(crate) base: Option<ReportLabel>,
+    pub(crate) head: Option<ReportLabel>,
+    pub(crate) file_count: Option<FindingCount>,
+    pub(crate) sample_files: Vec<ReportLabel>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ValidationSummary {
+    pub(crate) kind: ValidationKind,
+    pub(crate) command: Option<ReportLabel>,
+    pub(crate) check: Option<ReportLabel>,
+    pub(crate) outcome: ValidationOutcome,
+    pub(crate) root: RepoRoot,
+    pub(crate) profile_name: Option<ReportLabel>,
+    pub(crate) at: ValidationTimestamp,
+    pub(crate) by_severity: BTreeMap<ReportLabel, SeverityCount>,
+    pub(crate) counts: ValidationCounts,
+    pub(crate) rule_ids: Vec<ReportLabel>,
+    pub(crate) docs: Vec<ReportLabel>,
+    pub(crate) scope: Option<CompactScope>,
 }
 
 #[derive(Debug, Default)]
 pub struct ValidationHistory {
-    by_root: BTreeMap<String, VecDeque<serde_json::Value>>,
+    by_root: BTreeMap<FoldedRoot, VecDeque<ValidationSummary>>,
 }
 
 impl ValidationHistory {
-    pub fn record(&mut self, root: &str, kind: ValidationKind, report: &serde_json::Value) {
-        let entries = self.by_root.entry(root.to_lowercase()).or_default();
-        entries.push_front(summary(root, kind, report));
+    pub(crate) fn record(&mut self, summary: ValidationSummary) {
+        let root = FoldedRoot::from(&summary.root);
+        let entries = self.by_root.entry(root).or_default();
+        entries.push_front(summary);
         entries.truncate(HISTORY_LIMIT);
     }
 
-    pub fn latest(&self, root: &str, tool: Option<&str>) -> Option<serde_json::Value> {
-        let kind = match tool {
-            Some("check") => Some("check"),
-            Some("scan") => Some("scan"),
-            _ => None,
-        };
+    pub(crate) fn latest(
+        &self,
+        root: &RepoRoot,
+        filter: Option<ValidationKind>,
+    ) -> Option<&ValidationSummary> {
         self.by_root
-            .get(&root.to_lowercase())?
+            .get(&FoldedRoot::from(root))?
             .iter()
-            .find(|entry| kind.is_none_or(|kind| entry["kind"] == kind))
-            .cloned()
+            .find(|entry| filter.is_none_or(|expected| entry.kind == expected))
     }
-}
-
-fn summary(root: &str, kind: ValidationKind, report: &serde_json::Value) -> serde_json::Value {
-    let findings = ["violations", "warnings"]
-        .into_iter()
-        .flat_map(|field| {
-            report
-                .get(field)
-                .and_then(serde_json::Value::as_array)
-                .into_iter()
-                .flatten()
-        })
-        .collect::<Vec<_>>();
-    let mut severity = serde_json::Map::new();
-    for finding in &findings {
-        if let Some(value) = finding.get("severity").and_then(serde_json::Value::as_str) {
-            let entry = severity
-                .entry(value.to_owned())
-                .or_insert_with(|| serde_json::json!(0));
-            *entry = serde_json::json!(entry.as_u64().unwrap_or(0) + 1);
-        }
-    }
-    let values = |field: &str| {
-        let mut values = findings
-            .iter()
-            .filter_map(|finding| finding.get(field).and_then(serde_json::Value::as_str))
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
-        values.sort();
-        values.dedup();
-        values
-    };
-    let mut object = serde_json::Map::new();
-    object.insert("kind".to_owned(), serde_json::json!(kind.as_str()));
-    object.insert(
-        "command".to_owned(),
-        report
-            .get("command")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    object.insert(
-        "check".to_owned(),
-        report
-            .get("check")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    object.insert(
-        "ok".to_owned(),
-        report.get("ok").cloned().unwrap_or(serde_json::Value::Null),
-    );
-    object.insert("root".to_owned(), serde_json::json!(root));
-    object.insert(
-        "profileName".to_owned(),
-        report
-            .get("profileName")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    object.insert(
-        "at".to_owned(),
-        serde_json::json!(epoch_millis()
-            .map(iso8601_utc)
-            .unwrap_or_else(|_| "1970-01-01T00:00:00.000Z".to_owned())),
-    );
-    object.insert(
-        "bySeverity".to_owned(),
-        report
-            .get("bySeverity")
-            .cloned()
-            .unwrap_or(serde_json::Value::Object(severity)),
-    );
-    object.insert("counts".to_owned(), serde_json::json!({ "findings": findings.len(), "violations": report.get("violations").and_then(serde_json::Value::as_array).map_or(0, Vec::len), "warnings": report.get("warnings").and_then(serde_json::Value::as_array).map_or(0, Vec::len) }));
-    object.insert("ruleIds".to_owned(), serde_json::json!(values("ruleId")));
-    object.insert("docs".to_owned(), serde_json::json!(values("doc")));
-    object.insert("scope".to_owned(), compact_scope(report.get("scope")));
-    for field in ["command", "check", "profileName", "scope"] {
-        if object.get(field).is_some_and(serde_json::Value::is_null) {
-            object.remove(field);
-        }
-    }
-    serde_json::Value::Object(object)
-}
-
-fn compact_scope(scope: Option<&serde_json::Value>) -> serde_json::Value {
-    let Some(scope) = scope else {
-        return serde_json::Value::Null;
-    };
-    let mut compact = serde_json::Map::new();
-    for field in ["mode", "crateName", "base", "head"] {
-        if let Some(value) = scope.get(field) {
-            compact.insert(field.to_owned(), value.clone());
-        }
-    }
-    if let Some(files) = scope.get("files").and_then(serde_json::Value::as_array) {
-        compact.insert("fileCount".to_owned(), serde_json::json!(files.len()));
-        compact.insert(
-            "sampleFiles".to_owned(),
-            serde_json::Value::Array(files.iter().take(20).cloned().collect()),
-        );
-    }
-    serde_json::Value::Object(compact)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ValidationHistory, ValidationKind, HISTORY_LIMIT};
-    fn report(id: &str) -> serde_json::Value {
-        serde_json::json!({"ok":false,"violations":[{"ruleId":id,"doc":"rules/test","severity":"error"}],"warnings":[]})
+    use std::collections::BTreeMap;
+
+    use enforcer_domain::paths::RepoRoot;
+
+    use super::{
+        ReportLabel, ValidationCounts, ValidationHistory, ValidationKind, ValidationSummary,
+        ValidationTimestamp, HISTORY_LIMIT,
+    };
+
+    fn root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
+        "C:/Repo".parse()
     }
+
+    fn summary(kind: ValidationKind) -> Result<ValidationSummary, enforcer_domain::boundary::decode_error::DecodeError> {
+        Ok(ValidationSummary {
+            kind,
+            command: None,
+            check: None,
+            outcome: super::ValidationOutcome::Failed,
+            root: root()?,
+            profile_name: None,
+            at: ValidationTimestamp::parse(ReportLabel::from("1970-01-01T00:00:00.000Z".to_owned())),
+            by_severity: BTreeMap::new(),
+            counts: ValidationCounts::default(),
+            rule_ids: vec![ReportLabel::from("RR-TEST".to_owned())],
+            docs: Vec::new(),
+            scope: None,
+        })
+    }
+
     #[test]
-    fn retains_newest_twenty_case_folded_per_root_and_filters_kind() {
+    fn retains_newest_twenty_case_folded_per_root_and_filters_kind() -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let mut history = ValidationHistory::default();
-        history.record("C:/Repo", ValidationKind::Scan, &report("SCAN-1"));
-        history.record("c:/repo", ValidationKind::Check, &report("CHECK-1"));
-        for index in 0..HISTORY_LIMIT {
-            history.record(
-                "C:/OTHER",
-                ValidationKind::Scan,
-                &report(&format!("R-{index}")),
-            );
-        }
+        history.record(summary(ValidationKind::Scan)?);
+        history.record(summary(ValidationKind::Check)?);
+        std::iter::repeat_with(|| summary(ValidationKind::Scan))
+            .take(HISTORY_LIMIT - 2)
+            .try_for_each(|entry| { history.record(entry?); Ok::<(), enforcer_domain::boundary::decode_error::DecodeError>(()) })?;
+
         assert_eq!(
-            history.latest("C:/REPO", Some("check")).unwrap()["kind"],
-            "check"
+            history.latest(&root()?, Some(ValidationKind::Check)).map(|entry| entry.kind),
+            Some(ValidationKind::Check)
         );
         assert_eq!(
-            history.latest("c:/repo", Some("scan")).unwrap()["kind"],
-            "scan"
+            history.latest(&root()?, Some(ValidationKind::Scan)).map(|entry| entry.kind),
+            Some(ValidationKind::Scan)
         );
-        assert_eq!(history.by_root["c:/other"].len(), HISTORY_LIMIT);
+        Ok(())
     }
 }

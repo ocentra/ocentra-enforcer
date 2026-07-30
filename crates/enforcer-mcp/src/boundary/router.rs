@@ -37,7 +37,10 @@ use enforcer_domain::{
 };
 
 use crate::gate::{self, GateArgs};
-use crate::validation_history::{ValidationHistory, ValidationKind};
+use crate::validation_history::{
+    CompactScope, FindingCount, ReportLabel, SeverityCount, ValidationCounts, ValidationHistory,
+    ValidationKind, ValidationOutcome, ValidationSummary, ValidationTimestamp,
+};
 use std::sync::{Arc, Mutex};
 
 /// The outcome of routing one `tools/call`.
@@ -378,14 +381,9 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     report
 }
 
-fn record_validation(
-    ctx: &DispatchContext,
-    root: &str,
-    kind: ValidationKind,
-    report: &serde_json::Value,
-) {
+fn record_validation(ctx: &DispatchContext, root: RepoRoot, kind: ValidationKind, report: &serde_json::Value) {
     if let Ok(mut history) = ctx.validation_history.lock() {
-        history.record(root, kind, report);
+        history.record(validation_summary_from_report(root, kind, report));
     }
 }
 
@@ -395,11 +393,126 @@ fn record_validation_at_root(
     kind: ValidationKind,
     report: &serde_json::Value,
 ) {
-    let root = root
-        .parse::<RepoRoot>()
-        .map(|root| root.as_str().to_owned())
-        .unwrap_or_else(|_| root.to_owned());
-    record_validation(ctx, &root, kind, report);
+    if let Ok(root) = root.parse::<RepoRoot>() {
+        record_validation(ctx, root, kind, report);
+    }
+}
+
+fn validation_summary_from_report(
+    root: RepoRoot,
+    kind: ValidationKind,
+    report: &serde_json::Value,
+) -> ValidationSummary {
+    let findings = ["violations", "warnings"]
+        .into_iter()
+        .flat_map(|field| report.get(field).and_then(serde_json::Value::as_array).into_iter().flatten());
+    let mut by_severity = std::collections::BTreeMap::new();
+    let mut rule_ids = std::collections::BTreeSet::new();
+    let mut docs = std::collections::BTreeSet::new();
+    let mut finding_count = 0;
+    for finding in findings {
+        finding_count += 1;
+        if let Some(severity) = finding.get("severity").and_then(serde_json::Value::as_str) {
+            by_severity
+                .entry(ReportLabel::from(severity.to_owned()))
+                .or_insert(SeverityCount(0)).0 += 1;
+        }
+        if let Some(rule_id) = finding.get("ruleId").and_then(serde_json::Value::as_str) {
+            rule_ids.insert(ReportLabel::from(rule_id.to_owned()));
+        }
+        if let Some(doc) = finding.get("doc").and_then(serde_json::Value::as_str) {
+            docs.insert(ReportLabel::from(doc.to_owned()));
+        }
+    }
+    let timestamp = enforcer_core::platform::epoch_millis()
+        .map(enforcer_core::platform::iso8601_utc)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00.000Z".to_owned());
+    ValidationSummary {
+        kind,
+        command: boundary_label(report.get("command")),
+        check: boundary_label(report.get("check")),
+        outcome: match report.get("ok").and_then(serde_json::Value::as_bool) {
+            Some(true) => ValidationOutcome::Passed,
+            Some(false) => ValidationOutcome::Failed,
+            None => ValidationOutcome::Unknown,
+        },
+        root,
+        profile_name: boundary_label(report.get("profileName")),
+        at: ValidationTimestamp::parse(ReportLabel::from(timestamp)),
+        by_severity,
+        counts: ValidationCounts {
+            findings: FindingCount(finding_count),
+            violations: FindingCount(report.get("violations").and_then(serde_json::Value::as_array).map_or(0, Vec::len)),
+            warnings: FindingCount(report.get("warnings").and_then(serde_json::Value::as_array).map_or(0, Vec::len)),
+        },
+        rule_ids: rule_ids.into_iter().collect(),
+        docs: docs.into_iter().collect(),
+        scope: compact_validation_scope(report.get("scope")),
+    }
+}
+
+fn boundary_label(value: Option<&serde_json::Value>) -> Option<ReportLabel> {
+    value
+        .and_then(serde_json::Value::as_str)
+        .map(|text| ReportLabel::from(text.to_owned()))
+}
+
+fn compact_validation_scope(scope: Option<&serde_json::Value>) -> Option<CompactScope> {
+    let object = scope?.as_object()?;
+    let sample_files = object
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .map(|files| {
+            files
+                .iter()
+                .take(20)
+                .filter_map(serde_json::Value::as_str)
+                .map(|file| ReportLabel::from(file.to_owned()))
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(CompactScope {
+        mode: boundary_label(object.get("mode")),
+        crate_name: boundary_label(object.get("crateName")),
+        base: boundary_label(object.get("base")),
+        head: boundary_label(object.get("head")),
+        file_count: object.get("files").and_then(serde_json::Value::as_array).map(|files| FindingCount(files.len())),
+        sample_files,
+    })
+}
+
+fn validation_summary_json(summary: &ValidationSummary) -> serde_json::Value {
+    let kind = match summary.kind {
+        ValidationKind::Scan => "scan",
+        ValidationKind::Check => "check",
+    };
+    let mut object = serde_json::json!({
+        "kind": kind,
+        "ok": match summary.outcome { ValidationOutcome::Passed => Some(true), ValidationOutcome::Failed => Some(false), ValidationOutcome::Unknown => None },
+        "root": summary.root.as_str(),
+        "at": String::from(&summary.at),
+        "bySeverity": summary.by_severity.iter().map(|(name, count)| (String::from(name), serde_json::json!(count.0))).collect::<serde_json::Map<_, _>>(),
+        "counts": {"findings": summary.counts.findings.0, "violations": summary.counts.violations.0, "warnings": summary.counts.warnings.0},
+        "ruleIds": summary.rule_ids.iter().map(String::from).collect::<Vec<_>>(),
+        "docs": summary.docs.iter().map(String::from).collect::<Vec<_>>(),
+    });
+    let Some(fields) = object.as_object_mut() else { return serde_json::Value::Null; };
+    if let Some(value) = &summary.command { fields.insert("command".to_owned(), serde_json::Value::String(String::from(value))); }
+    if let Some(value) = &summary.check { fields.insert("check".to_owned(), serde_json::Value::String(String::from(value))); }
+    if let Some(value) = &summary.profile_name { fields.insert("profileName".to_owned(), serde_json::Value::String(String::from(value))); }
+    if let Some(scope) = &summary.scope {
+        let mut compact = serde_json::Map::new();
+        if let Some(value) = &scope.mode { compact.insert("mode".to_owned(), serde_json::Value::String(String::from(value))); }
+        if let Some(value) = &scope.crate_name { compact.insert("crateName".to_owned(), serde_json::Value::String(String::from(value))); }
+        if let Some(value) = &scope.base { compact.insert("base".to_owned(), serde_json::Value::String(String::from(value))); }
+        if let Some(value) = &scope.head { compact.insert("head".to_owned(), serde_json::Value::String(String::from(value))); }
+        if let Some(file_count) = scope.file_count {
+            compact.insert("fileCount".to_owned(), serde_json::json!(file_count.0));
+            compact.insert("sampleFiles".to_owned(), serde_json::json!(scope.sample_files.iter().map(String::from).collect::<Vec<_>>()));
+        }
+        fields.insert("scope".to_owned(), serde_json::Value::Object(compact));
+    }
+    object
 }
 
 /// Frozen-MJS-compatible status envelope: durable harness summary wins over
@@ -419,10 +532,12 @@ fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Va
         Err(error) => return json_error(&error.to_string()),
     };
     let validation_summary = ctx.validation_history.lock().ok().and_then(|history| {
-        history.latest(
-            root.as_str(),
-            args.get("tool").and_then(serde_json::Value::as_str),
-        )
+        let filter = match args.get("tool").and_then(serde_json::Value::as_str) {
+            Some("scan") => Some(ValidationKind::Scan),
+            Some("check") => Some(ValidationKind::Check),
+            _ => None,
+        };
+        history.latest(&root, filter).map(validation_summary_json)
     });
     let artifact = if summary.is_some() && args.get("artifact").is_some() {
         match enforcer_harness::query::read_artifact(
@@ -477,7 +592,7 @@ fn run_status(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Va
         "validationSummary": validation_summary,
     });
     if let Some(artifact) = artifact {
-        result["artifact"] = artifact;
+        if let Some(object) = result.as_object_mut() { object.insert("artifact".to_owned(), artifact); }
     }
     result
 }
