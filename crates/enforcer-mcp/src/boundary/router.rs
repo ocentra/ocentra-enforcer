@@ -3919,6 +3919,32 @@ mod tests {
     }
 
     #[test]
+    fn check_source_shape_masks_typescript_template_data_through_the_named_route(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/view.ts"),
+            "const sample = `\n ${value ? `{ data: true }` : `{ data: false }`}\n`;\nexport const run = () => { return 1; };\n",
+        )?;
+        std::fs::write(
+            temp.path().join("source.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".ts"],"kind":"typescript","maxNestingDepth":1}]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"source-shape","configPath":"source.json","scope":"files","files":["src/view.ts"],"languages":["typescript"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native source-shape route did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("source-shape"));
+        assert_eq!(value["ok"], serde_json::json!(true));
+        Ok(())
+    }
+
+    #[test]
     fn check_architecture_policy_aggregates_configured_native_members(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;

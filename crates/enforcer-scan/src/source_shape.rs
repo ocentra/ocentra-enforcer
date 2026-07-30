@@ -228,8 +228,12 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
         .map(|line| line.strip_suffix('\r').unwrap_or(line))
         .collect::<Vec<_>>();
     let mut out = Vec::new();
-    let starts = function_starts(&lines, kind);
-    let metrics = Metrics::from_lines(&lines, kind, &starts);
+    // The frozen TypeScript collector masks template literal data across
+    // lines before it counts branches, functions, or braces.
+    let metric_lines = type_script_metric_lines(&lines, kind);
+    let metric_refs = metric_lines.iter().map(String::as_str).collect::<Vec<_>>();
+    let starts = function_starts(&metric_refs, kind);
+    let metrics = Metrics::from_lines(&metric_refs, kind, &starts);
     push_if_over(
         &mut out,
         path,
@@ -299,7 +303,7 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
         }
     }
     for start in starts {
-        let span = block_end(&lines, start, kind) - start + 1;
+        let span = block_end(&metric_refs, start, kind) - start + 1;
         if span > limits.function_lines {
             push_dual(
                 &mut out,
@@ -339,6 +343,8 @@ impl Metrics {
     fn from_lines(lines: &[&str], kind: SourceShapeKind, _functions: &[usize]) -> Self {
         let nesting = if matches!(kind, SourceShapeKind::Python) {
             python_nesting(lines)
+        } else if matches!(kind, SourceShapeKind::Typescript | SourceShapeKind::Common) {
+            type_script_code_nesting(lines)
         } else {
             brace_nesting(lines)
         };
@@ -384,15 +390,47 @@ fn function_starts(lines: &[&str], kind: SourceShapeKind) -> Vec<usize> {
                 SourceShapeKind::Python => {
                     trim.starts_with("def ") || trim.starts_with("async def ")
                 }
-                _ => {
-                    trim.starts_with("function ")
-                        || trim.starts_with("export function ")
-                        || trim.contains(" =>")
+                SourceShapeKind::Typescript | SourceShapeKind::Common => {
+                    type_script_function_start(trim)
                 }
             };
             yes.then_some(index)
         })
         .collect()
+}
+
+fn type_script_function_start(line: &str) -> bool {
+    let line = line.strip_prefix("export ").unwrap_or(line);
+    let line = line.strip_prefix("async ").unwrap_or(line);
+    if line.starts_with("function ") {
+        return true;
+    }
+    if let Some((left, right)) = line.split_once('=') {
+        let declaration = left.trim_start();
+        return (declaration.starts_with("const ")
+            || declaration.starts_with("let ")
+            || declaration.starts_with("var "))
+            && right
+                .trim_start()
+                .strip_prefix("async ")
+                .unwrap_or(right.trim_start())
+                .starts_with('(')
+            && right.contains("=>")
+            && right.contains('{');
+    }
+    let excluded = ["if", "for", "while", "switch", "catch", "else", "return"];
+    !excluded.iter().any(|word| {
+        line.starts_with(word)
+            && line
+                .get(word.len()..)
+                .is_some_and(|tail| tail.starts_with(' ') || tail.starts_with('('))
+    }) && line
+        .chars()
+        .next()
+        .is_some_and(|value| value.is_ascii_alphabetic() || value == '_' || value == '$')
+        && line.contains('(')
+        && line.contains(')')
+        && line.contains('{')
 }
 fn rust_function_start(line: &str) -> bool {
     let mut rest = line;
@@ -502,6 +540,96 @@ fn mask_brace_sensitive_line(line: &str) -> String {
         }
     }
     output
+}
+
+fn type_script_metric_lines(lines: &[&str], kind: SourceShapeKind) -> Vec<String> {
+    if !matches!(kind, SourceShapeKind::Typescript | SourceShapeKind::Common) {
+        return lines.iter().map(|line| (*line).to_owned()).collect();
+    }
+    let mut in_template = false;
+    lines
+        .iter()
+        .map(|line| {
+            let mut output = String::new();
+            let mut rest = *line;
+            while !rest.is_empty() {
+                if in_template {
+                    let Some(end) = unescaped_backtick(rest) else {
+                        break;
+                    };
+                    in_template = false;
+                    rest = rest.get(end.saturating_add(1)..).unwrap_or("");
+                    continue;
+                }
+                let Some(start) = unescaped_backtick(rest) else {
+                    output.push_str(&mask_brace_sensitive_line(rest));
+                    break;
+                };
+                let Some(prefix) = rest.get(..start) else {
+                    break;
+                };
+                output.push_str(&mask_brace_sensitive_line(prefix));
+                output.push_str("``");
+                in_template = true;
+                rest = rest.get(start.saturating_add(1)..).unwrap_or("");
+            }
+            output
+        })
+        .collect()
+}
+
+fn unescaped_backtick(text: &str) -> Option<usize> {
+    text.match_indices('`').find_map(|(index, _)| {
+        let slash_count = text.get(..index).map_or(0, |prefix| {
+            prefix
+                .chars()
+                .rev()
+                .take_while(|value| *value == '\\')
+                .count()
+        });
+        (slash_count % 2 == 0).then_some(index)
+    })
+}
+
+fn type_script_code_nesting(lines: &[&str]) -> usize {
+    let mut stack = Vec::new();
+    let mut depth = 0_usize;
+    let mut maximum = 0_usize;
+    for line in lines {
+        for (index, value) in line.char_indices() {
+            if value == '{' {
+                let code = is_type_script_code_opening(line, index);
+                stack.push(code);
+                if code {
+                    depth += 1;
+                    maximum = maximum.max(depth);
+                }
+            } else if value == '}' && stack.pop().is_some_and(|code| code) {
+                depth = depth.saturating_sub(1);
+            }
+        }
+    }
+    maximum
+}
+
+fn is_type_script_code_opening(line: &str, index: usize) -> bool {
+    let prefix = line.get(..index).unwrap_or("").trim();
+    prefix.ends_with("=>")
+        || prefix.starts_with("function ")
+        || prefix.starts_with("export function ")
+        || prefix.starts_with("class ")
+        || prefix.starts_with("export class ")
+        || [
+            "if", "else", "for", "while", "switch", "case", "catch", "try", "finally",
+        ]
+        .iter()
+        .any(|word| prefix.starts_with(word))
+        || (prefix
+            .chars()
+            .next()
+            .is_some_and(|value| value.is_ascii_alphabetic() || value == '_' || value == '$')
+            && prefix.contains('(')
+            && prefix.ends_with(')'))
 }
 fn python_nesting(lines: &[&str]) -> usize {
     lines
@@ -718,6 +846,49 @@ mod tests {
             .iter()
             .any(|path| path.as_str() == "src/lib.rs"));
         assert_eq!(result.report.ok, ReportOutcome::Violations);
+        Ok(())
+    }
+
+    #[test]
+    fn typescript_template_data_does_not_create_code_nesting_or_functions(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/view.ts"),
+            "const template = `\n  ${value ? `{ data: true }` : `{ data: false }`}\n`;\nexport const run = () => { return 1; };\n",
+        )?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".ts"],"kind":"typescript","maxNestingDepth":1,"maxFunctionLines":3}]}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let report = check(&root, ScanScope::Files, &["src/view.ts".parse()?], &config)?;
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
+    }
+
+    #[test]
+    fn typescript_function_forms_are_counted_by_configured_budget(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/view.ts"),
+            "export function named() {}\nconst arrow = async () => {}\nmethod() {}\n",
+        )?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".ts"],"kind":"typescript","maxFunctions":2}]}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let report = check(&root, ScanScope::Files, &["src/view.ts".parse()?], &config)?;
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.rule_id.as_str() == "SRC-1.1"));
         Ok(())
     }
 }
