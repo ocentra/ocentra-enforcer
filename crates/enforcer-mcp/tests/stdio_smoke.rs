@@ -124,18 +124,109 @@ fn stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end(
 fn stdio_smoke_doctor_reaches_native_repository_engine() -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
     std::fs::create_dir_all(fixture.path().join("src"))?;
-    std::fs::write(fixture.path().join("src/lib.rs"), "pub fn stdio_doctor() {}\n")?;
+    std::fs::write(
+        fixture.path().join("src/lib.rs"),
+        "pub fn stdio_doctor() {}\n",
+    )?;
     let binary = smoke_binary_path()?;
-    let mut child = Command::new(binary).arg("/abs/path/to/enforcer").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
     let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
     let stdout = child.stdout.take().ok_or("child has no stdout")?;
     let mut reader = BufReader::new(stdout);
-    let reply = round_trip(&mut stdin, &mut reader, &serde_json::json!({
-        "jsonrpc":"2.0", "id":1, "method":"tools/call",
-        "params":{"name":"ocentra_enforcer_doctor","arguments":{"root":fixture.path().to_string_lossy(),"files":["src/lib.rs"]}}
-    }))?;
+    let reply = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":1, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_doctor","arguments":{"root":fixture.path().to_string_lossy(),"files":["src/lib.rs"]}}
+        }),
+    )?;
     assert_eq!(reply["result"]["command"], serde_json::json!("doctor"));
     assert_eq!(reply["result"]["checks"].as_array().map(Vec::len), Some(6));
+    drop(stdin);
+    assert!(child.wait()?.success());
+    Ok(())
+}
+
+#[test]
+fn stdio_smoke_harness_query_tools_reach_the_native_rust_engine(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture = tempfile::tempdir()?;
+    let run_dir = fixture.path().join(".enforce/runs/run-native-failed");
+    std::fs::create_dir_all(&run_dir)?;
+    std::fs::write(
+        run_dir.join("summary.json"),
+        r#"{"runId":"run-native-failed","status":"failed","tool":"cargo","startedAt":"2026-07-30T00:00:00Z","artifacts":{"diagnostics":".enforce/runs/run-native-failed/diagnostics.ndjson","stderr":".enforce/runs/run-native-failed/stderr.log"}}"#,
+    )?;
+    std::fs::write(
+        run_dir.join("diagnostics.ndjson"),
+        r#"{"severity":"error","file":"src/lib.rs","message":"native fixture"}
+"#,
+    )?;
+    std::fs::write(run_dir.join("stderr.log"), "native stderr fixture")?;
+
+    let binary = smoke_binary_path()?;
+    let mut child = Command::new(binary)
+        .arg("/abs/path/to/enforcer")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
+    let stdout = child.stdout.take().ok_or("child has no stdout")?;
+    let mut reader = BufReader::new(stdout);
+    let root = fixture.path().to_string_lossy();
+
+    let diagnostics = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":1, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_diagnostics","arguments":{"root":root,"severity":"error","file":"src/lib.rs"}}
+        }),
+    )?;
+    assert_eq!(diagnostics["result"]["ok"], true);
+    assert_eq!(diagnostics["result"]["runId"], "run-native-failed");
+    assert_eq!(
+        diagnostics["result"]["diagnostics"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+
+    let failure = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_last_failure","arguments":{"root":root,"tool":"cargo","diagnosticLimit":1}}
+        }),
+    )?;
+    assert_eq!(failure["result"]["ok"], true);
+    assert_eq!(failure["result"]["found"], true);
+    assert_eq!(failure["result"]["run"]["runId"], "run-native-failed");
+
+    let artifact = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":3, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_artifact","arguments":{"root":root,"runId":"run-native-failed","artifact":"stderr","limitBytes":80}}
+        }),
+    )?;
+    assert_eq!(artifact["result"]["ok"], true);
+    assert_eq!(artifact["result"]["artifact"], "stderr");
+    assert_eq!(
+        artifact["result"]["path"],
+        ".enforce/runs/run-native-failed/stderr.log"
+    );
+    assert_eq!(artifact["result"]["text"], "native stderr fixture");
+
     drop(stdin);
     assert!(child.wait()?.success());
     Ok(())

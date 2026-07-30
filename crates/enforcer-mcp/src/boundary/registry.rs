@@ -242,6 +242,28 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
             }
         });
     }
+    if matches!(
+        name,
+        "ocentra_enforcer_diagnostics"
+            | "ocentra_enforcer_last_failure"
+            | "ocentra_enforcer_artifact"
+    ) {
+        return serde_json::json!({
+            "type": "object", "additionalProperties": false,
+            "properties": {
+                "root": { "type": "string" }, "runId": { "type": "string" },
+                "limit": { "type": "integer", "minimum": 0 },
+                "diagnosticLimit": { "type": "integer", "minimum": 0 },
+                "severity": { "type": "string", "enum": ["error", "warning", "info"] },
+                "status": { "type": "string", "enum": ["passed", "failed"] },
+                "file": { "type": "string" }, "tool": { "type": "string" },
+                "crateName": { "type": "string" }, "packageName": { "type": "string" },
+                "domain": { "type": "string" }, "tag": { "type": "string" },
+                "artifact": { "type": "string", "enum": ["stdout", "stderr", "diagnostics", "events"] },
+                "limitBytes": { "type": "integer", "minimum": 0 }
+            }
+        });
+    }
     if name == "ocentra_enforcer_ui" {
         return serde_json::json!({
             "type": "object",

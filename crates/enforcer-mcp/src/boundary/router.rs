@@ -20,15 +20,20 @@
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, Hub};
 use enforcer_domain::{
     boundary::mcp::{execution_mode, write_intent},
-    config_types::{ConfigProfileName, CrateName},
+    config_types::{ConfigProfileName, CrateName, HarnessArtifactByteLimit, HarnessRunLimit},
     coordination_types::{
         ClaimOutcomeStatus, ClaimPath, ClaimReason, CoordinationBranch, CoordinationLedgerRoot,
         CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
     },
+    harness_types::{
+        HarnessArtifactKind, HarnessDomainName, HarnessPackageName, HarnessRunId, HarnessRunStatus,
+        HarnessTag, HarnessToolName,
+    },
     ids::{HubName, LaneId},
     mcp_types::{ArtifactPath, McpActionName, McpFreshness, McpToolName},
-    paths::RepoRoot,
+    paths::{RelPath, RepoRoot},
     scan_types::{CommitRef, RouteScope},
+    severity::Severity,
 };
 
 use crate::gate::{self, GateArgs};
@@ -99,6 +104,9 @@ pub fn dispatch(
         "ocentra_enforcer_scan" => DispatchOutcome::Result(scan(args)),
         "ocentra_enforcer_check" => DispatchOutcome::Result(check(args)),
         "ocentra_enforcer_doctor" => DispatchOutcome::Result(doctor(args)),
+        "ocentra_enforcer_diagnostics" => DispatchOutcome::Result(diagnostics(args)),
+        "ocentra_enforcer_last_failure" => DispatchOutcome::Result(last_failure(args)),
+        "ocentra_enforcer_artifact" => DispatchOutcome::Result(artifact(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
         "ocentra_enforcer_ui_logic_coupling_scan" => {
@@ -320,7 +328,11 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
     if name != "no-zod-source" {
         return json_error(&format!("native MCP check `{name}` is not wired yet"));
     }
-    let mut report = scan(args);
+    let Some(mut scan_args) = args.as_object().cloned() else {
+        return json_error("check arguments must be an object");
+    };
+    scan_args.remove("check");
+    let mut report = scan(&serde_json::Value::Object(scan_args));
     let Some(object) = report.as_object_mut() else {
         return json_error("native scan produced an invalid report shape");
     };
@@ -352,41 +364,78 @@ fn check(args: &serde_json::Value) -> serde_json::Value {
 /// `enforcer-scan::doctor`, not the separate user-harness registration doctor.
 fn doctor(args: &serde_json::Value) -> serde_json::Value {
     const SUPPORTED_FIELDS: &[&str] = &[
-        "root", "configPath", "profile", "scope", "files", "crateName", "base", "head",
+        "root",
+        "configPath",
+        "profile",
+        "scope",
+        "files",
+        "crateName",
+        "base",
+        "head",
     ];
     let Some(object) = args.as_object() else {
         return json_error("doctor arguments must be an object");
     };
-    if let Some(field) = object.keys().find(|field| !SUPPORTED_FIELDS.contains(&field.as_str())) {
+    if let Some(field) = object
+        .keys()
+        .find(|field| !SUPPORTED_FIELDS.contains(&field.as_str()))
+    {
         return json_error(&format!("doctor does not support `{field}`"));
     }
     let root = match args.get("root").and_then(serde_json::Value::as_str) {
         Some(value) => value.parse::<RepoRoot>().map_err(|error| error.to_string()),
         None => std::env::current_dir()
             .map_err(|error| error.to_string())
-            .and_then(|path| path.to_string_lossy().parse::<RepoRoot>().map_err(|error| error.to_string())),
+            .and_then(|path| {
+                path.to_string_lossy()
+                    .parse::<RepoRoot>()
+                    .map_err(|error| error.to_string())
+            }),
     };
-    let root = match root { Ok(value) => value, Err(error) => return json_error(&error.to_string()) };
+    let root = match root {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.to_string()),
+    };
     let files = match args.get("files") {
         None => None,
-        Some(serde_json::Value::Array(values)) => values.iter().map(|value| value.as_str().map(std::path::PathBuf::from)).collect(),
+        Some(serde_json::Value::Array(values)) => values
+            .iter()
+            .map(|value| value.as_str().map(std::path::PathBuf::from))
+            .collect(),
         Some(_) => return json_error("doctor `files` must be an array"),
     };
     let scope = match parse_scan_scope(args.get("scope"), files, args) {
-        Ok(value) => value, Err(error) => return json_error(&error),
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
-    let config_path = args.get("configPath").and_then(serde_json::Value::as_str)
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json"));
+        .unwrap_or_else(|| {
+            std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json")
+        });
     let config = match args.get("profile").and_then(serde_json::Value::as_str) {
-        Some(profile) => ConfigProfileName::try_new(profile.to_owned()).map_err(|error| error.to_string())
-            .and_then(|profile| enforcer_config::resolve::resolve_profile_only(&profile).map_err(|error| error.to_string())),
-        None => enforcer_config::load_project_config(&config_path).map_err(|error| error.to_string()),
+        Some(profile) => ConfigProfileName::try_new(profile.to_owned())
+            .map_err(|error| error.to_string())
+            .and_then(|profile| {
+                enforcer_config::resolve::resolve_profile_only(&profile)
+                    .map_err(|error| error.to_string())
+            }),
+        None => {
+            enforcer_config::load_project_config(&config_path).map_err(|error| error.to_string())
+        }
     };
-    let config = match config { Ok(value) => value, Err(error) => return json_error(&error) };
+    let config = match config {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
     let request = enforcer_scan::doctor::DoctorRequest::new(
         root.clone(),
-        enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages: Vec::new() },
+        enforcer_scan::boundary::native_scan::NativeScanRequest {
+            scope,
+            languages: Vec::new(),
+        },
         config,
     );
     match enforcer_scan::doctor::run(&request) {
@@ -396,6 +445,262 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
             "checks": report.checks().iter().map(|check| serde_json::json!({"name": check.name(), "ok": check.ok(), "detail": check.detail()})).collect::<Vec<_>>(),
             "violations": [],
         }),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+/// Shared typed adapter for the frozen harness-query tools. The raw JSON
+/// shape stops here; all storage selection and filtering remains owned by
+/// `enforcer-harness`.
+fn decode_harness_query(
+    args: &serde_json::Value,
+    operation: &str,
+) -> Result<
+    (
+        RepoRoot,
+        enforcer_domain::config_types::HarnessConfig,
+        enforcer_harness::query::RunQuery,
+        enforcer_harness::query::DiagnosticsFilter,
+        Option<HarnessRunLimit>,
+        HarnessArtifactKind,
+        Option<HarnessArtifactByteLimit>,
+    ),
+    String,
+> {
+    const SUPPORTED_FIELDS: &[&str] = &[
+        "root",
+        "runId",
+        "limit",
+        "diagnosticLimit",
+        "severity",
+        "status",
+        "file",
+        "tool",
+        "crateName",
+        "packageName",
+        "domain",
+        "tag",
+        "artifact",
+        "limitBytes",
+    ];
+    let object = args
+        .as_object()
+        .ok_or_else(|| format!("{operation} arguments must be an object"))?;
+    if let Some(field) = object
+        .keys()
+        .find(|field| !SUPPORTED_FIELDS.contains(&field.as_str()))
+    {
+        return Err(format!("{operation} does not support `{field}`"));
+    }
+    let root = match args.get("root") {
+        Some(serde_json::Value::String(value)) => {
+            value.parse::<RepoRoot>().map_err(|error| error.to_string())
+        }
+        Some(_) => return Err(format!("{operation} `root` must be a string")),
+        None => std::env::current_dir()
+            .map_err(|error| error.to_string())
+            .and_then(|path| {
+                path.to_string_lossy()
+                    .parse::<RepoRoot>()
+                    .map_err(|error| error.to_string())
+            }),
+    }?;
+    let config_path = std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = enforcer_config::load_project_config(&config_path)
+        .map_err(|error| error.to_string())?
+        .harness;
+    let optional_text = |name: &str| -> Result<Option<&str>, String> {
+        match args.get(name) {
+            Some(serde_json::Value::String(value)) => Ok(Some(value)),
+            Some(_) => Err(format!("{operation} `{name}` must be a string")),
+            None => Ok(None),
+        }
+    };
+    let optional_limit = |name: &str| -> Result<Option<HarnessRunLimit>, String> {
+        match args.get(name) {
+            Some(value) => value
+                .as_u64()
+                .map(HarnessRunLimit::from_value)
+                .ok_or_else(|| format!("{operation} `{name}` must be a non-negative integer"))
+                .map(Some),
+            None => Ok(None),
+        }
+    };
+    let query = enforcer_harness::query::RunQuery {
+        run_id: optional_text("runId")?
+            .map(str::parse::<HarnessRunId>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        status: match optional_text("status")? {
+            Some("passed") => Some(HarnessRunStatus::Passed),
+            Some("failed") => Some(HarnessRunStatus::Failed),
+            Some(_) => return Err(format!("{operation} `status` must be `passed` or `failed`")),
+            None => None,
+        },
+        tool: optional_text("tool")?
+            .map(str::parse::<HarnessToolName>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        crate_name: optional_text("crateName")?
+            .map(str::parse::<CrateName>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        package_name: optional_text("packageName")?
+            .map(str::parse::<HarnessPackageName>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        domain: optional_text("domain")?
+            .map(str::parse::<HarnessDomainName>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        tag: optional_text("tag")?
+            .map(str::parse::<HarnessTag>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        limit: optional_limit("limit")?,
+    };
+    let diagnostics = enforcer_harness::query::DiagnosticsFilter {
+        severity: match optional_text("severity")? {
+            Some("error") => Some(Severity::Error),
+            Some("warning") => Some(Severity::Warning),
+            Some("info") => Some(Severity::Info),
+            Some(_) => {
+                return Err(format!(
+                    "{operation} `severity` must be `error`, `warning`, or `info`"
+                ))
+            }
+            None => None,
+        },
+        file: optional_text("file")?
+            .map(str::parse::<RelPath>)
+            .transpose()
+            .map_err(|error| error.to_string())?,
+        limit: optional_limit("limit")?,
+    };
+    let artifact = match optional_text("artifact")? {
+        Some("stdout") => HarnessArtifactKind::Stdout,
+        Some("stderr") | None => HarnessArtifactKind::Stderr,
+        Some("diagnostics") => HarnessArtifactKind::Diagnostics,
+        Some("events") => HarnessArtifactKind::Events,
+        Some(_) => {
+            return Err(format!(
+                "{operation} `artifact` must be stdout, stderr, diagnostics, or events"
+            ))
+        }
+    };
+    let limit_bytes = match args.get("limitBytes") {
+        Some(value) => value
+            .as_u64()
+            .map(HarnessArtifactByteLimit::from_value)
+            .ok_or_else(|| format!("{operation} `limitBytes` must be a non-negative integer"))
+            .map(Some)?,
+        None => None,
+    };
+    Ok((
+        root,
+        config,
+        query,
+        diagnostics,
+        optional_limit("diagnosticLimit")?,
+        artifact,
+        limit_bytes,
+    ))
+}
+
+fn diagnostics(args: &serde_json::Value) -> serde_json::Value {
+    let (root, config, query, filter, _, _, _) = match decode_harness_query(args, "diagnostics") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    match enforcer_harness::query::run_diagnostics(
+        std::path::Path::new(root.as_str()),
+        &config,
+        &query,
+        &filter,
+    ) {
+        Ok((true, Some(run_id), diagnostics)) => serde_json::json!({
+            "ok": true, "runId": run_id, "diagnostics": diagnostics,
+        }),
+        Ok((false, _, _)) => serde_json::json!({
+            "ok": false, "diagnostics": [], "message": "No harness run found.",
+        }),
+        Ok((true, None, diagnostics)) => serde_json::json!({
+            "ok": true, "diagnostics": diagnostics,
+        }),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn last_failure(args: &serde_json::Value) -> serde_json::Value {
+    let (root, config, query, _, diagnostic_limit, _, _) =
+        match decode_harness_query(args, "last_failure") {
+            Ok(value) => value,
+            Err(error) => return json_error(&error),
+        };
+    match enforcer_harness::query::last_failure(
+        std::path::Path::new(root.as_str()),
+        &config,
+        &query,
+        diagnostic_limit,
+    ) {
+        Ok((true, Some(run), diagnostics)) => serde_json::json!({
+            "ok": true, "found": true, "run": run, "diagnostics": diagnostics,
+        }),
+        Ok((false, _, _)) => serde_json::json!({
+            "ok": true, "found": false, "message": "No failed harness run found.",
+        }),
+        Ok((true, None, diagnostics)) => serde_json::json!({
+            "ok": true, "found": false, "message": "No failed harness run found.", "diagnostics": diagnostics,
+        }),
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn artifact(args: &serde_json::Value) -> serde_json::Value {
+    let (root, config, query, _, _, artifact, limit_bytes) =
+        match decode_harness_query(args, "artifact") {
+            Ok(value) => value,
+            Err(error) => return json_error(&error),
+        };
+    match enforcer_harness::query::read_artifact(
+        std::path::Path::new(root.as_str()),
+        &config,
+        &query,
+        artifact,
+        limit_bytes,
+    ) {
+        Ok((true, Some(run_id), text, _)) => {
+            let path = enforcer_harness::query::run_summary(
+                std::path::Path::new(root.as_str()),
+                &config,
+                &query,
+            )
+            .ok()
+            .flatten()
+            .and_then(|run| {
+                run.get("artifacts")?
+                    .get(artifact.as_str())?
+                    .as_str()
+                    .map(str::to_owned)
+            });
+            match path {
+                Some(path) => serde_json::json!({
+                    "ok": true, "runId": run_id, "artifact": artifact.as_str(), "path": path, "text": text,
+                }),
+                None => {
+                    json_error("native artifact query did not resolve the selected artifact path")
+                }
+            }
+        }
+        Ok((false, _, text, Some(message))) => serde_json::json!({
+            "ok": false, "text": text, "message": message,
+        }),
+        Ok((false, _, text, None)) => serde_json::json!({
+            "ok": false, "text": text, "message": "No harness run found.",
+        }),
+        Ok((true, None, _, _)) => {
+            json_error("native artifact query did not return its selected run id")
+        }
         Err(error) => json_error(&error.to_string()),
     }
 }
@@ -773,15 +1078,22 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("src"))?;
-        std::fs::write(temp.path().join("src/lib.rs"), "pub fn doctor_fixture() {}\n")?;
+        std::fs::write(
+            temp.path().join("src/lib.rs"),
+            "pub fn doctor_fixture() {}\n",
+        )?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_doctor")?,
             &serde_json::json!({ "root": temp.path().to_string_lossy(), "files": ["src/lib.rs"] }),
             &ctx(McpFreshness::Fresh),
         );
-        let DispatchOutcome::Result(value) = outcome else { return Err("doctor did not produce a result".into()); };
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("doctor did not produce a result".into());
+        };
         assert_eq!(value["command"], serde_json::json!("doctor"));
-        assert!(value["checks"].as_array().is_some_and(|checks| checks.len() == 6));
+        assert!(value["checks"]
+            .as_array()
+            .is_some_and(|checks| checks.len() == 6));
         Ok(())
     }
 
@@ -980,6 +1292,27 @@ mod tests {
         assert!(value["error"]
             .as_str()
             .is_some_and(|message| message.contains("not wired yet")));
+        Ok(())
+    }
+
+    #[test]
+    fn harness_query_rejects_non_integral_wire_limits() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_diagnostics")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "limit": 1.5,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native diagnostics query did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("non-negative integer")));
         Ok(())
     }
 
