@@ -397,6 +397,8 @@ export async function coordinationGuard(args = {}) {
   const requestedPaths = pathList(args.paths);
   const changedPaths =
     requestedPaths.length > 0 ? requestedPaths : pathList(args.changedPaths);
+  const claimGroup =
+    args.claimGroup ?? (await inferGuardClaimGroup(root, args, changedPaths));
   const result = await guardLedger(root, {
     lane: args.lane ?? (await loadIdentity(root)).defaultLane,
     changedPaths,
@@ -408,18 +410,72 @@ export async function coordinationGuard(args = {}) {
     gitRemote: args.gitRemote,
     branch: args.branch,
     commit: args.commit,
-    codexThreadId: args.codexThreadId,
-    codexSessionId: args.codexSessionId,
     operation: args.operation,
     lockKind: args.lockKind,
-    claimGroup: args.claimGroup,
+    claimGroup,
     allowMergeRisks: args.allowMergeRisks === true,
     focused: args.focused !== false,
     limit: args.limit,
     allowPrimaryWithoutClaims: args.allowPrimaryWithoutClaims === true,
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
   });
+  if (claimGroup !== undefined) {
+    const exactPathResult = await guardLedger(root, {
+      lane: args.lane ?? (await loadIdentity(root)).defaultLane,
+      changedPaths,
+      root: args.root,
+      repoRoot: args.repoRoot ?? args.root,
+      worktreeRoot: args.worktreeRoot,
+      cwd: args.cwd ?? args.root,
+      projectId: args.projectId,
+      gitRemote: args.gitRemote,
+      branch: args.branch,
+      commit: args.commit,
+      operation: args.operation,
+      lockKind: args.lockKind,
+      allowMergeRisks: args.allowMergeRisks === true,
+      focused: args.focused !== false,
+      limit: args.limit,
+      allowPrimaryWithoutClaims: args.allowPrimaryWithoutClaims === true,
+      ...(args.sessionId ? { sessionId: args.sessionId } : {}),
+    });
+    result.mergeRisks = uniqueMergeRisks([...result.mergeRisks, ...exactPathResult.mergeRisks]);
+  }
   return { ok: result.ok, root, result };
+}
+
+async function inferGuardClaimGroup(root, args, changedPaths) {
+  const normalizedPaths = normalizeRepoPaths(changedPaths);
+  if (normalizedPaths.length === 0) return undefined;
+  const lane = args.lane ?? (await loadIdentity(root)).defaultLane;
+  const worktreeRoot = normalizeCoordinationRoot(
+    args.worktreeRoot ?? args.repoRoot ?? args.root ?? args.cwd ?? process.cwd(),
+  );
+  const groups = new Set(
+    (await materializeLive(root)).ownership.activeClaims
+      .filter(
+        (claim) =>
+          claim.lane === lane &&
+          typeof claim.claimGroup === "string" &&
+          normalizeCoordinationRoot(claim.context?.worktreeRoot) === worktreeRoot &&
+          (args.projectId === undefined || claim.context?.projectId === args.projectId),
+      )
+      .filter((claim) =>
+        normalizeRepoPaths(claim.paths ?? []).some((claimPath) =>
+          normalizedPaths.some((changedPath) => pathOverlaps(claimPath, changedPath)),
+        ),
+      )
+      .map((claim) => claim.claimGroup),
+  );
+  return groups.size === 1 ? [...groups][0] : undefined;
+}
+
+function normalizeCoordinationRoot(value) {
+  return path.resolve(String(value ?? "")).replace(/\\/gu, "/").toLowerCase();
+}
+
+function uniqueMergeRisks(risks) {
+  return [...new Map(risks.map((risk) => [JSON.stringify(risk), risk])).values()];
 }
 
 export async function coordinationReport(args = {}) {

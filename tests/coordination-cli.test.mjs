@@ -100,6 +100,84 @@ test("CLI closeout all-owned remains lane-scoped and exact closeout reaches zero
   assert.deepEqual(JSON.parse(afterExact.stdout).views.byClaimedPath, {});
 });
 
+test("CLI commit guard preserves lane ownership across caller identities and worktrees", () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-cli-commit-"));
+  const safetyWorktree = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-cli-safety-"));
+  const rustWorktree = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-cli-rust-"));
+  for (const worktree of [safetyWorktree, rustWorktree]) {
+    fs.mkdirSync(path.join(worktree, "src"));
+    fs.writeFileSync(path.join(worktree, "src", "owned.rs"), "fn owned() {}\n");
+  }
+
+  const run = (...args) =>
+    spawnCli(
+      process.execPath,
+      [CLI, "coordination", ...args, "--state-root", stateRoot, "--hub", "cli-commit-hub"],
+      { cwd: rustWorktree, encoding: "utf8" },
+    );
+  const claim = (lane, root, branch, threadId, claimGroup = undefined) =>
+    run(
+      "claim",
+      "--lane",
+      lane,
+      "--root",
+      root,
+      "--repo-root",
+      root,
+      "--worktree-root",
+      root,
+      "--cwd",
+      root,
+      "--project-id",
+      "shared-enforcer-project",
+      "--branch",
+      branch,
+      "--codex-thread-id",
+      threadId,
+      "--paths",
+      "src/owned.rs",
+      "--reason",
+      `${lane} owns the exact path`,
+      ...(claimGroup === undefined ? [] : ["--claim-group", claimGroup]),
+    );
+
+  assert.equal(run("init", "--lane", "merge-gate").status, 0);
+  assert.equal(claim("safety-main", safetyWorktree, "safety-main", "safety-thread").status, 0);
+  assert.equal(
+    claim("merge-gate", rustWorktree, "rust-build", "claim-thread", "merge-gate-owned-files").status,
+    0,
+  );
+
+  const guard = run(
+    "guard",
+    "--lane",
+    "merge-gate",
+    "--root",
+    rustWorktree,
+    "--repo-root",
+    rustWorktree,
+    "--worktree-root",
+    rustWorktree,
+    "--cwd",
+    rustWorktree,
+    "--project-id",
+    "shared-enforcer-project",
+    "--branch",
+    "rust-build",
+    "--codex-thread-id",
+    "guard-thread",
+    "--changed",
+    "src/owned.rs",
+    "--operation",
+    "commit",
+  );
+  assert.equal(guard.status, 0, guard.stderr);
+  const result = JSON.parse(guard.stdout);
+  assert.equal(result.ok, true, result.result.findings.join("\n"));
+  assert.equal(result.result.mergeRisks.length, 1);
+  assert.equal(result.result.blockers.length, 0);
+});
+
 test("coordination sync converges local roots and transfers HTTP suffixes only", async () => {
   const leftRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sync-left-"));
   const rightRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sync-right-"));
