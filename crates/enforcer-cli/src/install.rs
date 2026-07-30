@@ -179,6 +179,46 @@ fn adapter_registry(
     Ok(adapters)
 }
 
+fn doctor_reports(
+    adapters: &[&dyn HarnessAdapter],
+    context: &InstallRequestContext,
+) -> Result<ExitCode, InstallCommandFailure> {
+    let reports = enforcer_install::core::doctor(adapters, context, &DoctorCommand::default())
+        .map_err(InstallCommandFailure::from)?;
+    let verified = reports.iter().all(|(_, report)| {
+        report
+            .checks
+            .iter()
+            .all(|check| check.status == CheckStatus::Passed)
+    });
+    Ok(if verified {
+        ExitCode::Success
+    } else {
+        ExitCode::Violations
+    })
+}
+
+fn doctor_with_current_environment() -> Result<ExitCode, InstallCommandFailure> {
+    let binary = std::env::current_exe().map_err(|error| InstallCommandFailure {
+        class: FailureClass::Internal,
+        message: format!("cannot resolve the running enforcer binary: {error}"),
+    })?;
+    let context = InstallRequestContext::try_with_defaults(binary.clone())
+        .map_err(InstallError::from)
+        .map_err(InstallCommandFailure::from)?;
+    let home = home_dir()?;
+    let registry = adapter_registry(&home, &binary)?;
+    let adapters: Vec<&dyn HarnessAdapter> =
+        registry.iter().map(std::convert::AsRef::as_ref).collect();
+
+    doctor_reports(&adapters, &context)
+}
+
+/// Verify every native user-level harness registration without changing files.
+pub(crate) fn doctor() -> Result<ExitCode, InstallCommandFailure> {
+    doctor_with_current_environment()
+}
+
 /// Apply every native user-level harness registration and verify the result.
 pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
     let binary = std::env::current_exe().map_err(|error| InstallCommandFailure {
@@ -201,18 +241,5 @@ pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
         },
     )
     .map_err(InstallCommandFailure::from)?;
-
-    let reports = enforcer_install::core::doctor(&adapters, &context, &DoctorCommand::default())
-        .map_err(InstallCommandFailure::from)?;
-    let verified = reports.iter().all(|(_, report)| {
-        report
-            .checks
-            .iter()
-            .all(|check| check.status == CheckStatus::Passed)
-    });
-    Ok(if verified {
-        ExitCode::Success
-    } else {
-        ExitCode::Violations
-    })
+    doctor_reports(&adapters, &context)
 }

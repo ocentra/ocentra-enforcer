@@ -235,6 +235,21 @@ fn install_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::
     command
 }
 
+fn doctor_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::process::Command {
+    let home = fixture.join("home");
+    let app_data = fixture.join("config");
+    let mut command = Command::new(binary);
+    command
+        .current_dir(fixture)
+        .arg("doctor")
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .env("APPDATA", &app_data)
+        .env("XDG_CONFIG_HOME", &app_data)
+        .env("CODEX_HOME", home.join(".codex"));
+    command
+}
+
 fn expected_config_root(_home: &std::path::Path, _app_data: &std::path::Path) -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -321,6 +336,29 @@ fn install_registers_every_native_harness_and_is_idempotent(
         .map(std::fs::read)
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(json_after, json_before);
+    Ok(())
+}
+
+#[test]
+fn doctor_verifies_the_native_install_without_mutating_it() -> Result<(), Box<dyn std::error::Error>>
+{
+    let fixture = tempfile::tempdir()?;
+    let binary = binary_path()?;
+    assert!(install_command(&binary, fixture.path()).status()?.success());
+
+    let codex_config = fixture
+        .path()
+        .join("home")
+        .join(".codex")
+        .join("config.toml");
+    let before = std::fs::read(&codex_config)?;
+    let status = doctor_command(&binary, fixture.path()).status()?;
+    assert!(status.success(), "doctor must pass after a native install");
+    assert_eq!(
+        std::fs::read(&codex_config)?,
+        before,
+        "doctor must be read-only"
+    );
     Ok(())
 }
 

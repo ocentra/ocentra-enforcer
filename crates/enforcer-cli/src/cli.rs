@@ -75,6 +75,9 @@ pub enum Command {
     /// Register the installed binary with every supported user-level
     /// harness, then verify each native registration before exiting.
     Install,
+    /// Verify every supported user-level harness registration without
+    /// changing any files. Exit 0 only when every native doctor check passes.
+    Doctor,
     /// Plan/workpack scaffolding and validation (arc-20).
     Plan,
     /// Proof-artifact recording/inspection (arc-17).
@@ -270,6 +273,13 @@ mod tests {
             Command::Check(scope) => assert_eq!(scope.paths.len(), 1),
             other => return Err(format!("expected Check, got {other:?}").into()),
         }
+        Ok(())
+    }
+
+    #[test]
+    fn doctor_is_a_first_class_command() -> Result<(), Box<dyn std::error::Error>> {
+        let cli = parse(&["doctor"])?;
+        assert!(matches!(cli.command, Command::Doctor));
         Ok(())
     }
 
