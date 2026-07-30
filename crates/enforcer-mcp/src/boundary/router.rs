@@ -1056,6 +1056,14 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "dependency-policy" => named_policy_unrecorded(&native_args, "dependency-policy"),
         "import-boundaries" => named_import_boundaries_unrecorded(&native_args),
         "literal-risk" => named_literal_risk_unrecorded(&native_args),
+        "reexports" => named_reexports_unrecorded(&native_args),
+        "no-zod-source" | "no-naked-domain-strings" | "rust-string-boundaries"
+        | "no-test-doubles" | "weak-assertions" | "skipped-focused-tests"
+        | "validation-bypass" | "placeholder-implementation"
+        | "cross-platform-script-commands" => named_check_rejection(
+            name,
+            "narrow_native_engine_not_implemented: broad scan filtering is not a named-policy implementation",
+        ),
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
@@ -1327,6 +1335,16 @@ fn named_import_boundaries_unrecorded(args: &serde_json::Value) -> serde_json::V
         Err(error) => return json_error(&error),
     };
     enforcer_scan::boundary::native_scan::execute_import_boundaries_policy(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+fn named_reexports_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_reexports_policy(&request, &root)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
@@ -4373,6 +4391,52 @@ mod tests {
             };
             assert_eq!(value["ok"], serde_json::json!(false));
             assert_ne!(value.get("error"), Some(&serde_json::Value::Null));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn reexports_direct_route_is_not_a_broad_scan() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let file = temp.path().join("src/lib.rs");
+        std::fs::create_dir_all(file.parent().ok_or("parent")?)?;
+        std::fs::write(&file, "pub use crate::internal::Thing;\n")?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root":temp.path().to_string_lossy(),"check":"reexports","scope":"files","files":["src/lib.rs"]}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("reexports did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("reexports"));
+        assert!(value["findings"].as_array().is_some_and(|rows| rows
+            .iter()
+            .all(|row| row["ruleId"] == "RR-7.2" || row["ruleId"] == "RR-7.3")));
+        Ok(())
+    }
+    #[test]
+    fn unavailable_default_checks_refuse_explicitly() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        for check in [
+            "no-zod-source",
+            "no-naked-domain-strings",
+            "rust-string-boundaries",
+            "no-test-doubles",
+            "weak-assertions",
+            "skipped-focused-tests",
+            "validation-bypass",
+            "placeholder-implementation",
+            "cross-platform-script-commands",
+        ] {
+            let DispatchOutcome::Result(value) = dispatch(
+                &tool("ocentra_enforcer_check")?,
+                &serde_json::json!({"root":temp.path().to_string_lossy(),"check":check}),
+                &ctx(McpFreshness::Fresh),
+            ) else {
+                return Err("refusal did not dispatch".into());
+            };
+            assert_eq!(value["ok"], serde_json::json!(false));
+            assert_eq!(value["error"]["code"],serde_json::json!("narrow_native_engine_not_implemented: broad scan filtering is not a named-policy implementation"));
         }
         Ok(())
     }

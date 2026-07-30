@@ -403,6 +403,27 @@ pub fn run_import_boundaries_policy(
     Ok(fold_report(scope.kind, findings))
 }
 
+/// Run only the concrete Rust re-export validators.
+pub fn run_reexports_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validator = enforcer_lang_rust::rules::no_reexports::NoReexportsValidator::new()?;
+    let findings = files
+        .iter()
+        .filter(|file| matches!(classify(file), LanguageFamily::Rust))
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .flat_map(|(file, source)| {
+            validator.validate(ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(fold_report(scope.kind, findings))
+}
+
 /// Enforce that first-party package and crate roots have an organized test
 /// tree. This is deliberately a filesystem policy rather than a marker
 /// validator: `TEST-2.1` is about project structure, not source text.
