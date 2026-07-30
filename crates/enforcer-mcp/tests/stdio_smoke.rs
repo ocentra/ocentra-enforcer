@@ -227,6 +227,18 @@ fn stdio_smoke_harness_query_tools_reach_the_native_rust_engine(
     );
     assert_eq!(artifact["result"]["text"], "native stderr fixture");
 
+    let reset = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0", "id":4, "method":"tools/call",
+            "params":{"name":"ocentra_enforcer_reset_runs","arguments":{"root":root,"tag":"ignored-by-reset"}}
+        }),
+    )?;
+    assert_eq!(reset["result"]["ok"], true);
+    assert_eq!(reset["result"]["removed"], serde_json::json!([".enforce"]));
+    assert!(!fixture.path().join(".enforce").exists());
+
     drop(stdin);
     assert!(child.wait()?.success());
     Ok(())

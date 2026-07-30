@@ -107,6 +107,7 @@ pub fn dispatch(
         "ocentra_enforcer_diagnostics" => DispatchOutcome::Result(diagnostics(args)),
         "ocentra_enforcer_last_failure" => DispatchOutcome::Result(last_failure(args)),
         "ocentra_enforcer_artifact" => DispatchOutcome::Result(artifact(args)),
+        "ocentra_enforcer_reset_runs" => DispatchOutcome::Result(reset_runs(args)),
         "ocentra_enforcer_route" => DispatchOutcome::Result(route(args)),
         "ocentra_enforcer_test_doctrine_scan" => DispatchOutcome::Result(test_doctrine_scan(args)),
         "ocentra_enforcer_ui_logic_coupling_scan" => {
@@ -701,6 +702,24 @@ fn artifact(args: &serde_json::Value) -> serde_json::Value {
         Ok((true, None, _, _)) => {
             json_error("native artifact query did not return its selected run id")
         }
+        Err(error) => json_error(&error.to_string()),
+    }
+}
+
+/// Clear the complete typed harness store. Query filters are still decoded by
+/// the shared frozen-schema adapter, but reset intentionally has no filter:
+/// it removes every candidate storage root, exactly as the legacy tool does.
+fn reset_runs(args: &serde_json::Value) -> serde_json::Value {
+    let (root, config, _, _, _, _, _) = match decode_harness_query(args, "reset_runs") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    match enforcer_harness::storage::reset_runs(std::path::Path::new(root.as_str()), &config) {
+        Ok(removed) => serde_json::json!({
+            "ok": true,
+            "root": root.as_str(),
+            "removed": removed.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+        }),
         Err(error) => json_error(&error.to_string()),
     }
 }
