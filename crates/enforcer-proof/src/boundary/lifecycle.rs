@@ -33,9 +33,8 @@ pub const DEFAULT_PROOF_QUERY_LIMIT: usize = 20;
 pub const MAX_PROOF_QUERY_LIMIT: usize = 100;
 
 /// Compact proof definition returned by the proof-route boundary.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompactProofDefinitionDto {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoutedProofDefinition {
     pub id: String,
     pub title: String,
     pub family: String,
@@ -46,44 +45,39 @@ pub struct CompactProofDefinitionDto {
 }
 
 /// Native equivalent of the frozen `proof_route` response.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofRouteDto {
-    pub ok: bool,
+#[derive(Debug, Clone)]
+pub struct ProofRouteResult {
     pub product_name: String,
     pub profile_name: String,
     pub index: String,
-    pub scope: serde_json::Value,
+    pub query: ProofRouteQuery,
     pub docs: Vec<String>,
-    pub proofs: Vec<CompactProofDefinitionDto>,
+    pub proofs: Vec<RoutedProofDefinition>,
 }
 
 /// Native equivalent of the frozen bounded `proof_status` response.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofStatusDto {
-    pub ok: bool,
-    pub root: String,
+#[derive(Debug, Clone)]
+pub struct ProofStatusResult {
+    pub root: PathBuf,
     pub runs: Vec<crate::envelope::ProofRunEnvelope>,
 }
 
 /// One deliberately compact legacy script inventory row. The content-derived
 /// fields mirror the frozen inventory's useful classification dimensions.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofScriptDto {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofScript {
     pub path: String,
     pub name: String,
     pub family: String,
     pub plan_bucket: String,
     pub proof_types: Vec<String>,
     pub capabilities: Vec<String>,
-    pub signals: ProofScriptSignalsDto,
+    pub signals: ProofScriptSignals,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofScriptSignalsDto {
+/// Content-derived indicators attached to one inventory script.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofScriptSignals {
     pub spawn: bool,
     pub writes_proof: bool,
     pub reads_proof: bool,
@@ -93,25 +87,23 @@ pub struct ProofScriptSignalsDto {
 
 /// Native equivalent of the frozen inventory aggregate, with script rows
 /// opt-in and bounded.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofInventoryDto {
-    pub ok: bool,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofInventoryResult {
     pub root: String,
     pub scripts_root: String,
-    pub totals: ProofInventoryTotalsDto,
+    pub totals: ProofInventoryTotals,
     pub by_family: BTreeMap<String, usize>,
     pub by_proof_type: BTreeMap<String, usize>,
     pub by_capability: BTreeMap<String, usize>,
     pub script_rows_included: bool,
     pub script_limit: usize,
     pub omitted_script_count: usize,
-    pub scripts: Vec<ProofScriptDto>,
+    pub scripts: Vec<ProofScript>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProofInventoryTotalsDto {
+/// Aggregate counts for the bounded proof-script inventory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofInventoryTotals {
     pub scripts: usize,
     pub proof_named: usize,
     pub spawn_commands: usize,
@@ -149,7 +141,7 @@ impl NativeProofLifecycle {
     /// Route against the Rust-owned packaged proof catalog. The target
     /// repository root is deliberately not used as the pack root: callers may
     /// inspect any repository without allowing it to replace Enforcer policy.
-    pub fn route(&self, query: &ProofRouteQuery) -> Result<ProofRouteDto> {
+    pub fn route(&self, query: &ProofRouteQuery) -> Result<ProofRouteResult> {
         let profile_name = query.profile.as_ref().map_or(
             "strict",
             enforcer_domain::config_types::ConfigProfileName::as_str,
@@ -170,12 +162,11 @@ impl NativeProofLifecycle {
         docs.sort();
         docs.dedup();
         let proofs = routed.into_iter().map(compact_proof).collect();
-        Ok(ProofRouteDto {
-            ok: true,
+        Ok(ProofRouteResult {
             product_name: registry.product_name,
             profile_name: profile_name.to_owned(),
             index: "proof/INDEX.md".to_owned(),
-            scope: route_scope_dto(query),
+            query: query.clone(),
             docs,
             proofs,
         })
@@ -184,7 +175,7 @@ impl NativeProofLifecycle {
     /// Read only persisted, valid run envelopes, then filter and bound before
     /// returning. This intentionally does not project the full read-model
     /// snapshot through the MCP response.
-    pub fn status(&self, query: &ProofStatusQuery) -> Result<ProofStatusDto> {
+    pub fn status(&self, query: &ProofStatusQuery) -> Result<ProofStatusResult> {
         let mut runs = self.persisted_runs()?;
         runs.retain(|run| {
             query.proof_id.as_ref().is_none_or(|id| &run.proof_id == id)
@@ -192,9 +183,8 @@ impl NativeProofLifecycle {
         });
         runs.sort_by(|left, right| right.started_at.cmp(&left.started_at));
         runs.truncate(query.limit.min(MAX_PROOF_QUERY_LIMIT));
-        Ok(ProofStatusDto {
-            ok: true,
-            root: self.root.to_string_lossy().into_owned(),
+        Ok(ProofStatusResult {
+            root: self.root.clone(),
             runs,
         })
     }
@@ -202,13 +192,13 @@ impl NativeProofLifecycle {
     /// Safely inspect only repository-contained `scripts/test/**/*.mjs` files.
     /// Symlinks are not followed, and optional rows are bounded after stable
     /// lexical ordering, so one query cannot become a repository snapshot.
-    pub fn inventory(&self, query: &ProofInventoryQuery) -> Result<ProofInventoryDto> {
+    pub fn inventory(&self, query: &ProofInventoryQuery) -> Result<ProofInventoryResult> {
         let scripts_root = self.root.join("scripts").join("test");
         let scripts = collect_inventory_scripts(&self.root, &scripts_root)?;
         let mut by_family = BTreeMap::new();
         let mut by_proof_type = BTreeMap::new();
         let mut by_capability = BTreeMap::new();
-        let mut totals = ProofInventoryTotalsDto {
+        let mut totals = ProofInventoryTotals {
             scripts: scripts.len(),
             proof_named: 0,
             spawn_commands: 0,
@@ -241,8 +231,7 @@ impl NativeProofLifecycle {
         } else {
             Vec::new()
         };
-        Ok(ProofInventoryDto {
-            ok: true,
+        Ok(ProofInventoryResult {
             root: self.root.to_string_lossy().into_owned(),
             scripts_root: "scripts/test".to_owned(),
             totals,
@@ -549,8 +538,8 @@ fn is_safe_profile(value: &str) -> bool {
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_'))
 }
 
-fn compact_proof(proof: &ProofDefinitionEnvelope) -> CompactProofDefinitionDto {
-    CompactProofDefinitionDto {
+fn compact_proof(proof: &ProofDefinitionEnvelope) -> RoutedProofDefinition {
+    RoutedProofDefinition {
         id: proof.id.as_str().to_owned(),
         title: proof.title.clone(),
         family: proof.family.as_str().to_owned(),
@@ -570,23 +559,7 @@ fn compact_proof(proof: &ProofDefinitionEnvelope) -> CompactProofDefinitionDto {
     }
 }
 
-fn route_scope_dto(query: &ProofRouteQuery) -> serde_json::Value {
-    if let Some(proof_id) = &query.proof_id {
-        return serde_json::json!({"mode":"proof","proofId":proof_id.as_str()});
-    }
-    if !query.files.is_empty() {
-        return serde_json::json!({"mode":"files","files":query.files.iter().map(RelPath::as_str).collect::<Vec<_>>()});
-    }
-    if let Some(plan) = &query.plan {
-        return serde_json::json!({"mode":"plan","plan":plan});
-    }
-    if let Some(capability) = &query.capability {
-        return serde_json::json!({"mode":"capability","capability":capability.as_str()});
-    }
-    serde_json::json!({"mode":query.scope.as_deref().unwrap_or("workspace")})
-}
-
-fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<ProofScriptDto>> {
+fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<ProofScript>> {
     if !scripts_root.is_dir() {
         return Ok(Vec::new());
     }
@@ -615,7 +588,7 @@ fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<Pro
         .collect()
 }
 
-fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScriptDto> {
+fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScript> {
     let relative = path.strip_prefix(root).map_err(|error| {
         Error::InvalidConfig(format!("proof script is outside repository root: {error}"))
     })?;
@@ -629,7 +602,7 @@ fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScriptDto>
         .to_ascii_lowercase();
     let source = std::fs::read_to_string(root.join(path.as_str()))?;
     let lower = format!("{name}\n{source}").to_ascii_lowercase();
-    let signals = ProofScriptSignalsDto {
+    let signals = ProofScriptSignals {
         spawn: source.contains("spawn") || source.contains("execFile") || source.contains("exec("),
         writes_proof: source.contains("writeFile")
             || source.contains("appendFile")
@@ -652,7 +625,7 @@ fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScriptDto>
     };
     let capabilities = inventory_capabilities(&lower);
     let proof_types = inventory_proof_types(&name, &source, &lower, &signals);
-    Ok(ProofScriptDto {
+    Ok(ProofScript {
         path: path.as_str().to_owned(),
         name,
         family: inventory_family(&lower),
@@ -758,7 +731,7 @@ fn inventory_proof_types(
     name: &str,
     source: &str,
     lower: &str,
-    signals: &ProofScriptSignalsDto,
+    signals: &ProofScriptSignals,
 ) -> Vec<String> {
     let mut values = Vec::new();
     if signals.manual_or_device {

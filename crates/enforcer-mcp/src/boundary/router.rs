@@ -454,9 +454,7 @@ fn proof_route(args: &serde_json::Value) -> serde_json::Value {
         Err(error) => return proof_query_error("ocentra_enforcer_proof_route", error),
     };
     match lifecycle.route(&query) {
-        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
-            proof_query_error("ocentra_enforcer_proof_route", error.to_string())
-        }),
+        Ok(value) => encode_proof_route(value),
         Err(error) => proof_query_error("ocentra_enforcer_proof_route", error.to_string()),
     }
 }
@@ -473,9 +471,7 @@ fn proof_status(args: &serde_json::Value) -> serde_json::Value {
         Err(error) => return proof_query_error("ocentra_enforcer_proof_status", error),
     };
     match lifecycle.status(&query) {
-        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
-            proof_query_error("ocentra_enforcer_proof_status", error.to_string())
-        }),
+        Ok(value) => encode_proof_status(value),
         Err(error) => proof_query_error("ocentra_enforcer_proof_status", error.to_string()),
     }
 }
@@ -492,11 +488,113 @@ fn proof_inventory(args: &serde_json::Value) -> serde_json::Value {
         Err(error) => return proof_query_error("ocentra_enforcer_proof_inventory", error),
     };
     match lifecycle.inventory(&query) {
-        Ok(value) => serde_json::to_value(value).unwrap_or_else(|error| {
-            proof_query_error("ocentra_enforcer_proof_inventory", error.to_string())
-        }),
+        Ok(value) => encode_proof_inventory(value),
         Err(error) => proof_query_error("ocentra_enforcer_proof_inventory", error.to_string()),
     }
+}
+
+/// Render a typed proof-route application result at the MCP JSON boundary.
+fn encode_proof_route(
+    value: enforcer_proof::boundary::lifecycle::ProofRouteResult,
+) -> serde_json::Value {
+    let scope = proof_route_scope_json(&value.query);
+    let proofs = value.proofs.into_iter().map(|proof| {
+        serde_json::json!({
+            "id": proof.id,
+            "title": proof.title,
+            "family": proof.family,
+            "severity": proof.severity,
+            "collector": proof.collector,
+            "capabilities": proof.capabilities,
+            "docs": proof.docs,
+        })
+    });
+    serde_json::json!({
+        "ok": true,
+        "productName": value.product_name,
+        "profileName": value.profile_name,
+        "index": value.index,
+        "scope": scope,
+        "docs": value.docs,
+        "proofs": proofs.collect::<Vec<_>>(),
+    })
+}
+
+/// Render a typed persisted-run query result at the MCP JSON boundary.
+fn encode_proof_status(
+    value: enforcer_proof::boundary::lifecycle::ProofStatusResult,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "root": value.root.to_string_lossy(),
+        "runs": value.runs,
+    })
+}
+
+/// Render a typed inventory application result at the MCP JSON boundary.
+fn encode_proof_inventory(
+    value: enforcer_proof::boundary::lifecycle::ProofInventoryResult,
+) -> serde_json::Value {
+    let scripts = value.scripts.into_iter().map(|script| {
+        serde_json::json!({
+            "path": script.path,
+            "name": script.name,
+            "family": script.family,
+            "planBucket": script.plan_bucket,
+            "proofTypes": script.proof_types,
+            "capabilities": script.capabilities,
+            "signals": {
+                "spawn": script.signals.spawn,
+                "writesProof": script.signals.writes_proof,
+                "readsProof": script.signals.reads_proof,
+                "manualOrDevice": script.signals.manual_or_device,
+                "importsBuiltOrSchemaParse": script.signals.imports_built_or_schema_parse,
+            },
+        })
+    });
+    serde_json::json!({
+        "ok": true,
+        "root": value.root,
+        "scriptsRoot": value.scripts_root,
+        "totals": {
+            "scripts": value.totals.scripts,
+            "proofNamed": value.totals.proof_named,
+            "spawnCommands": value.totals.spawn_commands,
+            "writesProof": value.totals.writes_proof,
+            "readsProof": value.totals.reads_proof,
+            "manualOrDevice": value.totals.manual_or_device,
+            "importsBuiltOrSchemaParse": value.totals.imports_built_or_schema_parse,
+        },
+        "byFamily": value.by_family,
+        "byProofType": value.by_proof_type,
+        "byCapability": value.by_capability,
+        "scriptRowsIncluded": value.script_rows_included,
+        "scriptLimit": value.script_limit,
+        "omittedScriptCount": value.omitted_script_count,
+        "scripts": scripts.collect::<Vec<_>>(),
+    })
+}
+
+/// Project the typed route query into the frozen MCP scope envelope.
+fn proof_route_scope_json(
+    query: &enforcer_proof::boundary::proof_query::ProofRouteQuery,
+) -> serde_json::Value {
+    if let Some(proof_id) = &query.proof_id {
+        return serde_json::json!({"mode":"proof","proofId":proof_id.as_str()});
+    }
+    if !query.files.is_empty() {
+        return serde_json::json!({
+            "mode":"files",
+            "files":query.files.iter().map(enforcer_domain::paths::RelPath::as_str).collect::<Vec<_>>()
+        });
+    }
+    if let Some(plan) = &query.plan {
+        return serde_json::json!({"mode":"plan","plan":plan});
+    }
+    if let Some(capability) = &query.capability {
+        return serde_json::json!({"mode":"capability","capability":capability.as_str()});
+    }
+    serde_json::json!({"mode":query.scope.as_deref().unwrap_or("workspace")})
 }
 
 fn proof_lifecycle_for_root(
