@@ -144,8 +144,8 @@ mod tests {
     use enforcer_domain::{boundary::validation::McpReportLabelText, paths::RepoRoot};
 
     use super::{
-        ReportLabel, ValidationCounts, ValidationHistory, ValidationKind, ValidationSummary,
-        ValidationTimestamp, HISTORY_LIMIT,
+        HISTORY_LIMIT, ReportLabel, ValidationCounts, ValidationHistory, ValidationKind,
+        ValidationSummary, ValidationTimestamp,
     };
 
     fn root() -> Result<RepoRoot, enforcer_domain::boundary::decode_error::DecodeError> {
@@ -176,8 +176,8 @@ mod tests {
     }
 
     #[test]
-    fn retains_newest_twenty_case_folded_per_root_and_filters_kind(
-    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    fn retains_newest_twenty_case_folded_per_root_and_filters_kind()
+    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let mut history = ValidationHistory::default();
         history.record(summary(ValidationKind::Scan)?);
         history.record(summary(ValidationKind::Check)?);
@@ -204,16 +204,43 @@ mod tests {
     }
 
     #[test]
-    fn try_new_rejects_invalid_blank_and_control_character_labels() {
+    fn try_new_rejects_invalid_blank_and_control_character_labels()
+    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         for invalid in ["   ", "bad\nlabel"] {
-            assert!(McpReportLabelText::try_new(invalid.to_owned()).is_err());
+            let error = McpReportLabelText::try_new(invalid.to_owned())
+                .err()
+                .ok_or_else(|| {
+                    enforcer_domain::boundary::decode_error::DecodeError::new(
+                        "test.mcpReportLabel",
+                        "invalid label was accepted",
+                    )
+                })?;
+            assert_eq!(error.path, "mcpReportLabel");
+            assert!(
+                matches!(
+                    error.reason.as_str(),
+                    "label is blank" | "label contains a control character"
+                ),
+                "unexpected validation reason: {}",
+                error.reason
+            );
         }
+        Ok(())
     }
 
     #[test]
-    fn empty_label_is_rejected_before_epoch_fallback_conversion(
-    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
-        assert!(McpReportLabelText::try_new(String::new()).is_err());
+    fn empty_label_is_rejected_before_epoch_fallback_conversion()
+    -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+        let error = McpReportLabelText::try_new(String::new())
+            .err()
+            .ok_or_else(|| {
+                enforcer_domain::boundary::decode_error::DecodeError::new(
+                    "test.mcpReportLabel",
+                    "empty label was accepted",
+                )
+            })?;
+        assert_eq!(error.path, "mcpReportLabel");
+        assert_eq!(error.reason, "label is blank");
 
         let input = McpReportLabelText::try_new("1970-01-01T00:00:00.000Z".to_owned())?;
         let timestamp = ValidationTimestamp::parse(ReportLabel::try_new(input));

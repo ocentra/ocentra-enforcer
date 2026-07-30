@@ -59,7 +59,7 @@ pub fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, String>
                     .ok_or_else(|| "run `command` entries must be strings".to_owned())
                     .and_then(|text| {
                         HarnessCommandArgument::try_new(text.to_owned())
-                            .map_err(|_| "invalid run command".to_owned())
+                            .map_err(|error| format!("invalid run command: {error}"))
                     })
             })
             .collect::<Result<Vec<_>, _>>()?,
@@ -103,7 +103,7 @@ pub fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, String>
                     .ok_or_else(|| "run `tags` entries must be strings".to_owned())
                     .and_then(|text| {
                         HarnessTag::try_new(text.to_owned())
-                            .map_err(|_| "invalid run tag".to_owned())
+                            .map_err(|error| format!("invalid run tag: {error}"))
                     })
             })
             .collect::<Result<Vec<_>, _>>()?,
@@ -208,8 +208,11 @@ mod tests {
     use super::decode_run;
 
     #[test]
-    fn run_rejects_non_string_command_entries() {
-        let error = decode_run(&serde_json::json!({"command":["cargo", 7]})).unwrap_err();
+    fn run_rejects_non_string_command_entries() -> Result<(), String> {
+        let error = decode_run(&serde_json::json!({"command":["cargo", 7]}))
+            .err()
+            .ok_or_else(|| "non-string command entry was accepted".to_owned())?;
         assert_eq!(error, "run `command` entries must be strings");
+        Ok(())
     }
 }

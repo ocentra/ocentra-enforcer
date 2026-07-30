@@ -616,9 +616,9 @@ fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<Pro
 }
 
 fn classify_inventory_script(root: &Path, path: &Path) -> Result<ProofScriptDto> {
-    let relative = path
-        .strip_prefix(root)
-        .map_err(|_| Error::InvalidConfig("proof script is outside repository root".to_owned()))?;
+    let relative = path.strip_prefix(root).map_err(|error| {
+        Error::InvalidConfig(format!("proof script is outside repository root: {error}"))
+    })?;
     let path =
         RelPath::try_from(relative.to_string_lossy().replace('\\', "/")).map_err(Error::Decode)?;
     let name = path
@@ -691,21 +691,26 @@ fn inventory_family(lower: &str) -> String {
     {
         return "test-report".to_owned();
     }
-    if ["sarif", "codeql", "security", "secret", "audit"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    if lower.contains("sarif")
+        || lower.contains("codeql")
+        || lower.contains("security")
+        || lower.contains("secret")
+        || lower.contains("audit")
     {
         return "security-report".to_owned();
     }
-    if ["parity", "contract", "boundary", "schema"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    if lower.contains("parity")
+        || lower.contains("contract")
+        || lower.contains("boundary")
+        || lower.contains("schema")
     {
         return "contract-parity".to_owned();
     }
-    if ["event", "network", "lan", "message", "codec"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    if lower.contains("event")
+        || lower.contains("network")
+        || lower.contains("lan")
+        || lower.contains("message")
+        || lower.contains("codec")
     {
         return "event-network".to_owned();
     }
@@ -772,21 +777,25 @@ fn inventory_proof_types(
     {
         values.push("contract-parity".to_owned());
     }
-    if ["event", "network", "lan", "message"]
-        .iter()
-        .any(|needle| name.contains(needle))
+    if name.contains("event")
+        || name.contains("network")
+        || name.contains("lan")
+        || name.contains("message")
     {
         values.push("runtime-event-contract".to_owned());
     }
-    if ["sarif", "codeql", "security", "secret", "audit"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    if lower.contains("sarif")
+        || lower.contains("codeql")
+        || lower.contains("security")
+        || lower.contains("secret")
+        || lower.contains("audit")
     {
         values.push("security-report".to_owned());
     }
-    if ["vitest", "playwright", "cargo test", "npm run test"]
-        .iter()
-        .any(|needle| lower.contains(needle))
+    if lower.contains("vitest")
+        || lower.contains("playwright")
+        || lower.contains("cargo test")
+        || lower.contains("npm run test")
     {
         values.push("test-report".to_owned());
     }
