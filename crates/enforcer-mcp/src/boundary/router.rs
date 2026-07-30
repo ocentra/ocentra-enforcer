@@ -1175,15 +1175,24 @@ fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json:
         .get("tracked")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
-    let allowlist = match generated_artifact_allowlist(
-        &root,
-        args.get("configPath").and_then(serde_json::Value::as_str),
-    ) {
+    let config_path = args
+        .get("configPath")
+        .and_then(serde_json::Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("ocentra-enforcer.config.json"));
+    let config_path = if config_path.is_absolute() {
+        config_path
+    } else {
+        std::path::Path::new(root.as_str()).join(config_path)
+    };
+    let config = match enforcer_config::load_project_config(&config_path) {
         Ok(value) => value,
-        Err(error) => return json_error(&error),
+        Err(error) => {
+            return json_error(&format!("cannot load generated-artifacts config: {error}"))
+        }
     };
     match enforcer_scan::boundary::native_scan::execute_generated_artifacts(
-        &request, &root, tracked, &allowlist,
+        &request, &root, &config, tracked,
     )
     .and_then(|result| {
         serde_json::to_value(result.report).map_err(|error| {
@@ -1195,40 +1204,6 @@ fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json:
     }) {
         Ok(report) => report,
         Err(error) => json_error(&error.to_string()),
-    }
-}
-
-fn generated_artifact_allowlist(
-    root: &RepoRoot,
-    config_path: Option<&str>,
-) -> Result<Vec<String>, String> {
-    let Some(config_path) = config_path else {
-        return Ok(Vec::new());
-    };
-    let path = std::path::Path::new(root.as_str()).join(config_path);
-    let raw = std::fs::read_to_string(&path).map_err(|error| {
-        format!(
-            "cannot read generated-artifacts config {}: {error}",
-            path.display()
-        )
-    })?;
-    let value: serde_json::Value = serde_json::from_str(&raw).map_err(|error| {
-        format!(
-            "invalid generated-artifacts config {}: {error}",
-            path.display()
-        )
-    })?;
-    match value.get("generatedArtifactsAllowlist") {
-        None => Ok(Vec::new()),
-        Some(serde_json::Value::Array(entries)) => entries
-            .iter()
-            .map(|entry| {
-                entry.as_str().map(str::to_owned).ok_or_else(|| {
-                    "generatedArtifactsAllowlist must contain only strings".to_owned()
-                })
-            })
-            .collect(),
-        Some(_) => Err("generatedArtifactsAllowlist must be an array".to_owned()),
     }
 }
 

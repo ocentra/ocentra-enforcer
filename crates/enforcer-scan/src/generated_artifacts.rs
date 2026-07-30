@@ -168,4 +168,30 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn tracked_inventory_detects_a_staged_generated_path() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("output"))?;
+        std::fs::write(temp.path().join("output/report.json"), "{}")?;
+        let init = std::process::Command::new("git")
+            .arg("init")
+            .current_dir(temp.path())
+            .status()?;
+        assert!(init.success());
+        let add = std::process::Command::new("git")
+            .args(["add", "output/report.json"])
+            .current_dir(temp.path())
+            .status()?;
+        assert!(add.success());
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let report = check(&root, ScanScope::Workspace, &[], true, &[])?;
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.file.as_str() == "output/report.json"));
+        Ok(())
+    }
 }

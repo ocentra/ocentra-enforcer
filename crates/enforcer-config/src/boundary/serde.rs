@@ -11,12 +11,12 @@ use std::path::Path;
 
 use enforcer_domain::config_types::{
     ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson,
-    ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope, Glob,
-    HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays, HarnessRunLimit,
-    InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner, PolicyReason,
-    PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern, RuleEnabled,
-    RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride,
-    SourceShapePolicy,
+    ConfigProfileName, ConfigSource, CrateName, EffectiveConfig, EnforcerScope,
+    GeneratedArtifactsMode, Glob, HarnessArtifactByteLimit, HarnessConfig, HarnessRetentionDays,
+    HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie, NativeTool, Platform, PolicyOwner,
+    PolicyReason, PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern,
+    RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
+    SourceShapeOverride, SourceShapePolicy,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -809,6 +809,12 @@ pub struct WireEffectiveConfig {
     #[serde(default)]
     pub private_rust_test_module_allowlist: Vec<WirePrivateRustTestModuleAllowlistEntry>,
     #[serde(default)]
+    pub generated_artifacts_mode: WireGeneratedArtifactsMode,
+    #[serde(default)]
+    pub generated_artifacts_tracked: bool,
+    #[serde(default)]
+    pub generated_artifacts_allowlist: Vec<WireGlob>,
+    #[serde(default)]
     pub ignore_dirs: Vec<String>,
     #[serde(default)]
     pub ignore_file_globs: Vec<WireGlob>,
@@ -822,6 +828,30 @@ pub struct WirePrivateRustTestModuleAllowlistEntry {
     pub owner_file: String,
     pub module_file: String,
     pub module_name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WireGeneratedArtifactsMode {
+    #[default]
+    Scope,
+    Tracked,
+}
+impl From<WireGeneratedArtifactsMode> for GeneratedArtifactsMode {
+    fn from(value: WireGeneratedArtifactsMode) -> Self {
+        match value {
+            WireGeneratedArtifactsMode::Scope => Self::Scope,
+            WireGeneratedArtifactsMode::Tracked => Self::Tracked,
+        }
+    }
+}
+impl From<GeneratedArtifactsMode> for WireGeneratedArtifactsMode {
+    fn from(value: GeneratedArtifactsMode) -> Self {
+        match value {
+            GeneratedArtifactsMode::Scope => Self::Scope,
+            GeneratedArtifactsMode::Tracked => Self::Tracked,
+        }
+    }
 }
 
 impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
@@ -868,6 +898,16 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                     )
                 })
                 .collect::<Result<_, DecodeError>>()?,
+            generated_artifacts_mode: if value.generated_artifacts_tracked {
+                GeneratedArtifactsMode::Tracked
+            } else {
+                value.generated_artifacts_mode.into()
+            },
+            generated_artifacts_allowlist: value
+                .generated_artifacts_allowlist
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
             ignore_dirs: value
                 .ignore_dirs
                 .into_iter()
@@ -1109,6 +1149,16 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                     module_file: entry.module_file().as_str().to_owned(),
                     module_name: entry.module_name().to_owned(),
                 })
+                .collect(),
+            generated_artifacts_mode: value.generated_artifacts_mode.into(),
+            generated_artifacts_tracked: matches!(
+                value.generated_artifacts_mode,
+                GeneratedArtifactsMode::Tracked
+            ),
+            generated_artifacts_allowlist: value
+                .generated_artifacts_allowlist
+                .into_iter()
+                .map(Into::into)
                 .collect(),
             ignore_dirs: value
                 .ignore_dirs

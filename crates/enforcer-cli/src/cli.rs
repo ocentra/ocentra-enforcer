@@ -188,6 +188,10 @@ pub enum PolicyAction {
     /// configuration, and exact private Rust test-module allowlists.
     #[command(name = "required-tests")]
     RequiredTests(RequiredTestsArgs),
+    /// Reject generated output paths in the selected scope or Git tracked
+    /// inventory when configuration or `--tracked` requests it.
+    #[command(name = "generated-artifacts")]
+    GeneratedArtifacts(GeneratedArtifactsArgs),
 }
 
 /// Output selection for the native Cargo SBOM policy.
@@ -204,6 +208,13 @@ pub struct RequiredTestsArgs {
     /// when the project configuration does not require strict empty trees.
     #[arg(long)]
     pub strict_empty_test_trees: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct GeneratedArtifactsArgs {
+    /// Include Git tracked files even when project configuration uses scope mode.
+    #[arg(long)]
+    pub tracked: bool,
 }
 
 /// Arguments for the architecture-policy check.

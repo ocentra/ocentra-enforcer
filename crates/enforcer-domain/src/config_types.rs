@@ -552,6 +552,13 @@ impl PrivateRustTestModuleAllowlistEntry {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GeneratedArtifactsMode {
+    #[default]
+    Scope,
+    Tracked,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[doc = "Canonical domain representation for EffectiveConfig."]
 pub struct EffectiveConfig {
@@ -568,6 +575,8 @@ pub struct EffectiveConfig {
     pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
     pub strict_empty_test_trees: bool,
     pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
+    pub generated_artifacts_mode: GeneratedArtifactsMode,
+    pub generated_artifacts_allowlist: Vec<Glob>,
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,

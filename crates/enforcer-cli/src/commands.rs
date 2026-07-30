@@ -13,8 +13,8 @@ use enforcer_domain::scan_types::{IgnoreDirectorySegment, ResolvedScope};
 use enforcer_scan::{engine, walk};
 
 use crate::cli::{
-    ArchitectureAction, ArchitectureCheckArgs, PolicyAction, RequiredTestsArgs, SbomArgs,
-    ScopeArgs, VerifyArgs,
+    ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs, PolicyAction,
+    RequiredTestsArgs, SbomArgs, ScopeArgs, VerifyArgs,
 };
 use crate::output;
 
@@ -160,6 +160,71 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
         PolicyAction::Secrets => run_secret_policy(),
         PolicyAction::Sbom(args) => run_sbom_policy(args),
         PolicyAction::RequiredTests(args) => run_required_tests_policy(args),
+        PolicyAction::GeneratedArtifacts(args) => run_generated_artifacts_policy(args),
+    }
+}
+
+fn run_generated_artifacts_policy(args: &GeneratedArtifactsArgs) -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = match enforcer_config::load_project_config_with_env(&config_path) {
+        Ok(config) => config,
+        Err(error) => {
+            output::print_config_error(&error.to_string());
+            return ExitCode::ConfigError;
+        }
+    };
+    let request = enforcer_domain::scan_types::ScopeRequest::All;
+    let resolved = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(resolved) => resolved,
+        Err(error) => {
+            output::print_usage_error(&error.to_string());
+            return ExitCode::UsageError;
+        }
+    };
+    let ignore_rules =
+        walk::IgnoreRules::new(config.ignore_dirs.clone(), config.ignore_file_globs.clone());
+    let files = match resolve_files(&root, &resolved, &ignore_rules) {
+        Ok(files) => files,
+        Err(error) => {
+            output::print_internal_error(&format!("walk failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    let tracked = args.tracked
+        || matches!(
+            config.generated_artifacts_mode,
+            enforcer_domain::config_types::GeneratedArtifactsMode::Tracked
+        );
+    let allowlist = config
+        .generated_artifacts_allowlist
+        .iter()
+        .map(|glob| glob.as_str().to_owned())
+        .collect::<Vec<_>>();
+    let report = match enforcer_scan::generated_artifacts::check(
+        &root,
+        resolved.kind,
+        &files,
+        tracked,
+        &allowlist,
+    ) {
+        Ok(report) => report,
+        Err(error) => {
+            output::print_internal_error(&format!("generated-artifacts failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    output::print_report(&report);
+    if report.ok == ReportOutcome::Clean {
+        ExitCode::Success
+    } else {
+        ExitCode::Violations
     }
 }
 

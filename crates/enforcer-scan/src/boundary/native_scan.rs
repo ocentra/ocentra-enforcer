@@ -195,12 +195,22 @@ pub fn execute_required_test_policy(
 pub fn execute_generated_artifacts(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
-    tracked: bool,
-    allowlist: &[String],
+    config: &enforcer_domain::config_types::EffectiveConfig,
+    tracked_override: bool,
 ) -> Result<NativeScanResult, NativeScanError> {
     let (resolved, files) = resolve_files(request, repo_root)?;
+    let tracked = tracked_override
+        || matches!(
+            config.generated_artifacts_mode,
+            enforcer_domain::config_types::GeneratedArtifactsMode::Tracked
+        );
+    let allowlist = config
+        .generated_artifacts_allowlist
+        .iter()
+        .map(|glob| glob.as_str().to_owned())
+        .collect::<Vec<_>>();
     let report =
-        crate::generated_artifacts::check(repo_root, resolved.kind, &files, tracked, allowlist)
+        crate::generated_artifacts::check(repo_root, resolved.kind, &files, tracked, &allowlist)
             .map_err(|reason| NativeScanError::Io {
                 operation: "generated-artifacts check",
                 reason,

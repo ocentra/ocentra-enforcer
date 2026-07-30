@@ -73,9 +73,20 @@ pub fn execute(
     let mut checks = Vec::new();
     for check in canonical_checks(config) {
         let report = match check.as_str() {
-            "generated-artifacts" => {
-                crate::generated_artifacts::check(root, scope, files, false, &[])?
-            }
+            "generated-artifacts" => crate::generated_artifacts::check(
+                root,
+                scope,
+                files,
+                matches!(
+                    config.generated_artifacts_mode,
+                    enforcer_domain::config_types::GeneratedArtifactsMode::Tracked
+                ),
+                &config
+                    .generated_artifacts_allowlist
+                    .iter()
+                    .map(|glob| glob.as_str().to_owned())
+                    .collect::<Vec<_>>(),
+            )?,
             "source-shape" => crate::source_shape::check(root, scope, files, config)?,
             name if rule_ids(name).is_some() => {
                 let validators =
