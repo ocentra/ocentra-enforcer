@@ -425,7 +425,7 @@ fn stdio_smoke_scan_reaches_the_native_rust_engine() -> Result<(), Box<dyn std::
 }
 
 #[test]
-fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
+fn stdio_smoke_check_no_zod_source_returns_the_typed_unavailable_refusal(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
     let src = fixture.path().join("src");
@@ -464,14 +464,13 @@ fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
             },
         }),
     )?;
-    assert_eq!(reply["result"]["command"], serde_json::json!("check"));
     assert_eq!(reply["result"]["check"], serde_json::json!("no-zod-source"));
-    assert!(reply["result"]["findings"]
-        .as_array()
-        .is_some_and(|findings| !findings.is_empty()));
-    assert!(reply["result"]["findings"]
-        .as_array()
-        .is_some_and(|findings| findings.iter().all(|finding| finding["ruleId"] == "TS-1.2")));
+    assert_eq!(reply["result"]["ok"], serde_json::json!(false));
+    assert_eq!(
+        reply["result"]["error"]["code"],
+        serde_json::json!("native_engine_not_implemented")
+    );
+    assert!(reply["result"].get("findings").is_none());
 
     drop(stdin);
     assert!(child.wait()?.success());
@@ -479,7 +478,7 @@ fn stdio_smoke_check_no_zod_source_reaches_the_native_rust_engine(
 }
 
 #[test]
-fn stdio_smoke_check_unimplemented_frozen_name_returns_a_typed_refusal(
+fn stdio_smoke_check_source_shape_reaches_the_native_policy_engine(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
     let binary = smoke_binary_path()?;
@@ -509,11 +508,12 @@ fn stdio_smoke_check_unimplemented_frozen_name_returns_a_typed_refusal(
             },
         }),
     )?;
-    assert_eq!(reply["result"]["ok"], serde_json::json!(false));
-    assert_eq!(
-        reply["result"]["error"]["code"],
-        serde_json::json!("native_engine_not_implemented")
-    );
+    assert_eq!(reply["result"]["command"], serde_json::json!("check"));
+    assert_eq!(reply["result"]["check"], serde_json::json!("source-shape"));
+    assert_eq!(reply["result"]["ok"], serde_json::json!(true));
+    assert!(reply["result"]["findings"]
+        .as_array()
+        .is_some_and(Vec::is_empty));
 
     drop(stdin);
     assert!(child.wait()?.success());
