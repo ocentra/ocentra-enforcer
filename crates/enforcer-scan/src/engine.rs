@@ -603,7 +603,10 @@ fn is_python_inline_test_marker(line: &str) -> bool {
         .chars()
         .take_while(|character| character.is_ascii_alphanumeric() || *character == '_')
         .count();
-    identifier_length > 0 && rest[identifier_length..].trim_start().starts_with('(')
+    identifier_length > 0
+        && rest
+            .get(identifier_length..)
+            .is_some_and(|suffix| suffix.trim_start().starts_with('('))
 }
 
 fn is_typescript_inline_test(line: &str) -> bool {
