@@ -244,6 +244,12 @@ pub struct ArchitectureCheckArgs {
     /// no-op.
     #[arg(long)]
     pub language: ArchitectureLanguage,
+    /// Project configuration path, matching the frozen architecture CLI.
+    #[arg(long)]
+    pub config: Option<PathBuf>,
+    /// Emit the native report as JSON.
+    #[arg(long)]
+    pub json: bool,
     #[command(flatten)]
     pub scope: ScopeArgs,
 }
@@ -506,6 +512,35 @@ mod tests {
                     assert!(args.scope.all);
                 }
             },
+            other => return Err(format!("expected Architecture, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn architecture_check_accepts_frozen_config_and_json_flags(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cli = parse(&[
+            "architecture",
+            "check",
+            "--language",
+            "rust",
+            "--config",
+            "architecture.json",
+            "--json",
+            "--all",
+        ])?;
+        match cli.command {
+            Command::Architecture {
+                action: super::ArchitectureAction::Check(args),
+            } => {
+                assert_eq!(
+                    args.config.as_deref(),
+                    Some(std::path::Path::new("architecture.json"))
+                );
+                assert!(args.json);
+                assert!(args.scope.all);
+            }
             other => return Err(format!("expected Architecture, got {other:?}").into()),
         }
         Ok(())

@@ -601,7 +601,9 @@ pub struct EffectiveConfig {
     pub rust_scan_scope: RustScanScope,
     pub source_shape_policies: Vec<SourceShapePolicy>,
     pub source_shape_overrides: Vec<SourceShapeOverride>,
-    pub architecture_policy_checks: Vec<ArchitecturePolicyCheck>,
+    /// `None` means the field was absent and therefore selects the frozen
+    /// default aggregate; `Some(vec![])` deliberately disables it.
+    pub architecture_policy_checks: Option<Vec<ArchitecturePolicyCheck>>,
     pub import_boundary_policies: Vec<ImportBoundaryPolicy>,
     pub agent_rule_max_lines: AgentRuleLineBudget,
     pub strict_empty_test_trees: StrictEmptyTestTrees,

@@ -427,17 +427,19 @@ pub(crate) fn resolve_files_with_rules(
                 }
                 let scope_request = ScopeRequest::Paths(paths.clone());
                 let resolved = scope::resolve(&scope_request, repo_root)?;
-                for path in &resolved.explicit_paths {
-                    let absolute = std::path::Path::new(repo_root.as_str()).join(path.as_str());
-                    if !absolute.is_file() {
-                        return Err(DecodeError::new(
-                            "scan.files",
-                            "each requested path must identify an existing file",
-                        )
-                        .into());
-                    }
-                }
-                let files = walk::filter_explicit(&resolved.explicit_paths, rules);
+                let files = walk::expand_explicit(
+                    std::path::Path::new(repo_root.as_str()),
+                    &resolved.explicit_paths,
+                    rules,
+                )
+                .map_err(|error| {
+                    DecodeError::new(
+                        "scan.files",
+                        format!(
+                        "each requested path must identify an existing file or directory: {error}"
+                    ),
+                    )
+                })?;
                 (scope_request, files, ScanScope::Files)
             }
             NativeScanScope::Workspace => {
@@ -648,6 +650,25 @@ mod tests {
         assert_eq!(
             files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
             ["src/lib.rs"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn files_scope_expands_declared_directories_with_repo_relative_paths(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(temp.path(), "src/lib.rs", "pub fn native_contract() {}")?;
+        write(temp.path(), "src/nested/mod.rs", "pub fn nested() {}")?;
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Files(vec!["src".into()]),
+            languages: vec![NativeScanLanguage::Rust],
+        };
+        let (resolved, files) = resolve_files(&request, &root(temp.path())?)?;
+        assert_eq!(resolved.kind, ScanScope::Files);
+        assert_eq!(
+            files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+            ["src/lib.rs", "src/nested/mod.rs"]
         );
         Ok(())
     }

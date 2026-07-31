@@ -545,7 +545,10 @@ fn run_architecture_check(args: &ArchitectureCheckArgs) -> ExitCode {
             return ExitCode::InternalError;
         }
     };
-    let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config_path = args
+        .config
+        .clone()
+        .unwrap_or_else(|| Path::new(root.as_str()).join("ocentra-enforcer.config.json"));
     let config = match enforcer_config::load_project_config_with_env(&config_path) {
         Ok(config) => config,
         Err(error) => {
@@ -571,7 +574,11 @@ fn run_architecture_check(args: &ArchitectureCheckArgs) -> ExitCode {
     };
     match enforcer_scan::architecture_policy::execute(&root, resolved.kind, &files, &config) {
         Ok(result) => {
-            output::print_report(&result.report);
+            if args.json {
+                output::print_report_json(&result.report);
+            } else {
+                output::print_report(&result.report);
+            }
             if result.report.ok == ReportOutcome::Clean {
                 ExitCode::Success
             } else {

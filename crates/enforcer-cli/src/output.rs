@@ -83,6 +83,13 @@ pub fn print_report(report: &Report) {
     }
 }
 
+/// Render the complete native report as one JSON value for machine callers.
+pub fn print_report_json(report: &Report) {
+    emit_stdout(&serde_json::to_string(report).unwrap_or_else(|error| {
+        format!("{{\"ok\":false,\"error\":\"cannot serialize report: {error}\"}}")
+    }));
+}
+
 /// Render a successful artifact path through the sole CLI stdout boundary.
 pub fn print_artifact_path(path: &std::path::Path) {
     emit_stdout(&format!("enforcer: artifact written: {}", path.display()));

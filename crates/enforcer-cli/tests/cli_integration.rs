@@ -170,6 +170,35 @@ fn run_required_tests(
 }
 
 #[test]
+fn architecture_check_honors_config_and_json_output_end_to_end(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_pass_fixture(temp.path())?;
+    std::fs::write(
+        temp.path().join("architecture.json"),
+        r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":[]}"#,
+    )?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args([
+            "architecture",
+            "check",
+            "--language",
+            "rust",
+            "--config",
+            "architecture.json",
+            "--json",
+            "--all",
+        ])
+        .output()?;
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(report["ok"], serde_json::json!(true));
+    assert_eq!(report["findings"], serde_json::json!([]));
+    Ok(())
+}
+
+#[test]
 fn required_tests_policy_honors_explicit_file_scope() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     std::fs::create_dir_all(temp.path().join("crates/covered/tests"))?;
@@ -405,6 +434,46 @@ fn base_head_mode_parses_and_routes() -> Result<(), Box<dyn std::error::Error>> 
     // gap, not this skeleton's.
     let temp = tempfile::tempdir()?;
     write_pass_fixture(temp.path())?;
+    let init = Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        init.success(),
+        "diff scope fixture must initialize a Git repository"
+    );
+    let commit = Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "add",
+            ".",
+        ])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        commit.success(),
+        "diff scope fixture must stage its baseline"
+    );
+    let commit = Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "baseline",
+        ])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        commit.success(),
+        "diff scope fixture must have a valid HEAD"
+    );
     let status = run_check(temp.path(), &["--base", "HEAD", "--head", "HEAD"])?;
     let code = status.code().ok_or("process terminated by signal")?;
     assert!(

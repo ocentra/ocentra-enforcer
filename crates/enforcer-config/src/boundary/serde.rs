@@ -807,8 +807,7 @@ pub struct WireEffectiveConfig {
     pub source_shape_policies: Vec<WireSourceShapePolicy>,
     #[serde(default)]
     pub source_shape_overrides: Vec<WireSourceShapeOverride>,
-    #[serde(default)]
-    pub architecture_policy_checks: Vec<String>,
+    pub architecture_policy_checks: Option<Vec<String>>,
     #[serde(default)]
     pub import_boundary_policies: Vec<WireImportBoundaryPolicy>,
     #[serde(default = "default_agent_rule_max_lines")]
@@ -905,9 +904,13 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
                 .collect::<Result<_, _>>()?,
             architecture_policy_checks: value
                 .architecture_policy_checks
-                .into_iter()
-                .map(ArchitecturePolicyCheck::try_new)
-                .collect::<Result<_, _>>()?,
+                .map(|checks| {
+                    checks
+                        .into_iter()
+                        .map(ArchitecturePolicyCheck::try_new)
+                        .collect()
+                })
+                .transpose()?,
             import_boundary_policies: value
                 .import_boundary_policies
                 .into_iter()
@@ -1182,11 +1185,12 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
-            architecture_policy_checks: value
-                .architecture_policy_checks
-                .into_iter()
-                .map(|value| value.as_str().to_owned())
-                .collect(),
+            architecture_policy_checks: value.architecture_policy_checks.map(|checks| {
+                checks
+                    .into_iter()
+                    .map(|value| value.as_str().to_owned())
+                    .collect()
+            }),
             import_boundary_policies: value
                 .import_boundary_policies
                 .into_iter()

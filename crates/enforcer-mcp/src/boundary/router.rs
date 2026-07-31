@@ -4481,6 +4481,35 @@ mod tests {
     }
 
     #[test]
+    fn check_architecture_policy_accepts_a_directory_files_scope(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn checked() {}")?;
+        std::fs::write(
+            temp.path().join("architecture.json"),
+            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":[]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "architecture-policy",
+                "configPath": "architecture.json",
+                "scope": "files",
+                "files": ["src"],
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("native check did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["checks"], serde_json::json!([]));
+        Ok(())
+    }
+
+    #[test]
     fn harness_query_rejects_non_integral_wire_limits() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(

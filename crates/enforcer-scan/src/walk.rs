@@ -150,6 +150,32 @@ pub fn walk(root: &Path, rules: &IgnoreRules) -> std::io::Result<Vec<RelPath>> {
     Ok(out)
 }
 
+/// Resolve explicit files and directories into one deterministic file set.
+///
+/// Unlike [`filter_explicit`], directory inputs are expanded beneath the
+/// repository root so native MCP file scopes match the frozen CLI contract.
+/// Every returned path remains repository-relative, and the same ignore rules
+/// apply to direct files and descendants.
+pub fn expand_explicit(
+    root: &Path,
+    paths: &[RelPath],
+    rules: &IgnoreRules,
+) -> std::io::Result<Vec<RelPath>> {
+    let mut out = Vec::new();
+    for path in paths {
+        let absolute = root.join(path.as_str());
+        let file_type = std::fs::metadata(&absolute)?.file_type();
+        if file_type.is_dir() {
+            walk_into(root, &absolute, rules, &mut out)?;
+        } else if file_type.is_file() && !rules.is_ignored(path) {
+            out.push(path.clone());
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
 fn walk_into(
     root: &Path,
     dir: &Path,
@@ -201,7 +227,7 @@ pub fn filter_explicit(paths: &[RelPath], rules: &IgnoreRules) -> Vec<RelPath> {
 
 #[cfg(test)]
 mod tests {
-    use super::{filter_explicit, glob_matches, walk, IgnoreRules};
+    use super::{expand_explicit, filter_explicit, glob_matches, walk, IgnoreRules};
     use std::fs;
 
     fn write_file(root: &std::path::Path, rel: &str, contents: &str) -> std::io::Result<()> {
@@ -331,6 +357,22 @@ mod tests {
         assert_eq!(
             rendered,
             vec!["a/file.rs", "b/file.rs", "targeting/source.rs"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn expand_explicit_keeps_repo_relative_directory_descendants(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(temp.path(), "src/lib.rs", "pub fn lib() {}")?;
+        write_file(temp.path(), "src/nested/mod.rs", "pub fn nested() {}")?;
+        write_file(temp.path(), "target/generated.rs", "generated")?;
+        let paths = vec!["src".parse()?];
+        let files = expand_explicit(temp.path(), &paths, &IgnoreRules::default())?;
+        assert_eq!(
+            files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+            vec!["src/lib.rs", "src/nested/mod.rs"]
         );
         Ok(())
     }

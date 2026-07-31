@@ -38,15 +38,11 @@ pub struct ArchitecturePolicyAggregate {
 }
 
 pub fn canonical_checks(config: &EffectiveConfig) -> Vec<String> {
-    let configured: Vec<&str> = if config.architecture_policy_checks.is_empty() {
-        DEFAULT_CHECKS.to_vec()
-    } else {
-        config
-            .architecture_policy_checks
-            .iter()
-            .map(ArchitecturePolicyCheck::as_str)
-            .collect()
-    };
+    let configured: Vec<&str> = config
+        .architecture_policy_checks
+        .as_deref()
+        .map(|checks| checks.iter().map(ArchitecturePolicyCheck::as_str).collect())
+        .unwrap_or_else(|| DEFAULT_CHECKS.to_vec());
     let mut out = Vec::new();
     for raw in configured {
         let value = canonical(raw);
@@ -57,6 +53,7 @@ pub fn canonical_checks(config: &EffectiveConfig) -> Vec<String> {
     out
 }
 fn canonical(value: &str) -> &str {
+    let value = value.trim().strip_prefix("check-").unwrap_or(value.trim());
     match value {
         "check-source-shape" => "source-shape",
         "check-required-tests" => "required-tests",
@@ -76,6 +73,8 @@ pub fn execute(
     config: &EffectiveConfig,
 ) -> Result<ArchitecturePolicyAggregate, String> {
     let mut findings = Vec::new();
+    let mut warnings = Vec::new();
+    let mut waived = Vec::new();
     let mut checks = Vec::new();
     for check in canonical_checks(config) {
         let report = match check.as_str() {
@@ -128,6 +127,8 @@ pub fn execute(
             unavailable,
             violations: report.violations.len(),
         });
+        warnings.extend(report.warnings.iter().cloned());
+        waived.extend(report.waived.iter().cloned());
         findings.extend(report.findings);
     }
     let violations = findings
@@ -144,8 +145,8 @@ pub fn execute(
             },
             scope,
             violations,
-            warnings: Vec::new(),
-            waived: Vec::new(),
+            warnings,
+            waived,
             findings,
         },
         checks,
@@ -246,6 +247,41 @@ mod tests {
                 "source-shape",
                 "generated-artifacts"
             ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn absent_checks_select_defaults_but_explicit_empty_disables_aggregate(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::write(
+            temp.path().join("absent.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        std::fs::write(
+            temp.path().join("empty.json"),
+            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":[]}"#,
+        )?;
+        let absent = load_project_config(&temp.path().join("absent.json"))?;
+        let empty = load_project_config(&temp.path().join("empty.json"))?;
+        assert!(canonical_checks(&absent).contains(&"generated-artifacts".to_owned()));
+        assert!(canonical_checks(&empty).is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn check_prefixed_and_whitespace_padded_aliases_normalize_like_frozen_cli(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::write(
+            temp.path().join("c.json"),
+            r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":[" check-rust-string-boundaries "," check-source-shape "]}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("c.json"))?;
+        assert_eq!(
+            canonical_checks(&config),
+            vec!["no-naked-domain-strings", "source-shape"]
         );
         Ok(())
     }
