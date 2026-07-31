@@ -1062,14 +1062,18 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "import-boundaries" => named_import_boundaries_unrecorded(&native_args),
         "literal-risk" => named_literal_risk_unrecorded(&native_args),
         "reexports" => named_reexports_unrecorded(&native_args),
-        "no-naked-domain-strings" | "rust-string-boundaries" => named_rust_string_boundaries_unrecorded(&native_args),
+        "no-naked-domain-strings" | "rust-string-boundaries" => {
+            named_rust_string_boundaries_unrecorded(&native_args)
+        }
         "no-zod-source"
-        | "no-test-doubles" | "weak-assertions" | "skipped-focused-tests"
-        | "validation-bypass" | "placeholder-implementation"
-        | "cross-platform-script-commands" => named_check_rejection(
-            name,
-            "narrow_native_engine_not_implemented: broad scan filtering is not a named-policy implementation",
-        ),
+        | "no-test-doubles"
+        | "weak-assertions"
+        | "skipped-focused-tests"
+        | "validation-bypass"
+        | "placeholder-implementation"
+        | "cross-platform-script-commands" => {
+            named_architecture_rule_family_unrecorded(&native_args, name)
+        }
         "required-tests" => named_required_tests_unrecorded(&native_args),
         "sbom" => named_sbom_unrecorded(&native_args),
         "source-shape" => named_source_shape_unrecorded(&native_args),
@@ -1413,6 +1417,20 @@ fn named_reexports_unrecorded(args: &serde_json::Value) -> serde_json::Value {
         Err(error) => return json_error(&error),
     };
     enforcer_scan::boundary::native_scan::execute_reexports_policy(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_architecture_rule_family_unrecorded(
+    args: &serde_json::Value,
+    check: &str,
+) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_architecture_rule_family(&request, &root, check)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
@@ -3653,7 +3671,7 @@ mod tests {
     }
 
     #[test]
-    fn check_no_zod_source_refuses_until_a_narrow_native_policy_lands(
+    fn check_no_zod_source_executes_its_native_architecture_family(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
@@ -3678,11 +3696,10 @@ mod tests {
         };
         assert_eq!(value["check"], serde_json::json!("no-zod-source"));
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert_eq!(
-            value["error"]["code"],
-            serde_json::json!("native_engine_not_implemented")
-        );
-        assert!(value.get("findings").is_none());
+        assert!(value.get("error").is_none());
+        assert!(value["findings"].as_array().is_some_and(|findings| findings
+            .iter()
+            .any(|finding| finding["ruleId"] == "TS-1.2" && finding["file"] == "src/schema.ts")));
         Ok(())
     }
 
@@ -4137,7 +4154,7 @@ mod tests {
     }
 
     #[test]
-    fn run_status_does_not_record_a_refused_named_check_as_validation(
+    fn run_status_records_an_executed_named_check_as_validation(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let src = temp.path().join("src");
@@ -4149,7 +4166,13 @@ mod tests {
             &serde_json::json!({ "root": temp.path().to_string_lossy(), "check": "no-zod-source", "files": ["src/schema.ts"] }),
             &context,
         );
-        assert!(matches!(check, DispatchOutcome::Result(_)));
+        let DispatchOutcome::Result(value) = check else {
+            return Err("native no-zod-source check did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"]
+            .as_array()
+            .is_some_and(|findings| findings.iter().any(|finding| finding["ruleId"] == "TS-1.2")));
         let status = dispatch(
             &tool("ocentra_enforcer_run_status")?,
             &serde_json::json!({ "root": temp.path().to_string_lossy(), "tool": "check" }),
@@ -4158,9 +4181,8 @@ mod tests {
         let DispatchOutcome::Result(value) = status else {
             return Err("run status did not produce a result".into());
         };
-        assert_eq!(value["summaryType"], serde_json::json!("none"));
-        assert_eq!(value["summary"], serde_json::Value::Null);
-        assert!(value.get("artifact").is_none());
+        assert_eq!(value["summaryType"], serde_json::json!("validation"));
+        assert_ne!(value["summary"], serde_json::Value::Null);
         Ok(())
     }
 
@@ -5101,7 +5123,8 @@ mod tests {
         Ok(())
     }
     #[test]
-    fn unavailable_default_checks_refuse_explicitly() -> Result<(), Box<dyn std::error::Error>> {
+    fn default_architecture_families_are_independently_callable(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         for check in [
             "no-zod-source",
@@ -5119,10 +5142,13 @@ mod tests {
             ) else {
                 return Err("refusal did not dispatch".into());
             };
-            assert_eq!(value["ok"], serde_json::json!(false));
-            assert_eq!(
-                value["error"]["code"],
-                serde_json::json!("native_engine_not_implemented")
+            assert!(
+                value.get("error").is_none(),
+                "{check} must execute natively"
+            );
+            assert!(
+                value.get("findings").is_some(),
+                "{check} must return a report"
             );
         }
         Ok(())

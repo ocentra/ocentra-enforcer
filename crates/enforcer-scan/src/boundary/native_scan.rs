@@ -402,6 +402,26 @@ pub fn execute_architecture_policy(
     )
 }
 
+/// Execute one named family already owned by the architecture-policy engine.
+pub fn execute_architecture_rule_family(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    check: &str,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report =
+        crate::architecture_policy::execute_rule_family(repo_root, resolved.kind, &files, check)
+            .map_err(|reason| NativeScanError::Io {
+                operation: "architecture named check",
+                reason,
+            })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,

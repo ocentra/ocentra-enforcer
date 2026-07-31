@@ -93,31 +93,7 @@ pub fn execute(
                     .collect::<Vec<_>>(),
             )?,
             "source-shape" => crate::source_shape::check(root, scope, files, config)?,
-            name if rule_ids(name).is_some() => {
-                let validators =
-                    crate::engine::build_family_validators().map_err(|error| error.to_string())?;
-                let resolved = enforcer_domain::scan_types::ResolvedScope {
-                    kind: scope,
-                    repo_root: root.clone(),
-                    explicit_paths: Vec::new(),
-                    diff_range: None,
-                };
-                let mut report = crate::engine::run(&resolved, files, &validators);
-                let ids = rule_ids(name)
-                    .ok_or_else(|| format!("missing native rule mapping for {name}"))?;
-                report
-                    .findings
-                    .retain(|finding| ids.contains(&finding.rule_id.as_str()));
-                report
-                    .violations
-                    .retain(|violation| ids.contains(&violation.finding().rule_id.as_str()));
-                report.ok = if report.violations.is_empty() {
-                    ReportOutcome::Clean
-                } else {
-                    ReportOutcome::Violations
-                };
-                report
-            }
+            name if rule_ids(name).is_some() => execute_rule_family(root, scope, files, name)?,
             _ => unavailable(root, scope, &check),
         };
         let unavailable = check_result_unavailable(&report);
@@ -151,6 +127,38 @@ pub fn execute(
         },
         checks,
     })
+}
+
+/// Execute one architecture-policy rule family through the same validator
+/// registry used by the configured aggregate. This is the native named-check
+/// seam: it is not a filtered result manufactured by an MCP adapter.
+pub fn execute_rule_family(
+    root: &RepoRoot,
+    scope: ScanScope,
+    files: &[RelPath],
+    name: &str,
+) -> Result<Report, String> {
+    let ids = rule_ids(name).ok_or_else(|| format!("missing native rule mapping for {name}"))?;
+    let validators = crate::engine::build_family_validators().map_err(|error| error.to_string())?;
+    let resolved = enforcer_domain::scan_types::ResolvedScope {
+        kind: scope,
+        repo_root: root.clone(),
+        explicit_paths: Vec::new(),
+        diff_range: None,
+    };
+    let mut report = crate::engine::run(&resolved, files, &validators);
+    report
+        .findings
+        .retain(|finding| ids.contains(&finding.rule_id.as_str()));
+    report
+        .violations
+        .retain(|violation| ids.contains(&violation.finding().rule_id.as_str()));
+    report.ok = if report.violations.is_empty() {
+        ReportOutcome::Clean
+    } else {
+        ReportOutcome::Violations
+    };
+    Ok(report)
 }
 fn rule_ids(name: &str) -> Option<&'static [&'static str]> {
     Some(match name {

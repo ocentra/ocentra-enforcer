@@ -193,6 +193,34 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "validation-bypass" => ["RR-2.1", "RR-2.2", "TS-2.1", "PY-1.1", "PY-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "placeholder-implementation" => ["RR-4.2", "RR-4.3", "SRC-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "skipped-focused-tests" => ["TS-3.1", "PY-2.1", "TEST-1.3"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "weak-assertions" => ["TEST-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "no-zod-source" => ["TS-1.2"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "no-test-doubles" => ["TEST-1.1", "TS-8.8"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
+                "cross-platform-script-commands" => ["PORT-1.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
                 "reexports" => ["T1-NOREEXPORT.1"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
@@ -861,8 +889,8 @@ mod tests {
             return Err("no-zod-source must be declared".into());
         };
         assert!(
-            !is_wired(zod),
-            "declared frozen checks without a narrow native engine must not be advertised as wired"
+            is_wired(zod),
+            "no-zod-source now executes through the shared architecture rule-family executor"
         );
         let wired: BTreeSet<&str> = backing
             .iter()
@@ -872,9 +900,14 @@ mod tests {
         assert_eq!(
             wired,
             BTreeSet::from([
+                "cross-platform-script-commands",
                 "no-naked-domain-strings",
+                "no-test-doubles",
+                "no-zod-source",
+                "placeholder-implementation",
                 "reexports",
                 "secrets",
+                "skipped-focused-tests",
                 "dependency-policy",
                 "sbom",
                 "literal-risk",
@@ -886,6 +919,8 @@ mod tests {
                 "architecture-policy",
                 "single-source-contracts",
                 "ai-rule-index",
+                "validation-bypass",
+                "weak-assertions",
             ])
         );
         Ok(())
