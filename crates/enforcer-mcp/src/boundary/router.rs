@@ -1063,6 +1063,7 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "literal-risk" => named_literal_risk_unrecorded(&native_args),
         "reexports" => named_reexports_unrecorded(&native_args),
         "mutation-risk" => named_mutation_risk_unrecorded(&native_args),
+        "docs-completeness" => named_docs_completeness_unrecorded(&native_args),
         "no-naked-domain-strings" | "rust-string-boundaries" => {
             named_rust_string_boundaries_unrecorded(&native_args)
         }
@@ -1436,6 +1437,17 @@ fn named_mutation_risk_unrecorded(args: &serde_json::Value) -> serde_json::Value
     .map_err(|error| error.to_string())
     .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
     .unwrap_or_else(|error| json_error(&error))
+}
+
+fn named_docs_completeness_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_docs_completeness(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
 }
 
 fn named_architecture_rule_family_unrecorded(

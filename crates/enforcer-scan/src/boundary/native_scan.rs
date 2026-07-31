@@ -260,6 +260,26 @@ pub fn execute_mutation_risk_policy(
     })
 }
 
+/// Execute the standalone documentation-completeness policy. Its authority is
+/// the checked-in registry and rule-doc tree, so scope only labels the report.
+pub fn execute_docs_completeness(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = crate::docs_completeness::check(repo_root, resolved.kind).map_err(|reason| {
+        NativeScanError::Io {
+            operation: "docs-completeness check",
+            reason,
+        }
+    })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the Rust-only implementation of `no-naked-domain-strings`.
 pub fn execute_rust_string_boundaries_policy(
     request: &NativeScanRequest,

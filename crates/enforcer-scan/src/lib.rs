@@ -53,6 +53,7 @@ pub mod architecture_policy;
 pub mod boundary;
 pub mod cargo_workspace_policy;
 pub mod coverage;
+pub mod docs_completeness;
 pub mod doctor;
 pub mod engine;
 pub mod generated_artifacts;

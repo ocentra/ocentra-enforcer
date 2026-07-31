@@ -233,6 +233,21 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "docs-completeness" => [
+                    "DOCENF-1.1",
+                    "DOCENF-1.2",
+                    "DOCENF-1.3",
+                    "DOCENF-1.4",
+                    "DOCENF-1.5",
+                    "DOCENF-1.6",
+                    "DOCENF-1.7",
+                    "DOCENF-1.8",
+                    "DOCENF-1.9",
+                    "DOCENF-1.10",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
                 "source-shape" => [
                     "SRC-1.1", "SRC-2.1", "SRC-2.2", "SRC-2.4", "SRC-2.5", "SRC-2.6", "SRC-2.7",
                 ]
