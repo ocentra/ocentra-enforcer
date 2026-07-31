@@ -192,6 +192,9 @@ pub enum PolicyAction {
     /// inventory when configuration or `--tracked` requests it.
     #[command(name = "generated-artifacts")]
     GeneratedArtifacts(GeneratedArtifactsArgs),
+    /// Report policy-critical mutations and the complete required proof set.
+    #[command(name = "mutation-risk")]
+    MutationRisk(MutationRiskArgs),
     #[command(name = "single-source-contracts")]
     SingleSourceContracts(SingleSourceContractsArgs),
     #[command(name = "ai-rule-index")]
@@ -222,6 +225,13 @@ pub struct GeneratedArtifactsArgs {
     /// Include Git tracked files even when project configuration uses scope mode.
     #[arg(long)]
     pub tracked: bool,
+}
+#[derive(Debug, Args)]
+pub struct MutationRiskArgs {
+    /// Limit mutation-risk to explicit paths or an explicit Git diff. `--all`
+    /// is intentionally rejected: a workspace walk is not a mutation set.
+    #[command(flatten)]
+    pub scope: ScopeArgs,
 }
 
 #[derive(Debug, Args)]

@@ -239,6 +239,27 @@ pub fn execute_reexports_policy(
     })
 }
 
+/// Execute frozen-MJS `mutation-risk` parity over exactly the typed request
+/// scope. This is a dedicated path policy, never a filtered broad scan.
+pub fn execute_mutation_risk_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    policy: &crate::mutation_risk::MutationRiskPolicy,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let report = crate::mutation_risk::check(resolved.kind, &files, policy).map_err(|reason| {
+        NativeScanError::Io {
+            operation: "mutation-risk check",
+            reason,
+        }
+    })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the Rust-only implementation of `no-naked-domain-strings`.
 pub fn execute_rust_string_boundaries_policy(
     request: &NativeScanRequest,

@@ -14,7 +14,8 @@ use enforcer_scan::{engine, walk};
 
 use crate::cli::{
     AiRuleIndexArgs, ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs,
-    PolicyAction, RequiredTestsArgs, SbomArgs, ScopeArgs, SingleSourceContractsArgs, VerifyArgs,
+    MutationRiskArgs, PolicyAction, RequiredTestsArgs, SbomArgs, ScopeArgs,
+    SingleSourceContractsArgs, VerifyArgs,
 };
 use crate::output;
 
@@ -175,8 +176,61 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
         PolicyAction::Sbom(args) => run_sbom_policy(args),
         PolicyAction::RequiredTests(args) => run_required_tests_policy(args),
         PolicyAction::GeneratedArtifacts(args) => run_generated_artifacts_policy(args),
+        PolicyAction::MutationRisk(args) => run_mutation_risk_policy(args),
         PolicyAction::SingleSourceContracts(args) => run_single_source_contracts_policy(args),
         PolicyAction::AiRuleIndex(args) => run_ai_rule_index_policy(args),
+    }
+}
+fn run_mutation_risk_policy(args: &MutationRiskArgs) -> ExitCode {
+    let request = match crate::scope::resolve_request(&args.scope) {
+        Ok(enforcer_domain::scan_types::ScopeRequest::All) => {
+            output::print_usage_error("mutation-risk requires explicit paths or --base <sha> --head <sha>; --all is not a mutation set");
+            return ExitCode::UsageError;
+        }
+        Ok(request) => request,
+        Err(error) => {
+            output::print_usage_error(&error);
+            return ExitCode::UsageError;
+        }
+    };
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(error) => {
+            output::print_internal_error(&error);
+            return ExitCode::InternalError;
+        }
+    };
+    let resolved = match enforcer_scan::scope::resolve(&request, &root) {
+        Ok(value) => value,
+        Err(error) => {
+            output::print_usage_error(&error.to_string());
+            return ExitCode::UsageError;
+        }
+    };
+    let files = match resolve_files(&root, &resolved, &walk::IgnoreRules::default()) {
+        Ok(files) => files,
+        Err(error) => {
+            output::print_internal_error(&format!("mutation-risk file resolution failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    match enforcer_scan::mutation_risk::check(
+        resolved.kind,
+        &files,
+        &enforcer_scan::mutation_risk::MutationRiskPolicy::default(),
+    ) {
+        Ok(report) => {
+            output::print_report(&report);
+            if report.ok == ReportOutcome::Clean {
+                ExitCode::Success
+            } else {
+                ExitCode::Violations
+            }
+        }
+        Err(error) => {
+            output::print_internal_error(&format!("mutation-risk failed: {error}"));
+            ExitCode::InternalError
+        }
     }
 }
 fn run_ai_rule_index_policy(args: &AiRuleIndexArgs) -> ExitCode {

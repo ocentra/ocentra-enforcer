@@ -229,6 +229,10 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "mutation-risk" => ["ENF-2.1"]
+                    .into_iter()
+                    .filter_map(|raw| raw.parse::<RuleId>().ok())
+                    .collect(),
                 "source-shape" => [
                     "SRC-1.1", "SRC-2.1", "SRC-2.2", "SRC-2.4", "SRC-2.5", "SRC-2.6", "SRC-2.7",
                 ]

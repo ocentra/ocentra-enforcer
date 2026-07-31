@@ -58,6 +58,7 @@ pub mod engine;
 pub mod generated_artifacts;
 pub mod import_boundaries;
 pub mod modes;
+pub mod mutation_risk;
 pub mod onboard;
 pub mod outcome;
 pub mod router;
