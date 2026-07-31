@@ -4476,6 +4476,47 @@ mod tests {
     }
 
     #[test]
+    fn check_mutation_risk_reaches_the_native_executor() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::write(temp.path().join("Cargo.lock"), "lock")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"mutation-risk", "scope":"files", "files":["Cargo.lock"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("mutation-risk did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("mutation-risk"));
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["findings"][0]["ruleId"], serde_json::json!("ENF-2.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn check_docs_completeness_reaches_the_native_executor(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("rules/common"))?;
+        std::fs::write(temp.path().join("rules/rules.json"), r#"{"rules":[]}"#)?;
+        std::fs::write(temp.path().join("rules/common/rule.md"), "# incomplete\n")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"docs-completeness", "scope":"workspace"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("docs-completeness did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("docs-completeness"));
+        assert_eq!(
+            value["findings"][0]["ruleId"],
+            serde_json::json!("DOCENF-1.1")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn check_source_shape_masks_typescript_template_data_through_the_named_route(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;

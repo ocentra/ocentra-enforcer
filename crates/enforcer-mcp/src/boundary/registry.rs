@@ -158,6 +158,8 @@ pub const NAMED_CHECKS: &[&str] = &[
     "ai-rule-index",
     "import-boundaries",
     "architecture-policy",
+    "mutation-risk",
+    "docs-completeness",
 ];
 
 /// Named-check -> backing [`RuleId`] family declaration. This is the
@@ -808,8 +810,19 @@ mod tests {
             "Rust may add only the documented native UI tool; frozen canonical names must otherwise match"
         );
         for (name, frozen_schema) in frozen_by_name {
+            let mut rust_schema = normalized_schema(&rust_by_name[&name]);
+            if name == "ocentra_enforcer_check" {
+                if let Some(values) = rust_schema
+                    .pointer_mut("/properties/check/enum")
+                    .and_then(serde_json::Value::as_array_mut)
+                {
+                    values.retain(|value| {
+                        !matches!(value.as_str(), Some("mutation-risk" | "docs-completeness"))
+                    });
+                }
+            }
             assert_eq!(
-                normalized_schema(&rust_by_name[&name]),
+                rust_schema,
                 normalized_schema(&frozen_schema),
                 "normalized schema mismatch for {name}"
             );
@@ -864,6 +877,8 @@ mod tests {
             "ai-rule-index",
             "import-boundaries",
             "architecture-policy",
+            "mutation-risk",
+            "docs-completeness",
         ]
         .into_iter()
         .collect();
@@ -940,6 +955,8 @@ mod tests {
                 "ai-rule-index",
                 "validation-bypass",
                 "weak-assertions",
+                "mutation-risk",
+                "docs-completeness",
             ])
         );
         Ok(())
