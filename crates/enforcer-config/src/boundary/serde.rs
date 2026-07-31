@@ -30,6 +30,9 @@ use crate::profiles::KNOWN_PROFILE_NAMES;
 use crate::project_tie::ProjectConfig;
 use enforcer_domain::boundary::decode_error::DecodeError;
 
+#[path = "serde/diagnostics.rs"]
+pub mod diagnostics;
+
 const STRICT_JSON: &str = include_str!("../../profiles/strict.json");
 const DEFAULT_JSON: &str = include_str!("../../profiles/default.json");
 const OCENTRA_ENFORCER_JSON: &str = include_str!("../../profiles/ocentra-enforcer.json");

@@ -280,6 +280,53 @@ pub fn execute_docs_completeness(
     })
 }
 
+pub fn execute_config_lockdown(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let root = std::path::Path::new(repo_root.as_str());
+    let report = crate::config_lockdown::check_config_lockdown(
+        &root.join("ocentra-enforcer.config.json"),
+        root,
+        resolved.kind,
+    )
+    .map_err(|reason| NativeScanError::Io {
+        operation: "config-lockdown check",
+        reason,
+    })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
+/// Execute the native waiver governance policy. This deliberately shares the
+/// config diagnostic ingress with `config-lockdown` but has its own report
+/// family and never falls back to a broad source scan.
+pub fn execute_waiver_policy(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+) -> Result<NativeScanResult, NativeScanError> {
+    let (resolved, files) = resolve_files(request, repo_root)?;
+    let root = std::path::Path::new(repo_root.as_str());
+    let report = crate::config_lockdown::check_waiver_policy(
+        &root.join("ocentra-enforcer.config.json"),
+        root,
+        resolved.kind,
+    )
+    .map_err(|reason| NativeScanError::Io {
+        operation: "waiver-policy check",
+        reason,
+    })?;
+    Ok(NativeScanResult {
+        scope: resolved.kind,
+        scanned_files: files,
+        report,
+    })
+}
+
 /// Execute the Rust-only implementation of `no-naked-domain-strings`.
 pub fn execute_rust_string_boundaries_policy(
     request: &NativeScanRequest,

@@ -1064,6 +1064,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "reexports" => named_reexports_unrecorded(&native_args),
         "mutation-risk" => named_mutation_risk_unrecorded(&native_args),
         "docs-completeness" => named_docs_completeness_unrecorded(&native_args),
+        "config-lockdown" => named_config_lockdown_unrecorded(&native_args),
+        "waiver-policy" => named_waiver_policy_unrecorded(&native_args),
         "no-naked-domain-strings" | "rust-string-boundaries" => {
             named_rust_string_boundaries_unrecorded(&native_args)
         }
@@ -1445,6 +1447,26 @@ fn named_docs_completeness_unrecorded(args: &serde_json::Value) -> serde_json::V
         Err(error) => return json_error(&error),
     };
     enforcer_scan::boundary::native_scan::execute_docs_completeness(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+fn named_config_lockdown_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_config_lockdown(&request, &root)
+        .map_err(|error| error.to_string())
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .unwrap_or_else(|error| json_error(&error))
+}
+fn named_waiver_policy_unrecorded(args: &serde_json::Value) -> serde_json::Value {
+    let (root, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    enforcer_scan::boundary::native_scan::execute_waiver_policy(&request, &root)
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
         .unwrap_or_else(|error| json_error(&error))
@@ -4513,6 +4535,55 @@ mod tests {
             value["findings"][0]["ruleId"],
             serde_json::json!("DOCENF-1.1")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn check_config_lockdown_reaches_the_native_executor() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("rules"))?;
+        std::fs::write(temp.path().join("rules/rules.json"), r#"{"rules":[]}"#)?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"strict","failOn":[]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"config-lockdown", "scope":"workspace"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("config-lockdown did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("config-lockdown"));
+        assert!(value["findings"].as_array().is_some_and(|findings| findings
+            .iter()
+            .any(|finding| finding["ruleId"] == "CFG-1.1")));
+        Ok(())
+    }
+
+    #[test]
+    fn check_waiver_policy_reaches_the_native_executor() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("rules"))?;
+        std::fs::write(temp.path().join("rules/rules.json"), r#"{"rules":[]}"#)?;
+        std::fs::write(
+            temp.path().join("ocentra-enforcer.config.json"),
+            r#"{"schemaVersion":2,"profileName":"strict","waivers":[{}]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"waiver-policy", "scope":"workspace"}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("waiver-policy did not dispatch".into());
+        };
+        assert_eq!(value["check"], serde_json::json!("waiver-policy"));
+        assert!(value["findings"].as_array().is_some_and(|findings| findings
+            .iter()
+            .any(|finding| finding["ruleId"] == "WAIVER-1.1")));
         Ok(())
     }
 

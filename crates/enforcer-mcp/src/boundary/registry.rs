@@ -160,6 +160,8 @@ pub const NAMED_CHECKS: &[&str] = &[
     "architecture-policy",
     "mutation-risk",
     "docs-completeness",
+    "config-lockdown",
+    "waiver-policy",
 ];
 
 /// Named-check -> backing [`RuleId`] family declaration. This is the
@@ -272,6 +274,28 @@ pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
                     .collect(),
+                "config-lockdown" => [
+                    "CFG-1.1", "CFG-1.2", "CFG-1.3", "CFG-1.4", "CFG-1.5", "CFG-1.6", "CFG-1.7",
+                    "CFG-1.8", "CFG-1.9", "CFG-1.10", "CFG-1.11", "CFG-1.12", "ENF-1.3",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
+                "waiver-policy" => [
+                    "WAIVER-1.1",
+                    "WAIVER-1.2",
+                    "WAIVER-1.3",
+                    "WAIVER-1.4",
+                    "WAIVER-1.5",
+                    "WAIVER-1.6",
+                    "WAIVER-1.7",
+                    "WAIVER-1.8",
+                    "WAIVER-1.9",
+                    "WAIVER-1.10",
+                ]
+                .into_iter()
+                .filter_map(|raw| raw.parse::<RuleId>().ok())
+                .collect(),
                 "sbom" => ["SBOM-1.1"]
                     .into_iter()
                     .filter_map(|raw| raw.parse::<RuleId>().ok())
@@ -817,7 +841,15 @@ mod tests {
                     .and_then(serde_json::Value::as_array_mut)
                 {
                     values.retain(|value| {
-                        !matches!(value.as_str(), Some("mutation-risk" | "docs-completeness"))
+                        !matches!(
+                            value.as_str(),
+                            Some(
+                                "mutation-risk"
+                                    | "docs-completeness"
+                                    | "config-lockdown"
+                                    | "waiver-policy"
+                            )
+                        )
                     });
                 }
             }
@@ -879,6 +911,8 @@ mod tests {
             "architecture-policy",
             "mutation-risk",
             "docs-completeness",
+            "config-lockdown",
+            "waiver-policy",
         ]
         .into_iter()
         .collect();
@@ -957,6 +991,8 @@ mod tests {
                 "weak-assertions",
                 "mutation-risk",
                 "docs-completeness",
+                "config-lockdown",
+                "waiver-policy",
             ])
         );
         Ok(())

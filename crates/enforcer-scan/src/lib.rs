@@ -52,6 +52,7 @@ pub mod ai_rule_index;
 pub mod architecture_policy;
 pub mod boundary;
 pub mod cargo_workspace_policy;
+pub mod config_lockdown;
 pub mod coverage;
 pub mod docs_completeness;
 pub mod doctor;
