@@ -22,6 +22,8 @@ This plan makes the harness—not an AI review—the acceptance authority.  MJS 
 
 `dogfood.yml` correctly pins the current public frozen oracle `267af94b701bd592e01a47649e3c18c26ee04239`. RM00's blocker is instead split runtime authority: the live private overlay is based on `d7162b617` and lacks the public `267af94` safety fix. Public closure requires an aggregate union/equal-or-stricter proof of the public behavior at `267af94` plus the overlay's two exact allowlisted behaviors.
 
+RM00 is accepted by the machine-readable [authority manifest](authority/RM00_AUTHORITY.json). Later audits consume its exact SHAs and behavior IDs; they do not reinterpret branch names.
+
 ## Acceptance model
 
 A capability is closed only when the same exact target SHA and fixture input yield a native result that is equal-or-stricter than the public frozen oracle, with documented scope, normalized diagnostics, exit semantics, and retained evidence. A missing tool, timeout, private-overlay-dependent pass, or unexplained delta is a failure to close—not a pass.

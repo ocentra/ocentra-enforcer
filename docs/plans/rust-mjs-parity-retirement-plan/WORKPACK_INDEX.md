@@ -2,8 +2,8 @@
 
 | ID | Workpack | Owner | Depends on | Batch | Status |
 |---|---|---|---|---|---|
-| RM00 | [Authority freeze](workpacks/rm00-authority-freeze.md) | boss/Sol | none | one manifest | READY |
-| RM01 | [Capability inventory](workpacks/rm01-capability-inventory.md) | boss + Luna audits | RM00 | <=40 rows | BLOCKED |
+| RM00 | [Authority freeze](workpacks/rm00-authority-freeze.md) | boss/Sol | none | one manifest | ACCEPTED |
+| RM01 | [Capability inventory](workpacks/rm01-capability-inventory.md) | boss + Luna audits | RM00 | <=40 rows | READY-AUDIT |
 | RM02 | [CLI and scanner oracle](workpacks/rm02-cli-scanner-oracle.md) | Luna read-only | RM01 | <=15 commands | BLOCKED |
 | RM03 | [MCP oracle](workpacks/rm03-mcp-oracle.md) | Luna read-only | RM01 | <=10 tools | BLOCKED |
 | RM04 | [Config, rule, route, proof oracle](workpacks/rm04-config-rule-proof-oracle.md) | Luna read-only | RM01 | <=25 rules | BLOCKED |

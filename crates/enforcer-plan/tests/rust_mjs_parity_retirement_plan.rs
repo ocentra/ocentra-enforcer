@@ -142,3 +142,62 @@ fn parity_retirement_plan_forbids_mjs_fallback_at_closure() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn rm00_manifest_pins_public_plus_exact_overlay_authority() -> TestResult {
+    let root = workspace_root()?;
+    let raw = std::fs::read_to_string(
+        root.join("docs/plans/rust-mjs-parity-retirement-plan/authority/RM00_AUTHORITY.json"),
+    )?;
+    let manifest: serde_json::Value = serde_json::from_str(&raw)?;
+
+    assert_eq!(
+        manifest
+            .pointer("/schemaVersion")
+            .and_then(serde_json::Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        manifest
+            .pointer("/authorities/publicFrozenOracle/sha")
+            .and_then(serde_json::Value::as_str),
+        Some("267af94b701bd592e01a47649e3c18c26ee04239")
+    );
+    assert_eq!(
+        manifest
+            .pointer("/authorities/provenanceBase/role")
+            .and_then(serde_json::Value::as_str),
+        Some("common-fork-provenance-only")
+    );
+    assert_eq!(
+        manifest
+            .pointer("/authorities/privateOverlay/publicVerdictAuthority")
+            .and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        manifest
+            .pointer("/overlayBehaviors/0/id")
+            .and_then(serde_json::Value::as_str),
+        Some("private-rust-test-module-exact-match")
+    );
+    assert_eq!(
+        manifest
+            .pointer("/overlayBehaviors/1/id")
+            .and_then(serde_json::Value::as_str),
+        Some("private-rust-test-module-policy-preservation")
+    );
+    assert_eq!(
+        manifest
+            .pointer("/aggregateParityContract/candidateVerdict")
+            .and_then(serde_json::Value::as_str),
+        Some("equal-or-stricter")
+    );
+    assert_eq!(
+        manifest
+            .pointer("/aggregateParityContract/privateOverlayMayProducePublicPass")
+            .and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    Ok(())
+}

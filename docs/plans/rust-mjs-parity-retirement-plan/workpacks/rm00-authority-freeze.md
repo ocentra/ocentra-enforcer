@@ -24,6 +24,8 @@ One machine-readable authority record names the current public oracle, provenanc
 
 Verify all SHAs and current CI references; prove the overlay cannot participate in public verdict generation. The RM11 aggregate must prove the union/equal-or-stricter result of public `267af94` behavior plus the overlay's two exact allowlisted behaviors.
 
+Accepted artifact: [`../authority/RM00_AUTHORITY.json`](../authority/RM00_AUTHORITY.json). It records the exact Git relationships, both dogfood pin anchors, both overlay behavior IDs and source commits, and the no-merge/no-public-pass prohibitions. RM01 must use this artifact verbatim.
+
 ## Stop Rules
 
 Stop if split runtime authority is not modeled, any authority is mutable, the two exact overlay behaviors are not enumerated, or an overlay can affect a public pass. No Luna child may edit this surface.
