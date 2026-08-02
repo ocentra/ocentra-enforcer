@@ -18,6 +18,8 @@
 
 Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
+Execution refinement: [Universal Language Enforcement](../../universal-language-enforcement-plan/README.md) UL01 is the canonical shape-driven doctrine contract. It preserves this workpack's requirement-versus-framework separation while deriving language/framework capability from shared facts and profiles. This historical p01 row must not be implemented as a competing resolver or hard-coded framework list; its accepted requirements feed UL01 and its later framework-adapter workpacks.
+
 ## Where We Are
 The doctrine layer — parse-at-boundary, schemas required, no raw strings crossing a boundary, brand domain values — is universal and correct. But the *library* that satisfies it is currently hard-coded. The `.mjs` rules (and the Rust rules that inherit their intent, e.g. `e-pack-frontend-react`'s `FE-EFFECT-1.1` banning Zod and mandating Effect Schema) treat **Effect** as the one true schema library and flag every alternative. That is the OWNER'S personal default, not a universal law: parse-at-boundary is equally satisfied by `zod`/`valibot` in TS, `pydantic`/`attrs+validators` in Python, and `serde`+newtypes in Rust. Nothing in `enforcer-config` models "which library family satisfies which doctrine requirement", so a project that legitimately standardises on zod cannot pass the boundary-doctrine rules without hand-waivers. The arc-03 loader gives typed parse-at-boundary but has no `doctrine_profile` concept, and rule evaluation has no profile parameter to consult.
 

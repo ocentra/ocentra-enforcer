@@ -11,6 +11,8 @@
 > Does not prove: workpack completion or product status; those come from GREEN proof rows plus workpack closeout.
 <!-- /agent-capsule -->
 
+CyberSkills execution refinement: the broad `h11`/`h12` umbrella rows are decomposed into bounded CP00-CP13 workpacks by the [CyberSkills Parity Plan](../cyberskills-parity-plan/README.md). That plan governs corpus truth, shared-syntax consumption, native rules, external-engine mappings, retention, and closure; `h11`/`h12` remain TODO until its terminal proof is green.
+
 Sources: [PLAN_EXECUTION_BLUEPRINT](./PLAN_EXECUTION_BLUEPRINT.md), [PLAN_STATE](./PLAN_STATE.md), [TEST_PROOF_EXPECTATIONS](./TEST_PROOF_EXPECTATIONS.md), [ROUTE_INDEX](./ROUTE_INDEX.md).
 
 ---
