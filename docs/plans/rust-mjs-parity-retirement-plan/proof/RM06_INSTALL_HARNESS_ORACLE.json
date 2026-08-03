@@ -54,6 +54,7 @@
   },
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
     "observedAtCandidateSha": "10230eeaf81b3a190d40759a57836d9513d3b910",
     "sourceInventoryPath": "docs/plans/rust-mjs-parity-retirement-plan/inventory/RM01_CAPABILITIES.json",
     "sourceInventoryCandidateSha": "10230eeaf81b3a190d40759a57836d9513d3b910",
