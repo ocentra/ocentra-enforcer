@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-66",
+  "baselineCommit": "c5d5db7485a6e7c8e6cce27bc12aae5fd811c89e",
+  "family": "Preventive cloud, network, data, and attack-surface control evidence predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-attack-path-analysis-with-xm-cyber",
+      "implementing-attack-surface-management",
+      "implementing-aws-macie-for-data-classification",
+      "implementing-aws-nitro-enclave-security",
+      "implementing-aws-security-hub",
+      "implementing-bgp-security-with-rpki",
+      "implementing-canary-tokens-for-network-intrusion",
+      "implementing-continuous-security-validation-with-bas",
+      "implementing-data-loss-prevention-with-microsoft-purview",
+      "implementing-ddos-mitigation-with-cloudflare"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-65."
+  },
+  "accounting": {
+    "acceptedPrior": 650,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 660,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-attack-path-analysis-with-xm-cyber",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-attack-path-analysis-with-xm-cyber/SKILL.md",
+        "sha256": "ba7a152ee244c865c658e8c85a8528696b528ecad622aa9ecf506bc79bf04760",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Attack Path Analysis with XM Cyber:L29"]
+      },
+      "components": [
+        {"id": "implementing-attack-path-analysis-with-xm-cyber::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, identity, control, exposure, path, scope, risk, owner, and evidence-manifest fields without attack-path or environment access.", "notProved": ["attack path", "exposure truth", "risk priority"]},
+        {"id": "implementing-attack-path-analysis-with-xm-cyber::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep XM Cyber, asset inventories, identity systems, cloud APIs, network topology, scanners, and production infrastructure external.", "notProved": ["asset state", "path reachability", "finding efficacy"]},
+        {"id": "implementing-attack-path-analysis-with-xm-cyber::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain attack-path modeling, exposure review, control prioritization, and defensive remediation guidance as advisory.", "notProved": ["coverage", "risk truth", "remediation effectiveness"]},
+        {"id": "implementing-attack-path-analysis-with-xm-cyber::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and tenant ownership, legal/privacy/safety review, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "risk finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-attack-surface-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-attack-surface-management/SKILL.md",
+        "sha256": "425776aa4f183491d9241f0954152cf0744010067bbd7bfeadaf504796e88085",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Attack Surface Management:L36"]
+      },
+      "components": [
+        {"id": "implementing-attack-surface-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, domain, service, exposure, owner, scope, inventory, time, and evidence-manifest fields without discovery or scanning.", "notProved": ["attack surface", "asset discovery", "vulnerability truth"]},
+        {"id": "implementing-attack-surface-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep attack-surface platforms, DNS, WHOIS, internet scanning, cloud inventories, CMDBs, endpoints, and production networks external.", "notProved": ["inventory completeness", "exposure state", "finding efficacy"]},
+        {"id": "implementing-attack-surface-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain asset governance, exposure review, ownership, prioritization, and defensive remediation guidance as advisory.", "notProved": ["coverage", "asset truth", "remediation effectiveness"]},
+        {"id": "implementing-attack-surface-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and domain ownership, legal/privacy/safety review, data handling, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "surface finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-aws-macie-for-data-classification",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aws-macie-for-data-classification/SKILL.md",
+        "sha256": "a69cc3c3ef4ffd7193dc53f137044e005ce0e042166488dd2484da43e0437788",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing AWS Macie for Data Classification:L42"]
+      },
+      "components": [
+        {"id": "implementing-aws-macie-for-data-classification::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed account, bucket, object, classification, policy, finding, owner, scope, and evidence-manifest fields without cloud or data access.", "notProved": ["data classification", "object contents", "sensitive-data finding"]},
+        {"id": "implementing-aws-macie-for-data-classification::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS Macie, S3, cloud APIs, objects, accounts, production data, scanners, and cloud audit authorities external.", "notProved": ["bucket state", "classification truth", "data exposure"]},
+        {"id": "implementing-aws-macie-for-data-classification::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain data-governance, classification-policy, privacy, retention, and defensive control guidance as advisory.", "notProved": ["coverage", "classification efficacy", "control effectiveness"]},
+        {"id": "implementing-aws-macie-for-data-classification::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and data ownership, written authorization, legal/privacy/ethics review, data handling, analyst validation, severity, remediation, and disclosure decisions.", "notProved": ["authorization", "classification finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-aws-nitro-enclave-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aws-nitro-enclave-security/SKILL.md",
+        "sha256": "0c334a2c7012074ff3a596ba257cd28385ed159b25ddbe00ba6679633acd6171",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing AWS Nitro Enclave Security:L38"]
+      },
+      "components": [
+        {"id": "implementing-aws-nitro-enclave-security::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed enclave, image, attestation, key, host, policy, configuration, scope, and evidence-manifest fields without enclave or cloud access.", "notProved": ["attestation", "enclave isolation", "key protection"]},
+        {"id": "implementing-aws-nitro-enclave-security::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS Nitro, EC2, KMS, attestation services, cloud APIs, hosts, keys, and production enclaves external.", "notProved": ["enclave state", "attestation truth", "cryptographic outcome"]},
+        {"id": "implementing-aws-nitro-enclave-security::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain enclave design, key custody, attestation review, isolation, deployment, and defensive hardening guidance as advisory.", "notProved": ["coverage", "isolation efficacy", "control effectiveness"]},
+        {"id": "implementing-aws-nitro-enclave-security::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and key ownership, written authorization, legal/privacy/safety review, key custody, analyst validation, release, rollback, and disclosure decisions.", "notProved": ["authorization", "attestation finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-aws-security-hub",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aws-security-hub/SKILL.md",
+        "sha256": "8e65fcc917b566c4625c77a6a4f517f1f9097a9b2c38b194076569f99e3f10fa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing AWS Security Hub:L33"]
+      },
+      "components": [
+        {"id": "implementing-aws-security-hub::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed account, region, control, finding, severity, workflow, owner, scope, and evidence-manifest fields without AWS or finding-engine access.", "notProved": ["Security Hub state", "finding truth", "control compliance"]},
+        {"id": "implementing-aws-security-hub::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS Security Hub, Config, GuardDuty, cloud APIs, accounts, regions, SIEM, and production findings external.", "notProved": ["account posture", "finding completeness", "detection efficacy"]},
+        {"id": "implementing-aws-security-hub::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain security-control mapping, finding triage, governance, severity review, and defensive remediation guidance as advisory.", "notProved": ["coverage", "compliance truth", "remediation effectiveness"]},
+        {"id": "implementing-aws-security-hub::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant ownership, written authorization, legal/privacy/safety review, analyst validation, severity, approval, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-bgp-security-with-rpki",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-bgp-security-with-rpki/SKILL.md",
+        "sha256": "ec89c2b5347ce15334ed3272d3d62e84482fac32ef1778a3fe1916255d3cc04f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing BGP Security with RPKI:L33"]
+      },
+      "components": [
+        {"id": "implementing-bgp-security-with-rpki::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed prefix, ASN, route, ROA, repository, validator, policy, scope, and evidence-manifest fields without routing or registry access.", "notProved": ["route validation", "BGP state", "hijack prevention"]},
+        {"id": "implementing-bgp-security-with-rpki::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep RPKI repositories, route validators, BGP routers, networks, registries, DNS, and production routing authorities external.", "notProved": ["ROA state", "route truth", "routing security"]},
+        {"id": "implementing-bgp-security-with-rpki::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain routing policy, ROA governance, validation design, monitoring, and defensive network-hardening guidance as advisory.", "notProved": ["coverage", "validation efficacy", "incident resolution"]},
+        {"id": "implementing-bgp-security-with-rpki::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, network and ASN ownership, legal/privacy/safety review, change approval, rollback, analyst validation, and disclosure decisions.", "notProved": ["authorization", "route finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-canary-tokens-for-network-intrusion",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-canary-tokens-for-network-intrusion/SKILL.md",
+        "sha256": "91478d919212791e38629117928269803ec605801a59aa3c356a753364aef71c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Canary Tokens for Network Intrusion Detection:L36"]
+      },
+      "components": [
+        {"id": "implementing-canary-tokens-for-network-intrusion::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed token, placement, asset, trigger, event, network, owner, scope, and evidence-manifest fields without token activation or network access.", "notProved": ["token trigger", "intrusion", "attacker activity"]},
+        {"id": "implementing-canary-tokens-for-network-intrusion::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep canary-token services, DNS, networks, endpoints, mail, SIEM, and live notification infrastructure external.", "notProved": ["event truth", "network activity", "detection efficacy"]},
+        {"id": "implementing-canary-tokens-for-network-intrusion::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain deception design, placement review, alert triage, network monitoring, and defensive response guidance as advisory.", "notProved": ["coverage", "intrusion detection", "incident resolution"]},
+        {"id": "implementing-canary-tokens-for-network-intrusion::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/ethics/safety review, notification, evidence handling, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "token finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-continuous-security-validation-with-bas",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-continuous-security-validation-with-bas/SKILL.md",
+        "sha256": "d40ac11a4b274937f9846ea0ab7b9e4c9d9acbfadc528c764733db078d380569",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Continuous Security Validation with BAS:L36"]
+      },
+      "components": [
+        {"id": "implementing-continuous-security-validation-with-bas::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed scenario, control, technique, authorization, scope, owner, expected-evidence, and result-manifest fields without BAS execution.", "notProved": ["control validation", "attack simulation", "detection efficacy"]},
+        {"id": "implementing-continuous-security-validation-with-bas::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep BAS platforms, red-team runners, endpoints, networks, payloads, SIEM, EDR, and production environments external.", "notProved": ["scenario execution", "control state", "security outcome"]},
+        {"id": "implementing-continuous-security-validation-with-bas::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain validation planning, control review, purple-team coordination, measurement design, and defensive guidance as advisory.", "notProved": ["coverage", "validation efficacy", "remediation effectiveness"]},
+        {"id": "implementing-continuous-security-validation-with-bas::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, asset ownership, legal/privacy/ethics/safety review, stop conditions, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "validation finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-data-loss-prevention-with-microsoft-purview",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-data-loss-prevention-with-microsoft-purview/SKILL.md",
+        "sha256": "b14aa04749163048acf27cc0e330f2173be7412fe77ec51c0b2c9aab42dd8512",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Data Loss Prevention with Microsoft Purview:L39"]
+      },
+      "components": [
+        {"id": "implementing-data-loss-prevention-with-microsoft-purview::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed data, label, policy, rule, location, owner, alert, scope, and evidence-manifest fields without Microsoft 365 or data access.", "notProved": ["data classification", "DLP alert", "data exfiltration"]},
+        {"id": "implementing-data-loss-prevention-with-microsoft-purview::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Microsoft Purview, Microsoft 365, endpoints, mail, storage, cloud APIs, users, and production DLP enforcement external.", "notProved": ["tenant state", "policy enforcement", "data exposure"]},
+        {"id": "implementing-data-loss-prevention-with-microsoft-purview::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain data governance, label design, DLP policy review, privacy, retention, and defensive remediation guidance as advisory.", "notProved": ["coverage", "DLP efficacy", "incident resolution"]},
+        {"id": "implementing-data-loss-prevention-with-microsoft-purview::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and data ownership, written authorization, legal/privacy/ethics review, data handling, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "DLP finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-ddos-mitigation-with-cloudflare",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ddos-mitigation-with-cloudflare/SKILL.md",
+        "sha256": "daed2fabc2e09dcac9226b7f50b8025d6f2deb40690bb2fc169dd9575192a962",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing DDoS Mitigation with Cloudflare:L34"]
+      },
+      "components": [
+        {"id": "implementing-ddos-mitigation-with-cloudflare::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed zone, route, service, rule, threshold, owner, scope, traffic, and evidence-manifest fields without Cloudflare or network access.", "notProved": ["DDoS traffic", "mitigation", "availability"]},
+        {"id": "implementing-ddos-mitigation-with-cloudflare::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Cloudflare, DNS, WAF, CDN, live traffic, networks, origin servers, telemetry, and production mitigation external.", "notProved": ["zone state", "traffic truth", "mitigation efficacy"]},
+        {"id": "implementing-ddos-mitigation-with-cloudflare::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain DDoS planning, rule review, resilience, capacity, monitoring, and defensive continuity guidance as advisory.", "notProved": ["coverage", "availability", "incident resolution"]},
+        {"id": "implementing-ddos-mitigation-with-cloudflare::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, zone and origin ownership, legal/privacy/safety review, change approval, stop conditions, rollback, remediation, and disclosure decisions.", "notProved": ["authorization", "mitigation finding validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, filesystem, cloud, data, identity, key, network, routing, SaaS, web, SIEM, EDR, or production telemetry is proved.",
+    "No attack path, attack surface, data classification, enclave attestation, cloud finding, route validation, canary trigger, BAS execution, DLP enforcement, DDoS traffic, mitigation, compromise, or security activity is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}
