@@ -4,11 +4,11 @@
   "artifactId": "RM07-CI-HOOK-DOGFOOD-ORACLE-20260803",
   "artifactState": "bounded-evidence-only",
   "closureClaim": false,
-  "materializedAtCandidateSha": "a7dd80fa42e1133a3510032277b5a5ddc0c14501",
+  "materializedAtCandidateSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
     "observedAtCandidateSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
-    "materializationBaseSha": "a7dd80fa42e1133a3510032277b5a5ddc0c14501",
+    "materializationBaseSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
     "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
     "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
     "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
@@ -201,6 +201,88 @@
         "cutover",
         "retirement"
       ]
+    },
+    {
+      "id": "RM07-HOOK-ADAPTERS-001",
+      "family": "ci-hook-adapters",
+      "sourceSha": "541d219dbe78357a65a99521f75bd1167ffc6ecf",
+      "materializationSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+      "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+      "sourceBlobs": {
+        "adapters/lefthook/lefthook.yml": "9d65e02445956243fc5539fe6206fa473cc69770",
+        "crates/enforcer-install/src/boundary/git_hooks.rs": "63dea9b40b2201b02ec69e1f837dfc4ee0181acd",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs": "2bb41e6a6ebf120e4765e68987981c71fc744f67",
+        "crates/enforcer-install/tests/fixtures/git-hooks/lefthook.yml": "9d65e02445956243fc5539fe6206fa473cc69770"
+      },
+      "publicSourceBlobs": {
+        "adapters/lefthook/lefthook.yml": "3f2bd92e690791d514b9f4379f6f7474e9af8ccb",
+        "adapters/git-hooks/pre-commit.sh": "391d66f4b314e6aef3a4d99e3149189a8baee5a1",
+        "tests/rust-rules-install.test.mjs": "8336417d7bfc900c0c44eea86fae6404344aa7b2"
+      },
+      "anchors": [
+        "adapters/lefthook/lefthook.yml:5 staged/workspace scope conditional",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:62 linked_worktree",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:115 target_path",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:164 set_worktree_hooks_path",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:310 build_writes",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:341 apply",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:398 verify",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:8 hook_templates_default_to_staged_scope_with_workspace_opt_in",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:40 linked_worktree_without_worktree_config_refuses_shared_config_mutation",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:109 linked_worktree_plain_hook_is_per_worktree_and_never_common_hooks"
+      ],
+      "candidateBehavior": {
+        "scope": "All three templates default to staged scope; plain and Husky collect git diff --cached --name-only --diff-filter=ACMR and pass positional paths; Lefthook uses {staged_files}; scope=workspace selects --all. Plain and Husky explicitly skip successfully when no staged files are present.",
+        "lifecycle": "build_writes plans one selected-flavor write; apply supports PreserveExisting and Force; verify detects missing or drifted hook bytes; linked plain hooks use per-worktree .enforcer/hooks and config.worktree, and refuse shared-config mutation when extensions.worktreeConfig is unavailable.",
+        "unmeasured": "No native hook-flavor uninstall path or direct same-byte repeated-install test was observed; Lefthook command execution was source-only in this bounded run."
+      },
+      "publicBehavior": {
+        "scope": "Public pre-commit templates default to workspace scans using --workspace for the bounded POSIX, Husky, and Lefthook counterparts.",
+        "tests": "The bounded public suite covers exact dry-run/no-write adapter planning, requested Husky inclusion, template coverage, and staged precommit-ratchet behavior; no linked-worktree, direct Lefthook execution, uninstall, or idempotency proof was observed."
+      },
+      "behavioralDelta": "The candidate defaults to staged scope with workspace scanning as an explicit --all opt-in, while the public counterpart defaults to workspace scope. This is an observed semantic delta, not a parity verdict.",
+      "candidateRuns": [
+        {
+          "runId": "20260803071944-74707a5d",
+          "command": "cargo test -p enforcer-install --lib emitters::git_hooks::tests:: -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "8 passed, 0 failed, 264 filtered; flavor isolation, golden bytes, dry-run zero writes, PreserveExisting/Force, and verify pass/fail."
+        },
+        {
+          "runId": "20260803072151-59da3f7c",
+          "command": "cargo test -p enforcer-install --test git_hooks_fixtures -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "3 passed, 0 failed; staged/workspace template contract and linked-worktree isolation/shared-config refusal."
+        }
+      ],
+      "publicRuns": [
+        {
+          "runId": "20260803072213-e26801ef",
+          "command": "node --test --test-name-pattern \"init dry-run reports exact adapter file plan|init includes Husky only when requested|adapter templates cover POSIX pre-commit|precommit ratchet permits staged hard-finding\" tests/rust-rules-install.test.mjs",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "4 passed, 0 failed; public dry-run/no-write, Husky selection, adapter template, and staged ratchet tests."
+        }
+      ],
+      "disposition": "unknown",
+      "evidenceStatus": "bounded-hook-source-and-focused-tests-only",
+      "proofNeeded": "Execute normalized candidate and public adapter commands in disposable staged and workspace fixtures, compare exit classes/findings/paths, and run install -> verify -> repeated install -> uninstall/restore where each authority exposes it. Exercise linked worktrees, fail-closed shared-config behavior, direct Lefthook execution, and cross-platform shell behavior before adjudicating the observed scope delta.",
+      "doesNotProve": [
+        "equal-or-stricter parity",
+        "candidate/public behavioral equivalence",
+        "live hook runner execution",
+        "native hook uninstall",
+        "same-byte repeated-install idempotency",
+        "public linked-worktree behavior",
+        "cross-platform shell parity",
+        "RM07 closure",
+        "RM08 adjudication",
+        "exact-SHA aggregate",
+        "cutover",
+        "retirement"
+      ]
     }
   ],
   "proves": [
@@ -209,6 +291,8 @@
     "The workflow contract command passed at the observed candidate SHA.",
     "The deterministic MJS CI fixture suite and focused CI fail-fixture test passed in the disposable exact-SHA environment.",
     "The seeded fail fixture is fixed by exact Git blob and file SHA-256 anchors."
+    ,
+    "Candidate native git-hook unit/fixture tests passed at exact source SHA; the public bounded hook tests passed separately."
   ],
   "doesNotProve": [
     "Native candidate release binary execution or exit-1 behavior on the fail fixture.",
@@ -216,5 +300,7 @@
     "Any live GitHub event, runner, release matrix, build, publish, or rollback result.",
     "Frozen public or private overlay behavioral parity.",
     "RM07 closure, RM08 adjudication, exact-SHA aggregate, cutover, or retirement."
+    ,
+    "RM07 hook-adapter parity, lifecycle equivalence, or the observed staged/workspace semantic delta."
   ]
 }
