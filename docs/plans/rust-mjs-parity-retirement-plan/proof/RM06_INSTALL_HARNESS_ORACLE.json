@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM06",
+  "artifactId": "RM06-INSTALL-HARNESS-ORACLE-20260803",
+  "artifactState": "bounded-evidence-only",
+  "materializedAtCandidateSha": "4eac93b6f956f922d84bc03f1a8201775738e7e7",
+  "sourceReport": {
+    "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "observedAtCandidateSha": "4eac93b6f956f922d84bc03f1a8201775738e7e7",
+    "sourceInventoryPath": "docs/plans/rust-mjs-parity-retirement-plan/inventory/RM01_CAPABILITIES.json",
+    "sourceInventoryCandidateSha": "4eac93b6f956f922d84bc03f1a8201775738e7e7",
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayCommits": [
+      "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+    ],
+    "evidenceLevel": "bounded-public-executable-with-candidate-source-inventory-and-environment-blocker"
+  },
+  "authoritySeparation": {
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "overlayParentSha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+    "overlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayVerdictSeparateFromPublic": true,
+    "closureClaim": false
+  },
+  "candidateEnvironment": {
+    "worktree": "E:\\ocentra-enforcer-rm06-run",
+    "branch": "codex/rm06-install-harness-run",
+    "candidateSha": "4eac93b6f956f922d84bc03f1a8201775738e7e7",
+    "disposableTargetRoots": [
+      "E:\\Temp\\rm06-candidate-claude-tmp",
+      "E:\\Temp\\rm06-candidate-target",
+      "E:\\Temp\\rm06-candidate-target2"
+    ],
+    "candidateRunIds": [],
+    "blockedEvidence": [
+      {
+        "command": "powershell -NoProfile -Command \"$env:TEMP='E:\\Temp\\rm06-candidate-claude-tmp'; $env:TMP='E:\\Temp\\rm06-candidate-claude-tmp'; $env:CARGO_TARGET_DIR='E:\\Temp\\rm06-candidate-target'; $env:CARGO_BUILD_JOBS='1'; cargo test -p enforcer-install --test claude_adapter_fixtures -- --nocapture\"",
+        "result": "failed-before-test-execution",
+        "diagnostic": "MSVC linker LNK1104 could not open a temporary linker file under the disposable temp root; after creating the roots, a bounded adapter test compile made no progress and was terminated at the configured timeout.",
+        "doesNotProve": ["candidate behavioral failure", "candidate parity failure"]
+      },
+      {
+        "command": "cargo test -p enforcer-install --test adapter_stubs_fixtures -- --nocapture",
+        "result": "environment-timeout",
+        "diagnostic": "Fresh disposable CARGO_TARGET_DIR E:\\Temp\\rm06-candidate-target2 produced no compiler progress within 124 seconds; the exact cargo/rustc process tree was terminated and partial artifacts were preserved.",
+        "doesNotProve": ["candidate behavioral failure", "candidate parity failure"]
+      }
+    ]
+  },
+  "rows": [
+    {
+      "id": "RM06-001",
+      "action": "scope-discovery",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:doctor reports usable scope","tests/rust-rules-install.test.mjs:ocentra-enforcer init dry-run reports exact adapter file plan without writing"]}],
+      "observableBehavior": "Discover project scope, config, and target registration without mutating unrelated paths.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/core.rs:install","crates/enforcer-install/src/boundary/detect_configuration.rs:detect_harnesses","crates/enforcer-install/tests/detect_configuration_integration.rs"]}],
+      "publicEvidence":{"runIds":["20260803061424-fb74ee99","20260803062037-c9f114a6"],"status":"passed-bounded","observations":["Exact public dry-run scope/plan and usable-scope tests passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate detection and install sources are present; executable candidate proof was blocked before test execution."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run identical disposable scope/discovery fixtures on candidate and public, compare paths, bytes, diagnostics, and exit class.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate parity","working MCP route"]
+    },
+    {
+      "id": "RM06-002",
+      "action": "mcp-registration-and-artifact-write",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:ocentra-enforcer codex install writes target wiring and global Codex MCP config idempotently"]}],
+      "observableBehavior": "Write the expected MCP registration and required harness artifacts under the disposable profile.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/codex.rs:CodexAdapter::apply","crates/enforcer-install/src/adapters/claude.rs:ClaudeAdapter::apply","crates/enforcer-install/src/core.rs:install","crates/enforcer-install/tests/codex_adapter_fixtures.rs"]}],
+      "publicEvidence":{"runIds":["20260803061635-88872554","20260803062044-95979096"],"status":"passed-bounded","observations":["Exact public Codex target/global wiring test and full install test file passed; public checkout remained clean and package-lock hash stayed 26592AEA82EE0829B5641550C26FBFC3DEF285C5F9AA4139F0F5A613C27AF5C1."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Rust adapter apply paths are inventoried; candidate execution is not measured."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Apply each supported adapter in a disposable profile, hash every changed config/artifact byte, and compare normalized public/candidate outputs.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate parity","config write is a working MCP route"]
+    },
+    {
+      "id": "RM06-003",
+      "action": "install-idempotency",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:ocentra-enforcer codex install writes target wiring and global Codex MCP config idempotently"]}],
+      "observableBehavior": "Repeated installation is stable and does not duplicate registrations or unrelated content.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/core.rs:idempotent_reinstall_yields_a_noop_plan","crates/enforcer-install/src/adapters/codex.rs:entry_matches","crates/enforcer-install/src/adapters/claude.rs:entry_matches"]}],
+      "publicEvidence":{"runIds":["20260803061635-88872554"],"status":"passed-bounded","observations":["Public Codex install idempotency passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate idempotency tests are present but did not execute in the blocked cargo environment."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run first apply, second apply, and byte/hash diff for every supported adapter in disposable roots.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate idempotency","all-adapter idempotency"]
+    },
+    {
+      "id": "RM06-004",
+      "action": "doctor-health",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:doctor reports usable scope"]}],
+      "observableBehavior": "Doctor reports missing, stale, malformed, and healthy wiring with explicit check classes.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/core.rs:doctor","crates/enforcer-install/src/doctor.rs:doctor","crates/enforcer-install/tests/remaining_adapters_fixtures.rs:doctor_aggregates_a_verify_report_per_adapter_across_all_six"]}],
+      "publicEvidence":{"runIds":["20260803062037-c9f114a6","20260803062044-95979096"],"status":"passed-bounded","observations":["Public usable-scope and full installer test coverage passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Native doctor aggregation is present in source; candidate execution is unmeasured."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run missing/stale/malformed/healthy doctor fixtures on both authorities and candidate; compare checks, findings, and exits.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["live candidate doctor parity","working MCP route"]
+    },
+    {
+      "id": "RM06-005",
+      "action": "harness-registry-load",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/enforcer-harness.test.mjs:harness persists raw logs, NDJSON diagnostics, summaries, and last failure"]}],
+      "observableBehavior": "Harness loads registered rules/tools before execution and reports registry failures distinctly.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-harness/src/adapters.rs:adapter registry","crates/enforcer-harness/src/execution.rs:execution","crates/enforcer-harness/src/lib.rs:public harness surface"]}],
+      "publicEvidence":{"runIds":["20260803061648-cbba63d5","20260803062044-95979096"],"status":"passed-bounded","observations":["Public harness observability and full install/harness-related installer suite passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only","observations":["RM01 stale anchor crates/enforcer-harness/src/registry.rs does not exist; actual candidate harness files are adapters.rs, execution.rs, storage.rs, query.rs, and retention.rs. Mapping requires executable proof."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Exercise valid and missing registry/tool fixtures through candidate harness and compare registry diagnostics with public.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate registry parity","stale inventory anchor is a behavioral regression"]
+    },
+    {
+      "id": "RM06-006",
+      "action": "run-status-diagnostics-failure-lookup",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/enforcer-harness.test.mjs:harness persists raw logs, NDJSON diagnostics, summaries, and last failure"]}],
+      "observableBehavior": "Runs receive durable IDs and expose status, raw diagnostics, summaries, and last-failure lookup.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-harness/src/execution.rs:run","crates/enforcer-harness/src/storage.rs:run storage","crates/enforcer-harness/src/query.rs:failure lookup"]}],
+      "publicEvidence":{"runIds":["20260803061648-cbba63d5"],"status":"passed-bounded","observations":["Public raw logs, NDJSON diagnostics, summaries, and last-failure test passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate storage/execution/query surfaces are inventoried; runtime proof is blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run success/failure/diagnostic lookup fixtures in a candidate disposable profile and compare IDs, status, diagnostics, and exit classes.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate harness parity","durability beyond the disposable run"]
+    },
+    {
+      "id": "RM06-007",
+      "action": "artifact-write-address-recovery",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/enforcer-harness.test.mjs:harness persists raw logs, NDJSON diagnostics, summaries, and last failure","tests/enforcer-harness.test.mjs:harness rejects artifact paths that escape the run root"]}],
+      "observableBehavior": "Harness artifacts are addressable and recoverable while paths escaping the run root are rejected.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-harness/src/storage.rs:artifact storage","crates/enforcer-harness/src/query.rs:artifact lookup"]}],
+      "publicEvidence":{"runIds":["20260803061648-cbba63d5","20260803061655-ac57f25c"],"status":"passed-bounded","observations":["Public artifact persistence and path-escape rejection passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate storage/query sources are present; executable artifact proof is unmeasured."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Write/read/recover candidate artifacts and exercise absolute, parent, and sibling escape negatives entirely inside disposable roots.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate artifact parity","writes outside disposable root are safe"]
+    },
+    {
+      "id": "RM06-008",
+      "action": "retention-prune-reset",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/enforcer-harness.test.mjs:harness retention prunes old successful runs but keeps bounded recent metadata"]}],
+      "observableBehavior": "Prune and reset retain bounded recent metadata and do not remove unrelated state.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-harness/src/retention.rs:retention","crates/enforcer-harness/src/storage.rs:run storage"]}],
+      "publicEvidence":{"runIds":["20260803061651-b0ef6224"],"status":"passed-bounded","observations":["Public retention behavior passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate retention source exists; executable proof is unmeasured."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run identical retention and reset corpora on candidate, preserving unrelated disposable files and comparing retained metadata.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate retention parity","destructive reset safety outside disposable roots"]
+    },
+    {
+      "id": "RM06-009",
+      "action": "adapter-registry-and-shared-generic-config",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependency policy, secret scan, and SBOM"]}],
+      "observableBehavior": "Supported adapter IDs resolve deterministically and shared config planning preserves unrelated values and golden bytes.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/factory.rs:adapter registry","crates/enforcer-install/src/adapters/generic.rs:GenericAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/generic.rs:fresh_install_writes_the_golden_bytes","crates/enforcer-install/src/adapters/generic.rs:idempotent_reinstall_yields_a_noop_plan"]}],
+      "publicEvidence":{"runIds":["20260803062039-7348f111","20260803062044-95979096"],"status":"passed-bounded","observations":["Public adapter-template and full installer tests passed; no direct Rust adapter registry equivalence is established."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Factory and generic adapter tests are present; candidate execution is blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run all factory keys against the same disposable config corpus and compare selected adapter, planned changes, bytes, and verification results.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["all adapter registry parity","candidate golden-byte parity"]
+    },
+    {
+      "id": "RM06-010",
+      "action": "claude-plan-apply-verify-uninstall",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Claude adapter-specific source/test anchor in this snapshot"]}],
+      "observableBehavior": "Claude adapter plans and applies MCP, skills, agents, instructions, and hooks; reread verification rejects malformed/missing entries; uninstall is bounded.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/claude.rs:ClaudeAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/claude.rs:ClaudeAdapter::plan_uninstall/apply_uninstall","crates/enforcer-install/tests/claude_adapter_fixtures.rs"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["The exact public snapshot has no Claude adapter-specific anchor; absence is not treated as a regression."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Dedicated fixture test exists but cargo execution was blocked before test execution."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable Claude positive, malformed, missing, idempotent, byte-preservation, and uninstall fixtures on candidate and any public counterpart that can be located at exact SHA.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Rust-only enhancement","Claude parity","working Claude MCP route"]
+    },
+    {
+      "id": "RM06-011",
+      "action": "codex-plan-apply-verify-uninstall",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["src/codex-install.mjs:Codex install surface","tests/rust-rules-install.test.mjs:ocentra-enforcer codex install writes target wiring and global Codex MCP config idempotently"]}],
+      "observableBehavior": "Codex adapter plans and applies target/global MCP wiring and supporting artifacts, preserves unrelated values, and produces an idempotent second plan; uninstall is bounded.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/codex.rs:CodexAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/codex.rs:CodexAdapter::plan_uninstall/apply_uninstall","crates/enforcer-install/tests/codex_adapter_fixtures.rs"]}],
+      "publicEvidence":{"runIds":["20260803061431-c07459cc","20260803061437-e49dfea8","20260803061635-88872554"],"status":"passed-bounded","observations":["Public dry-run target/global, global-only, and idempotent write tests passed."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Dedicated candidate fixture tests are present; execution is blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Compare exact target/global config bytes, second-run no-op, malformed negatives, and uninstall behavior on disposable public and candidate profiles.",
+      "evidenceStatus":"bounded-public-only",
+      "doesNotProve":["candidate Codex parity","config write is a working MCP route"]
+    },
+    {
+      "id": "RM06-012",
+      "action": "antigravity-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Antigravity adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Antigravity JSON MCP configuration supports discovery, apply, reread verification, idempotency, and renamed/malformed negatives.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/antigravity.rs:AntigravityAdapter::plan/apply/verify","crates/enforcer-install/tests/remaining_adapters_fixtures.rs:antigravity_proof"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Remaining-adapter fixture macro covers positive, negative, idempotency, and zero-write cases; execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable Antigravity config byte and verification corpus against both authorities/candidate where a public counterpart exists.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Rust-only enhancement","Antigravity parity","working MCP route"]
+    },
+    {
+      "id": "RM06-013",
+      "action": "cursor-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Cursor adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Cursor MCP JSON round-trip applies expected registration, preserves unrelated values, and is idempotent.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/cursor.rs:CursorAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/cursor.rs:native_mcp_file_round_trip_is_idempotent_and_preserves_unrelated_values","crates/enforcer-install/tests/adapter_stubs_fixtures.rs"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Native adapter test exists; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run identical disposable Cursor MCP JSON corpus and compare bytes, findings, and second-run behavior.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Cursor parity","working MCP route"]
+    },
+    {
+      "id": "RM06-014",
+      "action": "gemini-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Gemini adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Gemini settings JSON round-trip applies expected values, preserves unrelated values, and is idempotent.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/gemini.rs:GeminiAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/gemini.rs:native_settings_round_trip_is_idempotent_and_preserves_unrelated_values","crates/enforcer-install/tests/adapter_stubs_fixtures.rs"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Native adapter test exists; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run identical disposable Gemini settings corpus and compare bytes, findings, and second-run behavior.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Gemini parity","working MCP route"]
+    },
+    {
+      "id": "RM06-015",
+      "action": "windsurf-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Windsurf adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Windsurf JSON config supports fresh apply, reread verification, idempotency, renamed/malformed negatives, and zero writes when not detected.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/windsurf.rs:WindsurfAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/windsurf.rs:fresh_install_apply_then_verify_all_green","crates/enforcer-install/tests/remaining_adapters_fixtures.rs:windsurf_proof"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Source and fixture macro are present; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable Windsurf positive/negative/idempotency/no-detection corpus and compare config bytes and diagnostics.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Windsurf parity","working MCP route"]
+    },
+    {
+      "id": "RM06-016",
+      "action": "kilocode-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no KiloCode adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "KiloCode JSON config supports fresh apply, reread verification, idempotency, renamed/malformed negatives, and zero writes when not detected.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/kilocode.rs:KiloCodeAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/kilocode.rs:fresh_install_apply_then_verify_all_green","crates/enforcer-install/tests/remaining_adapters_fixtures.rs:kilocode_proof"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Source and fixture macro are present; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable KiloCode positive/negative/idempotency/no-detection corpus and compare config bytes and diagnostics.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["KiloCode parity","working MCP route"]
+    },
+    {
+      "id": "RM06-017",
+      "action": "kiro-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Kiro adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Kiro JSON config supports fresh apply, reread verification, idempotency, renamed/malformed negatives, and zero writes when not detected.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/kiro.rs:KiroAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/kiro.rs:fresh_install_apply_then_verify_all_green","crates/enforcer-install/tests/remaining_adapters_fixtures.rs:kiro_proof"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Source and fixture macro are present; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable Kiro positive/negative/idempotency/no-detection corpus and compare config bytes and diagnostics.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Kiro parity","working MCP route"]
+    },
+    {
+      "id": "RM06-018",
+      "action": "zed-plan-apply-verify",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Zed adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Zed context-server settings round-trip preserves values and rejects malformed settings.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/zed.rs:ZedAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/zed.rs:native_settings_round_trip_uses_context_servers_and_preserves_values","crates/enforcer-install/tests/adapter_stubs_fixtures.rs"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public per-adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Native adapter tests exist; candidate execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Run disposable Zed settings positive, malformed, and idempotency corpus and compare bytes and diagnostics.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["Zed parity","working MCP route"]
+    },
+    {
+      "id": "RM06-019",
+      "action": "aider-deferred-no-mcp-surface",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no Aider adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "Aider reports a deferred no-MCP-surface advisory and plan/apply writes zero files.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/aider.rs:AiderAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/aider.rs:plan_produces_zero_planned_changes_and_a_deferred_warning","crates/enforcer-install/src/adapters/aider.rs:apply_writes_zero_files_against_a_temp_dir_fixture"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public Aider adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate source explicitly describes deferred no-MCP behavior; execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Verify the deferred label and zero-write invariant in a disposable candidate profile and independently determine whether the public authority exposes an equivalent surface.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["intentional enhancement approval","Aider parity","working MCP route"]
+    },
+    {
+      "id": "RM06-020",
+      "action": "opencode-deferred-no-mcp-surface",
+      "authoritySources": [{"authority":"public","sha":"267af94b701bd592e01a47649e3c18c26ee04239","anchors":["tests/rust-rules-install.test.mjs:public installer surface only; no OpenCode adapter-specific anchor in this snapshot"]}],
+      "observableBehavior": "OpenCode reports a deferred no-MCP-surface advisory and plan/apply writes zero files.",
+      "rustSources": [{"sha":"4eac93b6f956f922d84bc03f1a8201775738e7e7","anchors":["crates/enforcer-install/src/adapters/opencode.rs:OpenCodeAdapter::plan/apply/verify","crates/enforcer-install/src/adapters/opencode.rs:plan_produces_zero_planned_changes_and_a_deferred_warning","crates/enforcer-install/src/adapters/opencode.rs:apply_writes_zero_files_against_a_temp_dir_fixture"]}],
+      "publicEvidence":{"runIds":[],"status":"no-direct-public-adapter-evidence","observations":["No exact public OpenCode adapter anchor was found."]},
+      "candidateEvidence":{"runIds":[],"status":"source-inventory-only-environment-blocked","observations":["Candidate source explicitly describes deferred no-MCP behavior; execution blocked."]},
+      "initialDisposition":"unknown",
+      "proofNeeded":"Verify the deferred label and zero-write invariant in a disposable candidate profile and independently determine whether the public authority exposes an equivalent surface.",
+      "evidenceStatus":"source-only",
+      "doesNotProve":["intentional enhancement approval","OpenCode parity","working MCP route"]
+    }
+  ],
+  "unresolved": [
+    "Candidate enforcer-install executable matrix is blocked by Windows/MSVC temporary-file/linker and no-progress cargo compilation; no candidate behavior is promoted.",
+    "RM06-001 through RM06-009 require exact candidate disposable execution and normalized public/candidate comparisons.",
+    "RM06-010 through RM06-020 have source/test inventory but no accepted candidate execution; most have no direct public per-adapter anchor in exact 267af94.",
+    "A config write or serialized registration has not been treated as proof of a working MCP route.",
+    "Overlay-specific install/harness behavior remains unmeasured and separate from public evidence.",
+    "The RM01 operational Rust anchors for registry/runs/artifacts/prune are stale relative to the candidate's actual harness.rs modules and require executable mapping proof."
+  ],
+  "proves": [
+    "The RM06 supported adapter/action matrix is inventoried across scope discovery, registration, idempotency, doctor, harness persistence, artifact safety, retention, shared adapter registry, and eleven factory adapters.",
+    "Exact public 267af94 install/harness evidence passed in disposable state, including full tests/rust-rules-install.test.mjs and focused doctor, Codex, template, harness observability, retention, and artifact path-safety probes.",
+    "The exact public disposable package-lock hash is 26592AEA82EE0829B5641550C26FBFC3DEF285C5F9AA4139F0F5A613C27AF5C1 and installed effect is 3.21.4; its git status remained clean after probes.",
+    "Candidate source/test locations and the exact environment blocker are recorded without converting source presence or a failed compile into parity evidence."
+  ],
+  "doesNotProve": [
+    "candidate behavioral parity",
+    "public-plus-overlay parity",
+    "working MCP route from config writes",
+    "RM06 closure",
+    "repair authorization or implementation",
+    "aggregate parity, cutover, production readiness, or frozen-authority retirement"
+  ],
+  "closureClaim": false
+}
