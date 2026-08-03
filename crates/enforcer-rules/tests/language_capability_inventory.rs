@@ -6,6 +6,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
+use enforcer_syntax::registry::language_registry;
 use serde::Deserialize;
 use serde_json::{self, Value};
 
@@ -80,37 +81,11 @@ fn workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")))
 }
 
-fn repository_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    Ok(workspace_root()?
-        .parent()
-        .and_then(|path| path.parent())
-        .ok_or("enforcer-rules must be nested below the repository root")?
-        .to_path_buf())
-}
-
-fn source_language_set() -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
-    let source =
-        fs::read_to_string(repository_root()?.join("crates/enforcer-memory/src/parsers/mod.rs"))?;
-    let enum_body = source
-        .split("pub enum Language {")
-        .nth(1)
-        .and_then(|tail| tail.split("\n}").next())
-        .ok_or("Language enum body is missing")?;
-    let mut languages = BTreeSet::new();
-    for line in enum_body.lines() {
-        let candidate = line.trim().trim_end_matches(',');
-        let mut chars = candidate.chars();
-        let starts_uppercase = chars.next().is_some_and(|ch| ch.is_ascii_uppercase());
-        if starts_uppercase
-            && !candidate.is_empty()
-            && candidate
-                .chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
-        {
-            languages.insert(candidate.to_owned());
-        }
-    }
-    Ok(languages)
+fn source_language_set() -> BTreeSet<String> {
+    language_registry()
+        .iter()
+        .map(|record| format!("{:?}", record.parser()))
+        .collect()
 }
 
 fn rules_language_set() -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
@@ -374,7 +349,7 @@ fn inventory_preserves_all_parser_identities_and_denominators(
         "e19076353d8cfc945b138311de9d4738021ec05d"
     );
 
-    let source_languages = source_language_set()?;
+    let source_languages = source_language_set();
     let rows = inventory["languages"]
         .as_array()
         .ok_or("inventory languages must be an array")?;
