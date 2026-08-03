@@ -8,6 +8,7 @@ use enforcer_domain::config_types::{CrateName, HarnessConfig};
 use enforcer_domain::harness_types::{
     HarnessCapturedOutput, HarnessCommandArgument, HarnessDomainName, HarnessLanguage,
     HarnessPackageName, HarnessPinned, HarnessRunId, HarnessTag, HarnessTimestamp, HarnessToolName,
+    HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::telemetry_types::ProcessExitCode;
@@ -27,6 +28,44 @@ pub struct ExecuteRequest {
     pub package_name: Option<HarnessPackageName>,
     pub domain: Option<HarnessDomainName>,
     pub tags: Vec<HarnessTag>,
+}
+
+/// Validate that a request matches one reviewed allowlisted tool spec.
+///
+/// This is deliberately separate from [`execute`]: the existing arbitrary
+/// user-invoked runner remains available, while policy callers must opt into
+/// this exact command and repository-relative working-directory seam before a
+/// later bounded adapter executes the process.
+pub fn validate_allowlisted_request(
+    request: &ExecuteRequest,
+    spec: &HarnessToolSpec,
+) -> Result<()> {
+    if request.tool != *spec.tool() {
+        return Err(enforcer_core::error::Error::InvalidConfig(
+            "allowlisted tool identity does not match the request".to_owned(),
+        ));
+    }
+    if request.command.as_slice() != spec.command() {
+        return Err(enforcer_core::error::Error::InvalidConfig(
+            "allowlisted command does not match the reviewed template".to_owned(),
+        ));
+    }
+    if let Some(cwd) = request.cwd.as_deref() {
+        let path = Path::new(cwd);
+        if path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::Prefix(_)
+                    | std::path::Component::RootDir
+                    | std::path::Component::ParentDir
+            )
+        }) {
+            return Err(enforcer_core::error::Error::InvalidConfig(
+                "allowlisted working directory must stay within the repository root".to_owned(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Execute without a shell, capture both streams, then persist the real outcome.
