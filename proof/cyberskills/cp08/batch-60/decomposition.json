@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-60",
+  "baselineCommit": "cc8f5b805752ed9b3ef50632adbdf2598dfabbc9",
+  "family": "Canonical-order defensive detection, response, and authorized-assessment evidence",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "detecting-service-account-abuse",
+      "detecting-sql-injection-via-waf-logs",
+      "detecting-stuxnet-style-attacks",
+      "detecting-suspicious-powershell-execution",
+      "detecting-t1548-abuse-elevation-control-mechanism",
+      "detecting-wmi-persistence",
+      "eradicating-malware-from-infected-systems",
+      "evaluating-threat-intelligence-platforms",
+      "executing-active-directory-attack-simulation",
+      "executing-red-team-engagement-planning"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-59."
+  },
+  "accounting": {
+    "acceptedPrior": 590,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 600,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-service-account-abuse",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-service-account-abuse/SKILL.md",
+        "sha256": "e490a35b043ec6bcfc0bb83aba5a5c2163bf93f4dceed66ba2d9f21e4c63f7f4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Service Account Abuse:L35"]
+      },
+      "components": [
+        {
+          "id": "detecting-service-account-abuse::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed service-account, principal, permission, authentication-event, host, timestamp, scope, owner, and evidence-manifest fields without contacting identity systems.",
+          "notProved": ["service-account abuse", "credential access", "identity compromise"]
+        },
+        {
+          "id": "detecting-service-account-abuse::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Active Directory, IdPs, endpoints, credentials, authentication services, SIEM, EDR, and production identity systems external.",
+          "notProved": ["live account use", "credential validity", "detection efficacy"]
+        },
+        {
+          "id": "detecting-service-account-abuse::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain service-account inventory, least privilege, rotation, monitoring, and identity-hardening guidance as advisory.",
+          "notProved": ["control efficacy", "least privilege", "remediation completion"]
+        },
+        {
+          "id": "detecting-service-account-abuse::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, identity and asset ownership, credential and evidence handling, legal/privacy/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-sql-injection-via-waf-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-sql-injection-via-waf-logs/SKILL.md",
+        "sha256": "00bd344e89268088dfcab400c9e1ffcfc056df1ab5c15f3209cdd02f04a1696a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting SQL Injection via WAF Logs:L32"]
+      },
+      "components": [
+        {
+          "id": "detecting-sql-injection-via-waf-logs::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed WAF request, route, parameter, response, timestamp, rule, application, scope, and evidence-manifest fields without calling endpoints or executing payloads.",
+          "notProved": ["SQL injection", "database access", "data exposure"]
+        },
+        {
+          "id": "detecting-sql-injection-via-waf-logs::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep WAFs, web servers, browsers, databases, endpoints, scanners, payload runners, live traffic, and production applications external.",
+          "notProved": ["payload behavior", "database compromise", "detection efficacy"]
+        },
+        {
+          "id": "detecting-sql-injection-via-waf-logs::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain parameterization, WAF tuning, secure development, log review, and incident-response guidance as advisory.",
+          "notProved": ["WAF efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "detecting-sql-injection-via-waf-logs::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/safety review, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-stuxnet-style-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-stuxnet-style-attacks/SKILL.md",
+        "sha256": "cfa5e0d1da29aaa938bf292ab1efb8214bc574da4b9ceeac178c3c1c4d27561d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Stuxnet-Style Attacks:L37"]
+      },
+      "components": [
+        {
+          "id": "detecting-stuxnet-style-attacks::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed OT asset, PLC, historian, firmware, process, zone, segment, event, scope, and evidence-manifest fields without accessing or controlling industrial systems.",
+          "notProved": ["Stuxnet-style attack", "PLC compromise", "process impact"]
+        },
+        {
+          "id": "detecting-stuxnet-style-attacks::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep SCADA, PLCs, historians, OT networks, protocol traffic, packet capture, Claroty, controllers, and production safety systems external.",
+          "notProved": ["live discovery", "control manipulation", "safety outcome"]
+        },
+        {
+          "id": "detecting-stuxnet-style-attacks::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain OT segmentation, asset inventory, safety monitoring, recovery planning, and defensive incident-response guidance as advisory.",
+          "notProved": ["anomaly detection efficacy", "containment efficacy", "recovery completion"]
+        },
+        {
+          "id": "detecting-stuxnet-style-attacks::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, facility and asset ownership, safety/legal/privacy review, stop conditions, evidence handling, analyst validation, severity, containment, remediation, recovery, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "safety approval", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-suspicious-powershell-execution",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-suspicious-powershell-execution/SKILL.md",
+        "sha256": "3e347008866ea569c7d1cc0cd4899b99285b2ea3a281954f22552908e73d5b74",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Suspicious Powershell Execution:L36"]
+      },
+      "components": [
+        {
+          "id": "detecting-suspicious-powershell-execution::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed script, command, parent process, user, host, timestamp, policy, scope, and evidence-manifest fields without executing scripts or contacting endpoints.",
+          "notProved": ["PowerShell execution", "malicious intent", "endpoint compromise"]
+        },
+        {
+          "id": "detecting-suspicious-powershell-execution::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep PowerShell runtimes, operating systems, endpoints, EDR, AMSI, process telemetry, sandboxes, credentials, and production hosts external.",
+          "notProved": ["script behavior", "payload execution", "detection efficacy"]
+        },
+        {
+          "id": "detecting-suspicious-powershell-execution::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain script-block logging, constrained language, endpoint hardening, triage, and response guidance as advisory.",
+          "notProved": ["telemetry coverage", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "detecting-suspicious-powershell-execution::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, host and account ownership, legal/privacy/safety review, evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-t1548-abuse-elevation-control-mechanism",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-t1548-abuse-elevation-control-mechanism/SKILL.md",
+        "sha256": "675785c404c2f86ba336e178e6ba24bc0d303064ab20cfb903ed169c8846b278",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting T1548 Abuse Elevation Control Mechanism:L36"]
+      },
+      "components": [
+        {
+          "id": "detecting-t1548-abuse-elevation-control-mechanism::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed principal, elevation-control, application, host, process, policy, event, scope, and evidence-manifest fields without invoking operating-system elevation.",
+          "notProved": ["T1548 abuse", "privilege gain", "host compromise"]
+        },
+        {
+          "id": "detecting-t1548-abuse-elevation-control-mechanism::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep operating systems, UAC, endpoints, EDR, live processes, exploit tools, credentials, and production identity systems external.",
+          "notProved": ["bypass execution", "administrator access", "detection efficacy"]
+        },
+        {
+          "id": "detecting-t1548-abuse-elevation-control-mechanism::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain least privilege, elevation-policy hardening, application control, monitoring, and response guidance as advisory.",
+          "notProved": ["policy efficacy", "risk reduction", "remediation completion"]
+        },
+        {
+          "id": "detecting-t1548-abuse-elevation-control-mechanism::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, host and identity ownership, legal/privacy/safety review, evidence handling, analyst interpretation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-wmi-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-wmi-persistence/SKILL.md",
+        "sha256": "5d08db7a305683eccb3710fcf7e4269d716298297b253ea6c582278566aabd66",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting WMI Persistence:L37"]
+      },
+      "components": [
+        {
+          "id": "detecting-wmi-persistence::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed WMI namespace, subscription, filter, consumer, host, process, timestamp, policy, scope, and evidence-manifest fields without querying or modifying systems.",
+          "notProved": ["WMI persistence", "process execution", "endpoint compromise"]
+        },
+        {
+          "id": "detecting-wmi-persistence::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep WMI, Windows hosts, endpoints, process and registry access, EDR, PowerShell, credentials, and production systems external.",
+          "notProved": ["live persistence", "payload execution", "detection efficacy"]
+        },
+        {
+          "id": "detecting-wmi-persistence::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain WMI inventory, namespace hardening, endpoint monitoring, script controls, and incident-response guidance as advisory.",
+          "notProved": ["control efficacy", "persistence removal", "remediation completion"]
+        },
+        {
+          "id": "detecting-wmi-persistence::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, host and account ownership, legal/privacy/safety review, evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "eradicating-malware-from-infected-systems",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/eradicating-malware-from-infected-systems/SKILL.md",
+        "sha256": "6c0b752f968698fd885d7df74a6672801965306f128a3d0a651368a117725ae5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Eradicating Malware from Infected Systems:L29"]
+      },
+      "components": [
+        {
+          "id": "eradicating-malware-from-infected-systems::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed incident, host, artifact, malware, isolation, backup, recovery, owner, scope, and evidence-manifest fields without changing systems or removing artifacts.",
+          "notProved": ["malware presence", "eradication", "system recovery"]
+        },
+        {
+          "id": "eradicating-malware-from-infected-systems::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep endpoints, EDR, malware scanners, filesystems, networks, backups, imaging, production hosts, and remediation tools external.",
+          "notProved": ["live cleanup", "artifact removal", "recovery integrity"]
+        },
+        {
+          "id": "eradicating-malware-from-infected-systems::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain isolation, triage, eradication planning, restoration validation, communications, and incident-response guidance as advisory.",
+          "notProved": ["containment efficacy", "eradication completeness", "recovery completion"]
+        },
+        {
+          "id": "eradicating-malware-from-infected-systems::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, asset and data ownership, legal/privacy/safety review, chain of custody, analyst validation, stop conditions, containment, remediation, recovery, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "clean state", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "evaluating-threat-intelligence-platforms",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/evaluating-threat-intelligence-platforms/SKILL.md",
+        "sha256": "8ef52bd114eef21eddfd15f11c616bb025b5da5bd8983a948027bc1bf28d9da9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Evaluating Threat Intelligence Platforms:L38"]
+      },
+      "components": [
+        {
+          "id": "evaluating-threat-intelligence-platforms::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed platform, feed, IOC, source, enrichment, confidence, provenance, workflow, owner, scope, and evidence-manifest fields without contacting feeds or platforms.",
+          "notProved": ["intelligence accuracy", "IOC validity", "platform efficacy"]
+        },
+        {
+          "id": "evaluating-threat-intelligence-platforms::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep MISP, OpenCTI, TIPs, SOAR, live feeds, OSINT, enrichment services, DNS, WHOIS, hosting, AI/LLM, and production networks external.",
+          "notProved": ["live collection", "source truth", "freshness or enrichment outcome"]
+        },
+        {
+          "id": "evaluating-threat-intelligence-platforms::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain platform-selection, source-governance, uncertainty, dissemination, and defensive intelligence workflow guidance as advisory.",
+          "notProved": ["vendor fitness", "coverage", "detection efficacy"]
+        },
+        {
+          "id": "evaluating-threat-intelligence-platforms::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, source terms, legal/privacy/ethics review, data handling, analyst validation, uncertainty assessment, attribution, dissemination, escalation, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "executing-active-directory-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-active-directory-attack-simulation/SKILL.md",
+        "sha256": "560a1faa4841d7956d9be4a72ef121a69d56b90e893ffd18e273bdb1e1626d08",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Active Directory Attack Simulation:L41"]
+      },
+      "components": [
+        {
+          "id": "executing-active-directory-attack-simulation::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed AD domain, identity, asset, scenario, control, scope, authorization, stop-condition, and evidence-manifest fields without contacting or changing directory systems.",
+          "notProved": ["attack simulation", "directory compromise", "control efficacy"]
+        },
+        {
+          "id": "executing-active-directory-attack-simulation::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Active Directory, domain controllers, credentials, attack frameworks, endpoints, networks, sessions, and production identity infrastructure external.",
+          "notProved": ["live attack activity", "privilege gain", "detection efficacy"]
+        },
+        {
+          "id": "executing-active-directory-attack-simulation::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive control validation, segmentation, identity hardening, exercise planning, and response guidance as advisory.",
+          "notProved": ["control validation", "risk reduction", "remediation completion"]
+        },
+        {
+          "id": "executing-active-directory-attack-simulation::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, domain and asset ownership, legal/privacy/ethics/safety review, scope, stop conditions, credential handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "exercise success", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "executing-red-team-engagement-planning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-red-team-engagement-planning/SKILL.md",
+        "sha256": "8bcb48bb70431c7961d5826b74be8f191cb7f3b213ce54c3bd3188895e437bb3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Red Team Engagement Planning:L29"]
+      },
+      "components": [
+        {
+          "id": "executing-red-team-engagement-planning::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed engagement, objective, asset, scope, authorization, schedule, contact, stop-condition, risk, and evidence-manifest fields without launching activity.",
+          "notProved": ["engagement authorization", "attack execution", "security posture"]
+        },
+        {
+          "id": "executing-red-team-engagement-planning::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep red-team tools, live targets, networks, hosts, credentials, social channels, endpoints, payloads, sessions, and production infrastructure external.",
+          "notProved": ["live operation", "target compromise", "detection efficacy"]
+        },
+        {
+          "id": "executing-red-team-engagement-planning::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain engagement planning, threat modeling, safety, communications, exercise governance, and defensive validation guidance as advisory.",
+          "notProved": ["planning sufficiency", "exercise outcome", "risk reduction"]
+        },
+        {
+          "id": "executing-red-team-engagement-planning::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, owner approval, legal/privacy/ethics/safety review, scope, rules of engagement, stop conditions, data handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "engagement success", "security outcome"]
+        }
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live cloud, web, OT, endpoint, identity, directory, threat-intelligence, network, or production telemetry is proved.",
+    "No service-account abuse, SQL injection, OT compromise, PowerShell execution, elevation abuse, WMI persistence, malware eradication, intelligence truth, AD attack simulation, or red-team engagement outcome is proved.",
+    "No payload execution, exploitation, credential access, process or network activity, detection efficacy, attribution, containment, recovery, or remediation is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, disclosure decision, or security outcome is proved."
+  ]
+}
