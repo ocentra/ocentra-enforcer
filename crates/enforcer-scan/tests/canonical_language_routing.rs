@@ -8,6 +8,7 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::RouteScope;
 use enforcer_scan::router::identity::{
     detect_language_identities, DetectedLanguageRoute, RouteCapabilityDisposition,
+    UnknownLanguagePolicy,
 };
 use enforcer_scan::router::plan::build_canonical_route_plan;
 use enforcer_syntax::registry::{
@@ -159,8 +160,8 @@ fn extension_match_preserves_canonical_identity_and_is_case_insensitive() -> Res
     let matcher = first_matcher_for_kind(DetectionMatcherKind::Extension)?;
     let path = path_for_matcher(matcher)?;
     let upper = rel(&path.as_str().to_ascii_uppercase())?;
-    let first = detect_language_identities(&[path], false);
-    let second = detect_language_identities(&[upper], false);
+    let first = detect_language_identities(&[path], UnknownLanguagePolicy::Exclude);
+    let second = detect_language_identities(&[upper], UnknownLanguagePolicy::Exclude);
     assert_eq!(canonical_route(&first)?, canonical_route(&second)?);
     Ok(())
 }
@@ -172,11 +173,11 @@ fn exact_basename_and_compound_suffix_matchers_preserve_identity() -> Result<(),
     let basename_path = path_for_matcher(basename)?;
     let compound_path = path_for_matcher(compound)?;
     assert!(matches!(
-        detect_language_identities(&[basename_path], false).as_slice(),
+        detect_language_identities(&[basename_path], UnknownLanguagePolicy::Exclude).as_slice(),
         [DetectedLanguageRoute::Canonical(_)]
     ));
     assert!(matches!(
-        detect_language_identities(&[compound_path], false).as_slice(),
+        detect_language_identities(&[compound_path], UnknownLanguagePolicy::Exclude).as_slice(),
         [DetectedLanguageRoute::Canonical(_)]
     ));
     Ok(())
@@ -193,7 +194,7 @@ fn literal_only_projection_is_supplemental_not_parser_identity() -> Result<(), S
         return Err("all five literal-only rows must expose a matcher".to_owned());
     };
     let path = path_for_matcher(matcher)?;
-    let routes = detect_language_identities(&[path], false);
+    let routes = detect_language_identities(&[path], UnknownLanguagePolicy::Exclude);
     assert_eq!(
         routes,
         vec![DetectedLanguageRoute::SupplementalLiteral { name }]
@@ -219,7 +220,7 @@ fn recognized_structural_identity_is_explicitly_unsupported_in_p1b() -> Result<(
         );
     };
     let path = path_for_matcher(matcher)?;
-    let routes = detect_language_identities(&[path], true);
+    let routes = detect_language_identities(&[path], UnknownLanguagePolicy::Include);
     let [DetectedLanguageRoute::Canonical(route)] = routes.as_slice() else {
         return Err(format!("known canonical matcher fell through: {routes:?}"));
     };
@@ -231,9 +232,13 @@ fn recognized_structural_identity_is_explicitly_unsupported_in_p1b() -> Result<(
 #[test]
 fn unknown_is_explicit_only_when_enabled() -> Result<(), String> {
     let path = rel("notes.unregistered_extension")?;
-    assert!(detect_language_identities(std::slice::from_ref(&path), false).is_empty());
+    assert!(detect_language_identities(
+        std::slice::from_ref(&path),
+        UnknownLanguagePolicy::Exclude
+    )
+    .is_empty());
     assert_eq!(
-        detect_language_identities(&[path], true),
+        detect_language_identities(&[path], UnknownLanguagePolicy::Include),
         vec![DetectedLanguageRoute::Unknown]
     );
     Ok(())
@@ -242,7 +247,8 @@ fn unknown_is_explicit_only_when_enabled() -> Result<(), String> {
 #[test]
 fn canonical_route_plan_narrows_scope_without_using_legacy_other() -> Result<(), String> {
     let paths = vec![rel("src/lib.rs")?, rel("web/index.ts")?, rel("notes.qux")?];
-    let routes = build_canonical_route_plan(&paths, &RouteScope::Repo, true);
+    let routes =
+        build_canonical_route_plan(&paths, &RouteScope::Repo, UnknownLanguagePolicy::Include);
     assert!(routes.iter().any(|route| {
         matches!(
             route,
@@ -279,7 +285,7 @@ fn collision_winner_is_typed_and_not_a_legacy_other_route() -> Result<(), String
         DetectionMatcherKind::ExactBasename => rel(&format!("src/{key}"))?,
         DetectionMatcherKind::CompoundSuffix => rel(&format!("src/fixture{key}"))?,
     };
-    let routes = detect_language_identities(&[path], false);
+    let routes = detect_language_identities(&[path], UnknownLanguagePolicy::Exclude);
     match (winner, routes.as_slice()) {
         (LiteralReference::ParserId(id), [DetectedLanguageRoute::Canonical(route)]) => {
             assert_eq!(id, route.id());

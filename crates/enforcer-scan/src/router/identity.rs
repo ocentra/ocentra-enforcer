@@ -29,6 +29,19 @@ pub enum RouteCapabilityDisposition {
     NotApplicable,
 }
 
+/// Policy for the explicit unknown-language fallback route.
+///
+/// This is a routing decision, not a parser or validator capability. The
+/// canonical registry remains authoritative for recognized identities even
+/// when this policy excludes the supplemental unknown result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnknownLanguagePolicy {
+    /// Do not append an unknown result when no canonical matcher applies.
+    Exclude,
+    /// Append one unknown result after all canonical matchers are exhausted.
+    Include,
+}
+
 /// One canonical language identity retained by the scan router.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalLanguageRoute {
@@ -79,24 +92,26 @@ pub enum DetectedLanguageRoute {
 ///
 /// Matching uses only typed registry matchers and the reviewed precedence
 /// projection. Unknown is included at most once and only when
-/// `include_unknown` is enabled.
+/// [`UnknownLanguagePolicy::Include`] is selected.
 pub fn detect_language_identities(
     paths: &[RelPath],
-    include_unknown: bool,
+    unknown_policy: UnknownLanguagePolicy,
 ) -> Vec<DetectedLanguageRoute> {
     let mut canonical = BTreeSet::new();
     let mut supplemental = BTreeSet::new();
     let mut found_unknown = false;
 
     for path in paths {
-        match matched_reference(path.as_str()) {
+        match matched_reference(path) {
             Some(LiteralReference::ParserId(id)) => {
                 canonical.insert(id);
             }
             Some(LiteralReference::SupplementalLiteralName(name)) => {
                 supplemental.insert(name);
             }
-            Some(LiteralReference::Fallback) | None if include_unknown => {
+            Some(LiteralReference::Fallback) | None
+                if unknown_policy == UnknownLanguagePolicy::Include =>
+            {
                 found_unknown = true;
             }
             Some(LiteralReference::Fallback) | None => {}
@@ -135,25 +150,27 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
     })
 }
 
-fn matched_reference(path: &str) -> Option<LiteralReference> {
-    let basename = path.rsplit('/').next().unwrap_or(path);
-    let extension = basename.rsplit('.').next().unwrap_or("");
-
+fn matched_reference(path: &RelPath) -> Option<LiteralReference> {
     for kind in detection_precedence().ordered_kinds() {
-        let mut best: Option<(usize, LiteralReference)> = None;
+        let mut best: Option<(DetectionMatcher, LiteralReference)> = None;
 
         for record in language_registry() {
             for matcher in record.matchers().iter().copied() {
                 if matcher_kind(matcher) != *kind {
                     continue;
                 }
-                let Some(length) = matching_length(matcher, basename, extension) else {
+                let Some(matched_matcher) = matching_matcher(matcher, path) else {
                     continue;
                 };
                 let reference =
                     collision_winner(matcher).unwrap_or(LiteralReference::ParserId(record.id()));
-                if best.is_none_or(|(best_length, _)| length > best_length) {
-                    best = Some((length, reference));
+                if best.is_none_or(|(best_matcher, _)| {
+                    matches!(
+                        compare_matchers(matched_matcher, best_matcher),
+                        MatcherSelection::Replace
+                    )
+                }) {
+                    best = Some((matched_matcher, reference));
                 }
             }
         }
@@ -167,7 +184,7 @@ fn matched_reference(path: &str) -> Option<LiteralReference> {
                 if matcher_kind(matcher) != *kind {
                     continue;
                 }
-                let Some(length) = matching_length(matcher, basename, extension) else {
+                let Some(matched_matcher) = matching_matcher(matcher, path) else {
                     continue;
                 };
                 let reference = collision_winner(matcher)
@@ -179,8 +196,13 @@ fn matched_reference(path: &str) -> Option<LiteralReference> {
                 let Some(reference) = reference else {
                     continue;
                 };
-                if best.is_none_or(|(best_length, _)| length > best_length) {
-                    best = Some((length, reference));
+                if best.is_none_or(|(best_matcher, _)| {
+                    matches!(
+                        compare_matchers(matched_matcher, best_matcher),
+                        MatcherSelection::Replace
+                    )
+                }) {
+                    best = Some((matched_matcher, reference));
                 }
             }
         }
@@ -200,43 +222,51 @@ fn matcher_kind(matcher: DetectionMatcher) -> DetectionMatcherKind {
     }
 }
 
-fn matcher_value(matcher: DetectionMatcher) -> &'static str {
+fn matching_matcher(matcher: DetectionMatcher, path: &RelPath) -> Option<DetectionMatcher> {
+    let path_text = path.as_str();
+    let basename = path_text.rsplit('/').next().unwrap_or(path_text);
+    let extension = basename.rsplit('.').next().unwrap_or("");
     match matcher {
-        DetectionMatcher::Extension(value)
-        | DetectionMatcher::ExactBasename(value)
-        | DetectionMatcher::CompoundSuffix(value) => value,
+        DetectionMatcher::Extension(value) => {
+            extension.eq_ignore_ascii_case(value).then_some(matcher)
+        }
+        DetectionMatcher::ExactBasename(value) => {
+            basename.eq_ignore_ascii_case(value).then_some(matcher)
+        }
+        DetectionMatcher::CompoundSuffix(value) => basename
+            .to_ascii_lowercase()
+            .ends_with(&value.to_ascii_lowercase())
+            .then_some(matcher),
     }
 }
 
-fn matching_length(matcher: DetectionMatcher, basename: &str, extension: &str) -> Option<usize> {
-    let value = matcher_value(matcher);
-    let matches = match matcher {
-        DetectionMatcher::Extension(_) => extension.eq_ignore_ascii_case(value),
-        DetectionMatcher::ExactBasename(_) => basename.eq_ignore_ascii_case(value),
-        DetectionMatcher::CompoundSuffix(_) => basename
-            .to_ascii_lowercase()
-            .ends_with(&value.to_ascii_lowercase()),
-    };
-    matches.then_some(
-        if matcher_kind(matcher) == DetectionMatcherKind::CompoundSuffix {
-            value.len()
-        } else {
-            0
-        },
-    )
+enum MatcherSelection {
+    Keep,
+    Replace,
 }
 
-fn normalized_matcher_key(matcher: DetectionMatcher) -> String {
-    let kind = match matcher_kind(matcher) {
-        DetectionMatcherKind::Extension => "extension",
-        DetectionMatcherKind::ExactBasename => "exactBasename",
-        DetectionMatcherKind::CompoundSuffix => "compoundSuffix",
-    };
-    format!("{kind}:{}", matcher_value(matcher).to_ascii_lowercase())
+fn compare_matchers(candidate: DetectionMatcher, incumbent: DetectionMatcher) -> MatcherSelection {
+    match (candidate, incumbent) {
+        (
+            DetectionMatcher::CompoundSuffix(candidate),
+            DetectionMatcher::CompoundSuffix(incumbent),
+        ) => {
+            if candidate.len() > incumbent.len() {
+                MatcherSelection::Replace
+            } else {
+                MatcherSelection::Keep
+            }
+        }
+        _ => MatcherSelection::Keep,
+    }
 }
 
 fn collision_winner(matcher: DetectionMatcher) -> Option<LiteralReference> {
-    let key = matcher_value(matcher).to_ascii_lowercase();
+    let key = match matcher {
+        DetectionMatcher::Extension(value)
+        | DetectionMatcher::ExactBasename(value)
+        | DetectionMatcher::CompoundSuffix(value) => value.to_ascii_lowercase(),
+    };
     let kind = matcher_kind(matcher);
     collision_resolutions()
         .iter()
@@ -255,7 +285,15 @@ fn matcher_winner(
     matcher: DetectionMatcher,
     winners: &[MatcherWinner],
 ) -> Option<LiteralReference> {
-    let key = normalized_matcher_key(matcher);
+    let key = match matcher {
+        DetectionMatcher::Extension(value) => format!("extension:{}", value.to_ascii_lowercase()),
+        DetectionMatcher::ExactBasename(value) => {
+            format!("exactBasename:{}", value.to_ascii_lowercase())
+        }
+        DetectionMatcher::CompoundSuffix(value) => {
+            format!("compoundSuffix:{}", value.to_ascii_lowercase())
+        }
+    };
     winners.iter().find_map(|winner| match winner {
         MatcherWinner::Key(winner_key, reference) if *winner_key == key => Some(*reference),
         _ => None,

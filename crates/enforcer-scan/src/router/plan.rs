@@ -18,7 +18,7 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
 use super::detect::detect_languages;
-use super::identity::{detect_language_identities, DetectedLanguageRoute};
+use super::identity::{detect_language_identities, DetectedLanguageRoute, UnknownLanguagePolicy};
 use super::native_tie::native_tools_for;
 use super::scope::narrow;
 
@@ -50,11 +50,11 @@ fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
 pub fn build_canonical_route_plan(
     paths: &[RelPath],
     scope: &RouteScope,
-    include_unknown: bool,
+    unknown_policy: UnknownLanguagePolicy,
 ) -> Vec<DetectedLanguageRoute> {
     let narrowed = narrow(paths, scope);
     let narrowed_paths: Vec<RelPath> = narrowed.into_iter().cloned().collect();
-    detect_language_identities(&narrowed_paths, include_unknown)
+    detect_language_identities(&narrowed_paths, unknown_policy)
 }
 
 // ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
