@@ -7,10 +7,12 @@ use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::config_types::HarnessConfig;
 use enforcer_domain::harness_types::{
     HarnessBoundedExecution, HarnessCommandArgument, HarnessExecutionLimits,
-    HarnessExecutionTermination, HarnessToolAvailability, HarnessToolDecision, HarnessToolName,
-    HarnessToolRequirement, HarnessToolSpec,
+    HarnessExecutionTermination, HarnessProbeOutput, HarnessStepVersion, HarnessToolAvailability,
+    HarnessToolDecision, HarnessToolName, HarnessToolProbe, HarnessToolRequirement,
+    HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
+use enforcer_harness::availability::probe_allowlisted_tool;
 use enforcer_harness::execution::{
     execute_allowlisted_bounded, validate_allowlisted_request, ExecuteRequest,
 };
@@ -39,6 +41,42 @@ fn spec_with_command(
         None,
     )
     .map_err(Into::into)
+}
+
+fn spec_with_probe(
+    main_command: Vec<HarnessCommandArgument>,
+    probe_command: Vec<HarnessCommandArgument>,
+    output: HarnessProbeOutput,
+    expected_version: &str,
+) -> Result<HarnessToolSpec> {
+    spec_with_probe_limits(
+        main_command,
+        probe_command,
+        output,
+        expected_version,
+        2_000,
+        1_024,
+    )
+}
+
+fn spec_with_probe_limits(
+    main_command: Vec<HarnessCommandArgument>,
+    probe_command: Vec<HarnessCommandArgument>,
+    output: HarnessProbeOutput,
+    expected_version: &str,
+    max_wall_time_ms: u64,
+    max_output_bytes: u64,
+) -> Result<HarnessToolSpec> {
+    let expected_version = HarnessStepVersion::try_new(expected_version.to_owned())?;
+    let probe = HarnessToolProbe::try_new(probe_command, output)?;
+    Ok(HarnessToolSpec::try_new(
+        HarnessToolName::try_new("cargo".to_owned())?,
+        main_command,
+        HarnessToolRequirement::Required,
+        HarnessExecutionLimits::try_new(max_wall_time_ms, max_output_bytes, 100)?,
+        Some(expected_version),
+    )?
+    .with_probe(probe))
 }
 
 fn child_command(test_name: &str) -> Result<Vec<HarnessCommandArgument>> {
@@ -179,6 +217,324 @@ fn execution_limits_and_command_templates_are_closed_and_non_zero() -> Result<()
         ),
         "command",
     )?;
+    Ok(())
+}
+
+#[test]
+fn availability_requires_one_complete_reviewed_probe_contract() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+    let probe_command = child_command("child_entry_probe_version")?;
+    let missing_version = spec_with_command(main.clone(), 2_000, 1_024)?.with_probe(
+        HarnessToolProbe::try_new(probe_command.clone(), HarnessProbeOutput::Stdout)?,
+    );
+    let result = probe_allowlisted_tool(
+        &request(root.clone(), main.clone(), None)?,
+        &missing_version,
+    )?;
+    assert_eq!(
+        result.availability(),
+        HarnessToolAvailability::Misconfigured
+    );
+    assert_eq!(result.termination(), None);
+    assert_eq!(result.observed_version(), None);
+    assert_decode_error(
+        HarnessToolProbe::try_new(vec![], HarnessProbeOutput::Stdout),
+        "probe.command",
+    )?;
+    assert_decode_error(
+        HarnessStepVersion::try_new("".to_owned()),
+        "harnessStepVersion",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn availability_uses_only_the_reviewed_probe_command_and_exact_version() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+    let probe = child_command("child_entry_probe_version")?;
+    let reviewed = spec_with_probe(main.clone(), probe, HarnessProbeOutput::Stderr, "1.2.3")?;
+    let result = probe_allowlisted_tool(&request(root, main, None)?, &reviewed)?;
+    assert_eq!(
+        result.availability(),
+        HarnessToolAvailability::Available,
+        "observed={:?} termination={:?}",
+        result.observed_version().map(HarnessStepVersion::as_str),
+        result.termination()
+    );
+    assert_eq!(
+        result.termination(),
+        Some(HarnessExecutionTermination::Completed)
+    );
+    assert_eq!(
+        result.observed_version().map(HarnessStepVersion::as_str),
+        Some("1.2.3")
+    );
+    Ok(())
+}
+
+#[test]
+fn availability_preserves_missing_spawn_and_nonzero_causality() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+
+    let missing_probe = vec![HarnessCommandArgument::try_new(
+        "ocentra-definitely-missing-ul07-probe".to_owned(),
+    )?];
+    let missing_spec = spec_with_probe(
+        main.clone(),
+        missing_probe,
+        HarnessProbeOutput::Stdout,
+        "1.2.3",
+    )?;
+    let missing =
+        probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &missing_spec)?;
+    assert_eq!(missing.availability(), HarnessToolAvailability::Missing);
+    assert_eq!(
+        missing.termination(),
+        Some(HarnessExecutionTermination::MissingExecutable)
+    );
+    assert_eq!(missing.observed_version(), None);
+
+    let not_a_directory = temp.path().join("not-a-directory");
+    std::fs::write(&not_a_directory, "file")?;
+    let spawn_probe = child_command("child_entry_probe_version")?;
+    let spawn_spec = spec_with_probe(
+        main.clone(),
+        spawn_probe,
+        HarnessProbeOutput::Stdout,
+        "1.2.3",
+    )?;
+    let spawn_failed = probe_allowlisted_tool(
+        &request(
+            root.clone(),
+            main.clone(),
+            Some("not-a-directory".to_owned()),
+        )?,
+        &spawn_spec,
+    )?;
+    assert_eq!(spawn_failed.availability(), HarnessToolAvailability::Failed);
+    assert_eq!(
+        spawn_failed.termination(),
+        Some(HarnessExecutionTermination::SpawnFailed)
+    );
+
+    let nonzero_probe = child_command("child_entry_exits_nonzero")?;
+    let nonzero_spec = spec_with_probe(main, nonzero_probe, HarnessProbeOutput::Stdout, "1.2.3")?;
+    let nonzero = probe_allowlisted_tool(
+        &request(root, child_command("child_entry_outputs")?, None)?,
+        &nonzero_spec,
+    )?;
+    assert_eq!(nonzero.availability(), HarnessToolAvailability::Failed);
+    assert_eq!(
+        nonzero.termination(),
+        Some(HarnessExecutionTermination::NonZeroExit)
+    );
+    Ok(())
+}
+
+#[test]
+fn availability_maps_timeout_and_output_overflow_to_closed_states() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+
+    let timeout_spec = spec_with_probe_limits(
+        main.clone(),
+        child_command("child_entry_writes_timeout_sentinel")?,
+        HarnessProbeOutput::Stdout,
+        "1.2.3",
+        40,
+        1_024,
+    )?;
+    let timeout =
+        probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &timeout_spec)?;
+    assert_eq!(timeout.availability(), HarnessToolAvailability::TimedOut);
+    assert_eq!(
+        timeout.termination(),
+        Some(HarnessExecutionTermination::TimedOut)
+    );
+    assert_eq!(timeout.observed_version(), None);
+
+    let overflow_spec = spec_with_probe_limits(
+        main.clone(),
+        child_command("child_entry_overflows_then_writes_sentinel")?,
+        HarnessProbeOutput::Stdout,
+        "1.2.3",
+        2_000,
+        32,
+    )?;
+    let overflow = probe_allowlisted_tool(&request(root, main, None)?, &overflow_spec)?;
+    assert_eq!(
+        overflow.availability(),
+        HarnessToolAvailability::MalformedOutput
+    );
+    assert_eq!(
+        overflow.termination(),
+        Some(HarnessExecutionTermination::OutputLimitExceeded)
+    );
+    assert_eq!(overflow.observed_version(), None);
+    Ok(())
+}
+
+#[test]
+fn availability_uses_exact_normalized_version_records() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+
+    let exact = spec_with_probe(
+        main.clone(),
+        child_command("child_entry_probe_version")?,
+        HarnessProbeOutput::Stderr,
+        "1.2.3",
+    )?;
+    let exact_result = probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &exact)?;
+    assert_eq!(
+        exact_result.availability(),
+        HarnessToolAvailability::Available,
+        "observed={:?} termination={:?}",
+        exact_result
+            .observed_version()
+            .map(HarnessStepVersion::as_str),
+        exact_result.termination()
+    );
+    assert_eq!(
+        exact_result
+            .observed_version()
+            .map(HarnessStepVersion::as_str),
+        Some("1.2.3")
+    );
+
+    let mismatch = spec_with_probe(
+        main.clone(),
+        child_command("child_entry_probe_version")?,
+        HarnessProbeOutput::Stderr,
+        "1.2.4",
+    )?;
+    let mismatch_result =
+        probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &mismatch)?;
+    assert_eq!(
+        mismatch_result.availability(),
+        HarnessToolAvailability::VersionMismatch
+    );
+    assert_eq!(
+        mismatch_result
+            .observed_version()
+            .map(HarnessStepVersion::as_str),
+        Some("1.2.3")
+    );
+
+    let normalized = spec_with_probe(
+        main,
+        child_command("child_entry_probe_version_crlf")?,
+        HarnessProbeOutput::Stderr,
+        "1.2.3",
+    )?;
+    let normalized_result = probe_allowlisted_tool(
+        &request(root, child_command("child_entry_outputs")?, None)?,
+        &normalized,
+    )?;
+    assert_eq!(
+        normalized_result.availability(),
+        HarnessToolAvailability::Available
+    );
+    Ok(())
+}
+
+#[test]
+fn availability_rejects_empty_control_and_multi_record_output() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+    for child_name in [
+        "child_entry_probe_empty",
+        "child_entry_probe_multiline",
+        "child_entry_probe_control",
+    ] {
+        let reviewed = spec_with_probe(
+            main.clone(),
+            child_command(child_name)?,
+            HarnessProbeOutput::Stderr,
+            "1.2.3",
+        )?;
+        let result =
+            probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &reviewed)?;
+        assert_eq!(
+            result.availability(),
+            HarnessToolAvailability::MalformedOutput,
+            "{child_name} must be rejected as malformed output"
+        );
+        assert_eq!(
+            result.termination(),
+            Some(HarnessExecutionTermination::Completed)
+        );
+        assert_eq!(result.observed_version(), None);
+    }
+    Ok(())
+}
+
+#[test]
+fn availability_selects_one_typed_stream_without_fallback() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+    let stderr = spec_with_probe(
+        main.clone(),
+        child_command("child_entry_probe_both_streams")?,
+        HarnessProbeOutput::Stderr,
+        "9.9.9",
+    )?;
+    let stderr_result =
+        probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &stderr)?;
+    assert_eq!(
+        stderr_result.availability(),
+        HarnessToolAvailability::Available
+    );
+
+    let no_fallback = spec_with_probe(
+        main,
+        child_command("child_entry_probe_both_streams")?,
+        HarnessProbeOutput::Stdout,
+        "9.9.9",
+    )?;
+    let no_fallback_result = probe_allowlisted_tool(
+        &request(root, child_command("child_entry_outputs")?, None)?,
+        &no_fallback,
+    )?;
+    assert_eq!(
+        no_fallback_result.availability(),
+        HarnessToolAvailability::MalformedOutput
+    );
+    assert_eq!(no_fallback_result.observed_version(), None);
+    Ok(())
+}
+
+#[test]
+fn availability_reads_a_clean_reviewed_stdout_record() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let main = child_command("child_entry_outputs")?;
+    let git_probe = vec![
+        HarnessCommandArgument::try_new("git".to_owned())?,
+        HarnessCommandArgument::try_new("--version".to_owned())?,
+    ];
+    let reviewed = spec_with_probe(
+        main.clone(),
+        git_probe,
+        HarnessProbeOutput::Stdout,
+        "git version 2.38.1.windows.1",
+    )?;
+    let result = probe_allowlisted_tool(&request(root, main, None)?, &reviewed)?;
+    assert_eq!(result.availability(), HarnessToolAvailability::Available);
+    assert_eq!(
+        result.observed_version().map(HarnessStepVersion::as_str),
+        Some("git version 2.38.1.windows.1")
+    );
     Ok(())
 }
 
@@ -396,6 +752,76 @@ fn child_entry_outputs() {
     if child_mode() {
         print!("bounded-stdout");
         eprint!("bounded-stderr");
+    }
+}
+
+#[test]
+fn child_entry_probe_version() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(b"1.2.3");
+        let _ = stderr.flush();
+        std::process::exit(0);
+    }
+}
+
+#[test]
+fn child_entry_probe_version_crlf() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(b"  1.2.3\r\n");
+        let _ = stderr.flush();
+        std::process::exit(0);
+    }
+}
+
+#[test]
+fn child_entry_probe_empty() {
+    if child_mode() {
+        std::process::exit(0);
+    }
+}
+
+#[test]
+fn child_entry_probe_multiline() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(b"1.2.3\nextra");
+        let _ = stderr.flush();
+        std::process::exit(0);
+    }
+}
+
+#[test]
+fn child_entry_probe_control() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(b"1.2.3\t");
+        let _ = stderr.flush();
+        std::process::exit(0);
+    }
+}
+
+#[test]
+fn child_entry_probe_both_streams() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stdout = std::io::stdout();
+        let _ = stdout.write_all(b"1.2.3");
+        let _ = stdout.flush();
+        let mut stderr = std::io::stderr();
+        let _ = stderr.write_all(b"9.9.9");
+        let _ = stderr.flush();
+        std::process::exit(0);
     }
 }
 

@@ -621,6 +621,61 @@ impl HarnessExecutionLimits {
     }
 }
 
+/// Select the one reviewed output stream from which a tool version is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessProbeOutput {
+    /// Read the version record from stdout only.
+    Stdout,
+    /// Read the version record from stderr only.
+    Stderr,
+}
+
+impl HarnessProbeOutput {
+    /// Stable output-stream spelling for probe evidence.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stdout => "stdout",
+            Self::Stderr => "stderr",
+        }
+    }
+}
+
+/// Reviewed command and exact output contract for one availability probe.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessToolProbe {
+    command: Vec<HarnessCommandArgument>,
+    output: HarnessProbeOutput,
+}
+
+impl HarnessToolProbe {
+    /// Construct a non-empty shell-free probe command and exact version contract.
+    pub fn try_new(
+        command: Vec<HarnessCommandArgument>,
+        output: HarnessProbeOutput,
+    ) -> Result<Self, DecodeError> {
+        if command.is_empty() {
+            return Err(DecodeError::new(
+                "probe.command",
+                "availability probe command must not be empty",
+            ));
+        }
+        Ok(Self { command, output })
+    }
+
+    /// Reviewed executable-and-argument probe command.
+    #[must_use]
+    pub fn command(&self) -> &[HarnessCommandArgument] {
+        &self.command
+    }
+
+    /// Reviewed stream selected for the version record.
+    #[must_use]
+    pub const fn output(&self) -> HarnessProbeOutput {
+        self.output
+    }
+}
+
 /// Reviewed command template and policy for one allowlisted tool.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HarnessToolSpec {
@@ -629,6 +684,7 @@ pub struct HarnessToolSpec {
     requirement: HarnessToolRequirement,
     limits: HarnessExecutionLimits,
     expected_version: Option<HarnessStepVersion>,
+    probe: Option<HarnessToolProbe>,
 }
 
 impl HarnessToolSpec {
@@ -652,7 +708,14 @@ impl HarnessToolSpec {
             requirement,
             limits,
             expected_version,
+            probe: None,
         })
+    }
+
+    /// Attach one reviewed probe contract without changing the main invocation.
+    pub fn with_probe(mut self, probe: HarnessToolProbe) -> Self {
+        self.probe = Some(probe);
+        self
     }
 
     /// Reviewed tool identity.
@@ -683,6 +746,38 @@ impl HarnessToolSpec {
     #[must_use]
     pub const fn expected_version(&self) -> Option<&HarnessStepVersion> {
         self.expected_version.as_ref()
+    }
+
+    /// Return the reviewed availability probe, if one was attached.
+    #[must_use]
+    pub const fn probe(&self) -> Option<&HarnessToolProbe> {
+        self.probe.as_ref()
+    }
+
+    /// Derive the allowlisted execution spec for the reviewed probe command.
+    pub fn probe_execution_spec(&self) -> Result<Self, DecodeError> {
+        // CLONE-JUSTIFICATION: the derived spec owns the reviewed probe contract
+        // for one bounded execution without mutating the main invocation spec.
+        let probe = self.probe.clone().ok_or_else(|| {
+            DecodeError::new(
+                "probe",
+                "availability probe metadata is required before execution",
+            )
+        })?;
+        Ok(Self {
+            // CLONE-JUSTIFICATION: the derived spec must own the same reviewed
+            // tool identity while remaining independent of the caller spec.
+            tool: self.tool.clone(),
+            // CLONE-JUSTIFICATION: the bounded runner consumes an owned command
+            // template for the probe-only execution request.
+            command: probe.command.clone(),
+            requirement: self.requirement,
+            limits: self.limits,
+            // CLONE-JUSTIFICATION: preserve the single expected-version authority
+            // on the derived spec without mutating the main invocation spec.
+            expected_version: self.expected_version.clone(),
+            probe: Some(probe),
+        })
     }
 }
 
