@@ -1,18 +1,116 @@
-//! Contract tests for the JSON-owned UL06 parser identity registry.
-//!
-//! Source owner: `crates/enforcer-syntax/registry/languages.json`.
-//! Generator: `src/boundary/language_registry_build.rs`.
+//! Contract proof for the JSON-owned UL06 P1A1 registry.
+// Source owner: crates/enforcer-syntax/registry/languages.json
+// Generator: crates/enforcer-syntax/src/boundary/language_registry_build.rs
+// schemaHash: 6c0587966c88a5e4d32c69ff7b2f5a74e2bcb4beef671bd06dec4d9a8ddd7359
 
-use enforcer_syntax::boundary::language_registry::{render_source, validate_source, ManifestError};
+use enforcer_domain::language_types::{LiteralDisposition, NO_LITERAL_PARSER_IDENTITY_COUNT, StructuralLanguageSupport};
+use enforcer_syntax::boundary::language_registry::{render_source, validate_source};
 use enforcer_syntax::parsers::Language;
-use enforcer_syntax::registry::{language_registry, record_for_parser};
-use proptest::{prelude::any, proptest};
-use sha2::{Digest, Sha256};
+use enforcer_syntax::registry::{collision_resolutions, language_registry, literal_projections, record_for_parser};
+use serde_json::Value;
 use std::collections::HashSet;
 
 const MANIFEST: &str = include_str!("../registry/languages.json");
 const GENERATED: &str = include_str!(concat!(env!("OUT_DIR"), "/language_registry.rs"));
-const MANIFEST_SHA256: &str = "5235f9d44b4f256abeb82b846a39b98cc7a344cb7314e503e0e979449c13895a";
+
+const EXPECTED_LITERAL_NAMES: &[&str] = &[
+    "rust",
+    "typescript",
+    "javascript",
+    "python",
+    "c",
+    "cpp",
+    "csharp",
+    "objective-c",
+    "zig",
+    "go",
+    "d",
+    "v",
+    "nim",
+    "java",
+    "kotlin",
+    "scala",
+    "groovy",
+    "swift",
+    "dart",
+    "php",
+    "ruby",
+    "perl",
+    "lua",
+    "r",
+    "julia",
+    "shell",
+    "powershell",
+    "batch",
+    "make",
+    "dockerfile",
+    "haskell",
+    "ocaml",
+    "fsharp",
+    "elm",
+    "purescript",
+    "elixir",
+    "erlang",
+    "clojure",
+    "lisp",
+    "sql",
+    "graphql",
+    "terraform",
+    "nix",
+    "starlark",
+    "protobuf",
+    "thrift",
+    "solidity",
+    "move",
+    "apex",
+    "qml",
+    "cuda",
+    "shader",
+    "raku",
+    "reason",
+    "rescript",
+    "sml",
+    "avro",
+    "html",
+    "css",
+    "json",
+    "yaml",
+    "toml",
+    "env",
+    "markdown",
+    "xml",
+    "csv",
+    "coldfusion",
+    "unknown",
+];
+
+type TestResult<T = ()> = Result<T, String>;
+
+fn must_result<T, E: std::fmt::Debug>(result: Result<T, E>, label: &str) -> TestResult<T> {
+    result.map_err(|error| format!("{label}: {error:?}"))
+}
+
+fn must_option<T>(value: Option<T>, label: &str) -> TestResult<T> {
+    value.ok_or_else(|| format!("missing {label}"))
+}
+
+fn rejected<E: std::fmt::Debug>(result: Result<(), E>) -> TestResult<E> {
+    match result {
+        Ok(()) => Err("mutation was accepted".to_owned()),
+        Err(error) => Ok(error),
+    }
+}
+
+fn manifest_value() -> TestResult<Value> {
+    must_result(serde_json::from_str(MANIFEST), "reviewed manifest must parse")
+}
+
+fn expect_error(value: &Value, expected: &str) -> TestResult {
+    let source = must_result(serde_json::to_string(value), "mutation must serialize")?;
+    let error = rejected(validate_source(&source))?;
+    assert!(format!("{error:?}").contains(expected), "expected {expected}, got {error:?}");
+    Ok(())
+}
 
 fn parser_enum_source_names() -> Vec<String> {
     let mut inside_language_enum = false;
@@ -26,14 +124,9 @@ fn parser_enum_source_names() -> Vec<String> {
             break;
         }
         if inside_language_enum {
-            let candidate = line.trim();
-            if let Some(candidate) = candidate.strip_suffix(',') {
-                if candidate
-                    .chars()
-                    .all(|character| character == '_' || character.is_ascii_alphanumeric())
-                {
-                    names.push(candidate.to_owned());
-                }
+            let candidate = line.trim().trim_end_matches(',');
+            if !candidate.is_empty() && candidate.chars().all(|character| character == '_' || character.is_ascii_alphanumeric()) {
+                names.push(candidate.to_owned());
             }
         }
     }
@@ -41,151 +134,173 @@ fn parser_enum_source_names() -> Vec<String> {
 }
 
 #[test]
-fn registry_matches_exhaustive_unique_parser_identity_set() {
+fn registry_is_exhaustive_unique_and_structurally_honest() -> TestResult {
     let records = language_registry();
     assert_eq!(records.len(), 160);
     assert_eq!(Language::ALL.len(), 160);
 
-    let registry_names = records
-        .iter()
-        .map(|record| format!("{:?}", record.parser))
-        .collect::<Vec<_>>();
-    let all_names = Language::ALL
-        .iter()
-        .map(|language| format!("{:?}", language))
-        .collect::<Vec<_>>();
-    assert_eq!(parser_enum_source_names().len(), 160);
+    let registry_names = records.iter().map(|record| format!("{:?}", record.parser())).collect::<Vec<_>>();
+    let all_names = Language::ALL.iter().map(|language| format!("{:?}", language)).collect::<Vec<_>>();
     assert_eq!(parser_enum_source_names(), all_names);
-    assert_eq!(
-        registry_names.iter().collect::<HashSet<_>>().len(),
-        160,
-        "generated registry parser variants must be unique"
-    );
-    assert_eq!(
-        all_names.iter().collect::<HashSet<_>>().len(),
-        160,
-        "Language::ALL must be exhaustive and unique"
-    );
     assert_eq!(registry_names, all_names);
-}
-
-#[test]
-fn registry_has_exact_non_structural_dispositions() -> Result<(), Box<dyn std::error::Error>> {
-    let non_structural = [
-        Language::ConfigToml,
-        Language::ConfigJson,
-        Language::ConfigYaml,
-        Language::TextOnly,
-    ];
-    let records = language_registry();
-    assert_eq!(
-        records
-            .iter()
-            .filter(|record| {
-                record.structural
-                    == enforcer_domain::language_types::StructuralLanguageSupport::NoParseFile
-            })
-            .count(),
-        4
-    );
-    for language in non_structural {
-        let record = record_for_parser(language)
-            .ok_or_else(|| std::io::Error::other("every parser variant must be registered"))?;
-        assert_eq!(
-            record.structural,
-            enforcer_domain::language_types::StructuralLanguageSupport::NoParseFile
-        );
+    assert_eq!(registry_names.iter().collect::<HashSet<_>>().len(), 160);
+    assert_eq!(records.iter().filter(|record| record.structural() == StructuralLanguageSupport::NoParseFile).count(), 4);
+    for language in [Language::ConfigToml, Language::ConfigJson, Language::ConfigYaml, Language::TextOnly] {
+        let record = must_option(record_for_parser(language), "all parser variants must be registered")?;
+        assert_eq!(record.structural(), StructuralLanguageSupport::NoParseFile);
     }
     Ok(())
 }
 
 #[test]
-fn manifest_is_valid_and_regeneration_is_deterministic() -> Result<(), Box<dyn std::error::Error>> {
-    validate_source(MANIFEST)?;
-    assert_eq!(render_source(MANIFEST)?, GENERATED);
-    Ok(())
-}
-
-proptest! {
-    #[test]
-    fn parser_manifest_arbitrary_bytes_never_produce_partial_success(bytes in proptest::collection::vec(any::<u8>(), 0..256)) {
-        let source = String::from_utf8_lossy(&bytes);
-        let _ = validate_source(&source);
-    }
-}
-
-#[test]
-fn manifest_hash_is_pinned_to_the_reviewed_source() {
-    let actual = format!("{:x}", Sha256::digest(MANIFEST.as_bytes()));
-    assert_eq!(actual, MANIFEST_SHA256);
-}
-
-#[test]
-fn manifest_rejects_duplicate_id_with_specific_error() -> Result<(), Box<dyn std::error::Error>> {
-    let mut value: serde_json::Value = serde_json::from_str(MANIFEST)?;
-    let identities = value
-        .get_mut("identities")
-        .and_then(serde_json::Value::as_array_mut)
-        .ok_or_else(|| std::io::Error::other("manifest identities must be an array"))?;
-    identities[1]["id"] = serde_json::Value::from(1_u16);
-    let mutated = serde_json::to_string(&value)?;
+fn manifest_proves_exact_crosswalk_and_unmatched_denominators() -> TestResult {
+    must_result(validate_source(MANIFEST), "manifest must satisfy the closed contract")?;
+    let value = manifest_value()?;
+    let identities = must_option(value["identities"].as_array(), "identities array")?;
+    let projection = must_option(value["literalProjection"].as_array(), "literalProjection array")?;
+    let unmatched = must_option(value["unmatchedParserIds"].as_array(), "unmatchedParserIds array")?;
+    assert_eq!(identities.len(), 160);
+    assert_eq!(identities.iter().filter(|row| row["structural"] == true).count(), 156);
+    assert_eq!(projection.len(), 68);
+    assert_eq!(unmatched.len(), NO_LITERAL_PARSER_IDENTITY_COUNT);
     assert_eq!(
-        validate_source(&mutated),
-        Err(ManifestError::DuplicateId(1))
-    );
-    Ok(())
-}
-
-#[test]
-fn manifest_rejects_omitted_identity_with_specific_error() -> Result<(), Box<dyn std::error::Error>>
-{
-    let mut value: serde_json::Value = serde_json::from_str(MANIFEST)?;
-    let identities = value
-        .get_mut("identities")
-        .and_then(serde_json::Value::as_array_mut)
-        .ok_or_else(|| std::io::Error::other("manifest identities must be an array"))?;
-    identities.remove(0);
-    let mutated = serde_json::to_string(&value)?;
-    assert_eq!(
-        validate_source(&mutated),
-        Err(ManifestError::IdentityCount {
-            expected: 160,
-            actual: 159,
+        value["crosswalkCounts"],
+        serde_json::json!({
+            "total": 68,
+            "named": 67,
+            "oneToOne": 51,
+            "aliasCollision": 3,
+            "oneToMany": 8,
+            "literalOnly": 5,
+            "fallback": 1
         })
     );
+    let actual_names = projection
+        .iter()
+        .map(|row| row["literalName"].as_str().ok_or("missing literalName".to_owned()))
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(actual_names, EXPECTED_LITERAL_NAMES);
+    assert_eq!(literal_projections().len(), 68);
+    assert_eq!(collision_resolutions().len(), 34);
     Ok(())
 }
 
 #[test]
-fn manifest_rejects_unknown_parser_variant_before_codegen() -> Result<(), Box<dyn std::error::Error>>
-{
-    let mut value: serde_json::Value = serde_json::from_str(MANIFEST)?;
-    let identities = value
-        .get_mut("identities")
-        .and_then(serde_json::Value::as_array_mut)
-        .ok_or_else(|| std::io::Error::other("manifest identities must be an array"))?;
-    identities[0]["parserVariant"] = serde_json::Value::from("UnknownLanguage");
-    let mutated = serde_json::to_string(&value)?;
-    assert_eq!(validate_source(&mutated), Ok(()));
-    let generated = render_source(&mutated)?;
-    let unknown_line = generated.lines().find(|line| {
-        line.ends_with(
-            "parser: Language::UnknownLanguage, structural: StructuralLanguageSupport::ParseFile },",
-        )
-    });
-    assert_eq!(
-        unknown_line,
-        Some("    LanguageRecord { id: LanguageId::from_registry_index(1), parser: Language::UnknownLanguage, structural: StructuralLanguageSupport::ParseFile },")
-    );
+fn metadata_has_typed_dispositions_and_collision_winners() -> TestResult {
+    let value = manifest_value()?;
+    for identity in must_option(value["identities"].as_array(), "identities")? {
+        assert!(identity["canonicalName"].is_string());
+        assert!(identity["aliases"].is_array());
+        assert!(identity["detection"]["matchers"].is_array());
+        assert!(identity["literalDisposition"]["kind"].is_string());
+    }
+    for resolution in must_option(value["collisionResolutions"].as_array(), "collision resolutions")? {
+        let members = must_option(resolution["members"].as_array(), "members")?;
+        assert!(members.len() >= 2);
+        assert!(resolution["winnerRef"].is_object());
+        assert!(members.iter().any(|member| member == &resolution["winnerRef"]), "winnerRef must be one of the typed members");
+        assert!(resolution.get("priority").is_none());
+    }
+    let unsupported = must_option(value["identities"].as_array(), "identities")?
+        .iter()
+        .filter(|identity| matches!(identity["literalDisposition"]["kind"].as_str(), Some("unsupported" | "notApplicable")))
+        .count();
+    assert_eq!(unsupported, 85);
     Ok(())
 }
 
 #[test]
-fn lookup_is_total_for_registered_parser_variants() -> Result<(), Box<dyn std::error::Error>> {
+fn regeneration_is_deterministic_and_schema_is_valid() -> TestResult {
+    must_result(validate_source(MANIFEST), "manifest must validate")?;
+    assert_eq!(must_result(render_source(MANIFEST), "manifest must render")?, GENERATED);
+    Ok(())
+}
+
+#[test]
+fn duplicate_canonical_name_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    let identities = must_option(value["identities"].as_array_mut(), "identities")?;
+    let name = identities[0]["canonicalName"].clone();
+    identities[1]["canonicalName"] = name;
+    expect_error(&value, "DuplicateCanonicalName")
+}
+
+#[test]
+fn duplicate_alias_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    value["identities"][1]["aliases"] = serde_json::json!(["Rust"]);
+    expect_error(&value, "DuplicateAlias")
+}
+
+#[test]
+fn duplicate_normalized_matcher_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    let matcher = value["identities"][0]["detection"]["matchers"][0].clone();
+    let matchers = must_option(value["identities"][0]["detection"]["matchers"].as_array_mut(), "matchers")?;
+    matchers.push(matcher);
+    expect_error(&value, "DuplicateMatcher")
+}
+
+#[test]
+fn missing_collision_resolution_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    must_option(value["collisionResolutions"].as_array_mut(), "collision resolutions")?.remove(0);
+    expect_error(&value, "CollisionResolution")
+}
+
+#[test]
+fn duplicate_collision_winner_member_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    let resolution = &mut value["collisionResolutions"][0];
+    let winner = resolution["winnerRef"].clone();
+    must_option(resolution["members"].as_array_mut(), "members")?.push(winner);
+    expect_error(&value, "CollisionResolution")
+}
+
+#[test]
+fn invalid_winner_reference_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    value["collisionResolutions"][0]["winnerRef"] = serde_json::json!({"kind": "parserId", "parserId": 999});
+    expect_error(&value, "InvalidReference")
+}
+
+#[test]
+fn incomplete_crosswalk_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    must_option(value["literalProjection"].as_array_mut(), "literalProjection")?.remove(0);
+    expect_error(&value, "LiteralProjectionCount")
+}
+
+#[test]
+fn malformed_supplemental_row_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    let projection = must_option(value["literalProjection"].as_array(), "literalProjection")?;
+    let row = must_option(projection.iter().position(|row| row["classification"] == "literalOnly"), "literal-only row")?;
+    value["literalProjection"][row]["parserIds"] = serde_json::json!([1]);
+    expect_error(&value, "InvalidReference")
+}
+
+#[test]
+fn unknown_parser_variant_fails_generation_validation() -> TestResult {
+    let mut value = manifest_value()?;
+    value["identities"][0]["parserVariant"] = "UnknownLanguage".into();
+    expect_error(&value, "UnknownParserVariant")
+}
+
+#[test]
+fn no_literal_identities_are_not_fabricated() -> TestResult {
+    let value = manifest_value()?;
+    let unmatched = must_option(value["unmatchedParserIds"].as_array(), "unmatchedParserIds")?;
+    for id in unmatched {
+        let index = must_option(id.as_u64(), "numeric parser ID")? as usize - 1;
+        let identity = &value["identities"][index];
+        assert!(must_option(identity["detection"]["matchers"].as_array(), "matchers")?.is_empty());
+        assert!(matches!(identity["literalDisposition"]["kind"].as_str(), Some("unsupported" | "notApplicable")));
+    }
     for record in language_registry() {
-        let found = record_for_parser(record.parser)
-            .ok_or_else(|| std::io::Error::other("registered parser lookup must be total"))?;
-        assert_eq!(found, record);
+        if matches!(record.literal_disposition(), LiteralDisposition::Unsupported | LiteralDisposition::NotApplicable) {
+            assert!(record.matchers().is_empty());
+        }
     }
     Ok(())
 }

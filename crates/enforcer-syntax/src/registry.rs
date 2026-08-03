@@ -5,17 +5,66 @@
 //! language list and does not change parser behavior.
 
 use crate::parsers::Language;
-use enforcer_domain::language_types::{LanguageId, StructuralLanguageSupport};
+use enforcer_domain::language_types::{
+    CollisionResolution, DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralDisposition, LiteralProjection, LiteralProjectionDisposition, LiteralReference, MatcherWinner,
+    StructuralLanguageSupport,
+};
+use std::num::NonZeroU16;
 
 /// One canonical parser identity and its structural parse disposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LanguageRecord {
     /// Stable one-based canonical identity.
-    pub id: LanguageId,
+    id: LanguageId,
     /// Existing parser enum variant preserved by this migration.
-    pub parser: Language,
+    parser: Language,
     /// Whether parser dispatch returns a structural result.
-    pub structural: StructuralLanguageSupport,
+    structural: StructuralLanguageSupport,
+    /// Stable canonical name used by identity-preserving consumers.
+    /// BRAND-INVARIANT: this value is emitted only from the validated reviewed
+    /// manifest and has static lifetime in the generated registry.
+    canonical_name: &'static str,
+    /// Globally unique aliases, when present.
+    /// BRAND-INVARIANT: aliases are case-folded and validated globally before
+    /// the generated registry is compiled.
+    aliases: &'static [&'static str],
+    /// Detection metadata owned by the canonical registry.
+    matchers: &'static [DetectionMatcher],
+    /// Typed literal support disposition.
+    literal_disposition: LiteralDisposition,
+}
+
+const fn require_nonzero(index: Option<NonZeroU16>) -> NonZeroU16 {
+    match index {
+        Some(value) => value,
+        None => NonZeroU16::MIN,
+    }
+}
+
+const fn language_id_from_registry_index(index: NonZeroU16) -> LanguageId {
+    LanguageId::from_registry_index(index)
+}
+
+impl LanguageRecord {
+    /// Return the parser identity preserved by this record.
+    pub const fn parser(&self) -> Language {
+        self.parser
+    }
+
+    /// Return the structural parse disposition.
+    pub const fn structural(&self) -> StructuralLanguageSupport {
+        self.structural
+    }
+
+    /// Return canonical detection matchers.
+    pub const fn matchers(&self) -> &'static [DetectionMatcher] {
+        self.matchers
+    }
+
+    /// Return the typed literal support disposition.
+    pub const fn literal_disposition(&self) -> LiteralDisposition {
+        self.literal_disposition
+    }
 }
 
 include!(concat!(env!("OUT_DIR"), "/language_registry.rs"));
@@ -27,7 +76,15 @@ pub fn language_registry() -> &'static [LanguageRecord] {
 
 /// Find the canonical record for one existing parser variant.
 pub fn record_for_parser(language: Language) -> Option<&'static LanguageRecord> {
-    language_registry()
-        .iter()
-        .find(|record| record.parser == language)
+    language_registry().iter().find(|record| record.parser() == language)
+}
+
+/// Return the complete literal-to-parser crosswalk.
+pub fn literal_projections() -> &'static [LiteralProjection] {
+    LITERAL_PROJECTIONS
+}
+
+/// Return explicit same-key matcher collision decisions.
+pub fn collision_resolutions() -> &'static [CollisionResolution] {
+    COLLISION_RESOLUTIONS
 }

@@ -1,805 +1,5843 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "identities": [
     {
       "id": 1,
       "parserVariant": "Rust",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Rust",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "rs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "rust"
+      }
     },
     {
       "id": 2,
       "parserVariant": "TypeScript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "TypeScript",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "ts"
+          },
+          {
+            "kind": "extension",
+            "value": "tsx"
+          },
+          {
+            "kind": "extension",
+            "value": "mts"
+          },
+          {
+            "kind": "extension",
+            "value": "cts"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "typescript"
+      }
     },
     {
       "id": 3,
       "parserVariant": "JavaScript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "JavaScript",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "js"
+          },
+          {
+            "kind": "extension",
+            "value": "jsx"
+          },
+          {
+            "kind": "extension",
+            "value": "mjs"
+          },
+          {
+            "kind": "extension",
+            "value": "cjs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "javascript"
+      }
     },
     {
       "id": 4,
       "parserVariant": "Python",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Python",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "py"
+          },
+          {
+            "kind": "extension",
+            "value": "pyw"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "python"
+      }
     },
     {
       "id": 5,
       "parserVariant": "Go",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Go",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "go"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "go"
+      }
     },
     {
       "id": 6,
       "parserVariant": "Java",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Java",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "java"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "java"
+      }
     },
     {
       "id": 7,
       "parserVariant": "C",
-      "structural": true
+      "structural": true,
+      "canonicalName": "C",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "c"
+          },
+          {
+            "kind": "extension",
+            "value": "h"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "c"
+      }
     },
     {
       "id": 8,
       "parserVariant": "Cpp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cpp",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "c"
+          },
+          {
+            "kind": "extension",
+            "value": "h"
+          },
+          {
+            "kind": "extension",
+            "value": "cc"
+          },
+          {
+            "kind": "extension",
+            "value": "cpp"
+          },
+          {
+            "kind": "extension",
+            "value": "cxx"
+          },
+          {
+            "kind": "extension",
+            "value": "hpp"
+          },
+          {
+            "kind": "extension",
+            "value": "hxx"
+          },
+          {
+            "kind": "extension",
+            "value": "hh"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "cpp"
+      }
     },
     {
       "id": 9,
       "parserVariant": "CSharp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "CSharp",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "cs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "csharp"
+      }
     },
     {
       "id": 10,
       "parserVariant": "Php",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Php",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "php"
+          },
+          {
+            "kind": "extension",
+            "value": "phtml"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "php"
+      }
     },
     {
       "id": 11,
       "parserVariant": "Kotlin",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Kotlin",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "kt"
+          },
+          {
+            "kind": "extension",
+            "value": "kts"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "kotlin"
+      }
     },
     {
       "id": 12,
       "parserVariant": "Swift",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Swift",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "swift"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "swift"
+      }
     },
     {
       "id": 13,
       "parserVariant": "Tsx",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Tsx",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "ts"
+          },
+          {
+            "kind": "extension",
+            "value": "tsx"
+          },
+          {
+            "kind": "extension",
+            "value": "mts"
+          },
+          {
+            "kind": "extension",
+            "value": "cts"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "typescript"
+      }
     },
     {
       "id": 14,
       "parserVariant": "Solidity",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Solidity",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "sol"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "solidity"
+      }
     },
     {
       "id": 15,
       "parserVariant": "Gdscript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gdscript",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 16,
       "parserVariant": "Dart",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Dart",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "dart"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "dart"
+      }
     },
     {
       "id": 17,
       "parserVariant": "Scala",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Scala",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "scala"
+          },
+          {
+            "kind": "extension",
+            "value": "sc"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "scala"
+      }
     },
     {
       "id": 18,
       "parserVariant": "Groovy",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Groovy",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "groovy"
+          },
+          {
+            "kind": "extension",
+            "value": "gradle"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "groovy"
+      }
     },
     {
       "id": 19,
       "parserVariant": "Ruby",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Ruby",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "rb"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "ruby"
+      }
     },
     {
       "id": 20,
       "parserVariant": "Zig",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Zig",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "zig"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "zig"
+      }
     },
     {
       "id": 21,
       "parserVariant": "ObjectiveC",
-      "structural": true
+      "structural": true,
+      "canonicalName": "ObjectiveC",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "m"
+          },
+          {
+            "kind": "extension",
+            "value": "mm"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "objective-c"
+      }
     },
     {
       "id": 22,
       "parserVariant": "Bash",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Bash",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "sh"
+          },
+          {
+            "kind": "extension",
+            "value": "bash"
+          },
+          {
+            "kind": "extension",
+            "value": "zsh"
+          },
+          {
+            "kind": "extension",
+            "value": "fish"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shell"
+      }
     },
     {
       "id": 23,
       "parserVariant": "Lua",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Lua",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "lua"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "lua"
+      }
     },
     {
       "id": 24,
       "parserVariant": "Elixir",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Elixir",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "ex"
+          },
+          {
+            "kind": "extension",
+            "value": "exs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "elixir"
+      }
     },
     {
       "id": 25,
       "parserVariant": "Haskell",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Haskell",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "hs"
+          },
+          {
+            "kind": "extension",
+            "value": "lhs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "haskell"
+      }
     },
     {
       "id": 26,
       "parserVariant": "OCaml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "OCaml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "ml"
+          },
+          {
+            "kind": "extension",
+            "value": "mli"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "ocaml"
+      }
     },
     {
       "id": 27,
       "parserVariant": "Erlang",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Erlang",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "erl"
+          },
+          {
+            "kind": "extension",
+            "value": "hrl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "erlang"
+      }
     },
     {
       "id": 28,
       "parserVariant": "Cuda",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cuda",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "cu"
+          },
+          {
+            "kind": "extension",
+            "value": "cuh"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "cuda"
+      }
     },
     {
       "id": 29,
       "parserVariant": "D",
-      "structural": true
+      "structural": true,
+      "canonicalName": "D",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "d"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "d"
+      }
     },
     {
       "id": 30,
       "parserVariant": "PowerShell",
-      "structural": true
+      "structural": true,
+      "canonicalName": "PowerShell",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "ps1"
+          },
+          {
+            "kind": "extension",
+            "value": "psm1"
+          },
+          {
+            "kind": "extension",
+            "value": "psd1"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "powershell"
+      }
     },
     {
       "id": 31,
       "parserVariant": "Fsharp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Fsharp",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "fs"
+          },
+          {
+            "kind": "extension",
+            "value": "fsx"
+          },
+          {
+            "kind": "extension",
+            "value": "fsi"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "fsharp"
+      }
     },
     {
       "id": 32,
       "parserVariant": "Gleam",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gleam",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 33,
       "parserVariant": "Glsl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Glsl",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "glsl"
+          },
+          {
+            "kind": "extension",
+            "value": "vert"
+          },
+          {
+            "kind": "extension",
+            "value": "frag"
+          },
+          {
+            "kind": "extension",
+            "value": "geom"
+          },
+          {
+            "kind": "extension",
+            "value": "tesc"
+          },
+          {
+            "kind": "extension",
+            "value": "tese"
+          },
+          {
+            "kind": "extension",
+            "value": "hlsl"
+          },
+          {
+            "kind": "extension",
+            "value": "wgsl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shader"
+      }
     },
     {
       "id": 34,
       "parserVariant": "Ada",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Ada",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 35,
       "parserVariant": "Apex",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Apex",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "cls"
+          },
+          {
+            "kind": "extension",
+            "value": "trigger"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "apex"
+      }
     },
     {
       "id": 36,
       "parserVariant": "Crystal",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Crystal",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 37,
       "parserVariant": "R",
-      "structural": true
+      "structural": true,
+      "canonicalName": "R",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "r"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "r"
+      }
     },
     {
       "id": 38,
       "parserVariant": "Perl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Perl",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "pl"
+          },
+          {
+            "kind": "extension",
+            "value": "pm"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "perl"
+      }
     },
     {
       "id": 39,
       "parserVariant": "Clojure",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Clojure",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "clj"
+          },
+          {
+            "kind": "extension",
+            "value": "cljs"
+          },
+          {
+            "kind": "extension",
+            "value": "cljc"
+          },
+          {
+            "kind": "extension",
+            "value": "edn"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "clojure"
+      }
     },
     {
       "id": 40,
       "parserVariant": "ConfigToml",
-      "structural": false
+      "structural": false,
+      "canonicalName": "ConfigToml",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "notApplicable"
+      }
     },
     {
       "id": 41,
       "parserVariant": "ConfigJson",
-      "structural": false
+      "structural": false,
+      "canonicalName": "ConfigJson",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "notApplicable"
+      }
     },
     {
       "id": 42,
       "parserVariant": "ConfigYaml",
-      "structural": false
+      "structural": false,
+      "canonicalName": "ConfigYaml",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "notApplicable"
+      }
     },
     {
       "id": 43,
       "parserVariant": "Julia",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Julia",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "jl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "julia"
+      }
     },
     {
       "id": 44,
       "parserVariant": "Odin",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Odin",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 45,
       "parserVariant": "Pascal",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Pascal",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 46,
       "parserVariant": "Qml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Qml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "qml"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "qml"
+      }
     },
     {
       "id": 47,
       "parserVariant": "Rescript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Rescript",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "res"
+          },
+          {
+            "kind": "extension",
+            "value": "resi"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "rescript"
+      }
     },
     {
       "id": 48,
       "parserVariant": "Squirrel",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Squirrel",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 49,
       "parserVariant": "Sway",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Sway",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 50,
       "parserVariant": "Starlark",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Starlark",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "bzl"
+          },
+          {
+            "kind": "extension",
+            "value": "star"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "starlark"
+      }
     },
     {
       "id": 51,
       "parserVariant": "Templ",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Templ",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 52,
       "parserVariant": "Typst",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Typst",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 53,
       "parserVariant": "Wgsl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Wgsl",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "glsl"
+          },
+          {
+            "kind": "extension",
+            "value": "vert"
+          },
+          {
+            "kind": "extension",
+            "value": "frag"
+          },
+          {
+            "kind": "extension",
+            "value": "geom"
+          },
+          {
+            "kind": "extension",
+            "value": "tesc"
+          },
+          {
+            "kind": "extension",
+            "value": "tese"
+          },
+          {
+            "kind": "extension",
+            "value": "hlsl"
+          },
+          {
+            "kind": "extension",
+            "value": "wgsl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shader"
+      }
     },
     {
       "id": 54,
       "parserVariant": "Wolfram",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Wolfram",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 55,
       "parserVariant": "Slang",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Slang",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 56,
       "parserVariant": "Scss",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Scss",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "css"
+          },
+          {
+            "kind": "extension",
+            "value": "scss"
+          },
+          {
+            "kind": "extension",
+            "value": "sass"
+          },
+          {
+            "kind": "extension",
+            "value": "less"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "css"
+      }
     },
     {
       "id": 57,
       "parserVariant": "Cmake",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cmake",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 58,
       "parserVariant": "Makefile",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Makefile",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "mk"
+          },
+          {
+            "kind": "exactBasename",
+            "value": "makefile"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "make"
+      }
     },
     {
       "id": 59,
       "parserVariant": "Fortran",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Fortran",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 60,
       "parserVariant": "Vimscript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Vimscript",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 61,
       "parserVariant": "Puppet",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Puppet",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 62,
       "parserVariant": "Elm",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Elm",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "elm"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "elm"
+      }
     },
     {
       "id": 63,
       "parserVariant": "Bicep",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Bicep",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 64,
       "parserVariant": "Bitbake",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Bitbake",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 65,
       "parserVariant": "Cairo",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cairo",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 66,
       "parserVariant": "Cfscript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cfscript",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "cfc"
+          },
+          {
+            "kind": "extension",
+            "value": "cfm"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "coldfusion"
+      }
     },
     {
       "id": 67,
       "parserVariant": "Func",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Func",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 68,
       "parserVariant": "Move",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Move",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "move"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "move"
+      }
     },
     {
       "id": 69,
       "parserVariant": "Nickel",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Nickel",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 70,
       "parserVariant": "Jsonnet",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Jsonnet",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 71,
       "parserVariant": "Just",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Just",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 72,
       "parserVariant": "Hlsl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Hlsl",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "glsl"
+          },
+          {
+            "kind": "extension",
+            "value": "vert"
+          },
+          {
+            "kind": "extension",
+            "value": "frag"
+          },
+          {
+            "kind": "extension",
+            "value": "geom"
+          },
+          {
+            "kind": "extension",
+            "value": "tesc"
+          },
+          {
+            "kind": "extension",
+            "value": "tese"
+          },
+          {
+            "kind": "extension",
+            "value": "hlsl"
+          },
+          {
+            "kind": "extension",
+            "value": "wgsl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shader"
+      }
     },
     {
       "id": 73,
       "parserVariant": "Ispc",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Ispc",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 74,
       "parserVariant": "Purescript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Purescript",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "purs"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "purescript"
+      }
     },
     {
       "id": 75,
       "parserVariant": "Magma",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Magma",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 76,
       "parserVariant": "Hare",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Hare",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 77,
       "parserVariant": "Pony",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Pony",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 78,
       "parserVariant": "Nasm",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Nasm",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 79,
       "parserVariant": "Cobol",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cobol",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 80,
       "parserVariant": "Commonlisp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Commonlisp",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "lisp"
+          },
+          {
+            "kind": "extension",
+            "value": "lsp"
+          },
+          {
+            "kind": "extension",
+            "value": "scm"
+          },
+          {
+            "kind": "extension",
+            "value": "rkt"
+          },
+          {
+            "kind": "extension",
+            "value": "el"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "lisp"
+      }
     },
     {
       "id": 81,
       "parserVariant": "Lean",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Lean",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 82,
       "parserVariant": "Tlaplus",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Tlaplus",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 83,
       "parserVariant": "Verilog",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Verilog",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "v"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "v"
+      }
     },
     {
       "id": 84,
       "parserVariant": "Vhdl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Vhdl",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 85,
       "parserVariant": "Systemverilog",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Systemverilog",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 86,
       "parserVariant": "Capnp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Capnp",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 87,
       "parserVariant": "EmacsLisp",
-      "structural": true
+      "structural": true,
+      "canonicalName": "EmacsLisp",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "lisp"
+          },
+          {
+            "kind": "extension",
+            "value": "lsp"
+          },
+          {
+            "kind": "extension",
+            "value": "scm"
+          },
+          {
+            "kind": "extension",
+            "value": "rkt"
+          },
+          {
+            "kind": "extension",
+            "value": "el"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "lisp"
+      }
     },
     {
       "id": 88,
       "parserVariant": "Agda",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Agda",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 89,
       "parserVariant": "Form",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Form",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 90,
       "parserVariant": "Awk",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Awk",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 91,
       "parserVariant": "Fish",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Fish",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "sh"
+          },
+          {
+            "kind": "extension",
+            "value": "bash"
+          },
+          {
+            "kind": "extension",
+            "value": "zsh"
+          },
+          {
+            "kind": "extension",
+            "value": "fish"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shell"
+      }
     },
     {
       "id": 92,
       "parserVariant": "Zsh",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Zsh",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "sh"
+          },
+          {
+            "kind": "extension",
+            "value": "bash"
+          },
+          {
+            "kind": "extension",
+            "value": "zsh"
+          },
+          {
+            "kind": "extension",
+            "value": "fish"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "shell"
+      }
     },
     {
       "id": 93,
       "parserVariant": "Tcl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Tcl",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 94,
       "parserVariant": "Scheme",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Scheme",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "lisp"
+          },
+          {
+            "kind": "extension",
+            "value": "lsp"
+          },
+          {
+            "kind": "extension",
+            "value": "scm"
+          },
+          {
+            "kind": "extension",
+            "value": "rkt"
+          },
+          {
+            "kind": "extension",
+            "value": "el"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "lisp"
+      }
     },
     {
       "id": 95,
       "parserVariant": "Racket",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Racket",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "lisp"
+          },
+          {
+            "kind": "extension",
+            "value": "lsp"
+          },
+          {
+            "kind": "extension",
+            "value": "scm"
+          },
+          {
+            "kind": "extension",
+            "value": "rkt"
+          },
+          {
+            "kind": "extension",
+            "value": "el"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "lisp"
+      }
     },
     {
       "id": 96,
       "parserVariant": "Smithy",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Smithy",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 97,
       "parserVariant": "Pine",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Pine",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 98,
       "parserVariant": "Matlab",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Matlab",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 99,
       "parserVariant": "Luau",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Luau",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 100,
       "parserVariant": "Teal",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Teal",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 101,
       "parserVariant": "Fennel",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Fennel",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 102,
       "parserVariant": "Meson",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Meson",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 103,
       "parserVariant": "Kconfig",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Kconfig",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 104,
       "parserVariant": "Hcl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Hcl",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "tf"
+          },
+          {
+            "kind": "extension",
+            "value": "tfvars"
+          },
+          {
+            "kind": "extension",
+            "value": "hcl"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "terraform"
+      }
     },
     {
       "id": 105,
       "parserVariant": "Nix",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Nix",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "nix"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "nix"
+      }
     },
     {
       "id": 106,
       "parserVariant": "Sql",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Sql",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "sql"
+          },
+          {
+            "kind": "extension",
+            "value": "psql"
+          },
+          {
+            "kind": "extension",
+            "value": "mysql"
+          },
+          {
+            "kind": "extension",
+            "value": "sqlite"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "sql"
+      }
     },
     {
       "id": 107,
       "parserVariant": "Protobuf",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Protobuf",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "proto"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "protobuf"
+      }
     },
     {
       "id": 108,
       "parserVariant": "Prisma",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Prisma",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 109,
       "parserVariant": "Pkl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Pkl",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 110,
       "parserVariant": "Thrift",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Thrift",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "thrift"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "thrift"
+      }
     },
     {
       "id": 111,
       "parserVariant": "Wit",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Wit",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 112,
       "parserVariant": "LlvmIr",
-      "structural": true
+      "structural": true,
+      "canonicalName": "LlvmIr",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 113,
       "parserVariant": "TableGen",
-      "structural": true
+      "structural": true,
+      "canonicalName": "TableGen",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 114,
       "parserVariant": "Cfml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Cfml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "cfc"
+          },
+          {
+            "kind": "extension",
+            "value": "cfm"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "coldfusion"
+      }
     },
     {
       "id": 115,
       "parserVariant": "Gotemplate",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gotemplate",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 116,
       "parserVariant": "Devicetree",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Devicetree",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 117,
       "parserVariant": "Smali",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Smali",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 118,
       "parserVariant": "Json5",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Json5",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 119,
       "parserVariant": "Kdl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Kdl",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 120,
       "parserVariant": "LinkerScript",
-      "structural": true
+      "structural": true,
+      "canonicalName": "LinkerScript",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 121,
       "parserVariant": "Liquid",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Liquid",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 122,
       "parserVariant": "Markdown",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Markdown",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "md"
+          },
+          {
+            "kind": "extension",
+            "value": "mdx"
+          },
+          {
+            "kind": "extension",
+            "value": "txt"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "markdown"
+      }
     },
     {
       "id": 123,
       "parserVariant": "Mermaid",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Mermaid",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 124,
       "parserVariant": "Po",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Po",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 125,
       "parserVariant": "Properties",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Properties",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 126,
       "parserVariant": "Regex",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Regex",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "re"
+          },
+          {
+            "kind": "extension",
+            "value": "rei"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "reason"
+      }
     },
     {
       "id": 127,
       "parserVariant": "Assembly",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Assembly",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 128,
       "parserVariant": "Astro",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Astro",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "html"
+          },
+          {
+            "kind": "extension",
+            "value": "htm"
+          },
+          {
+            "kind": "extension",
+            "value": "vue"
+          },
+          {
+            "kind": "extension",
+            "value": "svelte"
+          },
+          {
+            "kind": "extension",
+            "value": "astro"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "html"
+      }
     },
     {
       "id": 129,
       "parserVariant": "Beancount",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Beancount",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 130,
       "parserVariant": "Bibtex",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Bibtex",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 131,
       "parserVariant": "Blade",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Blade",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 132,
       "parserVariant": "Css",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Css",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "css"
+          },
+          {
+            "kind": "extension",
+            "value": "scss"
+          },
+          {
+            "kind": "extension",
+            "value": "sass"
+          },
+          {
+            "kind": "extension",
+            "value": "less"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "css"
+      }
     },
     {
       "id": 133,
       "parserVariant": "Csv",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Csv",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "csv"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "csv"
+      }
     },
     {
       "id": 134,
       "parserVariant": "Diff",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Diff",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 135,
       "parserVariant": "Dockerfile",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Dockerfile",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "exactBasename",
+            "value": "dockerfile"
+          },
+          {
+            "kind": "exactBasename",
+            "value": "containerfile"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "dockerfile"
+      }
     },
     {
       "id": 136,
       "parserVariant": "Dotenv",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Dotenv",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "env"
+          },
+          {
+            "kind": "exactBasename",
+            "value": ".env"
+          },
+          {
+            "kind": "compoundSuffix",
+            "value": ".env.local"
+          },
+          {
+            "kind": "compoundSuffix",
+            "value": ".env.example"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "env"
+      }
     },
     {
       "id": 137,
       "parserVariant": "Gitattributes",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gitattributes",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 138,
       "parserVariant": "Gitignore",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gitignore",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 139,
       "parserVariant": "Gn",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Gn",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 140,
       "parserVariant": "GoMod",
-      "structural": true
+      "structural": true,
+      "canonicalName": "GoMod",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 141,
       "parserVariant": "Graphql",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Graphql",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "graphql"
+          },
+          {
+            "kind": "extension",
+            "value": "gql"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "graphql"
+      }
     },
     {
       "id": 142,
       "parserVariant": "Html",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Html",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "html"
+          },
+          {
+            "kind": "extension",
+            "value": "htm"
+          },
+          {
+            "kind": "extension",
+            "value": "vue"
+          },
+          {
+            "kind": "extension",
+            "value": "svelte"
+          },
+          {
+            "kind": "extension",
+            "value": "astro"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "html"
+      }
     },
     {
       "id": 143,
       "parserVariant": "Hyprlang",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Hyprlang",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 144,
       "parserVariant": "Ini",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Ini",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 145,
       "parserVariant": "Janet",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Janet",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 146,
       "parserVariant": "Jinja2",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Jinja2",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 147,
       "parserVariant": "Jsdoc",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Jsdoc",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 148,
       "parserVariant": "Json",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Json",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "json"
+          },
+          {
+            "kind": "extension",
+            "value": "jsonc"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "json"
+      }
     },
     {
       "id": 149,
       "parserVariant": "TextOnly",
-      "structural": false
+      "structural": false,
+      "canonicalName": "TextOnly",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "notApplicable"
+      }
     },
     {
       "id": 150,
       "parserVariant": "Requirements",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Requirements",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 151,
       "parserVariant": "Ron",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Ron",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 152,
       "parserVariant": "Rst",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Rst",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 153,
       "parserVariant": "Soql",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Soql",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 154,
       "parserVariant": "Sosl",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Sosl",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 155,
       "parserVariant": "Sshconfig",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Sshconfig",
+      "aliases": [],
+      "detection": {
+        "matchers": []
+      },
+      "literalDisposition": {
+        "kind": "unsupported"
+      }
     },
     {
       "id": 156,
       "parserVariant": "Svelte",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Svelte",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "html"
+          },
+          {
+            "kind": "extension",
+            "value": "htm"
+          },
+          {
+            "kind": "extension",
+            "value": "vue"
+          },
+          {
+            "kind": "extension",
+            "value": "svelte"
+          },
+          {
+            "kind": "extension",
+            "value": "astro"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "html"
+      }
     },
     {
       "id": 157,
       "parserVariant": "Toml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Toml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "toml"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "toml"
+      }
     },
     {
       "id": 158,
       "parserVariant": "Vue",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Vue",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "html"
+          },
+          {
+            "kind": "extension",
+            "value": "htm"
+          },
+          {
+            "kind": "extension",
+            "value": "vue"
+          },
+          {
+            "kind": "extension",
+            "value": "svelte"
+          },
+          {
+            "kind": "extension",
+            "value": "astro"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "html"
+      }
     },
     {
       "id": 159,
       "parserVariant": "Xml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Xml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "xml"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "xml"
+      }
     },
     {
       "id": 160,
       "parserVariant": "Yaml",
-      "structural": true
+      "structural": true,
+      "canonicalName": "Yaml",
+      "aliases": [],
+      "detection": {
+        "matchers": [
+          {
+            "kind": "extension",
+            "value": "yaml"
+          },
+          {
+            "kind": "extension",
+            "value": "yml"
+          }
+        ]
+      },
+      "literalDisposition": {
+        "kind": "registered",
+        "literalName": "yaml"
+      }
     }
-  ]
+  ],
+  "literalProjection": [
+    {
+      "literalName": "rust",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        1
+      ],
+      "matcherKeys": [
+        "extension:rs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:rs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 1
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "typescript",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        2,
+        13
+      ],
+      "matcherKeys": [
+        "extension:ts",
+        "extension:tsx",
+        "extension:mts",
+        "extension:cts"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:ts",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 2
+          }
+        },
+        {
+          "matcherKey": "extension:tsx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 13
+          }
+        },
+        {
+          "matcherKey": "extension:mts",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 2
+          }
+        },
+        {
+          "matcherKey": "extension:cts",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 2
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "javascript",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        3
+      ],
+      "matcherKeys": [
+        "extension:js",
+        "extension:jsx",
+        "extension:mjs",
+        "extension:cjs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:js",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 3
+          }
+        },
+        {
+          "matcherKey": "extension:jsx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 3
+          }
+        },
+        {
+          "matcherKey": "extension:mjs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 3
+          }
+        },
+        {
+          "matcherKey": "extension:cjs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 3
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "python",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        4
+      ],
+      "matcherKeys": [
+        "extension:py",
+        "extension:pyw"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:py",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 4
+          }
+        },
+        {
+          "matcherKey": "extension:pyw",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 4
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "c",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        7,
+        8
+      ],
+      "matcherKeys": [
+        "extension:c",
+        "extension:h"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:c",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 7
+          }
+        },
+        {
+          "matcherKey": "extension:h",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "cpp",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        8
+      ],
+      "matcherKeys": [
+        "extension:cc",
+        "extension:cpp",
+        "extension:cxx",
+        "extension:hpp",
+        "extension:hxx",
+        "extension:hh"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:cc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        },
+        {
+          "matcherKey": "extension:cpp",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        },
+        {
+          "matcherKey": "extension:cxx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        },
+        {
+          "matcherKey": "extension:hpp",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        },
+        {
+          "matcherKey": "extension:hxx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        },
+        {
+          "matcherKey": "extension:hh",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 8
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "csharp",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        9
+      ],
+      "matcherKeys": [
+        "extension:cs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:cs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 9
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "objective-c",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        21
+      ],
+      "matcherKeys": [
+        "extension:m",
+        "extension:mm"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:m",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 21
+          }
+        },
+        {
+          "matcherKey": "extension:mm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 21
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "zig",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        20
+      ],
+      "matcherKeys": [
+        "extension:zig"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:zig",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 20
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "go",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        5
+      ],
+      "matcherKeys": [
+        "extension:go"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:go",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 5
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "d",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        29
+      ],
+      "matcherKeys": [
+        "extension:d"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:d",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 29
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "v",
+      "classification": "aliasCollision",
+      "disposition": "registered",
+      "parserIds": [
+        83
+      ],
+      "matcherKeys": [
+        "extension:v"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:v",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 83
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "nim",
+      "classification": "literalOnly",
+      "disposition": "literalOnly",
+      "parserIds": [],
+      "matcherKeys": [
+        "extension:nim"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:nim",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "nim"
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "java",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        6
+      ],
+      "matcherKeys": [
+        "extension:java"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:java",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 6
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "kotlin",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        11
+      ],
+      "matcherKeys": [
+        "extension:kt",
+        "extension:kts"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:kt",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 11
+          }
+        },
+        {
+          "matcherKey": "extension:kts",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 11
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "scala",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        17
+      ],
+      "matcherKeys": [
+        "extension:scala",
+        "extension:sc"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:scala",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 17
+          }
+        },
+        {
+          "matcherKey": "extension:sc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 17
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "groovy",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        18
+      ],
+      "matcherKeys": [
+        "extension:groovy",
+        "extension:gradle"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:groovy",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 18
+          }
+        },
+        {
+          "matcherKey": "extension:gradle",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 18
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "swift",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        12
+      ],
+      "matcherKeys": [
+        "extension:swift"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:swift",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 12
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "dart",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        16
+      ],
+      "matcherKeys": [
+        "extension:dart"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:dart",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 16
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "php",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        10
+      ],
+      "matcherKeys": [
+        "extension:php",
+        "extension:phtml"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:php",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 10
+          }
+        },
+        {
+          "matcherKey": "extension:phtml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 10
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "ruby",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        19
+      ],
+      "matcherKeys": [
+        "extension:rb"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:rb",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 19
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "perl",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        38
+      ],
+      "matcherKeys": [
+        "extension:pl",
+        "extension:pm"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:pl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 38
+          }
+        },
+        {
+          "matcherKey": "extension:pm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 38
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "lua",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        23
+      ],
+      "matcherKeys": [
+        "extension:lua"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:lua",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 23
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "r",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        37
+      ],
+      "matcherKeys": [
+        "extension:r"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:r",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 37
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "julia",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        43
+      ],
+      "matcherKeys": [
+        "extension:jl"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:jl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 43
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "shell",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        22,
+        92,
+        91
+      ],
+      "matcherKeys": [
+        "extension:sh",
+        "extension:bash",
+        "extension:zsh",
+        "extension:fish"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:sh",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 22
+          }
+        },
+        {
+          "matcherKey": "extension:bash",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 22
+          }
+        },
+        {
+          "matcherKey": "extension:zsh",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 92
+          }
+        },
+        {
+          "matcherKey": "extension:fish",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 91
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "powershell",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        30
+      ],
+      "matcherKeys": [
+        "extension:ps1",
+        "extension:psm1",
+        "extension:psd1"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:ps1",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 30
+          }
+        },
+        {
+          "matcherKey": "extension:psm1",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 30
+          }
+        },
+        {
+          "matcherKey": "extension:psd1",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 30
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "batch",
+      "classification": "literalOnly",
+      "disposition": "literalOnly",
+      "parserIds": [],
+      "matcherKeys": [
+        "extension:bat",
+        "extension:cmd"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:bat",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "batch"
+          }
+        },
+        {
+          "matcherKey": "extension:cmd",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "batch"
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "make",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        58
+      ],
+      "matcherKeys": [
+        "extension:mk",
+        "exactBasename:makefile"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:mk",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 58
+          }
+        },
+        {
+          "matcherKey": "exactBasename:makefile",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 58
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "dockerfile",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        135
+      ],
+      "matcherKeys": [
+        "exactBasename:dockerfile",
+        "exactBasename:containerfile"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "exactBasename:dockerfile",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 135
+          }
+        },
+        {
+          "matcherKey": "exactBasename:containerfile",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 135
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "haskell",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        25
+      ],
+      "matcherKeys": [
+        "extension:hs",
+        "extension:lhs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:hs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 25
+          }
+        },
+        {
+          "matcherKey": "extension:lhs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 25
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "ocaml",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        26
+      ],
+      "matcherKeys": [
+        "extension:ml",
+        "extension:mli"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:ml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 26
+          }
+        },
+        {
+          "matcherKey": "extension:mli",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 26
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "fsharp",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        31
+      ],
+      "matcherKeys": [
+        "extension:fs",
+        "extension:fsx",
+        "extension:fsi"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:fs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 31
+          }
+        },
+        {
+          "matcherKey": "extension:fsx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 31
+          }
+        },
+        {
+          "matcherKey": "extension:fsi",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 31
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "elm",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        62
+      ],
+      "matcherKeys": [
+        "extension:elm"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:elm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 62
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "purescript",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        74
+      ],
+      "matcherKeys": [
+        "extension:purs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:purs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 74
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "elixir",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        24
+      ],
+      "matcherKeys": [
+        "extension:ex",
+        "extension:exs"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:ex",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 24
+          }
+        },
+        {
+          "matcherKey": "extension:exs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 24
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "erlang",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        27
+      ],
+      "matcherKeys": [
+        "extension:erl",
+        "extension:hrl"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:erl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 27
+          }
+        },
+        {
+          "matcherKey": "extension:hrl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 27
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "clojure",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        39
+      ],
+      "matcherKeys": [
+        "extension:clj",
+        "extension:cljs",
+        "extension:cljc",
+        "extension:edn"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:clj",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 39
+          }
+        },
+        {
+          "matcherKey": "extension:cljs",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 39
+          }
+        },
+        {
+          "matcherKey": "extension:cljc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 39
+          }
+        },
+        {
+          "matcherKey": "extension:edn",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 39
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "lisp",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        80,
+        94,
+        95,
+        87
+      ],
+      "matcherKeys": [
+        "extension:lisp",
+        "extension:lsp",
+        "extension:scm",
+        "extension:rkt",
+        "extension:el"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:lisp",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 80
+          }
+        },
+        {
+          "matcherKey": "extension:lsp",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 80
+          }
+        },
+        {
+          "matcherKey": "extension:scm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 94
+          }
+        },
+        {
+          "matcherKey": "extension:rkt",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 95
+          }
+        },
+        {
+          "matcherKey": "extension:el",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 87
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "sql",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        106
+      ],
+      "matcherKeys": [
+        "extension:sql",
+        "extension:psql",
+        "extension:mysql",
+        "extension:sqlite"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:sql",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 106
+          }
+        },
+        {
+          "matcherKey": "extension:psql",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 106
+          }
+        },
+        {
+          "matcherKey": "extension:mysql",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 106
+          }
+        },
+        {
+          "matcherKey": "extension:sqlite",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 106
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "graphql",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        141
+      ],
+      "matcherKeys": [
+        "extension:graphql",
+        "extension:gql"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:graphql",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 141
+          }
+        },
+        {
+          "matcherKey": "extension:gql",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 141
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "terraform",
+      "classification": "aliasCollision",
+      "disposition": "registered",
+      "parserIds": [
+        104
+      ],
+      "matcherKeys": [
+        "extension:tf",
+        "extension:tfvars",
+        "extension:hcl"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:tf",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 104
+          }
+        },
+        {
+          "matcherKey": "extension:tfvars",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 104
+          }
+        },
+        {
+          "matcherKey": "extension:hcl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 104
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "nix",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        105
+      ],
+      "matcherKeys": [
+        "extension:nix"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:nix",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 105
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "starlark",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        50
+      ],
+      "matcherKeys": [
+        "extension:bzl",
+        "extension:star"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:bzl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 50
+          }
+        },
+        {
+          "matcherKey": "extension:star",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 50
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "protobuf",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        107
+      ],
+      "matcherKeys": [
+        "extension:proto"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:proto",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 107
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "thrift",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        110
+      ],
+      "matcherKeys": [
+        "extension:thrift"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:thrift",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 110
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "solidity",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        14
+      ],
+      "matcherKeys": [
+        "extension:sol"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:sol",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 14
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "move",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        68
+      ],
+      "matcherKeys": [
+        "extension:move"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:move",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 68
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "apex",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        35
+      ],
+      "matcherKeys": [
+        "extension:cls",
+        "extension:trigger"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:cls",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 35
+          }
+        },
+        {
+          "matcherKey": "extension:trigger",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 35
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "qml",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        46
+      ],
+      "matcherKeys": [
+        "extension:qml"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:qml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 46
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "cuda",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        28
+      ],
+      "matcherKeys": [
+        "extension:cu",
+        "extension:cuh"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:cu",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 28
+          }
+        },
+        {
+          "matcherKey": "extension:cuh",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 28
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "shader",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        33,
+        72,
+        53
+      ],
+      "matcherKeys": [
+        "extension:glsl",
+        "extension:vert",
+        "extension:frag",
+        "extension:geom",
+        "extension:tesc",
+        "extension:tese",
+        "extension:hlsl",
+        "extension:wgsl"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:glsl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:vert",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:frag",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:geom",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:tesc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:tese",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 33
+          }
+        },
+        {
+          "matcherKey": "extension:hlsl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 72
+          }
+        },
+        {
+          "matcherKey": "extension:wgsl",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 53
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "raku",
+      "classification": "literalOnly",
+      "disposition": "literalOnly",
+      "parserIds": [],
+      "matcherKeys": [
+        "extension:raku",
+        "extension:rakumod",
+        "extension:p6",
+        "extension:pm6"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:raku",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "raku"
+          }
+        },
+        {
+          "matcherKey": "extension:rakumod",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "raku"
+          }
+        },
+        {
+          "matcherKey": "extension:p6",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "raku"
+          }
+        },
+        {
+          "matcherKey": "extension:pm6",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "raku"
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "reason",
+      "classification": "aliasCollision",
+      "disposition": "registered",
+      "parserIds": [
+        126
+      ],
+      "matcherKeys": [
+        "extension:re",
+        "extension:rei"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:re",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 126
+          }
+        },
+        {
+          "matcherKey": "extension:rei",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 126
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "rescript",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        47
+      ],
+      "matcherKeys": [
+        "extension:res",
+        "extension:resi"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:res",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 47
+          }
+        },
+        {
+          "matcherKey": "extension:resi",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 47
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "sml",
+      "classification": "literalOnly",
+      "disposition": "literalOnly",
+      "parserIds": [],
+      "matcherKeys": [
+        "extension:sml",
+        "extension:sig"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:sml",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "sml"
+          }
+        },
+        {
+          "matcherKey": "extension:sig",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "sml"
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "avro",
+      "classification": "literalOnly",
+      "disposition": "literalOnly",
+      "parserIds": [],
+      "matcherKeys": [
+        "extension:avsc"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:avsc",
+          "winnerRef": {
+            "kind": "supplementalLiteralName",
+            "literalName": "avro"
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "html",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        142,
+        158,
+        156,
+        128
+      ],
+      "matcherKeys": [
+        "extension:html",
+        "extension:htm",
+        "extension:vue",
+        "extension:svelte",
+        "extension:astro"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:html",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 142
+          }
+        },
+        {
+          "matcherKey": "extension:htm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 142
+          }
+        },
+        {
+          "matcherKey": "extension:vue",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 158
+          }
+        },
+        {
+          "matcherKey": "extension:svelte",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 156
+          }
+        },
+        {
+          "matcherKey": "extension:astro",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 128
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "css",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        132,
+        56
+      ],
+      "matcherKeys": [
+        "extension:css",
+        "extension:scss",
+        "extension:sass",
+        "extension:less"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:css",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 132
+          }
+        },
+        {
+          "matcherKey": "extension:scss",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 56
+          }
+        },
+        {
+          "matcherKey": "extension:sass",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 56
+          }
+        },
+        {
+          "matcherKey": "extension:less",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 56
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "json",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        148
+      ],
+      "matcherKeys": [
+        "extension:json",
+        "extension:jsonc"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:json",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 148
+          }
+        },
+        {
+          "matcherKey": "extension:jsonc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 148
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "yaml",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        160
+      ],
+      "matcherKeys": [
+        "extension:yaml",
+        "extension:yml"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:yaml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 160
+          }
+        },
+        {
+          "matcherKey": "extension:yml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 160
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "toml",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        157
+      ],
+      "matcherKeys": [
+        "extension:toml"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:toml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 157
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "env",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        136
+      ],
+      "matcherKeys": [
+        "extension:env",
+        "exactBasename:.env",
+        "compoundSuffix:.env.local",
+        "compoundSuffix:.env.example"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:env",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 136
+          }
+        },
+        {
+          "matcherKey": "exactBasename:.env",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 136
+          }
+        },
+        {
+          "matcherKey": "compoundSuffix:.env.local",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 136
+          }
+        },
+        {
+          "matcherKey": "compoundSuffix:.env.example",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 136
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "markdown",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        122
+      ],
+      "matcherKeys": [
+        "extension:md",
+        "extension:mdx",
+        "extension:txt"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:md",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 122
+          }
+        },
+        {
+          "matcherKey": "extension:mdx",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 122
+          }
+        },
+        {
+          "matcherKey": "extension:txt",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 122
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "xml",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        159
+      ],
+      "matcherKeys": [
+        "extension:xml"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:xml",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 159
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "csv",
+      "classification": "oneToOne",
+      "disposition": "registered",
+      "parserIds": [
+        133
+      ],
+      "matcherKeys": [
+        "extension:csv"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:csv",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 133
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "coldfusion",
+      "classification": "oneToMany",
+      "disposition": "registered",
+      "parserIds": [
+        66,
+        114
+      ],
+      "matcherKeys": [
+        "extension:cfc",
+        "extension:cfm"
+      ],
+      "winnerRefs": [
+        {
+          "matcherKey": "extension:cfc",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 66
+          }
+        },
+        {
+          "matcherKey": "extension:cfm",
+          "winnerRef": {
+            "kind": "parserId",
+            "parserId": 114
+          }
+        }
+      ]
+    },
+    {
+      "literalName": "unknown",
+      "classification": "fallback",
+      "disposition": "fallback",
+      "parserIds": [],
+      "matcherKeys": [],
+      "winnerRefs": []
+    }
+  ],
+  "collisionResolutions": [
+    {
+      "kind": "extension",
+      "normalizedKey": "astro",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 142
+        },
+        {
+          "kind": "parserId",
+          "parserId": 158
+        },
+        {
+          "kind": "parserId",
+          "parserId": 156
+        },
+        {
+          "kind": "parserId",
+          "parserId": 128
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 128
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "bash",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 22
+        },
+        {
+          "kind": "parserId",
+          "parserId": 92
+        },
+        {
+          "kind": "parserId",
+          "parserId": 91
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 22
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "c",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 7
+        },
+        {
+          "kind": "parserId",
+          "parserId": 8
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 7
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "cfc",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 66
+        },
+        {
+          "kind": "parserId",
+          "parserId": 114
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 66
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "cfm",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 66
+        },
+        {
+          "kind": "parserId",
+          "parserId": 114
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 114
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "css",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 132
+        },
+        {
+          "kind": "parserId",
+          "parserId": 56
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 132
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "cts",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 2
+        },
+        {
+          "kind": "parserId",
+          "parserId": 13
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 2
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "el",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 80
+        },
+        {
+          "kind": "parserId",
+          "parserId": 94
+        },
+        {
+          "kind": "parserId",
+          "parserId": 95
+        },
+        {
+          "kind": "parserId",
+          "parserId": 87
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 87
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "fish",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 22
+        },
+        {
+          "kind": "parserId",
+          "parserId": 92
+        },
+        {
+          "kind": "parserId",
+          "parserId": 91
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 91
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "frag",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "geom",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "glsl",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "h",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 7
+        },
+        {
+          "kind": "parserId",
+          "parserId": 8
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 8
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "hlsl",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 72
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "htm",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 142
+        },
+        {
+          "kind": "parserId",
+          "parserId": 158
+        },
+        {
+          "kind": "parserId",
+          "parserId": 156
+        },
+        {
+          "kind": "parserId",
+          "parserId": 128
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 142
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "html",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 142
+        },
+        {
+          "kind": "parserId",
+          "parserId": 158
+        },
+        {
+          "kind": "parserId",
+          "parserId": 156
+        },
+        {
+          "kind": "parserId",
+          "parserId": 128
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 142
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "less",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 132
+        },
+        {
+          "kind": "parserId",
+          "parserId": 56
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 56
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "lisp",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 80
+        },
+        {
+          "kind": "parserId",
+          "parserId": 94
+        },
+        {
+          "kind": "parserId",
+          "parserId": 95
+        },
+        {
+          "kind": "parserId",
+          "parserId": 87
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 80
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "lsp",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 80
+        },
+        {
+          "kind": "parserId",
+          "parserId": 94
+        },
+        {
+          "kind": "parserId",
+          "parserId": 95
+        },
+        {
+          "kind": "parserId",
+          "parserId": 87
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 80
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "mts",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 2
+        },
+        {
+          "kind": "parserId",
+          "parserId": 13
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 2
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "rkt",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 80
+        },
+        {
+          "kind": "parserId",
+          "parserId": 94
+        },
+        {
+          "kind": "parserId",
+          "parserId": 95
+        },
+        {
+          "kind": "parserId",
+          "parserId": 87
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 95
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "sass",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 132
+        },
+        {
+          "kind": "parserId",
+          "parserId": 56
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 56
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "scm",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 80
+        },
+        {
+          "kind": "parserId",
+          "parserId": 94
+        },
+        {
+          "kind": "parserId",
+          "parserId": 95
+        },
+        {
+          "kind": "parserId",
+          "parserId": 87
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 94
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "scss",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 132
+        },
+        {
+          "kind": "parserId",
+          "parserId": 56
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 56
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "sh",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 22
+        },
+        {
+          "kind": "parserId",
+          "parserId": 92
+        },
+        {
+          "kind": "parserId",
+          "parserId": 91
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 22
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "svelte",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 142
+        },
+        {
+          "kind": "parserId",
+          "parserId": 158
+        },
+        {
+          "kind": "parserId",
+          "parserId": 156
+        },
+        {
+          "kind": "parserId",
+          "parserId": 128
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 156
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "tesc",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "tese",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "ts",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 2
+        },
+        {
+          "kind": "parserId",
+          "parserId": 13
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 2
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "tsx",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 2
+        },
+        {
+          "kind": "parserId",
+          "parserId": 13
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 13
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "vert",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 33
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "vue",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 142
+        },
+        {
+          "kind": "parserId",
+          "parserId": 158
+        },
+        {
+          "kind": "parserId",
+          "parserId": 156
+        },
+        {
+          "kind": "parserId",
+          "parserId": 128
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 158
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "wgsl",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 33
+        },
+        {
+          "kind": "parserId",
+          "parserId": 72
+        },
+        {
+          "kind": "parserId",
+          "parserId": 53
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 53
+      }
+    },
+    {
+      "kind": "extension",
+      "normalizedKey": "zsh",
+      "members": [
+        {
+          "kind": "parserId",
+          "parserId": 22
+        },
+        {
+          "kind": "parserId",
+          "parserId": 92
+        },
+        {
+          "kind": "parserId",
+          "parserId": 91
+        }
+      ],
+      "winnerRef": {
+        "kind": "parserId",
+        "parserId": 92
+      }
+    }
+  ],
+  "unmatchedParserIds": [
+    15,
+    32,
+    34,
+    36,
+    40,
+    41,
+    42,
+    44,
+    45,
+    48,
+    49,
+    51,
+    52,
+    54,
+    55,
+    57,
+    59,
+    60,
+    61,
+    63,
+    64,
+    65,
+    67,
+    69,
+    70,
+    71,
+    73,
+    75,
+    76,
+    77,
+    78,
+    79,
+    81,
+    82,
+    84,
+    85,
+    86,
+    88,
+    89,
+    90,
+    93,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    108,
+    109,
+    111,
+    112,
+    113,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    123,
+    124,
+    125,
+    127,
+    129,
+    130,
+    131,
+    134,
+    137,
+    138,
+    139,
+    140,
+    143,
+    144,
+    145,
+    146,
+    147,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155
+  ],
+  "crosswalkCounts": {
+    "total": 68,
+    "named": 67,
+    "oneToOne": 51,
+    "aliasCollision": 3,
+    "oneToMany": 8,
+    "literalOnly": 5,
+    "fallback": 1
+  }
 }
