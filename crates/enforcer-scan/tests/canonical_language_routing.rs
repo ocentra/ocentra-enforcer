@@ -9,11 +9,13 @@ use enforcer_domain::language_types::{
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::{LanguageFamily, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
-    CanonicalConsumerCapabilityProjectionResponse, CanonicalLanguageRouteResponse,
+    CanonicalCliLanguage, CanonicalConsumerCapabilityProjectionResponse,
+    CanonicalConsumerDisposition, CanonicalLanguageRouteResponse,
 };
 use enforcer_scan::router::identity::{
-    detect_language_identities, ConsumerCapabilityState, DetectedLanguageRoute,
-    NativeToolProjection, RouteCapabilityDisposition, RulePackProjection, UnknownLanguagePolicy,
+    detect_language_identities, CliLanguage, CliLanguageProjection, ConsumerCapabilityState,
+    DetectedLanguageRoute, NativeToolProjection, RouteCapabilityDisposition, RulePackProjection,
+    UnknownLanguagePolicy,
 };
 use enforcer_scan::router::plan::build_canonical_route_plan;
 use enforcer_syntax::registry::{
@@ -284,7 +286,18 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
                 _ => RulePackProjection::Unsupported,
             }
         );
-        assert_eq!(consumers.cli(), ConsumerCapabilityState::Unsupported);
+        assert_eq!(
+            consumers.cli(),
+            match expected {
+                ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => {
+                    CliLanguageProjection::Mapped(CliLanguage::Rust)
+                }
+                ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => {
+                    CliLanguageProjection::Mapped(CliLanguage::TypeScript)
+                }
+                _ => CliLanguageProjection::Unsupported,
+            }
+        );
         assert_eq!(consumers.ui(), ConsumerCapabilityState::Unsupported);
     }
     Ok(())
@@ -304,7 +317,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
             "nativeScan": { "kind": "mapped", "family": { "kind": "rust" } },
             "nativeTool": { "kind": "mapped", "tool": "cargo" },
             "rulePacks": { "kind": "mapped", "packs": ["rust", "security"] },
-            "cli": { "kind": "unsupported" },
+             "cli": { "kind": "mapped", "language": "rust" },
             "ui": { "kind": "unsupported" }
         }
     });
@@ -320,6 +333,16 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         base["consumerCapabilities"].clone(),
     )
     .map_err(|error| error.to_string())?;
+    let cli = serde_json::from_value::<CanonicalConsumerDisposition>(
+        base["consumerCapabilities"]["cli"].clone(),
+    )
+    .map_err(|error| error.to_string())?;
+    assert_eq!(
+        cli,
+        CanonicalConsumerDisposition::Mapped {
+            language: CanonicalCliLanguage::Rust,
+        }
+    );
     let consumer_wire = serde_json::to_string(&consumer).map_err(|error| error.to_string())?;
     let consumer_back =
         serde_json::from_str::<CanonicalConsumerCapabilityProjectionResponse>(&consumer_wire)
@@ -381,6 +404,41 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     assert!(unknown_consumer_error
         .to_string()
         .contains("unknown variant"));
+
+    let mut missing_cli_language = base.clone();
+    missing_cli_language["consumerCapabilities"]["cli"] = serde_json::json!({
+        "kind": "mapped"
+    });
+    let missing_cli_language_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_cli_language)
+            .expect_err("mapped CLI disposition without a language must be rejected");
+    assert!(missing_cli_language_error
+        .to_string()
+        .contains("missing field `language`"));
+
+    let mut unknown_cli_language = base.clone();
+    unknown_cli_language["consumerCapabilities"]["cli"] = serde_json::json!({
+        "kind": "mapped",
+        "language": "python"
+    });
+    let unknown_cli_language_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_cli_language)
+            .expect_err("unknown CLI language must be rejected");
+    assert!(unknown_cli_language_error
+        .to_string()
+        .contains("unknown variant"));
+
+    let mut mismatched_cli_language = base.clone();
+    mismatched_cli_language["consumerCapabilities"]["cli"] = serde_json::json!({
+        "kind": "mapped",
+        "language": "typeScript"
+    });
+    let mismatched_cli_language_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_cli_language)
+            .expect_err("mismatched CLI language must be rejected");
+    assert!(mismatched_cli_language_error
+        .to_string()
+        .contains("consumerCapabilities does not match"));
 
     let mut missing_native_tool_value = base.clone();
     missing_native_tool_value["consumerCapabilities"]["nativeTool"] =

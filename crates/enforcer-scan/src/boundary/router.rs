@@ -131,12 +131,57 @@ pub enum CanonicalScanFamily {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CanonicalConsumerDisposition {
+    /// An existing CLI route-language value is mechanically mapped.
+    ///
+    /// This variant is valid only for the canonical consumer `cli` field;
+    /// the UI field remains explicitly unsupported or not applicable.
+    #[serde(rename = "mapped")]
+    Mapped {
+        /// Existing typed CLI architecture-language value.
+        language: CanonicalCliLanguage,
+    },
     /// No canonical-identity projection is mechanically proved.
     #[serde(rename = "unsupported")]
     Unsupported,
     /// The consumer question does not apply to this projection.
     #[serde(rename = "notApplicable")]
     NotApplicable,
+}
+
+/// Closed wire names for the existing CLI architecture route values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CanonicalCliLanguage {
+    /// Existing `rust` architecture route value.
+    Rust,
+    /// Existing `typescript` architecture route value.
+    TypeScript,
+}
+
+impl serde::Serialize for CanonicalCliLanguage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(match self {
+            Self::Rust => "rust",
+            Self::TypeScript => "typeScript",
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CanonicalCliLanguage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match <String as serde::Deserialize>::deserialize(deserializer)?.as_str() {
+            "rust" => Ok(Self::Rust),
+            "typeScript" => Ok(Self::TypeScript),
+            _ => Err(serde::de::Error::custom(
+                "unknown variant for canonical CLI language",
+            )),
+        }
+    }
 }
 
 /// Typed canonical-identity native-tool projection.
@@ -211,7 +256,7 @@ impl From<crate::router::identity::CanonicalConsumerCapabilities>
             native_scan: scan_family_to_wire(value.native_scan()),
             native_tool: native_tool_to_wire(value.native_tool()),
             rule_packs: rule_pack_to_wire(value.rule_packs()),
-            cli: consumer_disposition_to_wire(value.cli()),
+            cli: cli_language_projection_to_wire(value.cli()),
             ui: consumer_disposition_to_wire(value.ui()),
         }
     }
@@ -431,6 +476,29 @@ fn consumer_disposition_to_wire(
             CanonicalConsumerDisposition::Unsupported
         }
         crate::router::identity::ConsumerCapabilityState::NotApplicable => {
+            CanonicalConsumerDisposition::NotApplicable
+        }
+    }
+}
+
+fn cli_language_projection_to_wire(
+    projection: crate::router::identity::CliLanguageProjection,
+) -> CanonicalConsumerDisposition {
+    match projection {
+        crate::router::identity::CliLanguageProjection::Mapped(
+            crate::router::identity::CliLanguage::Rust,
+        ) => CanonicalConsumerDisposition::Mapped {
+            language: CanonicalCliLanguage::Rust,
+        },
+        crate::router::identity::CliLanguageProjection::Mapped(
+            crate::router::identity::CliLanguage::TypeScript,
+        ) => CanonicalConsumerDisposition::Mapped {
+            language: CanonicalCliLanguage::TypeScript,
+        },
+        crate::router::identity::CliLanguageProjection::Unsupported => {
+            CanonicalConsumerDisposition::Unsupported
+        }
+        crate::router::identity::CliLanguageProjection::NotApplicable => {
             CanonicalConsumerDisposition::NotApplicable
         }
     }

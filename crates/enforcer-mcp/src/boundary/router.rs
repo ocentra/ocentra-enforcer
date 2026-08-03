@@ -4597,13 +4597,15 @@ mod tests {
                 "packs": ["rust", "security"]
             })
         );
-        for consumer in ["cli", "ui"] {
-            assert_eq!(
-                rust["consumerCapabilities"][consumer]["kind"],
-                serde_json::json!("unsupported"),
-                "{consumer} must not infer a canonical-identity capability"
-            );
-        }
+        assert_eq!(
+            rust["consumerCapabilities"]["cli"],
+            serde_json::json!({"kind": "mapped", "language": "rust"})
+        );
+        assert_eq!(
+            rust["consumerCapabilities"]["ui"]["kind"],
+            serde_json::json!("unsupported"),
+            "ui must not infer a canonical-identity capability"
+        );
         let javascript = projection
             .iter()
             .find(|item| item["kind"] == "canonical" && item["languageId"] == 3)
@@ -4623,13 +4625,15 @@ mod tests {
                 "packs": ["typeScript", "security"]
             })
         );
-        for consumer in ["cli", "ui"] {
-            assert_eq!(
-                javascript["consumerCapabilities"][consumer]["kind"],
-                serde_json::json!("unsupported"),
-                "{consumer} must not infer a canonical-identity capability"
-            );
-        }
+        assert_eq!(
+            javascript["consumerCapabilities"]["cli"],
+            serde_json::json!({"kind": "mapped", "language": "typeScript"})
+        );
+        assert_eq!(
+            javascript["consumerCapabilities"]["ui"]["kind"],
+            serde_json::json!("unsupported"),
+            "ui must not infer a canonical-identity capability"
+        );
         assert!(projection
             .iter()
             .any(|item| item["kind"] == "supplementalLiteral" && item["literalName"] == "nim"));

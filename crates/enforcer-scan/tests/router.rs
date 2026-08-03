@@ -12,10 +12,11 @@ use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
-    CanonicalCapabilityDisposition, CanonicalConsumerCapabilityProjectionResponse,
-    CanonicalConsumerDisposition, CanonicalLanguageRouteResponse, CanonicalNativeToolDisposition,
-    CanonicalRulePackDisposition, CanonicalScanFamily, CanonicalScanFamilyDisposition,
-    CanonicalStructuralDisposition, NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
+    CanonicalCapabilityDisposition, CanonicalCliLanguage,
+    CanonicalConsumerCapabilityProjectionResponse, CanonicalConsumerDisposition,
+    CanonicalLanguageRouteResponse, CanonicalNativeToolDisposition, CanonicalRulePackDisposition,
+    CanonicalScanFamily, CanonicalScanFamilyDisposition, CanonicalStructuralDisposition,
+    NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
 };
 use enforcer_scan::router::plan::build_route_plan;
 use enforcer_scan::walk::{walk, IgnoreRules};
@@ -380,7 +381,9 @@ fn canonical_projection_keeps_identity_dispositions_separate(
                 rule_packs: CanonicalRulePackDisposition::Mapped {
                     packs: vec![RulePack::Rust, RulePack::Security],
                 },
-                cli: CanonicalConsumerDisposition::Unsupported,
+                cli: CanonicalConsumerDisposition::Mapped {
+                    language: CanonicalCliLanguage::Rust,
+                },
                 ui: CanonicalConsumerDisposition::Unsupported,
             },
         },
@@ -407,7 +410,9 @@ fn canonical_projection_keeps_identity_dispositions_separate(
                         tool: WireNativeTool::Cargo,
                     },
                     rule_packs: CanonicalRulePackDisposition::Mapped { packs },
-                    cli: CanonicalConsumerDisposition::Unsupported,
+                    cli: CanonicalConsumerDisposition::Mapped {
+                        language: CanonicalCliLanguage::Rust,
+                    },
                     ui: CanonicalConsumerDisposition::Unsupported,
                 },
         } if canonical_name == "Rust"
