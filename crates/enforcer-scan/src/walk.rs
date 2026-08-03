@@ -154,8 +154,10 @@ pub fn walk(root: &Path, rules: &IgnoreRules) -> std::io::Result<Vec<RelPath>> {
 ///
 /// Unlike [`filter_explicit`], directory inputs are expanded beneath the
 /// repository root so native MCP file scopes match the frozen CLI contract.
-/// Every returned path remains repository-relative, and the same ignore rules
-/// apply to direct files and descendants.
+/// Every returned path remains repository-relative. An explicitly requested
+/// file is included even when discovery would ignore an ancestor directory;
+/// descendants discovered beneath an explicitly requested directory still
+/// honor the supplied ignore rules.
 pub fn expand_explicit(
     root: &Path,
     paths: &[RelPath],
@@ -167,7 +169,7 @@ pub fn expand_explicit(
         let file_type = std::fs::metadata(&absolute)?.file_type();
         if file_type.is_dir() {
             walk_into(root, &absolute, rules, &mut out)?;
-        } else if file_type.is_file() && !rules.is_ignored(path) {
+        } else if file_type.is_file() {
             out.push(path.clone());
         }
     }
@@ -275,6 +277,41 @@ mod tests {
         let found = walk(temp.path(), &rules)?;
         let rendered: Vec<&str> = found.iter().map(|p| p.as_str()).collect();
         assert_eq!(rendered, vec!["src/lib.rs"]);
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_file_under_ignored_dir_overrides_discovery_only(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "vendor/seeded.rs",
+            "fn bad() { None::<i32>.unwrap(); }",
+        )?;
+        let rules = IgnoreRules::new(
+            vec![
+                enforcer_domain::scan_types::IgnoreDirectorySegment::try_new("vendor".to_owned())?,
+            ],
+            Vec::new(),
+        );
+
+        let walked = walk(temp.path(), &rules)?;
+        assert!(
+            walked.is_empty(),
+            "ordinary discovery must continue honoring ignored directories"
+        );
+
+        let requested = vec!["vendor/seeded.rs".parse()?];
+        let explicit = expand_explicit(temp.path(), &requested, &rules)?;
+        assert_eq!(
+            explicit
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["vendor/seeded.rs"],
+            "an explicitly requested file must remain scannable"
+        );
         Ok(())
     }
 

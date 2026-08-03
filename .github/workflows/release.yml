@@ -144,7 +144,7 @@ jobs:
           bin="target/${{ matrix.target }}/release/enforcer"
           [ -f "$bin.exe" ] && bin="$bin.exe"
           set +e
-          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs
+          "$bin" scan crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs
           code=$?
           set -e
           if [ "$code" -ne 1 ]; then
@@ -157,7 +157,7 @@ jobs:
           set -eu
           bin="target/${{ matrix.target }}/release/enforcer"
           [ -f "$bin.exe" ] && bin="$bin.exe"
-          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs
+          "$bin" scan crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs
       - name: Package asset
         shell: bash
         run: |

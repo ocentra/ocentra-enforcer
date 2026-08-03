@@ -31,9 +31,9 @@ fn current_repo_root() -> Result<RepoRoot, String> {
 }
 
 /// Resolve a scope request into the concrete file list the engine should
-/// read. `Paths` mode intersects the walked tree with the caller's
-/// explicit paths (files pass through directly; directories are expanded
-/// by re-walking rooted at the directory); `All` walks the whole tree and
+/// read. Explicit paths are user-selected scan targets and therefore bypass
+/// discovery-only ignore rules for the requested file; workspace and diff
+/// discovery continue to honor those rules. `All` walks the whole tree and
 /// `Diff` resolves the Git range to changed paths before filtering.
 fn resolve_files(
     root: &RepoRoot,
@@ -41,8 +41,8 @@ fn resolve_files(
     ignore_rules: &walk::IgnoreRules,
 ) -> std::io::Result<Vec<enforcer_domain::paths::RelPath>> {
     let root_path = Path::new(root.as_str());
-    let all_files = walk::walk(root_path, ignore_rules)?;
     if resolved.kind == enforcer_domain::findings::ScanScope::Diff {
+        let all_files = walk::walk(root_path, ignore_rules)?;
         let Some((base, head)) = &resolved.diff_range else {
             return Ok(Vec::new());
         };
@@ -60,18 +60,10 @@ fn resolve_files(
             .filter(|file| changed.contains(file.as_str()))
             .collect());
     }
-    if resolved.explicit_paths.is_empty() {
-        return Ok(all_files);
+    if !resolved.explicit_paths.is_empty() {
+        return walk::expand_explicit(root_path, &resolved.explicit_paths, ignore_rules);
     }
-    Ok(all_files
-        .into_iter()
-        .filter(|file| {
-            resolved
-                .explicit_paths
-                .iter()
-                .any(|explicit| file.as_str().starts_with(explicit.as_str()))
-        })
-        .collect())
+    walk::walk(root_path, ignore_rules)
 }
 
 /// Load the authoritative policy-source exclusions once at the CLI boundary.
