@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-54",
+  "baselineCommit": "cde341cf86539a09b1c706df9a7ae67d5ea66e12",
+  "family": "Canonical-order mixed malware submission, SIEM, detection engineering, IOC, patch, RBAC, and threat-intelligence skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "building-automated-malware-submission-pipeline",
+      "building-cloud-siem-with-sentinel",
+      "building-detection-rules-with-sigma",
+      "building-detection-rule-with-splunk-spl",
+      "building-ioc-defanging-and-sharing-pipeline",
+      "building-ioc-enrichment-pipeline-with-opencti",
+      "building-patch-tuesday-response-process",
+      "building-role-mining-for-rbac-optimization",
+      "building-threat-feed-aggregation-with-misp",
+      "building-threat-intelligence-enrichment-in-splunk"
+    ],
+    "reason": "Deterministic lexicographic next-ten selection after 530 accepted identities; intentionally heterogeneous because the catalog boundary is canonical order. Native work is limited to supplied typed manifests, with external authority blocked and advisory and manual authority retained."
+  },
+  "skills": [
+    {
+      "catalogId": "building-automated-malware-submission-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-automated-malware-submission-pipeline/SKILL.md",
+        "sha256": "752bc5ccf0d1bdec068d9332c310e1ceec2e933ef3a33f63da5efb18827b06ed",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Automated Malware Submission Pipeline:L36"]
+      },
+      "components": [
+        {"id": "building-automated-malware-submission-pipeline::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed malware-submission job, sample metadata, authorization, destination, checksum, chain, and result-manifest fields without submitting or executing a sample.", "notProved": ["malware behavior", "sandbox result", "submission success"]},
+        {"id": "building-automated-malware-submission-pipeline::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep malware portals, sandboxes, detonation hosts, scanners, endpoints, and submission APIs as external authorities.", "notProved": ["sample execution", "classification", "endpoint or sandbox outcome"]},
+        {"id": "building-automated-malware-submission-pipeline::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive malware-handling, submission-planning, and safe-analysis guidance as advisory context.", "notProved": ["operational safety approval", "legal clearance"]},
+        {"id": "building-automated-malware-submission-pipeline::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, scope, custody, privacy, safety, analyst validation, escalation, containment, remediation, and disclosure decisions.", "notProved": ["human approval", "incident decision", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-cloud-siem-with-sentinel",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-cloud-siem-with-sentinel/SKILL.md",
+        "sha256": "fd885f16306cf25fe58a86825f39e9489984cb49fd690d8dfca55fe58a79dffe",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Cloud SIEM with Sentinel:L42"]
+      },
+      "components": [
+        {"id": "building-cloud-siem-with-sentinel::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed SIEM workspace, connector, query, rule, retention, owner, scope, and evidence-manifest fields.", "notProved": ["cloud log ingestion", "alert fidelity", "incident detection"]},
+        {"id": "building-cloud-siem-with-sentinel::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Sentinel, cloud APIs, connectors, log stores, analytics engines, endpoints, and production tenants external.", "notProved": ["live telemetry", "cloud detection", "response execution"]},
+        {"id": "building-cloud-siem-with-sentinel::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM architecture, monitoring, and alert-tuning guidance as advisory.", "notProved": ["deployment readiness", "monitoring coverage"]},
+        {"id": "building-cloud-siem-with-sentinel::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human tenant ownership, written scope, legal/privacy review, data handling, analyst validation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "severity truth", "response outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-detection-rules-with-sigma",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-detection-rules-with-sigma/SKILL.md",
+        "sha256": "37f59e2eb077b8dfdd8c476942164b5294b232829b0ca9ad20c82516730cb219",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Detection Rules with Sigma:L42"]
+      },
+      "components": [
+        {"id": "building-detection-rules-with-sigma::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Sigma rule, log-field, condition, severity, scope, version, owner, test-fixture, and evidence-manifest fields.", "notProved": ["rule compilation", "log match", "detection efficacy"]},
+        {"id": "building-detection-rules-with-sigma::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Sigma converters, SIEM engines, log sources, endpoints, production telemetry, and alerting systems external.", "notProved": ["rule execution", "alert generation", "coverage"]},
+        {"id": "building-detection-rules-with-sigma::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain detection-engineering, testing, review, and tuning guidance as advisory context.", "notProved": ["engineering approval", "operational efficacy"]},
+        {"id": "building-detection-rules-with-sigma::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst review, written authorization, data ownership, legal/safety scope, validation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["analyst approval", "incident finding", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-detection-rule-with-splunk-spl",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-detection-rule-with-splunk-spl/SKILL.md",
+        "sha256": "104efd62ffd71f802d6ee52acc0555ddf73c67d6e7fd266b78abb5e6140f69f5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Detection Rules with Splunk SPL:L39"]
+      },
+      "components": [
+        {"id": "building-detection-rule-with-splunk-spl::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed SPL query, data-model, field, threshold, schedule, owner, scope, fixture, and evidence-manifest fields.", "notProved": ["query execution", "event match", "detection result"]},
+        {"id": "building-detection-rule-with-splunk-spl::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Splunk, indexes, forwarders, search heads, endpoints, and live security telemetry external.", "notProved": ["search result", "alert fidelity", "production coverage"]},
+        {"id": "building-detection-rule-with-splunk-spl::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SPL design, validation, and tuning guidance as advisory.", "notProved": ["deployment", "query correctness"]},
+        {"id": "building-detection-rule-with-splunk-spl::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, owner validation, legal/privacy review, data handling, analyst interpretation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding truth", "response outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-ioc-defanging-and-sharing-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-ioc-defanging-and-sharing-pipeline/SKILL.md",
+        "sha256": "2951a706bfb8fd62bf9c744f0dcf0c5c4c1d9c5ad3308ff57918caaf13e7c23a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building IOC Defanging and Sharing Pipeline:L31"]
+      },
+      "components": [
+        {"id": "building-ioc-defanging-and-sharing-pipeline::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IOC, defanging transformation, indicator type, provenance, confidence, sharing scope, recipient, and evidence-manifest fields.", "notProved": ["IOC validity", "maliciousness", "safe dissemination"]},
+        {"id": "building-ioc-defanging-and-sharing-pipeline::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep mail, TIP, MISP, OpenCTI, enrichment services, feeds, scanners, and network systems external.", "notProved": ["indicator enrichment", "recipient delivery", "detection"]},
+        {"id": "building-ioc-defanging-and-sharing-pipeline::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive defanging, handling, sharing, and dissemination guidance as advisory.", "notProved": ["sharing suitability", "recipient trust"]},
+        {"id": "building-ioc-defanging-and-sharing-pipeline::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, escalation, remediation, and disclosure decisions.", "notProved": ["human approval", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-ioc-enrichment-pipeline-with-opencti",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-ioc-enrichment-pipeline-with-opencti/SKILL.md",
+        "sha256": "758a5471da6d0068f4a9d2407a9343be654513c38cffba913279632116eef969",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building IOC Enrichment Pipeline with OpenCTI:L32"]
+      },
+      "components": [
+        {"id": "building-ioc-enrichment-pipeline-with-opencti::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IOC, relationship, enrichment-request, provenance, confidence, timestamp, scope, owner, and evidence-manifest fields.", "notProved": ["external enrichment", "relationship truth", "indicator validity"]},
+        {"id": "building-ioc-enrichment-pipeline-with-opencti::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OpenCTI, connectors, MISP, threat feeds, DNS/WHOIS, sandbox, TIP, and live network enrichment external.", "notProved": ["freshness", "actor attribution", "infrastructure ownership"]},
+        {"id": "building-ioc-enrichment-pipeline-with-opencti::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat-intelligence enrichment, uncertainty, provenance, and sharing guidance as advisory.", "notProved": ["enrichment quality", "dissemination suitability"]},
+        {"id": "building-ioc-enrichment-pipeline-with-opencti::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["analyst conclusion", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-patch-tuesday-response-process",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-patch-tuesday-response-process/SKILL.md",
+        "sha256": "a6337a3371248836dff4fc7865ca5a09ce5f58e35f63de54fe254d1ecc10bcbe",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Patch Tuesday Response Process:L30"]
+      },
+      "components": [
+        {"id": "building-patch-tuesday-response-process::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed bulletin, asset, dependency, vulnerability, owner, maintenance-window, exception, rollout, rollback, and evidence-manifest fields.", "notProved": ["asset exposure", "patch applicability", "remediation completion"]},
+        {"id": "building-patch-tuesday-response-process::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep vendor update services, scanners, CMDBs, endpoint managers, ticketing, deployment systems, and production assets external.", "notProved": ["vulnerability status", "patch deployment", "system safety"]},
+        {"id": "building-patch-tuesday-response-process::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive patch planning, testing, prioritization, rollback, and response guidance as advisory.", "notProved": ["maintenance readiness", "risk reduction"]},
+        {"id": "building-patch-tuesday-response-process::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human owner authorization, change scope, legal/safety review, severity, exception, validation, escalation, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["approval", "deployment result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-role-mining-for-rbac-optimization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-role-mining-for-rbac-optimization/SKILL.md",
+        "sha256": "6d8df79f1a1001fa79bb92d48d5badc53bb072771c488e71c4b029be252206b0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Role Mining for RBAC Optimization:L29"]
+      },
+      "components": [
+        {"id": "building-role-mining-for-rbac-optimization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed subject, role, entitlement, resource, ownership, separation, review, exception, and evidence-manifest fields without querying access systems.", "notProved": ["least privilege", "role suitability", "access correctness"]},
+        {"id": "building-role-mining-for-rbac-optimization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep IdPs, directories, IAM, PAM, HR sources, access-review engines, endpoints, and production authorization systems external.", "notProved": ["current entitlements", "access grant", "revocation"]},
+        {"id": "building-role-mining-for-rbac-optimization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain RBAC design, role-mining, separation-of-duties, and least-privilege guidance as advisory.", "notProved": ["optimization", "governance sufficiency"]},
+        {"id": "building-role-mining-for-rbac-optimization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human owner approval, written scope, legal/privacy review, data handling, analyst validation, exception, enrollment, revocation, remediation, and disclosure decisions.", "notProved": ["authorization decision", "least privilege", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-threat-feed-aggregation-with-misp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-feed-aggregation-with-misp/SKILL.md",
+        "sha256": "0fb1b2feb6e7cbb03d7241ad20b91193394c6b7eb489bc8b02463687e1206f0a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Threat Feed Aggregation with MISP:L30"]
+      },
+      "components": [
+        {"id": "building-threat-feed-aggregation-with-misp::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed feed, IOC, event, source, timestamp, confidence, sharing, provenance, owner, and evidence-manifest fields.", "notProved": ["feed freshness", "indicator validity", "threat truth"]},
+        {"id": "building-threat-feed-aggregation-with-misp::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MISP, TAXII, TIPs, connectors, live feeds, enrichment services, DNS, WHOIS, and production networks external.", "notProved": ["collection", "feed delivery", "detection"]},
+        {"id": "building-threat-feed-aggregation-with-misp::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat-feed aggregation, confidence, source-handling, and sharing guidance as advisory.", "notProved": ["source reliability", "dissemination suitability"]},
+        {"id": "building-threat-feed-aggregation-with-misp::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["attribution", "analyst approval", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-threat-intelligence-enrichment-in-splunk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-intelligence-enrichment-in-splunk/SKILL.md",
+        "sha256": "8cccc220f380eccc42c4f9107af4652679e0b834b3cdb986b2b54f66ade0fc8e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Threat Intelligence Enrichment in Splunk:L30"]
+      },
+      "components": [
+        {"id": "building-threat-intelligence-enrichment-in-splunk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IOC, enrichment, lookup, source, confidence, timestamp, correlation, owner, scope, and evidence-manifest fields.", "notProved": ["live enrichment", "indicator validity", "correlation truth"]},
+        {"id": "building-threat-intelligence-enrichment-in-splunk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Splunk, threat feeds, lookup services, TIPs, DNS/WHOIS, endpoints, SIEM telemetry, and production infrastructure external.", "notProved": ["feed freshness", "actor attribution", "detection result"]},
+        {"id": "building-threat-intelligence-enrichment-in-splunk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat-intelligence enrichment, correlation, confidence, and defensive monitoring guidance as advisory.", "notProved": ["enrichment accuracy", "monitoring efficacy"]},
+        {"id": "building-threat-intelligence-enrichment-in-splunk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, ownership, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["analyst conclusion", "attribution", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live malware submission, sandboxing, endpoint execution, or sample behavior result is proved.",
+    "No live SIEM, detection-rule, IOC, threat-feed, enrichment, or security-monitoring truth is proved.",
+    "No vulnerability, patch, remediation, rollback, asset, access, RBAC, or least-privilege outcome is proved.",
+    "No source freshness, IOC validity, actor attribution, infrastructure ownership, or threat-intelligence conclusion is proved.",
+    "No authorization, legal/privacy/safety approval, analyst decision, operational deployment, or security outcome is proved."
+  ]
+}
