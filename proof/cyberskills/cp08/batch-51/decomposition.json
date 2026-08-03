@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-51",
+  "baselineCommit": "f1abc0c933030b1665560e6df46765437b09a27d",
+  "family": "Network reconnaissance, authorized penetration testing, DNS and subdomain enumeration, and wireless security assessment",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "conducting-external-reconnaissance-with-osint",
+      "conducting-internal-network-penetration-test",
+      "conducting-network-penetration-test",
+      "conducting-wireless-network-penetration-test",
+      "performing-dns-enumeration-and-zone-transfer",
+      "performing-external-network-penetration-test",
+      "performing-subdomain-enumeration-with-subfinder",
+      "performing-wireless-network-penetration-test",
+      "performing-wireless-security-assessment-with-kismet",
+      "scanning-network-with-nmap-advanced"
+    ],
+    "reason": "Ten disjoint network-assessment skills covering authorized external and internal reconnaissance, network and wireless penetration-test planning, DNS and subdomain enumeration, Kismet wireless assessment, and Nmap-based assessment. Native checks are limited to static typed supplied manifests; live networks, hosts, interfaces, scanners, packet capture, exploitation, findings, and security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "conducting-external-reconnaissance-with-osint",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-external-reconnaissance-with-osint/SKILL.md",
+        "sha256": "eca75ef71dd3c297a57497125d069b60e6fd55f09f6512b710dc3fb07cf5b8b3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting External Reconnaissance with OSINT:L34"]
+      },
+      "components": [
+        {"componentId": "conducting-external-reconnaissance-with-osint::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied target, asset, domain, source, scope, authorization, collection-plan, owner, confidence, and evidence manifests.", "notProved": ["No live OSINT collection, target discovery, source truth, ownership, freshness, attribution, finding, or security outcome is proved."]},
+        {"componentId": "conducting-external-reconnaissance-with-osint::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live OSINT, search engines, DNS, WHOIS, certificate, hosting, social, dark-web, network, browser, or production authorities.", "notProved": ["No live source, domain, host, certificate, network, browser, collection, enrichment, attribution, or normalized reconnaissance result."]},
+        {"componentId": "conducting-external-reconnaissance-with-osint::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive reconnaissance planning, source evaluation, scope control, privacy, collection, validation, and reporting guidance.", "notProved": ["Guidance is not collection and does not prove source reliability, asset ownership, or reconnaissance truth."]},
+        {"componentId": "conducting-external-reconnaissance-with-osint::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, asset ownership, legal/privacy/ethics review, source terms, data boundaries, collection stop conditions, analyst validation, severity, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, collection, ownership, validation, containment, remediation, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-internal-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-internal-network-penetration-test/SKILL.md",
+        "sha256": "b8ee89434c59f0d2f3fb2a24e25b59e85d3e124a54c880a725debfc1a9864cf7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Internal Network Penetration Test:L37"]
+      },
+      "components": [
+        {"componentId": "conducting-internal-network-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied internal target, asset, segment, route, identity, scope, test-case, authorization, owner, stop-condition, and evidence manifests.", "notProved": ["No live internal discovery, access, exploit, lateral movement, credential use, finding, or security outcome is proved."]},
+        {"componentId": "conducting-internal-network-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live networks, hosts, endpoints, routers, switches, credentials, sessions, scanners, packet capture, exploit tools, or production infrastructure.", "notProved": ["No live host, route, identity, scanner, packet, exploit, lateral movement, finding, or normalized test result."]},
+        {"componentId": "conducting-internal-network-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive internal assessment, segmentation, test planning, evidence, stop-condition, reporting, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove internal network security or exploitability."]},
+        {"componentId": "conducting-internal-network-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, network and asset ownership, legal/safety/privacy review, tenant and data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human penetration test, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-network-penetration-test/SKILL.md",
+        "sha256": "b7521af5038b93cfab7f85ac9be3cd9952092cede1872d8e7a46e364f06be333",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Network Penetration Test:L36"]
+      },
+      "components": [
+        {"componentId": "conducting-network-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied network target, asset, segment, protocol, route, scope, authorization, test-case, owner, stop-condition, and evidence manifests.", "notProved": ["No live network discovery, connectivity, exploitation, access, finding, attribution, or security outcome is proved."]},
+        {"componentId": "conducting-network-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live networks, hosts, endpoints, routers, firewalls, credentials, sessions, scanners, packet capture, exploit tools, or production infrastructure.", "notProved": ["No live host, route, protocol, scanner, packet, exploit, access, finding, or normalized assessment result."]},
+        {"componentId": "conducting-network-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive network assessment, segmentation, authorization, test planning, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove network posture, exploitability, or control effectiveness."]},
+        {"componentId": "conducting-network-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, network and asset ownership, legal/safety/privacy review, data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human assessment, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-wireless-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-wireless-network-penetration-test/SKILL.md",
+        "sha256": "513cb626e6ea37735afe62223e2e34953ed327de70a6b379538585c233e07e79",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Wireless Network Penetration Test:L35"]
+      },
+      "components": [
+        {"componentId": "conducting-wireless-network-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied wireless target, SSID, channel, protocol, device, scope, authorization, test-case, owner, stop-condition, and evidence manifests.", "notProved": ["No live wireless discovery, association, authentication, injection, access, finding, or security outcome is proved."]},
+        {"componentId": "conducting-wireless-network-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use wireless interfaces, access points, clients, radios, air traffic, packet capture, credentials, Kismet, scanners, exploit tools, or production networks.", "notProved": ["No live SSID, radio, client, access point, packet, credential, exploit, finding, or normalized wireless result."]},
+        {"componentId": "conducting-wireless-network-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive wireless assessment, channel and protocol safety, authorization, test planning, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not wireless execution and does not prove radio, client, or access-point security."]},
+        {"componentId": "conducting-wireless-network-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, wireless and asset ownership, legal/safety/privacy review, physical and data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human wireless test, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-dns-enumeration-and-zone-transfer",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dns-enumeration-and-zone-transfer/SKILL.md",
+        "sha256": "98dda8abdf10a40c2aca1446e6d487fb6dbf6983050fc126f07a7d97adf3bd83",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing DNS Enumeration and Zone Transfer:L31"]
+      },
+      "components": [
+        {"componentId": "performing-dns-enumeration-and-zone-transfer::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied domain, zone, record, nameserver, transfer-policy, target, scope, authorization, owner, and evidence manifests.", "notProved": ["No live DNS query, zone transfer, record truth, domain ownership, exposure, finding, or security outcome is proved."]},
+        {"componentId": "performing-dns-enumeration-and-zone-transfer::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live DNS authorities, nameservers, resolvers, network sockets, scanners, enumeration tools, packet capture, or production domains.", "notProved": ["No live DNS authority, query, nameserver, transfer, record, exposure, finding, or normalized DNS result."]},
+        {"componentId": "performing-dns-enumeration-and-zone-transfer::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive DNS inventory, transfer-policy, scope, authorization, evidence, validation, monitoring, and remediation guidance.", "notProved": ["Guidance is not DNS execution and does not prove records, ownership, transfer behavior, or exposure."]},
+        {"componentId": "performing-dns-enumeration-and-zone-transfer::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, domain and provider ownership, legal/privacy/safety review, data boundaries, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human DNS query, transfer, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-external-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-external-network-penetration-test/SKILL.md",
+        "sha256": "7810b346bdde515919949c7c29406ef265ed08365e7087253e485e0ef1c1496c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing External Network Penetration Test:L34"]
+      },
+      "components": [
+        {"componentId": "performing-external-network-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied external target, asset, route, service, scope, authorization, test-case, owner, stop-condition, and evidence manifests.", "notProved": ["No live external discovery, service access, exploitation, finding, attribution, or security outcome is proved."]},
+        {"componentId": "performing-external-network-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live Internet networks, hosts, endpoints, DNS, scanners, packet capture, credentials, exploit tools, sessions, or production infrastructure.", "notProved": ["No live host, service, route, scanner, packet, exploit, access, finding, or normalized external-assessment result."]},
+        {"componentId": "performing-external-network-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive external assessment, exposure management, scope control, authorization, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove external exposure, exploitability, or security."]},
+        {"componentId": "performing-external-network-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, Internet-facing asset ownership, legal/safety/privacy review, data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human external test, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-subdomain-enumeration-with-subfinder",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-subdomain-enumeration-with-subfinder/SKILL.md",
+        "sha256": "527927896d91d4e1b06fb37d5f478ffeaf92d6fbaa0b9c0d899c884f4e761f5e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Subdomain Enumeration with Subfinder:L31"]
+      },
+      "components": [
+        {"componentId": "performing-subdomain-enumeration-with-subfinder::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied domain, subdomain, source, scope, authorization, ownership, confidence, collection-plan, and evidence manifests.", "notProved": ["No live Subfinder collection, DNS resolution, subdomain ownership, freshness, exposure, finding, or security outcome is proved."]},
+        {"componentId": "performing-subdomain-enumeration-with-subfinder::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Subfinder, live DNS, certificate and search sources, network services, resolvers, scanners, browsers, or production domains.", "notProved": ["No live source, resolver, domain, subdomain, certificate, service, finding, or normalized enumeration result."]},
+        {"componentId": "performing-subdomain-enumeration-with-subfinder::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive subdomain inventory, source evaluation, scope, authorization, evidence, validation, exposure review, and remediation guidance.", "notProved": ["Guidance is not collection and does not prove subdomain completeness, ownership, or exposure."]},
+        {"componentId": "performing-subdomain-enumeration-with-subfinder::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, domain ownership, legal/privacy/ethics review, source terms, data boundaries, collection stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human collection, ownership, validation, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-wireless-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-wireless-network-penetration-test/SKILL.md",
+        "sha256": "4039c7e917cc773ab1704ec6037a10ed8046ac19b10bd1bad6c0d02275371d4c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Wireless Network Penetration Test:L34"]
+      },
+      "components": [
+        {"componentId": "performing-wireless-network-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied wireless target, SSID, channel, protocol, device, scope, authorization, test-case, owner, stop-condition, and evidence manifests.", "notProved": ["No live wireless discovery, association, authentication, injection, access, finding, or security outcome is proved."]},
+        {"componentId": "performing-wireless-network-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use wireless interfaces, access points, clients, radios, air traffic, packet capture, credentials, Kismet, scanners, exploit tools, or production networks.", "notProved": ["No live SSID, radio, client, access point, packet, credential, exploit, finding, or normalized wireless result."]},
+        {"componentId": "performing-wireless-network-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive wireless assessment, channel and protocol safety, authorization, test planning, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not wireless execution and does not prove radio, client, or access-point security."]},
+        {"componentId": "performing-wireless-network-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, wireless and asset ownership, legal/safety/privacy review, physical and data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human wireless test, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-wireless-security-assessment-with-kismet",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-wireless-security-assessment-with-kismet/SKILL.md",
+        "sha256": "7243a60ff2f2137fc2551d752c250e11221248ee81ba3e68a45101b76d776f8d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Wireless Security Assessment with Kismet:L34"]
+      },
+      "components": [
+        {"componentId": "performing-wireless-security-assessment-with-kismet::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied wireless asset, SSID, channel, device, signal, protocol, scope, authorization, owner, assessment-plan, and evidence manifests.", "notProved": ["No live Kismet capture, radio, client, access point, signal, protocol, finding, attribution, or security outcome is proved."]},
+        {"componentId": "performing-wireless-security-assessment-with-kismet::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Kismet, wireless interfaces, radios, access points, clients, air traffic, packet capture, credentials, scanners, exploit tools, or production networks.", "notProved": ["No live Kismet session, radio, packet, client, access point, credential, finding, or normalized wireless-assessment result."]},
+        {"componentId": "performing-wireless-security-assessment-with-kismet::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive wireless monitoring, assessment scope, channel and protocol safety, evidence review, validation, and remediation guidance.", "notProved": ["Guidance is not capture and does not prove wireless visibility, finding validity, or security."]},
+        {"componentId": "performing-wireless-security-assessment-with-kismet::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, wireless and asset ownership, legal/safety/privacy review, physical and data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human wireless capture, assessment, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "scanning-network-with-nmap-advanced",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-network-with-nmap-advanced/SKILL.md",
+        "sha256": "424a3b39cdb31a1708bcb816bd918478300f9404ea94eaa7ada44c5f5231380d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Scanning Network with Nmap Advanced Techniques:L32"]
+      },
+      "components": [
+        {"componentId": "scanning-network-with-nmap-advanced::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied network target, host, port, protocol, scan-profile, scope, authorization, owner, expected-evidence, and finding manifests.", "notProved": ["No live Nmap scan, host, port, service, fingerprint, exposure, exploitability, finding, or security outcome is proved."]},
+        {"componentId": "scanning-network-with-nmap-advanced::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Nmap, live networks, hosts, endpoints, routers, firewalls, packet capture, scanners, exploit tools, credentials, sessions, or production infrastructure.", "notProved": ["No live scan, host, port, service, packet, fingerprint, exploit, finding, or normalized network result."]},
+        {"componentId": "scanning-network-with-nmap-advanced::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive network inventory, scan scope, rate and safety controls, evidence review, validation, exposure management, and remediation guidance.", "notProved": ["Guidance is not scanning and does not prove host inventory, service truth, exposure, or security."]},
+        {"componentId": "scanning-network-with-nmap-advanced::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, network and asset ownership, legal/safety/privacy review, data boundaries, credentials, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human scan, stop, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals validate only supplied static typed manifests and have no live executor, fixtures, network calls, wireless proof, scanner proof, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live networks, hosts, endpoints, DNS authorities, OSINT sources, Subfinder, Nmap, Kismet, wireless interfaces, packet capture, scanners, exploit tools, credentials, sessions, and production infrastructure remain blocked external engines.",
+    "No live enumeration, OSINT truth, DNS or subdomain ownership, zone transfer, network or wireless discovery, packet capture, scan result, exploitation, access, credential compromise, lateral movement, finding validity, attribution, severity, remediation, containment, recovery, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content; written authorization, scope, ownership, legal/safety/privacy review, data handling, stop conditions, analyst interpretation, containment, remediation, rollback, recovery, and disclosure decisions remain required."
+  ]
+}
