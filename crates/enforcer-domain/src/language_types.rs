@@ -68,6 +68,22 @@ pub enum StructuralLanguageSupport {
     NoParseFile,
 }
 
+/// Honest validator-dispatch projection for one canonical language identity.
+///
+/// This projection is intentionally separate from structural parser support
+/// and literal matching. A mapped value means the current extension-based
+/// scan classifier proves one existing family; unsupported means that no
+/// such deterministic mapping is proved by this packet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScanFamilyDisposition {
+    /// Every canonical matcher maps to one existing scan family.
+    Mapped(crate::scan_types::LanguageFamily),
+    /// The current scan classifier cannot prove one family for this identity.
+    Unsupported,
+    /// The scan-family question does not apply to this identity.
+    NotApplicable,
+}
+
 /// Matcher kind used by canonical language detection metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DetectionMatcherKind {

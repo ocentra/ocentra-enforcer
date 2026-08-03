@@ -5,12 +5,15 @@
 //! it does not claim parser, validator, or native-tool capability.
 
 use std::collections::BTreeSet;
+use std::str::FromStr;
 
 use enforcer_domain::language_types::{
     DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralProjection,
-    LiteralProjectionDisposition, LiteralReference, MatcherWinner, StructuralLanguageSupport,
+    LiteralProjectionDisposition, LiteralReference, MatcherWinner, ScanFamilyDisposition,
+    StructuralLanguageSupport,
 };
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::scan_types::LanguageFamily;
 use enforcer_syntax::registry::{
     collision_resolutions, detection_precedence, language_registry, literal_projections,
     CanonicalLanguageName,
@@ -49,6 +52,7 @@ pub struct CanonicalLanguageRoute {
     canonical_name: CanonicalLanguageName,
     structural: StructuralLanguageSupport,
     capability: RouteCapabilityDisposition,
+    scan_family_disposition: ScanFamilyDisposition,
 }
 
 impl CanonicalLanguageRoute {
@@ -74,6 +78,12 @@ impl CanonicalLanguageRoute {
     #[must_use]
     pub const fn capability(&self) -> RouteCapabilityDisposition {
         self.capability
+    }
+
+    /// Return the current extension-based validator-dispatch projection.
+    #[must_use]
+    pub const fn scan_family_disposition(&self) -> ScanFamilyDisposition {
+        self.scan_family_disposition
     }
 }
 
@@ -147,7 +157,40 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
         canonical_name: record.canonical_name(),
         structural: record.structural(),
         capability,
+        scan_family_disposition: scan_family_disposition(record.matchers()),
     })
+}
+
+pub(crate) fn canonical_scan_family_disposition(id: LanguageId) -> Option<ScanFamilyDisposition> {
+    canonical_route(id).map(|route| route.scan_family_disposition())
+}
+
+fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDisposition {
+    let mut mapped = None;
+    for matcher in matchers.iter().copied() {
+        let DetectionMatcher::Extension(extension) = matcher else {
+            return ScanFamilyDisposition::Unsupported;
+        };
+        let Some(family) = scan_family_for_extension(extension) else {
+            return ScanFamilyDisposition::Unsupported;
+        };
+        if mapped.is_some_and(|mapped| mapped != family) {
+            return ScanFamilyDisposition::Unsupported;
+        }
+        mapped = Some(family);
+    }
+    mapped.map_or(
+        ScanFamilyDisposition::Unsupported,
+        ScanFamilyDisposition::Mapped,
+    )
+}
+
+fn scan_family_for_extension(extension: &str) -> Option<LanguageFamily> {
+    let path = RelPath::from_str(&format!("__ul06_scan_family.{extension}")).ok()?;
+    match super::classify(&path) {
+        LanguageFamily::Unknown => None,
+        family => Some(family),
+    }
 }
 
 fn matched_reference(path: &RelPath) -> Option<LiteralReference> {
@@ -298,6 +341,93 @@ fn matcher_winner(
         MatcherWinner::Key(winner_key, reference) if *winner_key == key => Some(*reference),
         _ => None,
     })
+}
+
+#[cfg(test)]
+mod scan_family_tests {
+    use super::{scan_family_disposition, ScanFamilyDisposition};
+    use enforcer_domain::language_types::DetectionMatcher;
+    use enforcer_domain::scan_types::LanguageFamily;
+    use enforcer_syntax::registry::language_registry;
+
+    #[test]
+    fn scan_family_projection_preserves_the_160_row_denominator() {
+        let records = language_registry();
+        assert_eq!(records.len(), 160);
+
+        let mut rust = 0;
+        let mut typescript = 0;
+        let mut python = 0;
+        let mut terraform = 0;
+        let mut yaml_or_config = 0;
+        let mut unknown = 0;
+        let mut unsupported = 0;
+        let mut not_applicable = 0;
+
+        for record in records {
+            match scan_family_disposition(record.matchers()) {
+                ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => rust += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => typescript += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::Python) => python += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::Terraform) => terraform += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::YamlOrConfig) => yaml_or_config += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::Unknown) => unknown += 1,
+                ScanFamilyDisposition::Unsupported => unsupported += 1,
+                ScanFamilyDisposition::NotApplicable => not_applicable += 1,
+            }
+        }
+
+        assert_eq!(
+            (rust, typescript, python, terraform, yaml_or_config),
+            (1, 1, 0, 0, 1)
+        );
+        assert_eq!(unsupported, 157);
+        assert_eq!(not_applicable, 0);
+        assert_eq!(unknown, 0);
+    }
+
+    #[test]
+    fn scan_family_projection_fails_closed_for_ambiguous_matchers() {
+        assert_eq!(
+            scan_family_disposition(&[]),
+            ScanFamilyDisposition::Unsupported
+        );
+        assert_eq!(
+            scan_family_disposition(&[DetectionMatcher::ExactBasename("Dockerfile")]),
+            ScanFamilyDisposition::Unsupported
+        );
+        assert_eq!(
+            scan_family_disposition(&[DetectionMatcher::CompoundSuffix(".env.local")]),
+            ScanFamilyDisposition::Unsupported
+        );
+        assert_eq!(
+            scan_family_disposition(&[DetectionMatcher::Extension("unknown")]),
+            ScanFamilyDisposition::Unsupported
+        );
+        assert_eq!(
+            scan_family_disposition(&[
+                DetectionMatcher::Extension("rs"),
+                DetectionMatcher::Extension("py"),
+            ]),
+            ScanFamilyDisposition::Unsupported
+        );
+    }
+
+    #[test]
+    fn config_json_and_yaml_remain_unsupported_without_canonical_matchers() -> Result<(), String> {
+        for name in ["ConfigJson", "ConfigYaml"] {
+            let record = language_registry()
+                .iter()
+                .find(|record| record.canonical_name().to_string() == name)
+                .ok_or_else(|| format!("missing reviewed identity {name}"))?;
+            assert!(record.matchers().is_empty());
+            assert_eq!(
+                scan_family_disposition(record.matchers()),
+                ScanFamilyDisposition::Unsupported
+            );
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
