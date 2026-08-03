@@ -1431,10 +1431,23 @@ fn named_mutation_risk_unrecorded(args: &serde_json::Value) -> serde_json::Value
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    let proof_validation = enforcer_proof::boundary::mutation_risk::validate(
+        std::path::Path::new(root.as_str()),
+        match &request.scope {
+            enforcer_scan::boundary::native_scan::NativeScanScope::Diff { head, .. } => {
+                Some(head.as_str())
+            }
+            _ => None,
+        },
+    );
+    let proof = enforcer_scan::mutation_risk::MutationRiskProofState::from_accepted(
+        proof_validation.is_accepted(),
+    );
     enforcer_scan::boundary::native_scan::execute_mutation_risk_policy(
         &request,
         &root,
         &enforcer_scan::mutation_risk::MutationRiskPolicy::default(),
+        proof,
     )
     .map_err(|error| error.to_string())
     .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
@@ -4501,6 +4514,44 @@ mod tests {
     fn check_mutation_risk_reaches_the_native_executor() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         std::fs::write(temp.path().join("Cargo.lock"), "lock")?;
+        std::fs::create_dir_all(temp.path().join("scripts"))?;
+        std::fs::write(
+            temp.path().join("scripts/ci-local.mjs"),
+            "console.log('ci');\n",
+        )?;
+        assert!(Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(temp.path())
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .status()?
+            .success());
+        assert!(Command::new("git")
+            .args([
+                "-c",
+                "user.name=Enforcer Test",
+                "-c",
+                "user.email=enforcer-test@example.invalid",
+                "commit",
+                "--quiet",
+                "-m",
+                "mutation-risk fixture",
+            ])
+            .current_dir(temp.path())
+            .status()?
+            .success());
+        let head = String::from_utf8(
+            Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .current_dir(temp.path())
+                .output()?
+                .stdout,
+        )?
+        .trim()
+        .to_owned();
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
             &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"mutation-risk", "scope":"files", "files":["Cargo.lock"]}),
@@ -4512,6 +4563,70 @@ mod tests {
         assert_eq!(value["check"], serde_json::json!("mutation-risk"));
         assert_eq!(value["ok"], serde_json::json!(false));
         assert_eq!(value["findings"][0]["ruleId"], serde_json::json!("ENF-2.1"));
+
+        let manifest = temp.path().join(".enforce/proofs/db/proof-manifest.json");
+        let run = temp
+            .path()
+            .join(".enforce/proofs/runs/mutation-risk-run/proof-run.json");
+        std::fs::create_dir_all(manifest.parent().ok_or("manifest parent")?)?;
+        std::fs::create_dir_all(run.parent().ok_or("run parent")?)?;
+        std::fs::write(
+            &manifest,
+            serde_json::to_vec(&serde_json::json!({
+                "schemaVersion": 1,
+                "runs": [{"runId": "mutation-risk-run"}]
+            }))?,
+        )?;
+        std::fs::write(
+            &run,
+            serde_json::to_vec(&serde_json::json!({
+                "runId": "mutation-risk-run",
+                "proofId": "PROOF-MUTATION-RISK-CI",
+                "status": "passed",
+                "git": {"commit": head.clone()},
+                "command": ["node.exe", "scripts/ci-local.mjs"]
+            }))?,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"mutation-risk", "scope":"files", "files":["Cargo.lock"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("accepted mutation-risk proof did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+
+        std::fs::write(
+            &run,
+            serde_json::to_vec(&serde_json::json!({
+                "runId": "mutation-risk-run",
+                "proofId": "PROOF-MUTATION-RISK-CI",
+                "status": "failed",
+                "git": {"commit": head.clone()},
+                "command": ["node.exe", "scripts/ci-local.mjs"]
+            }))?,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"mutation-risk", "scope":"files", "files":["Cargo.lock"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("failed mutation-risk proof did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+
+        std::fs::write(&run, b"not-json")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({"root": temp.path().to_string_lossy(), "check":"mutation-risk", "scope":"files", "files":["Cargo.lock"]}),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("malformed mutation-risk proof did not dispatch".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
         Ok(())
     }
 

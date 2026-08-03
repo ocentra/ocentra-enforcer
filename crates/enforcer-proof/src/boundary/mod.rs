@@ -3,6 +3,7 @@
 //! Wire contracts owned by the proof crate.
 
 pub mod lifecycle;
+pub mod mutation_risk;
 pub mod proof_query;
 pub mod read_model;
 pub mod read_model_claim;

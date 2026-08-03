@@ -206,10 +206,18 @@ fn run_mutation_risk_policy(args: &MutationRiskArgs) -> ExitCode {
             return ExitCode::InternalError;
         }
     };
+    let proof_validation = enforcer_proof::boundary::mutation_risk::validate(
+        Path::new(root.as_str()),
+        resolved.diff_range.as_ref().map(|(_, head)| head.as_str()),
+    );
+    let proof = enforcer_scan::mutation_risk::MutationRiskProofState::from_accepted(
+        proof_validation.is_accepted(),
+    );
     match enforcer_scan::mutation_risk::check(
         resolved.kind,
         &files,
         &enforcer_scan::mutation_risk::MutationRiskPolicy::default(),
+        proof,
     ) {
         Ok(report) => {
             output::print_report(&report);

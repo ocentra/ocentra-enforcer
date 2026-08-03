@@ -245,14 +245,16 @@ pub fn execute_mutation_risk_policy(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
     policy: &crate::mutation_risk::MutationRiskPolicy,
+    proof: crate::mutation_risk::MutationRiskProofState,
 ) -> Result<NativeScanResult, NativeScanError> {
     let (resolved, files) = resolve_files(request, repo_root)?;
-    let report = crate::mutation_risk::check(resolved.kind, &files, policy).map_err(|reason| {
-        NativeScanError::Io {
-            operation: "mutation-risk check",
-            reason,
-        }
-    })?;
+    let report =
+        crate::mutation_risk::check(resolved.kind, &files, policy, proof).map_err(|reason| {
+            NativeScanError::Io {
+                operation: "mutation-risk check",
+                reason,
+            }
+        })?;
     Ok(NativeScanResult {
         scope: resolved.kind,
         scanned_files: files,

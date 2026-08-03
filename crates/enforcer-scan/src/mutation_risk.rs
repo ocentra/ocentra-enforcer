@@ -14,16 +14,40 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_domain::telemetry_types::SourceLine;
 
-pub const REQUIRED_PROOFS: &[&str] = &[
-    "ocentra-enforcer scan --workspace",
-    "ocentra-enforcer check rule-coverage --root <repo>",
-    "ocentra-enforcer check policy-integrity --root <repo>",
-    "ocentra-enforcer check ci-integrity --root <repo>",
-    "ocentra-enforcer check repo-governance --root <repo>",
-    "npm test",
-    "npm run test:mcp",
-];
+pub const REQUIRED_PROOF_COMMAND: &str =
+    "node scripts/ocentra-enforcer.mjs proof run --root . --profile ocentra-enforcer --proof-id PROOF-MUTATION-RISK-CI --pin -- node scripts/ci-local.mjs";
+pub const REQUIRED_PROOFS: &[&str] = &[REQUIRED_PROOF_COMMAND];
 
+/// Minimal proof state accepted by the scan engine. Proof storage, JSON, and
+/// Git resolution remain outside this crate in the proof boundary adapters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MutationRiskProofState {
+    accepted: bool,
+}
+
+impl MutationRiskProofState {
+    #[must_use]
+    pub const fn from_accepted(accepted: bool) -> Self {
+        Self { accepted }
+    }
+
+    #[must_use]
+    pub const fn accepted() -> Self {
+        Self { accepted: true }
+    }
+
+    #[must_use]
+    pub const fn rejected() -> Self {
+        Self { accepted: false }
+    }
+
+    #[must_use]
+    pub const fn is_accepted(self) -> bool {
+        self.accepted
+    }
+}
+
+/// Policy-critical path patterns and their mutation-risk proof requirement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MutationRiskPolicy {
     pub critical_patterns: Vec<String>,
@@ -57,25 +81,31 @@ impl Default for MutationRiskPolicy {
     }
 }
 
+/// Evaluate the mutation-risk path policy against typed proof acceptance.
 pub fn check(
     scope: ScanScope,
     files: &[RelPath],
     policy: &MutationRiskPolicy,
+    proof: MutationRiskProofState,
 ) -> Result<Report, String> {
     let rule_id: RuleId = "ENF-2.1"
         .parse()
         .map_err(|error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string())?;
-    let mut findings = files
-        .iter()
-        .filter(|file| {
-            policy
-                .critical_patterns
-                .iter()
-                .any(|glob| glob_matches(glob, file.as_str()))
-        })
-        .cloned()
-        .filter_map(|file| finding(rule_id.clone(), file))
-        .collect::<Vec<_>>();
+    let mut findings = if proof.is_accepted() {
+        Vec::new()
+    } else {
+        files
+            .iter()
+            .filter(|file| {
+                policy
+                    .critical_patterns
+                    .iter()
+                    .any(|glob| glob_matches(glob, file.as_str()))
+            })
+            .cloned()
+            .filter_map(|file| finding(rule_id.clone(), file))
+            .collect::<Vec<_>>()
+    };
     findings.sort_by(|left, right| left.file.as_str().cmp(right.file.as_str()));
     let violations = findings
         .iter()
@@ -144,8 +174,8 @@ fn glob_matches(pattern: &str, path: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{check, MutationRiskPolicy};
-    use enforcer_domain::findings::ScanScope;
+    use super::{check, MutationRiskPolicy, MutationRiskProofState, REQUIRED_PROOF_COMMAND};
+    use enforcer_domain::findings::{ReportOutcome, ScanScope};
     use enforcer_domain::paths::RelPath;
 
     #[test]
@@ -161,7 +191,12 @@ mod tests {
                 .parse::<RelPath>()
                 .map_err(|error| error.to_string())?,
         ];
-        let report = check(ScanScope::Diff, &files, &MutationRiskPolicy::default())?;
+        let report = check(
+            ScanScope::Diff,
+            &files,
+            &MutationRiskPolicy::default(),
+            MutationRiskProofState::rejected(),
+        )?;
         assert_eq!(report.violations.len(), 2);
         assert!(report
             .findings
@@ -170,7 +205,7 @@ mod tests {
         assert!(report.findings[0]
             .detail
             .as_str()
-            .contains("npm run test:mcp"));
+            .contains(REQUIRED_PROOF_COMMAND));
         Ok(())
     }
     #[test]
@@ -187,9 +222,38 @@ mod tests {
             critical_patterns: vec!["engine/**".to_owned()],
         };
         assert_eq!(
-            check(ScanScope::Files, &files, &policy)?.violations.len(),
+            check(
+                ScanScope::Files,
+                &files,
+                &policy,
+                MutationRiskProofState::rejected(),
+            )?
+            .violations
+            .len(),
             1
         );
+        Ok(())
+    }
+
+    #[test]
+    fn accepted_current_proof_clears_critical_paths_without_changing_matching() -> Result<(), String>
+    {
+        let files = [
+            "Cargo.lock"
+                .parse::<RelPath>()
+                .map_err(|error| error.to_string())?,
+            "docs/readme.md"
+                .parse::<RelPath>()
+                .map_err(|error| error.to_string())?,
+        ];
+        let report = check(
+            ScanScope::Files,
+            &files,
+            &MutationRiskPolicy::default(),
+            MutationRiskProofState::accepted(),
+        )?;
+        assert!(report.violations.is_empty());
+        assert_eq!(report.ok, ReportOutcome::Clean);
         Ok(())
     }
 }
