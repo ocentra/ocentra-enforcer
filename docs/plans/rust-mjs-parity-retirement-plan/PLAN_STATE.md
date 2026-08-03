@@ -3,7 +3,7 @@
 <!-- agent-capsule -->
 ```yaml
 planId: rust-mjs-parity-retirement-plan
-state: "RM00 authority is accepted; RM01 read-only capability inventory is ready."
+state: "RM00 authority is accepted; RM01 inventory integration and public-surface expansion are active."
 integrator: "boss on rust-build"
 terminalRule: "no MJS fallback; delete legacy runtime paths rather than merging or retaining them"
 ```
@@ -20,7 +20,7 @@ All registered public mechanical capability rows are independently reproduced at
 ## Dependency Checklist
 
 1. RM00 accepted: exact public, provenance, overlay, dogfood, and aggregate authority are frozen by SHA.
-2. RM01 ready: create the canonical capability matrix from bounded read-only audits.
+2. RM01 active: the boss integrates bounded read-only proposals into the canonical matrix, expands every omitted public surface, and keeps every row unmeasured until an executable oracle runs.
 3. RM02-RM07 establish read-only public oracles.
 4. RM08 adjudicates gaps; RM09-RM10 repair only approved disjoint gaps.
 5. RM11 aggregates exact-SHA evidence, then RM12-RM14 control cutover and deletion.

@@ -24,6 +24,13 @@ Each public capability has one ID and names its MJS/native entrypoints, fixture,
 
 Audit no more than 40 rows per child; integrator rejects missing entrypoints, duplicate IDs, or unproved `supported` status.
 
+Boss-owned working artifacts:
+
+- [`../inventory/RM01_CAPABILITIES.schema.json`](../inventory/RM01_CAPABILITIES.schema.json) defines the singleton row contract.
+- [`../inventory/RM01_CAPABILITIES.json`](../inventory/RM01_CAPABILITIES.json) records current proposals and explicit coverage omissions.
+
+RM01 is accepted only when the matrix represents every public CLI/check, all 50 canonical MCP tools and their 50 compatibility aliases, all 570 registered public rule IDs, and the coordination/install/hook/CI/dogfood/release surfaces. `inventoryState: incomplete`, grouped rows, source-only evidence, or any unexpanded surface keeps RM02-RM07 blocked.
+
 ## Stop Rules
 
 Do not classify from prose alone. Only the boss edits the matrix/schema singleton.

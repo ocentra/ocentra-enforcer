@@ -1,6 +1,9 @@
 //! Mechanical contract for the Rust/MJS parity-retirement plan.
 
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -86,6 +89,25 @@ fn parity_retirement_plan_has_all_workpacks_and_correct_authority() -> TestResul
         indexed_rows, 15,
         "workpack index must have exactly 15 RM rows"
     );
+    let rm01_row = index
+        .lines()
+        .find(|line| line.starts_with("| RM01 |"))
+        .ok_or("missing RM01 index row")?;
+    assert!(
+        rm01_row.ends_with("| ACTIVE-INVENTORY |"),
+        "RM01 must remain active until public-surface coverage is complete"
+    );
+    for blocked_id in ["RM02", "RM03", "RM04", "RM05", "RM06", "RM07"] {
+        let prefix = format!("| {blocked_id} |");
+        let row = index
+            .lines()
+            .find(|line| line.starts_with(&prefix))
+            .ok_or("missing dependent oracle index row")?;
+        assert!(
+            row.ends_with("| BLOCKED |"),
+            "{blocked_id} must stay blocked while RM01 is incomplete"
+        );
+    }
     let workpacks: Vec<_> = std::fs::read_dir(plan.join("workpacks"))?
         .flatten()
         .filter(|entry| entry.file_name().to_string_lossy().starts_with("rm"))
@@ -198,6 +220,161 @@ fn rm00_manifest_pins_public_plus_exact_overlay_authority() -> TestResult {
             .pointer("/aggregateParityContract/privateOverlayMayProducePublicPass")
             .and_then(serde_json::Value::as_bool),
         Some(false)
+    );
+    Ok(())
+}
+
+#[test]
+fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
+    let root = workspace_root()?;
+    let inventory_root = root.join("docs/plans/rust-mjs-parity-retirement-plan/inventory");
+    let raw = std::fs::read_to_string(inventory_root.join("RM01_CAPABILITIES.json"))?;
+    let matrix: serde_json::Value = serde_json::from_str(&raw)?;
+    let schema_raw = std::fs::read_to_string(inventory_root.join("RM01_CAPABILITIES.schema.json"))?;
+    let schema: serde_json::Value = serde_json::from_str(&schema_raw)?;
+
+    assert_eq!(
+        matrix
+            .pointer("/schemaVersion")
+            .and_then(serde_json::Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        matrix
+            .pointer("/workpackId")
+            .and_then(serde_json::Value::as_str),
+        Some("RM01")
+    );
+    assert_eq!(
+        matrix
+            .pointer("/inventoryState")
+            .and_then(serde_json::Value::as_str),
+        Some("incomplete")
+    );
+    assert_eq!(
+        matrix
+            .pointer("/sourceReport/managerThreadId")
+            .and_then(serde_json::Value::as_str),
+        Some("019fc4c6-b2fb-78b3-985d-d5c235130a6e")
+    );
+    assert_eq!(
+        matrix
+            .pointer("/sourceReport/observedAtCandidateSha")
+            .and_then(serde_json::Value::as_str),
+        Some("cf3bc4f7b210c8da4335f5e6779028b1882a1c10")
+    );
+    assert_eq!(
+        matrix
+            .pointer("/sourceReport/authorityDecisionInputCandidateSha")
+            .and_then(serde_json::Value::as_str),
+        Some("221179f0226665d66d2151897f757c4936bc1092")
+    );
+    assert_eq!(
+        matrix
+            .pointer("/coverage/complete")
+            .and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        matrix
+            .pointer("/coverage/proposalRowCount")
+            .and_then(serde_json::Value::as_u64),
+        Some(78)
+    );
+    assert_eq!(
+        matrix
+            .pointer("/coverage/knownPublicSurfaceCounts/canonicalMcpTools")
+            .and_then(serde_json::Value::as_u64),
+        Some(50)
+    );
+    assert_eq!(
+        matrix
+            .pointer("/coverage/knownPublicSurfaceCounts/legacyMcpAliases")
+            .and_then(serde_json::Value::as_u64),
+        Some(50)
+    );
+    assert_eq!(
+        matrix
+            .pointer("/coverage/knownPublicSurfaceCounts/registeredRuleIds")
+            .and_then(serde_json::Value::as_u64),
+        Some(570)
+    );
+
+    let rows = matrix
+        .pointer("/rows")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("RM01 rows must be an array")?;
+    assert_eq!(rows.len(), 78);
+    let ids: BTreeSet<_> = rows
+        .iter()
+        .filter_map(|row| row.get("id").and_then(serde_json::Value::as_str))
+        .collect();
+    assert_eq!(ids.len(), rows.len(), "RM01 row IDs must be unique");
+
+    for row in rows {
+        assert_eq!(
+            row.get("evidenceStatus")
+                .and_then(serde_json::Value::as_str),
+            Some("source-inventory-only")
+        );
+        assert_eq!(
+            row.get("observedResult")
+                .and_then(serde_json::Value::as_str),
+            Some("unmeasured"),
+            "source inventory must not promote a behavioral verdict"
+        );
+        assert!(
+            row.get("doesNotProve")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|claims| claims
+                    .iter()
+                    .any(|claim| claim.as_str() == Some("behavioral parity"))),
+            "every RM01 row must disclaim behavioral parity"
+        );
+    }
+
+    let missing_ids: Vec<_> = rows
+        .iter()
+        .filter(|row| {
+            row.get("initialDisposition")
+                .and_then(serde_json::Value::as_str)
+                == Some("missing")
+        })
+        .filter_map(|row| row.get("id").and_then(serde_json::Value::as_str))
+        .collect();
+    assert_eq!(missing_ids, ["C3-005"]);
+    for corrected_id in ["C3-014", "C3-015"] {
+        let row = rows
+            .iter()
+            .find(|row| row.get("id").and_then(serde_json::Value::as_str) == Some(corrected_id))
+            .ok_or("missing corrected coordination row")?;
+        assert_eq!(
+            row.get("initialDisposition")
+                .and_then(serde_json::Value::as_str),
+            Some("unknown")
+        );
+        assert!(
+            row.get("rustSources")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|sources| sources
+                    .iter()
+                    .any(|source| source.to_string().contains("crates/enforcer-mcp"))),
+            "corrected coordination row must retain the native MCP surface"
+        );
+    }
+
+    assert_eq!(
+        schema
+            .pointer("/properties/inventoryState/enum")
+            .and_then(serde_json::Value::as_array)
+            .map(Vec::len),
+        Some(4)
+    );
+    assert!(
+        schema
+            .pointer("/$defs/capabilityRow/properties/observedResult")
+            .is_some(),
+        "RM01 schema must distinguish source inventory from observed behavior"
     );
     Ok(())
 }

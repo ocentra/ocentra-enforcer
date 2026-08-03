@@ -22,7 +22,9 @@ This plan makes the harness—not an AI review—the acceptance authority.  MJS 
 
 `dogfood.yml` correctly pins the current public frozen oracle `267af94b701bd592e01a47649e3c18c26ee04239`. RM00's blocker is instead split runtime authority: the live private overlay is based on `d7162b617` and lacks the public `267af94` safety fix. Public closure requires an aggregate union/equal-or-stricter proof of the public behavior at `267af94` plus the overlay's two exact allowlisted behaviors.
 
-RM00 is accepted by the machine-readable [authority manifest](authority/RM00_AUTHORITY.json). Later audits consume its exact SHAs and behavior IDs; they do not reinterpret branch names.
+RM00 is accepted by the machine-readable [authority manifest](authority/RM00_AUTHORITY.json). Later audits consume its exact SHAs and behavior IDs; they do not reinterpret branch names. The manifest's `decisionInputCandidateSha` is the historical candidate snapshot used to make the RM00 decision; it is not a downstream execution pin. Every later packet names its own exact candidate SHA, and RM11 selects the final aggregate candidate.
+
+RM01's boss-owned [capability inventory](inventory/RM01_CAPABILITIES.json) is intentionally machine-readable. Its `inventoryState` and coverage block must stay honest: a source anchor or grouped proposal is not behavioral parity, and dependent oracle workpacks remain blocked until all public surfaces are represented.
 
 ## Acceptance model
 

@@ -1,0 +1,2714 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM01",
+  "inventoryState": "incomplete",
+  "sourceReport": {
+    "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "observedAtCandidateSha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+    "authorityDecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayCommits": [
+      "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+    ],
+    "evidenceLevel": "source-inventory-only"
+  },
+  "coverage": {
+    "proposalRowCount": 78,
+    "complete": false,
+    "knownPublicSurfaceCounts": {
+      "canonicalMcpTools": 50,
+      "legacyMcpAliases": 50,
+      "registeredRuleIds": 570
+    },
+    "unexpandedSurfaces": [
+      "public CLI and named-check commands remain grouped instead of one row per public capability",
+      "50 canonical MCP tools and 50 compatibility aliases are not represented one-for-one",
+      "570 registered public rule IDs are not represented one-for-one",
+      "hook and dogfood entrypoints are not explicitly represented",
+      "coordination health, presence, workers, tasks, and guard require split rows",
+      "installer, harness, CI, and release surfaces remain grouped"
+    ]
+  },
+  "rows": [
+    {
+      "id": "C1-CLI-001",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-main.mjs:main",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Parses argv, selects command, and routes bare/default command behavior.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/src/cli.rs:Cli",
+            "crates/enforcer-cli/src/cli.rs:parser tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same argv corpus against both exact SHAs.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-CLI-002",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:COMMAND_HANDLERS",
+            "src/cli-command-dispatch.mjs:runCliMain",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Unknown, missing, or conflicting arguments produce usage failure rather than finding failure.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/src/cli.rs:Cli",
+            "crates/enforcer-cli/tests/cli_integration.rs:no_scope_at_all_is_a_usage_error"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exit code, stderr, and normalized diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-CLI-003",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:runCliMain",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Success, violations, usage, config, and internal outcomes map to process exit classes.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:to_process_exit_code",
+            "crates/enforcer-cli/src/main.rs:run",
+            "crates/enforcer-cli/tests/cli_integration.rs:success_exit_code_maps_to_process_code_zero"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run an exhaustive exit-class fixture matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-CLI-004",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCheckCommand",
+            "src/cli-command-dispatch.mjs:handleScanCommand",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "A pass fixture exits zero; a failing fixture exits nonzero with findings.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/src/commands.rs:run_verify",
+            "crates/enforcer-cli/tests/cli_integration.rs:pass_fixture_paths_mode_exits_zero",
+            "crates/enforcer-cli/tests/cli_integration.rs:fail_fixture_paths_mode_exits_non_zero_with_violations_class"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Replay identical public/native fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-CLI-005",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleRunCommand",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Memory CLI arguments are forwarded without semantic corruption.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run_memory_cli",
+            "crates/enforcer-cli/tests/cli_integration.rs:memory_cli_forwards_hyphenated_index_flags_to_the_real_binary"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare argument forwarding and output.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-CLI-006",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/ocentra-enforcer-mcp.mjs",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The CLI serve entrypoint launches the MCP stdio runtime.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run_serve",
+            "crates/enforcer-cli/tests/cli_integration.rs:serve_mode_responds_to_initialize_over_stdio"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Spawn both binaries and compare initialize/EOF behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-001",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-transport.mjs:startMcpStdioServer",
+            "tests/rust-rules-mcp.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The MCP process accepts framed input, emits a response, and exits cleanly on stdin EOF.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/sink.rs:run_stdio_server",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Capture and compare the content-length and EOF transcript.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-002",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-context.mjs:MCP_PROTOCOL_VERSION",
+            "tests/rust-rules-mcp.test.mjs:initialize"
+          ]
+        }
+      ],
+      "observableBehavior": "initialize returns compatible protocol and server metadata.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/sink.rs:initialize_result",
+            "crates/enforcer-mcp/src/boundary/sink.rs:initialize_and_tools_list_round_trip"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exact JSON fields and values.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-003",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-tool-registry.mjs:TOOLS",
+            "tests/rust-rules-mcp.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "tools/list exposes the expected tool surface and schemas.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs",
+            "crates/enforcer-mcp/src/boundary/sink.rs:handle_method",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:tool-list assertions"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Diff sorted tool names and schemas.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-004",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:callTool",
+            "tests/rust-rules-mcp.test.mjs:invalid calls"
+          ]
+        }
+      ],
+      "observableBehavior": "Canonical tool names route to handlers; unknown tools return structured failure.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:dispatch",
+            "crates/enforcer-mcp/src/boundary/router.rs:fail_fixture_malformed_request_unknown_tool_is_rejected"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run a per-tool request/response corpus.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-005",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:callTool",
+            "tests/rust-rules-mcp.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Unknown JSON-RPC methods produce method-not-found errors.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/sink.rs:handle_method",
+            "crates/enforcer-mcp/src/boundary/sink.rs:unknown_method_yields_method_not_found_error_frame"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare error code and message.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-006",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-transport.mjs:startMcpStdioServer",
+            "tests/rust-rules-mcp-framing.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Content-length and NDJSON framing, chunking, and multiple frames behave correctly.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/transport.rs:FrameReader",
+            "crates/enforcer-mcp/src/transport.rs:encode_frame",
+            "crates/enforcer-mcp/src/transport.rs:framing tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run a byte-level framing corpus.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-007",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-transport.mjs",
+            "tests/rust-rules-mcp.test.mjs:notifications"
+          ]
+        }
+      ],
+      "observableBehavior": "Notifications receive no reply; malformed JSON receives a parse error.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/sink.rs:handle_frame",
+            "crates/enforcer-mcp/src/boundary/sink.rs:handle_method",
+            "crates/enforcer-mcp/src/boundary/sink.rs:notification_produces_no_reply"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare notification and malformed-input transcripts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-008",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:mcpStatus",
+            "mcp/rust-rules-mcp-dispatch.mjs:callTool",
+            "tests/rust-rules-mcp.test.mjs:status"
+          ]
+        }
+      ],
+      "observableBehavior": "A stale or incompatible runtime refuses unsafe writes while preserving permitted reads.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:mcp_status",
+            "crates/enforcer-mcp/src/boundary/router.rs:dispatch",
+            "crates/enforcer-mcp/src/boundary/router.rs:stale_server_refuses_a_write_tool_via_the_router",
+            "crates/enforcer-mcp/src/boundary/router.rs:read_only_tool_still_dispatches_while_stale"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run a fresh/stale fingerprint matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-009",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:scanTool",
+            "mcp/rust-rules-mcp-dispatch.mjs:checkTool",
+            "tests/rust-rules-mcp.test.mjs:scan/check"
+          ]
+        }
+      ],
+      "observableBehavior": "MCP scan/check requests reach native execution and return structured reports.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:scan",
+            "crates/enforcer-mcp/src/boundary/router.rs:check",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_scan_reaches_the_native_rust_engine",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_check_source_shape_reaches_the_native_policy_engine"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare the same fixture, arguments, report, and error.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-010",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:routeTool",
+            "tests/rust-rules-mcp.test.mjs:route"
+          ]
+        }
+      ],
+      "observableBehavior": "A route request returns selected languages, rule packs, and docs.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:route",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_route_reaches_the_native_rust_route_engine"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exact route request and output.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-011",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:doctorTool",
+            "tests/rust-rules-mcp.test.mjs:doctor"
+          ]
+        }
+      ],
+      "observableBehavior": "The doctor entrypoint returns repository readiness checks.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:doctor",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_doctor_reaches_native_repository_readiness_engine"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare the same fixture and six-check report.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-012",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:diagnosticsTool",
+            "mcp/rust-rules-mcp-dispatch.mjs:lastFailureTool",
+            "mcp/rust-rules-mcp-dispatch.mjs:artifactTool",
+            "tests/rust-rules-mcp.test.mjs:harness queries"
+          ]
+        }
+      ],
+      "observableBehavior": "Runtime query tools retrieve diagnostics, last failure, status, and artifacts.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:diagnostics",
+            "crates/enforcer-mcp/src/boundary/router.rs:last_failure",
+            "crates/enforcer-mcp/src/boundary/router.rs:artifact",
+            "crates/enforcer-mcp/src/boundary/router.rs:run_status",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_harness_query_tools_reach_the_native_rust_engine"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Replay a seeded run ledger and diff responses.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-013",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:callTool alias normalization",
+            "tests/rust-rules-mcp.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Legacy alias behavior either resolves identically or is rejected.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/router.rs:dispatch",
+            "crates/enforcer-mcp/tests/stdio_smoke.rs:stdio_smoke_legacy_alias_call_resolves_end_to_end"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact alias-name corpus against the current router.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C1-MCP-014",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/rust-rules-mcp-dispatch.mjs:toolError",
+            "mcp/rust-rules-mcp-dispatch.mjs:toolJson",
+            "tests/rust-rules-mcp.test.mjs:invalid arguments"
+          ]
+        }
+      ],
+      "observableBehavior": "Invalid request shapes return structured errors without panic or stdout contamination.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/sink.rs:handle_tools_call",
+            "crates/enforcer-mcp/src/boundary/router.rs:json_error",
+            "crates/enforcer-mcp/tests/wire_roundtrip.rs:malformed DTO tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Capture stdout/stderr for a malformed-argument corpus.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-01",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:loadConfig",
+            "tests/enforcer-policy.test.mjs:config fixtures"
+          ]
+        }
+      ],
+      "observableBehavior": "Explicit config wins, branded config is preferred, and malformed config fails or produces governed diagnostics.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/lib.rs:load_project_config",
+            "crates/enforcer-config/src/boundary/serde.rs:load_project_config",
+            "crates/enforcer-config/tests/project_tie.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same fixture/config-path matrix and compare normalized errors.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-02",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-policy.mjs:collectConfigLockdownFindings",
+            "tests/enforcer-multilang-policy.test.mjs:unknown keys"
+          ]
+        }
+      ],
+      "observableBehavior": "Unknown top-level keys produce CFG-1.9; missing identity produces CFG-1.10.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:inspect_project_config",
+            "crates/enforcer-scan/src/config_lockdown.rs:check",
+            "crates/enforcer-scan/src/config_lockdown.rs:lockdown_reports_the_full_governance_surface"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exact public fixtures for key and identity failures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-03",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:normalizeConfig",
+            "tests/enforcer-policy.test.mjs:strict/profile tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Defaults, failOn normalization, rule overrides, waivers, and tool policies are normalized before execution.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/resolve.rs:resolve",
+            "crates/enforcer-config/src/policy.rs:Policy::validate",
+            "crates/enforcer-config/tests/resolve_boundary.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare profile-only, profile-plus-override, and invalid-profile cases.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-04",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "schemas/effect/enforcer-schemas-config.mjs:ConfigSchema",
+            "schemas/json/enforcer-config.schema.json",
+            "tests/enforcer-schemas.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Config fields retain declared type and shape; invalid external payloads fail schema validation.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde.rs:WireEffectiveConfig",
+            "crates/enforcer-config/src/boundary/serde.rs:decode_effective_config",
+            "crates/enforcer-config/src/boundary/serde.rs:encode_project_config",
+            "crates/enforcer-config/tests/proof_fixtures.rs:typed-field coverage"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact schema corpus and round-trip comparison; typed candidate evidence alone is not parity proof.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-05",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-policy.mjs:collectConfigLockdownFindings",
+            "tests/enforcer-policy.test.mjs:immutable disable/downgrade cases"
+          ]
+        }
+      ],
+      "observableBehavior": "Immutable rules cannot be disabled or downgraded; governed escape hatches require waivers.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/policy.rs:Policy::validate",
+            "crates/enforcer-scan/src/config_lockdown.rs:lockdown_findings",
+            "crates/enforcer-scan/src/config_lockdown.rs:governance test"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare rule registry, severity, lock, waiver, and exit semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-06",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-policy.mjs:collectWaiverPolicyFindings",
+            "tests/enforcer-multilang-policy.test.mjs:waiver-policy case"
+          ]
+        }
+      ],
+      "observableBehavior": "Expired, hidden, broad, over-budget, or incomplete waivers fail with waiver findings.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/config_lockdown.rs:waiver_findings",
+            "crates/enforcer-scan/src/config_lockdown.rs:waiver_policy_reports_required_governance"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare date, scope, visibility, budget, and diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-07",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-policy.mjs:BOUNDARY_CONFIG_KEYS",
+            "src/check-policy.mjs:collectConfigLockdownFindings",
+            "tests/enforcer-edge-cases.test.mjs:config-lockdown cases"
+          ]
+        }
+      ],
+      "observableBehavior": "Boundary-sensitive config changes require boundaryOwnerNote.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:BOUNDARY_CONFIG_KEYS",
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:inspect_project_config",
+            "crates/enforcer-scan/src/config_lockdown.rs:lockdown_findings"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run positive and negative boundary-note fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-08",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-policy.mjs:collectConfigLockdownFindings",
+            "tests/enforcer-multilang-policy.test.mjs:source-shape/import-policy case"
+          ]
+        }
+      ],
+      "observableBehavior": "Glob-based source-shape and import policies require a note.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:glob_policies",
+            "crates/enforcer-scan/src/config_lockdown.rs:lockdown_findings"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exact glob/no-note and note-present cases.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-09",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:applyPolicyAndWaivers",
+            "tests/enforcer-policy.test.mjs:rule coverage tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Findings are registry-enriched, policy-filtered, split into violations and warnings, and emitted with governed status.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/engine.rs:fold_report",
+            "crates/enforcer-scan/src/engine.rs:build_family_validators",
+            "crates/enforcer-scan/src/engine.rs:run",
+            "crates/enforcer-scan/src/engine.rs:family_validators_build_cleanly"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare registry fixture, severity, finding order, and exit contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-10",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:policyPreflightFindings",
+            "tests/enforcer-edge-cases.test.mjs:immutable/config-lockdown case"
+          ]
+        }
+      ],
+      "observableBehavior": "Scanner preflight runs config-lockdown and waiver-policy before normal rule execution.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/config_lockdown.rs:check",
+            "crates/enforcer-scan/src/engine.rs:run",
+            "crates/enforcer-scan/src/config_lockdown.rs:governance tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare preflight ordering and aggregate result.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-11",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:required-tests behavior",
+            "tests/enforcer-edge-cases.test.mjs:empty-tree case"
+          ]
+        }
+      ],
+      "observableBehavior": "Missing or empty required test trees fail; organized tests satisfy the requirement.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/engine.rs:required_inline_test_findings",
+            "crates/enforcer-scan/src/engine.rs:empty_test_tree_findings",
+            "crates/enforcer-scan/src/engine.rs:run_required_test_policy",
+            "crates/enforcer-scan/src/engine.rs:required_tests_fails_for_missing_tests_and_strict_empty_tree"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run missing, empty, organized, and mixed-tree fixture matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-12",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+          "anchors": [
+            "scripts/check-source-core-private-rust-test-module.mjs",
+            "tests/enforcer-checks.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "An exact configured ownerFile/moduleFile/moduleName triple can permit a private Rust test module.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-domain/src/config_types.rs:PrivateRustTestModuleAllowlistEntry",
+            "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module",
+            "crates/enforcer-scan/src/engine.rs:required_tests_allows_only_the_exact_private_rust_module_shape"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "proofNeeded": "Prove the overlay behavior separately; public absence is not a regression.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-13",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+          "anchors": [
+            "scripts/check-source-core-private-rust-test-module.mjs",
+            "tests/enforcer-checks.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The owner file and module file must be same-directory paths and the module file must exist.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-domain/src/config_types.rs:PrivateRustTestModuleAllowlistEntry::try_new",
+            "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "proofNeeded": "Run negative fixtures for cross-directory and missing-file entries.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-14",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+          "anchors": [
+            "scripts/check-source-core-private-rust-test-module.mjs",
+            "tests/enforcer-checks.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The declaration must use the exact configured #[path] target.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/engine.rs:is_private_test_path_attribute",
+            "crates/enforcer-scan/src/engine.rs:required_tests_matches_frozen_project_and_private_module_shapes"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "proofNeeded": "Run spacing, path, quoting, and wrong-target negatives.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-15",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+          "anchors": [
+            "scripts/check-source-core-private-rust-test-module.mjs",
+            "tests/enforcer-checks.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The declaration must use the exact configured mod moduleName.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module",
+            "crates/enforcer-scan/src/engine.rs:required_tests_allows_only_the_exact_private_rust_module_shape"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "proofNeeded": "Run wrong-module-name and owner-file negatives.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-16",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+          "anchors": [
+            "scripts/check-source-core-private-rust-test-module.mjs",
+            "tests/enforcer-checks.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Exactly one #[cfg(test)] declaration is required; a second declaration is rejected.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module",
+            "crates/enforcer-scan/src/engine.rs:exact private-module unit-test family"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "proofNeeded": "Run one-marker, two-marker, and unrelated-marker negatives.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-17",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+          "anchors": [
+            "schemas/effect/enforcer-schemas-config.mjs:ConfigSchema",
+            "schemas/json/enforcer-config.schema.json",
+            "tests/enforcer-schemas.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "A complete allowlist entry preserves ownerFile, moduleFile, and moduleName fields.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde.rs:WirePrivateRustTestModuleAllowlistEntry",
+            "crates/enforcer-config/tests/proof_fixtures.rs:typed-field coverage"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": "private-rust-test-module-policy-preservation",
+      "proofNeeded": "Run exact JSON/Effect schema acceptance and rejection corpus.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-18",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "overlay",
+          "sha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+          "anchors": [
+            "src/check-policy.mjs",
+            "tests/enforcer-policy.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "privateRustTestModuleAllowlist survives policy/config-lockdown processing rather than being dropped.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:KNOWN_TOP_LEVEL_KEYS",
+            "crates/enforcer-config/src/boundary/serde/diagnostics.rs:inspect_project_config",
+            "crates/enforcer-config/src/boundary/serde.rs:TryFrom<WireEffectiveConfig>"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": "private-rust-test-module-policy-preservation",
+      "proofNeeded": "Run load -> policy inspection -> effective-config round-trip.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-19",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "schemas/effect/enforcer-schemas-config.mjs:PolicyOverrideSchema",
+            "tests/enforcer-schemas.test.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Rule override booleans, severities, waiver metadata, and scopes retain optional/required semantics.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/boundary/serde.rs:WireRuleToggle",
+            "crates/enforcer-config/src/boundary/serde.rs:WireWaiver",
+            "crates/enforcer-config/src/boundary/serde.rs:WirePolicy",
+            "crates/enforcer-config/tests/serde_property.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run property-based valid and malformed payload parity.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C2-20",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core.mjs:loadConfig",
+            "scripts/rust-rules-scan-core.mjs:normalizeConfig",
+            "tests:profile fixtures"
+          ]
+        }
+      ],
+      "observableBehavior": "Default and explicit profile values resolve deterministically without silently losing fields.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-config/src/resolve.rs:resolve_profile_only",
+            "crates/enforcer-config/src/profiles.rs",
+            "crates/enforcer-config/tests/proof_fixtures.rs:profile_only_case_strict"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare byte/key-level effective configuration.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-001",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationRoot",
+            "src/coordination/api.mjs:coordinationInit",
+            "src/coordination/api.mjs:coordinationStatus",
+            "tests:coordination API initializes generic external state and guards exact claims"
+          ]
+        }
+      ],
+      "observableBehavior": "Explicit root/hub resolution and persisted identity; invalid or blank identity fails.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/domain/boundary.rs:resolve_ledger_root",
+            "crates/enforcer-coordination/src/api.rs:init",
+            "crates/enforcer-coordination/src/api.rs:load_identity",
+            "crates/enforcer-coordination/src/api.rs:open",
+            "crates/enforcer-coordination/tests:init_is_idempotent",
+            "crates/enforcer-coordination/tests:load_identity_rejects_a_blank_persisted_hub_name"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run same-root, same-hub, invalid-root, and blank-identity differential fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-002",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/claim-policy.js:normalizeClaimPaths",
+            "src/coordination/vendor/claim-policy.js:normalizeClaimPathInput",
+            "tests:coordination API initializes generic external state and guards exact claims"
+          ]
+        }
+      ],
+      "observableBehavior": "Exact paths, directories, and globs normalize; empty claims fail; large claims batch.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:normalize_owns_paths",
+            "crates/enforcer-coordination/src/api.rs:claim_all",
+            "crates/enforcer-coordination/tests:claim_batches_directory_owns_sets",
+            "crates/enforcer-coordination/tests:normalize_owns_paths_is_stable_for_generated_exact_paths"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run identical path corpus and batch-boundary fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-003",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/lock-policy.js:classifyOwnership",
+            "src/coordination/vendor/lock-policy.js:blockersForRequest",
+            "tests:different worktree on same branch is a hard branch write conflict",
+            "tests:global singleton paths hard lock across branches and worktrees"
+          ]
+        }
+      ],
+      "observableBehavior": "Overlapping ownership becomes write, branch, global, lease, merge-risk, or advisory conflict.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/lock/mod.rs:classify_claim_pair",
+            "crates/enforcer-coordination/src/lock/mod.rs:blockers_for_request",
+            "crates/enforcer-coordination/tests:typed_claim_identity_preserves_event_values_and_conflict_lifecycle",
+            "crates/enforcer-coordination/tests:lock_lifecycle_distinguishes_active_write_blockers_from_merge_review"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare normalized conflict kind, owner, and lane.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-004",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/lock-policy.js:blockersForRequest",
+            "src/coordination/vendor/lock-policy.js:claimMatchesOperation",
+            "tests:inspect allows conflicts as warnings while commit requires same-worktree claims",
+            "tests:different branch same file is edit advisory but pr_ready blocker"
+          ]
+        }
+      ],
+      "observableBehavior": "Inspect, edit, push, commit, merge, and pr_ready select different blocker sets.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/lock/mod.rs:blockers_for_request",
+            "crates/enforcer-coordination/tests:lock_lifecycle_distinguishes_active_write_blockers_from_merge_review"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run all operation values against the same active-claim fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-005",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationClaim",
+            "src/coordination/vendor/lock-policy.js:normalizeOnConflict",
+            "tests:same-worktree write lock queues edit intent and notifies on release"
+          ]
+        }
+      ],
+      "observableBehavior": "MJS can queue an edit intent instead of failing; native domain parses OnConflict::Intent, but enforcer-coordination::api::claim_all returns ClaimOutcomeStatus::Blocked and no durable edit-intent queue or release notification implementation was found.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-domain/src/coordination_types.rs:OnConflict::Intent",
+            "crates/enforcer-coordination/src/api.rs:claim_all",
+            "crates/enforcer-coordination: no durable edit-intent queue/release notification found"
+          ]
+        }
+      ],
+      "initialDisposition": "missing",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Provide durable intent persistence and release notification, or record an approved intentional difference.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-006",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationRelease",
+            "tests:scoped release preserves sibling paths in a legacy grouped claim",
+            "tests:multi-path release evaluates each active claim once"
+          ]
+        }
+      ],
+      "observableBehavior": "Release selected paths while preserving sibling claims and caller context.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:release",
+            "crates/enforcer-coordination/tests:releasing_one_path_preserves_the_remaining_claimed_paths",
+            "crates/enforcer-coordination/tests:release_and_message_acknowledgement_are_public_operations"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run grouped, partial, wrong-owner, and cross-lane release corpus.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-007",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationCloseout",
+            "tests:coordination closeout releases lane claims and verifies zero active claims",
+            "tests:coordination closeout stale repair removes only selected owners"
+          ]
+        }
+      ],
+      "observableBehavior": "Closeout releases only selected matching claims and leaves other lanes active.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:closeout",
+            "crates/enforcer-coordination/tests:closeout_does_not_release_another_lane"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same filters with owner/project/worktree/branch combinations and compare remaining claims.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-008",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationRepair",
+            "src/coordination/vendor/repair.js",
+            "tests:coordination repair stale-claims resolves exact-path conflicts append-only",
+            "tests:coordination repair stale-claims reports stream repair prerequisite"
+          ]
+        }
+      ],
+      "observableBehavior": "Dry run emits no event; write mode appends claim.resolve; prior records remain immutable.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:repair_stale_claims",
+            "crates/enforcer-coordination/tests:stale_repair_is_dry_run_first_then_appends_claim_resolve"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exact event stream, dry-run/write modes, and owner/path filters.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-009",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationMessage",
+            "src/coordination/api.mjs:coordinationInbox",
+            "src/coordination/api.mjs:coordinationAck",
+            "tests:coordination message and inbox are generic by hub/state root",
+            "tests:same-lane sibling intents survive another owner's claim refresh"
+          ]
+        }
+      ],
+      "observableBehavior": "Recipient-lane delivery, unread filtering, acknowledgement, and duplicate-ack handling.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:send_message",
+            "crates/enforcer-coordination/src/api.rs:acknowledge_message",
+            "crates/enforcer-coordination/src/ledger.rs:materialize",
+            "crates/enforcer-coordination/tests:release_and_message_acknowledgement_are_public_operations",
+            "crates/enforcer-coordination/tests:report_replay_index_and_notifier_cursor_are_durable_but_not_authoritative"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run wire-event and materialized-inbox differential fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-010",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/materialize.js:materialize",
+            "src/coordination/vendor/read-index.js:rebuildCoordinationIndex",
+            "tests:compacted archive uses an indexed checkpoint for hot health and claims",
+            "tests:indexed hot state deduplicates post-checkpoint events and matches representative deltas"
+          ]
+        }
+      ],
+      "observableBehavior": "Canonical event streams reconstruct active claims, inbox, reports, workers, and tasks.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/ledger.rs:materialize",
+            "crates/enforcer-coordination/src/ledger/boundary.rs:materialize",
+            "crates/enforcer-coordination/tests:report_replay_index_and_notifier_cursor_are_durable_but_not_authorITATIVE"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Replay identical stream snapshots with checkpoint, duplicate, and delta fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-011",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/repair.js:repairLegacyHashCompatibility",
+            "src/coordination/vendor/repair.js:repairSequenceBreaks",
+            "src/coordination/vendor/retention.js:compactLedger",
+            "tests:coordination repair fixes sequence breaks without Parent wrappers",
+            "tests:coordination repair fixes compacted context-hashed archive segments"
+          ]
+        }
+      ],
+      "observableBehavior": "Compacted streams remain replayable and malformed hash/sequence state is diagnosed or repaired.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/sync/retention.rs:compact_ledger",
+            "crates/enforcer-coordination/src/events/mod.rs:coordination_hash_compatibility",
+            "crates/enforcer-coordination/tests:report_replay_index_and_notifier_cursor_are_durable_but_not_authorITATIVE",
+            "crates/enforcer-coordination/tests:hub_event_response_round_trips_the_public_wire_contract"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run corrupt-stream, compacted-archive, and legacy-hash differential cases.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-012",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/peers.js:addPeer",
+            "src/coordination/vendor/peers.js:removePeer",
+            "src/coordination/vendor/peers.js:resolvePeer",
+            "src/coordination/vendor/peers.js:loadPeerRegistry",
+            "tests:peer behavior covered through coordination peer/transport tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Named peer replacement, removal, deterministic ordering, and resolution by name or URL.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/sync/peer/boundary.rs:load_registry",
+            "crates/enforcer-coordination/src/sync/peer/boundary.rs:add_peer",
+            "crates/enforcer-coordination/src/sync/peer/boundary.rs:remove_peer",
+            "crates/enforcer-coordination/src/sync/peer/boundary.rs:resolve_peer",
+            "crates/enforcer-coordination: no dedicated C3 Rust peer test identified"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run registry persistence and duplicate-name/URL fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-013",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/lock-policy.js:buildClaimContext",
+            "src/coordination/vendor/lock-policy.js:claimMatchesOperation",
+            "tests:coordination presence captures PC/project/worktree/thread context and writes read index",
+            "tests:scoped release cannot cross an explicit project or branch identity"
+          ]
+        }
+      ],
+      "observableBehavior": "Caller worktree, branch, project, lane, and thread identity govern ownership and release safety.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/lock/mod.rs:same_logical_owner",
+            "crates/enforcer-coordination/src/lock/mod.rs:classify_claim_pair",
+            "crates/enforcer-coordination/src/api.rs:claim_all",
+            "crates/enforcer-coordination/src/api.rs:closeout",
+            "crates/enforcer-coordination/tests:claim_uses_explicit_caller_context",
+            "crates/enforcer-coordination/tests:closeout_does_not_release_another_lane"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run a same-path cross-worktree/branch/project/thread matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-014",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationHealth",
+            "src/coordination/api.mjs:coordinationPresence",
+            "src/coordination/api.mjs:coordinationWorkers",
+            "src/coordination/api.mjs:coordinationTasks",
+            "tests:coordination presence captures PC/project/worktree/thread context and writes read index",
+            "tests:coordination health reports stream repair prerequisite instead of throwing"
+          ]
+        }
+      ],
+      "observableBehavior": "Compact health/repair status, presence matrix, active workers, and active tasks.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:health/tasks/workers/presence tool registration",
+            "crates/enforcer-mcp/src/boundary/router.rs:coordination",
+            "crates/enforcer-mcp/src/boundary/router.rs:health/presence/workers/tasks branches"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run native MCP coordination, health, presence, workers, and tasks requests against the same fixtures and compare state/diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-015",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/api.mjs:coordinationGuard",
+            "src/coordination/vendor/guard.js:guardLedger",
+            "tests:focused coordination guard only blocks requested path conflicts",
+            "tests:global singleton paths hard lock across branches and worktrees",
+            "tests:inspect allows conflicts as warnings while commit requires same-worktree claims"
+          ]
+        }
+      ],
+      "observableBehavior": "Exact changed-path guard, merge-risk handling, branch/worktree safety, and protected singleton enforcement.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:guard tool registration",
+            "crates/enforcer-mcp/src/boundary/router.rs:coordination_guard",
+            "crates/enforcer-mcp/src/boundary/router.rs:coordination routing branch"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run exact operation/path guard fixtures through native MCP and compare hard conflicts, merge risks, and advisories.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-016",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/domain.js:parseLaneId",
+            "src/coordination/vendor/domain.js:parseWriterId",
+            "src/coordination/vendor/domain.js:parseClaimPath",
+            "src/coordination/vendor/domain.js:parseEventId",
+            "src/coordination/vendor/domain.js:parsePeerUrl"
+          ]
+        }
+      ],
+      "observableBehavior": "Malformed persisted lane, lock, operation, and conflict values fail at the typed boundary.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-domain/src/coordination_types.rs:typed IDs and enums",
+            "crates/enforcer-coordination/tests:lock_domain_values_cross_the_boundary_through_explicit_wire_conversion",
+            "crates/enforcer-coordination/tests:malformed_persisted_lock_values_are_rejected_at_the_typed_boundary"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Document normalized error-code parity and confirm no accepted MJS input is rejected unintentionally.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-017",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/context.js:buildCoordinationContext",
+            "src/coordination/vendor/context.js:buildClaimContext",
+            "tests:transport command boundaries cannot claim or release for a sibling owner"
+          ]
+        }
+      ],
+      "observableBehavior": "Persisted events use supplied caller worktree and branch rather than ambient process or Tauri directory.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/api.rs:claim_all",
+            "crates/enforcer-coordination/src/api.rs:send_message",
+            "crates/enforcer-coordination/src/api.rs:release",
+            "crates/enforcer-coordination/tests:claim_uses_explicit_caller_context"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run a cross-process ambient-directory fixture and compare serialized context.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C3-018",
+      "family": "coordination-locks-mail-lanes",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/coordination/vendor/events.js:appendEvent",
+            "src/coordination/vendor/events.js:coordination_hash_compatibility",
+            "tests:coordination hash compatibility self-test excludes extension context"
+          ]
+        }
+      ],
+      "observableBehavior": "Event IDs, hashes, sequence, previous links, context, and JSON fields round-trip without authority drift.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-coordination/src/events/mod.rs:coordination_hash_compatibility",
+            "crates/enforcer-coordination/src/events/mod.rs:assert_coordination_hash_compatibility",
+            "crates/enforcer-coordination/tests:hub_event_response_round_trips_the_public_wire_contract"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Replay the exact public event corpus at the candidate SHA.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-01",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/ocentra-enforcer.yml:workflow jobs",
+            "tests:no direct executable test identified"
+          ]
+        }
+      ],
+      "observableBehavior": "PR/push workflow installs dependencies and runs local CI parity.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-harness/src/ci_parity.rs:check_parity",
+            "crates/enforcer-harness/tests/ci_parity.rs:matched_local_and_ci_step_sets_pass_clean",
+            "crates/enforcer-harness/tests/ci_parity.rs:injected_extra_local_only_step_fails_closed"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same fixture and exact workflow execution.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-02",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/harness.mjs:runHarness",
+            "src/harness.mjs:listRuns",
+            "src/harness.mjs:runSummary",
+            "tests/enforcer-harness.test.mjs:persistence and retention tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Summaries, logs, and diagnostics are stored; failures are reported; bounded history is pruned.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-harness/src/storage.rs",
+            "crates/enforcer-harness/src/execution.rs",
+            "crates/enforcer-harness/src/retention.rs",
+            "crates/enforcer-harness:exact symbols unresolved by graph",
+            "crates/enforcer-harness:candidate harness tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare run envelope, exit status, diagnostics, retention, and artifacts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-03",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/harness.mjs:readArtifact",
+            "tests:harness rejects artifact paths that escape the run root"
+          ]
+        }
+      ],
+      "observableBehavior": "Artifact paths escaping the run root are rejected.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-harness/src/storage.rs:artifact-path validation symbol unresolved",
+            "crates/enforcer-harness:candidate parser/storage tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute an escape-path negative fixture and compare refusal.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-04",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:routeProofs",
+            "src/proof.mjs:inventoryProofs",
+            "tests/enforcer-proof.test.mjs:routing and inventory tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Proof definitions route by file, capability, or proof ID; legacy scripts are inventoried without writing.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:inventory functions",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:classify_scripts",
+            "crates/enforcer-proof/tests/native_proof_lifecycle.rs:inventory_is_safe_and_optional_rows_are_bounded"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare the same proof registry and inventory corpus, including omission semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-05",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:runProof",
+            "src/proof.mjs:proofStatus",
+            "src/proof.mjs:proofDiagnostics",
+            "tests:proof run storage test"
+          ]
+        }
+      ],
+      "observableBehavior": "A canonical proof run captures status, claims, diagnostics, and bounded artifacts.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:lifecycle entrypoints unresolved",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:fresh_artifact_claims_green",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:missing_run_claim_fails"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run an exact fixture and compare normalized status, claims, and diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-06",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-storage.mjs:writeProofFiles",
+            "src/proof-storage.mjs:collectProofArtifactRecords",
+            "tests:canonical files and bounded artifacts"
+          ]
+        }
+      ],
+      "observableBehavior": "Proof envelope, summary, diagnostics, and artifact metadata are written.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/envelope.rs",
+            "crates/enforcer-proof/src/boundary/journal.rs",
+            "crates/enforcer-proof/src/boundary/read_model.rs",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare byte, path, hash, size metadata and stale-artifact handling.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-07",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:importLegacyProof",
+            "src/proof.mjs:proofParity",
+            "tests:import succeeds and deletion blocked before import"
+          ]
+        }
+      ],
+      "observableBehavior": "Old artifacts import into canonical runs; parity blocks deletion when legacy artifacts remain.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:import_legacy_proof",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:proof_parity",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs",
+            "crates/enforcer-proof/tests/legacy_import_boundary.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run import and pre/post parity fixtures; verify deletion gate behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-08",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:classifyProofScript",
+            "src/proof-legacy.mjs:collectLegacyProofArtifacts",
+            "tests:legacy inventory"
+          ]
+        }
+      ],
+      "observableBehavior": "Scripts and artifacts are classified and migration/deletion evidence is recorded.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:classify_scripts",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:collect_legacy_artifacts",
+            "crates/enforcer-proof/tests/legacy_import_boundary.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same legacy corpus, including unsupported extensions, duplicate roots, and outside-root paths.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-09",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:claimProof",
+            "tests:dirty or failed/manual proofs rejected for PR claims"
+          ]
+        }
+      ],
+      "observableBehavior": "A PR-ready claim requires current acceptable proof and rejects invalid freshness or state.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:claim path unresolved",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:stale_missing_artifact_claim_fails",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:tampered_journal_fails_closed_on_open_and_replay"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact dirty, stale, and tampered claim matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-10",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "adapters/github-actions/ocentra-enforcer.yml:artifact-upload workflow step",
+            "tests/rust-rules-install.test.mjs:adapter-template coverage"
+          ]
+        }
+      ],
+      "observableBehavior": "Bounded local proof artifacts are uploaded to CI.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/ci/project_template.rs:render",
+            "crates/enforcer-install/src/ci/project_template.rs:install",
+            "crates/enforcer-install/src/ci/project_template.rs:verify",
+            "crates/enforcer-install/tests/project_ci_template_fixtures.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare rendered workflow bytes and artifact retention/upload behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-11",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "docs/BRANCH_PROTECTION.md:required-check contract",
+            ".github/workflows/ocentra-enforcer.yml:workflow",
+            "tests:no direct executable test identified"
+          ]
+        }
+      ],
+      "observableBehavior": "The required workflow check is present and non-bypassable.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/ci/branch_protection.rs:verify",
+            "crates/enforcer-install/src/ci/boundary/branch_protection.rs:report",
+            "crates/enforcer-install/tests/branch_protection_fixtures.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run safe, bypassable, missing-check, and red-merge fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-12",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "tests/rust-rules-install.test.mjs:adapter templates",
+            "tests/rust-rules-install.test.mjs:dry-run install cases"
+          ]
+        }
+      ],
+      "observableBehavior": "Dry-run reports an exact install plan without writing; templates cover CI/security artifacts.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:plan",
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:apply",
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:verify",
+            "crates/enforcer-install/tests/project_ci_template_fixtures.rs",
+            "crates/enforcer-install/tests/ci_fixtures.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare plan/apply/verify output, idempotency, drift repair, and no-write dry-run.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-13",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:proofParity",
+            "tests:legacy artifact absence blocks closure"
+          ]
+        }
+      ],
+      "observableBehavior": "Retirement is blocked until old evidence is imported and parity is proved.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:proof_parity",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run exact negative and positive parity fixtures and prove no false green.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-14",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-storage.mjs:pruneProofRuns",
+            "tests:successful old runs pruned while bounded metadata remains"
+          ]
+        }
+      ],
+      "observableBehavior": "Retention limits historical proof state while retaining bounded metadata.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/envelope.rs:DEFAULT_PROOF_RETENTION",
+            "crates/enforcer-proof/tests/native_proof_lifecycle.rs:persisted_status_is_filtered_sorted_and_bounded_without_a_project_snapshot"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same retention configuration and run population.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-15",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:migration matrix builders",
+            "tests:legacy scripts inventoried before deletion"
+          ]
+        }
+      ],
+      "observableBehavior": "Legacy scripts are inventoried before deletion and non-proven claims are identified.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:inventory helpers",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:migrate_legacy_proofs",
+            "crates/enforcer-proof/tests:lifecycle and legacy import tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare migration rows, claims-proved/non-proved, and deletion readiness.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-16",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified",
+            "release docs:release readiness"
+          ]
+        }
+      ],
+      "observableBehavior": "A typed release gate controls release readiness.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/ci/release_pipeline.rs:gate_release",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs:release_boundary_rejects_blank_tags_and_renders_every_typed_asset",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs:typed_gate_blocks_a_release_when_one_rendered_asset_fails_smoke"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Validate every platform/variant asset and failure propagation.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-17",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified"
+          ]
+        }
+      ],
+      "observableBehavior": "A typed release asset matrix renders release assets.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/ci/boundary/release_rendering.rs:release_matrix",
+            "crates/enforcer-install/src/ci/boundary/release_rendering.rs:render_asset",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Validate every platform/variant asset and failure propagation.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-18",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified"
+          ]
+        }
+      ],
+      "observableBehavior": "Installer asset resolution and checksum verification are enforced.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/ci/boundary/installer_scripts.rs:resolve_asset_name",
+            "crates/enforcer-install/src/ci/boundary/installer_scripts.rs:verify_checksum",
+            "crates/enforcer-install/tests/ci_fixtures.rs"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run positive, wrong-checksum, missing-asset, and platform matrix fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-19",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:legacy migration semantics",
+            "tests:proof migration tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Old scripts may be migrated and then removed after parity.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "crates/enforcer-install/src/boundary/migrate_legacy_name.rs:scan",
+            "crates/enforcer-install/src/boundary/migrate_legacy_name.rs:migrate",
+            "crates/enforcer-install/tests/migrate_legacy_name.rs:legacy_skill_retired",
+            "crates/enforcer-install/tests/migrate_legacy_name.rs:legacy_skill_dir_retirement_is_idempotent"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Verify no legacy residue, idempotent retirement, backup behavior, and dual-registration refusal.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    },
+    {
+      "id": "C4-20",
+      "family": "ci-proof-release-retirement",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "plan docs:RM01",
+            "public authority:no executable MJS symbol or test"
+          ]
+        }
+      ],
+      "observableBehavior": "Closure requires exact-SHA aggregate, rollback rehearsal, observed cutover, and delete-not-merge retirement.",
+      "rustSources": [
+        {
+          "sha": "cf3bc4f7b210c8da4335f5e6779028b1882a1c10",
+          "anchors": [
+            "cf3bc4f7: no native plan-state or closure symbol identified"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Manager-owned matrix, exact-SHA proof, rollback rehearsal, cutover evidence, and deletion diff.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ]
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "inventory-completeness",
+      "detail": "The 78 rows are bounded source proposals, not a complete public capability inventory; RM02-RM07 remain blocked until every public surface is represented."
+    },
+    {
+      "id": "candidate-working-tree",
+      "detail": "The candidate Git object is available at the requested SHA, but the primary checkout retains an unrelated protected vendor deletion and is not an exact-SHA execution environment."
+    },
+    {
+      "id": "graph-exact-sha",
+      "detail": "Codebase Memory transport was unavailable or not exact-SHA pinned for this audit, so exact source truth came from read-only Git object commands."
+    },
+    {
+      "id": "execution-evidence",
+      "detail": "No candidate-SHA behavioral oracle, CI, rollback, cutover, or retirement command was run; all 78 observed results remain unmeasured."
+    },
+    {
+      "id": "coordination-edit-intent-gap",
+      "detail": "C3-005 is a source-visible product gap: OnConflict::Intent is parsed and advertised, but native claim execution does not persist an edit intent or notify it after release."
+    },
+    {
+      "id": "coordination-adapter-gaps",
+      "detail": "C3-014 and C3-015 have native MCP surfaces, but source review found narrower or miswired health, presence, workers, tasks, and guard behavior; executable differential proof is still required."
+    }
+  ],
+  "proves": [
+    "The candidate, public, provenance, and both overlay commit objects resolve.",
+    "RM00, README, PLAN_STATE, WORKPACK_INDEX, and canonical RM01 were read from the candidate SHA in the required order.",
+    "Four disjoint bounded source inventories produced exactly 78 unique row proposals.",
+    "Public, provenance-only, and private-overlay authority roles were kept separate.",
+    "The handoff contains source/test anchors and proof requirements only; no behavioral parity verdict is claimed."
+  ],
+  "doesNotProve": [
+    "behavioral parity",
+    "equal-or-stricter aggregate behavior",
+    "exit-code, diagnostic, framing, or schema-runtime parity",
+    "candidate executable success or CI/release readiness",
+    "rollback rehearsal, production cutover, or legacy deletion closure"
+  ]
+}

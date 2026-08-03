@@ -8,7 +8,7 @@ This is the boss-owned projection for the three-program migration. Managers repo
 |---|---|---|---|---|
 | CyberSkills parity | `019fc487-4654-7fa3-8471-6d32fc20c16f` | CP00-A read-only catalog/source-identity audit | READY for exact-SHA dispatch | every catalog identity accounted for; every available component has honest disposition and proof |
 | Universal language enforcement | `019fc4c6-b2fc-7201-ab87-8a47e5c0a188` | UL00 capability truth inventory | READY for exact-SHA dispatch | required profile capability rows proved; UL14 exact-SHA closure |
-| Rust/MJS parity and retirement | `019fc4c6-b2fb-78b3-985d-d5c235130a6e` | RM01 read-only capability-row audit | READY; RM00 authority accepted | native local/MCP/CI/install cutover observed; RM14 delete-not-merge retirement |
+| Rust/MJS parity and retirement | `019fc4c6-b2fb-78b3-985d-d5c235130a6e` | RM01 boss matrix integration and public-surface expansion | ACTIVE; initial 78 source-only proposals are unproved and incomplete | native local/MCP/CI/install cutover observed; RM14 delete-not-merge retirement |
 
 ## Cross-program dependency board
 
