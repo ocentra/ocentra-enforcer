@@ -1,11 +1,11 @@
 //! Hard tests for BibTeX, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_bibtex`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::bibtex`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_bibtex`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::bibtex`]'s own doc
 //! comment): `command`'s real `name` field resolves through the
 //! ordinary generic call path -- no quirk needed at all.
 
-use enforcer_memory::languages::generic::parse_bibtex;
+use enforcer_syntax::languages::generic::parse_bibtex;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

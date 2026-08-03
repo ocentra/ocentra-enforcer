@@ -36,12 +36,12 @@
 use crate::git::GitMetadata;
 pub mod fingerprint;
 
-use crate::parsers::{self, Language, ParsedFile};
 use enforcer_domain::memory_types::{
     ComplexityLanguage, ComplexitySourceBytes, ComplexitySymbolLocation, GraphChangeCount,
     GraphSourceLine, GraphSymbolKindSnapshot, IndexMode, LanguageTag, OperationalGraphEdgeRow,
     OperationalGraphNodeRow, ParserSourceText, ReceiverHint,
 };
+use enforcer_syntax::parsers::{self, Language, ParsedFile};
 use fingerprint::{hash_bytes, source_body_fingerprints_for_symbols, SourceBodyFingerprint};
 use std::collections::HashMap;
 use std::fs;
@@ -88,6 +88,7 @@ pub enum CodeNode {
 }
 
 impl CodeNode {
+    /// Return the stable identifier carried by this graph node.
     pub fn id(&self) -> &str {
         match self {
             CodeNode::File(node) | CodeNode::TextOnly(node) => &node.id,
@@ -173,170 +174,168 @@ pub struct TombstoneNode {
     pub prior_chunk_ids: Vec<String>,
 }
 
-impl From<Language> for LanguageTag {
-    fn from(language: Language) -> Self {
-        match language {
-            Language::Rust => LanguageTag::Rust,
-            Language::TypeScript => LanguageTag::TypeScript,
-            Language::JavaScript => LanguageTag::JavaScript,
-            Language::Python => LanguageTag::Python,
-            Language::Go => LanguageTag::Go,
-            Language::Java => LanguageTag::Java,
-            Language::C => LanguageTag::C,
-            Language::Cpp => LanguageTag::Cpp,
-            Language::CSharp => LanguageTag::CSharp,
-            Language::Php => LanguageTag::Php,
-            Language::Kotlin => LanguageTag::Kotlin,
-            Language::Swift => LanguageTag::Swift,
-            Language::Tsx => LanguageTag::Tsx,
-            Language::Solidity => LanguageTag::Solidity,
-            Language::Gdscript => LanguageTag::Gdscript,
-            Language::Dart => LanguageTag::Dart,
-            Language::Scala => LanguageTag::Scala,
-            Language::Groovy => LanguageTag::Groovy,
-            Language::Ruby => LanguageTag::Ruby,
-            Language::Zig => LanguageTag::Zig,
-            Language::ObjectiveC => LanguageTag::ObjectiveC,
-            Language::Bash => LanguageTag::Bash,
-            Language::Lua => LanguageTag::Lua,
-            Language::Elixir => LanguageTag::Elixir,
-            Language::Haskell => LanguageTag::Haskell,
-            Language::OCaml => LanguageTag::OCaml,
-            Language::Erlang => LanguageTag::Erlang,
-            Language::Cuda => LanguageTag::Cuda,
-            Language::D => LanguageTag::D,
-            Language::PowerShell => LanguageTag::PowerShell,
-            Language::Fsharp => LanguageTag::Fsharp,
-            Language::Gleam => LanguageTag::Gleam,
-            Language::Glsl => LanguageTag::Glsl,
-            Language::Ada => LanguageTag::Ada,
-            Language::Apex => LanguageTag::Apex,
-            Language::Crystal => LanguageTag::Crystal,
-            Language::R => LanguageTag::R,
-            Language::Perl => LanguageTag::Perl,
-            Language::Clojure => LanguageTag::Clojure,
-            Language::Julia => LanguageTag::Julia,
-            Language::Odin => LanguageTag::Odin,
-            Language::Pascal => LanguageTag::Pascal,
-            Language::Qml => LanguageTag::Qml,
-            Language::Rescript => LanguageTag::Rescript,
-            Language::Squirrel => LanguageTag::Squirrel,
-            Language::Sway => LanguageTag::Sway,
-            Language::Starlark => LanguageTag::Starlark,
-            Language::Templ => LanguageTag::Templ,
-            Language::Typst => LanguageTag::Typst,
-            Language::Wgsl => LanguageTag::Wgsl,
-            Language::Wolfram => LanguageTag::Wolfram,
-            Language::Slang => LanguageTag::Slang,
-            Language::Scss => LanguageTag::Scss,
-            Language::Cmake => LanguageTag::Cmake,
-            Language::Makefile => LanguageTag::Makefile,
-            Language::Fortran => LanguageTag::Fortran,
-            Language::Vimscript => LanguageTag::Vimscript,
-            Language::Puppet => LanguageTag::Puppet,
-            Language::Elm => LanguageTag::Elm,
-            Language::Bicep => LanguageTag::Bicep,
-            Language::Bitbake => LanguageTag::Bitbake,
-            Language::Cairo => LanguageTag::Cairo,
-            Language::Cfscript => LanguageTag::Cfscript,
-            Language::Func => LanguageTag::Func,
-            Language::Move => LanguageTag::Move,
-            Language::Nickel => LanguageTag::Nickel,
-            Language::Jsonnet => LanguageTag::Jsonnet,
-            Language::Just => LanguageTag::Just,
-            Language::Hlsl => LanguageTag::Hlsl,
-            Language::Ispc => LanguageTag::Ispc,
-            Language::Purescript => LanguageTag::Purescript,
-            Language::Magma => LanguageTag::Magma,
-            Language::Hare => LanguageTag::Hare,
-            Language::Pony => LanguageTag::Pony,
-            Language::Nasm => LanguageTag::Nasm,
-            Language::Cobol => LanguageTag::Cobol,
-            Language::Commonlisp => LanguageTag::Commonlisp,
-            Language::Lean => LanguageTag::Lean,
-            Language::Tlaplus => LanguageTag::Tlaplus,
-            Language::Verilog => LanguageTag::Verilog,
-            Language::Vhdl => LanguageTag::Vhdl,
-            Language::Systemverilog => LanguageTag::Systemverilog,
-            Language::Capnp => LanguageTag::Capnp,
-            Language::EmacsLisp => LanguageTag::EmacsLisp,
-            Language::Agda => LanguageTag::Agda,
-            Language::Form => LanguageTag::Form,
-            Language::Awk => LanguageTag::Awk,
-            Language::Fish => LanguageTag::Fish,
-            Language::Zsh => LanguageTag::Zsh,
-            Language::Tcl => LanguageTag::Tcl,
-            Language::Scheme => LanguageTag::Scheme,
-            Language::Racket => LanguageTag::Racket,
-            Language::Smithy => LanguageTag::Smithy,
-            Language::Pine => LanguageTag::Pine,
-            Language::Matlab => LanguageTag::Matlab,
-            Language::Luau => LanguageTag::Luau,
-            Language::Teal => LanguageTag::Teal,
-            Language::Fennel => LanguageTag::Fennel,
-            Language::Meson => LanguageTag::Meson,
-            Language::Kconfig => LanguageTag::Kconfig,
-            Language::Hcl => LanguageTag::Hcl,
-            Language::Nix => LanguageTag::Nix,
-            Language::Sql => LanguageTag::Sql,
-            Language::Protobuf => LanguageTag::Protobuf,
-            Language::Prisma => LanguageTag::Prisma,
-            Language::Pkl => LanguageTag::Pkl,
-            Language::Thrift => LanguageTag::Thrift,
-            Language::Wit => LanguageTag::Wit,
-            Language::LlvmIr => LanguageTag::LlvmIr,
-            Language::TableGen => LanguageTag::TableGen,
-            Language::Cfml => LanguageTag::Cfml,
-            Language::Gotemplate => LanguageTag::Gotemplate,
-            Language::Devicetree => LanguageTag::Devicetree,
-            Language::Smali => LanguageTag::Smali,
-            Language::Json5 => LanguageTag::Json5,
-            Language::Kdl => LanguageTag::Kdl,
-            Language::LinkerScript => LanguageTag::LinkerScript,
-            Language::Liquid => LanguageTag::Liquid,
-            Language::Markdown => LanguageTag::Markdown,
-            Language::Mermaid => LanguageTag::Mermaid,
-            Language::Po => LanguageTag::Po,
-            Language::Properties => LanguageTag::Properties,
-            Language::Regex => LanguageTag::Regex,
-            Language::Assembly => LanguageTag::Assembly,
-            Language::Astro => LanguageTag::Astro,
-            Language::Beancount => LanguageTag::Beancount,
-            Language::Bibtex => LanguageTag::Bibtex,
-            Language::Blade => LanguageTag::Blade,
-            Language::Css => LanguageTag::Css,
-            Language::Csv => LanguageTag::Csv,
-            Language::Diff => LanguageTag::Diff,
-            Language::Dockerfile => LanguageTag::Dockerfile,
-            Language::Dotenv => LanguageTag::Dotenv,
-            Language::Gitattributes => LanguageTag::Gitattributes,
-            Language::Gitignore => LanguageTag::Gitignore,
-            Language::Gn => LanguageTag::Gn,
-            Language::GoMod => LanguageTag::GoMod,
-            Language::Graphql => LanguageTag::Graphql,
-            Language::Html => LanguageTag::Html,
-            Language::Hyprlang => LanguageTag::Hyprlang,
-            Language::Ini => LanguageTag::Ini,
-            Language::Janet => LanguageTag::Janet,
-            Language::Jinja2 => LanguageTag::Jinja2,
-            Language::Jsdoc => LanguageTag::Jsdoc,
-            Language::Json => LanguageTag::Json,
-            Language::Requirements => LanguageTag::Requirements,
-            Language::Ron => LanguageTag::Ron,
-            Language::Rst => LanguageTag::Rst,
-            Language::Soql => LanguageTag::Soql,
-            Language::Sosl => LanguageTag::Sosl,
-            Language::Sshconfig => LanguageTag::Sshconfig,
-            Language::Svelte => LanguageTag::Svelte,
-            Language::Toml => LanguageTag::Toml,
-            Language::Vue => LanguageTag::Vue,
-            Language::Xml => LanguageTag::Xml,
-            Language::Yaml => LanguageTag::Yaml,
-            Language::ConfigToml => LanguageTag::ConfigToml,
-            Language::ConfigJson => LanguageTag::ConfigJson,
-            Language::ConfigYaml => LanguageTag::ConfigYaml,
-            Language::TextOnly => LanguageTag::TextOnly,
-        }
+fn language_tag(language: Language) -> LanguageTag {
+    match language {
+        Language::Rust => LanguageTag::Rust,
+        Language::TypeScript => LanguageTag::TypeScript,
+        Language::JavaScript => LanguageTag::JavaScript,
+        Language::Python => LanguageTag::Python,
+        Language::Go => LanguageTag::Go,
+        Language::Java => LanguageTag::Java,
+        Language::C => LanguageTag::C,
+        Language::Cpp => LanguageTag::Cpp,
+        Language::CSharp => LanguageTag::CSharp,
+        Language::Php => LanguageTag::Php,
+        Language::Kotlin => LanguageTag::Kotlin,
+        Language::Swift => LanguageTag::Swift,
+        Language::Tsx => LanguageTag::Tsx,
+        Language::Solidity => LanguageTag::Solidity,
+        Language::Gdscript => LanguageTag::Gdscript,
+        Language::Dart => LanguageTag::Dart,
+        Language::Scala => LanguageTag::Scala,
+        Language::Groovy => LanguageTag::Groovy,
+        Language::Ruby => LanguageTag::Ruby,
+        Language::Zig => LanguageTag::Zig,
+        Language::ObjectiveC => LanguageTag::ObjectiveC,
+        Language::Bash => LanguageTag::Bash,
+        Language::Lua => LanguageTag::Lua,
+        Language::Elixir => LanguageTag::Elixir,
+        Language::Haskell => LanguageTag::Haskell,
+        Language::OCaml => LanguageTag::OCaml,
+        Language::Erlang => LanguageTag::Erlang,
+        Language::Cuda => LanguageTag::Cuda,
+        Language::D => LanguageTag::D,
+        Language::PowerShell => LanguageTag::PowerShell,
+        Language::Fsharp => LanguageTag::Fsharp,
+        Language::Gleam => LanguageTag::Gleam,
+        Language::Glsl => LanguageTag::Glsl,
+        Language::Ada => LanguageTag::Ada,
+        Language::Apex => LanguageTag::Apex,
+        Language::Crystal => LanguageTag::Crystal,
+        Language::R => LanguageTag::R,
+        Language::Perl => LanguageTag::Perl,
+        Language::Clojure => LanguageTag::Clojure,
+        Language::Julia => LanguageTag::Julia,
+        Language::Odin => LanguageTag::Odin,
+        Language::Pascal => LanguageTag::Pascal,
+        Language::Qml => LanguageTag::Qml,
+        Language::Rescript => LanguageTag::Rescript,
+        Language::Squirrel => LanguageTag::Squirrel,
+        Language::Sway => LanguageTag::Sway,
+        Language::Starlark => LanguageTag::Starlark,
+        Language::Templ => LanguageTag::Templ,
+        Language::Typst => LanguageTag::Typst,
+        Language::Wgsl => LanguageTag::Wgsl,
+        Language::Wolfram => LanguageTag::Wolfram,
+        Language::Slang => LanguageTag::Slang,
+        Language::Scss => LanguageTag::Scss,
+        Language::Cmake => LanguageTag::Cmake,
+        Language::Makefile => LanguageTag::Makefile,
+        Language::Fortran => LanguageTag::Fortran,
+        Language::Vimscript => LanguageTag::Vimscript,
+        Language::Puppet => LanguageTag::Puppet,
+        Language::Elm => LanguageTag::Elm,
+        Language::Bicep => LanguageTag::Bicep,
+        Language::Bitbake => LanguageTag::Bitbake,
+        Language::Cairo => LanguageTag::Cairo,
+        Language::Cfscript => LanguageTag::Cfscript,
+        Language::Func => LanguageTag::Func,
+        Language::Move => LanguageTag::Move,
+        Language::Nickel => LanguageTag::Nickel,
+        Language::Jsonnet => LanguageTag::Jsonnet,
+        Language::Just => LanguageTag::Just,
+        Language::Hlsl => LanguageTag::Hlsl,
+        Language::Ispc => LanguageTag::Ispc,
+        Language::Purescript => LanguageTag::Purescript,
+        Language::Magma => LanguageTag::Magma,
+        Language::Hare => LanguageTag::Hare,
+        Language::Pony => LanguageTag::Pony,
+        Language::Nasm => LanguageTag::Nasm,
+        Language::Cobol => LanguageTag::Cobol,
+        Language::Commonlisp => LanguageTag::Commonlisp,
+        Language::Lean => LanguageTag::Lean,
+        Language::Tlaplus => LanguageTag::Tlaplus,
+        Language::Verilog => LanguageTag::Verilog,
+        Language::Vhdl => LanguageTag::Vhdl,
+        Language::Systemverilog => LanguageTag::Systemverilog,
+        Language::Capnp => LanguageTag::Capnp,
+        Language::EmacsLisp => LanguageTag::EmacsLisp,
+        Language::Agda => LanguageTag::Agda,
+        Language::Form => LanguageTag::Form,
+        Language::Awk => LanguageTag::Awk,
+        Language::Fish => LanguageTag::Fish,
+        Language::Zsh => LanguageTag::Zsh,
+        Language::Tcl => LanguageTag::Tcl,
+        Language::Scheme => LanguageTag::Scheme,
+        Language::Racket => LanguageTag::Racket,
+        Language::Smithy => LanguageTag::Smithy,
+        Language::Pine => LanguageTag::Pine,
+        Language::Matlab => LanguageTag::Matlab,
+        Language::Luau => LanguageTag::Luau,
+        Language::Teal => LanguageTag::Teal,
+        Language::Fennel => LanguageTag::Fennel,
+        Language::Meson => LanguageTag::Meson,
+        Language::Kconfig => LanguageTag::Kconfig,
+        Language::Hcl => LanguageTag::Hcl,
+        Language::Nix => LanguageTag::Nix,
+        Language::Sql => LanguageTag::Sql,
+        Language::Protobuf => LanguageTag::Protobuf,
+        Language::Prisma => LanguageTag::Prisma,
+        Language::Pkl => LanguageTag::Pkl,
+        Language::Thrift => LanguageTag::Thrift,
+        Language::Wit => LanguageTag::Wit,
+        Language::LlvmIr => LanguageTag::LlvmIr,
+        Language::TableGen => LanguageTag::TableGen,
+        Language::Cfml => LanguageTag::Cfml,
+        Language::Gotemplate => LanguageTag::Gotemplate,
+        Language::Devicetree => LanguageTag::Devicetree,
+        Language::Smali => LanguageTag::Smali,
+        Language::Json5 => LanguageTag::Json5,
+        Language::Kdl => LanguageTag::Kdl,
+        Language::LinkerScript => LanguageTag::LinkerScript,
+        Language::Liquid => LanguageTag::Liquid,
+        Language::Markdown => LanguageTag::Markdown,
+        Language::Mermaid => LanguageTag::Mermaid,
+        Language::Po => LanguageTag::Po,
+        Language::Properties => LanguageTag::Properties,
+        Language::Regex => LanguageTag::Regex,
+        Language::Assembly => LanguageTag::Assembly,
+        Language::Astro => LanguageTag::Astro,
+        Language::Beancount => LanguageTag::Beancount,
+        Language::Bibtex => LanguageTag::Bibtex,
+        Language::Blade => LanguageTag::Blade,
+        Language::Css => LanguageTag::Css,
+        Language::Csv => LanguageTag::Csv,
+        Language::Diff => LanguageTag::Diff,
+        Language::Dockerfile => LanguageTag::Dockerfile,
+        Language::Dotenv => LanguageTag::Dotenv,
+        Language::Gitattributes => LanguageTag::Gitattributes,
+        Language::Gitignore => LanguageTag::Gitignore,
+        Language::Gn => LanguageTag::Gn,
+        Language::GoMod => LanguageTag::GoMod,
+        Language::Graphql => LanguageTag::Graphql,
+        Language::Html => LanguageTag::Html,
+        Language::Hyprlang => LanguageTag::Hyprlang,
+        Language::Ini => LanguageTag::Ini,
+        Language::Janet => LanguageTag::Janet,
+        Language::Jinja2 => LanguageTag::Jinja2,
+        Language::Jsdoc => LanguageTag::Jsdoc,
+        Language::Json => LanguageTag::Json,
+        Language::Requirements => LanguageTag::Requirements,
+        Language::Ron => LanguageTag::Ron,
+        Language::Rst => LanguageTag::Rst,
+        Language::Soql => LanguageTag::Soql,
+        Language::Sosl => LanguageTag::Sosl,
+        Language::Sshconfig => LanguageTag::Sshconfig,
+        Language::Svelte => LanguageTag::Svelte,
+        Language::Toml => LanguageTag::Toml,
+        Language::Vue => LanguageTag::Vue,
+        Language::Xml => LanguageTag::Xml,
+        Language::Yaml => LanguageTag::Yaml,
+        Language::ConfigToml => LanguageTag::ConfigToml,
+        Language::ConfigJson => LanguageTag::ConfigJson,
+        Language::ConfigYaml => LanguageTag::ConfigYaml,
+        Language::TextOnly => LanguageTag::TextOnly,
     }
 }
 
@@ -575,6 +574,7 @@ pub struct CodeGraph {
 }
 
 impl CodeGraph {
+    /// Construct an empty graph with no fabricated nodes or edges.
     pub fn new() -> Self {
         Self::default()
     }
@@ -671,38 +671,47 @@ impl CodeGraph {
         self.calls.push(call);
     }
 
+    /// Return all graph nodes in insertion order.
     pub fn nodes(&self) -> &[CodeNode] {
         &self.nodes
     }
 
+    /// Return import edges captured during indexing.
     pub fn imports(&self) -> &[ImportEdge] {
         &self.imports
     }
 
+    /// Return call edges captured during indexing.
     pub fn calls(&self) -> &[CallEdge] {
         &self.calls
     }
 
+    /// Return route edges captured during indexing.
     pub fn routes(&self) -> &[RouteEdge] {
         &self.routes
     }
 
+    /// Return inheritance edges captured during indexing.
     pub fn inherits(&self) -> &[InheritsEdge] {
         &self.inherits
     }
 
+    /// Return interface-implementation edges captured during indexing.
     pub fn implements(&self) -> &[ImplementsEdge] {
         &self.implements
     }
 
+    /// Return decorator edges captured during indexing.
     pub fn decorates(&self) -> &[DecoratesEdge] {
         &self.decorates
     }
 
+    /// Return type-reference edges captured during indexing.
     pub fn type_refs(&self) -> &[TypeRefEdge] {
         &self.type_refs
     }
 
+    /// Return definition edges captured during indexing.
     pub fn defines(&self) -> &[DefinesEdge] {
         &self.defines
     }
@@ -720,6 +729,7 @@ impl CodeGraph {
         &self.resolved_calls
     }
 
+    /// Iterate over file and text-only nodes.
     pub fn file_nodes(&self) -> impl Iterator<Item = &FileNode> {
         self.nodes.iter().filter_map(|n| match n {
             CodeNode::File(f) | CodeNode::TextOnly(f) => Some(f),
@@ -727,6 +737,7 @@ impl CodeGraph {
         })
     }
 
+    /// Iterate over deleted-file tombstones.
     pub fn tombstones(&self) -> impl Iterator<Item = &TombstoneNode> {
         self.nodes.iter().filter_map(|n| match n {
             CodeNode::Tombstone(t) => Some(t),
@@ -734,6 +745,7 @@ impl CodeGraph {
         })
     }
 
+    /// Iterate over structural symbol nodes.
     pub fn symbol_nodes(&self) -> impl Iterator<Item = &SymbolNode> {
         self.nodes.iter().filter_map(|n| match n {
             CodeNode::Function(s)
@@ -1241,7 +1253,7 @@ impl CodeGraph {
         let node = FileNode {
             id: file_id_for(rel_path),
             rel_path: rel_path.to_string(),
-            language: LanguageTag::from(language),
+            language: language_tag(language),
             content_hash: entry.content_hash.clone(),
             last_commit: entry.last_commit.clone(),
             change_count: entry.change_count,
@@ -1419,7 +1431,7 @@ impl CodeGraph {
         let file_node = FileNode {
             id: file_id.clone(),
             rel_path: rel_path.to_string(),
-            language: LanguageTag::from(language),
+            language: language_tag(language),
             content_hash: content_hash.to_string(),
             last_commit: history.last_commit.as_ref().map(ToString::to_string),
             change_count: history.change_count.get().into(),
@@ -1517,6 +1529,7 @@ impl CodeGraph {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Counts emitted while persisting a graph projection into the store.
 pub struct StoreProjectionPersistReport {
     pub node_events: u64,
     pub edge_events: u64,

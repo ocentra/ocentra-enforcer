@@ -1,17 +1,17 @@
 //! Hard tests for Groovy, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_groovy`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_groovy`])
 //! -- there is no bespoke `languages::groovy` extractor to prove
 //! zero-regression against (Groovy has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::groovy`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::groovy`]'s own doc
 //! comment directly: symbol kinds (function/method/class), dotted
 //! package Module symbol, `extends`/`implements` heritage (INHERITS/
 //! IMPLEMENTS), receiver-qualified call edges (both `method_invocation`
 //! and the parenthesis-less `juxt_function_call` idiom), and dotted
 //! import paths.
 
-use enforcer_memory::languages::generic::parse_groovy;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_groovy;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_groovy";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

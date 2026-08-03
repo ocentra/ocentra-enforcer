@@ -1,16 +1,16 @@
 //! Hard tests for BitBake, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_bitbake`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_bitbake`])
 //! -- there is no bespoke `languages::bitbake` extractor to prove
 //! zero-regression against (BitBake has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::bitbake`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::bitbake`]'s own doc
 //! comment directly: positional `function_definition`/
 //! `anonymous_python_function` naming (neither has a `name` field), the
 //! real `recipe` root, and the `inherit_directive`/`require_directive`
 //! import improvement over the baseline's own array.
 
-use enforcer_memory::languages::generic::parse_bitbake;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_bitbake;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_bitbake";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

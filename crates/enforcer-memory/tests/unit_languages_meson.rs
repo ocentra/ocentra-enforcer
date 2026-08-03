@@ -1,15 +1,15 @@
 //! Hard tests for Meson, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_meson`]) -- there is no
+//! ([`enforcer_syntax::languages::generic::parse_meson`]) -- there is no
 //! bespoke `languages::meson` extractor to prove zero-regression against,
 //! so these tests assert against the grammar-shape ground truth recorded
-//! in [`enforcer_memory::languages::spec::LangSpec::meson`]'s own doc
+//! in [`enforcer_syntax::languages::spec::LangSpec::meson`]'s own doc
 //! comment directly: `normal_command`'s own `command` field, this
 //! language's total lack of a function-definition concept, and branch
 //! recognition (`if_command`/`foreach_command`, NOT baseline's stale
 //! `if_statement`/`foreach_statement`).
 
-use enforcer_memory::languages::generic::parse_meson;
+use enforcer_syntax::languages::generic::parse_meson;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

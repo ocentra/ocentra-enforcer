@@ -1,14 +1,14 @@
 //! Hard tests for Linker Script, onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_linkerscript`]).
+//! ([`enforcer_syntax::languages::generic::parse_linkerscript`]).
 //! Asserts against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::linkerscript`]'s own
+//! [`enforcer_syntax::languages::spec::LangSpec::linkerscript`]'s own
 //! doc comment: the real root node kind is `linkerscript` (NOT
 //! baseline's claimed `source_file`), and `call_expression` carries
 //! real `function`/`arguments` fields the generic engine's own
 //! field-driven default extracts with no quirk needed.
 
-use enforcer_memory::languages::generic::parse_linkerscript;
+use enforcer_syntax::languages::generic::parse_linkerscript;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

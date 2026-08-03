@@ -1,14 +1,14 @@
 //! Hard tests for Diff/patch, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_diff`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::diff`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_diff`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::diff`]'s own doc
 //! comment): `command` is fully fieldless (confirmed via a real
 //! `node-types.json` dump), so
-//! [`enforcer_memory::languages::generic::diff_call_override`] reads it
+//! [`enforcer_syntax::languages::generic::diff_call_override`] reads it
 //! positionally -- a nominal reuse of the call-edge shape for the
 //! `diff --git ...` header line, matching baseline's own choice.
 
-use enforcer_memory::languages::generic::parse_diff;
+use enforcer_syntax::languages::generic::parse_diff;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

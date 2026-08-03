@@ -1,0 +1,58 @@
+{
+  "workpack": "UL03",
+  "baselineCommit": "e61b274ac3003af79ba24043037b5c9de942c325",
+  "sourceOwnerBefore": "crates/enforcer-memory",
+  "destinationOwnerAfter": "crates/enforcer-syntax",
+  "freeze": "UL02 accepted grammar substrate freeze; move without duplication",
+  "counts": {
+    "languageVariants": 160,
+    "structuralRoutes": 156,
+    "deliberateNonStructural": 4,
+    "transferredFiles": 489,
+    "transferredBytesBefore": 192054161,
+    "destinationFiles": 489,
+    "destinationBytesAfter": 192055286,
+    "vendorLicenseFiles": 51,
+    "grammarBindings": 145,
+    "treeSitterCoreBindings": 1,
+    "syntaxTreeSitterDependencyLines": 146
+  },
+  "treeRootsBefore": {
+    "parsers": "1392a727c805827f8946e3c0fc1a2637f661dae6",
+    "languages": "ebfa44a82ffa83a271189f45dc703721d23d4bd5",
+    "vendor": "0f368343dd6d7b7ebf4276ad84b54f08358b965f"
+  },
+  "postMove": {
+    "sourceParsersPresent": false,
+    "sourceLanguagesPresent": false,
+    "sourceVendorPresent": false,
+    "destinationFiles": 489,
+    "contentMismatches": 3,
+    "intentionalContentMismatches": [
+      "crates/enforcer-memory/src/parsers/mod.rs: syntax-owned complexity grammar provider added",
+      "crates/enforcer-memory/src/languages/cpp.rs: crate boundary import updated",
+      "crates/enforcer-memory/src/languages/generic.rs: crate boundary import updated"
+    ],
+    "vendorContentMismatches": 0,
+    "vendorBytesAndLicensesPreserved": true
+  },
+  "stage5Parity": {
+    "baselineExecuted": true,
+    "toolsTotal": 23,
+    "equal": 15,
+    "better": 8,
+    "worse": 0,
+    "incomparable": 0,
+    "unrunnable": 0,
+    "testPassed": true
+  },
+  "doesNotProve": [
+    "semantic enforcement parity across all languages",
+    "UL04 shared syntax facts",
+    "UL05 enforcer-memory bridge completion",
+    "UL07 third-party adapters",
+    "full enforcer-memory --tests suite closure: prior bounded run timed out without failure output",
+    "broad legacy language-fixture Enforcer cleanliness: 298 violations and 20 warnings were outside this move boundary",
+    "cargo doc warning backlog in transferred legacy documentation"
+  ]
+}

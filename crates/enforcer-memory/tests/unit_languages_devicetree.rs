@@ -1,15 +1,15 @@
 //! Hard tests for DeviceTree, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_devicetree`]). Asserts
+//! ([`enforcer_syntax::languages::generic::parse_devicetree`]). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::devicetree`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::devicetree`]'s own doc
 //! comment: real `call_expression` `function`/`arguments` fields, and
 //! `dtsi_include`/`preproc_include` IMPORTS via
-//! [`enforcer_memory::languages::generic::devicetree_quirk`] (the
+//! [`enforcer_syntax::languages::generic::devicetree_quirk`] (the
 //! generic walker's own `import_types` branch has no field-driven
 //! default of its own at all).
 
-use enforcer_memory::languages::generic::parse_devicetree;
+use enforcer_syntax::languages::generic::parse_devicetree;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

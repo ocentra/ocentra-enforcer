@@ -1,16 +1,16 @@
 //! Hard tests for Tcl, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_tcl`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_tcl`])
 //! -- there is no bespoke `languages::tcl` extractor to prove
 //! zero-regression against (Tcl has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::tcl`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::tcl`]'s own doc comment
 //! directly: `procedure`'s real `name`/`body` field pair (handled
 //! natively), `command` CALLS with `arguments`-field `arg_texts`
 //! (handled natively), and `namespace eval NAME {...}` as a Class
 //! symbol scoping nested `proc`s.
 
-use enforcer_memory::languages::generic::parse_tcl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_tcl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_tcl";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

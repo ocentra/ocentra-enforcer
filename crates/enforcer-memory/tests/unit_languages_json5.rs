@@ -1,12 +1,12 @@
 //! Hard tests for JSON5, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_json5`]). JSON5 is a
+//! ([`enforcer_syntax::languages::generic::parse_json5`]). JSON5 is a
 //! Tier-0 nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::json5`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::json5`]'s own doc
 //! comment): only its own real root node kind (`file`, NOT baseline's
 //! claimed `document`) is asserted.
 
-use enforcer_memory::languages::generic::parse_json5;
+use enforcer_syntax::languages::generic::parse_json5;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

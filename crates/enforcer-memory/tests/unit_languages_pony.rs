@@ -1,16 +1,16 @@
 //! Hard tests for Pony, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_pony`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_pony`])
 //! -- there is no bespoke `languages::pony` extractor to prove
 //! zero-regression against (Pony has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::pony`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::pony`]'s own doc comment
 //! directly: `method`/`constructor`/`class_definition`/`actor_definition`/
 //! `primitive_definition`'s entirely positional (unfielded) naming, the
 //! `is`-clause INHERITS-edge improvement, and `call_expression`'s
 //! `"callee"` field plus its separate, unfielded `arguments` sibling.
 
-use enforcer_memory::languages::generic::parse_pony;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_pony;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_pony";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -24,7 +24,7 @@
 //! the baseline-indexing test that *does* apply (C, not C++).
 
 use super::has_unsafe_tree_sitter_input;
-use crate::owned_boundary::{Retained, RetainedDisplay};
+use crate::boundary::{Retained, RetainedDisplay};
 use crate::parsers::{
     CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, SymbolKind, SymbolRef,
 };

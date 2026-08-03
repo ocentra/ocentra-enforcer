@@ -1,16 +1,16 @@
 //! Hard tests for GraphQL SDL, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_graphql`]) -- grammar:
+//! ([`enforcer_syntax::languages::generic::parse_graphql`]) -- grammar:
 //! `tree-sitter-graphql` 0.1.0. Asserts against the grammar-shape
 //! ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::graphql`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::graphql`]'s own doc
 //! comment: every type-definition kind's fieldless `name` child,
-//! resolved by [`enforcer_memory::languages::generic::graphql_quirk`],
+//! resolved by [`enforcer_syntax::languages::generic::graphql_quirk`],
 //! plus its manual `fields_definition`/`input_fields_definition` walk
 //! for member DEFINES edges.
 
-use enforcer_memory::languages::generic::parse_graphql;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_graphql;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_graphql";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

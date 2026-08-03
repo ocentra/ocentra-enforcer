@@ -1,15 +1,15 @@
 //! Hard tests for D, onboarded directly through the generic spec-table
-//! engine ([`enforcer_memory::languages::generic::parse_d`]) -- there is
+//! engine ([`enforcer_syntax::languages::generic::parse_d`]) -- there is
 //! no bespoke `languages::d` extractor to prove zero-regression against
 //! (D has never had one in this crate), so these tests assert against
 //! the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::d`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::d`]'s own doc comment
 //! directly: free functions, a class with a constructor/method and
 //! multi-base heritage, a struct with fields, a module declaration, an
 //! import, ordinary calls, and a `new`-expression constructor call.
 
-use enforcer_memory::languages::generic::parse_d;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_d;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_d";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

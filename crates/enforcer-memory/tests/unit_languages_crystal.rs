@@ -1,18 +1,18 @@
 //! Hard tests for Crystal, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_crystal`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_crystal`]) -- there is
 //! no bespoke `languages::crystal` extractor to prove zero-regression
 //! against (Crystal has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::crystal`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::crystal`]'s own doc
 //! comment directly: symbol kinds (method/class/struct/module/enum),
 //! `superclass`-field INHERITS, `receiver.method` call reconstruction,
 //! `instance_var`/`class_var` DEFINES (sigil-prefixed node text as the
 //! name), `require` IMPORTS, and DEFINES-scoped class bodies.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_crystal;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_crystal;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_crystal";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

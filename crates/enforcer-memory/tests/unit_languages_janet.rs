@@ -1,6 +1,6 @@
 //! Hard tests for Janet, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_janet`]) -- grammar
+//! ([`enforcer_syntax::languages::generic::parse_janet`]) -- grammar
 //! VENDORED (`vendor/tree-sitter-janet-local/`; the grammar's own
 //! generated C function is `tree_sitter_janet_simple`). Matches the
 //! baseline's own fully nominal row: every list-shaped Janet form is
@@ -9,8 +9,8 @@
 //! panicking" plus the one real structural signal this crate can
 //! record, a module symbol for the file's own `source` root.
 
-use enforcer_memory::languages::generic::parse_janet;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_janet;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

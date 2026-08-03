@@ -1,10 +1,10 @@
 //! Hard tests for Verilog, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_verilog`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_verilog`]) -- there is
 //! no bespoke `languages::verilog` extractor to prove zero-regression
 //! against (Verilog has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::verilog`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::verilog`]'s own doc
 //! comment directly: `function_body_declaration`'s own doubly-nested
 //! `function_identifier` name resolution, `module_declaration`'s own
 //! unfielded `module_header`-descendant name resolution, and the
@@ -13,8 +13,8 @@
 //! error -- only the expression/condition-position form (`if
 //! (helper(1))`) produces a recognizable call node.
 
-use enforcer_memory::languages::generic::parse_verilog;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_verilog;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -24,7 +24,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_verilog";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -36,8 +36,8 @@
 //! [`Quirks`] seam below for their rich-tier behavior (heritage
 //! clauses, decorators, routes, ...).
 
+use crate::boundary::{Retained, RetainedDisplay};
 use crate::languages::spec::LangSpec;
-use crate::owned_boundary::{Retained, RetainedDisplay};
 use crate::parsers::{
     CallRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind,
     SymbolRef,
