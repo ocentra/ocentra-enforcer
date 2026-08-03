@@ -349,6 +349,7 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
 #[cfg(test)]
 mod tests {
     use super::{PeerRecord, PeerRegistry, PeerRegistryDto, PeerRegistryEntryDto};
+    use crate::error::CoordinationError;
     use enforcer_domain::coordination_types::CoordinationLedgerRoot;
     use enforcer_domain::coordination_types::{
         CoordinationPeerName, CoordinationPeerTokenEnv, CoordinationPeerUrl,
@@ -475,7 +476,14 @@ mod tests {
     fn peer_registry_dto_rejects_malformed_peer_url() -> Result<(), Box<dyn std::error::Error>> {
         let decoded: PeerRegistryDto =
             serde_json::from_str(r#"{"peers":[{"name":"left","url":"https://not-supported"}]}"#)?;
-        assert!(PeerRegistry::try_from(decoded).is_err());
+        let error =
+            PeerRegistry::try_from(decoded).expect_err("malformed peer URL must be rejected");
+        let decode = match error {
+            CoordinationError::Decode(error) => error,
+            other => return Err(format!("expected a typed decode error, got {other:?}").into()),
+        };
+        assert_eq!(decode.path, "coordinationPeerUrl");
+        assert_eq!(decode.reason, "expected a non-empty http:// peer endpoint");
         Ok(())
     }
 
@@ -488,7 +496,14 @@ mod tests {
             vec![r#"{"streams":[]}"#.to_owned()],
             Some("correct"),
         )?)?;
-        assert!(super::sync_http(&root, &endpoint, Some("wrong")).is_err());
+        let error = super::sync_http(&root, &endpoint, Some("wrong"))
+            .expect_err("a bad bearer token must be rejected");
+        match error {
+            CoordinationError::Rejected(reason) => {
+                assert_eq!(reason.as_str(), "peer request was rejected or unavailable")
+            }
+            other => return Err(format!("expected a typed rejection, got {other:?}").into()),
+        }
         Ok(())
     }
 
@@ -501,7 +516,17 @@ mod tests {
             vec![r#"{"streams":["../escape.ndjson"]}"#.to_owned()],
             None,
         )?)?;
-        assert!(super::sync_http(&root, &endpoint, None).is_err());
+        let error = super::sync_http(&root, &endpoint, None)
+            .expect_err("a manifest with path traversal must be rejected");
+        match error {
+            CoordinationError::Rejected(reason) => {
+                assert_eq!(
+                    reason.as_str(),
+                    "peer manifest contains an unsafe stream name"
+                )
+            }
+            other => return Err(format!("expected a typed rejection, got {other:?}").into()),
+        }
         Ok(())
     }
 
