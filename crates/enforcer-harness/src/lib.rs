@@ -72,6 +72,7 @@ pub mod ci_parity;
 pub mod config;
 pub mod duckdb_seam;
 pub mod execution;
+pub mod input_scope;
 pub mod legacy;
 pub mod parsers;
 pub mod query;

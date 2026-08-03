@@ -621,6 +621,66 @@ impl HarnessExecutionLimits {
     }
 }
 
+/// Independent bounds for one explicitly reviewed input-tree scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HarnessInputLimits {
+    max_files: std::num::NonZeroU32,
+    max_depth: std::num::NonZeroU32,
+    max_file_bytes: std::num::NonZeroU64,
+    max_total_bytes: std::num::NonZeroU64,
+}
+
+impl HarnessInputLimits {
+    /// Construct non-zero file-count, depth, per-file, and total-byte bounds.
+    pub fn try_new(
+        max_files: u32,
+        max_depth: u32,
+        max_file_bytes: u64,
+        max_total_bytes: u64,
+    ) -> Result<Self, DecodeError> {
+        let max_files = std::num::NonZeroU32::new(max_files)
+            .ok_or_else(|| DecodeError::new("input.maxFiles", "must be greater than zero"))?;
+        let max_depth = std::num::NonZeroU32::new(max_depth)
+            .ok_or_else(|| DecodeError::new("input.maxDepth", "must be greater than zero"))?;
+        let max_file_bytes = std::num::NonZeroU64::new(max_file_bytes).ok_or_else(|| {
+            DecodeError::new("input.maxFileBytes", "must be greater than zero")
+        })?;
+        let max_total_bytes = std::num::NonZeroU64::new(max_total_bytes).ok_or_else(|| {
+            DecodeError::new("input.maxTotalBytes", "must be greater than zero")
+        })?;
+        Ok(Self {
+            max_files,
+            max_depth,
+            max_file_bytes,
+            max_total_bytes,
+        })
+    }
+
+    /// Maximum number of reviewed regular files.
+    #[must_use]
+    pub const fn max_files(self) -> u32 {
+        self.max_files.get()
+    }
+
+    /// Maximum reviewed directory depth below the disposable cwd.
+    #[must_use]
+    pub const fn max_depth(self) -> u32 {
+        self.max_depth.get()
+    }
+
+    /// Maximum bytes in one reviewed regular file.
+    #[must_use]
+    pub const fn max_file_bytes(self) -> u64 {
+        self.max_file_bytes.get()
+    }
+
+    /// Maximum bytes across all reviewed regular files.
+    #[must_use]
+    pub const fn max_total_bytes(self) -> u64 {
+        self.max_total_bytes.get()
+    }
+}
+
 /// Select the one reviewed output stream from which a tool version is read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HarnessProbeOutput {

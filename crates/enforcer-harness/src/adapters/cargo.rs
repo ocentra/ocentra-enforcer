@@ -13,14 +13,15 @@ use std::path::{Component, Path, PathBuf};
 use enforcer_core::error::{Error, Result};
 use enforcer_domain::boundary::hash::validate;
 use enforcer_domain::harness_types::{
-    HarnessExecutionTermination, HarnessProbeOutput, HarnessRunId, HarnessRunStatus,
-    HarnessStepVersion, HarnessToolAvailability, HarnessToolSpec,
+    HarnessExecutionTermination, HarnessInputLimits, HarnessProbeOutput, HarnessRunId,
+    HarnessRunStatus, HarnessStepVersion, HarnessToolAvailability, HarnessToolSpec,
 };
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::telemetry_types::ProcessExitCode;
 
 use crate::availability::probe_allowlisted_tool;
 use crate::execution::{execute_allowlisted_bounded, ExecuteRequest};
+use crate::input_scope::{compute_input_tree, ComputedInputTree};
 use crate::parsers::{parse_diagnostics, HarnessDiagnostic};
 
 const CARGO_TOOL: &str = "cargo";
@@ -41,6 +42,8 @@ const MAX_CONFIG_BYTES: u64 = 1_048_576;
 /// Provenance marker for an input-tree digest supplied by a caller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CargoInputTreeProvenance {
+    /// The adapter enumerated and hashed the reviewed Cargo scope.
+    Computed,
     /// The caller declared a digest; this packet does not enumerate the tree.
     DeclaredUnverified,
 }
@@ -50,6 +53,7 @@ impl CargoInputTreeProvenance {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::Computed => "computed",
             Self::DeclaredUnverified => "declared-unverified",
         }
     }
@@ -60,7 +64,10 @@ pub struct CargoPilotInput<'a> {
     request: &'a ExecuteRequest,
     spec: &'a HarnessToolSpec,
     config_digest: Sha256,
+    computed_input_tree: ComputedInputTree,
+    input_limits: HarnessInputLimits,
     declared_input_tree_digest: Sha256,
+    declared_input_tree_matches: bool,
 }
 
 impl<'a> CargoPilotInput<'a> {
@@ -98,12 +105,19 @@ impl<'a> CargoPilotInput<'a> {
                 "Cargo pilot requires the exact pinned cargo stdout probe contract".to_owned(),
             ));
         }
+        let input_limits = reviewed_input_limits()?;
+        let computed_input_tree = reviewed_input_tree(request, spec, input_limits)?;
+        let declared_input_tree_matches =
+            declared_input_tree_digest == *computed_input_tree.digest();
         let config_digest = read_config_digest(request)?;
         Ok(Self {
             request,
             spec,
             config_digest,
+            computed_input_tree,
+            input_limits,
             declared_input_tree_digest,
+            declared_input_tree_matches,
         })
     }
 }
@@ -120,8 +134,12 @@ pub struct CargoPilotEvidence {
     command_digest: Sha256,
     config_digest: Sha256,
     captured_text_digest: Sha256,
+    computed_input_tree_digest: Sha256,
+    computed_input_file_count: u32,
+    computed_input_tree_provenance: CargoInputTreeProvenance,
     declared_input_tree_digest: Sha256,
     input_tree_provenance: CargoInputTreeProvenance,
+    declared_input_tree_matches: bool,
     status: HarnessRunStatus,
     diagnostics: Vec<HarnessDiagnostic>,
 }
@@ -181,6 +199,24 @@ impl CargoPilotEvidence {
         &self.captured_text_digest
     }
 
+    /// Digest computed from the complete reviewed Cargo input scope.
+    #[must_use]
+    pub const fn computed_input_tree_digest(&self) -> &Sha256 {
+        &self.computed_input_tree_digest
+    }
+
+    /// Number of regular files included in the computed Cargo scope.
+    #[must_use]
+    pub const fn computed_input_file_count(&self) -> u32 {
+        self.computed_input_file_count
+    }
+
+    /// Provenance of the computed input-tree digest.
+    #[must_use]
+    pub const fn computed_input_tree_provenance(&self) -> CargoInputTreeProvenance {
+        self.computed_input_tree_provenance
+    }
+
     /// Caller-declared input-tree digest.
     #[must_use]
     pub const fn declared_input_tree_digest(&self) -> &Sha256 {
@@ -191,6 +227,12 @@ impl CargoPilotEvidence {
     #[must_use]
     pub const fn input_tree_provenance(&self) -> CargoInputTreeProvenance {
         self.input_tree_provenance
+    }
+
+    /// Whether the caller declaration exactly matches the computed scope.
+    #[must_use]
+    pub const fn declared_input_tree_matches(&self) -> bool {
+        self.declared_input_tree_matches
     }
 
     /// Derived run status; unavailable and non-completed outcomes never pass.
@@ -216,6 +258,33 @@ pub fn run_cargo_pilot(input: CargoPilotInput<'_>) -> Result<CargoPilotEvidence>
         .collect::<Vec<_>>();
     let command_digest = digest_framed(command_parts.iter().map(Vec::as_slice));
     let config_digest = input.config_digest.clone();
+    if !input.declared_input_tree_matches {
+        return Ok(CargoPilotEvidence {
+            run_id: input.request.run_id.clone(),
+            availability: HarnessToolAvailability::Misconfigured,
+            observed_version: None,
+            probe_termination: None,
+            execution_termination: None,
+            exit_code: None,
+            command_digest,
+            config_digest,
+            captured_text_digest: digest_output(None, None, "declared-input-tree-mismatch", "", ""),
+            computed_input_tree_digest: input.computed_input_tree.digest().clone(),
+            computed_input_file_count: input.computed_input_tree.file_count(),
+            computed_input_tree_provenance: CargoInputTreeProvenance::Computed,
+            declared_input_tree_digest: input.declared_input_tree_digest.clone(),
+            input_tree_provenance: CargoInputTreeProvenance::DeclaredUnverified,
+            declared_input_tree_matches: false,
+            status: HarnessRunStatus::Failed,
+            diagnostics: Vec::new(),
+        });
+    }
+    let before_probe_tree = reviewed_input_tree(input.request, input.spec, input.input_limits)?;
+    if before_probe_tree != input.computed_input_tree {
+        return Err(Error::InvalidConfig(
+            "Cargo input scope changed before availability probe".to_owned(),
+        ));
+    }
     let probe = probe_allowlisted_tool(input.request, input.spec)?;
     let probe_termination = probe.termination();
     let base = |execution_termination, exit_code, captured_text_digest, diagnostics, status| {
@@ -229,8 +298,12 @@ pub fn run_cargo_pilot(input: CargoPilotInput<'_>) -> Result<CargoPilotEvidence>
             command_digest: command_digest.clone(),
             config_digest: config_digest.clone(),
             captured_text_digest,
+            computed_input_tree_digest: input.computed_input_tree.digest().clone(),
+            computed_input_file_count: input.computed_input_tree.file_count(),
+            computed_input_tree_provenance: CargoInputTreeProvenance::Computed,
             declared_input_tree_digest: input.declared_input_tree_digest.clone(),
             input_tree_provenance: CargoInputTreeProvenance::DeclaredUnverified,
+            declared_input_tree_matches: input.declared_input_tree_matches,
             status,
             diagnostics,
         }
@@ -251,6 +324,12 @@ pub fn run_cargo_pilot(input: CargoPilotInput<'_>) -> Result<CargoPilotEvidence>
         ));
     }
 
+    let after_probe_tree = reviewed_input_tree(input.request, input.spec, input.input_limits)?;
+    if after_probe_tree != input.computed_input_tree {
+        return Err(Error::InvalidConfig(
+            "Cargo input scope changed after availability probe".to_owned(),
+        ));
+    }
     let after_probe_config_digest = read_config_digest(input.request)?;
     if after_probe_config_digest != input.config_digest {
         return Err(Error::InvalidConfig(
@@ -261,6 +340,12 @@ pub fn run_cargo_pilot(input: CargoPilotInput<'_>) -> Result<CargoPilotEvidence>
     if before_main_config_digest != input.config_digest {
         return Err(Error::InvalidConfig(
             "Cargo manifest or lock changed immediately before execution".to_owned(),
+        ));
+    }
+    let before_main_tree = reviewed_input_tree(input.request, input.spec, input.input_limits)?;
+    if before_main_tree != input.computed_input_tree {
+        return Err(Error::InvalidConfig(
+            "Cargo input scope changed immediately before execution".to_owned(),
         ));
     }
 
@@ -379,6 +464,46 @@ fn status_for_execution(
     }
 }
 
+/// Compute the reviewed Cargo input digest without accepting a second scope input.
+pub fn reviewed_input_tree_digest(
+    request: &ExecuteRequest,
+    spec: &HarnessToolSpec,
+) -> Result<Sha256> {
+    if request.command != spec.command() {
+        return Err(Error::InvalidConfig(
+            "Cargo pilot request must equal the reviewed command contract".to_owned(),
+        ));
+    }
+    validate_main_command(request.command.as_slice(), request)?;
+    Ok(
+        reviewed_input_tree(request, spec, reviewed_input_limits()?)?
+            .digest()
+            .clone(),
+    )
+}
+
+fn reviewed_input_limits() -> Result<HarnessInputLimits> {
+    HarnessInputLimits::try_new(100, 16, 1_048_576, 8_388_608)
+        .map_err(|error| Error::InvalidConfig(error.to_string()))
+}
+
+fn reviewed_input_tree(
+    request: &ExecuteRequest,
+    spec: &HarnessToolSpec,
+    limits: HarnessInputLimits,
+) -> Result<ComputedInputTree> {
+    if request.command != spec.command() {
+        return Err(Error::InvalidConfig(
+            "Cargo pilot request must equal the reviewed command contract".to_owned(),
+        ));
+    }
+    validate_main_command(request.command.as_slice(), request)?;
+    let target_dir = request.command.last().ok_or_else(|| {
+        Error::InvalidConfig("Cargo target directory argument is required".to_owned())
+    })?;
+    compute_input_tree(request, target_dir, limits)
+}
+
 fn validate_main_command(
     command: &[enforcer_domain::harness_types::HarnessCommandArgument],
     request: &ExecuteRequest,
@@ -429,7 +554,7 @@ fn validate_disposable_target_dir(request: &ExecuteRequest, target_dir: &str) ->
             "Cargo target directory containment failed: {error}"
         ))
     })?;
-    if !existing.starts_with(&root) || existing == root {
+    if candidate == root || !existing.starts_with(&root) {
         return Err(Error::InvalidConfig(
             "Cargo target directory must remain below the disposable repository root".to_owned(),
         ));
