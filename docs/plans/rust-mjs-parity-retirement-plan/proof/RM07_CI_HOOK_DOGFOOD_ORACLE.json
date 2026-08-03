@@ -4,11 +4,24 @@
   "artifactId": "RM07-CI-HOOK-DOGFOOD-ORACLE-20260803",
   "artifactState": "bounded-evidence-only",
   "closureClaim": false,
-  "materializedAtCandidateSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+  "materializedAtCandidateSha": "ae08f1a30f74db8949ac395c0109490c43cfc517",
+  "ownershipCorrection": {
+    "canonicalOwner": "RM07",
+    "canonicalRowCount": 43,
+    "canonicalRowPrefixes": ["C4-01..C4-20", "RM01-OPS-017..019", "RM01-OPS-021..024", "RM01-CI-001..016"],
+    "supplementalRowCount": 3,
+    "supplementalRowIds": ["RM07-RELEASE-BUILD-SMOKE-001", "RM07-DOGFOOD-001", "RM07-HOOK-ADAPTERS-001"],
+    "supplementalRowsSubstitutive": false,
+    "directEvidenceLinks": [
+      {"localId":"RM07-DOGFOOD-001","canonicalIds":["C4-01","C4-02","C4-09","C4-10","C4-11","RM01-OPS-018"],"substitutive":false},
+      {"localId":"RM07-RELEASE-BUILD-SMOKE-001","canonicalIds":["C4-16","C4-17","C4-18","RM01-OPS-022"],"substitutive":false},
+      {"localId":"RM07-HOOK-ADAPTERS-001","canonicalIds":["RM01-OPS-017"],"substitutive":false}
+    ]
+  },
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
     "observedAtCandidateSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
-    "materializationBaseSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+    "materializationBaseSha": "ae08f1a30f74db8949ac395c0109490c43cfc517",
     "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
     "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
     "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
@@ -76,6 +89,18 @@
     "failBlobSha": "a8fb19c2680f272c2ba4c867129b7cb2d21e0859",
     "failFileSha256": "A13D665A9823B5099B956FC489414E00F7B00423C22B806895AA20C5BD928DE4",
     "behavioralSeed": "Option<i32>::None followed by maybe.unwrap(); source comments require native release scan exit 1"
+  },
+  "coverage": {
+    "canonicalOwner": "RM07",
+    "canonicalRows": 43,
+    "canonicalUniqueIds": 43,
+    "canonicalBehaviorMeasuredRows": 0,
+    "canonicalUnmeasuredRows": 43,
+    "supplementalLocalRows": 3,
+    "supplementalUniqueIds": 3,
+    "totalUniqueRows": 46,
+    "supplementalRowsSubstitutive": false,
+    "closureClaim": false
   },
   "runs": [
     {
@@ -283,7 +308,2377 @@
         "cutover",
         "retirement"
       ]
+    },
+    {
+      "id": "C4-01",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/ocentra-enforcer.yml:workflow jobs",
+            "tests:no direct executable test identified"
+          ]
+        }
+      ],
+      "observableBehavior": "PR/push workflow installs dependencies and runs local CI parity.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-harness/src/ci_parity.rs:check_parity",
+            "crates/enforcer-harness/tests/ci_parity.rs:matched_local_and_ci_step_sets_pass_clean",
+            "crates/enforcer-harness/tests/ci_parity.rs:injected_extra_local_only_step_fails_closed"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the same fixture and exact workflow execution.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-01 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-02",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/harness.mjs:runHarness",
+            "src/harness.mjs:listRuns",
+            "src/harness.mjs:runSummary",
+            "tests/enforcer-harness.test.mjs:persistence and retention tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Summaries, logs, and diagnostics are stored; failures are reported; bounded history is pruned.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-harness/src/storage.rs",
+            "crates/enforcer-harness/src/execution.rs",
+            "crates/enforcer-harness/src/retention.rs",
+            "crates/enforcer-harness:exact symbols unresolved by graph",
+            "crates/enforcer-harness:candidate harness tests"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare run envelope, exit status, diagnostics, retention, and artifacts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-02 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-03",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/harness.mjs:readArtifact",
+            "tests:harness rejects artifact paths that escape the run root"
+          ]
+        }
+      ],
+      "observableBehavior": "Artifact paths escaping the run root are rejected.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-harness/src/storage.rs:artifact-path validation symbol unresolved",
+            "crates/enforcer-harness:candidate parser/storage tests"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Execute an escape-path negative fixture and compare refusal.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-03 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-04",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:routeProofs",
+            "src/proof.mjs:inventoryProofs",
+            "tests/enforcer-proof.test.mjs:routing and inventory tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Proof definitions route by file, capability, or proof ID; legacy scripts are inventoried without writing.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:inventory functions",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:classify_scripts",
+            "crates/enforcer-proof/tests/native_proof_lifecycle.rs:inventory_is_safe_and_optional_rows_are_bounded"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare the same proof registry and inventory corpus, including omission semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-04 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-05",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:runProof",
+            "src/proof.mjs:proofStatus",
+            "src/proof.mjs:proofDiagnostics",
+            "tests:proof run storage test"
+          ]
+        }
+      ],
+      "observableBehavior": "A canonical proof run captures status, claims, diagnostics, and bounded artifacts.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:lifecycle entrypoints unresolved",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:fresh_artifact_claims_green",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:missing_run_claim_fails"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run an exact fixture and compare normalized status, claims, and diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-05 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-06",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-storage.mjs:writeProofFiles",
+            "src/proof-storage.mjs:collectProofArtifactRecords",
+            "tests:canonical files and bounded artifacts"
+          ]
+        }
+      ],
+      "observableBehavior": "Proof envelope, summary, diagnostics, and artifact metadata are written.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/envelope.rs",
+            "crates/enforcer-proof/src/boundary/journal.rs",
+            "crates/enforcer-proof/src/boundary/read_model.rs",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare byte, path, hash, size metadata and stale-artifact handling.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-06 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-07",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:importLegacyProof",
+            "src/proof.mjs:proofParity",
+            "tests:import succeeds and deletion blocked before import"
+          ]
+        }
+      ],
+      "observableBehavior": "Old artifacts import into canonical runs; parity blocks deletion when legacy artifacts remain.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:import_legacy_proof",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:proof_parity",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs",
+            "crates/enforcer-proof/tests/legacy_import_boundary.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run import and pre/post parity fixtures; verify deletion gate behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-07 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-08",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:classifyProofScript",
+            "src/proof-legacy.mjs:collectLegacyProofArtifacts",
+            "tests:legacy inventory"
+          ]
+        }
+      ],
+      "observableBehavior": "Scripts and artifacts are classified and migration/deletion evidence is recorded.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:classify_scripts",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:collect_legacy_artifacts",
+            "crates/enforcer-proof/tests/legacy_import_boundary.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the same legacy corpus, including unsupported extensions, duplicate roots, and outside-root paths.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-08 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-09",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:claimProof",
+            "tests:dirty or failed/manual proofs rejected for PR claims"
+          ]
+        }
+      ],
+      "observableBehavior": "A PR-ready claim requires current acceptable proof and rejects invalid freshness or state.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:claim path unresolved",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:stale_missing_artifact_claim_fails",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs:tampered_journal_fails_closed_on_open_and_replay"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact dirty, stale, and tampered claim matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-09 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-10",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "adapters/github-actions/ocentra-enforcer.yml:artifact-upload workflow step",
+            "tests/rust-rules-install.test.mjs:adapter-template coverage"
+          ]
+        }
+      ],
+      "observableBehavior": "Bounded local proof artifacts are uploaded to CI.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/ci/project_template.rs:render",
+            "crates/enforcer-install/src/ci/project_template.rs:install",
+            "crates/enforcer-install/src/ci/project_template.rs:verify",
+            "crates/enforcer-install/tests/project_ci_template_fixtures.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare rendered workflow bytes and artifact retention/upload behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-10 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-11",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "docs/BRANCH_PROTECTION.md:required-check contract",
+            ".github/workflows/ocentra-enforcer.yml:workflow",
+            "tests:no direct executable test identified"
+          ]
+        }
+      ],
+      "observableBehavior": "The required workflow check is present and non-bypassable.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/ci/branch_protection.rs:verify",
+            "crates/enforcer-install/src/ci/boundary/branch_protection.rs:report",
+            "crates/enforcer-install/tests/branch_protection_fixtures.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run safe, bypassable, missing-check, and red-merge fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-11 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-12",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "tests/rust-rules-install.test.mjs:adapter templates",
+            "tests/rust-rules-install.test.mjs:dry-run install cases"
+          ]
+        }
+      ],
+      "observableBehavior": "Dry-run reports an exact install plan without writing; templates cover CI/security artifacts.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:plan",
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:apply",
+            "crates/enforcer-install/src/boundary/consumer_ci.rs:verify",
+            "crates/enforcer-install/tests/project_ci_template_fixtures.rs",
+            "crates/enforcer-install/tests/ci_fixtures.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare plan/apply/verify output, idempotency, drift repair, and no-write dry-run.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-12 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-13",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:proofParity",
+            "tests:legacy artifact absence blocks closure"
+          ]
+        }
+      ],
+      "observableBehavior": "Retirement is blocked until old evidence is imported and parity is proved.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:proof_parity",
+            "crates/enforcer-proof/tests/proof_end_to_end.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run exact negative and positive parity fixtures and prove no false green.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-13 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-14",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-storage.mjs:pruneProofRuns",
+            "tests:successful old runs pruned while bounded metadata remains"
+          ]
+        }
+      ],
+      "observableBehavior": "Retention limits historical proof state while retaining bounded metadata.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/envelope.rs:DEFAULT_PROOF_RETENTION",
+            "crates/enforcer-proof/tests/native_proof_lifecycle.rs:persisted_status_is_filtered_sorted_and_bounded_without_a_project_snapshot"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the same retention configuration and run population.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-14 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-15",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:migration matrix builders",
+            "tests:legacy scripts inventoried before deletion"
+          ]
+        }
+      ],
+      "observableBehavior": "Legacy scripts are inventoried before deletion and non-proven claims are identified.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/boundary/lifecycle.rs:inventory helpers",
+            "crates/enforcer-proof/src/boundary/legacy_import.rs:migrate_legacy_proofs",
+            "crates/enforcer-proof/tests:lifecycle and legacy import tests"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Compare migration rows, claims-proved/non-proved, and deletion readiness.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-15 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-16",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified",
+            "release docs:release readiness"
+          ]
+        }
+      ],
+      "observableBehavior": "A typed release gate controls release readiness.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/ci/release_pipeline.rs:gate_release",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs:release_boundary_rejects_blank_tags_and_renders_every_typed_asset",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs:typed_gate_blocks_a_release_when_one_rendered_asset_fails_smoke"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-RELEASE-BUILD-SMOKE-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Validate every platform/variant asset and failure propagation.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-16 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-17",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified"
+          ]
+        }
+      ],
+      "observableBehavior": "A typed release asset matrix renders release assets.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/ci/boundary/release_rendering.rs:release_matrix",
+            "crates/enforcer-install/src/ci/boundary/release_rendering.rs:render_asset",
+            "crates/enforcer-install/tests/release_pipeline_integration.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-RELEASE-BUILD-SMOKE-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Validate every platform/variant asset and failure propagation.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-17 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-18",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "public authority:no executable MJS counterpart identified"
+          ]
+        }
+      ],
+      "observableBehavior": "Installer asset resolution and checksum verification are enforced.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/ci/boundary/installer_scripts.rs:resolve_asset_name",
+            "crates/enforcer-install/src/ci/boundary/installer_scripts.rs:verify_checksum",
+            "crates/enforcer-install/tests/ci_fixtures.rs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-RELEASE-BUILD-SMOKE-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run positive, wrong-checksum, missing-asset, and platform matrix fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-18 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-19",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof-legacy.mjs:legacy migration semantics",
+            "tests:proof migration tests"
+          ]
+        }
+      ],
+      "observableBehavior": "Old scripts may be migrated and then removed after parity.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/boundary/migrate_legacy_name.rs:scan",
+            "crates/enforcer-install/src/boundary/migrate_legacy_name.rs:migrate",
+            "crates/enforcer-install/tests/migrate_legacy_name.rs:legacy_skill_retired",
+            "crates/enforcer-install/tests/migrate_legacy_name.rs:legacy_skill_dir_retirement_is_idempotent"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Verify no legacy residue, idempotent retirement, backup behavior, and dual-registration refusal.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-19 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "C4-20",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "",
+          "anchors": [
+            "plan docs:RM01",
+            "public authority:no executable MJS symbol or test"
+          ]
+        }
+      ],
+      "observableBehavior": "Closure requires exact-SHA aggregate, rollback rehearsal, observed cutover, and delete-not-merge retirement.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "cf3bc4f7: no native plan-state or closure symbol identified"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Manager-owned matrix, exact-SHA proof, rollback rehearsal, cutover evidence, and deletion diff.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical C4-20 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-017",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/install-hooks.mjs:installHooks",
+            "tests/operational-surfaces.test.mjs:hooks"
+          ]
+        }
+      ],
+      "observableBehavior": "Repository hooks invoke intended scoped enforcement and preserve hard-fail behavior.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-install/src/hooks.rs:install_hooks",
+            "crates/enforcer-harness/tests:hooks"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-HOOK-ADAPTERS-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise hooks on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-017 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-018",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-dogfood.mjs:runDogfood",
+            "tests/operational-surfaces.test.mjs:dogfood"
+          ]
+        }
+      ],
+      "observableBehavior": "Dogfood/self-scan runs the same enforcement contract against Enforcer source.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-harness/src/dogfood.rs:run",
+            "crates/enforcer-harness/tests:dogfood"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-DOGFOOD-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise dogfood on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-018 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-019",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "schemas:public schema validators",
+            "tests/operational-surfaces.test.mjs:schema-validation"
+          ]
+        }
+      ],
+      "observableBehavior": "Typed schemas reject malformed config, rule, proof, and coordination records.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-schema/src/lib.rs:validate",
+            "crates/enforcer-harness/tests:schema-validation"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise schema-validation on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-019 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-021",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/proof.mjs:proofBundle",
+            "tests/operational-surfaces.test.mjs:proof-bundle"
+          ]
+        }
+      ],
+      "observableBehavior": "Proof inventory and bundle operations preserve exact inputs, commands, runs, artifacts, and verdict boundaries.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/bundle.rs:ProofBundle",
+            "crates/enforcer-harness/tests:proof-bundle"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise proof-bundle on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-021 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-022",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/release.mjs:manifest",
+            "tests/operational-surfaces.test.mjs:release-manifest"
+          ]
+        }
+      ],
+      "observableBehavior": "Release packaging records exact candidate and authority SHAs plus the artifact manifest.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/manifest.rs:ReleaseManifest",
+            "crates/enforcer-harness/tests:release-manifest"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence is directly related but is not canonical row evidence."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "Approved supplemental local-row evidence remains supplemental and does not establish this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [
+        "RM07-RELEASE-BUILD-SMOKE-001"
+      ],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise release-manifest on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-022 remains unmeasured; approved supplemental evidence is non-substitutive."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-023",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/release.mjs:rollback",
+            "tests/operational-surfaces.test.mjs:rollback-record"
+          ]
+        }
+      ],
+      "observableBehavior": "Rollback rehearsal records the known-good ref, cutover ref, restore command, and observed result.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/rollback.rs:RollbackPlan",
+            "crates/enforcer-harness/tests:rollback-record"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise rollback-record on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-023 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-OPS-024",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "program retirement boundary"
+          ]
+        }
+      ],
+      "observableBehavior": "Retirement preparation blocks frozen-checkout deletion until aggregate, rollback, and protected-integration gates are satisfied.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM14_RETIREMENT.md:retirement gates",
+            "crates/enforcer-harness/tests:retirement-boundary"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Exercise retirement-boundary on exact public/overlay fixtures and candidate; retain tool/config/fixture/artifact/run evidence and compare failure semantics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-OPS-024 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-001",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:source scan",
+            "tests/ci-proof-release.test.mjs:workflow-source-scan"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-source-scan surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:source_scan",
+            "crates/enforcer-ci/tests:workflow-source-scan"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-source-scan; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-001 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-002",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:Rust tests",
+            "tests/ci-proof-release.test.mjs:workflow-rust-tests"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-rust-tests surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:rust_tests",
+            "crates/enforcer-ci/tests:workflow-rust-tests"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-rust-tests; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-002 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-003",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:MCP smoke",
+            "tests/ci-proof-release.test.mjs:workflow-mcp-smoke"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-mcp-smoke surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:mcp_smoke",
+            "crates/enforcer-ci/tests:workflow-mcp-smoke"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-mcp-smoke; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-003 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-004",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:schema check",
+            "tests/ci-proof-release.test.mjs:workflow-schema-check"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-schema-check surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:schema_check",
+            "crates/enforcer-ci/tests:workflow-schema-check"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-schema-check; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-004 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-005",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:proof gate",
+            "tests/ci-proof-release.test.mjs:workflow-proof-gate"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-proof-gate surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:proof_gate",
+            "crates/enforcer-ci/tests:workflow-proof-gate"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-proof-gate; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-005 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-006",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:dependency gate",
+            "tests/ci-proof-release.test.mjs:workflow-dependency-gate"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-dependency-gate surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:dependency_gate",
+            "crates/enforcer-ci/tests:workflow-dependency-gate"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-dependency-gate; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-006 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-007",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:security gate",
+            "tests/ci-proof-release.test.mjs:workflow-security-gate"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-security-gate surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:security_gate",
+            "crates/enforcer-ci/tests:workflow-security-gate"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-security-gate; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-007 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-008",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            ".github/workflows/enforcer.yml:artifact upload",
+            "tests/ci-proof-release.test.mjs:workflow-artifact-upload"
+          ]
+        }
+      ],
+      "observableBehavior": "The workflow-artifact-upload surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-ci/src/workflows.rs:artifact_upload",
+            "crates/enforcer-ci/tests:workflow-artifact-upload"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for workflow-artifact-upload; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-008 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-009",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM11_EXACT_SHA_AGGREGATE.md:inputs"
+          ]
+        }
+      ],
+      "observableBehavior": "The proof-exact-inputs surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/aggregate.rs:ExactInputs",
+            "crates/enforcer-ci/tests:proof-exact-inputs"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for proof-exact-inputs; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-009 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-010",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM08_ADJUDICATION.md:public overlay separation"
+          ]
+        }
+      ],
+      "observableBehavior": "The proof-verdict-separation surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/aggregate.rs:separate_verdicts",
+            "crates/enforcer-ci/tests:proof-verdict-separation"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for proof-verdict-separation; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-010 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-011",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/TEST_PROOF_EXPECTATIONS.md:executable proof"
+          ]
+        }
+      ],
+      "observableBehavior": "The proof-no-docs-only-green surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-proof/src/aggregate.rs:reject_source_failure",
+            "crates/enforcer-ci/tests:proof-no-docs-only-green"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for proof-no-docs-only-green; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-011 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-012",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM13_CUTOVER_PACKAGE.md:boss review"
+          ]
+        }
+      ],
+      "observableBehavior": "The release-review-gate surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/gates.rs:review_gate",
+            "crates/enforcer-ci/tests:release-review-gate"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for release-review-gate; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-012 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-013",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM12_ROLLBACK_REHEARSAL.md:restore"
+          ]
+        }
+      ],
+      "observableBehavior": "The rollback-rehearsal surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/rollback.rs:rehearse",
+            "crates/enforcer-ci/tests:rollback-rehearsal"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for rollback-rehearsal; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-013 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-014",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM13_CUTOVER_PACKAGE.md:approval boundary"
+          ]
+        }
+      ],
+      "observableBehavior": "The cutover-approval surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/gates.rs:cutover_approval",
+            "crates/enforcer-ci/tests:cutover-approval"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for cutover-approval; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-014 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-015",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/RM14_RETIREMENT.md:protected deletion"
+          ]
+        }
+      ],
+      "observableBehavior": "The protected-retirement surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/gates.rs:retirement_block",
+            "crates/enforcer-ci/tests:protected-retirement"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for protected-retirement; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-015 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
+    },
+    {
+      "id": "RM01-CI-016",
+      "family": "ci-proof-release-retirement",
+      "canonicalOwner": "RM07",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "docs/plans/rust-mjs-parity-retirement-plan/authority/RM00_AUTHORITY.json:immutable authorities"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen-authority-immutability surface preserves hard-fail enforcement, exact input identity, and reviewable evidence for the Rust candidate program.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-release/src/gates.rs:authority_immutability",
+            "crates/enforcer-ci/tests:frozen-authority-immutability"
+          ]
+        }
+      ],
+      "publicEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted public canonical-row evidence is recorded for this canonical row."
+        ]
+      },
+      "candidateEvidence": {
+        "runIds": [],
+        "status": "no-accepted-canonical-row-evidence",
+        "observations": [
+          "No accepted candidate evidence is recorded for this canonical row."
+        ]
+      },
+      "initialDisposition": "unknown",
+      "disposition": "unknown",
+      "relatedSupplementalRows": [],
+      "supplementalRowsSubstitutive": false,
+      "proofNeeded": "Run the exact CI/proof/release fixture for frozen-authority-immutability; retain command, config, run ID, artifact SHA, and failure/success evidence.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "unresolvedGaps": [
+        "Canonical RM01-CI-016 remains unmeasured; no directly applicable local-row evidence is recorded."
+      ],
+      "doesNotProve": [
+        "behavioral parity",
+        "RM07 closure",
+        "supplemental local-row evidence substitutes for this canonical row"
+      ]
     }
+  ],
+  "unresolved": [
+    "Canonical C4-01..C4-20, RM01-OPS-017..019, RM01-OPS-021..024, and RM01-CI-001..016 remain source-inventory-only and unmeasured.",
+    "The three existing RM07 local rows are supplemental evidence only and do not substitute for canonical RM07 rows.",
+    "Only the approved direct evidence links are boundedly related: dogfood to C4-01/02/09/10/11 and RM01-OPS-018, release smoke to C4-16/17/18 and RM01-OPS-022, and hook adapters to RM01-OPS-017."
   ],
   "proves": [
     "Exact current materialization base and separate observed source candidate SHA are recorded.",
@@ -292,7 +2687,8 @@
     "The deterministic MJS CI fixture suite and focused CI fail-fixture test passed in the disposable exact-SHA environment.",
     "The seeded fail fixture is fixed by exact Git blob and file SHA-256 anchors."
     ,
-    "Candidate native git-hook unit/fixture tests passed at exact source SHA; the public bounded hook tests passed separately."
+    "Candidate native git-hook unit/fixture tests passed at exact source SHA; the public bounded hook tests passed separately.",
+    "RM07 canonical ownership now covers 43 exact inventory rows alongside 3 preserved supplemental local rows, for 46 unique IDs with no canonical behavior measured."
   ],
   "doesNotProve": [
     "Native candidate release binary execution or exit-1 behavior on the fail fixture.",
@@ -301,6 +2697,7 @@
     "Frozen public or private overlay behavioral parity.",
     "RM07 closure, RM08 adjudication, exact-SHA aggregate, cutover, or retirement."
     ,
-    "RM07 hook-adapter parity, lifecycle equivalence, or the observed staged/workspace semantic delta."
+    "RM07 hook-adapter parity, lifecycle equivalence, or the observed staged/workspace semantic delta.",
+    "Canonical RM07 behavioral parity or closure from supplemental local-row evidence."
   ]
 }
