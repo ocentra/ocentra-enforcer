@@ -26,7 +26,7 @@
   },
   "workflowPath": {
     "workflow": ".github/workflows/release.yml",
-    "workflowBlobSha": "648acd20c551c315e1b587fdcdc91e99795ce8bd",
+    "workflowBlobSha": "66364e4f2d17b72512cdc2340ebcf8437e0cdc8d",
     "job": "build",
     "jobAnchors": [
       ".github/workflows/release.yml:81:jobs.build",
@@ -73,7 +73,7 @@
   },
   "fixture": {
     "failPath": "crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs",
-    "failBlobSha": "4c562b6deebbafc09e9bb396cec03ad932c0e24f",
+    "failBlobSha": "a8fb19c2680f272c2ba4c867129b7cb2d21e0859",
     "failFileSha256": "A13D665A9823B5099B956FC489414E00F7B00423C22B806895AA20C5BD928DE4",
     "behavioralSeed": "Option<i32>::None followed by maybe.unwrap(); source comments require native release scan exit 1"
   },
