@@ -34,7 +34,7 @@ pub struct HarnessPruneRequest {
 }
 
 /// Decode the frozen run contract without allowing unrecognized fields.
-pub fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, String> {
+pub(crate) fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, String> {
     const FIELDS: &[&str] = &[
         "root",
         "profile",
@@ -135,7 +135,7 @@ pub fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, String>
 
 /// Decode the frozen prune contract. Its historical optional query fields are
 /// accepted by the shared query decoder; pruning itself only needs the root.
-pub fn decode_prune(args: &serde_json::Value) -> Result<HarnessPruneRequest, String> {
+pub(crate) fn decode_prune(args: &serde_json::Value) -> Result<HarnessPruneRequest, String> {
     const FIELDS: &[&str] = &[
         "root",
         "runId",

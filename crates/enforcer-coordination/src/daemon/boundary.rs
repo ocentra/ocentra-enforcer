@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: raw daemon inputs are validated here before the process-local service is started.
+//! Negative invalid-input coverage rejects non-loopback hosts and unauthorized health requests.
 //! Process-local authenticated coordination HTTP service used by MCP `ensure`.
 //! It never persists the supplied token and only binds loopback addresses.
 
@@ -6,38 +8,52 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{Mutex, OnceLock};
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct EnsureStatusDto {
+use crate::error::{CoordinationError, Result};
+use enforcer_domain::coordination_types::CoordinationRejection;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnsureStatus {
     pub host: String,
     pub port: u16,
     pub reused: bool,
 }
 
+impl serde::Serialize for EnsureStatus {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut state = serializer.serialize_struct("EnsureStatus", 3)?;
+        state.serialize_field("host", &self.host)?;
+        state.serialize_field("port", &self.port)?;
+        state.serialize_field("reused", &self.reused)?;
+        state.end()
+    }
+}
+
 static SERVICES: OnceLock<Mutex<BTreeMap<String, u16>>> = OnceLock::new();
 
-pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatusDto, String> {
+pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus> {
     if host != "127.0.0.1" && host != "localhost" {
-        return Err("coordination ensure only permits loopback hosts".to_owned());
+        return Err(rejected("coordination ensure only permits loopback hosts"));
     }
     let key = format!("{host}:{port}");
     let services = SERVICES.get_or_init(|| Mutex::new(BTreeMap::new()));
     if services
         .lock()
-        .map_err(|_| "coordination daemon registry lock poisoned")?
+        .map_err(|_| rejected("coordination daemon registry lock poisoned"))?
         .contains_key(&key)
     {
-        return Ok(EnsureStatusDto {
+        return Ok(EnsureStatus {
             host: host.to_owned(),
             port,
             reused: true,
         });
     }
-    let listener = TcpListener::bind(("127.0.0.1", port))
-        .map_err(|error| format!("coordination ensure bind failed: {error}"))?;
-    let actual_port = listener
-        .local_addr()
-        .map_err(|error| error.to_string())?
-        .port();
+    let listener = TcpListener::bind(("127.0.0.1", port)).map_err(CoordinationError::Io)?;
+    let actual_port = listener.local_addr().map_err(CoordinationError::Io)?.port();
     let expected_token = token.map(str::to_owned);
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
@@ -63,18 +79,26 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
     });
     services
         .lock()
-        .map_err(|_| "coordination daemon registry lock poisoned")?
+        .map_err(|_| rejected("coordination daemon registry lock poisoned"))?
         .insert(format!("{host}:{actual_port}"), actual_port);
-    Ok(EnsureStatusDto {
+    Ok(EnsureStatus {
         host: host.to_owned(),
         port: actual_port,
         reused: false,
     })
 }
 
+fn rejected(message: &'static str) -> CoordinationError {
+    match CoordinationRejection::from_static(message) {
+        Ok(reason) => CoordinationError::rejected(reason),
+        Err(error) => CoordinationError::Decode(error),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::ensure;
+    use crate::error::CoordinationError;
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
@@ -93,21 +117,34 @@ mod tests {
     }
 
     #[test]
-    fn ensure_is_idempotent_and_authenticates_health() -> Result<(), String> {
+    fn ensure_is_idempotent_and_authenticates_health() -> crate::error::Result<()> {
         let initial = ensure("127.0.0.1", 0, Some("token"))?;
         let repeated = ensure("127.0.0.1", initial.port, Some("different-token"))?;
         assert!(repeated.reused);
-        assert!(request(initial.port, None)
-            .map_err(|error| error.to_string())?
-            .starts_with("HTTP/1.1 401"));
-        assert!(request(initial.port, Some("token"))
-            .map_err(|error| error.to_string())?
-            .starts_with("HTTP/1.1 200"));
+        assert_eq!(
+            serde_json::to_value(&initial)?,
+            serde_json::json!({
+                "host": "127.0.0.1",
+                "port": initial.port,
+                "reused": false,
+            })
+        );
+        assert!(request(initial.port, None)?.starts_with("HTTP/1.1 401"));
+        assert!(request(initial.port, Some("token"))?.starts_with("HTTP/1.1 200"));
         Ok(())
     }
 
     #[test]
-    fn ensure_rejects_non_loopback_bind() {
-        assert!(ensure("0.0.0.0", 8787, None).is_err());
+    fn ensure_rejects_non_loopback_bind() -> Result<(), String> {
+        let error =
+            ensure("0.0.0.0", 8787, None).expect_err("non-loopback daemon binds must be rejected");
+        match error {
+            CoordinationError::Rejected(reason) => assert_eq!(
+                reason.as_str(),
+                "coordination ensure only permits loopback hosts"
+            ),
+            other => return Err(format!("expected a typed rejection, got {other:?}")),
+        }
+        Ok(())
     }
 }

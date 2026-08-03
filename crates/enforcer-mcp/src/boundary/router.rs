@@ -2656,7 +2656,10 @@ fn coordination_ensure(args: &serde_json::Value) -> serde_json::Value {
     };
     match enforcer_coordination::daemon::boundary::ensure(host, port, token) {
         Ok(status) => serde_json::json!({"ok":true,"service":status}),
-        Err(error) => json_error(&error),
+        Err(error) => {
+            let message = error.to_string();
+            json_error(&message)
+        }
     }
 }
 
@@ -4916,6 +4919,31 @@ mod tests {
             &ctx(McpFreshness::Stale),
         );
         assert!(matches!(outcome, DispatchOutcome::Result(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn coordination_ensure_rejected_host_preserves_error_wire(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ledger = tempfile::tempdir()?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_coordination_ensure")?,
+            &serde_json::json!({
+                "root": ledger.path().to_string_lossy(),
+                "host": "0.0.0.0",
+                "port": 8787
+            }),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("coordination ensure was not dispatched".into());
+        };
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "ok": false,
+                "error": "coordination ensure only permits loopback hosts"
+            })
+        );
         Ok(())
     }
 
