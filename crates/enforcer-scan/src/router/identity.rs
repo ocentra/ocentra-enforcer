@@ -48,6 +48,31 @@ pub enum ConsumerCapabilityState {
     NotApplicable,
 }
 
+/// Typed canonical-identity projection onto the existing CLI language route.
+///
+/// `Mapped` identifies only an existing CLI route-language value. It does not
+/// prove that the CLI command executes a validator or that its architecture
+/// checks cover the canonical identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CliLanguageProjection {
+    /// An existing CLI route-language value is mechanically mapped.
+    Mapped(CliLanguage),
+    /// No canonical-identity CLI projection is proved.
+    Unsupported,
+    /// The CLI projection question does not apply to this identity.
+    NotApplicable,
+}
+
+/// Closed CLI route-language values already accepted by the architecture
+/// command boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CliLanguage {
+    /// The existing `rust` architecture route value.
+    Rust,
+    /// The existing `typescript` architecture route value.
+    TypeScript,
+}
+
 /// Typed native-tool identity projection for one canonical language.
 ///
 /// `Mapped` means only that the canonical matchers mechanically resolve to an
@@ -89,7 +114,7 @@ pub struct CanonicalConsumerCapabilities {
     native_scan: ScanFamilyDisposition,
     native_tool: NativeToolProjection,
     rule_packs: RulePackProjection,
-    cli: ConsumerCapabilityState,
+    cli: CliLanguageProjection,
     ui: ConsumerCapabilityState,
 }
 
@@ -114,7 +139,7 @@ impl CanonicalConsumerCapabilities {
 
     /// Return the canonical-identity CLI projection state.
     #[must_use]
-    pub const fn cli(&self) -> ConsumerCapabilityState {
+    pub const fn cli(&self) -> CliLanguageProjection {
         self.cli
     }
 
@@ -296,8 +321,23 @@ fn consumer_capabilities_for_matchers(
         native_scan: scan_family_disposition(matchers),
         native_tool: native_tool_projection(matchers),
         rule_packs: rule_pack_projection(matchers),
-        cli: ConsumerCapabilityState::Unsupported,
+        cli: cli_language_projection(matchers),
         ui: ConsumerCapabilityState::Unsupported,
+    }
+}
+
+fn cli_language_projection(matchers: &[DetectionMatcher]) -> CliLanguageProjection {
+    match scan_family_disposition(matchers) {
+        ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => {
+            CliLanguageProjection::Mapped(CliLanguage::Rust)
+        }
+        ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => {
+            CliLanguageProjection::Mapped(CliLanguage::TypeScript)
+        }
+        ScanFamilyDisposition::Mapped(_) | ScanFamilyDisposition::Unsupported => {
+            CliLanguageProjection::Unsupported
+        }
+        ScanFamilyDisposition::NotApplicable => CliLanguageProjection::NotApplicable,
     }
 }
 
@@ -695,6 +735,57 @@ mod rule_pack_tests {
 }
 
 #[cfg(test)]
+mod cli_projection_tests {
+    use super::{cli_language_projection, CliLanguage, CliLanguageProjection};
+    use enforcer_domain::language_types::DetectionMatcher;
+    use enforcer_syntax::registry::language_registry;
+
+    #[test]
+    fn cli_projection_preserves_the_160_row_denominator() {
+        let records = language_registry();
+        assert_eq!(records.len(), 160);
+
+        let mut rust = 0;
+        let mut type_script = 0;
+        let mut unsupported = 0;
+        let mut not_applicable = 0;
+        for record in records {
+            match cli_language_projection(record.matchers()) {
+                CliLanguageProjection::Mapped(CliLanguage::Rust) => rust += 1,
+                CliLanguageProjection::Mapped(CliLanguage::TypeScript) => type_script += 1,
+                CliLanguageProjection::Unsupported => unsupported += 1,
+                CliLanguageProjection::NotApplicable => not_applicable += 1,
+            }
+        }
+
+        assert_eq!(
+            (rust, type_script, unsupported, not_applicable),
+            (1, 1, 158, 0)
+        );
+    }
+
+    #[test]
+    fn cli_projection_rejects_unmapped_or_ambiguous_matchers() {
+        for matchers in [
+            vec![],
+            vec![DetectionMatcher::ExactBasename("Dockerfile")],
+            vec![DetectionMatcher::CompoundSuffix(".env.local")],
+            vec![DetectionMatcher::Extension("yaml")],
+            vec![DetectionMatcher::Extension("unknown")],
+            vec![
+                DetectionMatcher::Extension("rs"),
+                DetectionMatcher::Extension("py"),
+            ],
+        ] {
+            assert_eq!(
+                cli_language_projection(&matchers),
+                CliLanguageProjection::Unsupported
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::{canonical_route, RouteCapabilityDisposition};
     use enforcer_domain::language_types::StructuralLanguageSupport;
@@ -742,7 +833,11 @@ mod tests {
             );
             assert_eq!(
                 route.consumer_capabilities().cli(),
-                super::ConsumerCapabilityState::Unsupported
+                match record.id().as_nonzero_u16().get() {
+                    1 => super::CliLanguageProjection::Mapped(super::CliLanguage::Rust),
+                    3 => super::CliLanguageProjection::Mapped(super::CliLanguage::TypeScript),
+                    _ => super::CliLanguageProjection::Unsupported,
+                }
             );
             assert_eq!(
                 route.consumer_capabilities().ui(),
