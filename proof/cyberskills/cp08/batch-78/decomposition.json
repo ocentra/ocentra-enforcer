@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-78",
+  "baselineCommit": "5d39ddd4302cceb95d10efed2cff87eb5605e2f0",
+  "family": "Static exercise, resilience, identity, OT, application, and compliance evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-purple-team-exercise",
+      "performing-ransomware-tabletop-exercise",
+      "performing-red-team-with-covenant",
+      "performing-scada-hmi-security-assessment",
+      "performing-second-order-sql-injection",
+      "performing-service-account-audit",
+      "performing-service-account-credential-rotation",
+      "performing-soc2-type2-audit-preparation",
+      "performing-soc-tabletop-exercise",
+      "performing-ssl-stripping-attack"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-77."
+  },
+  "accounting": {"acceptedPrior": 770, "proposed": 10, "overlap": 0, "combined": 780, "protectedExcluded": 1},
+  "skills": [
+    {
+      "catalogId": "performing-purple-team-exercise",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-purple-team-exercise/SKILL.md", "sha256": "459222ccf7115347ed79fe424d16499c31c8b82fa25ea8be5463f3adcf4a1467", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Purple Team Exercise:L40"]},
+      "components": [
+        {"id": "performing-purple-team-exercise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed exercise plan, ATT&CK technique, expected signal, scope, authorization, participants, cleanup, and evidence-manifest fields without attack execution or telemetry access.", "notProved": ["attack execution", "telemetry", "detection efficacy"]},
+        {"id": "performing-purple-team-exercise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Atomic Red Team, Caldera, C2 frameworks, PowerShell, endpoints, SIEM, EDR, networks, sessions, and production systems external.", "notProved": ["live simulation", "alert generation", "control effectiveness"]},
+        {"id": "performing-purple-team-exercise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ATT&CK mapping, purple-team planning, detection engineering, analyst training, cleanup, and defensive validation guidance as advisory.", "notProved": ["coverage", "detection efficacy", "remediation"]},
+        {"id": "performing-purple-team-exercise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, participant approval, legal/safety review, risk acceptance, stop conditions, cleanup, analyst validation, and remediation decisions.", "notProved": ["authorization", "live exercise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-ransomware-tabletop-exercise",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-ransomware-tabletop-exercise/SKILL.md", "sha256": "8e0866f1547c9b34c6ac6dfd79db15a8cfa65f843c76ec79b6897d414f28955d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Ransomware Tabletop Exercise:L57"]},
+      "components": [
+        {"id": "performing-ransomware-tabletop-exercise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed scenario, inject, role, timeline, asset, backup, legal, communications, decision, and exercise-evidence manifest fields without incident execution.", "notProved": ["ransomware execution", "compromise scope", "recovery"]},
+        {"id": "performing-ransomware-tabletop-exercise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep ransomware, endpoints, filesystems, backups, SIEM, EDR, threat-intelligence feeds, leak sites, payment systems, and production infrastructure external.", "notProved": ["live incident", "data theft", "backup integrity"]},
+        {"id": "performing-ransomware-tabletop-exercise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CISA/CSF-aligned readiness, incident response, business continuity, notification, disclosure, and recovery guidance as advisory.", "notProved": ["readiness", "containment efficacy", "recovery outcome"]},
+        {"id": "performing-ransomware-tabletop-exercise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require executive, legal, privacy, communications, operations, and incident-lead decisions on exercise authority, ransom, notification, disclosure, containment, and recovery.", "notProved": ["authorization", "live tabletop result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-red-team-with-covenant",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-red-team-with-covenant/SKILL.md", "sha256": "5e4d37af523a2384b7cb5ff49cc3f6d11114474dc46fc1c597a719133f95063d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Red Team Operations with Covenant C2:L28"]},
+      "components": [
+        {"id": "performing-red-team-with-covenant::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed listener, launcher, agent, task, API, target, scope, authorization, stop-condition, and evidence-manifest fields without C2 construction or execution.", "notProved": ["listener", "payload", "command execution"]},
+        {"id": "performing-red-team-with-covenant::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Covenant, REST APIs, API tokens, listeners, launchers, grunts, compromised hosts, endpoints, sessions, and production networks external.", "notProved": ["C2 access", "deployment", "lateral movement"]},
+        {"id": "performing-red-team-with-covenant::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized red-team planning, adversary-emulation safety, scope control, cleanup, and defensive assessment guidance as advisory.", "notProved": ["exposure", "detection efficacy", "compromise"]},
+        {"id": "performing-red-team-with-covenant::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, target ownership, legal/safety review, credential custody, bounded scope, stop conditions, cleanup, analyst validation, and remediation decisions.", "notProved": ["authorization", "live red team", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-scada-hmi-security-assessment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-scada-hmi-security-assessment/SKILL.md", "sha256": "261181967779a22ef11347bf30bd59b8a6a80cd8e3bb5df83a8f1125ea176222", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SCADA HMI Security Assessment:L36"]},
+      "components": [
+        {"id": "performing-scada-hmi-security-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed HMI inventory, authentication, authorization, session, PLC link, TLS, role, maintenance, owner, and evidence-manifest fields without OT access.", "notProved": ["HMI security", "PLC communication", "process impact"]},
+        {"id": "performing-scada-hmi-security-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SCADA, HMIs, PLCs, RTUs, OPC UA/TLS, network capture, browsers, servers, credentials, and production OT systems external.", "notProved": ["live assessment", "traffic", "safety outcome"]},
+        {"id": "performing-scada-hmi-security-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OT/HMI authentication, segmentation, secure communication, maintenance-window, safety, and defensive assessment guidance as advisory.", "notProved": ["finding validity", "coverage", "control effectiveness"]},
+        {"id": "performing-scada-hmi-security-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require plant-operations authorization, asset/process ownership, legal/data/safety review, maintenance window, rollback, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live OT test", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-second-order-sql-injection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-second-order-sql-injection/SKILL.md", "sha256": "df0f1672fe205bd3d6353f199907d1545291d729be5ef48746e29d0887672b2b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Second-Order SQL Injection:L32"]},
+      "components": [
+        {"id": "performing-second-order-sql-injection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed route, storage point, trigger point, parameter, query, sanitization, test case, scope, and evidence-manifest fields without payload execution or database access.", "notProved": ["SQL injection", "query execution", "data exposure"]},
+        {"id": "performing-second-order-sql-injection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SQLMap, databases, endpoints, servers, browsers, payloads, sessions, credentials, and production applications external.", "notProved": ["stored payload", "blind extraction", "vulnerability"]},
+        {"id": "performing-second-order-sql-injection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain parameterization, input validation, query review, secure testing, logging, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "exploitability", "remediation effectiveness"]},
+        {"id": "performing-second-order-sql-injection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application/database ownership, legal/data handling review, bounded test scope, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live exploit", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-service-account-audit",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-service-account-audit/SKILL.md", "sha256": "54f2bf60cfcbcb6fd1c880b582c481ea2ed8cf6eebea3153e1235baf087e1de7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Service Account Audit:L30"]},
+      "components": [
+        {"id": "performing-service-account-audit::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed service-account, platform, owner, privilege, dependency, rotation, interactive-use, review, and evidence-manifest fields without directory queries.", "notProved": ["account inventory", "orphan status", "over-privilege"]},
+        {"id": "performing-service-account-audit::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Active Directory, cloud IAM, databases, applications, PAM, secrets stores, directories, credentials, and production authorities external.", "notProved": ["discovery", "dependency truth", "access state"]},
+        {"id": "performing-service-account-audit::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain service-account lifecycle, ownership, least privilege, dependency mapping, gMSA, rotation, and defensive governance guidance as advisory.", "notProved": ["audit completeness", "risk truth", "remediation"]},
+        {"id": "performing-service-account-audit::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application and account ownership, legal/privacy review, dependency validation, change approval, escalation, and remediation decisions.", "notProved": ["authorization", "live audit", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-service-account-credential-rotation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-service-account-credential-rotation/SKILL.md", "sha256": "9d76acb1a44dccd8378bbfb2cb1e162abd347128e8b10d601623a097fa58a2b5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Service Account Credential Rotation:L58"]},
+      "components": [
+        {"id": "performing-service-account-credential-rotation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed service-account, secret version, rotation schedule, dependency, consumer, grace period, rollback, owner, and evidence-manifest fields without secret mutation.", "notProved": ["credential rotation", "secret propagation", "service continuity"]},
+        {"id": "performing-service-account-credential-rotation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, CyberArk, AD, cloud IAM, databases, CI/CD, and credential authorities external.", "notProved": ["secret state", "revocation", "application access"]},
+        {"id": "performing-service-account-credential-rotation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain credential lifecycle, gMSA, key management, dependency mapping, grace periods, rollback, and defensive rotation guidance as advisory.", "notProved": ["rotation success", "secret safety", "control effectiveness"]},
+        {"id": "performing-service-account-credential-rotation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, key custody, account and service ownership, change approval, maintenance window, rollback, analyst validation, revocation, and incident decisions.", "notProved": ["authorization", "live rotation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-soc2-type2-audit-preparation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-soc2-type2-audit-preparation/SKILL.md", "sha256": "8d94fe1449f575b41c7d0ffe8784555a897640a0b1203179d748209a9526fa64", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SOC 2 Type II Audit Preparation:L37"]},
+      "components": [
+        {"id": "performing-soc2-type2-audit-preparation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Trust Services Criteria, control, period, owner, evidence, test, exception, provenance, and approval-manifest fields without provider or auditor access.", "notProved": ["control operation", "evidence completeness", "SOC 2 opinion"]},
+        {"id": "performing-soc2-type2-audit-preparation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS, Azure, GCP, Okta, GitHub, Jira, cloud APIs, identity systems, HR systems, CPA firms, and audit authorities external.", "notProved": ["compliance posture", "evidence truth", "attestation"]},
+        {"id": "performing-soc2-type2-audit-preparation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain AICPA Trust Services Criteria, control mapping, gap assessment, evidence hygiene, and audit-readiness guidance as advisory.", "notProved": ["control effectiveness", "audit result", "compliance conclusion"]},
+        {"id": "performing-soc2-type2-audit-preparation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require management, control-owner, privacy/legal, evidence-custodian, and CPA-authority decisions on scope, exceptions, approvals, and disclosure.", "notProved": ["authorization", "audit approval", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-soc-tabletop-exercise",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-soc-tabletop-exercise/SKILL.md", "sha256": "2a203e90eb207b23e7a09b4df58480154d139b09a6bfae4d6153c43617762051", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SOC Tabletop Exercise:L34"]},
+      "components": [
+        {"id": "performing-soc-tabletop-exercise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed scenario, inject, participant, role, timestamp, decision, action, communication, scope, and exercise-evidence fields without live incident access.", "notProved": ["incident detection", "triage", "response efficacy"]},
+        {"id": "performing-soc-tabletop-exercise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Splunk, CrowdStrike, endpoints, authentication, networks, production systems, live incidents, and security telemetry external.", "notProved": ["alert truth", "incident scope", "containment"]},
+        {"id": "performing-soc-tabletop-exercise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SOC process rehearsal, incident command, escalation, communications, legal/HR/PR coordination, and defensive response guidance as advisory.", "notProved": ["readiness", "analyst performance", "recovery"]},
+        {"id": "performing-soc-tabletop-exercise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require SOC, IT, legal, HR, communications, executive, and incident-lead approval of scenario authority, injects, decisions, notification, containment, and remediation.", "notProved": ["authorization", "live exercise result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-ssl-stripping-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-stripping-attack/SKILL.md", "sha256": "a7c0156052fa400fdd7ac8eb3f60752e969386126e0a4165d79b47066fe7c8c1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SSL Stripping Attack:L32"]},
+      "components": [
+        {"id": "performing-ssl-stripping-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed TLS, HSTS, certificate, route, policy, test-account, scope, authorization, and evidence-manifest fields without interception or traffic manipulation.", "notProved": ["downgrade", "credential interception", "TLS control"]},
+        {"id": "performing-ssl-stripping-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Bettercap, sslstrip, mitmproxy, ARP spoofing, IP forwarding, networks, browsers, Wireshark, credentials, and production applications external.", "notProved": ["MITM position", "traffic behavior", "data exposure"]},
+        {"id": "performing-ssl-stripping-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain TLS configuration, HSTS, certificate validation, downgrade resistance, browser policy, monitoring, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "HSTS effectiveness", "detection efficacy"]},
+        {"id": "performing-ssl-stripping-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application/network ownership, test accounts, legal/privacy review, change window, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live attack", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, database, mail, SIEM, EDR, SCADA, HMI, PLC, production, or audit-authority state is proved.",
+    "No purple-team execution, ransomware incident, Covenant C2 activity, SCADA/HMI assessment, SQL injection, service-account discovery or rotation, SOC 2 compliance, SOC incident response, SSL stripping, credential interception, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, audit opinion, or disclosure decision is proved.",
+    "No security, privacy, operational, physical, safety, resilience, or compliance outcome is proved."
+  ]
+}
