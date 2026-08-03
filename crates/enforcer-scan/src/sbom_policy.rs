@@ -228,7 +228,10 @@ mod tests {
             serde_json::from_str(&serde_json::to_string(&original).map_err(|e| e.to_string())?)
                 .map_err(|error| error.to_string())?;
         tampered.metadata.lockfile_sha256 = "0".repeat(64);
-        assert!(validate(&tampered).is_err());
+        assert_eq!(
+            validate(&tampered),
+            Err("SBOM serial number does not bind the lockfile digest".to_owned())
+        );
         Ok(())
     }
 }
