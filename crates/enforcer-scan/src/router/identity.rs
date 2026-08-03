@@ -168,10 +168,7 @@ pub(crate) fn canonical_scan_family_disposition(id: LanguageId) -> Option<ScanFa
 fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDisposition {
     let mut mapped = None;
     for matcher in matchers.iter().copied() {
-        let DetectionMatcher::Extension(extension) = matcher else {
-            return ScanFamilyDisposition::Unsupported;
-        };
-        let Some(family) = scan_family_for_extension(extension) else {
+        let Ok(Some(family)) = scan_family_for_matcher(matcher) else {
             return ScanFamilyDisposition::Unsupported;
         };
         if mapped.is_some_and(|mapped| mapped != family) {
@@ -185,11 +182,22 @@ fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDispositi
     )
 }
 
-fn scan_family_for_extension(extension: &str) -> Option<LanguageFamily> {
-    let path = RelPath::from_str(&format!("__ul06_scan_family.{extension}")).ok()?;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ScanFamilyProjectionError {
+    InvalidSyntheticPath,
+}
+
+fn scan_family_for_matcher(
+    matcher: DetectionMatcher,
+) -> Result<Option<LanguageFamily>, ScanFamilyProjectionError> {
+    let DetectionMatcher::Extension(extension) = matcher else {
+        return Ok(None);
+    };
+    let path = RelPath::from_str(&format!("__ul06_scan_family.{extension}"))
+        .map_err(|_| ScanFamilyProjectionError::InvalidSyntheticPath)?;
     match super::classify(&path) {
-        LanguageFamily::Unknown => None,
-        family => Some(family),
+        LanguageFamily::Unknown => Ok(None),
+        family => Ok(Some(family)),
     }
 }
 
@@ -348,6 +356,7 @@ mod scan_family_tests {
     use super::{scan_family_disposition, ScanFamilyDisposition};
     use enforcer_domain::language_types::DetectionMatcher;
     use enforcer_domain::scan_types::LanguageFamily;
+    use enforcer_syntax::parsers::Language;
     use enforcer_syntax::registry::language_registry;
 
     #[test]
@@ -414,19 +423,25 @@ mod scan_family_tests {
     }
 
     #[test]
-    fn config_json_and_yaml_remain_unsupported_without_canonical_matchers() -> Result<(), String> {
-        for name in ["ConfigJson", "ConfigYaml"] {
+    fn config_json_and_yaml_remain_unsupported_without_canonical_matchers() {
+        for parser in [Language::ConfigJson, Language::ConfigYaml] {
             let record = language_registry()
                 .iter()
-                .find(|record| record.canonical_name().to_string() == name)
-                .ok_or_else(|| format!("missing reviewed identity {name}"))?;
+                .find(|record| record.parser() == parser);
+            assert_eq!(
+                record.map(|record| record.parser()),
+                Some(parser),
+                "missing reviewed parser identity"
+            );
+            let Some(record) = record else {
+                continue;
+            };
             assert!(record.matchers().is_empty());
             assert_eq!(
                 scan_family_disposition(record.matchers()),
                 ScanFamilyDisposition::Unsupported
             );
         }
-        Ok(())
     }
 }
 
