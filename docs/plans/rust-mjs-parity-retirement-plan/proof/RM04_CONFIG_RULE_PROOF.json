@@ -3,8 +3,13 @@
   "workpackId": "RM04",
   "artifactId": "RM04-C2-18-BOUNDED-EVIDENCE",
   "artifactState": "bounded-evidence-only",
-  "materializedAtCandidateSha": "f8e2896fa144fbfd0bceaef962ae735b50d87cdc",
+  "materializedAtCandidateSha": "286ddf6908753853ab55f24c0aca4a0d4d87a633",
   "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+  "evidenceProvenance": {
+    "sourceArtifactCommitSha": "5a6e597fde6959139e40aeb290d712da23d30adf",
+    "sourceArtifactMaterializationBaseSha": "f8e2896fa144fbfd0bceaef962ae735b50d87cdc",
+    "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d"
+  },
   "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
   "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
   "overlay": {
@@ -129,11 +134,54 @@
         "crates/enforcer-config/src/boundary/serde.rs:WirePrivateRustTestModuleAllowlistEntry",
         "crates/enforcer-config/tests/proof_fixtures.rs:typed-field coverage"
       ],
-      "boundedResult": "partial-config-lockdown-only",
+      "boundedResult": "bounded-typed-schema-evidence",
       "closureState": "not-closed",
-      "evidenceCases": ["config-lockdown-positive"],
-      "unresolved": ["exact overlay schema acceptance and rejection corpus"],
-      "doesNotProve": ["typed schema parity", "public parity", "aggregate parity", "matrix closure"]
+      "evidenceCases": [
+        "overlay-effect-schema",
+        "overlay-policy-config-lockdown",
+        "overlay-json-schema-corpus",
+        "candidate-rust-proof"
+      ],
+      "evidenceRuns": [
+        {
+          "id": "rm04-c2-17-overlay-effect-20260802T0001Z",
+          "authority": "overlay",
+          "status": "passed"
+        },
+        {
+          "id": "rm04-c2-17-overlay-policy-20260802T0002Z",
+          "authority": "overlay",
+          "status": "passed"
+        },
+        {
+          "id": "rm04-c2-17-overlay-json-20260802T0009Z",
+          "authority": "overlay",
+          "status": "passed"
+        },
+        {
+          "id": "rm04-c2-17-candidate-rust-proof-20260802T0011Z",
+          "authority": "candidate",
+          "status": "passed",
+          "passed": 21,
+          "failed": 0
+        }
+      ],
+      "corpusSha256": "6d3c090e3445836d1a457cf1af89471bb5487a1c0f6704197b6b6e15004fdb7d",
+      "boundedObservations": [
+        "Complete ownerFile/moduleFile/moduleName accepted and preserved.",
+        "Each missing ownerFile/moduleFile/moduleName field was rejected.",
+        "Numeric moduleName was rejected.",
+        "Extra nested field was accepted by Effect but rejected by JSON."
+      ],
+      "doesNotProve": [
+        "typed schema parity",
+        "candidate runtime equivalence to overlay",
+        "extra-field rejection parity",
+        "public parity",
+        "aggregate parity",
+        "matrix disposition",
+        "closure"
+      ]
     },
     {
       "id": "C2-18",
@@ -240,14 +288,14 @@
     }
   },
   "unresolved": [
-    "C2-17 exact overlay typed-schema acceptance/rejection corpus is not included in this packet.",
     "C2-18 remains not closed; this is bounded overlay evidence, not aggregate parity.",
     "Public 267 parity was not adjudicated by these overlay-specific runs.",
-    "The evidence candidate SHA e19076353d8cfc945b138311de9d4738021ec05d differs from the materialization base f8e2896fa144fbfd0bceaef962ae735b50d87cdc."
+    "The current materialization base is 286ddf6908753853ab55f24c0aca4a0d4d87a633; the evidence candidate is e19076353d8cfc945b138311de9d4738021ec05d and the source artifact provenance base is f8e2896fa144fbfd0bceaef962ae735b50d87cdc."
   ],
   "proves": [
     "For the listed exact fixtures, overlay and candidate positive/negative required-tests exit classes and TEST-2.2 line-3 findings match.",
     "For the listed exact config-lockdown positive fixture, overlay and candidate both pass with no findings.",
+    "For C2-17, the exact overlay typed-schema corpus and candidate Rust proof passed the listed bounded cases.",
     "The private overlay behavior is recorded separately from the public oracle, with exact run IDs and artifact hashes."
   ],
   "doesNotProve": [
@@ -255,7 +303,11 @@
     "equal-or-stricter aggregate",
     "RM04 closure",
     "C2-17 typed-schema parity",
+    "candidate runtime equivalence to overlay",
+    "extra-field rejection parity",
+    "matrix disposition",
     "C2-18 matrix closure",
+    "closure",
     "cutover or retirement"
   ]
 }
