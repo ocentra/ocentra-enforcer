@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-77",
+  "baselineCommit": "284df8526379a6dd1d29b8982fe8d06305c8d4f6",
+  "family": "Static authorized assessment, governance, identity, OT, and validation evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-packet-injection-attack",
+      "performing-paste-site-monitoring-for-credentials",
+      "performing-physical-intrusion-assessment",
+      "performing-plc-firmware-security-analysis",
+      "performing-power-grid-cybersecurity-assessment",
+      "performing-privacy-impact-assessment",
+      "performing-privileged-account-access-review",
+      "performing-privileged-account-discovery",
+      "performing-privilege-escalation-assessment",
+      "performing-purple-team-atomic-testing"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-76."
+  },
+  "accounting": {"acceptedPrior": 760, "proposed": 10, "overlap": 0, "combined": 770, "protectedExcluded": 1},
+  "skills": [
+    {
+      "catalogId": "performing-packet-injection-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-packet-injection-attack/SKILL.md", "sha256": "5c953fc86f45df313de02d82be3800c94b5d0cc2661dfd6006e3b48f1ea22858", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Packet Injection Attack:L31"]},
+      "components": [
+        {"id": "performing-packet-injection-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed packet, protocol, route, payload, target, authorization, scope, stop-condition, and evidence-manifest fields without network access or packet construction.", "notProved": ["packet injection", "spoofing", "detection"]},
+        {"id": "performing-packet-injection-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Scapy, hping3, Nemesis, network interfaces, hosts, firewalls, IDS/IPS, sessions, and production networks external.", "notProved": ["live injection", "traffic behavior", "security outcome"]},
+        {"id": "performing-packet-injection-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized packet-testing, anti-spoofing, resilience, IDS/IPS, and defensive network-hardening guidance as advisory.", "notProved": ["rule efficacy", "coverage", "containment"]},
+        {"id": "performing-packet-injection-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, target ownership, legal/safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live testing", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-paste-site-monitoring-for-credentials",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-paste-site-monitoring-for-credentials/SKILL.md", "sha256": "fb3dde4ddaab4f448c30cdeed671bb29d2632bf41bd7c7b30b847dffe41d8965", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Paste Site Monitoring for Credentials:L62"]},
+      "components": [
+        {"id": "performing-paste-site-monitoring-for-credentials::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed source, indicator, credential-pattern, timestamp, confidence, owner, handling, and evidence-manifest fields without collection or credential access.", "notProved": ["paste-site content", "credential leak", "source truth"]},
+        {"id": "performing-paste-site-monitoring-for-credentials::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Pastebin, GitHub Gists, paste APIs, dark-web channels, search, feeds, credentials, endpoints, and live Internet authorities external.", "notProved": ["monitoring", "freshness", "data exposure"]},
+        {"id": "performing-paste-site-monitoring-for-credentials::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain credential-leak triage, source handling, notification, account protection, and defensive incident-response guidance as advisory.", "notProved": ["indicator validity", "attribution", "response effectiveness"]},
+        {"id": "performing-paste-site-monitoring-for-credentials::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, privacy/legal review, source terms, credential custody, analyst validation, escalation, disclosure, and remediation decisions.", "notProved": ["authorization", "live collection", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-physical-intrusion-assessment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-physical-intrusion-assessment/SKILL.md", "sha256": "fe1caff351be9cb868e9d97359fccd67678968a6a303936f9b9694d3dcd38cf4", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Physical Intrusion Assessment:L37"]},
+      "components": [
+        {"id": "performing-physical-intrusion-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed facility, access-control, zone, badge, lock, test-plan, owner, safety, scope, and evidence-manifest fields without physical access.", "notProved": ["facility access", "badge cloning", "lock bypass"]},
+        {"id": "performing-physical-intrusion-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep facilities, guards, RFID tools, locks, rogue devices, cameras, removable media, and physical security systems external.", "notProved": ["intrusion", "control effectiveness", "network access"]},
+        {"id": "performing-physical-intrusion-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain physical-security assessment, access control, guard procedures, evidence handling, and defensive hardening guidance as advisory.", "notProved": ["finding validity", "coverage", "containment"]},
+        {"id": "performing-physical-intrusion-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require signed authorization, facility ownership, legal/ethics/privacy/safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live entry", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-plc-firmware-security-analysis",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-plc-firmware-security-analysis/SKILL.md", "sha256": "f5eb45d2da16ec948ef370cc87efd0481180582c10d3c5f27e56ed9825909cdc", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing PLC Firmware Security Analysis:L37"]},
+      "components": [
+        {"id": "performing-plc-firmware-security-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed PLC, firmware, platform, version, hash, integrity, source, authorization, and evidence-manifest fields without extraction or execution.", "notProved": ["firmware integrity", "hardcoded credential", "vulnerability"]},
+        {"id": "performing-plc-firmware-security-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep PLCs, TIA Portal, Studio 5000, EcoStruxure, binwalk, Ghidra, IDA, debuggers, emulators, and production controls external.", "notProved": ["firmware extraction", "dynamic analysis", "process impact"]},
+        {"id": "performing-plc-firmware-security-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain offline firmware review, integrity comparison, secure update, IEC 62443, supply-chain, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "compromise", "safety outcome"]},
+        {"id": "performing-plc-firmware-security-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset ownership, lab or backup scope, legal/data/safety review, analyst validation, disclosure, rollback, and recovery decisions.", "notProved": ["authorization", "live PLC access", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-power-grid-cybersecurity-assessment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-power-grid-cybersecurity-assessment/SKILL.md", "sha256": "e70aa6c49fe609d12ae640a011cd0056c5fcf033750079e6e5a7493ad1fe8068", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Power Grid Cybersecurity Assessment:L38"]},
+      "components": [
+        {"id": "performing-power-grid-cybersecurity-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed generation, transmission, distribution, EMS, SCADA, protocol, zone, control, owner, safety, and evidence-manifest fields without operational access.", "notProved": ["grid state", "asset exposure", "process safety"]},
+        {"id": "performing-power-grid-cybersecurity-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep substations, SCADA, EMS, DNP3, IEC 61850, ICCP, passive monitors, networks, safety systems, and production authorities external.", "notProved": ["discovery", "traffic truth", "grid impact"]},
+        {"id": "performing-power-grid-cybersecurity-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain NERC CIP, power-grid architecture, segmentation, resilience, incident response, and defensive assessment guidance as advisory.", "notProved": ["coverage", "risk truth", "recovery"]},
+        {"id": "performing-power-grid-cybersecurity-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, facility/process ownership, legal/data/safety review, change approval, stop conditions, analyst validation, containment, and recovery decisions.", "notProved": ["authorization", "live assessment", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-privacy-impact-assessment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-privacy-impact-assessment/SKILL.md", "sha256": "b906c778bad53bc8ca265385e195018c25686371b12f7c1d3a02aa5b0421befa", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Privacy Impact Assessment:L36"]},
+      "components": [
+        {"id": "performing-privacy-impact-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed processing, data-flow, purpose, category, retention, jurisdiction, risk, owner, control, and evidence-manifest fields without personal-data access.", "notProved": ["data-flow truth", "privacy risk", "compliance"]},
+        {"id": "performing-privacy-impact-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep privacy platforms, DPO systems, data stores, production applications, regulatory authorities, and live personal-data processing external.", "notProved": ["processing activity", "regulatory posture", "data exposure"]},
+        {"id": "performing-privacy-impact-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain GDPR, CCPA/CPRA, NIST Privacy Framework, DPIA, data minimization, and privacy-risk guidance as advisory.", "notProved": ["legal conclusion", "risk acceptance", "control effectiveness"]},
+        {"id": "performing-privacy-impact-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require DPO or privacy-team authorization, data-owner validation, legal/privacy review, analyst interpretation, consultation, approval, and remediation decisions.", "notProved": ["authorization", "privacy approval", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-privileged-account-access-review",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-privileged-account-access-review/SKILL.md", "sha256": "2192a16cd840047015268883ad90f1f5e8aac72e8aaa4fd1c056a07a3768ff52", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Privileged Account Access Review:L30"]},
+      "components": [
+        {"id": "performing-privileged-account-access-review::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed account, role, entitlement, owner, justification, last-use, review, SLA, exception, and evidence-manifest fields without directory access.", "notProved": ["account inventory", "least privilege", "access need"]},
+        {"id": "performing-privileged-account-access-review::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SailPoint, Saviynt, PAM, directories, cloud IAM, applications, sessions, credentials, and revocation authorities external.", "notProved": ["access truth", "revocation", "control effectiveness"]},
+        {"id": "performing-privileged-account-access-review::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain privileged-access governance, segregation of duties, review cadence, escalation, and defensive least-privilege guidance as advisory.", "notProved": ["review completion", "ownership", "remediation"]},
+        {"id": "performing-privileged-account-access-review::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account ownership, reviewer and manager decisions, legal/privacy review, exception approval, escalation, and remediation decisions.", "notProved": ["authorization", "live access review", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-privileged-account-discovery",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-privileged-account-discovery/SKILL.md", "sha256": "d789971532502f74e61b4b7b7384de14c524e95cfaaf81013f61ef90a7007180", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Privileged Account Discovery:L30"]},
+      "components": [
+        {"id": "performing-privileged-account-discovery::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed privileged-account, platform, role, owner, source, timestamp, classification, authorization, and evidence-manifest fields without enumeration.", "notProved": ["account discovery", "privilege truth", "PAM onboarding"]},
+        {"id": "performing-privileged-account-discovery::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep IAM, Active Directory, cloud, database, application, PAM, endpoint, directory, and production identity authorities external.", "notProved": ["enumeration", "account completeness", "access state"]},
+        {"id": "performing-privileged-account-discovery::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain privileged-account inventory, risk classification, onboarding, monitoring, and identity-governance guidance as advisory.", "notProved": ["inventory coverage", "risk truth", "remediation"]},
+        {"id": "performing-privileged-account-discovery::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, legal/privacy review, data handling, analyst validation, escalation, and access-remediation decisions.", "notProved": ["authorization", "live discovery", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-privilege-escalation-assessment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-privilege-escalation-assessment/SKILL.md", "sha256": "f2f2f403b57075150d223ca43c58a613da44cafb4b0f1ce44025166e0b12f56b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Privilege Escalation Assessment:L40"]},
+      "components": [
+        {"id": "performing-privilege-escalation-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed host, OS, account, permission, service, container, cloud, vector, scope, authorization, and evidence-manifest fields without endpoint access or exploitation.", "notProved": ["escalation path", "credential exposure", "privilege gain"]},
+        {"id": "performing-privilege-escalation-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep linPEAS, winPEAS, LSE, GTFOBins, kernel exploits, hosts, containers, Kubernetes, cloud metadata, credentials, and EDR external.", "notProved": ["enumeration", "exploitation", "compromise"]},
+        {"id": "performing-privilege-escalation-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OS hardening, service and permission review, container/cloud controls, detection, rollback, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "detection efficacy", "business impact"]},
+        {"id": "performing-privilege-escalation-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, rollback, containment, and remediation decisions.", "notProved": ["authorization", "live exploitation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-purple-team-atomic-testing",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-purple-team-atomic-testing/SKILL.md", "sha256": "be2bb94082c65abca9492938020e498b80d0e1e637f278411f2329a4d522e1aa", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Purple Team Atomic Testing:L47"]},
+      "components": [
+        {"id": "performing-purple-team-atomic-testing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed ATT&CK technique, atomic-test metadata, scope, authorization, expected telemetry, cleanup, owner, and evidence-manifest fields without test execution.", "notProved": ["atomic execution", "telemetry", "detection"]},
+        {"id": "performing-purple-team-atomic-testing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Atomic Red Team, Invoke-AtomicRedTeam, PowerShell, CI runners, endpoints, SIEM, EDR, networks, and production systems external.", "notProved": ["attack technique", "alert generation", "control efficacy"]},
+        {"id": "performing-purple-team-atomic-testing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ATT&CK mapping, purple-team planning, detection engineering, cleanup, and defensive validation guidance as advisory.", "notProved": ["coverage", "detection efficacy", "remediation"]},
+        {"id": "performing-purple-team-atomic-testing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, legal/safety review, risk acceptance, stop conditions, cleanup approval, analyst validation, and remediation decisions.", "notProved": ["authorization", "live test", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, physical facility, personal-data system, SIEM, EDR, OT, grid, or production telemetry is proved.",
+    "No packet injection, credential monitoring, physical intrusion, PLC firmware analysis, power-grid assessment, privacy assessment, privileged-account discovery or review, privilege escalation, atomic execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security, privacy, operational, physical, or safety outcome is proved."
+  ]
+}
