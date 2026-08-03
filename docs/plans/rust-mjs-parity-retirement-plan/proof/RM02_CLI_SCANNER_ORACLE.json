@@ -1,0 +1,2590 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM02",
+  "artifactId": "RM02-CLI-SCANNER-ORACLE-20260803",
+  "artifactState": "bounded-evidence-only",
+  "closureClaim": false,
+  "materializedAtCandidateSha": "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04",
+  "sourceReport": {
+    "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "currentMaterializationBaseSha": "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
+    "evidenceCandidateShas": [
+      "e19076353d8cfc945b138311de9d4738021ec05d",
+      "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04"
+    ],
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayCommits": [
+      "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+    ],
+    "rm00AuthoritySha": "83f9cba1679d02734fa624f7441768577c057a715e802dbdc1bcdeea97f65247",
+    "rm01InventorySha": "adc71f7e17a51de33ac72a47eb10b1fb0c91d1e9b75e51dd2514b4fe78c99b59",
+    "rm02WorkpackSha": "3f90dd764b364bbfdfa3ddb4c7fafc3c4ea7e59e00d3f4a32bf369da911e37a0",
+    "evidenceLevel": "bounded-cli-help-only"
+  },
+  "authorityPinDiscrepancy": {
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
+    "currentMaterializationBaseSha": "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04",
+    "status": "unresolved-boss-input-for-RM08",
+    "doesNotProve": "Current candidate is authority-approved or equivalent to historical RM00 input."
+  },
+  "sourceEvidence": [
+    {
+      "runId": "rm02-run-02",
+      "status": "pass",
+      "observation": "Harness tests 3/3; not parity evidence."
+    },
+    {
+      "runId": "rm02-run-03/04/05",
+      "status": "superseded-environment-only",
+      "observation": "ERR_MODULE_NOT_FOUND effect; not verdict."
+    },
+    {
+      "runId": "20260803005147-9365d580",
+      "status": "failed-before-install",
+      "observation": "Missing effect; no behavior verdict."
+    },
+    {
+      "runId": "20260803005610-c6fc03d4",
+      "status": "pass",
+      "command": "help probe",
+      "observation": "Exact-267 after cached npm ci; effect 3.21.4; package-lock SHA 26592AEA82EE0829B5641550C26FBFC3DEF285C5F9AA4139F0F5A613C27AF5C1."
+    },
+    {
+      "runId": "20260803005611-d4e1380c",
+      "status": "pass",
+      "command": "verify-help probe"
+    },
+    {
+      "runId": "20260803005611-d46bb99e",
+      "status": "pass",
+      "command": "rust-rules-help probe"
+    },
+    {
+      "runId": "20260803005727-5cee6f7d",
+      "status": "pass",
+      "command": "cargo run -p enforcer-cli -- --help"
+    },
+    {
+      "runId": "20260803010004-5ed18693",
+      "status": "pass",
+      "command": "verify --help"
+    },
+    {
+      "runId": "20260803010006-f9d18346",
+      "status": "pass",
+      "command": "scan --help"
+    }
+  ],
+  "rows": [
+    {
+      "id": "C1-CLI-001",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-main.mjs:main",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Parses argv, selects command, and routes bare/default command behavior.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/src/cli.rs:Cli",
+            "crates/enforcer-cli/src/cli.rs:parser tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the same argv corpus against both exact SHAs.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803005610-c6fc03d4",
+              "status": "pass",
+              "label": "public help"
+            }
+          ],
+          "observation": "Exact-267 disposable help smoke only."
+        },
+        "candidate": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803005727-5cee6f7d",
+              "status": "pass",
+              "label": "candidate help"
+            }
+          ],
+          "observation": "Exact-e190 disposable help smoke only; exit 0, diagnostics 0."
+        }
+      }
+    },
+    {
+      "id": "C1-CLI-002",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:COMMAND_HANDLERS",
+            "src/cli-command-dispatch.mjs:runCliMain",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Unknown, missing, or conflicting arguments produce usage failure rather than finding failure.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/src/cli.rs:Cli",
+            "crates/enforcer-cli/tests/cli_integration.rs:no_scope_at_all_is_a_usage_error"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare exit code, stderr, and normalized diagnostics.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "C1-CLI-003",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:runCliMain",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Success, violations, usage, config, and internal outcomes map to process exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:to_process_exit_code",
+            "crates/enforcer-cli/src/main.rs:run",
+            "crates/enforcer-cli/tests/cli_integration.rs:success_exit_code_maps_to_process_code_zero"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run an exhaustive exit-class fixture matrix.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "C1-CLI-004",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCheckCommand",
+            "src/cli-command-dispatch.mjs:handleScanCommand",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "A pass fixture exits zero; a failing fixture exits nonzero with findings.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/src/commands.rs:run_verify",
+            "crates/enforcer-cli/tests/cli_integration.rs:pass_fixture_paths_mode_exits_zero",
+            "crates/enforcer-cli/tests/cli_integration.rs:fail_fixture_paths_mode_exits_non_zero_with_violations_class"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Replay identical public/native fixtures.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "C1-CLI-005",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleRunCommand",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "Memory CLI arguments are forwarded without semantic corruption.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run_memory_cli",
+            "crates/enforcer-cli/tests/cli_integration.rs:memory_cli_forwards_hyphenated_index_flags_to_the_real_binary"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Compare argument forwarding and output.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "C1-CLI-006",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "mcp/ocentra-enforcer-mcp.mjs",
+            "tests/cli-spawn.mjs"
+          ]
+        }
+      ],
+      "observableBehavior": "The CLI serve entrypoint launches the MCP stdio runtime.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/main.rs:run_serve",
+            "crates/enforcer-cli/tests/cli_integration.rs:serve_mode_responds_to_initialize_over_stdio"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Spawn both binaries and compare initialize/EOF behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-001",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[no-zod-source]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:no-zod-source"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check no-zod-source resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[no-zod-source]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:no-zod-source"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute no-zod-source pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-002",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[no-naked-domain-strings]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:no-naked-domain-strings"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check no-naked-domain-strings resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[no-naked-domain-strings]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:no-naked-domain-strings"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute no-naked-domain-strings pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-003",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[no-test-doubles]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:no-test-doubles"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check no-test-doubles resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[no-test-doubles]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:no-test-doubles"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute no-test-doubles pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-004",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[weak-assertions]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:weak-assertions"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check weak-assertions resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[weak-assertions]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:weak-assertions"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute weak-assertions pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-005",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[skipped-focused-tests]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:skipped-focused-tests"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check skipped-focused-tests resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[skipped-focused-tests]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:skipped-focused-tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute skipped-focused-tests pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-006",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[validation-bypass]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:validation-bypass"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check validation-bypass resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[validation-bypass]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:validation-bypass"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute validation-bypass pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-007",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[placeholder-implementation]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:placeholder-implementation"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check placeholder-implementation resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[placeholder-implementation]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:placeholder-implementation"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute placeholder-implementation pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-008",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[reexports]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:reexports"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check reexports resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[reexports]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:reexports"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute reexports pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-009",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[cross-platform-script-commands]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:cross-platform-script-commands"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check cross-platform-script-commands resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[cross-platform-script-commands]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:cross-platform-script-commands"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute cross-platform-script-commands pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-010",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[generated-artifacts]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:generated-artifacts"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check generated-artifacts resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[generated-artifacts]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:generated-artifacts"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute generated-artifacts pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-011",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[secrets]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:secrets"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check secrets resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[secrets]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:secrets"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute secrets pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-012",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[rust-string-boundaries]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:rust-string-boundaries"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check rust-string-boundaries resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[rust-string-boundaries]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:rust-string-boundaries"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute rust-string-boundaries pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-013",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[source-shape]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:source-shape"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check source-shape resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[source-shape]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:source-shape"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute source-shape pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-014",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[required-tests]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:required-tests"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check required-tests resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[required-tests]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:required-tests"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute required-tests pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-015",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[single-source-contracts]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:single-source-contracts"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check single-source-contracts resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[single-source-contracts]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:single-source-contracts"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute single-source-contracts pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-016",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[dependency-policy]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:dependency-policy"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check dependency-policy resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[dependency-policy]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:dependency-policy"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute dependency-policy pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-017",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[sbom]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:sbom"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check sbom resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[sbom]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:sbom"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute sbom pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-018",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[literal-risk]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:literal-risk"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check literal-risk resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[literal-risk]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:literal-risk"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute literal-risk pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-019",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[ai-rule-index]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:ai-rule-index"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check ai-rule-index resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[ai-rule-index]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:ai-rule-index"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute ai-rule-index pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-020",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[import-boundaries]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:import-boundaries"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check import-boundaries resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[import-boundaries]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:import-boundaries"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute import-boundaries pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-021",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/check-metadata.mjs:CHECK_METADATA[architecture-policy]",
+            "src/checks.mjs:runEnforcerCheck",
+            "tests/enforcer-checks.test.mjs:architecture-policy"
+          ]
+        }
+      ],
+      "observableBehavior": "The public named check architecture-policy resolves to its registered rule/check family, applies its documented scope, and reports its expected finding class.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-rules/src/registry.rs:RuleRegistry[architecture-policy]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:architecture-policy"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Execute architecture-policy pass/fail fixtures at both exact SHAs and compare rule selection, findings, diagnostics, and exit behavior.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-ENH-MUTATION-RISK",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only named check; no public frozen CHECK_METADATA entry for mutation-risk"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust exposes the additional named check mutation-risk through its native policy registry.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:NAMED_CHECKS[mutation-risk]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:mutation-risk"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Verify mutation-risk is an isolated Rust enhancement and cannot change public named-check verdicts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-ENH-DOCS-COMPLETENESS",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only named check; no public frozen CHECK_METADATA entry for docs-completeness"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust exposes the additional named check docs-completeness through its native policy registry.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:NAMED_CHECKS[docs-completeness]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:docs-completeness"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Verify docs-completeness is an isolated Rust enhancement and cannot change public named-check verdicts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-ENH-CONFIG-LOCKDOWN",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only named check; no public frozen CHECK_METADATA entry for config-lockdown"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust exposes the additional named check config-lockdown through its native policy registry.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:NAMED_CHECKS[config-lockdown]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:config-lockdown"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Verify config-lockdown is an isolated Rust enhancement and cannot change public named-check verdicts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-NAMED-CHECK-ENH-WAIVER-POLICY",
+      "family": "scanner-rules-policy-config",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only named check; no public frozen CHECK_METADATA entry for waiver-policy"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust exposes the additional named check waiver-policy through its native policy registry.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-mcp/src/boundary/registry.rs:NAMED_CHECKS[waiver-policy]",
+            "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+            "crates/enforcer-cli/tests/cli_integration.rs:waiver-policy"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Verify waiver-policy is an isolated Rust enhancement and cannot change public named-check verdicts.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-001",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleInitCommand",
+            "tests/cli-spawn.mjs:init"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command init accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:init"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public init command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-002",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCodexInstallCommand",
+            "tests/cli-spawn.mjs:codex-install"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command codex-install accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:codex-install"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public codex-install command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-003",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCodexUninstallCommand",
+            "tests/cli-spawn.mjs:codex-uninstall"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command codex-uninstall accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:codex-uninstall"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public codex-uninstall command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-004",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCodexDoctorCommand",
+            "tests/cli-spawn.mjs:codex-doctor"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command codex-doctor accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:codex-doctor"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public codex-doctor command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-005",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleRouteCommand",
+            "tests/cli-spawn.mjs:route"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command route accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:route"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public route command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-006",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleRunCommand",
+            "tests/cli-spawn.mjs:run"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command run accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:run"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public run command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-007",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleRunsCommand",
+            "tests/cli-spawn.mjs:runs"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command runs accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:runs"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public runs command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-008",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleVerifyCommand",
+            "tests/cli-spawn.mjs:verify"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command verify accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:verify"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public verify command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803005611-d4e1380c",
+              "status": "pass",
+              "label": "public verify-help"
+            }
+          ],
+          "observation": "Exact-267 verify-help smoke only."
+        },
+        "candidate": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803010004-5ed18693",
+              "status": "pass",
+              "label": "candidate verify-help"
+            }
+          ],
+          "observation": "Exact-e190 verify-help smoke only; exit 0, diagnostics 0."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-009",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleAdviseCommand",
+            "tests/cli-spawn.mjs:advise"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command advise accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:advise"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public advise command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-010",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCheckCommand",
+            "tests/cli-spawn.mjs:check"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command check accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:check"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public check command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-011",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleExplainCommand",
+            "tests/cli-spawn.mjs:explain"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command explain accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:explain"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public explain command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-012",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleDoctorCommand",
+            "tests/cli-spawn.mjs:doctor"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command doctor accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:doctor"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public doctor command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-013",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "scripts/rust-rules-scan-core-args-command.mjs:parseCommand",
+            "tests/cli-spawn.mjs:scan"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command scan accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:scan"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public scan command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "Public rust-rules-help was not normalized to scan-help; comparison unmeasured."
+        },
+        "candidate": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803010006-f9d18346",
+              "status": "pass",
+              "label": "candidate scan-help"
+            }
+          ],
+          "observation": "Exact-e190 scan-help smoke only; exit 0, diagnostics 0."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-014",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleProofCommand",
+            "tests/cli-spawn.mjs:proof"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command proof accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:proof"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public proof command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-015",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleCoordinationCommand",
+            "tests/cli-spawn.mjs:coordination"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command coordination accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:coordination"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public coordination command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-016",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleLedgerCommand",
+            "tests/cli-spawn.mjs:ledger"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command ledger accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:ledger"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public ledger command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-017",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:handleArchitectureCommand",
+            "tests/cli-spawn.mjs:architecture"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command architecture accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:architecture"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public architecture command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-COMMAND-018",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "public",
+          "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+          "anchors": [
+            "src/cli-command-dispatch.mjs:printHelp",
+            "tests/cli-spawn.mjs:help"
+          ]
+        }
+      ],
+      "observableBehavior": "The frozen public CLI command help accepts documented arguments, performs command-specific routing, and maps usage/findings/internal outcomes to documented output and exit classes.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Command",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:help"
+          ]
+        }
+      ],
+      "initialDisposition": "unknown",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Run the exact public help command corpus against both SHAs, including success, usage, config, and finding fixtures; compare output, exit code, and side effects.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803005610-c6fc03d4",
+              "status": "pass",
+              "label": "public help"
+            }
+          ],
+          "observation": "Exact-267 disposable help smoke only."
+        },
+        "candidate": {
+          "status": "bounded-pass",
+          "runs": [
+            {
+              "runId": "20260803005727-5cee6f7d",
+              "status": "pass",
+              "label": "candidate help"
+            }
+          ],
+          "observation": "Exact-e190 disposable help smoke only; exit 0, diagnostics 0."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-ENH-001",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only CLI surface; no matching frozen public command"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust provides native installer command through install.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Install",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:install"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Exercise install in candidate fixtures and prove it is isolated from the public command contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-ENH-002",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only CLI surface; no matching frozen public command"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust provides native onboarding command through onboard.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Onboard",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:onboard"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Exercise onboard in candidate fixtures and prove it is isolated from the public command contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-ENH-003",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only CLI surface; no matching frozen public command"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust provides native memory CLI forwarding through memory.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Memory",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:memory"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Exercise memory in candidate fixtures and prove it is isolated from the public command contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-ENH-004",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only CLI surface; no matching frozen public command"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust provides native policy command group through policy.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Policy",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:policy"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Exercise policy in candidate fixtures and prove it is isolated from the public command contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    },
+    {
+      "id": "RM01-CLI-ENH-005",
+      "family": "cli-mcp-runtime",
+      "authoritySources": [
+        {
+          "authority": "none",
+          "sha": "none",
+          "anchors": [
+            "candidate-only CLI surface; no matching frozen public command"
+          ]
+        }
+      ],
+      "observableBehavior": "Candidate Rust provides native typed config command group through config.",
+      "rustSources": [
+        {
+          "sha": "e19076353d8cfc945b138311de9d4738021ec05d",
+          "anchors": [
+            "crates/enforcer-cli/src/cli.rs:Config",
+            "crates/enforcer-cli/src/main.rs:dispatch",
+            "crates/enforcer-cli/tests/cli_integration.rs:config"
+          ]
+        }
+      ],
+      "initialDisposition": "intentional-enhancement",
+      "overlayBehaviorId": null,
+      "proofNeeded": "Exercise config in candidate fixtures and prove it is isolated from the public command contract.",
+      "evidenceStatus": "source-inventory-only",
+      "observedResult": "unmeasured",
+      "doesNotProve": [
+        "behavioral parity"
+      ],
+      "evidence": {
+        "public": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        },
+        "candidate": {
+          "status": "unmeasured",
+          "runs": [],
+          "observation": "No accepted exact-SHA executable behavior evidence recorded."
+        }
+      }
+    }
+  ],
+  "unresolved": [
+    "Full CLI argv/usage/exit-class/pass-fail matrix unmeasured.",
+    "Named-check findings and ordered normalized scanner output unmeasured.",
+    "Rust/public rust-rules versus scan identity and wire/output equivalence unmeasured.",
+    "C1-CLI-006 serve/MCP stdio equivalence unmeasured.",
+    "RM00 historical pin versus current materialization is unresolved boss input for RM08.",
+    "C2 scanner/rules/policy/config rows remain RM04-owned and excluded."
+  ],
+  "proves": [
+    "54 exact RM01 CLI IDs are recorded without invented IDs.",
+    "Exact public dependency repair recorded with effect 3.21.4 and package-lock hash.",
+    "Three exact-public and three exact-e190 help probes passed as bounded smoke evidence.",
+    "Source, materialization, and evidence SHAs are separate."
+  ],
+  "doesNotProve": [
+    "Full RM02 CLI/scanner parity or equal-or-stricter behavior.",
+    "Named-check/scanner findings, ordered diagnostics, exit classes, fixtures, serve, or side-effect parity.",
+    "RM02 closure, RM08 authorization, aggregate, cutover, or retirement.",
+    "Historical RM00 candidate pin replaced or accepted."
+  ]
+}
