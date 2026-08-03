@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-55",
+  "baselineCommit": "962c4790766338d055e5a6fd2e08f5b21acdd2de",
+  "family": "Canonical-order mixed threat-intelligence, authorized-assessment, cloud-incident-response, identity-assessment, and red-team skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "building-threat-intelligence-feed-integration",
+      "building-threat-intelligence-platform",
+      "bypassing-authentication-with-forced-browsing",
+      "coercing-authentication-with-coercer-petitpotam",
+      "collecting-indicators-of-compromise",
+      "conducting-cloud-incident-response",
+      "conducting-cloud-penetration-testing",
+      "conducting-domain-persistence-with-dcsync",
+      "conducting-full-scope-red-team-engagement",
+      "conducting-internal-reconnaissance-with-bloodhound-ce"
+    ],
+    "reason": "Deterministic lexicographic next-ten selection after 540 accepted identities; the catalog order intentionally spans threat intelligence, authorized assessment, cloud response, identity assessment, and red-team planning. Native work is limited to supplied typed manifests, with live and third-party authority blocked and advisory and manual authority retained."
+  },
+  "skills": [
+    {
+      "catalogId": "building-threat-intelligence-feed-integration",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-intelligence-feed-integration/SKILL.md", "sha256": "af58c8d74fa9707b298350afcb30e3ec45c77d52144b41ca351b4f57e109c3b7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Threat Intelligence Feed Integration:L34"]},
+      "components": [
+        {"id": "building-threat-intelligence-feed-integration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed feed, IOC, source, timestamp, confidence, provenance, sharing, owner, scope, and evidence-manifest fields.", "notProved": ["feed freshness", "indicator validity", "threat truth"]},
+        {"id": "building-threat-intelligence-feed-integration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep TIPs, TAXII, MISP, OpenCTI, connectors, live feeds, enrichment services, DNS, WHOIS, and network infrastructure external.", "notProved": ["collection", "feed delivery", "detection"]},
+        {"id": "building-threat-intelligence-feed-integration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive feed integration, provenance, confidence, handling, and dissemination guidance as advisory.", "notProved": ["source reliability", "dissemination suitability"]},
+        {"id": "building-threat-intelligence-feed-integration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["analyst approval", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "building-threat-intelligence-platform",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-intelligence-platform/SKILL.md", "sha256": "dce96a0092c5e49a6557eedfdb77c0c26be6b74a2bc63eb593fedae113566186", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Threat Intelligence Platform:L30"]},
+      "components": [
+        {"id": "building-threat-intelligence-platform::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed platform, source, IOC, actor, relationship, confidence, provenance, retention, owner, and evidence-manifest fields.", "notProved": ["platform operation", "source truth", "actor attribution"]},
+        {"id": "building-threat-intelligence-platform::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep TIPs, MISP, OpenCTI, SOAR, AI enrichment, live OSINT, dark-web sources, feeds, and production networks external.", "notProved": ["live collection", "enrichment accuracy", "infrastructure ownership"]},
+        {"id": "building-threat-intelligence-platform::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat-intelligence platform, source-evaluation, uncertainty, and dissemination guidance as advisory.", "notProved": ["platform readiness", "intelligence quality"]},
+        {"id": "building-threat-intelligence-platform::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst interpretation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["human approval", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "bypassing-authentication-with-forced-browsing",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/bypassing-authentication-with-forced-browsing/SKILL.md", "sha256": "1c33fc0462514f968b3ea9cb1542fdd60a6409dfe9e68c3d4628d31d28a58847", "availability": "available", "license": "Apache-2.0", "anchors": ["# Bypassing Authentication with Forced Browsing:L29"]},
+      "components": [
+        {"id": "bypassing-authentication-with-forced-browsing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed route, endpoint, authorization-policy, role, scope, test-case, owner, and evidence-manifest fields without sending requests.", "notProved": ["authentication bypass", "endpoint exposure", "authorization behavior"]},
+        {"id": "bypassing-authentication-with-forced-browsing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep live endpoints, browsers, Burp, ZAP, scanners, servers, sessions, credentials, and production applications external.", "notProved": ["request execution", "access control result", "data exposure"]},
+        {"id": "bypassing-authentication-with-forced-browsing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive authorization-testing and safe assessment guidance as advisory.", "notProved": ["test readiness", "vulnerability finding"]},
+        {"id": "bypassing-authentication-with-forced-browsing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, asset ownership, legal and safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "bypass conclusion", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "coercing-authentication-with-coercer-petitpotam",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/coercing-authentication-with-coercer-petitpotam/SKILL.md", "sha256": "984eab0143d08f00ce2e74b1935c9beaa629710f56a82ebb697efd184b8eb81e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Coercing Authentication with Coercer and PetitPotam:L23"]},
+      "components": [
+        {"id": "coercing-authentication-with-coercer-petitpotam::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed identity, host, protocol, coercion-risk, authorization, scope, mitigation, and evidence-manifest fields without issuing authentication coercion requests.", "notProved": ["coercion", "NTLM relay", "credential exposure"]},
+        {"id": "coercing-authentication-with-coercer-petitpotam::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Coercer, PetitPotam, SMB/RPC, AD, domain controllers, networks, credentials, relays, and production identity systems external.", "notProved": ["protocol behavior", "relay success", "identity compromise"]},
+        {"id": "coercing-authentication-with-coercer-petitpotam::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive identity-hardening, exposure-review, and authorized-assessment guidance as advisory.", "notProved": ["mitigation efficacy", "attack-path validity"]},
+        {"id": "coercing-authentication-with-coercer-petitpotam::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, ownership, legal and safety scope, credentials and data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "collecting-indicators-of-compromise",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/collecting-indicators-of-compromise/SKILL.md", "sha256": "c6b4fefdd2bdc3eaa8888334199ab13c64636c3e76a336d9d360e9f24b48a225", "availability": "available", "license": "Apache-2.0", "anchors": ["# Collecting Indicators of Compromise:L36"]},
+      "components": [
+        {"id": "collecting-indicators-of-compromise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IOC, artifact, source, timestamp, collection method, confidence, provenance, scope, owner, and evidence-manifest fields.", "notProved": ["IOC validity", "maliciousness", "collection completeness"]},
+        {"id": "collecting-indicators-of-compromise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, hosts, networks, live acquisition, scanners, TIPs, feeds, enrichment services, and production systems external.", "notProved": ["live collection", "enrichment", "detection"]},
+        {"id": "collecting-indicators-of-compromise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive IOC collection, preservation, defanging, validation, and sharing guidance as advisory.", "notProved": ["collection quality", "sharing suitability"]},
+        {"id": "collecting-indicators-of-compromise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, chain and provenance review, analyst validation, uncertainty, escalation, remediation, and disclosure decisions.", "notProved": ["analyst approval", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-cloud-incident-response",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cloud-incident-response/SKILL.md", "sha256": "19ccd8078ae1458e001e583b7178f4b47b8bdfa86b780b3dfc975317c0948802", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Cloud Incident Response:L32"]},
+      "components": [
+        {"id": "conducting-cloud-incident-response::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed cloud account, asset, event, timeline, scope, owner, authorization, containment, recovery, and evidence-manifest fields.", "notProved": ["cloud incident", "event truth", "containment"]},
+        {"id": "conducting-cloud-incident-response::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep cloud providers, CloudTrail, GuardDuty, CSPM, APIs, consoles, endpoints, sessions, and production tenants external.", "notProved": ["live telemetry", "compromise", "recovery result"]},
+        {"id": "conducting-cloud-incident-response::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud incident-response, evidence preservation, containment, recovery, and communications guidance as advisory.", "notProved": ["incident classification", "response readiness"]},
+        {"id": "conducting-cloud-incident-response::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human tenant ownership, written authorization, legal/privacy/safety review, evidence handling, analyst interpretation, severity, containment, remediation, recovery, rollback, and disclosure decisions.", "notProved": ["authorization", "incident truth", "recovery outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-cloud-penetration-testing",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cloud-penetration-testing/SKILL.md", "sha256": "4bc7f2b556d71f6f1fd69dd0a0073bf70ddc9a6f33934278baa1dacafb482f56", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Cloud Penetration Testing:L48"]},
+      "components": [
+        {"id": "conducting-cloud-penetration-testing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed cloud asset, scope, test-case, authorization, control, evidence, owner, stop-condition, and reporting-manifest fields without testing cloud resources.", "notProved": ["cloud exposure", "exploitability", "penetration result"]},
+        {"id": "conducting-cloud-penetration-testing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep cloud APIs, consoles, scanners, exploitation tools, networks, credentials, sessions, and production infrastructure external.", "notProved": ["enumeration", "exploit delivery", "security finding"]},
+        {"id": "conducting-cloud-penetration-testing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive cloud-testing planning, safety, scope, and reporting guidance as advisory.", "notProved": ["test authorization", "control effectiveness"]},
+        {"id": "conducting-cloud-penetration-testing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, tenant and asset ownership, legal/privacy/safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "exploitability", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-domain-persistence-with-dcsync",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-domain-persistence-with-dcsync/SKILL.md", "sha256": "84955f1bac4e16f71d9b45110f9ee02c36863ffb9740ded0eafc871fd9a8339e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Domain Persistence with DCSync:L34"]},
+      "components": [
+        {"id": "conducting-domain-persistence-with-dcsync::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed domain, principal, replication-rights, authorization, scope, control, mitigation, and evidence-manifest fields without querying or replicating a directory.", "notProved": ["directory access", "credential extraction", "persistence"]},
+        {"id": "conducting-domain-persistence-with-dcsync::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep DCSync tooling, Impacket, domain controllers, AD, LDAP, replication protocols, credentials, and production identity systems external.", "notProved": ["replication", "credential access", "domain compromise"]},
+        {"id": "conducting-domain-persistence-with-dcsync::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive directory-hardening, replication-rights review, and authorized-assessment guidance as advisory.", "notProved": ["rights exposure", "mitigation efficacy"]},
+        {"id": "conducting-domain-persistence-with-dcsync::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, domain ownership, legal and safety scope, credential and data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-full-scope-red-team-engagement",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-full-scope-red-team-engagement/SKILL.md", "sha256": "a38ff44824e0d6f9246261e7b5cc6e950101db21380817b5af759147a32fb429", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Full-Scope Red Team Engagement:L36"]},
+      "components": [
+        {"id": "conducting-full-scope-red-team-engagement::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed engagement, objective, scope, asset, threat-model, authorization, rule-of-engagement, evidence, owner, and report-manifest fields.", "notProved": ["adversary emulation", "control effectiveness", "engagement outcome"]},
+        {"id": "conducting-full-scope-red-team-engagement::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep red-team operators, C2, phishing, exploit tools, scanners, endpoints, networks, credentials, sessions, and production systems external.", "notProved": ["execution", "compromise", "detection or response efficacy"]},
+        {"id": "conducting-full-scope-red-team-engagement::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive red-team planning, threat modeling, safety, reporting, and improvement guidance as advisory.", "notProved": ["engagement readiness", "risk reduction"]},
+        {"id": "conducting-full-scope-red-team-engagement::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and owner validation, legal/privacy/ethics/safety review, stop conditions, data handling, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["authorization", "adversary success", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-internal-reconnaissance-with-bloodhound-ce",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-internal-reconnaissance-with-bloodhound-ce/SKILL.md", "sha256": "57600785700d52180ffb8f77bf0433a45671a1e5f0ff12cee4d2e257af927882", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Internal Reconnaissance with BloodHound CE:L35"]},
+      "components": [
+        {"id": "conducting-internal-reconnaissance-with-bloodhound-ce::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed graph, principal, group, host, trust, relationship, scope, timestamp, owner, authorization, and evidence-manifest fields without collecting directory data.", "notProved": ["graph completeness", "attack path", "access exposure"]},
+        {"id": "conducting-internal-reconnaissance-with-bloodhound-ce::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep BloodHound CE, SharpHound, LDAP, AD, domain controllers, endpoints, networks, credentials, and production directories external.", "notProved": ["enumeration", "relationship truth", "privilege escalation"]},
+        {"id": "conducting-internal-reconnaissance-with-bloodhound-ce::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive identity-graph review, exposure analysis, and authorized-assessment guidance as advisory.", "notProved": ["graph accuracy", "remediation efficacy"]},
+        {"id": "conducting-internal-reconnaissance-with-bloodhound-ce::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, directory and asset ownership, legal/privacy/safety review, credential and data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "attack path", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live threat-intelligence collection, feed freshness, IOC validity, enrichment, attribution, or infrastructure ownership is proved.",
+    "No authentication bypass, coercion, credential access, directory enumeration, persistence, privilege escalation, or identity outcome is proved.",
+    "No cloud discovery, incident truth, penetration test, exploitability, containment, recovery, or production security outcome is proved.",
+    "No red-team execution, adversary emulation, phishing, C2, scanning, exploit delivery, compromise, detection, or response efficacy is proved.",
+    "No written authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, remediation, rollback, recovery, or disclosure decision is proved."
+  ]
+}
