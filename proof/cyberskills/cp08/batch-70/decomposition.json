@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-70",
+  "baselineCommit": "9febe168bb835d217d3758472e7bd125ea319ced",
+  "family": "Security observability, supply-chain trust, SOAR, and threat-intelligence exchange predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-security-monitoring-with-datadog",
+      "implementing-semgrep-for-custom-sast-rules",
+      "implementing-sigstore-for-software-signing",
+      "implementing-soar-automation-with-phantom",
+      "implementing-soar-playbook-for-phishing",
+      "implementing-soar-playbook-with-palo-alto-xsoar",
+      "implementing-stix-taxii-feed-integration",
+      "implementing-syslog-centralization-with-rsyslog",
+      "implementing-taxii-server-with-opentaxii",
+      "implementing-threat-intelligence-lifecycle-management"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-69."
+  },
+  "accounting": {
+    "acceptedPrior": 690,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 700,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-security-monitoring-with-datadog",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-security-monitoring-with-datadog/SKILL.md",
+        "sha256": "a1f0e225d6e80f5f70e5e5667c4e6b8e6f767891130529f93a8b6e0301b76ca7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Security Monitoring with Datadog:L50"]
+      },
+      "components": [
+        {"id": "implementing-security-monitoring-with-datadog::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed monitor, metric, log, event, alert, threshold, owner, scope, timestamp, and evidence-manifest fields without telemetry or platform access.", "notProved": ["monitor state", "event truth", "detection efficacy"]},
+        {"id": "implementing-security-monitoring-with-datadog::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Datadog, agents, collectors, endpoints, networks, SIEM, cloud services, dashboards, and production telemetry authorities external.", "notProved": ["telemetry completeness", "alert delivery", "incident detection"]},
+        {"id": "implementing-security-monitoring-with-datadog::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain monitoring architecture, signal design, threshold review, alert triage, retention, and defensive observability guidance as advisory.", "notProved": ["coverage", "alert accuracy", "incident resolution"]},
+        {"id": "implementing-security-monitoring-with-datadog::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system and data ownership, legal/privacy/safety review, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-semgrep-for-custom-sast-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-semgrep-for-custom-sast-rules/SKILL.md",
+        "sha256": "1f742a919e99f19d23b36aa66848e5205a4922873be5bae3e45fed84be75d411",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Semgrep for Custom SAST Rules:L28"]
+      },
+      "components": [
+        {"id": "implementing-semgrep-for-custom-sast-rules::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed source, rule, pattern, language, finding, severity, owner, scope, version, and evidence-manifest fields without source or scanner execution.", "notProved": ["code vulnerability", "rule coverage", "finding validity"]},
+        {"id": "implementing-semgrep-for-custom-sast-rules::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Semgrep, repositories, source trees, CI runners, build systems, scanners, tickets, and production code authorities external.", "notProved": ["scan result", "source behavior", "remediation outcome"]},
+        {"id": "implementing-semgrep-for-custom-sast-rules::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secure-code review, custom rule design, triage, severity, false-positive analysis, and defensive remediation guidance as advisory.", "notProved": ["completeness", "scan efficacy", "risk reduction"]},
+        {"id": "implementing-semgrep-for-custom-sast-rules::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, code and repository ownership, legal/privacy/safety review, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-sigstore-for-software-signing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-sigstore-for-software-signing/SKILL.md",
+        "sha256": "4f1db3501f4427d3e78bd6c07e95dcbd70b8af1fde4d8e77615106b9bea76418",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Sigstore for Software Signing:L67"]
+      },
+      "components": [
+        {"id": "implementing-sigstore-for-software-signing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed artifact, digest, signature, certificate, identity, provenance, owner, scope, timestamp, and evidence-manifest fields without signing or registry access.", "notProved": ["signature validity", "artifact provenance", "release trust"]},
+        {"id": "implementing-sigstore-for-software-signing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Sigstore, Fulcio, Rekor, signing keys, registries, CI runners, artifact stores, and deployment systems external.", "notProved": ["key custody", "transparency log state", "artifact authenticity"]},
+        {"id": "implementing-sigstore-for-software-signing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain signing, provenance, keyless identity, artifact verification, release review, and defensive supply-chain guidance as advisory.", "notProved": ["coverage", "signature assurance", "release safety"]},
+        {"id": "implementing-sigstore-for-software-signing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, artifact and identity ownership, key custody, legal/privacy/safety review, release approval, analyst validation, rollback, and disclosure decisions.", "notProved": ["authorization", "provenance validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-soar-automation-with-phantom",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-automation-with-phantom/SKILL.md",
+        "sha256": "28fe209964359f6dd4b57f46e482fc27d2f966d2796c50398108f8edaa5d5e92",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SOAR Automation with Phantom:L35"]
+      },
+      "components": [
+        {"id": "implementing-soar-automation-with-phantom::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed alert, playbook, action, case, enrichment, owner, scope, approval, and evidence-manifest fields without orchestration execution.", "notProved": ["alert truth", "playbook execution", "response outcome"]},
+        {"id": "implementing-soar-automation-with-phantom::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Phantom, SOAR connectors, SIEM, EDR, ticketing, threat-intelligence feeds, endpoints, and production action authorities external.", "notProved": ["enrichment", "automated response", "containment efficacy"]},
+        {"id": "implementing-soar-automation-with-phantom::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain playbook design, alert triage, enrichment, approval gates, escalation, and defensive response guidance as advisory.", "notProved": ["coverage", "automation efficacy", "incident resolution"]},
+        {"id": "implementing-soar-automation-with-phantom::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system and data ownership, legal/privacy/ethics/safety review, approval, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "response validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-soar-playbook-for-phishing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-playbook-for-phishing/SKILL.md",
+        "sha256": "bb3c35a6df3d6e3e5cf28d0b32d69f668593b324482f60fff73a190ade539caa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SOAR Playbook for Phishing:L57"]
+      },
+      "components": [
+        {"id": "implementing-soar-playbook-for-phishing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed message, sender, recipient, URL, attachment, alert, case, action, owner, scope, and evidence-manifest fields without mail or response execution.", "notProved": ["phishing message", "user compromise", "response outcome"]},
+        {"id": "implementing-soar-playbook-for-phishing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SOAR, mail, URL scanners, sandboxes, IdPs, SIEM, EDR, endpoints, and live containment authorities external.", "notProved": ["message delivery", "user susceptibility", "containment efficacy"]},
+        {"id": "implementing-soar-playbook-for-phishing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain phishing triage, message analysis, notification, awareness, enrichment, escalation, and defensive response guidance as advisory.", "notProved": ["coverage", "detection efficacy", "incident resolution"]},
+        {"id": "implementing-soar-playbook-for-phishing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, mail and data ownership, legal/privacy/ethics review, notification approval, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "phishing finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-soar-playbook-with-palo-alto-xsoar",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-playbook-with-palo-alto-xsoar/SKILL.md",
+        "sha256": "6d636b91d9d8beaf3c738d765aa99aea64eb3013659e0a0121664524ee14225b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SOAR Playbook with Palo Alto XSOAR:L31"]
+      },
+      "components": [
+        {"id": "implementing-soar-playbook-with-palo-alto-xsoar::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed incident, indicator, playbook, task, approval, owner, scope, and evidence-manifest fields without XSOAR or connector execution.", "notProved": ["incident truth", "playbook execution", "response outcome"]},
+        {"id": "implementing-soar-playbook-with-palo-alto-xsoar::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Palo Alto XSOAR, SIEM, EDR, firewalls, threat-intelligence feeds, endpoints, tickets, and production response systems external.", "notProved": ["indicator validity", "automation state", "containment efficacy"]},
+        {"id": "implementing-soar-playbook-with-palo-alto-xsoar::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain playbook governance, task design, enrichment, approval, escalation, and defensive incident-response guidance as advisory.", "notProved": ["coverage", "automation efficacy", "incident resolution"]},
+        {"id": "implementing-soar-playbook-with-palo-alto-xsoar::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system and data ownership, legal/privacy/ethics/safety review, approval, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "response finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-stix-taxii-feed-integration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-stix-taxii-feed-integration/SKILL.md",
+        "sha256": "a3eb20addffa3f701d75f59d68dfc02b75ff7db09391a416ec748fd6b4cba85e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing STIX/TAXII Feed Integration:L31"]
+      },
+      "components": [
+        {"id": "implementing-stix-taxii-feed-integration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed STIX object, TAXII collection, indicator, relationship, marking, source, timestamp, confidence, owner, and evidence-manifest fields without feed access.", "notProved": ["feed freshness", "STIX validity", "indicator truth"]},
+        {"id": "implementing-stix-taxii-feed-integration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep STIX/TAXII servers, threat-intelligence platforms, feeds, enrichment, SOAR, network services, and production exchange authorities external.", "notProved": ["feed delivery", "enrichment truth", "sharing outcome"]},
+        {"id": "implementing-stix-taxii-feed-integration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain feed architecture, object validation, markings, confidence, source review, privacy, and defensive intelligence-sharing guidance as advisory.", "notProved": ["completeness", "indicator efficacy", "attribution"]},
+        {"id": "implementing-stix-taxii-feed-integration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/ethics review, terms and handling approval, analyst validation, dissemination, escalation, remediation, and disclosure decisions.", "notProved": ["authorization", "intelligence validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-syslog-centralization-with-rsyslog",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-syslog-centralization-with-rsyslog/SKILL.md",
+        "sha256": "0cb553738acc7f0f59177353234168dcbfcda3b542375c7ea06d15d41f522a34",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Syslog Centralization with Rsyslog:L33"]
+      },
+      "components": [
+        {"id": "implementing-syslog-centralization-with-rsyslog::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed event, source, facility, severity, parser, route, timestamp, owner, scope, and evidence-manifest fields without collectors or live log access.", "notProved": ["log delivery", "event completeness", "telemetry truth"]},
+        {"id": "implementing-syslog-centralization-with-rsyslog::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Rsyslog, syslog daemons, collectors, endpoints, networks, SIEM, storage, and production telemetry authorities external.", "notProved": ["collector state", "delivery truth", "detection efficacy"]},
+        {"id": "implementing-syslog-centralization-with-rsyslog::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain log architecture, parsing, routing, retention, monitoring, normalization, and defensive observability guidance as advisory.", "notProved": ["coverage", "delivery efficacy", "incident resolution"]},
+        {"id": "implementing-syslog-centralization-with-rsyslog::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/safety review, retention approval, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "log finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-taxii-server-with-opentaxii",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-taxii-server-with-opentaxii/SKILL.md",
+        "sha256": "4829e268f93dc45c61634a55225b22e099256a20b6f95e200b53c240702ba8c0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing TAXII Server with OpenTAXII:L31"]
+      },
+      "components": [
+        {"id": "implementing-taxii-server-with-opentaxii::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed TAXII server, collection, object, transport, marking, source, owner, scope, and evidence-manifest fields without server or feed access.", "notProved": ["server availability", "feed delivery", "object validity"]},
+        {"id": "implementing-taxii-server-with-opentaxii::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OpenTAXII, TAXII clients, servers, networks, threat-intelligence platforms, feeds, and production sharing authorities external.", "notProved": ["server state", "transport security", "dissemination outcome"]},
+        {"id": "implementing-taxii-server-with-opentaxii::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain TAXII architecture, collection governance, object handling, authentication, privacy, and defensive sharing guidance as advisory.", "notProved": ["coverage", "feed efficacy", "intelligence outcome"]},
+        {"id": "implementing-taxii-server-with-opentaxii::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, server and data ownership, legal/privacy/ethics review, transport and terms approval, analyst validation, dissemination, remediation, and disclosure decisions.", "notProved": ["authorization", "feed finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-threat-intelligence-lifecycle-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-threat-intelligence-lifecycle-management/SKILL.md",
+        "sha256": "d47e64ae53a50f23796872b4272f7f2786349ff61ce8c117de77503351504825",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Threat Intelligence Lifecycle Management:L31"]
+      },
+      "components": [
+        {"id": "implementing-threat-intelligence-lifecycle-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed requirement, source, indicator, assessment, confidence, dissemination, owner, scope, timestamp, and evidence-manifest fields without collection or enrichment access.", "notProved": ["intelligence freshness", "indicator truth", "actor attribution"]},
+        {"id": "implementing-threat-intelligence-lifecycle-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OSINT, dark-web sources, threat-intelligence platforms, feeds, enrichment, DNS, WHOIS, network services, and production authorities external.", "notProved": ["collection truth", "enrichment accuracy", "attribution"]},
+        {"id": "implementing-threat-intelligence-lifecycle-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain intelligence requirements, collection planning, source evaluation, analysis, confidence, dissemination, and defensive lifecycle guidance as advisory.", "notProved": ["completeness", "intelligence efficacy", "detection outcome"]},
+        {"id": "implementing-threat-intelligence-lifecycle-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/ethics review, terms and handling approval, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["authorization", "intelligence validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, or production telemetry is proved.",
+    "No monitoring, SAST scan, signature verification, SOAR automation, phishing response, STIX/TAXII exchange, syslog delivery, threat-intelligence collection, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, feed freshness, source truth, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}
