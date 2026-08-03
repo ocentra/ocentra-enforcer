@@ -393,10 +393,21 @@ impl std::fmt::Display for HarnessLanguage {
 // BRAND-INVARIANT: zero is normalized at the adapter seam; oversized values remain explicit.
 /// One-based source line reported by an external tool.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 #[serde(transparent)]
+// BRAND-INVARIANT: zero is normalized at the adapter seam; oversized values remain explicit.
+/// One-based source location retained from an external tool.
 pub struct HarnessSourceLine(u64);
+
+impl std::fmt::Debug for HarnessSourceLine {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("HarnessSourceLine")
+            .field(&self.0)
+            .finish()
+    }
+}
 
 impl HarnessSourceLine {
     /// Validate a one-based external source line without narrowing it.
@@ -491,5 +502,188 @@ impl HarnessRunStatus {
             Self::Passed => "passed",
             Self::Failed => "failed",
         }
+    }
+}
+
+/// Policy class assigned to an allowlisted external tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolRequirement {
+    /// A non-available tool prevents the policy gate from passing.
+    Required,
+    /// A non-available tool is reported as a warning.
+    Optional,
+    /// A non-available tool is explicitly outside the current run.
+    Advisory,
+}
+
+impl HarnessToolRequirement {
+    /// Stable policy spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Required => "required",
+            Self::Optional => "optional",
+            Self::Advisory => "advisory",
+        }
+    }
+}
+
+/// Typed availability result for an allowlisted tool invocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolAvailability {
+    Available,
+    Missing,
+    VersionMismatch,
+    Misconfigured,
+    TimedOut,
+    Failed,
+    MalformedOutput,
+}
+
+impl HarnessToolAvailability {
+    /// Stable availability spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Missing => "missing",
+            Self::VersionMismatch => "version-mismatch",
+            Self::Misconfigured => "misconfigured",
+            Self::TimedOut => "timed-out",
+            Self::Failed => "failed",
+            Self::MalformedOutput => "malformed-output",
+        }
+    }
+
+    /// Derive the non-ambiguous policy action for this availability result.
+    #[must_use]
+    pub const fn decision(self, requirement: HarnessToolRequirement) -> HarnessToolDecision {
+        match (self, requirement) {
+            (Self::Available, _) => HarnessToolDecision::Run,
+            (_, HarnessToolRequirement::Required) => HarnessToolDecision::Block,
+            (_, HarnessToolRequirement::Optional) => HarnessToolDecision::Warn,
+            (_, HarnessToolRequirement::Advisory) => HarnessToolDecision::NotApplicable,
+        }
+    }
+}
+
+/// Action a caller must take after resolving allowlisted-tool availability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolDecision {
+    Run,
+    Block,
+    Warn,
+    NotApplicable,
+}
+
+/// Closed execution limits required before an allowlisted tool may run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HarnessExecutionLimits {
+    max_wall_time_ms: std::num::NonZeroU64,
+    max_output_bytes: std::num::NonZeroU64,
+    max_files: std::num::NonZeroU32,
+}
+
+impl HarnessExecutionLimits {
+    /// Construct non-zero wall-time, output, and file-count bounds.
+    pub fn try_new(
+        max_wall_time_ms: u64,
+        max_output_bytes: u64,
+        max_files: u32,
+    ) -> Result<Self, DecodeError> {
+        let max_wall_time_ms = std::num::NonZeroU64::new(max_wall_time_ms)
+            .ok_or_else(|| DecodeError::new("maxWallTimeMs", "must be greater than zero"))?;
+        let max_output_bytes = std::num::NonZeroU64::new(max_output_bytes)
+            .ok_or_else(|| DecodeError::new("maxOutputBytes", "must be greater than zero"))?;
+        let max_files = std::num::NonZeroU32::new(max_files)
+            .ok_or_else(|| DecodeError::new("maxFiles", "must be greater than zero"))?;
+        Ok(Self {
+            max_wall_time_ms,
+            max_output_bytes,
+            max_files,
+        })
+    }
+
+    /// Maximum wall time in milliseconds.
+    #[must_use]
+    pub const fn max_wall_time_ms(self) -> u64 {
+        self.max_wall_time_ms.get()
+    }
+
+    /// Maximum combined captured output in bytes.
+    #[must_use]
+    pub const fn max_output_bytes(self) -> u64 {
+        self.max_output_bytes.get()
+    }
+
+    /// Maximum file count a later adapter may inspect.
+    #[must_use]
+    pub const fn max_files(self) -> u32 {
+        self.max_files.get()
+    }
+}
+
+/// Reviewed command template and policy for one allowlisted tool.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessToolSpec {
+    tool: HarnessToolName,
+    command: Vec<HarnessCommandArgument>,
+    requirement: HarnessToolRequirement,
+    limits: HarnessExecutionLimits,
+    expected_version: Option<HarnessStepVersion>,
+}
+
+impl HarnessToolSpec {
+    /// Construct a spec with a non-empty executable-and-argument template.
+    pub fn try_new(
+        tool: HarnessToolName,
+        command: Vec<HarnessCommandArgument>,
+        requirement: HarnessToolRequirement,
+        limits: HarnessExecutionLimits,
+        expected_version: Option<HarnessStepVersion>,
+    ) -> Result<Self, DecodeError> {
+        if command.is_empty() {
+            return Err(DecodeError::new(
+                "command",
+                "allowlisted tool command must not be empty",
+            ));
+        }
+        Ok(Self {
+            tool,
+            command,
+            requirement,
+            limits,
+            expected_version,
+        })
+    }
+
+    /// Reviewed tool identity.
+    #[must_use]
+    pub const fn tool(&self) -> &HarnessToolName {
+        &self.tool
+    }
+
+    /// Reviewed executable-and-argument template.
+    #[must_use]
+    pub fn command(&self) -> &[HarnessCommandArgument] {
+        &self.command
+    }
+
+    /// Required/optional/advisory policy class.
+    #[must_use]
+    pub const fn requirement(&self) -> HarnessToolRequirement {
+        self.requirement
+    }
+
+    /// Bounded execution limits.
+    #[must_use]
+    pub const fn limits(&self) -> HarnessExecutionLimits {
+        self.limits
+    }
+
+    /// Optional version expectation used by a later availability probe.
+    #[must_use]
+    pub const fn expected_version(&self) -> Option<&HarnessStepVersion> {
+        self.expected_version.as_ref()
     }
 }
