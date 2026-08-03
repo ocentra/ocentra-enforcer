@@ -425,7 +425,7 @@ fn stdio_smoke_scan_reaches_the_native_rust_engine() -> Result<(), Box<dyn std::
 }
 
 #[test]
-fn stdio_smoke_check_no_zod_source_returns_the_typed_unavailable_refusal(
+fn stdio_smoke_check_no_zod_source_returns_the_native_rule_report(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
     let src = fixture.path().join("src");
@@ -466,11 +466,15 @@ fn stdio_smoke_check_no_zod_source_returns_the_typed_unavailable_refusal(
     )?;
     assert_eq!(reply["result"]["check"], serde_json::json!("no-zod-source"));
     assert_eq!(reply["result"]["ok"], serde_json::json!(false));
-    assert_eq!(
-        reply["result"]["error"]["code"],
-        serde_json::json!("native_engine_not_implemented")
-    );
-    assert!(reply["result"].get("findings").is_none());
+    assert!(reply["result"].get("error").is_none());
+    assert!(reply["result"]["findings"]
+        .as_array()
+        .is_some_and(|findings| {
+            findings.iter().any(|finding| {
+                finding["ruleId"] == serde_json::json!("TS-1.2")
+                    && finding["file"] == serde_json::json!("src/schema.ts")
+            })
+        }));
 
     drop(stdin);
     assert!(child.wait()?.success());
