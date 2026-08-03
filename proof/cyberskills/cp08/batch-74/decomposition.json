@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-74",
+  "baselineCommit": "0ea33a02ed94ec88cbda1e3ce47cd53a9970fbe2",
+  "family": "Static defensive validation, monitoring, identity, mail, malware, endpoint, and remediation evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-content-security-policy-bypass",
+      "performing-credential-access-with-lazagne",
+      "performing-cve-prioritization-with-kev-catalog",
+      "performing-dark-web-monitoring-for-threats",
+      "performing-deception-technology-deployment",
+      "performing-dmarc-policy-enforcement-rollout",
+      "performing-dynamic-analysis-with-any-run",
+      "performing-endpoint-vulnerability-remediation",
+      "performing-entitlement-review-with-sailpoint-iiq",
+      "performing-false-positive-reduction-in-siem"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-73."
+  },
+  "accounting": {
+    "acceptedPrior": 730,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 740,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "performing-content-security-policy-bypass",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-content-security-policy-bypass/SKILL.md","sha256":"58ae4138467e45d47d16a978efbc62092e9a8486109f9f95a977ffbb15653a2d","availability":"available","license":"Apache-2.0","anchors":["# Performing Content Security Policy Bypass:L32"]},
+      "components": [
+        {"id":"performing-content-security-policy-bypass::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed origin, directive, script, route, browser-policy, scope, authorization, and evidence-manifest fields without browser or endpoint execution.","notProved":["CSP behavior","bypass","script execution"]},
+        {"id":"performing-content-security-policy-bypass::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep browsers, web applications, servers, Burp, ZAP, payloads, sessions, and production endpoints external.","notProved":["live bypass","data exposure","browser compromise"]},
+        {"id":"performing-content-security-policy-bypass::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain CSP design review, browser-policy hardening, authorized testing, and defensive remediation guidance as advisory.","notProved":["finding validity","control effectiveness","security outcome"]},
+        {"id":"performing-content-security-policy-bypass::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, application ownership, legal/safety/data review, bounded scope, analyst validation, stop conditions, and remediation decisions.","notProved":["authorization","live test","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-credential-access-with-lazagne",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-credential-access-with-lazagne/SKILL.md","sha256":"d81dd05b6e62039f603c6522d9fcedf29c4583c5edd1c428e01be5b36ec55bbc","availability":"available","license":"Apache-2.0","anchors":["# Performing Credential Access with LaZagne:L67"]},
+      "components": [
+        {"id":"performing-credential-access-with-lazagne::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed host, account, credential-store, collection-plan, scope, custody, and evidence-manifest fields without credential extraction.","notProved":["credential presence","credential validity","access"]},
+        {"id":"performing-credential-access-with-lazagne::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep LaZagne, endpoint stores, browsers, operating systems, memory, processes, credentials, and production hosts external.","notProved":["extraction","authentication","privilege access"]},
+        {"id":"performing-credential-access-with-lazagne::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain credential-risk assessment, secret hygiene, defensive hardening, and authorized response guidance as advisory.","notProved":["finding validity","exposure","remediation effectiveness"]},
+        {"id":"performing-credential-access-with-lazagne::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, host and data ownership, legal/privacy/ethics/safety review, key custody, containment, disclosure, and remediation decisions.","notProved":["authorization","credential extraction","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-cve-prioritization-with-kev-catalog",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-cve-prioritization-with-kev-catalog/SKILL.md","sha256":"0a03aadc7a9edb1f8e87d44e3fd2fe46744b10bee698dcd3d3e56781d7aff708","availability":"available","license":"Apache-2.0","anchors":["# Performing CVE Prioritization with KEV Catalog:L36"]},
+      "components": [
+        {"id":"performing-cve-prioritization-with-kev-catalog::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed CVE, asset, affected-version, KEV-reference, owner, severity, due-date, exception, and evidence-manifest fields only.","notProved":["CVE applicability","exploitation","priority truth"]},
+        {"id":"performing-cve-prioritization-with-kev-catalog::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep CISA KEV, NVD, EPSS, scanners, CMDB, ticketing, endpoint, cloud, and live vulnerability authorities external.","notProved":["catalog freshness","exploitability","remediation status"]},
+        {"id":"performing-cve-prioritization-with-kev-catalog::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain vulnerability prioritization, risk review, owner coordination, exception handling, and remediation guidance as advisory.","notProved":["severity","priority truth","SLA completion"]},
+        {"id":"performing-cve-prioritization-with-kev-catalog::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/data handling review, analyst validation, severity and exception approval, and remediation decisions.","notProved":["authorization","CVE finding","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-dark-web-monitoring-for-threats",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-dark-web-monitoring-for-threats/SKILL.md","sha256":"09cda63a123b0943c73b62f84b00ac302ee1f18ff972040fc2b0fb0ca4435534","availability":"available","license":"Apache-2.0","anchors":["# Performing Dark Web Monitoring for Threats:L31"]},
+      "components": [
+        {"id":"performing-dark-web-monitoring-for-threats::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed source, indicator, actor, time, confidence, handling, scope, analyst, and evidence-manifest fields without live collection.","notProved":["dark-web content","source truth","threat activity"]},
+        {"id":"performing-dark-web-monitoring-for-threats::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep dark-web services, OSINT, threat-intelligence platforms, crawlers, feeds, accounts, and live network authorities external.","notProved":["freshness","actor identity","compromise"]},
+        {"id":"performing-dark-web-monitoring-for-threats::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain threat monitoring, source evaluation, triage, uncertainty, notification, and defensive response guidance as advisory.","notProved":["indicator validity","attribution","response effectiveness"]},
+        {"id":"performing-dark-web-monitoring-for-threats::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, dissemination, escalation, and disclosure decisions.","notProved":["authorization","live collection","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-deception-technology-deployment",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-deception-technology-deployment/SKILL.md","sha256":"4737ca1cd4b21de74ec4bf472e397e48b1cb7151b1d24e3eafbd713ca533dc7e","availability":"available","license":"Apache-2.0","anchors":["# Performing Deception Technology Deployment:L35"]},
+      "components": [
+        {"id":"performing-deception-technology-deployment::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed decoy, sensor, service, topology, alert, owner, scope, safety, and evidence-manifest fields without deployment or traffic activity.","notProved":["decoy reachability","attacker interaction","detection"]},
+        {"id":"performing-deception-technology-deployment::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep honeypots, decoys, servers, network sensors, endpoints, SIEM, EDR, credentials, and production infrastructure external.","notProved":["deployment","interaction","alert efficacy"]},
+        {"id":"performing-deception-technology-deployment::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain deception planning, threat detection design, decoy safety, alert triage, and defensive response guidance as advisory.","notProved":["coverage","detection efficacy","containment"]},
+        {"id":"performing-deception-technology-deployment::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/privacy/ethics/safety review, isolation, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live deployment","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-dmarc-policy-enforcement-rollout",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-dmarc-policy-enforcement-rollout/SKILL.md","sha256":"8bcc6ea84bf478243bef6207a398b99bd951e9fb59c1eafb6a4afc7435408e8a","availability":"available","license":"Apache-2.0","anchors":["# Performing DMARC Policy Enforcement Rollout:L31"]},
+      "components": [
+        {"id":"performing-dmarc-policy-enforcement-rollout::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed domain, DMARC, SPF, DKIM, receiver, policy, owner, rollout, exception, and evidence-manifest fields without DNS or mail changes.","notProved":["DNS state","mail authentication","delivery"]},
+        {"id":"performing-dmarc-policy-enforcement-rollout::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep DNS providers, mail systems, receivers, IdPs, message flows, reporting feeds, and production enforcement authorities external.","notProved":["policy enforcement","spoofing prevention","delivery impact"]},
+        {"id":"performing-dmarc-policy-enforcement-rollout::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain DMARC rollout, domain protection, mail-flow analysis, monitoring, and defensive remediation guidance as advisory.","notProved":["alignment","coverage","mail security outcome"]},
+        {"id":"performing-dmarc-policy-enforcement-rollout::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, domain and mail ownership, legal/privacy/data review, staged approval, rollback, analyst validation, and disclosure decisions.","notProved":["authorization","live rollout","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-dynamic-analysis-with-any-run",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-dynamic-analysis-with-any-run/SKILL.md","sha256":"6101faecf73a65b7ccca571726d55b98e873180ae9d35a642b6ee764a04fe34c","availability":"available","license":"Apache-2.0","anchors":["# Performing Dynamic Analysis with ANY.RUN:L40"]},
+      "components": [
+        {"id":"performing-dynamic-analysis-with-any-run::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed sample, hash, sandbox profile, behavior label, timestamp, analyst, custody, and evidence-manifest fields without detonation.","notProved":["sample behavior","malware","execution"]},
+        {"id":"performing-dynamic-analysis-with-any-run::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep ANY.RUN, sandboxes, detonation, samples, VMs, processes, network, filesystems, and threat-intelligence authorities external.","notProved":["dynamic behavior","IOC validity","compromise"]},
+        {"id":"performing-dynamic-analysis-with-any-run::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain malware-analysis planning, sandbox safety, IOC review, triage, and defensive response guidance as advisory.","notProved":["attribution","detection efficacy","remediation"]},
+        {"id":"performing-dynamic-analysis-with-any-run::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, sample ownership, chain of custody, legal/safety review, isolated handling, analyst validation, and disclosure decisions.","notProved":["authorization","detonation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-endpoint-vulnerability-remediation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-endpoint-vulnerability-remediation/SKILL.md","sha256":"a013ad78f51555cecd8b44ca3790b6e2eafe6c42c622cd2519020687417969b4","availability":"available","license":"Apache-2.0","anchors":["# Performing Endpoint Vulnerability Remediation:L34"]},
+      "components": [
+        {"id":"performing-endpoint-vulnerability-remediation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed endpoint, finding, patch, owner, maintenance, exception, rollback, SLA, and evidence-manifest fields without endpoint mutation.","notProved":["endpoint state","vulnerability","patch completion"]},
+        {"id":"performing-endpoint-vulnerability-remediation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep endpoints, patch systems, configuration tools, agents, scanners, ticketing, networks, and production remediation authorities external.","notProved":["remediation","service impact","configuration state"]},
+        {"id":"performing-endpoint-vulnerability-remediation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain vulnerability remediation planning, patch validation, exception, rollback, and defensive maintenance guidance as advisory.","notProved":["finding validity","SLA completion","risk reduction"]},
+        {"id":"performing-endpoint-vulnerability-remediation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, endpoint ownership, legal/privacy/safety review, change approval, maintenance scope, rollback, analyst validation, and disclosure decisions.","notProved":["authorization","live remediation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-entitlement-review-with-sailpoint-iiq",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-entitlement-review-with-sailpoint-iiq/SKILL.md","sha256":"ea3f8a549e8009b0604c02b08125867df17a12eafead6a0be20f69ca4232b25e","availability":"available","license":"Apache-2.0","anchors":["# Performing Entitlement Review with SailPoint IdentityIQ:L62"]},
+      "components": [
+        {"id":"performing-entitlement-review-with-sailpoint-iiq::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed identity, entitlement, role, reviewer, owner, campaign, exception, decision, and evidence-manifest fields only.","notProved":["identity state","entitlement truth","revocation"]},
+        {"id":"performing-entitlement-review-with-sailpoint-iiq::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep SailPoint IdentityIQ, IdPs, directories, HR, sessions, access systems, and production revocation authorities external.","notProved":["access state","least privilege","compliance"]},
+        {"id":"performing-entitlement-review-with-sailpoint-iiq::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain entitlement review, identity governance, segregation-of-duties, least-privilege, and compliance guidance as advisory.","notProved":["review completeness","risk score","access outcome"]},
+        {"id":"performing-entitlement-review-with-sailpoint-iiq::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authority, identity and data-owner decisions, legal/privacy review, reviewer validation, exception approval, remediation, and disclosure decisions.","notProved":["authorization","revocation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-false-positive-reduction-in-siem",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-false-positive-reduction-in-siem/SKILL.md","sha256":"4cb02ed729a2e8d630ac150ee29f10e5758f92743796f8a796ad29be3c5d93fb","availability":"available","license":"Apache-2.0","anchors":["# Performing False Positive Reduction in SIEM:L37"]},
+      "components": [
+        {"id":"performing-false-positive-reduction-in-siem::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed alert, rule, event, suppression, threshold, owner, rationale, review, and evidence-manifest fields without SIEM execution.","notProved":["alert truth","false positive rate","detection coverage"]},
+        {"id":"performing-false-positive-reduction-in-siem::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep SIEM, log pipelines, parsers, detection engines, EDR, endpoints, threat feeds, and production alerting authorities external.","notProved":["live alerting","detection efficacy","incident status"]},
+        {"id":"performing-false-positive-reduction-in-siem::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain alert triage, rule tuning, uncertainty review, detection engineering, and defensive monitoring guidance as advisory.","notProved":["coverage","analyst accuracy","response effectiveness"]},
+        {"id":"performing-false-positive-reduction-in-siem::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, log and system ownership, legal/privacy review, analyst validation, change approval, escalation, containment, and disclosure decisions.","notProved":["authorization","live tuning","security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No CSP bypass, credential access, CVE prioritization truth, dark-web monitoring, deception deployment, DMARC enforcement, malware detonation, endpoint remediation, entitlement review, SIEM tuning, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}
