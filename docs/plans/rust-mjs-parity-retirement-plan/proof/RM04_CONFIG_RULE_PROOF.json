@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM04",
+  "artifactId": "RM04-C2-18-BOUNDED-EVIDENCE",
+  "artifactState": "bounded-evidence-only",
+  "materializedAtCandidateSha": "f8e2896fa144fbfd0bceaef962ae735b50d87cdc",
+  "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+  "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+  "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+  "overlay": {
+    "parentSha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+    "sha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "role": "private-overlay-behavior-authority-only"
+  },
+  "authoritySeparation": {
+    "publicParityCompared": false,
+    "overlayVerdictSeparateFromPublic": true,
+    "matrixDispositionChanged": false,
+    "closureClaim": false
+  },
+  "rows": [
+    {
+      "id": "C2-12",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "authoritySource": "overlay",
+      "authoritySha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-domain/src/config_types.rs:PrivateRustTestModuleAllowlistEntry",
+        "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["exact-positive", "wrong-owner", "wrong-module", "second-cfg"],
+      "doesNotProve": ["public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-13",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "authoritySource": "overlay",
+      "authoritySha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-domain/src/config_types.rs:PrivateRustTestModuleAllowlistEntry::try_new",
+        "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["exact-positive", "wrong-owner", "wrong-module", "second-cfg"],
+      "doesNotProve": ["public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-14",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "authoritySource": "overlay",
+      "authoritySha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-scan/src/engine.rs:is_private_test_path_attribute",
+        "crates/enforcer-scan/src/engine.rs:required_tests_matches_frozen_project_and_private_module_shapes"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["exact-positive", "wrong-module", "second-cfg"],
+      "doesNotProve": ["public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-15",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "authoritySource": "overlay",
+      "authoritySha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module",
+        "crates/enforcer-scan/src/engine.rs:required_tests_allows_only_the_exact_private_rust_module_shape"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["exact-positive", "wrong-owner", "wrong-module"],
+      "doesNotProve": ["public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-16",
+      "overlayBehaviorId": "private-rust-test-module-exact-match",
+      "authoritySource": "overlay",
+      "authoritySha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-scan/src/engine.rs:is_allowlisted_private_rust_test_module",
+        "crates/enforcer-scan/src/engine.rs:exact private-module unit-test family"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["exact-positive", "second-cfg"],
+      "doesNotProve": ["public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-17",
+      "overlayBehaviorId": "private-rust-test-module-policy-preservation",
+      "authoritySource": "overlay",
+      "authoritySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "schemas/effect/enforcer-schemas-config.mjs:ConfigSchema",
+        "schemas/json/enforcer-config.schema.json",
+        "tests/enforcer-schemas.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-config/src/boundary/serde.rs:WirePrivateRustTestModuleAllowlistEntry",
+        "crates/enforcer-config/tests/proof_fixtures.rs:typed-field coverage"
+      ],
+      "boundedResult": "partial-config-lockdown-only",
+      "closureState": "not-closed",
+      "evidenceCases": ["config-lockdown-positive"],
+      "unresolved": ["exact overlay schema acceptance and rejection corpus"],
+      "doesNotProve": ["typed schema parity", "public parity", "aggregate parity", "matrix closure"]
+    },
+    {
+      "id": "C2-18",
+      "overlayBehaviorId": "private-rust-test-module-policy-preservation",
+      "authoritySource": "overlay",
+      "authoritySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+      "candidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+      "sourceAnchors": [
+        "src/check-policy.mjs",
+        "tests/enforcer-policy.test.mjs"
+      ],
+      "rustAnchors": [
+        "crates/enforcer-config/src/boundary/serde/diagnostics.rs:KNOWN_TOP_LEVEL_KEYS",
+        "crates/enforcer-config/src/boundary/serde/diagnostics.rs:inspect_project_config",
+        "crates/enforcer-config/src/boundary/serde.rs:TryFrom<WireEffectiveConfig>"
+      ],
+      "boundedResult": "equal-for-bounded-overlay-corpus",
+      "closureState": "not-closed",
+      "evidenceCases": ["config-lockdown-positive"],
+      "doesNotProve": ["public parity", "aggregate parity", "RM04 closure", "matrix closure"]
+    }
+  ],
+  "cases": [
+    {
+      "id": "exact-positive",
+      "behavior": "exact ownerFile/moduleFile/moduleName with same-dir existing file and one cfg(test) marker",
+      "overlay": {
+        "runId": "20260803013530-7dcc6732",
+        "status": "passed",
+        "exitCode": 0,
+        "command": "node C:\\Users\\sujan\\AppData\\Local\\Temp\\ocentra-enforcer-rm04-overlay-9d21780-20260803\\scripts\\rust-rules.mjs check required-tests --root C:\\Users\\sujan\\AppData\\Local\\Temp\\rm04-overlay-positive-9d21780-20260803 --json --files crates/core/src/device_trust.rs",
+        "stdoutSha256": "668ACF9B13BF62D4CB4D8DF0BB19E748A3DCEC8FA0004E30C793E3DC75229808"
+      },
+      "candidate": {
+        "runId": "20260803013613-1e788478",
+        "status": "passed",
+        "exitCode": 0,
+        "command": "C:\\Users\\sujan\\.codex\\worktrees\\973c\\ocentra-enforcer-rust-build\\target\\debug\\enforcer.exe policy required-tests crates/core/src/device_trust.rs",
+        "stdoutSha256": "61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"
+      },
+      "fixtureSha256": "E33EAF898F0071CD6509B18E80B559171FD778FAE27EA528552A980732144E3A"
+    },
+    {
+      "id": "wrong-owner",
+      "behavior": "wrong owner path is rejected",
+      "overlay": {"runId": "20260803013532-97c2c897", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "471F17F7CB1A33A3DBEC7C40437D9841A2FFFC641A53D96677DD1864916C8CF2"},
+      "candidate": {"runId": "20260803013620-a29f93b1", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "C5B8EAC0E785914ED5DB8334F4B63FE535B24F98A2CF2ED76ED155EF1AA01475"},
+      "fixtureSha256": "E33EAF898F0071CD6509B18E80B559171FD778FAE27EA528552A980732144E3A"
+    },
+    {
+      "id": "wrong-module",
+      "behavior": "wrong module/path attribute is rejected",
+      "overlay": {"runId": "20260803013534-fbfb7d25", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "EBDB779F168312677D4C22F9BFB4D2F898BB3CE68A5D92F0EE12C2DC7A9EB9D9"},
+      "candidate": {"runId": "20260803013620-7f7cca40", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "C5B8EAC0E785914ED5DB8334F4B63FE535B24F98A2CF2ED76ED155EF1AA01475"},
+      "fixtureSha256": "4EA28DC1C9884B1469776180FAFE8EA06148E34D0BE6CBC18B87B99FC7CF0C50"
+    },
+    {
+      "id": "second-cfg",
+      "behavior": "second cfg(test) marker is rejected",
+      "overlay": {"runId": "20260803013535-7c10f0f6", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "7DFE062C0F192C825C2FF662A1C70A7744FD55B221F8BD39F0CBB62AC12167CD"},
+      "candidate": {"runId": "20260803013620-a4e65b71", "status": "failed", "exitCode": 1, "finding": "TEST-2.2", "line": 3, "stdoutSha256": "C5B8EAC0E785914ED5DB8334F4B63FE535B24F98A2CF2ED76ED155EF1AA01475"},
+      "fixtureSha256": "8688C4EF23BCECCB8E1E6985BB9AA95EBC254BB32E230BF15C9AF10258A85A98"
+    },
+    {
+      "id": "config-lockdown-positive",
+      "behavior": "allowlist survives config-lockdown processing",
+      "overlay": {
+        "runId": "20260803013649-ace3356b",
+        "status": "passed",
+        "exitCode": 0,
+        "command": "node C:\\Users\\sujan\\AppData\\Local\\Temp\\ocentra-enforcer-rm04-overlay-9d21780-20260803\\scripts\\rust-rules.mjs check config-lockdown --root C:\\Users\\sujan\\AppData\\Local\\Temp\\rm04-overlay-positive-9d21780-20260803 --json",
+        "stdoutSha256": "120AF9A5DDD98CE8F377473B87F0754E69DB1F2E55C5099D6096374DFDBA0EDE"
+      },
+      "candidate": {
+        "runId": "20260803013711-2089f5ee",
+        "status": "passed",
+        "exitCode": 0,
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\sujan\\AppData\\Local\\Temp\\run-rm04-candidate-config-lockdown.ps1 -Root C:\\Users\\sujan\\AppData\\Local\\Temp\\rm04-candidate-positive-e190-20260803",
+        "stdoutSha256": "0BCFEF474CF4207E86B9B35E0377C34546A87369596BAF24E760C45381E5281B"
+      },
+      "configSha256": "C91E6BD8B32B84205CE209EEF7DACCFE6E8D7724FF92B61ABEF959E2031EE0C1"
+    }
+  ],
+  "tooling": {
+    "overlayRunnerSha256": "4C5C5B5C439FC5D419902DE5AA01A3D974D9BEA87937EF09D4A42E43AC1A745A",
+    "overlaySchemaSha256": "F446BE1772AA13F96FF9F2D9DFBA685DE7E15861DF80F5F07E8EDD52703C8D5C",
+    "candidateConfigLockdownScriptSha256": "A22AC8D4A50D1F56A85D6CCB409EA1C4D3CE0CF7922152A1E9F3553DED08887D"
+  },
+  "validation": {
+    "jsonParse": "pass",
+    "npmCi": "pass",
+    "effectVersion": "3.21.4",
+    "directEnforcerScan": {
+      "runId": "20260803032508-3ab14ae4",
+      "status": "passed",
+      "exitCode": 0,
+      "directStdout": "ok:true; violations:0; warnings:0; findings:0",
+      "wrapperDiagnostic": "HAR-2.4 parser warning only; direct stdout is valid JSON and clean"
+    },
+    "diffCheck": {
+      "runId": "20260803032444-d7236bde",
+      "status": "passed",
+      "exitCode": 0
+    }
+  },
+  "unresolved": [
+    "C2-17 exact overlay typed-schema acceptance/rejection corpus is not included in this packet.",
+    "C2-18 remains not closed; this is bounded overlay evidence, not aggregate parity.",
+    "Public 267 parity was not adjudicated by these overlay-specific runs.",
+    "The evidence candidate SHA e19076353d8cfc945b138311de9d4738021ec05d differs from the materialization base f8e2896fa144fbfd0bceaef962ae735b50d87cdc."
+  ],
+  "proves": [
+    "For the listed exact fixtures, overlay and candidate positive/negative required-tests exit classes and TEST-2.2 line-3 findings match.",
+    "For the listed exact config-lockdown positive fixture, overlay and candidate both pass with no findings.",
+    "The private overlay behavior is recorded separately from the public oracle, with exact run IDs and artifact hashes."
+  ],
+  "doesNotProve": [
+    "public parity",
+    "equal-or-stricter aggregate",
+    "RM04 closure",
+    "C2-17 typed-schema parity",
+    "C2-18 matrix closure",
+    "cutover or retirement"
+  ]
+}
