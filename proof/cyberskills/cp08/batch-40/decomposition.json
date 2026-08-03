@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-40",
+  "baselineCommit": "950bbf40a50229fd11fe733374f64ea2af878d24",
+  "family": "Threat-intelligence, OSINT, IOC enrichment, actor profiling, and intelligence-feed exchange",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "automating-ioc-enrichment",
+      "building-threat-actor-profile-from-osint",
+      "modeling-threats-with-opencti",
+      "monitoring-darkweb-sources",
+      "operationalizing-misp-threat-feeds",
+      "performing-ai-driven-osint-correlation",
+      "performing-open-source-intelligence-gathering",
+      "processing-stix-taxii-feeds",
+      "performing-osint-with-spiderfoot",
+      "tracking-threat-actor-infrastructure"
+    ],
+    "reason": "Ten disjoint threat-intelligence and OSINT skills covering IOC enrichment, source collection, actor profiling, intelligence modeling, dark-web monitoring, feed exchange, correlation, and infrastructure tracking. Native checks are limited to static typed supplied manifests; live sources, enrichment engines, and attribution outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "automating-ioc-enrichment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/automating-ioc-enrichment/SKILL.md",
+        "sha256": "185037aedd5f7c642f53ed3539620c0ff7833aadaa22959b5df534062488f4c4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Automating IOC Enrichment:L39"]
+      },
+      "components": [
+        {"componentId": "automating-ioc-enrichment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied IOC, enrichment-source, confidence, citation, provenance, and evidence manifests.", "notProved": ["No live enrichment, source truth, IOC validity, freshness, attribution, or security outcome proof."]},
+        {"componentId": "automating-ioc-enrichment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SOAR, TIP, SIEM, VirusTotal, feed, API, or production enrichment authorities.", "notProved": ["No pinned enrichment adapter, live provider, network access, or normalized external result."]},
+        {"componentId": "automating-ioc-enrichment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IOC enrichment and intelligence triage guidance.", "notProved": ["Guidance is not enforcement and does not establish indicator truth."]},
+        {"componentId": "automating-ioc-enrichment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No live enrichment or analyst decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-threat-actor-profile-from-osint",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-actor-profile-from-osint/SKILL.md",
+        "sha256": "b179b5f51f83e02da111758ac88d51f2b007e02266fb8efcce7f01f7bcb440e5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Threat Actor Profile from OSINT:L31"]
+      },
+      "components": [
+        {"componentId": "building-threat-actor-profile-from-osint::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied actor, source, claim, relationship, confidence, citation, timeline, and provenance manifests.", "notProved": ["No live OSINT collection, actor attribution, identity truth, infrastructure ownership, or threat outcome proof."]},
+        {"componentId": "building-threat-actor-profile-from-osint::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live OSINT, social, dark-web, identity, domain, hosting, or intelligence-provider authorities.", "notProved": ["No live source access, correlation engine, attribution authority, or production intelligence."]},
+        {"componentId": "building-threat-actor-profile-from-osint::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain actor-profile construction, source evaluation, and uncertainty guidance.", "notProved": ["Guidance is not enforcement and does not prove attribution."]},
+        {"componentId": "building-threat-actor-profile-from-osint::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No human attribution or dissemination decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "modeling-threats-with-opencti",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/modeling-threats-with-opencti/SKILL.md",
+        "sha256": "80a07baa912aff58838465b79ff303994d47bd7afe893296b97f914ccd82a3af",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Modeling Threats with OpenCTI:L23"]
+      },
+      "components": [
+        {"componentId": "modeling-threats-with-opencti::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied threat-entity, relationship, marking, confidence, source, citation, and provenance manifests.", "notProved": ["No live OpenCTI modeling, relationship truth, actor attribution, indicator validity, or security outcome proof."]},
+        {"componentId": "modeling-threats-with-opencti::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use OpenCTI, graph, connector, feed, enrichment, identity, or production threat-intelligence authorities.", "notProved": ["No pinned OpenCTI adapter, live connector, external graph, or normalized intelligence result."]},
+        {"componentId": "modeling-threats-with-opencti::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat modeling, entity relationship, confidence, and intelligence-sharing guidance.", "notProved": ["Guidance is not enforcement and does not establish relationship truth."]},
+        {"componentId": "modeling-threats-with-opencti::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No live threat model or analyst approval is proved."]}
+      ]
+    },
+    {
+      "catalogId": "monitoring-darkweb-sources",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/monitoring-darkweb-sources/SKILL.md",
+        "sha256": "d778a2fb6ec2a8edf07118da5a560832f6930634ce2678e702529804648d1bc6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Monitoring Dark Web Sources:L72"]
+      },
+      "components": [
+        {"componentId": "monitoring-darkweb-sources::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied source, observation, timestamp, snapshot, indicator, citation, privacy, and provenance manifests.", "notProved": ["No dark-web access, monitoring, source truth, indicator validity, attribution, or incident outcome proof."]},
+        {"componentId": "monitoring-darkweb-sources::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use dark-web, Tor, browser, monitoring, threat-feed, law-enforcement, or production intelligence authorities.", "notProved": ["No live source access, crawler, monitoring service, network session, or external result."]},
+        {"componentId": "monitoring-darkweb-sources::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain dark-web monitoring, source evaluation, privacy, and analyst-safety guidance.", "notProved": ["Guidance is not enforcement and does not prove source authenticity."]},
+        {"componentId": "monitoring-darkweb-sources::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No live monitoring or human handling decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "operationalizing-misp-threat-feeds",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/operationalizing-misp-threat-feeds/SKILL.md",
+        "sha256": "cd21b30ef9c40a7c32eb08081a20acc41b6db58f1305a3e5fed225427eba1d01",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Operationalizing MISP Threat Feeds:L23"]
+      },
+      "components": [
+        {"componentId": "operationalizing-misp-threat-feeds::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied MISP event, attribute, tag, sharing, confidence, timestamp, citation, and provenance manifests.", "notProved": ["No live MISP feed, indicator validity, feed freshness, sharing action, detection, or security outcome proof."]},
+        {"componentId": "operationalizing-misp-threat-feeds::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use MISP, threat-feed, API, connector, SIEM, SOAR, TIP, or production response authorities.", "notProved": ["No pinned MISP adapter, live feed, network exchange, downstream action, or normalized result."]},
+        {"componentId": "operationalizing-misp-threat-feeds::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain MISP event handling, sharing, feed quality, and intelligence-operations guidance.", "notProved": ["Guidance is not enforcement and does not establish feed truth."]},
+        {"componentId": "operationalizing-misp-threat-feeds::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No human feed publication, sharing, or response decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-ai-driven-osint-correlation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ai-driven-osint-correlation/SKILL.md",
+        "sha256": "96d041525e37944a080fff486854e5935880ba449a7d032efac0576ce1df5981",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing AI-Driven OSINT Correlation:L51"]
+      },
+      "components": [
+        {"componentId": "performing-ai-driven-osint-correlation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied OSINT record, feature, linkage, confidence, citation, model-input, and provenance manifests.", "notProved": ["No AI or LLM execution, correlation accuracy, source truth, attribution, or security outcome proof."]},
+        {"componentId": "performing-ai-driven-osint-correlation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use AI/LLM, embedding, graph, OSINT, enrichment, social, search, or production intelligence authorities.", "notProved": ["No model invocation, external source access, live correlation, network session, or normalized result."]},
+        {"componentId": "performing-ai-driven-osint-correlation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OSINT correlation, source evaluation, uncertainty, bias, and analyst-review guidance.", "notProved": ["Guidance is not enforcement and does not establish model accuracy."]},
+        {"componentId": "performing-ai-driven-osint-correlation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No human review or attribution decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-open-source-intelligence-gathering",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-open-source-intelligence-gathering/SKILL.md",
+        "sha256": "06f54abc244a9a848b095dc0027786773fc544db80c1595757a8a4ca21b7a48c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Open Source Intelligence Gathering:L30"]
+      },
+      "components": [
+        {"componentId": "performing-open-source-intelligence-gathering::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied OSINT source, query, observation, citation, timestamp, confidence, privacy, and provenance manifests.", "notProved": ["No live collection, source truth, freshness, identity resolution, attribution, or security outcome proof."]},
+        {"componentId": "performing-open-source-intelligence-gathering::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use search, browser, social, DNS, WHOIS, certificate, hosting, geolocation, dark-web, or production intelligence authorities.", "notProved": ["No live source access, network session, crawler, enrichment service, or external result."]},
+        {"componentId": "performing-open-source-intelligence-gathering::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OSINT collection, source validation, privacy, safety, and reporting guidance.", "notProved": ["Guidance is not enforcement and does not establish source truth."]},
+        {"componentId": "performing-open-source-intelligence-gathering::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No live collection or analyst conclusion is proved."]}
+      ]
+    },
+    {
+      "catalogId": "processing-stix-taxii-feeds",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/processing-stix-taxii-feeds/SKILL.md",
+        "sha256": "52c6736e7c937b09dcb2a1e4acff134503b075425172e2ca1eea2a2a8c7a5fe2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Processing STIX/TAXII Feeds:L36"]
+      },
+      "components": [
+        {"componentId": "processing-stix-taxii-feeds::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied STIX object, TAXII bundle, relationship, marking, timestamp, feed, confidence, and provenance manifests.", "notProved": ["No live TAXII transport, feed freshness, STIX semantic validity, indicator truth, attribution, or detection outcome proof."]},
+        {"componentId": "processing-stix-taxii-feeds::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use TAXII servers, STIX validators, connectors, threat feeds, MISP/OpenCTI, SIEM, SOAR, or production authorities.", "notProved": ["No pinned feed adapter, live transport, external validator, network exchange, or downstream action."]},
+        {"componentId": "processing-stix-taxii-feeds::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain STIX/TAXII processing, schema, marking, sharing, and feed-quality guidance.", "notProved": ["Guidance is not enforcement and does not establish feed validity."]},
+        {"componentId": "processing-stix-taxii-feeds::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No human feed validation, sharing, or response decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-osint-with-spiderfoot",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-osint-with-spiderfoot/SKILL.md",
+        "sha256": "68463c61fbd3917c3e04553a3803081642af7e8beaa6eedee25f162df8ab0a44",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing OSINT with SpiderFoot:L31"]
+      },
+      "components": [
+        {"componentId": "performing-osint-with-spiderfoot::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SpiderFoot target, module, observation, source, timestamp, confidence, citation, and provenance manifests.", "notProved": ["No SpiderFoot execution, live enumeration, source truth, infrastructure ownership, attribution, or security outcome proof."]},
+        {"componentId": "performing-osint-with-spiderfoot::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SpiderFoot, search, DNS, WHOIS, certificate, hosting, social, dark-web, scanner, or production intelligence authorities.", "notProved": ["No live module execution, network session, external source, crawler, or normalized result."]},
+        {"componentId": "performing-osint-with-spiderfoot::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SpiderFoot OSINT workflow, source evaluation, privacy, safety, and reporting guidance.", "notProved": ["Guidance is not enforcement and does not establish enumeration truth."]},
+        {"componentId": "performing-osint-with-spiderfoot::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No live scan or human conclusion is proved."]}
+      ]
+    },
+    {
+      "catalogId": "tracking-threat-actor-infrastructure",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/tracking-threat-actor-infrastructure/SKILL.md",
+        "sha256": "9d5caf63ebc77163e4f0180dfe33cf29911b1b128dc8e32b196134d8e55eb430",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Tracking Threat Actor Infrastructure:L63"]
+      },
+      "components": [
+        {"componentId": "tracking-threat-actor-infrastructure::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied domain, IP, certificate, hosting, relationship, timestamp, confidence, citation, and provenance manifests.", "notProved": ["No live infrastructure tracking, ownership truth, actor attribution, discovery, compromise, or security outcome proof."]},
+        {"componentId": "tracking-threat-actor-infrastructure::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DNS, WHOIS, certificate-transparency, passive-DNS, hosting, registrar, scanning, threat-feed, or production network authorities.", "notProved": ["No live enumeration, network access, scanner, external enrichment, or normalized infrastructure result."]},
+        {"componentId": "tracking-threat-actor-infrastructure::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain infrastructure tracking, source correlation, uncertainty, privacy, and reporting guidance.", "notProved": ["Guidance is not enforcement and does not establish ownership or attribution."]},
+        {"componentId": "tracking-threat-actor-infrastructure::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics scope, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, and remediation decisions.", "notProved": ["No human attribution, notification, or remediation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live OSINT and dark-web sources, MISP, OpenCTI, SpiderFoot, SOAR, TIP, enrichment, AI/LLM, DNS, WHOIS, certificate, hosting, live feeds, network, and production authorities remain blocked external engines.",
+    "No live collection, enrichment, source truth, freshness, IOC validity, actor attribution, infrastructure ownership, AI correlation accuracy, STIX/TAXII validity, detection, compromise, or threat/security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}
