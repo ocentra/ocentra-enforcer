@@ -9,3 +9,4 @@ mod boundary;
 pub mod facts;
 pub mod languages;
 pub mod parsers;
+pub mod registry;

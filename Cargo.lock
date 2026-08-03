@@ -1299,6 +1299,8 @@ dependencies = [
  "bca-tree-sitter-tcl",
  "enforcer-domain",
  "ocentra-tree-sitter-pkl",
+ "serde_json",
+ "sha2",
  "tree-sitter",
  "tree-sitter-ada",
  "tree-sitter-agda",
