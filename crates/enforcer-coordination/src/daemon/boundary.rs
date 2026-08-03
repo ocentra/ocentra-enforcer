@@ -121,6 +121,14 @@ mod tests {
         let initial = ensure("127.0.0.1", 0, Some("token"))?;
         let repeated = ensure("127.0.0.1", initial.port, Some("different-token"))?;
         assert!(repeated.reused);
+        assert_eq!(
+            serde_json::to_value(&initial)?,
+            serde_json::json!({
+                "host": "127.0.0.1",
+                "port": initial.port,
+                "reused": false,
+            })
+        );
         assert!(request(initial.port, None)?.starts_with("HTTP/1.1 401"));
         assert!(request(initial.port, Some("token"))?.starts_with("HTTP/1.1 200"));
         Ok(())
