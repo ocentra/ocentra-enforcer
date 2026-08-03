@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP01",
+  "batch": "batch-04",
+  "baselineCommit": "af520ea93e85bcd0e3f81a6ac501956b85dfd3b6",
+  "scope": "Read-only reconciliation of seven source-identifiable existing CyberSkills validators; no ledger application, vendor edits, or protected-source inspection.",
+  "rules": [
+    {
+      "ruleId": "CYBER-GHA.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/github_actions.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-github-actions-workflows/SKILL.md",
+        "sha256": "2b97435cc35f746c3dfe8ce527d2b74602906c8ee61e098aeb7547efc9c5a210",
+        "anchors": [
+          "### Step 1: Pin Actions to SHA Digests:L55",
+          "### Step 2: Minimize GITHUB_TOKEN Permissions:L76",
+          "### Step 3: Prevent Script Injection:L106",
+          "### Step 4: Secure Fork Pull Request Handling:L129"
+        ]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag mutable action references, write-all workflow permissions, shell interpolation of untrusted event input, and unsafe pull_request_target checkout patterns under GithubActionsSecurityValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ci.github-actions/{bad/workflow.yml,good/workflow.yml}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove GitHub-hosted execution behavior, token exposure in live repositories, action provenance beyond the pinned-reference predicate, or complete GitHub Actions hardening."
+    },
+    {
+      "ruleId": "CYBER-IAC-IAM-WILDCARD.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
+        "sha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a",
+        "anchors": ["### Step 4: Create Custom OPA Policies for Organization Standards:L142"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Terraform Allow statements must not use wildcard actions.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/{bad/wildcard.tf,good/scoped.tf}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove the vendor skill's broader external Checkov/tfsec/Terrascan workflow or all Terraform predicates."
+    },
+    {
+      "ruleId": "CYBER-NOSQL-INJECT.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/nosql_injection.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-nosql-injection-vulnerabilities/SKILL.md",
+        "sha256": "1d3c9cc04615bab8e4bac5731f23ffbb3f41c46dbf42906c9deb9c1d84559445",
+        "anchors": ["### Step 1 — Identify NoSQL Injection Points:L51"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Static source detection of untrusted request input entering NoSQL operator, regex, or $where query shapes.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/{bad/vuln.js,good/safe.js}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove live response-differential testing, authentication bypass, and data extraction."
+    },
+    {
+      "ruleId": "CYBER-MASS-ASSIGN.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md",
+        "sha256": "23393f7b14703375d6487e099a3108186d299b359fab45e7c09281e41b479af9",
+        "anchors": ["### Step 2 — Test Privilege Escalation via Role Fields:L73"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Static source detection of whole untrusted request-object binding without a field allowlist.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/{bad/vuln.py,good/safe.py}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove live endpoint discovery, authorization behavior, or exploitation outcomes."
+    },
+    {
+      "ruleId": "CYBER-TYPE-JUGGLE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/type_juggle.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-type-juggling-vulnerabilities/SKILL.md",
+        "sha256": "e2a5f701c3b3a40b481c4642e2e7e7705834440f0655e2ee48e14fe6e502b016",
+        "anchors": ["### Step 2 — Exploit Loose Comparison Authentication Bypass:L73"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Static PHP detection of loose comparison, non-strict helpers, and magic-hash shapes on attacker-controlled input.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/{bad/vuln.php,good/safe.php}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove interactive request mutation and complete runtime authentication bypass validation."
+    },
+    {
+      "ruleId": "CYBER-DOCKER-DAEMON.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/docker_daemon.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-daemon-configuration/SKILL.md",
+        "sha256": "56a5cb91d14ca7820d4887772e3e7d083665f92d16196e794f432f097e70a894",
+        "anchors": ["## Core Hardened daemon.json:L51"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "daemon.json requires the selected user namespace, TLS, and hardening controls.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/{bad/daemon.json,good/daemon.json}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove host-level Docker deployment, certificate provisioning, and every CIS control in the vendor workflow."
+    },
+    {
+      "ruleId": "CYBER-WEBSOCKET.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/websocket_security.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-websocket-vulnerabilities/SKILL.md",
+        "sha256": "b2504661bb4ff59fcea800c426293b02a3ec129de9d4e16ae75d443614ecd948",
+        "anchors": ["### Step 3: Test Cross-Site WebSocket Hijacking (CSWSH):L134"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Static server-configuration detection of permissive WebSocket Origin validation that enables CSWSH.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/{bad/vuln.js,good/safe.js}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove live WebSocket handshake, authentication, message injection, TLS, and runtime exploit testing."
+    }
+  ],
+  "derivedCounts": {
+    "rulesAudited": 7,
+    "acceptedNarrowedPredicate": 7,
+    "unprovedOrRejected": 0,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact is evidence-only and does not alter the 817-row disposition ledger.",
+    "A narrowed predicate is not whole-skill parity.",
+    "CLI, MCP, and CI reachability were not freshly executed in CP01; existing fixture/corpus references are not a new route proof.",
+    "CYBER-FRONTMATTER.1 is corpus-wide and has no single vendor-skill source attribution in this batch; it remains unaudited here.",
+    "CYBER-FILELESS-MALWARE.1, CYBER-FILELESS-TELEMETRY.1, and CYBER-FILELESS-REPORT.1 are excluded because their source attribution is protected or unavailable; no protected source was inspected.",
+    "The protected sourceUnavailable identity remains outside this batch and remains governance state."
+  ]
+}
