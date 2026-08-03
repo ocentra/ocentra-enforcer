@@ -7,6 +7,7 @@
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::language_types::{
     DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, MatcherWinner, ScanFamilyDisposition,
@@ -182,31 +183,13 @@ fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDispositi
     )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ScanFamilyProjectionError {
-    InvalidSyntheticPath,
-}
-
-impl std::fmt::Display for ScanFamilyProjectionError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidSyntheticPath => {
-                formatter.write_str("scan-family projection built an invalid synthetic path")
-            }
-        }
-    }
-}
-
-impl std::error::Error for ScanFamilyProjectionError {}
-
 fn scan_family_for_matcher(
     matcher: DetectionMatcher,
-) -> Result<Option<LanguageFamily>, ScanFamilyProjectionError> {
+) -> Result<Option<LanguageFamily>, DecodeError> {
     let DetectionMatcher::Extension(extension) = matcher else {
         return Ok(None);
     };
-    let path = RelPath::from_str(&format!("__ul06_scan_family.{extension}"))
-        .map_err(|_| ScanFamilyProjectionError::InvalidSyntheticPath)?;
+    let path = RelPath::from_str(&format!("__ul06_scan_family.{extension}"))?;
     match super::classify(&path) {
         LanguageFamily::Unknown => Ok(None),
         family => Ok(Some(family)),
