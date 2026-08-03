@@ -107,8 +107,10 @@ pub enum RulePackProjection {
 /// Typed consumer-capability projection attached to a canonical route.
 ///
 /// Native-tool and rule-pack values reuse only exact scan-family mapping
-/// seams proved by the current consumers. CLI and UI remain independent
-/// unsupported dispositions. Legacy coarse mappings remain unchanged.
+/// seams proved by the current consumers. CLI remains an independent
+/// unsupported disposition, while UI is not applicable to an identity-specific
+/// projection because no such capability seam exists. Legacy coarse mappings
+/// remain unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalConsumerCapabilities {
     native_scan: ScanFamilyDisposition,
@@ -322,8 +324,19 @@ fn consumer_capabilities_for_matchers(
         native_tool: native_tool_projection(matchers),
         rule_packs: rule_pack_projection(matchers),
         cli: cli_language_projection(matchers),
-        ui: ConsumerCapabilityState::Unsupported,
+        ui: ui_capability_projection(),
     }
+}
+
+/// Return the honest canonical UI projection for every registry identity.
+///
+/// The current UI surface is an identity-agnostic report/presentation
+/// consumer: no identity-specific UI capability seam exists in `enforcer-ui`.
+/// `NotApplicable` therefore describes this projection question only; it does
+/// not claim that the UI lacks report functionality, and it must not be
+/// inferred from parser, literal, native-tool, rule-pack, or CLI support.
+const fn ui_capability_projection() -> ConsumerCapabilityState {
+    ConsumerCapabilityState::NotApplicable
 }
 
 fn cli_language_projection(matchers: &[DetectionMatcher]) -> CliLanguageProjection {
@@ -788,12 +801,16 @@ mod cli_projection_tests {
 #[cfg(test)]
 mod tests {
     use super::{canonical_route, RouteCapabilityDisposition};
-    use enforcer_domain::language_types::StructuralLanguageSupport;
+    use enforcer_domain::language_types::{LiteralDisposition, StructuralLanguageSupport};
+    use enforcer_syntax::parsers::Language;
     use enforcer_syntax::registry::language_registry;
 
     #[test]
     fn every_registry_identity_has_a_typed_route_disposition() {
         assert_eq!(language_registry().len(), 160);
+        let ui_mapped = 0;
+        let mut ui_unsupported = 0;
+        let mut ui_not_applicable = 0;
         for record in language_registry() {
             let Some(route) = canonical_route(record.id()) else {
                 assert!(false, "registry id must resolve to a route");
@@ -841,8 +858,53 @@ mod tests {
             );
             assert_eq!(
                 route.consumer_capabilities().ui(),
-                super::ConsumerCapabilityState::Unsupported
+                super::ConsumerCapabilityState::NotApplicable
+            );
+            match route.consumer_capabilities().ui() {
+                super::ConsumerCapabilityState::Unsupported => ui_unsupported += 1,
+                super::ConsumerCapabilityState::NotApplicable => ui_not_applicable += 1,
+            }
+        }
+        assert_eq!((ui_mapped, ui_unsupported, ui_not_applicable), (0, 0, 160));
+    }
+
+    #[test]
+    fn ui_projection_is_not_applicable_across_identity_and_literal_shapes() -> Result<(), String> {
+        for parser in [
+            Language::Rust,
+            Language::JavaScript,
+            Language::Python,
+            Language::Yaml,
+            Language::ConfigJson,
+            Language::ConfigYaml,
+        ] {
+            let record = language_registry()
+                .iter()
+                .find(|record| record.parser() == parser)
+                .ok_or_else(|| "reviewed parser identity must exist".to_owned())?;
+            let route = canonical_route(record.id())
+                .ok_or_else(|| "registry identity must route".to_owned())?;
+            assert_eq!(
+                route.consumer_capabilities().ui(),
+                super::ConsumerCapabilityState::NotApplicable
             );
         }
+
+        let unmatched = language_registry()
+            .iter()
+            .find(|record| {
+                record.structural() == StructuralLanguageSupport::ParseFile
+                    && record.literal_disposition() == LiteralDisposition::Unsupported
+            })
+            .ok_or_else(|| {
+                "an unmatched structural identity must remain in the registry".to_owned()
+            })?;
+        let route = canonical_route(unmatched.id())
+            .ok_or_else(|| "unmatched identity must route".to_owned())?;
+        assert_eq!(
+            route.consumer_capabilities().ui(),
+            super::ConsumerCapabilityState::NotApplicable
+        );
+        Ok(())
     }
 }
