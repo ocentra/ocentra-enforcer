@@ -446,10 +446,13 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
         return serde_json::json!({"type":"object","additionalProperties":false,"required":["ruleId"],"properties":{"ruleId":{"type":"string"}}});
     }
     if name == "ocentra_enforcer_route" {
-        return common_input_schema_with(serde_json::Map::from_iter([(
-            "ruleId".to_owned(),
-            serde_json::json!({"type":"string"}),
-        )]));
+        return common_input_schema_with(serde_json::Map::from_iter([
+            ("ruleId".to_owned(), serde_json::json!({"type":"string"})),
+            (
+                "identityProjection".to_owned(),
+                serde_json::json!({"type":"string","enum":["canonical"]}),
+            ),
+        ]));
     }
     if name.starts_with("ocentra_enforcer_coordination_") {
         return coordination_input_schema(name);
@@ -761,8 +764,8 @@ fn coordination_input_schema(name: &str) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_tool_descriptors, is_wired, named_check_backing, tool_surface_bytes,
-        RuleExplanationDto, CANONICAL_TOOLS, NAMED_CHECKS,
+        build_tool_descriptors, canonical_input_schema, is_wired, named_check_backing,
+        tool_surface_bytes, RuleExplanationDto, CANONICAL_TOOLS, NAMED_CHECKS,
     };
     use std::collections::BTreeSet;
 
@@ -852,6 +855,17 @@ mod tests {
                         )
                     });
                 }
+            }
+            if name == "ocentra_enforcer_route" {
+                assert_eq!(
+                    rust_schema["properties"]["identityProjection"],
+                    serde_json::json!({"type":"string","enum":["canonical"]}),
+                    "the only route schema delta must be the closed canonical projection option"
+                );
+                rust_schema["properties"]
+                    .as_object_mut()
+                    .ok_or("route schema properties must be an object")?
+                    .remove("identityProjection");
             }
             assert_eq!(
                 rust_schema,
@@ -1018,6 +1032,16 @@ mod tests {
         let second = tool_surface_bytes(&descriptors);
         assert!(first > 0);
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn route_schema_exposes_only_the_closed_canonical_projection_option() {
+        let schema = canonical_input_schema("ocentra_enforcer_route");
+        assert_eq!(
+            schema["properties"]["identityProjection"],
+            serde_json::json!({"type":"string","enum":["canonical"]})
+        );
+        assert!(schema["properties"]["includeUnknown"].is_null());
     }
 
     #[test]

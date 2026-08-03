@@ -32,10 +32,20 @@ pub struct LanguageId(NonZeroU16);
 pub struct InvalidLanguageId;
 
 impl LanguageId {
+    /// Return the validated non-zero registry value without exposing an unchecked constructor.
+    #[must_use]
+    pub const fn as_nonzero_u16(self) -> NonZeroU16 {
+        self.0
+    }
+
     /// Try to construct an identity from the canonical registry's one-based index.
     #[must_use]
     pub const fn try_from_registry_index(index: NonZeroU16) -> Result<Self, InvalidLanguageId> {
-        if index.get() <= PARSER_IDENTITY_COUNT { Ok(Self(index)) } else { Err(InvalidLanguageId) }
+        if index.get() <= PARSER_IDENTITY_COUNT {
+            Ok(Self(index))
+        } else {
+            Err(InvalidLanguageId)
+        }
     }
 
     /// Construct a checked identity from the canonical registry's one-based index.
@@ -96,8 +106,14 @@ pub struct DetectionPrecedenceProjection {
 
 impl DetectionPrecedenceProjection {
     /// Construct the typed projection emitted from the reviewed manifest.
-    pub const fn from_reviewed(ordered_kinds: [DetectionMatcherKind; 3], same_kind_tie_break: DetectionPrecedenceTieBreak) -> Self {
-        Self { ordered_kinds, same_kind_tie_break }
+    pub const fn from_reviewed(
+        ordered_kinds: [DetectionMatcherKind; 3],
+        same_kind_tie_break: DetectionPrecedenceTieBreak,
+    ) -> Self {
+        Self {
+            ordered_kinds,
+            same_kind_tie_break,
+        }
     }
 
     /// Return the global matcher-kind order.
@@ -168,5 +184,25 @@ pub enum LiteralProjection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CollisionResolution {
     /// Matcher kind, normalized key, members, and one winner.
-    Group(DetectionMatcherKind, &'static str, &'static [LiteralReference], LiteralReference),
+    Group(
+        DetectionMatcherKind,
+        &'static str,
+        &'static [LiteralReference],
+        LiteralReference,
+    ),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LanguageId;
+    use std::num::NonZeroU16;
+
+    #[test]
+    fn language_id_projection_preserves_the_validated_value() {
+        let Some(index) = NonZeroU16::new(160) else {
+            return;
+        };
+        let id = LanguageId::from_registry_index(index);
+        assert_eq!(id.as_nonzero_u16().get(), 160);
+    }
 }

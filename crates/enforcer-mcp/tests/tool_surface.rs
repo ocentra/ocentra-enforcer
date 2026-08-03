@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use enforcer_core::context_budget::decision;
-use enforcer_domain::core_types::{BUDGET_BASELINE_VERSION, BudgetGateDecision};
+use enforcer_domain::core_types::{BudgetGateDecision, BUDGET_BASELINE_VERSION};
 use enforcer_mcp::boundary::tool_descriptor::ToolDescriptorDto;
 use enforcer_mcp::tool_surface::{load_baseline, measure_current_surface, run_advisory_score};
 
@@ -179,7 +179,7 @@ fn live_registry_currently_passes_the_committed_baseline() -> Result<(), Box<dyn
     // Pin the reviewed post-expansion shape; the 10% ratchet below remains
     // unchanged and rejects any unreviewed future growth.
     assert_eq!(usize::from(live.tool_count()), 102);
-    assert_eq!(usize::from(live.total_bytes()), 145_179);
+    assert_eq!(usize::from(live.total_bytes()), 145_299);
     let outcome = enforcer_core::context_budget::evaluate(live, baseline);
     assert!(
         decision(&outcome) == BudgetGateDecision::Pass,
@@ -196,8 +196,54 @@ fn live_registry_currently_passes_the_committed_baseline() -> Result<(), Box<dyn
 }
 
 #[test]
-fn reviewed_check_enum_growth_accounts_for_the_140_byte_baseline_delta()
--> Result<(), Box<dyn std::error::Error>> {
+fn reviewed_route_projection_delta_accounts_for_the_exact_surface_growth(
+) -> Result<(), Box<dyn std::error::Error>> {
+    const PREVIOUS_SURFACE_BYTES: usize = 145_179;
+    let live = live_tool_descriptors()?;
+    let mut old_like = live.clone();
+    let mut route_names = Vec::new();
+    let mut route_deltas = Vec::new();
+
+    for (current, old) in live.iter().zip(old_like.iter_mut()) {
+        if !matches!(
+            current.name.as_str(),
+            "ocentra_enforcer_route" | "rust_rules_route"
+        ) {
+            continue;
+        }
+        route_names.push(current.name.clone());
+        let current_bytes = serde_json::to_vec(current)?.len();
+        old.input_schema["properties"]
+            .as_object_mut()
+            .ok_or("route schema properties must be an object")?
+            .remove("identityProjection");
+        let old_bytes = serde_json::to_vec(old)?.len();
+        route_deltas.push(current_bytes - old_bytes);
+    }
+
+    assert_eq!(
+        route_names,
+        vec!["ocentra_enforcer_route", "rust_rules_route"]
+    );
+    assert_eq!(route_deltas, vec![60, 60]);
+    let live_bytes = serde_json::to_vec(&live)?.len();
+    let old_like_bytes = serde_json::to_vec(&old_like)?.len();
+    assert_eq!(old_like_bytes, PREVIOUS_SURFACE_BYTES);
+    assert_eq!(live_bytes - old_like_bytes, 120);
+    assert_eq!(
+        live_bytes - PREVIOUS_SURFACE_BYTES,
+        route_deltas.iter().sum::<usize>()
+    );
+    assert_eq!(
+        usize::from(measure_current_surface().total_bytes()),
+        live_bytes
+    );
+    Ok(())
+}
+
+#[test]
+fn reviewed_check_enum_growth_accounts_for_the_140_byte_baseline_delta(
+) -> Result<(), Box<dyn std::error::Error>> {
     let live = live_tool_descriptors()?;
     let added_values = [
         "mutation-risk",
@@ -239,8 +285,8 @@ fn reviewed_check_enum_growth_accounts_for_the_140_byte_baseline_delta()
     let old_like_bytes = serde_json::to_vec(&old_like)?.len();
     assert_eq!(observed_added_occurrences, 8);
     assert_eq!(descriptor_deltas, vec![70, 70]);
-    assert_eq!(live_bytes, 145_179);
-    assert_eq!(old_like_bytes, 145_039);
+    assert_eq!(live_bytes, 145_299);
+    assert_eq!(old_like_bytes, 145_159);
     assert_eq!(live_bytes - old_like_bytes, 140);
     assert_eq!(
         usize::from(measure_current_surface().total_bytes()),

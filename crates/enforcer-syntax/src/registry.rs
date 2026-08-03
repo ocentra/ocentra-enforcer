@@ -10,12 +10,27 @@ use enforcer_domain::language_types::{
     DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, MatcherWinner, StructuralLanguageSupport,
 };
+use std::fmt;
 use std::num::NonZeroU16;
 
 /// Closed canonical parser name emitted by the reviewed registry.
 /// BRAND-INVARIANT: the value is created only from validated static registry data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CanonicalLanguageName(&'static str);
+
+impl CanonicalLanguageName {
+    /// Return the validated canonical name as a typed display value.
+    #[must_use]
+    pub const fn value(self) -> Self {
+        self
+    }
+}
+
+impl fmt::Display for CanonicalLanguageName {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.0)
+    }
+}
 
 /// One canonical parser identity and its structural parse disposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,4 +127,18 @@ pub fn collision_resolutions() -> &'static [CollisionResolution] {
 /// Return the reviewed matcher precedence policy without running detection.
 pub fn detection_precedence() -> &'static DetectionPrecedenceProjection {
     &DETECTION_PRECEDENCE
+}
+
+#[cfg(test)]
+mod tests {
+    use super::language_registry;
+
+    #[test]
+    fn canonical_name_projection_is_non_empty() {
+        assert!(language_registry().iter().all(|record| !record
+            .canonical_name()
+            .value()
+            .to_string()
+            .is_empty()));
+    }
 }

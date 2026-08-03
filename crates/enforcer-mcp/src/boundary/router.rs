@@ -2394,7 +2394,73 @@ fn reset_runs(args: &serde_json::Value) -> serde_json::Value {
 /// Native MCP route adapter. The route plan is built by `enforcer-scan` from
 /// the same walked paths and resolved project tie that native scan consumers
 /// use; this boundary only validates the wire scope and projects the result.
+fn canonical_language_route_responses(
+    routes: &[enforcer_scan::router::identity::DetectedLanguageRoute],
+) -> Vec<enforcer_scan::boundary::router::CanonicalLanguageRouteResponse> {
+    routes
+        .iter()
+        .map(|route| match route {
+            enforcer_scan::router::identity::DetectedLanguageRoute::Canonical(canonical) => {
+                let structural = match canonical.structural() {
+                    enforcer_domain::language_types::StructuralLanguageSupport::ParseFile => {
+                        enforcer_scan::boundary::router::CanonicalStructuralDisposition::ParseFile
+                    }
+                    enforcer_domain::language_types::StructuralLanguageSupport::NoParseFile => {
+                        enforcer_scan::boundary::router::CanonicalStructuralDisposition::NoParseFile
+                    }
+                };
+                let capability = match canonical.capability() {
+                    enforcer_scan::router::identity::RouteCapabilityDisposition::Unsupported => {
+                        enforcer_scan::boundary::router::CanonicalCapabilityDisposition::Unsupported
+                    }
+                    enforcer_scan::router::identity::RouteCapabilityDisposition::NotApplicable => {
+                        enforcer_scan::boundary::router::CanonicalCapabilityDisposition::NotApplicable
+                    }
+                };
+                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Canonical {
+                    language_id: canonical.id().as_nonzero_u16().get(),
+                    canonical_name: canonical.canonical_name().to_string(),
+                    structural,
+                    capability,
+                }
+            }
+            enforcer_scan::router::identity::DetectedLanguageRoute::SupplementalLiteral {
+                name,
+            } => enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::SupplementalLiteral {
+                literal_name: (*name).to_owned(),
+            },
+            enforcer_scan::router::identity::DetectedLanguageRoute::Unknown => {
+                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Unknown
+            }
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdentityProjectionRequest {
+    Canonical,
+}
+
+fn parse_identity_projection(
+    args: &serde_json::Value,
+) -> Result<Option<IdentityProjectionRequest>, String> {
+    match args.get("identityProjection") {
+        None => Ok(None),
+        Some(serde_json::Value::String(value)) if value == "canonical" => {
+            Ok(Some(IdentityProjectionRequest::Canonical))
+        }
+        Some(serde_json::Value::String(value)) => Err(format!(
+            "route `identityProjection` has unsupported value `{value}`"
+        )),
+        Some(_) => Err("route `identityProjection` must be the string `canonical`".to_owned()),
+    }
+}
+
 fn route(args: &serde_json::Value) -> serde_json::Value {
+    let identity_projection = match parse_identity_projection(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
     let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
         return json_error("route requires a `root` path");
     };
@@ -2454,14 +2520,26 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
         RouteScope::Repo
     };
     let plan = enforcer_scan::router::plan::build_route_plan(&paths, &scope, &tie);
-    match serde_json::to_value(plan) {
-        Ok(serde_json::Value::Object(mut value)) => {
-            value.insert("ok".to_owned(), serde_json::Value::Bool(true));
-            serde_json::Value::Object(value)
-        }
-        Ok(_) => json_error("native route produced an invalid report shape"),
-        Err(err) => json_error(&format!("failed to encode route plan: {err}")),
+    let Ok(serde_json::Value::Object(mut value)) = serde_json::to_value(plan) else {
+        return json_error("native route produced an invalid report shape");
+    };
+    if matches!(
+        identity_projection,
+        Some(IdentityProjectionRequest::Canonical)
+    ) {
+        let routes = enforcer_scan::router::plan::build_canonical_route_plan(
+            &paths,
+            &scope,
+            enforcer_scan::router::identity::UnknownLanguagePolicy::Include,
+        );
+        let projection = canonical_language_route_responses(&routes);
+        let Ok(projection) = serde_json::to_value(projection) else {
+            return json_error("failed to encode canonical language projection");
+        };
+        value.insert("canonicalLanguages".to_owned(), projection);
     }
+    value.insert("ok".to_owned(), serde_json::Value::Bool(true));
+    serde_json::Value::Object(value)
 }
 
 /// Native MCP adapter for the test-doctrine posture analysis. The analyzer
@@ -4432,6 +4510,84 @@ mod tests {
         assert!(value["rulePacks"]
             .as_array()
             .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
+        assert!(value.get("canonicalLanguages").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn route_canonical_projection_preserves_typed_identity_outcomes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::create_dir_all(temp.path().join("fixtures"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub struct RouteFixture;\n")?;
+        std::fs::write(temp.path().join("fixtures/example.nim"), "discard 1\n")?;
+        std::fs::write(temp.path().join("fixtures/example.unknown"), "unknown\n")?;
+
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_route")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "scope": "files",
+                "files": [
+                    "src/lib.rs",
+                    "fixtures/example.nim",
+                    "fixtures/example.unknown"
+                ],
+                "identityProjection": "canonical",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("canonical route did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        let projection = value["canonicalLanguages"]
+            .as_array()
+            .ok_or("canonicalLanguages must be an array")?;
+        assert!(projection.iter().any(|item| {
+            item["kind"] == "canonical"
+                && item["languageId"] == 1
+                && item["canonicalName"] == "Rust"
+                && item["structural"]["kind"] == "parseFile"
+                && item["capability"]["kind"] == "unsupported"
+        }));
+        assert!(projection
+            .iter()
+            .any(|item| item["kind"] == "supplementalLiteral" && item["literalName"] == "nim"));
+        assert!(projection.iter().any(|item| item["kind"] == "unknown"));
+        assert!(value["languages"].is_array());
+        assert!(value["rulePacks"].is_array());
+        assert!(value["nativeTools"].is_array());
+        Ok(())
+    }
+
+    #[test]
+    fn route_rejects_invalid_identity_projection_values() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub struct RouteFixture;\n")?;
+
+        for invalid in [serde_json::json!(true), serde_json::json!("other")] {
+            let outcome = dispatch(
+                &tool("ocentra_enforcer_route")?,
+                &serde_json::json!({
+                    "root": temp.path().to_string_lossy(),
+                    "scope": "files",
+                    "files": ["src/lib.rs"],
+                    "identityProjection": invalid,
+                }),
+                &ctx(McpFreshness::Fresh),
+            );
+            let DispatchOutcome::Result(value) = outcome else {
+                return Err("invalid canonical route did not produce a result".into());
+            };
+            assert_eq!(value["ok"], serde_json::json!(false));
+            assert!(value["error"]
+                .as_str()
+                .is_some_and(|error| { error.contains("identityProjection") }));
+        }
         Ok(())
     }
 

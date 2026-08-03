@@ -12,6 +12,7 @@ use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
+    CanonicalCapabilityDisposition, CanonicalLanguageRouteResponse, CanonicalStructuralDisposition,
     NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
 };
 use enforcer_scan::router::plan::build_route_plan;
@@ -355,5 +356,56 @@ fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std:
             "case `{case}`: plan must round-trip unchanged"
         );
     }
+    Ok(())
+}
+
+#[test]
+fn canonical_projection_keeps_identity_dispositions_separate(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let response = vec![
+        CanonicalLanguageRouteResponse::Canonical {
+            language_id: 1,
+            canonical_name: "Rust".to_owned(),
+            structural: CanonicalStructuralDisposition::ParseFile,
+            capability: CanonicalCapabilityDisposition::Unsupported,
+        },
+        CanonicalLanguageRouteResponse::SupplementalLiteral {
+            literal_name: "nim".to_owned(),
+        },
+        CanonicalLanguageRouteResponse::Unknown,
+    ];
+    assert_eq!(response.len(), 3);
+
+    assert!(matches!(
+        &response[0],
+        CanonicalLanguageRouteResponse::Canonical {
+            language_id: 1,
+            canonical_name,
+            structural: CanonicalStructuralDisposition::ParseFile,
+            capability: CanonicalCapabilityDisposition::Unsupported,
+        } if canonical_name == "Rust"
+    ));
+    assert!(matches!(
+        &response[1],
+        CanonicalLanguageRouteResponse::SupplementalLiteral { literal_name }
+            if literal_name == "nim"
+    ));
+    assert!(matches!(
+        &response[2],
+        CanonicalLanguageRouteResponse::Unknown
+    ));
+
+    let wire = serde_json::to_value(&response)?;
+    assert_eq!(wire[0]["kind"], "canonical");
+    assert_eq!(wire[0]["languageId"], 1);
+    assert_eq!(wire[0]["canonicalName"], "Rust");
+    assert_eq!(wire[0]["structural"]["kind"], "parseFile");
+    assert_eq!(wire[0]["capability"]["kind"], "unsupported");
+    assert_eq!(wire[1]["kind"], "supplementalLiteral");
+    assert_eq!(wire[2]["kind"], "unknown");
+    assert_eq!(
+        serde_json::from_value::<Vec<CanonicalLanguageRouteResponse>>(wire)?,
+        response
+    );
     Ok(())
 }
