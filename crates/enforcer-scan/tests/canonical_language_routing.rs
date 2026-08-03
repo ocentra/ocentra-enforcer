@@ -194,6 +194,10 @@ fn extension_match_preserves_canonical_identity_and_is_case_insensitive() -> Res
     let first = detect_language_identities(&[path], UnknownLanguagePolicy::Exclude);
     let second = detect_language_identities(&[upper], UnknownLanguagePolicy::Exclude);
     assert_eq!(canonical_route(&first)?, canonical_route(&second)?);
+    let [DetectedLanguageRoute::Canonical(route)] = first.as_slice() else {
+        return Err("extension evidence must retain one canonical route".to_owned());
+    };
+    assert_eq!(route.matched_by(), Some(matcher));
     Ok(())
 }
 
@@ -203,14 +207,18 @@ fn exact_basename_and_compound_suffix_matchers_preserve_identity() -> Result<(),
     let compound = first_matcher_for_kind(DetectionMatcherKind::CompoundSuffix)?;
     let basename_path = path_for_matcher(basename)?;
     let compound_path = path_for_matcher(compound)?;
-    assert!(matches!(
-        detect_language_identities(&[basename_path], UnknownLanguagePolicy::Exclude).as_slice(),
-        [DetectedLanguageRoute::Canonical(_)]
-    ));
-    assert!(matches!(
-        detect_language_identities(&[compound_path], UnknownLanguagePolicy::Exclude).as_slice(),
-        [DetectedLanguageRoute::Canonical(_)]
-    ));
+    let basename_routes =
+        detect_language_identities(&[basename_path], UnknownLanguagePolicy::Exclude);
+    let [DetectedLanguageRoute::Canonical(basename_route)] = basename_routes.as_slice() else {
+        return Err("exact-basename evidence must retain one canonical route".to_owned());
+    };
+    assert_eq!(basename_route.matched_by(), Some(basename));
+    let compound_routes =
+        detect_language_identities(&[compound_path], UnknownLanguagePolicy::Exclude);
+    let [DetectedLanguageRoute::Canonical(compound_route)] = compound_routes.as_slice() else {
+        return Err("compound-suffix evidence must retain one canonical route".to_owned());
+    };
+    assert_eq!(compound_route.matched_by(), Some(compound));
     Ok(())
 }
 
@@ -344,7 +352,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
             "rulePacks": { "kind": "mapped", "packs": ["rust", "security"] },
              "cli": { "kind": "mapped", "language": "rust" },
              "ui": { "kind": "notApplicable" }
-        }
+        },
+        "detectionMatcher": { "kind": "extension", "value": "rs" }
     });
 
     let round_tripped = serde_json::from_value::<CanonicalLanguageRouteResponse>(base.clone())
@@ -409,6 +418,42 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     assert!(missing_literal_error
         .to_string()
         .contains("literalDisposition"));
+
+    let mut missing_matcher = base.clone();
+    let Some(missing_matcher_object) = missing_matcher.as_object_mut() else {
+        return Err("canonical wire fixture must be an object".to_owned());
+    };
+    missing_matcher_object.remove("detectionMatcher");
+    let missing_matcher_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_matcher)
+            .expect_err("missing detection matcher must be rejected");
+    assert!(missing_matcher_error
+        .to_string()
+        .contains("detectionMatcher"));
+
+    let mut unknown_matcher = base.clone();
+    unknown_matcher["detectionMatcher"] = serde_json::json!({
+        "kind": "future",
+        "value": "rs"
+    });
+    let unknown_matcher_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_matcher)
+            .expect_err("unknown detection matcher must be rejected");
+    assert!(unknown_matcher_error
+        .to_string()
+        .contains("unknown variant"));
+
+    let mut mismatched_matcher = base.clone();
+    mismatched_matcher["detectionMatcher"] = serde_json::json!({
+        "kind": "extension",
+        "value": "py"
+    });
+    let mismatched_matcher_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_matcher)
+            .expect_err("mismatched detection matcher must be rejected");
+    assert!(mismatched_matcher_error
+        .to_string()
+        .contains("detectionMatcher does not match"));
 
     let mut unknown_literal = base.clone();
     unknown_literal["literalDisposition"] = serde_json::json!({ "kind": "future" });

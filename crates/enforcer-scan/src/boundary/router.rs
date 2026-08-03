@@ -4,7 +4,9 @@
 
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::config_types::ResolvedNativeTie;
-use enforcer_domain::language_types::{LanguageId, LiteralDisposition, ScanFamilyDisposition};
+use enforcer_domain::language_types::{
+    DetectionMatcher, LanguageId, LiteralDisposition, ScanFamilyDisposition,
+};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
 /// Serializable projection of one resolved native-tool tie.
@@ -298,6 +300,76 @@ impl From<crate::router::identity::CanonicalConsumerCapabilities>
 }
 
 /// One identity-preserving result for the opt-in canonical route projection.
+///
+/// This is path evidence only. It is derived from the typed registry matcher
+/// selected by the existing detector and does not add a new matching rule.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", deny_unknown_fields, rename_all = "camelCase")]
+pub enum CanonicalDetectionMatcher {
+    /// The selected extension matcher.
+    Extension { value: String },
+    /// The selected exact-basename matcher.
+    ExactBasename { value: String },
+    /// The selected compound-suffix matcher.
+    CompoundSuffix { value: String },
+}
+
+impl From<DetectionMatcher> for CanonicalDetectionMatcher {
+    fn from(value: DetectionMatcher) -> Self {
+        match value {
+            DetectionMatcher::Extension(value) => Self::Extension {
+                value: value.to_owned(),
+            },
+            DetectionMatcher::ExactBasename(value) => Self::ExactBasename {
+                value: value.to_owned(),
+            },
+            DetectionMatcher::CompoundSuffix(value) => Self::CompoundSuffix {
+                value: value.to_owned(),
+            },
+        }
+    }
+}
+
+impl CanonicalDetectionMatcher {
+    fn matches_registry_matcher(&self, matcher: DetectionMatcher) -> bool {
+        match (self, matcher) {
+            (Self::Extension { value }, DetectionMatcher::Extension(expected))
+            | (Self::ExactBasename { value }, DetectionMatcher::ExactBasename(expected))
+            | (Self::CompoundSuffix { value }, DetectionMatcher::CompoundSuffix(expected)) => {
+                value == expected
+            }
+            _ => false,
+        }
+    }
+}
+
+/// Validate that optional path evidence belongs to the canonical identity's
+/// reviewed matcher set. No matcher text is parsed at this boundary.
+fn validate_detection_matcher(
+    language_id: u16,
+    matcher: &CanonicalDetectionMatcher,
+) -> Result<(), String> {
+    let nonzero = std::num::NonZeroU16::new(language_id)
+        .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
+    let id = LanguageId::try_from_registry_index(nonzero)
+        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+    let record = enforcer_syntax::registry::language_registry()
+        .iter()
+        .find(|record| record.id() == id)
+        .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
+    if record
+        .matchers()
+        .iter()
+        .copied()
+        .any(|expected| matcher.matches_registry_matcher(expected))
+    {
+        Ok(())
+    } else {
+        Err("detectionMatcher does not match the canonical registry".to_owned())
+    }
+}
+
+/// One identity-preserving result for the opt-in canonical route projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalLanguageRouteResponse {
     /// A canonical parser identity retained with honest capability state.
@@ -314,6 +386,8 @@ pub enum CanonicalLanguageRouteResponse {
         capability: CanonicalCapabilityDisposition,
         /// Typed consumer capability states for this canonical identity.
         consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
+        /// The selected typed matcher, when path evidence is available.
+        detection_matcher: CanonicalDetectionMatcher,
     },
     /// A named literal projection without a canonical parser identity.
     SupplementalLiteral {
@@ -341,6 +415,8 @@ enum CanonicalLanguageRouteWire<'a> {
         scan_family_disposition: CanonicalScanFamilyDisposition,
         #[serde(rename = "consumerCapabilities")]
         consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
+        #[serde(rename = "detectionMatcher")]
+        detection_matcher: CanonicalDetectionMatcher,
     },
     #[serde(rename = "supplementalLiteral")]
     SupplementalLiteral {
@@ -368,6 +444,8 @@ enum CanonicalLanguageRouteWireOwned {
         scan_family_disposition: CanonicalScanFamilyDisposition,
         #[serde(rename = "consumerCapabilities")]
         consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
+        #[serde(rename = "detectionMatcher")]
+        detection_matcher: CanonicalDetectionMatcher,
     },
     #[serde(rename = "supplementalLiteral")]
     SupplementalLiteral {
@@ -391,6 +469,7 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 literal_disposition,
                 capability,
                 consumer_capabilities,
+                detection_matcher,
             } => CanonicalLanguageRouteWire::Canonical {
                 language_id: *language_id,
                 canonical_name,
@@ -398,6 +477,7 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 literal_disposition: literal_disposition.clone(),
                 capability: *capability,
                 consumer_capabilities: consumer_capabilities.clone(),
+                detection_matcher: detection_matcher.clone(),
                 scan_family_disposition: scan_family_disposition_for_wire(*language_id)
                     .map_err(serde::ser::Error::custom)?,
             },
@@ -424,7 +504,10 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                 capability,
                 scan_family_disposition,
                 consumer_capabilities,
+                detection_matcher,
             } => {
+                validate_detection_matcher(language_id, &detection_matcher)
+                    .map_err(serde::de::Error::custom)?;
                 let expected = scan_family_disposition_for_wire(language_id)
                     .map_err(serde::de::Error::custom)?;
                 if scan_family_disposition != expected {
@@ -453,6 +536,7 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                     literal_disposition,
                     capability,
                     consumer_capabilities,
+                    detection_matcher,
                 })
             }
             CanonicalLanguageRouteWireOwned::SupplementalLiteral { literal_name } => {

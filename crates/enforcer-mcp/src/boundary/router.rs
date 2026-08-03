@@ -2424,6 +2424,10 @@ fn canonical_language_route_responses(
                     literal_disposition: canonical.literal_disposition().into(),
                     capability,
                     consumer_capabilities: canonical.consumer_capabilities().into(),
+                    detection_matcher: canonical
+                        .matched_by()
+                        .map(Into::into)
+                        .expect("detected canonical route must retain its selected matcher"),
                 }
             }
             enforcer_scan::router::identity::DetectedLanguageRoute::SupplementalLiteral {

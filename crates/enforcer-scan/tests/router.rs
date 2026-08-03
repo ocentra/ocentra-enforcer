@@ -14,9 +14,10 @@ use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
     CanonicalCapabilityDisposition, CanonicalCliLanguage,
     CanonicalConsumerCapabilityProjectionResponse, CanonicalConsumerDisposition,
-    CanonicalLanguageRouteResponse, CanonicalNativeToolDisposition, CanonicalRulePackDisposition,
-    CanonicalScanFamily, CanonicalScanFamilyDisposition, CanonicalStructuralDisposition,
-    NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
+    CanonicalDetectionMatcher, CanonicalLanguageRouteResponse, CanonicalLiteralDisposition,
+    CanonicalNativeToolDisposition, CanonicalRulePackDisposition, CanonicalScanFamily,
+    CanonicalScanFamilyDisposition, CanonicalStructuralDisposition, NativeToolRouteResponse,
+    RoutePlanResponse, RouteTieResponse,
 };
 use enforcer_scan::router::plan::build_route_plan;
 use enforcer_scan::walk::{walk, IgnoreRules};
@@ -370,6 +371,9 @@ fn canonical_projection_keeps_identity_dispositions_separate(
             language_id: 1,
             canonical_name: "Rust".to_owned(),
             structural: CanonicalStructuralDisposition::ParseFile,
+            literal_disposition: CanonicalLiteralDisposition::Registered {
+                literal_name: "rust".to_owned(),
+            },
             capability: CanonicalCapabilityDisposition::Unsupported,
             consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse {
                 native_scan: CanonicalScanFamilyDisposition::Mapped {
@@ -384,7 +388,10 @@ fn canonical_projection_keeps_identity_dispositions_separate(
                 cli: CanonicalConsumerDisposition::Mapped {
                     language: CanonicalCliLanguage::Rust,
                 },
-                ui: CanonicalConsumerDisposition::Unsupported,
+                ui: CanonicalConsumerDisposition::NotApplicable,
+            },
+            detection_matcher: CanonicalDetectionMatcher::Extension {
+                value: "rs".to_owned(),
             },
         },
         CanonicalLanguageRouteResponse::SupplementalLiteral {
@@ -400,6 +407,7 @@ fn canonical_projection_keeps_identity_dispositions_separate(
             language_id: 1,
             canonical_name,
             structural: CanonicalStructuralDisposition::ParseFile,
+            literal_disposition: CanonicalLiteralDisposition::Registered { literal_name },
             capability: CanonicalCapabilityDisposition::Unsupported,
             consumer_capabilities:
                 CanonicalConsumerCapabilityProjectionResponse {
@@ -413,9 +421,12 @@ fn canonical_projection_keeps_identity_dispositions_separate(
                     cli: CanonicalConsumerDisposition::Mapped {
                         language: CanonicalCliLanguage::Rust,
                     },
-                    ui: CanonicalConsumerDisposition::Unsupported,
+                    ui: CanonicalConsumerDisposition::NotApplicable,
                 },
+            detection_matcher: CanonicalDetectionMatcher::Extension { value: matcher },
         } if canonical_name == "Rust"
+            && literal_name == "rust"
+            && matcher == "rs"
             && *packs == vec![RulePack::Rust, RulePack::Security]
     ));
     assert!(matches!(
@@ -432,6 +443,8 @@ fn canonical_projection_keeps_identity_dispositions_separate(
     assert_eq!(wire[0]["kind"], "canonical");
     assert_eq!(wire[0]["languageId"], 1);
     assert_eq!(wire[0]["canonicalName"], "Rust");
+    assert_eq!(wire[0]["detectionMatcher"]["kind"], "extension");
+    assert_eq!(wire[0]["detectionMatcher"]["value"], "rs");
     assert_eq!(wire[0]["structural"]["kind"], "parseFile");
     assert_eq!(wire[0]["capability"]["kind"], "unsupported");
     assert_eq!(wire[1]["kind"], "supplementalLiteral");
