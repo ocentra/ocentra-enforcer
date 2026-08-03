@@ -55,6 +55,7 @@ Luna additionally reads [LUNA_RUNBOOK.md](./LUNA_RUNBOOK.md).
 - The protected deletion at `vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md` is `sourceUnavailable` with tracked blob `df48fa4149dd25956e730443d3582693a3f825a8`; it is never restored, staged, committed, or discarded without an explicit owner decision.
 - Existing compilers, analyzers, linters, security engines, and package auditors are reused first through the shared allowlisted tool-adapter contract. Native predicates exist only for a recorded semantic gap.
 - `cyberskills-ledger-integrator` is the sole writer of the CyberSkills disposition ledger. `tool-adapter-integrator` is the sole writer of the shared adapter registry, runner, and normalized tool-result schema.
+- [Accepted Universal UL02 grammar ownership decision](../universal-language-enforcement-plan/decisions/UL02-GRAMMAR-OWNERSHIP.md) governs the shared syntax dependency; UL03 remains gated until that decision and its grammar freeze are in force.
 - The frozen MJS checkout remains comparison authority until Rust cutover proof is complete.
 - Workers never merge to `rust-build` or `main`; the boss integrates accepted checkpoints.
 - No AI classification is accepted as pass/fail evidence. AI proposes; schemas, fixtures, validators, and Enforcer gates decide.
