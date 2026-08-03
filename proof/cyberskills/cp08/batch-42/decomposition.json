@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-42",
+  "baselineCommit": "9ade7d93e02a63726fdfc92c715ade7bbc770fc7",
+  "family": "Zero-trust access, device posture, network admission, and identity federation",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-device-posture-assessment-in-zero-trust",
+      "implementing-mtls-for-zero-trust-services",
+      "implementing-network-access-control",
+      "implementing-network-access-control-with-cisco-ise",
+      "implementing-saml-sso-with-okta",
+      "implementing-zero-trust-dns-with-nextdns",
+      "implementing-zero-trust-for-saas-applications",
+      "implementing-zero-trust-network-access-with-zscaler",
+      "implementing-zero-trust-with-beyondcorp",
+      "implementing-zero-trust-with-hashicorp-boundary"
+    ],
+    "reason": "Ten disjoint zero-trust access skills covering device posture, mTLS, network admission, SAML federation, DNS policy, SaaS access, and named zero-trust access authorities. Native checks are limited to static typed supplied manifests; live identity, device, network, session, and enforcement outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-device-posture-assessment-in-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-device-posture-assessment-in-zero-trust/SKILL.md",
+        "sha256": "494b9c2065eba1a09ba37f4114f74e84ae992562b0c174694b1bc90634c63127",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Device Posture Assessment in Zero Trust:L33"]
+      },
+      "components": [
+        {"componentId": "implementing-device-posture-assessment-in-zero-trust::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied device, posture, control, ownership, policy, timestamp, exception, and evidence manifests.", "notProved": ["No live device inspection, posture truth, identity binding, access decision, enforcement, or security outcome proof."]},
+        {"componentId": "implementing-device-posture-assessment-in-zero-trust::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use device-management, endpoint, IdP, NAC, posture, session, SaaS, or production enforcement authorities.", "notProved": ["No live device, endpoint, posture provider, session, network, or normalized access result."]},
+        {"componentId": "implementing-device-posture-assessment-in-zero-trust::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive zero-trust posture and access-policy guidance.", "notProved": ["Guidance is not enforcement and does not prove posture or access."]},
+        {"componentId": "implementing-device-posture-assessment-in-zero-trust::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human authorization or access decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-mtls-for-zero-trust-services",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mtls-for-zero-trust-services/SKILL.md",
+        "sha256": "d101ccb42b1853efd740ddfa53d5b2955ceeecc47395656831936d2f5198a9ae",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing mTLS for Zero Trust Services:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-mtls-for-zero-trust-services::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied certificate, subject, trust, service, policy, rotation, ownership, and evidence manifests.", "notProved": ["No live certificate authority, handshake, identity authentication, service authorization, revocation, or security outcome proof."]},
+        {"componentId": "implementing-mtls-for-zero-trust-services::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use certificate authorities, HSMs, service meshes, TLS runtimes, endpoints, sessions, networks, or production services.", "notProved": ["No live CA, key, handshake, endpoint, session, network, or normalized authorization result."]},
+        {"componentId": "implementing-mtls-for-zero-trust-services::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive mTLS, trust, rotation, and zero-trust service guidance.", "notProved": ["Guidance is not enforcement and does not prove certificate or handshake validity."]},
+        {"componentId": "implementing-mtls-for-zero-trust-services::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human certificate, revocation, or access decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-access-control",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-access-control/SKILL.md",
+        "sha256": "2ececc3814916d44dba213ddff06309623e8ecfd9db3eef1fa59f8d1e80d1bd2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Access Control:L30"]
+      },
+      "components": [
+        {"componentId": "implementing-network-access-control::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied network, device, identity, admission, segmentation, policy, ownership, exception, and evidence manifests.", "notProved": ["No live network admission, device identity, enforcement, connectivity, session, revocation, or security outcome proof."]},
+        {"componentId": "implementing-network-access-control::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use NAC, switches, routers, firewalls, endpoints, IdPs, RADIUS, sessions, networks, or production enforcement authorities.", "notProved": ["No live network, endpoint, NAC engine, session, policy action, or normalized access result."]},
+        {"componentId": "implementing-network-access-control::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive network admission, segmentation, and zero-trust guidance.", "notProved": ["Guidance is not enforcement and does not prove network access control."]},
+        {"componentId": "implementing-network-access-control::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human network admission or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-access-control-with-cisco-ise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-access-control-with-cisco-ise/SKILL.md",
+        "sha256": "9a0d1fa0124884917d623001b574cea7c1c115306ddb14b5a2c7a494774da318",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Access Control with Cisco ISE:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-network-access-control-with-cisco-ise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Cisco ISE, device, identity, admission, VLAN, policy, exception, ownership, and evidence manifests.", "notProved": ["No live Cisco ISE, endpoint, network admission, identity, enforcement, revocation, or security outcome proof."]},
+        {"componentId": "implementing-network-access-control-with-cisco-ise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cisco ISE, switches, routers, RADIUS, endpoints, IdPs, networks, sessions, or production enforcement authorities.", "notProved": ["No live Cisco ISE, endpoint, network, session, policy action, or normalized access result."]},
+        {"componentId": "implementing-network-access-control-with-cisco-ise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Cisco ISE, NAC, segmentation, and zero-trust guidance.", "notProved": ["Guidance is not enforcement and does not prove Cisco ISE behavior."]},
+        {"componentId": "implementing-network-access-control-with-cisco-ise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human NAC or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-saml-sso-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-saml-sso-with-okta/SKILL.md",
+        "sha256": "04cd9c49c15846547f288b0bcd4b2ba4b310321ded5836282b6b596529fd443a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SAML SSO with Okta:L58"]
+      },
+      "components": [
+        {"componentId": "implementing-saml-sso-with-okta::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SAML metadata, issuer, audience, assertion, mapping, policy, session, ownership, and evidence manifests.", "notProved": ["No live Okta or IdP, SAML exchange, authentication, session, authorization, revocation, or security outcome proof."]},
+        {"componentId": "implementing-saml-sso-with-okta::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Okta, IdPs, browsers, SAML endpoints, certificates, sessions, SaaS, or production identity authorities.", "notProved": ["No live IdP, browser, assertion exchange, session, certificate, or normalized access result."]},
+        {"componentId": "implementing-saml-sso-with-okta::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SAML federation, assertion, mapping, and zero-trust identity guidance.", "notProved": ["Guidance is not enforcement and does not prove SAML authentication or authorization."]},
+        {"componentId": "implementing-saml-sso-with-okta::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human federation or access decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-dns-with-nextdns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-dns-with-nextdns/SKILL.md",
+        "sha256": "0d12be158c191ab26ac1cc7d5e5854051c3ddeb2443a8a6d9c2790597a175ff1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust DNS with NextDNS:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-trust-dns-with-nextdns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied DNS policy, domain, category, identity, device, resolver, exception, ownership, and evidence manifests.", "notProved": ["No live DNS resolution, NextDNS policy, device identity, filtering, bypass, enforcement, or security outcome proof."]},
+        {"componentId": "implementing-zero-trust-dns-with-nextdns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use NextDNS, DNS resolvers, devices, networks, endpoints, browsers, sessions, or production filtering authorities.", "notProved": ["No live resolver, query, device, network, policy action, or normalized filtering result."]},
+        {"componentId": "implementing-zero-trust-dns-with-nextdns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive DNS policy, identity-aware filtering, exception, and zero-trust guidance.", "notProved": ["Guidance is not enforcement and does not prove DNS filtering."]},
+        {"componentId": "implementing-zero-trust-dns-with-nextdns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human DNS policy or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-for-saas-applications",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-for-saas-applications/SKILL.md",
+        "sha256": "a26b5684bacb5d62bc943cfaff730383dfdc5459bc9f849f3834b588b1948f31",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust for SaaS Applications:L35"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-trust-for-saas-applications::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SaaS application, identity, device, session, access-policy, data-boundary, ownership, exception, and evidence manifests.", "notProved": ["No live SaaS, identity, device, session, authorization, data access, enforcement, or security outcome proof."]},
+        {"componentId": "implementing-zero-trust-for-saas-applications::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SaaS providers, IdPs, devices, browsers, CASB, endpoints, sessions, networks, or production enforcement authorities.", "notProved": ["No live SaaS, IdP, device, session, network, data access, or normalized policy result."]},
+        {"componentId": "implementing-zero-trust-for-saas-applications::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SaaS, identity, device, session, and zero-trust access guidance.", "notProved": ["Guidance is not enforcement and does not prove SaaS policy behavior."]},
+        {"componentId": "implementing-zero-trust-for-saas-applications::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human SaaS access or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-network-access-with-zscaler",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-network-access-with-zscaler/SKILL.md",
+        "sha256": "5c1dfd1611576f8ab14595c0ce4045b173da8d9d54367540af3e1fbe90f71d1a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust Network Access with Zscaler:L28"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-trust-network-access-with-zscaler::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Zscaler, identity, device, application, route, policy, session, ownership, exception, and evidence manifests.", "notProved": ["No live Zscaler, device, identity, network access, session, enforcement, revocation, or security outcome proof."]},
+        {"componentId": "implementing-zero-trust-network-access-with-zscaler::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Zscaler, endpoints, devices, IdPs, networks, browsers, sessions, connectors, or production enforcement authorities.", "notProved": ["No live Zscaler, endpoint, device, session, network, connector, or normalized access result."]},
+        {"componentId": "implementing-zero-trust-network-access-with-zscaler::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive ZTNA, application segmentation, identity, device, and policy guidance.", "notProved": ["Guidance is not enforcement and does not prove Zscaler access behavior."]},
+        {"componentId": "implementing-zero-trust-network-access-with-zscaler::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human ZTNA or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-with-beyondcorp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-with-beyondcorp/SKILL.md",
+        "sha256": "da53e04694bdff45ab04fdca0203e81dcb5f1650a6346cf1ea001a1fb926e24f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust with BeyondCorp:L32"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-trust-with-beyondcorp::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied BeyondCorp, identity, device, application, context, policy, session, ownership, exception, and evidence manifests.", "notProved": ["No live BeyondCorp, device, identity, context, access, session, enforcement, revocation, or security outcome proof."]},
+        {"componentId": "implementing-zero-trust-with-beyondcorp::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use BeyondCorp, Google identity, devices, endpoints, browsers, networks, sessions, proxies, or production enforcement authorities.", "notProved": ["No live BeyondCorp, IdP, device, session, network, proxy, or normalized access result."]},
+        {"componentId": "implementing-zero-trust-with-beyondcorp::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive BeyondCorp, context-aware access, identity, device, and zero-trust guidance.", "notProved": ["Guidance is not enforcement and does not prove BeyondCorp access behavior."]},
+        {"componentId": "implementing-zero-trust-with-beyondcorp::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human access or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-with-hashicorp-boundary",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-with-hashicorp-boundary/SKILL.md",
+        "sha256": "db52e09c1dc513546c7b8ca596e83cebe767bc4eb8e7ec0ca8bf4992f6923df2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust with HashiCorp Boundary:L60"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-trust-with-hashicorp-boundary::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Boundary, target, worker, identity, route, session, policy, ownership, exception, and evidence manifests.", "notProved": ["No live Boundary, worker, target, identity, session, network access, enforcement, revocation, or security outcome proof."]},
+        {"componentId": "implementing-zero-trust-with-hashicorp-boundary::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use HashiCorp Boundary, workers, targets, endpoints, IdPs, networks, sessions, brokers, or production enforcement authorities.", "notProved": ["No live Boundary, worker, target, endpoint, session, network, or normalized access result."]},
+        {"componentId": "implementing-zero-trust-with-hashicorp-boundary::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Boundary, brokering, least-privilege, session, and zero-trust guidance.", "notProved": ["Guidance is not enforcement and does not prove Boundary access behavior."]},
+        {"componentId": "implementing-zero-trust-with-hashicorp-boundary::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, least privilege, enrollment, revocation, exception, remediation, and disclosure decisions.", "notProved": ["No human access or remediation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live devices, NAC, Cisco ISE, Okta, IdPs, CA/mTLS, NextDNS, Zscaler, BeyondCorp, HashiCorp Boundary, endpoints, networks, sessions, SaaS, and production enforcement authorities remain blocked external engines.",
+    "No live authentication, access, device posture, identity, SAML, mTLS, DNS, ZTNA, session, policy enforcement, revocation, least-privilege, remediation, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}
