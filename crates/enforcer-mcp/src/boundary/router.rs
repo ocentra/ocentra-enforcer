@@ -4603,8 +4603,8 @@ mod tests {
         );
         assert_eq!(
             rust["consumerCapabilities"]["ui"]["kind"],
-            serde_json::json!("unsupported"),
-            "ui must not infer a canonical-identity capability"
+            serde_json::json!("notApplicable"),
+            "ui must remain an identity-agnostic projection"
         );
         let javascript = projection
             .iter()
@@ -4631,8 +4631,8 @@ mod tests {
         );
         assert_eq!(
             javascript["consumerCapabilities"]["ui"]["kind"],
-            serde_json::json!("unsupported"),
-            "ui must not infer a canonical-identity capability"
+            serde_json::json!("notApplicable"),
+            "ui must remain an identity-agnostic projection"
         );
         assert!(projection
             .iter()

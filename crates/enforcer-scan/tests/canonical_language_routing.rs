@@ -298,7 +298,7 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
                 _ => CliLanguageProjection::Unsupported,
             }
         );
-        assert_eq!(consumers.ui(), ConsumerCapabilityState::Unsupported);
+        assert_eq!(consumers.ui(), ConsumerCapabilityState::NotApplicable);
     }
     Ok(())
 }
@@ -318,7 +318,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
             "nativeTool": { "kind": "mapped", "tool": "cargo" },
             "rulePacks": { "kind": "mapped", "packs": ["rust", "security"] },
              "cli": { "kind": "mapped", "language": "rust" },
-            "ui": { "kind": "unsupported" }
+             "ui": { "kind": "notApplicable" }
         }
     });
 
@@ -394,6 +394,45 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     assert!(missing_consumer_error
         .to_string()
         .contains("consumerCapabilities"));
+
+    let mut missing_ui = base.clone();
+    let Some(consumer_object) = missing_ui["consumerCapabilities"].as_object_mut() else {
+        return Err("consumer capabilities must be an object".to_owned());
+    };
+    consumer_object.remove("ui");
+    let missing_ui_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_ui)
+        .expect_err("missing UI disposition must be rejected");
+    assert!(missing_ui_error.to_string().contains("ui"));
+
+    let duplicate_ui = r#"{
+        "kind":"canonical","languageId":1,"canonicalName":"Rust",
+        "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
+        "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"mapped","tool":"cargo"},"rulePacks":{"kind":"mapped","packs":["rust","security"]},"cli":{"kind":"mapped","language":"rust"},"ui":{"kind":"notApplicable"},"ui":{"kind":"notApplicable"}}
+    }"#;
+    let duplicate_ui_error = serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_ui)
+        .expect_err("duplicate UI disposition must be rejected");
+    assert!(duplicate_ui_error.to_string().contains("duplicate field"));
+
+    let mut unknown_ui = base.clone();
+    unknown_ui["consumerCapabilities"]["ui"] = serde_json::json!({"kind": "future"});
+    let unknown_ui_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_ui)
+        .expect_err("unknown UI disposition must be rejected");
+    assert!(unknown_ui_error.to_string().contains("unknown variant"));
+
+    for ui in [
+        serde_json::json!({"kind": "mapped", "language": "rust"}),
+        serde_json::json!({"kind": "unsupported"}),
+    ] {
+        let mut mismatched_ui = base.clone();
+        mismatched_ui["consumerCapabilities"]["ui"] = ui;
+        let mismatched_ui_error =
+            serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_ui)
+                .expect_err("mapped or unsupported UI disposition must be rejected");
+        assert!(mismatched_ui_error
+            .to_string()
+            .contains("consumerCapabilities does not match"));
+    }
 
     let mut unknown_consumer = base.clone();
     unknown_consumer["consumerCapabilities"]["nativeTool"] =
