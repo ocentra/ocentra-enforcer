@@ -16,7 +16,7 @@ use enforcer_domain::language_types::{
     StructuralLanguageSupport,
 };
 use enforcer_domain::paths::RelPath;
-use enforcer_domain::scan_types::LanguageFamily;
+use enforcer_domain::scan_types::{LanguageFamily, RulePack};
 use enforcer_syntax::registry::{
     collision_resolutions, detection_precedence, language_registry, literal_projections,
     CanonicalLanguageName,
@@ -63,16 +63,32 @@ pub enum NativeToolProjection {
     NotApplicable,
 }
 
+/// Typed identity-specific rule-pack projection.
+///
+/// `Mapped` means only that the existing scan-family route selects these
+/// packs for the identity. It does not prove rule coverage, fact availability,
+/// execution, or finding correctness. Route-level universal packs are not
+/// included in this identity-specific value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RulePackProjection {
+    /// Existing identity-specific packs selected by the scan-family route.
+    Mapped(&'static [RulePack]),
+    /// No identity-specific rule-pack mapping is mechanically proved.
+    Unsupported,
+    /// The rule-pack question does not apply to this identity projection.
+    NotApplicable,
+}
+
 /// Typed consumer-capability projection attached to a canonical route.
 ///
-/// Native-tool values reuse only the exact scan-family mapping seam proved by
-/// the current consumer; rule-pack, CLI, and UI values remain independent
+/// Native-tool and rule-pack values reuse only exact scan-family mapping
+/// seams proved by the current consumers. CLI and UI remain independent
 /// unsupported dispositions. Legacy coarse mappings remain unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalConsumerCapabilities {
     native_scan: ScanFamilyDisposition,
     native_tool: NativeToolProjection,
-    rule_packs: ConsumerCapabilityState,
+    rule_packs: RulePackProjection,
     cli: ConsumerCapabilityState,
     ui: ConsumerCapabilityState,
 }
@@ -92,7 +108,7 @@ impl CanonicalConsumerCapabilities {
 
     /// Return the canonical-identity rule-pack projection state.
     #[must_use]
-    pub const fn rule_packs(&self) -> ConsumerCapabilityState {
+    pub const fn rule_packs(&self) -> RulePackProjection {
         self.rule_packs
     }
 
@@ -279,9 +295,25 @@ fn consumer_capabilities_for_matchers(
     CanonicalConsumerCapabilities {
         native_scan: scan_family_disposition(matchers),
         native_tool: native_tool_projection(matchers),
-        rule_packs: ConsumerCapabilityState::Unsupported,
+        rule_packs: rule_pack_projection(matchers),
         cli: ConsumerCapabilityState::Unsupported,
         ui: ConsumerCapabilityState::Unsupported,
+    }
+}
+
+fn rule_pack_projection(matchers: &[DetectionMatcher]) -> RulePackProjection {
+    match scan_family_disposition(matchers) {
+        ScanFamilyDisposition::Mapped(family) => {
+            let packs = super::plan::rule_packs_for_scan_family(family);
+            if packs.is_empty() {
+                RulePackProjection::Unsupported
+            } else {
+                RulePackProjection::Mapped(packs)
+            }
+        }
+        ScanFamilyDisposition::Unsupported | ScanFamilyDisposition::NotApplicable => {
+            RulePackProjection::Unsupported
+        }
     }
 }
 
@@ -609,6 +641,60 @@ mod native_tool_tests {
 }
 
 #[cfg(test)]
+mod rule_pack_tests {
+    use super::{rule_pack_projection, RulePackProjection};
+    use enforcer_domain::language_types::DetectionMatcher;
+    use enforcer_domain::scan_types::RulePack;
+    use enforcer_syntax::registry::language_registry;
+
+    #[test]
+    fn rule_pack_projection_preserves_the_160_row_denominator() {
+        let records = language_registry();
+        assert_eq!(records.len(), 160);
+
+        let mut mapped = 0;
+        let mut unsupported = 0;
+        let mut not_applicable = 0;
+        for record in records {
+            match rule_pack_projection(record.matchers()) {
+                RulePackProjection::Mapped(packs) => {
+                    mapped += 1;
+                    assert!(matches!(
+                        packs,
+                        [RulePack::Rust, RulePack::Security]
+                            | [RulePack::TypeScript, RulePack::Security]
+                    ));
+                }
+                RulePackProjection::Unsupported => unsupported += 1,
+                RulePackProjection::NotApplicable => not_applicable += 1,
+            }
+        }
+
+        assert_eq!((mapped, unsupported, not_applicable), (2, 158, 0));
+    }
+
+    #[test]
+    fn rule_pack_projection_rejects_ambiguous_or_unmapped_matchers() {
+        for matchers in [
+            vec![],
+            vec![DetectionMatcher::ExactBasename("Dockerfile")],
+            vec![DetectionMatcher::CompoundSuffix(".env.local")],
+            vec![DetectionMatcher::Extension("yaml")],
+            vec![DetectionMatcher::Extension("unknown")],
+            vec![
+                DetectionMatcher::Extension("rs"),
+                DetectionMatcher::Extension("py"),
+            ],
+        ] {
+            assert_eq!(
+                rule_pack_projection(&matchers),
+                RulePackProjection::Unsupported
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::{canonical_route, RouteCapabilityDisposition};
     use enforcer_domain::language_types::StructuralLanguageSupport;
@@ -642,7 +728,17 @@ mod tests {
             );
             assert_eq!(
                 route.consumer_capabilities().rule_packs(),
-                super::ConsumerCapabilityState::Unsupported
+                match record.id().as_nonzero_u16().get() {
+                    1 => super::RulePackProjection::Mapped(&[
+                        enforcer_domain::scan_types::RulePack::Rust,
+                        enforcer_domain::scan_types::RulePack::Security,
+                    ]),
+                    3 => super::RulePackProjection::Mapped(&[
+                        enforcer_domain::scan_types::RulePack::TypeScript,
+                        enforcer_domain::scan_types::RulePack::Security,
+                    ]),
+                    _ => super::RulePackProjection::Unsupported,
+                }
             );
             assert_eq!(
                 route.consumer_capabilities().cli(),
