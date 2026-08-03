@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-61",
+  "baselineCommit": "c3d86870a37bd38722fb952b8f8d815974113862",
+  "family": "Canonical-order defensive authorized-assessment and vulnerability evidence",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "executing-red-team-exercise",
+      "exploiting-adcs-with-certipy",
+      "exploiting-api-injection-vulnerabilities",
+      "exploiting-bgp-hijacking-vulnerabilities",
+      "exploiting-broken-link-hijacking",
+      "exploiting-constrained-delegation-abuse",
+      "exploiting-deeplink-vulnerabilities",
+      "exploiting-idor-vulnerabilities",
+      "exploiting-ipv6-vulnerabilities",
+      "exploiting-jwt-algorithm-confusion-attack"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-60."
+  },
+  "accounting": {
+    "acceptedPrior": 600,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 610,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "executing-red-team-exercise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-red-team-exercise/SKILL.md",
+        "sha256": "e93637b79f2b71594475eb8cb3cc41b6e49bcf9af216da77aa5133935efa57e6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Red Team Exercise:L42"]
+      },
+      "components": [
+        {
+          "id": "executing-red-team-exercise::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed exercise, objective, target, scope, authorization, schedule, contact, stop-condition, risk, and evidence-manifest fields without launching activity.",
+          "notProved": ["exercise authorization", "attack execution", "security posture"]
+        },
+        {
+          "id": "executing-red-team-exercise::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep red-team tools, live targets, networks, hosts, credentials, payloads, sessions, endpoints, and production infrastructure external.",
+          "notProved": ["live operation", "target compromise", "detection efficacy"]
+        },
+        {
+          "id": "executing-red-team-exercise::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain exercise planning, threat modeling, communications, safety, governance, and defensive validation guidance as advisory.",
+          "notProved": ["planning sufficiency", "exercise outcome", "risk reduction"]
+        },
+        {
+          "id": "executing-red-team-exercise::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, owner approval, legal/privacy/ethics/safety review, scope, rules of engagement, stop conditions, data handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "engagement success", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-adcs-with-certipy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-adcs-with-certipy/SKILL.md",
+        "sha256": "46c100b548d53ec80bfb1d2e9ed4a717b18dd88a94b81375e5c0b4efd519af63",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting AD CS with Certipy:L23"]
+      },
+      "components": [
+        {
+          "id": "exploiting-adcs-with-certipy::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed certificate-template, CA, principal, enrollment, permission, host, scope, authorization, and evidence-manifest fields without contacting AD CS or requesting certificates.",
+          "notProved": ["AD CS weakness", "certificate issuance", "privilege escalation"]
+        },
+        {
+          "id": "exploiting-adcs-with-certipy::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Certipy, AD CS, Active Directory, domain controllers, certificate authorities, credentials, endpoints, sessions, and production identity systems external.",
+          "notProved": ["live enumeration", "certificate abuse", "directory compromise"]
+        },
+        {
+          "id": "exploiting-adcs-with-certipy::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain certificate-template review, PKI hardening, least privilege, monitoring, and defensive remediation guidance as advisory.",
+          "notProved": ["PKI security", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-adcs-with-certipy::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, directory and PKI ownership, legal/privacy/ethics/safety review, credential and evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-api-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-api-injection-vulnerabilities/SKILL.md",
+        "sha256": "71375285ab29f90c5eb49fa5dafbad97118229ce0a69af6c7c3aeb880462f636",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting API Injection Vulnerabilities:L37"]
+      },
+      "components": [
+        {
+          "id": "exploiting-api-injection-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed API route, request, response, parser, parameter, schema, authorization, scope, and evidence-manifest fields without calling endpoints or executing payloads.",
+          "notProved": ["API injection", "payload execution", "data exposure"]
+        },
+        {
+          "id": "exploiting-api-injection-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep API endpoints, servers, browsers, Burp, ZAP, fuzzers, scanners, payload runners, sessions, credentials, and production applications external.",
+          "notProved": ["live exploitability", "authentication bypass", "security efficacy"]
+        },
+        {
+          "id": "exploiting-api-injection-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain secure API design, input validation, authorization review, defensive testing, triage, and remediation guidance as advisory.",
+          "notProved": ["vulnerability absence", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-api-injection-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, API and data ownership, legal/privacy/ethics/safety review, scope, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-bgp-hijacking-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-bgp-hijacking-vulnerabilities/SKILL.md",
+        "sha256": "3a0cab84786d7c14c8d26a62a96e68aeef662ef0c33a7aba4202cbf55a260036",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting BGP Hijacking Vulnerabilities:L30"]
+      },
+      "components": [
+        {
+          "id": "exploiting-bgp-hijacking-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed ASN, prefix, route, peer, RPKI, timestamp, owner, scope, authorization, and evidence-manifest fields without interacting with routing infrastructure.",
+          "notProved": ["BGP hijack", "route propagation", "traffic interception"]
+        },
+        {
+          "id": "exploiting-bgp-hijacking-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep routers, BGP peers, ISPs, RPKI authorities, network traffic, monitoring systems, and production infrastructure external.",
+          "notProved": ["live route change", "traffic impact", "network compromise"]
+        },
+        {
+          "id": "exploiting-bgp-hijacking-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain route-origin validation, RPKI, peer review, network resilience, monitoring, and response guidance as advisory.",
+          "notProved": ["route security", "detection efficacy", "recovery completion"]
+        },
+        {
+          "id": "exploiting-bgp-hijacking-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, network and ASN ownership, legal/privacy/safety review, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-broken-link-hijacking",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-broken-link-hijacking/SKILL.md",
+        "sha256": "c06262f3f18351dba824fffdd558b5db8f131c90dd5405e11c193388ac8a1b76",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Broken Link Hijacking:L32"]
+      },
+      "components": [
+        {
+          "id": "exploiting-broken-link-hijacking::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed URL, domain, owner, link, repository, redirect, scope, authorization, and evidence-manifest fields without registering domains or contacting targets.",
+          "notProved": ["broken-link hijack", "domain control", "user exposure"]
+        },
+        {
+          "id": "exploiting-broken-link-hijacking::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep websites, browsers, domains, DNS, hosting providers, repositories, social platforms, scanners, and live network services external.",
+          "notProved": ["live link behavior", "domain registration", "content delivery"]
+        },
+        {
+          "id": "exploiting-broken-link-hijacking::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain link inventory, ownership review, dependency hygiene, takedown, monitoring, and defensive remediation guidance as advisory.",
+          "notProved": ["link safety", "monitoring efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-broken-link-hijacking::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, domain and content ownership, legal/privacy/ethics/safety review, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "user impact", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-constrained-delegation-abuse",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-constrained-delegation-abuse/SKILL.md",
+        "sha256": "3296a06dd88b3f7c5d60d04ef3f10cf465b8676f404d17377cb6ae07c501e6fa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Constrained Delegation Abuse:L36"]
+      },
+      "components": [
+        {
+          "id": "exploiting-constrained-delegation-abuse::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed AD principal, service, delegation, SPN, policy, host, scope, authorization, and evidence-manifest fields without requesting tickets or authenticating.",
+          "notProved": ["delegation abuse", "ticket acquisition", "privilege escalation"]
+        },
+        {
+          "id": "exploiting-constrained-delegation-abuse::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Active Directory, KDCs, domain controllers, Kerberos, credentials, ticket tools, endpoints, sessions, and production identity systems external.",
+          "notProved": ["live ticket use", "credential access", "directory compromise"]
+        },
+        {
+          "id": "exploiting-constrained-delegation-abuse::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain delegation inventory, SPN governance, least privilege, Kerberos hardening, monitoring, and response guidance as advisory.",
+          "notProved": ["identity protection", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-constrained-delegation-abuse::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, directory and service ownership, credential and evidence handling, legal/privacy/ethics/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-deeplink-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-deeplink-vulnerabilities/SKILL.md",
+        "sha256": "239d1e6df647cc8403e0b3ecb1386c0cab593317e556a50e8e5c71205c3f3749",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Deep Link Vulnerabilities:L35"]
+      },
+      "components": [
+        {
+          "id": "exploiting-deeplink-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed mobile route, URI, scheme, handler, application, parameter, authorization, scope, and evidence-manifest fields without launching applications or following links.",
+          "notProved": ["deep-link vulnerability", "app compromise", "data exposure"]
+        },
+        {
+          "id": "exploiting-deeplink-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep mobile devices, browsers, applications, operating systems, sessions, payloads, scanners, endpoints, and live links external.",
+          "notProved": ["live handler behavior", "authentication bypass", "payload execution"]
+        },
+        {
+          "id": "exploiting-deeplink-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain mobile secure-design, URI validation, authorization, privacy, testing, and remediation guidance as advisory.",
+          "notProved": ["application security", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-deeplink-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and device ownership, legal/privacy/ethics/safety review, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-idor-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-idor-vulnerabilities/SKILL.md",
+        "sha256": "1abe17d24b0ab7a437184a0e881a1f9aa94b1881dd341dfd22a8ec7753b353ae",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting IDOR Vulnerabilities:L30"]
+      },
+      "components": [
+        {
+          "id": "exploiting-idor-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed object, route, request, response, principal, ownership, authorization, scope, and evidence-manifest fields without calling services or accessing objects.",
+          "notProved": ["IDOR", "unauthorized access", "data disclosure"]
+        },
+        {
+          "id": "exploiting-idor-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep web and API endpoints, servers, browsers, sessions, credentials, Burp, ZAP, fuzzers, scanners, payloads, and production data external.",
+          "notProved": ["live object access", "authorization bypass", "data exposure"]
+        },
+        {
+          "id": "exploiting-idor-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain object-level authorization, ownership, access-control testing, secure design, triage, and remediation guidance as advisory.",
+          "notProved": ["authorization efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-idor-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/ethics/safety review, scope, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-ipv6-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-ipv6-vulnerabilities/SKILL.md",
+        "sha256": "18128966f2b5a12d5cb8a5eeff1b3b26ca9b3dd839cebdf01a5767cef73d695c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting IPv6 Vulnerabilities:L30"]
+      },
+      "components": [
+        {
+          "id": "exploiting-ipv6-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed IPv6 address, route, host, service, control, configuration, scope, authorization, and evidence-manifest fields without sending traffic or probing systems.",
+          "notProved": ["IPv6 vulnerability", "network access", "service compromise"]
+        },
+        {
+          "id": "exploiting-ipv6-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep IPv6 networks, routers, hosts, packet capture, scanners, exploit tools, endpoints, credentials, and production infrastructure external.",
+          "notProved": ["live reachability", "packet behavior", "network compromise"]
+        },
+        {
+          "id": "exploiting-ipv6-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain IPv6 configuration review, segmentation, filtering, monitoring, secure deployment, and remediation guidance as advisory.",
+          "notProved": ["network security", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-ipv6-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, network and asset ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-jwt-algorithm-confusion-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-jwt-algorithm-confusion-attack/SKILL.md",
+        "sha256": "6ce179ef2b2d450231ca29904ca6a92548be7e1103ea3bfb3daea1c0caaa98e4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting JWT Algorithm Confusion Attack:L35"]
+      },
+      "components": [
+        {
+          "id": "exploiting-jwt-algorithm-confusion-attack::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed JWT header, algorithm, key, issuer, audience, claims, route, policy, scope, and evidence-manifest fields without forging tokens or calling services.",
+          "notProved": ["algorithm confusion", "token forgery", "authentication bypass"]
+        },
+        {
+          "id": "exploiting-jwt-algorithm-confusion-attack::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep token services, identity providers, keys, endpoints, sessions, browsers, payloads, scanners, runtimes, and production applications external.",
+          "notProved": ["live token acceptance", "session compromise", "data access"]
+        },
+        {
+          "id": "exploiting-jwt-algorithm-confusion-attack::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain JWT validation, key management, issuer/audience checks, secure API design, monitoring, and remediation guidance as advisory.",
+          "notProved": ["authentication efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-jwt-algorithm-confusion-attack::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, identity and application ownership, legal/privacy/ethics/safety review, credential and key handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live red-team, cloud, API, network, identity, mobile, endpoint, directory, token, or production activity is proved.",
+    "No exercise, certificate abuse, API injection, BGP hijack, link hijack, delegation abuse, deep-link issue, IDOR, IPv6 exploit, JWT confusion, compromise, or execution is proved.",
+    "No payload delivery, credential access, authentication bypass, data exposure, detection efficacy, attribution, containment, remediation, or recovery is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, disclosure decision, or security outcome is proved."
+  ]
+}
