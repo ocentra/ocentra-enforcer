@@ -7,15 +7,16 @@ use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::config_types::HarnessConfig;
 use enforcer_domain::harness_types::{
     HarnessBoundedExecution, HarnessCommandArgument, HarnessExecutionLimits,
-    HarnessExecutionTermination, HarnessProbeOutput, HarnessStepVersion, HarnessToolAvailability,
-    HarnessToolDecision, HarnessToolName, HarnessToolProbe, HarnessToolRequirement,
-    HarnessToolSpec,
+    HarnessExecutionTermination, HarnessInputLimits, HarnessProbeOutput, HarnessStepVersion,
+    HarnessToolAvailability, HarnessToolDecision, HarnessToolName, HarnessToolProbe,
+    HarnessToolRequirement, HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
 use enforcer_harness::availability::probe_allowlisted_tool;
 use enforcer_harness::execution::{
     execute_allowlisted_bounded, validate_allowlisted_request, ExecuteRequest,
 };
+use enforcer_harness::input_scope::compute_input_tree;
 
 fn spec() -> Result<HarnessToolSpec> {
     spec_with_command(
@@ -252,6 +253,48 @@ fn execution_limits_and_command_templates_are_closed_and_non_zero() -> Result<()
         ),
         "command",
     )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_adapter_contract_is_exact_three_files_and_bounded() -> Result<()> {
+    let temp = tempfile::TempDir::new()
+        .map_err(|error| Error::InvalidConfig(format!("input scope temp: {error}")))?;
+    let fixture = temp.path().join("fixture");
+    std::fs::create_dir_all(fixture.join("src"))
+        .map_err(|error| Error::InvalidConfig(format!("input scope directories: {error}")))?;
+    std::fs::write(
+        fixture.join("Cargo.toml"),
+        b"[package]\nname='scope'\nversion='0.1.0'\n",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("input scope manifest: {error}")))?;
+    std::fs::write(fixture.join("Cargo.lock"), b"version = 4\n")
+        .map_err(|error| Error::InvalidConfig(format!("input scope lock: {error}")))?;
+    std::fs::write(fixture.join("src/lib.rs"), b"pub fn scope() {}\n")
+        .map_err(|error| Error::InvalidConfig(format!("input scope source: {error}")))?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = [
+        "cargo",
+        "+1.95.0",
+        "check",
+        "--offline",
+        "--locked",
+        "--message-format=json",
+        "--target-dir",
+        "target",
+    ]
+    .into_iter()
+    .map(|value| HarnessCommandArgument::try_new(value.to_owned()).map_err(Into::into))
+    .collect::<Result<Vec<_>>>()?;
+    let request = request(root, command.clone(), Some("fixture".to_owned()))?;
+    let target = command
+        .last()
+        .ok_or_else(|| Error::InvalidConfig("input scope target command is empty".to_owned()))?;
+    let limits = HarnessInputLimits::try_new(3, 4, 1_024, 4_096)?;
+    let evidence = compute_input_tree(&request, target, limits)?;
+    assert_eq!(evidence.file_count(), 3);
+    assert_eq!(evidence.excluded_target(), "target");
+    assert!(evidence.total_bytes() > 0);
     Ok(())
 }
 

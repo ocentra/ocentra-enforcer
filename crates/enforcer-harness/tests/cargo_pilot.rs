@@ -5,13 +5,16 @@ use enforcer_core::error::{Error, Result};
 use enforcer_domain::boundary::hash::validate;
 use enforcer_domain::harness_types::{
     HarnessCommandArgument, HarnessExecutionLimits, HarnessExecutionTermination,
-    HarnessProbeOutput, HarnessRunId, HarnessRunStatus, HarnessStepVersion,
+    HarnessInputLimits, HarnessProbeOutput, HarnessRunId, HarnessRunStatus, HarnessStepVersion,
     HarnessToolAvailability, HarnessToolName, HarnessToolProbe, HarnessToolRequirement,
     HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
-use enforcer_harness::adapters::cargo::{run_cargo_pilot, CargoPilotInput};
+use enforcer_harness::adapters::cargo::{
+    reviewed_input_tree_digest, run_cargo_pilot, CargoPilotInput,
+};
 use enforcer_harness::execution::ExecuteRequest;
+use enforcer_harness::input_scope::compute_input_tree;
 
 const EXPECTED_CARGO_VERSION: &str = "cargo 1.95.0 (f2d3ce0bd 2026-03-21)";
 const FIXTURE_TOML: &[u8] = include_bytes!("fixtures/tool_adapters/cargo_pilot/Cargo.toml.fixture");
@@ -58,9 +61,17 @@ fn spec(target_dir: &str, expected: &str) -> Result<HarnessToolSpec> {
 }
 
 fn request(root: RepoRoot, command: Vec<HarnessCommandArgument>) -> Result<ExecuteRequest> {
+    request_with_cwd(root, command, Some("fixture".to_owned()))
+}
+
+fn request_with_cwd(
+    root: RepoRoot,
+    command: Vec<HarnessCommandArgument>,
+    cwd: Option<String>,
+) -> Result<ExecuteRequest> {
     Ok(ExecuteRequest {
         repo_root: root,
-        cwd: Some("fixture".to_owned()),
+        cwd,
         run_id: HarnessRunId::try_new("ul07-cargo-pilot".to_owned())?,
         tool: HarnessToolName::try_new("cargo".to_owned())?,
         language: None,
@@ -92,7 +103,8 @@ fn input<'a>(
     request: &'a ExecuteRequest,
     spec: &'a HarnessToolSpec,
 ) -> Result<CargoPilotInput<'a>> {
-    CargoPilotInput::try_new(request, spec, validate(b"declared-tree")).map_err(Into::into)
+    let computed = reviewed_input_tree_digest(request, spec)?;
+    CargoPilotInput::try_new(request, spec, computed).map_err(Into::into)
 }
 
 fn assert_invalid_config<T>(result: Result<T>, expected: &str) -> Result<()> {
@@ -122,6 +134,16 @@ fn make_directory_symlink(source: &Path, link: &Path) -> std::io::Result<()> {
     std::os::unix::fs::symlink(source, link)
 }
 
+#[cfg(windows)]
+fn make_file_symlink(source: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(source, link)
+}
+
+#[cfg(not(windows))]
+fn make_file_symlink(source: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(source, link)
+}
+
 #[test]
 fn clean_cargo_pilot_is_available_passed_and_in_memory() -> Result<()> {
     let (temp, root) = fixture()?;
@@ -139,6 +161,12 @@ fn clean_cargo_pilot_is_available_passed_and_in_memory() -> Result<()> {
         Some(HarnessExecutionTermination::Completed)
     );
     assert_eq!(evidence.status(), HarnessRunStatus::Passed);
+    assert_eq!(evidence.computed_input_file_count(), 3);
+    assert_eq!(
+        evidence.computed_input_tree_provenance().as_str(),
+        "computed"
+    );
+    assert!(evidence.declared_input_tree_matches());
     assert!(evidence
         .diagnostics()
         .iter()
@@ -222,23 +250,120 @@ fn exact_command_probe_and_target_contract_rejects_unsafe_variants() -> Result<(
     }
 
     for target in if cfg!(windows) {
-        vec![r"\outside", r"C:outside", r"C:\outside", r"..\outside"]
+        vec![
+            r"\outside",
+            r"C:outside",
+            r"C:\outside",
+            r"..\outside",
+            "SRC",
+            "Cargo.TOML",
+        ]
     } else {
         vec!["/outside", "../outside"]
     } {
         let invalid = spec(target, expected)?;
         let invalid_request = request(root.clone(), invalid.command().to_vec())?;
+        let expected_error = if cfg!(windows) && (target == "SRC" || target == "Cargo.TOML") {
+            "overlaps"
+        } else {
+            "repository-relative"
+        };
         assert_invalid_config(
             CargoPilotInput::try_new(&invalid_request, &invalid, validate(b"tree")),
-            "repository-relative",
+            expected_error,
         )?;
     }
+
+    let current_directory = spec(".", expected)?;
+    let current_directory_request = request(root.clone(), current_directory.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(
+            &current_directory_request,
+            &current_directory,
+            validate(b"tree"),
+        ),
+        "current directory",
+    )?;
 
     let metachar_spec = spec("target-&$", expected)?;
     let metachar_request = request(root, metachar_spec.command().to_vec())?;
     let metachar = run_cargo_pilot(input(&metachar_request, &metachar_spec)?)?;
     assert_eq!(metachar.status(), HarnessRunStatus::Passed);
     let _ = exact_request;
+    Ok(())
+}
+
+#[test]
+fn existing_target_file_is_rejected_before_child() -> Result<()> {
+    let (temp, root) = fixture()?;
+    fs::write(
+        temp.path().join("fixture/not-a-directory"),
+        b"not a directory",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("target file fixture: {error}")))?;
+    let reviewed_spec = spec("not-a-directory", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "must be a directory",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn repository_root_cwd_accepts_nonexistent_contained_target() -> Result<()> {
+    let (_temp, root) = fixture()?;
+    let root_path = Path::new(root.as_str());
+    fs::create_dir_all(root_path.join("src"))
+        .map_err(|error| Error::InvalidConfig(format!("root cwd source directory: {error}")))?;
+    fs::write(root_path.join("Cargo.toml"), FIXTURE_TOML)
+        .map_err(|error| Error::InvalidConfig(format!("root cwd manifest: {error}")))?;
+    fs::write(root_path.join("Cargo.lock"), FIXTURE_LOCK)
+        .map_err(|error| Error::InvalidConfig(format!("root cwd lock: {error}")))?;
+    fs::write(root_path.join("src/lib.rs"), FIXTURE_LIB)
+        .map_err(|error| Error::InvalidConfig(format!("root cwd source: {error}")))?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request_with_cwd(root, reviewed_spec.command().to_vec(), None)?;
+    let computed = reviewed_input_tree_digest(&reviewed_request, &reviewed_spec)?;
+    let _input = CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, computed.clone())?;
+    assert_eq!(
+        computed,
+        reviewed_input_tree_digest(&reviewed_request, &reviewed_spec)?
+    );
+    Ok(())
+}
+
+#[cfg(windows)]
+#[test]
+fn non_ascii_reviewed_input_path_is_rejected_on_windows() -> Result<()> {
+    let (_temp, root) = fixture()?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    fs::write(
+        Path::new(root.as_str()).join("fixture/src/é.rs"),
+        b"pub fn non_ascii() {}",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("non-ASCII input fixture: {error}")))?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "non-ASCII Windows paths",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_bounded_read_rejects_file_grown_past_limit_before_read() -> Result<()> {
+    let (temp, root) = fixture()?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    fs::write(temp.path().join("fixture/src/lib.rs"), b"0123456789")
+        .map_err(|error| Error::InvalidConfig(format!("grown input fixture: {error}")))?;
+    let limits = HarnessInputLimits::try_new(3, 4, 8, 32)?;
+    let target = arg("target")?;
+    assert_invalid_config(
+        compute_input_tree(&reviewed_request, &target, limits),
+        "per-file byte bound exceeded",
+    )?;
     Ok(())
 }
 
@@ -260,6 +385,172 @@ fn target_symlink_or_reparse_escape_is_rejected_before_child() -> Result<()> {
         "remain below",
     )?;
     assert!(!outside.path().join("build/debug").exists());
+    Ok(())
+}
+
+#[test]
+fn input_scope_rejects_file_symlink_or_reparse_entry() -> Result<()> {
+    let (temp, root) = fixture()?;
+    let outside = tempfile::TempDir::new()
+        .map_err(|error| Error::InvalidConfig(format!("outside input fixture: {error}")))?;
+    let outside_file = outside.path().join("outside.rs");
+    fs::write(&outside_file, b"pub fn outside() {}")
+        .map_err(|error| Error::InvalidConfig(format!("outside input file: {error}")))?;
+    let link = temp.path().join("fixture/src/outside.rs");
+    make_file_symlink(&outside_file, &link)
+        .map_err(|error| Error::InvalidConfig(format!("input file symlink fixture: {error}")))?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "symlink or reparse",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_rejects_directory_symlink_or_reparse_entry() -> Result<()> {
+    let (temp, root) = fixture()?;
+    let outside = tempfile::TempDir::new()
+        .map_err(|error| Error::InvalidConfig(format!("outside input fixture: {error}")))?;
+    fs::create_dir_all(outside.path().join("nested"))
+        .map_err(|error| Error::InvalidConfig(format!("outside input directory: {error}")))?;
+    let link = temp.path().join("fixture/src/nested");
+    make_directory_symlink(outside.path(), &link).map_err(|error| {
+        Error::InvalidConfig(format!("input directory symlink fixture: {error}"))
+    })?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "symlink or reparse",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_excludes_target_contents_and_rejects_target_overlap() -> Result<()> {
+    let (temp, root) = fixture()?;
+    fs::create_dir_all(temp.path().join("fixture/target/debug"))
+        .map_err(|error| Error::InvalidConfig(format!("target directory: {error}")))?;
+    fs::write(
+        temp.path().join("fixture/target/debug/generated"),
+        b"generated",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("target output: {error}")))?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    let first = reviewed_input_tree_digest(&reviewed_request, &reviewed_spec)?;
+    fs::write(
+        temp.path().join("fixture/target/debug/generated"),
+        b"changed",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("target output mutation: {error}")))?;
+    let second = reviewed_input_tree_digest(&reviewed_request, &reviewed_spec)?;
+    assert_eq!(first, second);
+
+    let overlap = spec("src", EXPECTED_CARGO_VERSION)?;
+    let overlap_request = request(root, overlap.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&overlap_request, &overlap, validate(b"tree")),
+        "overlaps",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn declared_and_computed_input_digests_must_match_before_child() -> Result<()> {
+    let (temp, root) = fixture()?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    let mismatched = CargoPilotInput::try_new(
+        &reviewed_request,
+        &reviewed_spec,
+        validate(b"caller-declared-different"),
+    )?;
+    let evidence = run_cargo_pilot(mismatched)?;
+    assert_eq!(
+        evidence.availability(),
+        HarnessToolAvailability::Misconfigured
+    );
+    assert_eq!(evidence.status(), HarnessRunStatus::Failed);
+    assert!(!evidence.declared_input_tree_matches());
+    assert_eq!(evidence.execution_termination(), None);
+    assert!(!temp.path().join("fixture/target").exists());
+    Ok(())
+}
+
+#[test]
+fn input_scope_rejects_file_count_overflow() -> Result<()> {
+    let (_temp, root) = fixture()?;
+    for (index, _) in std::iter::repeat(()).take(101).enumerate() {
+        let path = Path::new(root.as_str()).join(format!("fixture/src/generated-{index}.rs"));
+        fs::write(path, b"pub fn generated() {}")
+            .map_err(|error| Error::InvalidConfig(format!("file-count fixture: {error}")))?;
+    }
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "file-count bound",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_rejects_depth_overflow() -> Result<()> {
+    let (_temp, root) = fixture()?;
+    let mut relative = String::from("fixture/src");
+    for (index, _) in std::iter::repeat(()).take(17).enumerate() {
+        relative.push_str(&format!("/nested-{index}"));
+        fs::create_dir_all(Path::new(root.as_str()).join(&relative))
+            .map_err(|error| Error::InvalidConfig(format!("depth fixture: {error}")))?;
+    }
+    fs::write(
+        Path::new(root.as_str()).join(&relative).join("deep.rs"),
+        b"deep",
+    )
+    .map_err(|error| Error::InvalidConfig(format!("depth file fixture: {error}")))?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "recursion depth",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn input_scope_rejects_per_file_and_total_byte_overflow() -> Result<()> {
+    let (_temp, root) = fixture()?;
+    let large = vec![b'x'; 1_048_577];
+    fs::write(
+        Path::new(root.as_str()).join("fixture/src/too-large.rs"),
+        &large,
+    )
+    .map_err(|error| Error::InvalidConfig(format!("per-file fixture: {error}")))?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
+        "per-file byte bound",
+    )?;
+
+    let (_total_temp, total_root) = fixture()?;
+    let chunk = vec![b'y'; 1_048_576];
+    for index in 0..8 {
+        fs::write(
+            Path::new(total_root.as_str()).join(format!("fixture/src/chunk-{index}.rs")),
+            &chunk,
+        )
+        .map_err(|error| Error::InvalidConfig(format!("total-byte fixture: {error}")))?;
+    }
+    let total_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let total_request = request(total_root, total_spec.command().to_vec())?;
+    assert_invalid_config(
+        CargoPilotInput::try_new(&total_request, &total_spec, validate(b"tree")),
+        "total-byte bound",
+    )?;
     Ok(())
 }
 
@@ -370,7 +661,7 @@ fn captured_digests_are_deterministic_and_config_tamper_is_visible() -> Result<(
     .map_err(|error| Error::InvalidConfig(format!("tamper fixture lock: {error}")))?;
     assert_invalid_config(
         run_cargo_pilot(drift_input),
-        "changed after review and before execution",
+        "scope changed before availability probe",
     )?;
     assert!(!drift_temp.path().join("fixture/target").exists());
     Ok(())
