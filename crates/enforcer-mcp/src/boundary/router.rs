@@ -4586,7 +4586,11 @@ mod tests {
             rust["consumerCapabilities"]["nativeScan"],
             rust["scanFamilyDisposition"]
         );
-        for consumer in ["nativeTool", "rulePacks", "cli", "ui"] {
+        assert_eq!(
+            rust["consumerCapabilities"]["nativeTool"],
+            serde_json::json!({"kind": "mapped", "tool": "cargo"})
+        );
+        for consumer in ["rulePacks", "cli", "ui"] {
             assert_eq!(
                 rust["consumerCapabilities"][consumer]["kind"],
                 serde_json::json!("unsupported"),
@@ -4601,7 +4605,11 @@ mod tests {
             javascript["consumerCapabilities"]["nativeScan"]["family"]["kind"],
             serde_json::json!("typeScript")
         );
-        for consumer in ["nativeTool", "rulePacks", "cli", "ui"] {
+        assert_eq!(
+            javascript["consumerCapabilities"]["nativeTool"],
+            serde_json::json!({"kind": "mapped", "tool": "tsc"})
+        );
+        for consumer in ["rulePacks", "cli", "ui"] {
             assert_eq!(
                 javascript["consumerCapabilities"][consumer]["kind"],
                 serde_json::json!("unsupported"),

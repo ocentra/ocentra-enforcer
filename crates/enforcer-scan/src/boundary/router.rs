@@ -139,6 +139,27 @@ pub enum CanonicalConsumerDisposition {
     NotApplicable,
 }
 
+/// Typed canonical-identity native-tool projection.
+///
+/// `mapped` identifies an existing consumer tool mapping only; it does not
+/// claim that the tool can execute successfully for the current repository.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalNativeToolDisposition {
+    /// One existing native-tool identity is mechanically mapped.
+    #[serde(rename = "mapped")]
+    Mapped {
+        /// Existing typed native-tool identity.
+        tool: WireNativeTool,
+    },
+    /// No canonical-identity native-tool mapping is proved.
+    #[serde(rename = "unsupported")]
+    Unsupported,
+    /// The native-tool question does not apply to this projection.
+    #[serde(rename = "notApplicable")]
+    NotApplicable,
+}
+
 /// Typed consumer-capability values attached to the opt-in canonical route.
 ///
 /// The native-scan field reuses the exact current scan-family mapping. The
@@ -152,7 +173,7 @@ pub struct CanonicalConsumerCapabilityProjectionResponse {
     /// Current native-scan family projection, if mechanically mapped.
     pub native_scan: CanonicalScanFamilyDisposition,
     /// Canonical-identity native-tool projection state.
-    pub native_tool: CanonicalConsumerDisposition,
+    pub native_tool: CanonicalNativeToolDisposition,
     /// Canonical-identity rule-pack projection state.
     pub rule_packs: CanonicalConsumerDisposition,
     /// Canonical-identity CLI projection state.
@@ -167,7 +188,7 @@ impl From<crate::router::identity::CanonicalConsumerCapabilities>
     fn from(value: crate::router::identity::CanonicalConsumerCapabilities) -> Self {
         Self {
             native_scan: scan_family_to_wire(value.native_scan()),
-            native_tool: consumer_disposition_to_wire(value.native_tool()),
+            native_tool: native_tool_to_wire(value.native_tool()),
             rule_packs: consumer_disposition_to_wire(value.rule_packs()),
             cli: consumer_disposition_to_wire(value.cli()),
             ui: consumer_disposition_to_wire(value.ui()),
@@ -390,6 +411,22 @@ fn consumer_disposition_to_wire(
         }
         crate::router::identity::ConsumerCapabilityState::NotApplicable => {
             CanonicalConsumerDisposition::NotApplicable
+        }
+    }
+}
+
+fn native_tool_to_wire(
+    disposition: crate::router::identity::NativeToolProjection,
+) -> CanonicalNativeToolDisposition {
+    match disposition {
+        crate::router::identity::NativeToolProjection::Mapped(tool) => {
+            CanonicalNativeToolDisposition::Mapped { tool: tool.into() }
+        }
+        crate::router::identity::NativeToolProjection::Unsupported => {
+            CanonicalNativeToolDisposition::Unsupported
+        }
+        crate::router::identity::NativeToolProjection::NotApplicable => {
+            CanonicalNativeToolDisposition::NotApplicable
         }
     }
 }

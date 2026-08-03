@@ -1,5 +1,6 @@
 //! UL06 P1B identity-preserving routing contracts.
 
+use enforcer_domain::config_types::NativeTool;
 use enforcer_domain::language_types::{
     DetectionMatcher, DetectionMatcherKind, LiteralDisposition, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, ScanFamilyDisposition,
@@ -12,7 +13,7 @@ use enforcer_scan::boundary::router::{
 };
 use enforcer_scan::router::identity::{
     detect_language_identities, ConsumerCapabilityState, DetectedLanguageRoute,
-    RouteCapabilityDisposition, UnknownLanguagePolicy,
+    NativeToolProjection, RouteCapabilityDisposition, UnknownLanguagePolicy,
 };
 use enforcer_scan::router::plan::build_canonical_route_plan;
 use enforcer_syntax::registry::{
@@ -261,7 +262,15 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
         assert_eq!(consumers.native_scan(), expected);
         assert_eq!(
             consumers.native_tool(),
-            ConsumerCapabilityState::Unsupported
+            match expected {
+                ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => {
+                    NativeToolProjection::Mapped(NativeTool::Cargo)
+                }
+                ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => {
+                    NativeToolProjection::Mapped(NativeTool::Tsc)
+                }
+                _ => NativeToolProjection::Unsupported,
+            }
         );
         assert_eq!(consumers.rule_packs(), ConsumerCapabilityState::Unsupported);
         assert_eq!(consumers.cli(), ConsumerCapabilityState::Unsupported);
@@ -282,7 +291,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         "scanFamilyDisposition": { "kind": "mapped", "family": { "kind": "rust" } },
         "consumerCapabilities": {
             "nativeScan": { "kind": "mapped", "family": { "kind": "rust" } },
-            "nativeTool": { "kind": "unsupported" },
+            "nativeTool": { "kind": "mapped", "tool": "cargo" },
             "rulePacks": { "kind": "unsupported" },
             "cli": { "kind": "unsupported" },
             "ui": { "kind": "unsupported" }
@@ -361,6 +370,36 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     assert!(unknown_consumer_error
         .to_string()
         .contains("unknown variant"));
+
+    let mut missing_native_tool_value = base.clone();
+    missing_native_tool_value["consumerCapabilities"]["nativeTool"] =
+        serde_json::json!({ "kind": "mapped" });
+    let missing_native_tool_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_native_tool_value)
+            .expect_err("mapped native-tool disposition without a tool must be rejected");
+    assert!(missing_native_tool_error
+        .to_string()
+        .contains("missing field `tool`"));
+
+    let mut unknown_native_tool_value = base.clone();
+    unknown_native_tool_value["consumerCapabilities"]["nativeTool"] =
+        serde_json::json!({ "kind": "mapped", "tool": "future" });
+    let unknown_native_tool_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_native_tool_value)
+            .expect_err("unknown native-tool identity must be rejected");
+    assert!(unknown_native_tool_error
+        .to_string()
+        .contains("unknown variant"));
+
+    let mut mismatched_native_tool_value = base.clone();
+    mismatched_native_tool_value["consumerCapabilities"]["nativeTool"] =
+        serde_json::json!({ "kind": "mapped", "tool": "tsc" });
+    let mismatched_native_tool_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_native_tool_value)
+            .expect_err("mismatched native-tool identity must be rejected");
+    assert!(mismatched_native_tool_error
+        .to_string()
+        .contains("consumerCapabilities does not match"));
 
     let mut unknown_consumer_field = base.clone();
     unknown_consumer_field["consumerCapabilities"]["futureField"] = serde_json::json!(true);
