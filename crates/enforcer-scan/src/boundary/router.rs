@@ -160,6 +160,27 @@ pub enum CanonicalNativeToolDisposition {
     NotApplicable,
 }
 
+/// Typed canonical-identity rule-pack projection.
+///
+/// A mapped value identifies existing route-selected packs only; it does not
+/// claim rule coverage, fact availability, execution, or finding correctness.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", deny_unknown_fields, rename_all = "camelCase")]
+pub enum CanonicalRulePackDisposition {
+    /// Existing identity-specific packs selected by the current route.
+    #[serde(rename = "mapped")]
+    Mapped {
+        /// Stable, duplicate-free pack order from the existing route mapping.
+        packs: Vec<RulePack>,
+    },
+    /// No identity-specific rule-pack mapping is proved.
+    #[serde(rename = "unsupported")]
+    Unsupported,
+    /// The rule-pack question does not apply to this projection.
+    #[serde(rename = "notApplicable")]
+    NotApplicable,
+}
+
 /// Typed consumer-capability values attached to the opt-in canonical route.
 ///
 /// The native-scan field reuses the exact current scan-family mapping. The
@@ -167,7 +188,7 @@ pub enum CanonicalNativeToolDisposition {
 /// consumers have no canonical-identity mapping seam.
 /// ROUNDTRIP-TEST: `tests/canonical_language_routing.rs::scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_dispositions`
 /// proves this nested response DTO serializes and deserializes without loss.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CanonicalConsumerCapabilityProjectionResponse {
     /// Current native-scan family projection, if mechanically mapped.
@@ -175,7 +196,7 @@ pub struct CanonicalConsumerCapabilityProjectionResponse {
     /// Canonical-identity native-tool projection state.
     pub native_tool: CanonicalNativeToolDisposition,
     /// Canonical-identity rule-pack projection state.
-    pub rule_packs: CanonicalConsumerDisposition,
+    pub rule_packs: CanonicalRulePackDisposition,
     /// Canonical-identity CLI projection state.
     pub cli: CanonicalConsumerDisposition,
     /// Canonical-identity UI projection state.
@@ -189,7 +210,7 @@ impl From<crate::router::identity::CanonicalConsumerCapabilities>
         Self {
             native_scan: scan_family_to_wire(value.native_scan()),
             native_tool: native_tool_to_wire(value.native_tool()),
-            rule_packs: consumer_disposition_to_wire(value.rule_packs()),
+            rule_packs: rule_pack_to_wire(value.rule_packs()),
             cli: consumer_disposition_to_wire(value.cli()),
             ui: consumer_disposition_to_wire(value.ui()),
         }
@@ -288,7 +309,7 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 canonical_name,
                 structural: *structural,
                 capability: *capability,
-                consumer_capabilities: *consumer_capabilities,
+                consumer_capabilities: consumer_capabilities.clone(),
                 scan_family_disposition: scan_family_disposition_for_wire(*language_id)
                     .map_err(serde::ser::Error::custom)?,
             },
@@ -427,6 +448,24 @@ fn native_tool_to_wire(
         }
         crate::router::identity::NativeToolProjection::NotApplicable => {
             CanonicalNativeToolDisposition::NotApplicable
+        }
+    }
+}
+
+fn rule_pack_to_wire(
+    disposition: crate::router::identity::RulePackProjection,
+) -> CanonicalRulePackDisposition {
+    match disposition {
+        crate::router::identity::RulePackProjection::Mapped(packs) => {
+            CanonicalRulePackDisposition::Mapped {
+                packs: packs.to_vec(),
+            }
+        }
+        crate::router::identity::RulePackProjection::Unsupported => {
+            CanonicalRulePackDisposition::Unsupported
+        }
+        crate::router::identity::RulePackProjection::NotApplicable => {
+            CanonicalRulePackDisposition::NotApplicable
         }
     }
 }

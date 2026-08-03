@@ -7,13 +7,13 @@ use enforcer_domain::language_types::{
     StructuralLanguageSupport,
 };
 use enforcer_domain::paths::RelPath;
-use enforcer_domain::scan_types::{LanguageFamily, RouteScope};
+use enforcer_domain::scan_types::{LanguageFamily, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
     CanonicalConsumerCapabilityProjectionResponse, CanonicalLanguageRouteResponse,
 };
 use enforcer_scan::router::identity::{
     detect_language_identities, ConsumerCapabilityState, DetectedLanguageRoute,
-    NativeToolProjection, RouteCapabilityDisposition, UnknownLanguagePolicy,
+    NativeToolProjection, RouteCapabilityDisposition, RulePackProjection, UnknownLanguagePolicy,
 };
 use enforcer_scan::router::plan::build_canonical_route_plan;
 use enforcer_syntax::registry::{
@@ -272,7 +272,18 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
                 _ => NativeToolProjection::Unsupported,
             }
         );
-        assert_eq!(consumers.rule_packs(), ConsumerCapabilityState::Unsupported);
+        assert_eq!(
+            consumers.rule_packs(),
+            match expected {
+                ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => {
+                    RulePackProjection::Mapped(&[RulePack::Rust, RulePack::Security])
+                }
+                ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => {
+                    RulePackProjection::Mapped(&[RulePack::TypeScript, RulePack::Security])
+                }
+                _ => RulePackProjection::Unsupported,
+            }
+        );
         assert_eq!(consumers.cli(), ConsumerCapabilityState::Unsupported);
         assert_eq!(consumers.ui(), ConsumerCapabilityState::Unsupported);
     }
@@ -292,7 +303,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         "consumerCapabilities": {
             "nativeScan": { "kind": "mapped", "family": { "kind": "rust" } },
             "nativeTool": { "kind": "mapped", "tool": "cargo" },
-            "rulePacks": { "kind": "unsupported" },
+            "rulePacks": { "kind": "mapped", "packs": ["rust", "security"] },
             "cli": { "kind": "unsupported" },
             "ui": { "kind": "unsupported" }
         }
@@ -400,6 +411,47 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     assert!(mismatched_native_tool_error
         .to_string()
         .contains("consumerCapabilities does not match"));
+
+    let mut missing_rule_packs = base.clone();
+    missing_rule_packs["consumerCapabilities"]["rulePacks"] = serde_json::json!({
+        "kind": "mapped"
+    });
+    let missing_rule_packs_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_rule_packs)
+            .expect_err("mapped rule-pack disposition without packs must be rejected");
+    assert!(missing_rule_packs_error
+        .to_string()
+        .contains("missing field `packs`"));
+
+    let mut unknown_rule_pack = base.clone();
+    unknown_rule_pack["consumerCapabilities"]["rulePacks"] = serde_json::json!({
+        "kind": "mapped",
+        "packs": ["future", "security"]
+    });
+    let unknown_rule_pack_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_rule_pack)
+            .expect_err("unknown rule pack must be rejected");
+    assert!(unknown_rule_pack_error
+        .to_string()
+        .contains("unknown variant"));
+
+    for packs in [
+        serde_json::json!(["rust", "rust"]),
+        serde_json::json!(["security", "rust"]),
+        serde_json::json!(["typeScript", "security"]),
+    ] {
+        let mut invalid_rule_packs = base.clone();
+        invalid_rule_packs["consumerCapabilities"]["rulePacks"] = serde_json::json!({
+            "kind": "mapped",
+            "packs": packs
+        });
+        let invalid_rule_packs_error =
+            serde_json::from_value::<CanonicalLanguageRouteResponse>(invalid_rule_packs)
+                .expect_err("duplicate, wrong-order, or mismatched packs must be rejected");
+        assert!(invalid_rule_packs_error
+            .to_string()
+            .contains("consumerCapabilities does not match"));
+    }
 
     let mut unknown_consumer_field = base.clone();
     unknown_consumer_field["consumerCapabilities"]["futureField"] = serde_json::json!(true);

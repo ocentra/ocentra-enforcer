@@ -4590,7 +4590,14 @@ mod tests {
             rust["consumerCapabilities"]["nativeTool"],
             serde_json::json!({"kind": "mapped", "tool": "cargo"})
         );
-        for consumer in ["rulePacks", "cli", "ui"] {
+        assert_eq!(
+            rust["consumerCapabilities"]["rulePacks"],
+            serde_json::json!({
+                "kind": "mapped",
+                "packs": ["rust", "security"]
+            })
+        );
+        for consumer in ["cli", "ui"] {
             assert_eq!(
                 rust["consumerCapabilities"][consumer]["kind"],
                 serde_json::json!("unsupported"),
@@ -4609,7 +4616,14 @@ mod tests {
             javascript["consumerCapabilities"]["nativeTool"],
             serde_json::json!({"kind": "mapped", "tool": "tsc"})
         );
-        for consumer in ["rulePacks", "cli", "ui"] {
+        assert_eq!(
+            javascript["consumerCapabilities"]["rulePacks"],
+            serde_json::json!({
+                "kind": "mapped",
+                "packs": ["typeScript", "security"]
+            })
+        );
+        for consumer in ["cli", "ui"] {
             assert_eq!(
                 javascript["consumerCapabilities"][consumer]["kind"],
                 serde_json::json!("unsupported"),
