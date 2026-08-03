@@ -3,14 +3,32 @@
   "workpackId": "RM05",
   "artifactId": "RM05-CONSOLIDATED-HANDOFF-20260803",
   "artifactState": "bounded-evidence-only",
-  "materializedAtCandidateSha": "827f352b780dd1ad8cfcd643c17791a732be2e98",
+  "materializedAtCandidateSha": "0a7e9691e97c34139d551d3d887b2601e31d020a",
   "ownershipCorrection": {
     "decisionId": "RM08-PREREQUISITE-OWNER-DECISION",
     "decisionAuthority": "boss",
-    "decisionRecordedAtMaterializationSha": "827f352b780dd1ad8cfcd643c17791a732be2e98",
+    "decisionRecordedAtMaterializationSha": "0a7e9691e97c34139d551d3d887b2601e31d020a",
     "canonicalOwner": "RM05",
-    "canonicalRowCount": 8,
+    "canonicalRowCount": 26,
     "canonicalRowIds": [
+      "C3-001",
+      "C3-002",
+      "C3-003",
+      "C3-004",
+      "C3-005",
+      "C3-006",
+      "C3-007",
+      "C3-008",
+      "C3-009",
+      "C3-010",
+      "C3-011",
+      "C3-012",
+      "C3-013",
+      "C3-014",
+      "C3-015",
+      "C3-016",
+      "C3-017",
+      "C3-018",
       "RM01-OPS-009",
       "RM01-OPS-010",
       "RM01-OPS-011",
@@ -20,9 +38,10 @@
       "RM01-OPS-015",
       "RM01-OPS-016"
     ],
-    "supplementalRowCount": 18,
-    "supplementalRowIdPattern": "C3-001..C3-018",
-    "supplementalRowsSubstitutive": false,
+    "inventoryRowCount": 26,
+    "canonicalInventoryRowPattern": "C3-001..C3-018 plus RM01-OPS-009..016",
+    "c3RowsAreCanonical": true,
+    "c3EvidenceSubstitutiveForOps": false,
     "crosswalk": [
       {"canonicalId": "RM01-OPS-009", "relatedSupplementalIds": ["C3-014"], "relevance": "C3-014 contains bounded health/presence/workers/tasks adapter observations; canonical health behavior remains unmeasured.", "substitutive": false},
       {"canonicalId": "RM01-OPS-010", "relatedSupplementalIds": ["C3-014"], "relevance": "C3-014 contains bounded presence adapter observations; canonical presence behavior remains unmeasured.", "substitutive": false},
@@ -36,6 +55,7 @@
   },
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
     "observedAtCandidateSha": "827f352b780dd1ad8cfcd643c17791a732be2e98",
     "sourceInventoryPath": "docs/plans/rust-mjs-parity-retirement-plan/inventory/RM01_CAPABILITIES.json",
     "sourceInventoryCandidateSha": "827f352b780dd1ad8cfcd643c17791a732be2e98",
@@ -58,19 +78,20 @@
   "coverage": {
     "canonicalOwner": "RM05",
     "family": "coordination-locks-mail-lanes",
-    "canonicalRm01Rows": 8,
-    "canonicalUniqueIds": 8,
-    "canonicalBehaviorMeasuredRows": 0,
-    "canonicalUnmeasuredRows": 8,
-    "supplementalC3Rows": 18,
-    "supplementalUniqueIds": 18,
-    "supplementalRowsSubstitutive": false,
+    "canonicalRm01Rows": 26,
+    "canonicalUniqueIds": 26,
+    "canonicalBehaviorMeasuredRows": 14,
+    "canonicalUnmeasuredRows": 12,
+    "c3InventoryRows": 18,
+    "c3RowsAreCanonical": true,
+    "opsCrosswalkEvidenceSubstitutive": false,
     "closureClaim": false
   },
   "rows": [
     {
       "id": "C3-001",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -91,6 +112,7 @@
     {
       "id": "C3-002",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -111,6 +133,7 @@
     {
       "id": "C3-003",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -131,6 +154,7 @@
     {
       "id": "C3-004",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -151,6 +175,7 @@
     {
       "id": "C3-005",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "missing",
       "initialDisposition": "missing",
       "authoritySource": "public",
@@ -171,6 +196,7 @@
     {
       "id": "C3-006",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -191,6 +217,7 @@
     {
       "id": "C3-007",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -211,6 +238,7 @@
     {
       "id": "C3-008",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -231,6 +259,7 @@
     {
       "id": "C3-009",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -251,6 +280,7 @@
     {
       "id": "C3-010",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -271,6 +301,7 @@
     {
       "id": "C3-011",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -291,6 +322,7 @@
     {
       "id": "C3-012",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -311,6 +343,7 @@
     {
       "id": "C3-013",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -331,6 +364,7 @@
     {
       "id": "C3-014",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -351,6 +385,7 @@
     {
       "id": "C3-015",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -371,6 +406,7 @@
     {
       "id": "C3-016",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "intentional-enhancement",
       "authoritySource": "public",
@@ -391,6 +427,7 @@
     {
       "id": "C3-017",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "intentional-enhancement",
       "authoritySource": "public",
@@ -411,6 +448,7 @@
     {
       "id": "C3-018",
       "family": "coordination-locks-mail-lanes",
+      "canonicalOwner": "RM05",
       "disposition": "unknown",
       "initialDisposition": "unknown",
       "authoritySource": "public",
@@ -621,7 +659,7 @@
     "C3-016 normalized error and exit equivalence is unmeasured.",
     "C3-017 cross-process serialized-context equivalence is unmeasured.",
     "C3-018 full event corpus and normalized wire-field equivalence is unmeasured.",
-    "RM01-OPS-009..016 are canonical RM05 rows added by the RM08 prerequisite owner decision and remain source-inventory-only; C3-001..018 are supplemental and do not substitute."
+  "C3-001..018 and RM01-OPS-009..016 are all canonical RM05 inventory rows; C3 evidence remains non-substitutive for the distinct RM01-OPS-009..016 behaviors."
   ],
   "proves": [
     "The RM05 source inventory is consolidated as exactly C3-001 through C3-018.",
@@ -629,12 +667,13 @@
     "The supplied C3-005 and C3-006 run IDs are restored in the machine-readable packet.",
     "C3-005 is confirmed missing on the candidate for the bounded durable edit-intent and release-notification contract.",
     "The recorded bounded executable tests and their observed pass counts are preserved without promoting parity.",
-    "Canonical RM05 ownership explicitly covers RM01-OPS-009..016 as eight unmeasured rows, with C3-001..018 retained as non-substitutive supplemental evidence."
+  "Canonical RM05 ownership explicitly covers all 26 inventory rows: C3-001..018 and RM01-OPS-009..016; C3 evidence is retained but is not substituted for the distinct OPS behaviors."
   ],
   "doesNotProve": [
     "RM05 closure",
     "behavioral parity for any row",
-    "aggregate public-plus-overlay parity",
+  "aggregate public-plus-overlay parity",
+  "C3 evidence substitutes for the distinct RM01-OPS-009..016 behaviors",
     "repair authorization or implementation",
     "waiver, bypass, or intentional-difference approval",
     "cutover, production readiness, or frozen-authority retirement"
