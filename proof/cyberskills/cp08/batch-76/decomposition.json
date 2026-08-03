@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-76",
+  "baselineCommit": "df2fa0b3dec9a607ec8ebb78812733bc358ce161",
+  "family": "Static infrastructure, identity, movement, telemetry, and OT assessment evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-iot-security-assessment",
+      "performing-ip-reputation-analysis-with-shodan",
+      "performing-jwt-none-algorithm-attack",
+      "performing-kerberoasting-attack",
+      "performing-lateral-movement-detection",
+      "performing-lateral-movement-with-wmiexec",
+      "performing-log-source-onboarding-in-siem",
+      "performing-oil-gas-cybersecurity-assessment",
+      "performing-ot-vulnerability-assessment-with-claroty",
+      "performing-ot-vulnerability-scanning-safely"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-75."
+  },
+  "accounting": {"acceptedPrior":750,"proposed":10,"overlap":0,"combined":760,"protectedExcluded":1},
+  "skills": [
+    {
+      "catalogId":"performing-iot-security-assessment",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-iot-security-assessment/SKILL.md","sha256":"f55327f225ac5a523ffbac6e03368c8deea96172cb1eb0cadcbb1fc130225ba9","availability":"available","license":"Apache-2.0","anchors":["# Performing IoT Security Assessment:L35"]},
+      "components":[
+        {"id":"performing-iot-security-assessment::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed device, firmware, service, asset, topology, owner, scope, safety, and evidence-manifest fields without device or network access.","notProved":["device discovery","firmware state","IoT vulnerability"]},
+        {"id":"performing-iot-security-assessment::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep IoT devices, radios, gateways, scanners, protocols, endpoints, networks, and production infrastructure external.","notProved":["live assessment","device compromise","control effectiveness"]},
+        {"id":"performing-iot-security-assessment::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain IoT threat modeling, device hardening, segmentation, safety, and defensive assessment guidance as advisory.","notProved":["coverage","finding validity","remediation"]},
+        {"id":"performing-iot-security-assessment::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, device ownership, legal/privacy/ethics/safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live testing","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-ip-reputation-analysis-with-shodan",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-ip-reputation-analysis-with-shodan/SKILL.md","sha256":"2e91b9d1ec595706d5a20b9ea24b35ee15d627f0f3da93f86e90e6754487ce9d","availability":"available","license":"Apache-2.0","anchors":["# Performing IP Reputation Analysis with Shodan:L32"]},
+      "components":[
+        {"id":"performing-ip-reputation-analysis-with-shodan::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed IP, ASN, source, timestamp, reputation, confidence, ownership, scope, and evidence-manifest fields without live lookup.","notProved":["IP reputation","service exposure","ownership"]},
+        {"id":"performing-ip-reputation-analysis-with-shodan::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Shodan, Internet scanners, DNS, WHOIS, search, network services, endpoints, and live Internet authorities external.","notProved":["freshness","enumeration","attribution"]},
+        {"id":"performing-ip-reputation-analysis-with-shodan::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain external-asset review, source uncertainty, exposure triage, notification, and defensive response guidance as advisory.","notProved":["source truth","finding validity","response effectiveness"]},
+        {"id":"performing-ip-reputation-analysis-with-shodan::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/privacy review, source terms, analyst validation, escalation, and disclosure decisions.","notProved":["authorization","live collection","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-jwt-none-algorithm-attack",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-jwt-none-algorithm-attack/SKILL.md","sha256":"82ea491f3bbeb401f3c488c17a74284abae6d3e4a916f079f106594295a61f46","availability":"available","license":"Apache-2.0","anchors":["# Performing JWT None Algorithm Attack:L32"]},
+      "components":[
+        {"id":"performing-jwt-none-algorithm-attack::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed JWT header, algorithm policy, issuer, audience, key reference, route, role, scope, and evidence-manifest fields without token use.","notProved":["signature validation","authentication bypass","authorization"]},
+        {"id":"performing-jwt-none-algorithm-attack::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep JWT libraries, API endpoints, servers, browsers, sessions, credentials, payloads, and production identity authorities external.","notProved":["live bypass","session access","data exposure"]},
+        {"id":"performing-jwt-none-algorithm-attack::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain JWT policy review, key management, API hardening, authorized testing, and defensive remediation guidance as advisory.","notProved":["finding validity","control effectiveness","security outcome"]},
+        {"id":"performing-jwt-none-algorithm-attack::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, API ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live attack","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-kerberoasting-attack",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-kerberoasting-attack/SKILL.md","sha256":"ac8cb69be89ce0453439d016951696716f7dba6652643383a96b65b5d2fabcae","availability":"available","license":"Apache-2.0","anchors":["# Performing Kerberoasting Attack:L37"]},
+      "components":[
+        {"id":"performing-kerberoasting-attack::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed domain, principal, service, ticket, account, scope, authorization, and evidence-manifest fields without ticket requests or credential access.","notProved":["SPN exposure","ticket access","password recovery"]},
+        {"id":"performing-kerberoasting-attack::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Active Directory, Kerberos, domain controllers, credentials, Hashcat, endpoints, sessions, and production identity authorities external.","notProved":["ticket extraction","cracking","privilege access"]},
+        {"id":"performing-kerberoasting-attack::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain Kerberos hardening, service-account governance, password policy, detection design, and defensive remediation guidance as advisory.","notProved":["finding validity","detection efficacy","compromise"]},
+        {"id":"performing-kerberoasting-attack::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, domain ownership, legal/privacy/ethics review, credential custody, bounded scope, analyst validation, and remediation decisions.","notProved":["authorization","live attack","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-lateral-movement-detection",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-lateral-movement-detection/SKILL.md","sha256":"242f3d8d37e21d8a57f61a3da8d0731853fc3a42f60a4af5402f8c756802a8fa","availability":"available","license":"Apache-2.0","anchors":["# Performing Lateral Movement Detection:L42"]},
+      "components":[
+        {"id":"performing-lateral-movement-detection::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed event, host, principal, route, technique, rule, timestamp, confidence, owner, and evidence-manifest fields without telemetry access.","notProved":["lateral movement","event truth","detection"]},
+        {"id":"performing-lateral-movement-detection::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep SIEM, EDR, endpoint, identity, network, packet, authentication, and production telemetry authorities external.","notProved":["live alert","coverage","incident status"]},
+        {"id":"performing-lateral-movement-detection::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain lateral-movement hypotheses, detection design, triage, threat hunting, and defensive response guidance as advisory.","notProved":["detection efficacy","attribution","containment"]},
+        {"id":"performing-lateral-movement-detection::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, system ownership, legal/privacy review, analyst validation, escalation, containment, remediation, and disclosure decisions.","notProved":["authorization","live detection","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-lateral-movement-with-wmiexec",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-lateral-movement-with-wmiexec/SKILL.md","sha256":"99551d586c17cf0385b47f26a3b1b696b44586c45c8217f12000b8e9a6a54063","availability":"available","license":"Apache-2.0","anchors":["# Performing Lateral Movement with WMIExec:L36"]},
+      "components":[
+        {"id":"performing-lateral-movement-with-wmiexec::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed host, principal, WMI route, command-plan, authorization, scope, stop-condition, and evidence-manifest fields without remote execution.","notProved":["remote access","command execution","lateral movement"]},
+        {"id":"performing-lateral-movement-with-wmiexec::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep WMI, Windows hosts, credentials, SMB, processes, endpoints, sessions, and production networks external.","notProved":["enumeration","execution","compromise"]},
+        {"id":"performing-lateral-movement-with-wmiexec::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authorized movement assessment, WMI hardening, segmentation, detection, and defensive remediation guidance as advisory.","notProved":["exposure","detection efficacy","containment"]},
+        {"id":"performing-lateral-movement-with-wmiexec::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, host ownership, legal/privacy/safety review, isolated scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live movement","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-log-source-onboarding-in-siem",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-log-source-onboarding-in-siem/SKILL.md","sha256":"e6463693245d39f029ffbd616c3b450dd4a3485b17b48d4218ef8fbb00a4494b","availability":"available","license":"Apache-2.0","anchors":["# Performing Log Source Onboarding in SIEM:L30"]},
+      "components":[
+        {"id":"performing-log-source-onboarding-in-siem::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed source, schema, transport, parser, owner, retention, timestamp, authorization, and evidence-manifest fields without ingestion.","notProved":["log delivery","parser behavior","telemetry coverage"]},
+        {"id":"performing-log-source-onboarding-in-siem::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep SIEM, collectors, agents, networks, endpoints, log pipelines, credentials, and production telemetry authorities external.","notProved":["ingestion","data freshness","detection"]},
+        {"id":"performing-log-source-onboarding-in-siem::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain logging architecture, schema mapping, telemetry quality, retention, monitoring, and defensive onboarding guidance as advisory.","notProved":["coverage","source truth","alert efficacy"]},
+        {"id":"performing-log-source-onboarding-in-siem::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, source ownership, legal/privacy/data review, retention approval, analyst validation, change control, and disclosure decisions.","notProved":["authorization","live ingestion","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-oil-gas-cybersecurity-assessment",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-oil-gas-cybersecurity-assessment/SKILL.md","sha256":"7a7af8ba0da76e6412e7e0886164e0ee9460fc67d90f8f175de76fb6bdb2d29f","availability":"available","license":"Apache-2.0","anchors":["# Performing Oil & Gas Cybersecurity Assessment:L39"]},
+      "components":[
+        {"id":"performing-oil-gas-cybersecurity-assessment::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed facility, asset, zone, process, control, hazard, owner, safety, scope, and evidence-manifest fields without operational access.","notProved":["facility state","process safety","cybersecurity finding"]},
+        {"id":"performing-oil-gas-cybersecurity-assessment::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep OT/ICS, SCADA, PLC, historian, network, safety, Claroty, SIEM, endpoint, and production-control authorities external.","notProved":["discovery","compromise","safety impact"]},
+        {"id":"performing-oil-gas-cybersecurity-assessment::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain oil-and-gas risk assessment, OT segmentation, safety, resilience, incident response, and remediation guidance as advisory.","notProved":["coverage","risk truth","recovery"]},
+        {"id":"performing-oil-gas-cybersecurity-assessment::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, facility and process ownership, legal/data/safety review, change approval, stop conditions, analyst validation, containment, and recovery decisions.","notProved":["authorization","live assessment","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-ot-vulnerability-assessment-with-claroty",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-ot-vulnerability-assessment-with-claroty/SKILL.md","sha256":"9f8b7aa791b0fdf1312c9d754c23ee7c4d80154376cec168207bc71ca8954aea","availability":"available","license":"Apache-2.0","anchors":["# Performing OT Vulnerability Assessment with Claroty:L37"]},
+      "components":[
+        {"id":"performing-ot-vulnerability-assessment-with-claroty::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed OT asset, protocol, zone, vulnerability, owner, safety, scope, severity, and evidence-manifest fields without controller or network access.","notProved":["asset discovery","vulnerability","process impact"]},
+        {"id":"performing-ot-vulnerability-assessment-with-claroty::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Claroty, historians, SCADA, PLCs, DNP3, Modbus, S7comm, PCAP, controllers, networks, and production authorities external.","notProved":["traffic","finding truth","enforcement"]},
+        {"id":"performing-ot-vulnerability-assessment-with-claroty::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain OT vulnerability review, safe assessment, segmentation, compensating controls, incident response, and remediation guidance as advisory.","notProved":["coverage","severity truth","safety outcome"]},
+        {"id":"performing-ot-vulnerability-assessment-with-claroty::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset and process ownership, legal/data/safety review, maintenance scope, stop conditions, analyst validation, containment, and recovery decisions.","notProved":["authorization","live scanning","security outcome"]}
+      ]
+    },
+    {
+      "catalogId":"performing-ot-vulnerability-scanning-safely",
+      "source":{"path":"vendor/anthropic-cybersecurity-skills/skills/performing-ot-vulnerability-scanning-safely/SKILL.md","sha256":"46782c0cfc7b8f190c2e4318b70c66781c50e59a3b9ea861c3de05989c7c350c","availability":"available","license":"Apache-2.0","anchors":["# Performing OT Vulnerability Scanning Safely:L36"]},
+      "components":[
+        {"id":"performing-ot-vulnerability-scanning-safely::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed OT target, zone, protocol, scan-plan, safety limit, owner, authorization, stop-condition, and evidence-manifest fields without scanning.","notProved":["asset inventory","vulnerability","availability"]},
+        {"id":"performing-ot-vulnerability-scanning-safely::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep OT scanners, Claroty, network interfaces, PLCs, controllers, historians, PCAP, ICS networks, and production systems external.","notProved":["scan result","traffic","process impact"]},
+        {"id":"performing-ot-vulnerability-scanning-safely::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain safe OT scanning, passive assessment, safety engineering, segmentation, triage, and remediation guidance as advisory.","notProved":["coverage","finding validity","safety outcome"]},
+        {"id":"performing-ot-vulnerability-scanning-safely::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, facility and process ownership, legal/data/safety review, maintenance window, stop conditions, analyst validation, rollback, and recovery decisions.","notProved":["authorization","live scan","security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited":10,"availableSkills":10,"sourceUnavailableSkills":0,"nativePredicateProposed":10,"externalEngineBlocked":10,"advisoryRetained":10,"manualRequired":10,"componentsProposedOrRetained":40,"protectedExcludedSkills":1,"ledgerRowsChanged":0,"adapterMappingsAdded":0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No IoT discovery, IP reputation, JWT bypass, Kerberoasting, lateral movement, SIEM ingestion, oil-and-gas assessment, OT vulnerability, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}
