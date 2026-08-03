@@ -3,13 +3,13 @@
 | ID | Workpack | Owner | Depends on | Batch | Status |
 |---|---|---|---|---|---|
 | RM00 | [Authority freeze](workpacks/rm00-authority-freeze.md) | boss/Sol | none | one manifest | ACCEPTED |
-| RM01 | [Capability inventory](workpacks/rm01-capability-inventory.md) | boss + Luna audits | RM00 | <=40 rows | ACTIVE-INVENTORY |
-| RM02 | [CLI and scanner oracle](workpacks/rm02-cli-scanner-oracle.md) | Luna read-only | RM01 | <=15 commands | BLOCKED |
-| RM03 | [MCP oracle](workpacks/rm03-mcp-oracle.md) | Luna read-only | RM01 | <=10 tools | BLOCKED |
-| RM04 | [Config, rule, route, proof oracle](workpacks/rm04-config-rule-proof-oracle.md) | Luna read-only | RM01 | <=25 rules | BLOCKED |
-| RM05 | [Coordination oracle](workpacks/rm05-coordination-oracle.md) | Luna read-only | RM01 | one operation | BLOCKED |
-| RM06 | [Install and harness oracle](workpacks/rm06-install-harness-oracle.md) | Luna read-only | RM01 | one adapter/action | BLOCKED |
-| RM07 | [CI, hook, dogfood oracle](workpacks/rm07-ci-hook-dogfood-oracle.md) | Luna read-only | RM01 | one job path | BLOCKED |
+| RM01 | [Capability inventory](workpacks/rm01-capability-inventory.md) | boss + Luna audits | RM00 | <=40 rows | ACCEPTED |
+| RM02 | [CLI and scanner oracle](workpacks/rm02-cli-scanner-oracle.md) | Luna read-only | RM01 | <=15 commands | ACTIVE-ORACLE |
+| RM03 | [MCP oracle](workpacks/rm03-mcp-oracle.md) | Luna read-only | RM01 | <=10 tools | ACTIVE-ORACLE |
+| RM04 | [Config, rule, route, proof oracle](workpacks/rm04-config-rule-proof-oracle.md) | Luna read-only | RM01 | <=25 rules | ACTIVE-ORACLE |
+| RM05 | [Coordination oracle](workpacks/rm05-coordination-oracle.md) | Luna read-only | RM01 | one operation | ACTIVE-ORACLE |
+| RM06 | [Install and harness oracle](workpacks/rm06-install-harness-oracle.md) | Luna read-only | RM01 | one adapter/action | ACTIVE-ORACLE |
+| RM07 | [CI, hook, dogfood oracle](workpacks/rm07-ci-hook-dogfood-oracle.md) | Luna read-only | RM01 | one job path | ACTIVE-ORACLE |
 | RM08 | [Gap adjudication](workpacks/rm08-gap-adjudication.md) | boss/Sol | RM02-RM07 | serial | BLOCKED |
 | RM09 | [Native core repairs](workpacks/rm09-native-core-repairs.md) | Luna by assignment | RM08 | one family | BLOCKED |
 | RM10 | [Native edge repairs](workpacks/rm10-native-edge-repairs.md) | Luna by assignment | RM08 | one adapter/op | BLOCKED |

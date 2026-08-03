@@ -3,7 +3,7 @@
 <!-- agent-capsule -->
 ```yaml
 planId: rust-mjs-parity-retirement-plan
-state: "RM00 authority is accepted; RM01 inventory integration and public-surface expansion are active."
+state: "RM00 authority and the complete-unproved RM01 inventory are accepted; RM02-RM07 read-only behavioral oracles are active."
 integrator: "boss on rust-build"
 terminalRule: "no MJS fallback; delete legacy runtime paths rather than merging or retaining them"
 ```
@@ -20,7 +20,7 @@ All registered public mechanical capability rows are independently reproduced at
 ## Dependency Checklist
 
 1. RM00 accepted: exact public, provenance, overlay, dogfood, and aggregate authority are frozen by SHA.
-2. RM01 active: the boss integrates bounded read-only proposals into the canonical matrix, expands every omitted public surface, and keeps every row unmeasured until an executable oracle runs.
-3. RM02-RM07 establish read-only public oracles.
+2. RM01 accepted: the canonical matrix contains 837 unique source-inventory rows, covers all declared public surfaces, and keeps every row unmeasured until an executable oracle runs.
+3. RM02-RM07 actively establish read-only public and candidate behavioral oracles; bounded evidence does not itself close a row or workpack.
 4. RM08 adjudicates gaps; RM09-RM10 repair only approved disjoint gaps.
 5. RM11 aggregates exact-SHA evidence, then RM12-RM14 control cutover and deletion.

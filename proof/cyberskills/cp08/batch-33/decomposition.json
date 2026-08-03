@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-33",
+  "baselineCommit": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+  "family": "Vulnerability management, prioritization, remediation SLAs, and exception governance",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["building-vulnerability-aging-and-sla-tracking", "building-vulnerability-dashboard-with-defectdojo", "building-vulnerability-exception-tracking-system", "building-vulnerability-scanning-workflow", "implementing-epss-score-for-vulnerability-prioritization", "implementing-vulnerability-management-with-greenbone", "implementing-vulnerability-remediation-sla", "implementing-vulnerability-sla-breach-alerting", "performing-asset-criticality-scoring-for-vulns", "prioritizing-vulnerabilities-with-cvss-scoring"],
+    "reason": "Ten disjoint vulnerability-management skills covering finding intake, asset context, scoring, exception governance, remediation SLAs, and reporting. Native checks are limited to static typed supplied manifests; live scanners, authoritative feeds, ticketing, and remediation outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "building-vulnerability-aging-and-sla-tracking",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-aging-and-sla-tracking/SKILL.md", "sha256": "5682910bf893e15c96bc04f39a413e4dc1cbf6af5b9d675e125e9ad8edcf00a1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Vulnerability Aging and SLA Tracking:L28"]},
+      "components": [
+        {"componentId": "building-vulnerability-aging-and-sla-tracking::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed finding age, due date, severity, owner, SLA, status, and evidence manifest fields.", "notProved": ["No live aging calculation, SLA compliance, remediation, or security outcome proof."]},
+        {"componentId": "building-vulnerability-aging-and-sla-tracking::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use vulnerability scanners, ticketing, CMDB, SIEM, and live remediation authorities.", "notProved": ["No pinned adapter, live finding source, workflow runtime, or normalized evidence."]},
+        {"componentId": "building-vulnerability-aging-and-sla-tracking::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability aging and SLA tracking guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-vulnerability-aging-and-sla-tracking::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require owner validation, severity decision, remediation assignment, authorization, and legal/data-handling review.", "notProved": ["No live workflow approval or remediation proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-vulnerability-dashboard-with-defectdojo",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-dashboard-with-defectdojo/SKILL.md", "sha256": "ffac7a59f45337cf45fcd0199db2b85a7de790c098b9773837be97a55bdca4d7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Vulnerability Dashboard with DefectDojo:L29"]},
+      "components": [
+        {"componentId": "building-vulnerability-dashboard-with-defectdojo::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed finding, asset, severity, owner, status, trend, and evidence dashboard manifests.", "notProved": ["No live dashboard, finding completeness, prioritization, remediation, or delivery outcome proof."]},
+        {"componentId": "building-vulnerability-dashboard-with-defectdojo::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DefectDojo, scanners, CMDB, ticketing, SIEM, and production reporting authorities.", "notProved": ["No pinned adapter, dashboard runtime, external ingestion, or normalized evidence."]},
+        {"componentId": "building-vulnerability-dashboard-with-defectdojo::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability dashboard and reporting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-vulnerability-dashboard-with-defectdojo::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written scope, owner validation, severity, remediation, authorization, and data-handling decisions.", "notProved": ["No live dashboard approval or reporting proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-vulnerability-exception-tracking-system",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-exception-tracking-system/SKILL.md", "sha256": "3ec50ca329a0d96c5b90b34b1035a4abbf78e9490d63fd2a5273d7e90db76d8d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Vulnerability Exception Tracking System:L27"]},
+      "components": [
+        {"componentId": "building-vulnerability-exception-tracking-system::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed exception, finding, asset, owner, rationale, expiry, compensating-control, and evidence fields.", "notProved": ["No exception approval, risk acceptance, remediation, expiry enforcement, or security outcome proof."]},
+        {"componentId": "building-vulnerability-exception-tracking-system::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GRC, ticketing, CMDB, scanner, identity, and production risk authorities.", "notProved": ["No pinned adapter, approval workflow, authoritative owner, or normalized evidence."]},
+        {"componentId": "building-vulnerability-exception-tracking-system::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability exception governance guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-vulnerability-exception-tracking-system::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset ownership, severity, risk acceptance, legal/data-handling, and remediation decisions.", "notProved": ["No live exception approval proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-vulnerability-scanning-workflow",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-scanning-workflow/SKILL.md", "sha256": "1f87013be2fc1c1e32d20c9719f440bd2611aaf22a704a86e1cfad4676fc43e4", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Vulnerability Scanning Workflow:L34"]},
+      "components": [
+        {"componentId": "building-vulnerability-scanning-workflow::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed scan scope, asset, finding, schedule, severity, owner, evidence, and approval manifests.", "notProved": ["No live scan, asset discovery, exploitability, finding, remediation, or security outcome proof."]},
+        {"componentId": "building-vulnerability-scanning-workflow::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Greenbone, scanners, CMDB, endpoint, network, cloud, and ticketing authorities.", "notProved": ["No pinned adapter, scanner runtime, target access, or normalized evidence."]},
+        {"componentId": "building-vulnerability-scanning-workflow::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive vulnerability-scanning workflow guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-vulnerability-scanning-workflow::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, asset-owner validation, legal/data handling, severity, and remediation decisions.", "notProved": ["No live scan authorization or result proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-epss-score-for-vulnerability-prioritization",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-epss-score-for-vulnerability-prioritization/SKILL.md", "sha256": "f712ac926f9b71fc2864d95ceb79dd037259d99e469a6c682f7d7239b6a50451", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing EPSS Score for Vulnerability Prioritization:L30"]},
+      "components": [
+        {"componentId": "implementing-epss-score-for-vulnerability-prioritization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed supplied EPSS value, timestamp, vulnerability, confidence, threshold, owner, and evidence fields.", "notProved": ["No authoritative EPSS retrieval, score truth, exploitability, prioritization, or remediation outcome proof."]},
+        {"componentId": "implementing-epss-score-for-vulnerability-prioritization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use EPSS feeds, vulnerability intelligence, scanners, ticketing, and production risk authorities.", "notProved": ["No live feed, scoring service, pinned adapter, or normalized evidence."]},
+        {"componentId": "implementing-epss-score-for-vulnerability-prioritization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain EPSS-informed prioritization guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-epss-score-for-vulnerability-prioritization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst validation of supplied scores, scope, severity, ownership, remediation, and legal/data handling.", "notProved": ["No authoritative prioritization decision proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-vulnerability-management-with-greenbone",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-management-with-greenbone/SKILL.md", "sha256": "10a01a1091c903eba5b72470224f0da8df0dfcdc1c186076f0527a1b05773760", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Vulnerability Management with Greenbone:L30"]},
+      "components": [
+        {"componentId": "implementing-vulnerability-management-with-greenbone::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed supplied scan, asset, finding, severity, owner, remediation, and evidence manifests.", "notProved": ["No Greenbone execution, scan result, asset discovery, exploitability, remediation, or security outcome proof."]},
+        {"componentId": "implementing-vulnerability-management-with-greenbone::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Greenbone, scanners, CMDB, ticketing, endpoint, network, cloud, and production authorities.", "notProved": ["No pinned adapter, scanner runtime, target access, or normalized evidence."]},
+        {"componentId": "implementing-vulnerability-management-with-greenbone::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Greenbone-oriented vulnerability-management guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-vulnerability-management-with-greenbone::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, asset ownership, severity, remediation, legal, and data-handling decisions.", "notProved": ["No live vulnerability-management proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-vulnerability-remediation-sla",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-remediation-sla/SKILL.md", "sha256": "a0b1e5078a6e93541d9d43c63f71856d87835f1459b6a76f13606095ad2d34c4", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Vulnerability Remediation SLA:L28"]},
+      "components": [
+        {"componentId": "implementing-vulnerability-remediation-sla::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed finding, severity, owner, due date, remediation state, exception, approval, and evidence fields.", "notProved": ["No remediation completion, SLA compliance, risk reduction, or security outcome proof."]},
+        {"componentId": "implementing-vulnerability-remediation-sla::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use ticketing, CMDB, scanners, endpoint, cloud, change-management, and production authorities.", "notProved": ["No pinned adapter, workflow runtime, authoritative status, or normalized evidence."]},
+        {"componentId": "implementing-vulnerability-remediation-sla::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability remediation SLA guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-vulnerability-remediation-sla::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, owner validation, severity, remediation assignment, exception approval, and legal/data-handling decisions.", "notProved": ["No live remediation approval or completion proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-vulnerability-sla-breach-alerting",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-sla-breach-alerting/SKILL.md", "sha256": "ed50f967501ef1bc4e72b1e4a2552ce79fb6ceb524c0573dc7a84509f51ac5ce", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Vulnerability SLA Breach Alerting:L29"]},
+      "components": [
+        {"componentId": "implementing-vulnerability-sla-breach-alerting::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed due date, elapsed time, severity, owner, breach state, notification, escalation, and evidence manifests.", "notProved": ["No live breach calculation, alert delivery, escalation, remediation, or SLA outcome proof."]},
+        {"componentId": "implementing-vulnerability-sla-breach-alerting::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use ticketing, SIEM, notification, CMDB, scanner, and production workflow authorities.", "notProved": ["No pinned adapter, scheduler, notification runtime, or normalized evidence."]},
+        {"componentId": "implementing-vulnerability-sla-breach-alerting::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SLA breach alerting and escalation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-vulnerability-sla-breach-alerting::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require owner validation, severity, escalation authorization, remediation, legal, and data-handling decisions.", "notProved": ["No live alert delivery or escalation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-asset-criticality-scoring-for-vulns",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-asset-criticality-scoring-for-vulns/SKILL.md", "sha256": "52158a11f6ca20333cbc7f2dc226459d812ea5a27022a4198fc1b7c391881d12", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Asset Criticality Scoring for Vulns:L29"]},
+      "components": [
+        {"componentId": "performing-asset-criticality-scoring-for-vulns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed supplied asset, business-impact, ownership, exposure, dependency, criticality, and evidence fields.", "notProved": ["No authoritative asset inventory, criticality truth, exposure, vulnerability, prioritization, or security outcome proof."]},
+        {"componentId": "performing-asset-criticality-scoring-for-vulns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CMDB, cloud, endpoint, scanner, business-service, and production asset authorities.", "notProved": ["No live discovery, inventory adapter, authoritative owner, or normalized evidence."]},
+        {"componentId": "performing-asset-criticality-scoring-for-vulns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain asset criticality and vulnerability prioritization guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-asset-criticality-scoring-for-vulns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written scope, asset-owner validation, business-impact, severity, remediation, authorization, and legal/data-handling decisions.", "notProved": ["No authoritative criticality decision proof."]}
+      ]
+    },
+    {
+      "catalogId": "prioritizing-vulnerabilities-with-cvss-scoring",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/prioritizing-vulnerabilities-with-cvss-scoring/SKILL.md", "sha256": "8848eab745f6cd850425a0bec1e14d7da9864790d034cca2b20a96131dc625c8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Prioritizing Vulnerabilities with CVSS Scoring:L28"]},
+      "components": [
+        {"componentId": "prioritizing-vulnerabilities-with-cvss-scoring::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed supplied CVSS vector, score, severity, vulnerability, asset, owner, and evidence fields.", "notProved": ["No authoritative CVSS calculation, vulnerability, exploitability, priority, remediation, or security outcome proof."]},
+        {"componentId": "prioritizing-vulnerabilities-with-cvss-scoring::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CVSS authorities, vulnerability feeds, scanners, CMDB, ticketing, and production risk systems.", "notProved": ["No live feed, scoring authority, pinned adapter, or normalized evidence."]},
+        {"componentId": "prioritizing-vulnerabilities-with-cvss-scoring::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CVSS-informed vulnerability prioritization guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "prioritizing-vulnerabilities-with-cvss-scoring::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst validation of supplied scores, scope, ownership, severity, remediation, authorization, and legal/data handling.", "notProved": ["No authoritative prioritization decision proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Greenbone, DefectDojo, vulnerability scanners, CMDB, EPSS/CVSS feeds, ticketing, SIEM, cloud, endpoint, and live remediation authorities remain blocked external engines.",
+    "No live vulnerability presence, exploitability, authoritative score, asset criticality, prioritization, remediation, SLA compliance, alert delivery, exception approval, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

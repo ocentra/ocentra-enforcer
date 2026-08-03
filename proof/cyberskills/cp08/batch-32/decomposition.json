@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-32",
+  "baselineCommit": "a7dd80fa42e1133a3510032277b5a5ddc0c14501",
+  "family": "API discovery, authentication, authorization, exposure, and defensive security testing",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["detecting-api-enumeration-attacks", "detecting-broken-object-property-level-authorization", "detecting-shadow-api-endpoints", "exploiting-excessive-data-exposure-in-api", "exploiting-mass-assignment-in-rest-apis", "performing-api-fuzzing-with-restler", "performing-api-inventory-and-discovery", "testing-api-authentication-weaknesses", "testing-api-for-broken-object-level-authorization", "testing-api-for-mass-assignment-vulnerability"],
+    "reason": "Ten disjoint API discovery, authentication, authorization, exposure, and defensive testing skills. Native checks are limited to static typed inventory/route/schema/request-response/identity/authorization/rate/evidence/test manifests over supplied data; live authorities and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-api-enumeration-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-api-enumeration-attacks/SKILL.md", "sha256": "c67242765d6c2e7bb6d2b3cede23fe071140fc65ad6b7e9d33cfb7c1fa258fa9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting API Enumeration Attacks:L32"]},
+      "components": [
+        {"componentId": "detecting-api-enumeration-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed API inventory, route, identity, rate, request, response, and evidence fields.", "notProved": ["No live enumeration, endpoint calls, traffic, attribution, or security outcome proof."]},
+        {"componentId": "detecting-api-enumeration-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API discovery, traffic, gateway, authentication, and authorization authorities.", "notProved": ["No pinned adapter, runtime, live traffic, or normalized evidence."]},
+        {"componentId": "detecting-api-enumeration-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain API enumeration defensive-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-api-enumeration-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, owner validation, and remediation decisions.", "notProved": ["No live testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-broken-object-property-level-authorization",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-broken-object-property-level-authorization/SKILL.md", "sha256": "e559b5673d5550cb39996b7947cf59dffe979dc73c8a670c65fffbb6a77421e2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Broken Object Property Level Authorization:L30"]},
+      "components": [
+        {"componentId": "detecting-broken-object-property-level-authorization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed schema, property, subject, role, route, response, and authorization evidence fields.", "notProved": ["No live BOPLA access, data exposure, endpoint call, or security outcome proof."]},
+        {"componentId": "detecting-broken-object-property-level-authorization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, identity, authorization, traffic, and production authorities.", "notProved": ["No pinned adapter, session runtime, or normalized evidence."]},
+        {"componentId": "detecting-broken-object-property-level-authorization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive authorization-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-broken-object-property-level-authorization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, data handling, owner validation, severity, and remediation decisions.", "notProved": ["No live authorization proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-shadow-api-endpoints",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-shadow-api-endpoints/SKILL.md", "sha256": "a9186ea267277d6cce368ff485ff0c610360099a7962c7281b596d245d22a40e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Shadow API Endpoints:L31"]},
+      "components": [
+        {"componentId": "detecting-shadow-api-endpoints::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed route, version, owner, schema, documentation, and evidence manifest fields.", "notProved": ["No live discovery, crawling, endpoint call, traffic, or security outcome proof."]},
+        {"componentId": "detecting-shadow-api-endpoints::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API gateway, traffic, inventory, discovery, and production authorities.", "notProved": ["No pinned adapter, crawler runtime, or normalized evidence."]},
+        {"componentId": "detecting-shadow-api-endpoints::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain API inventory and shadow-endpoint guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-shadow-api-endpoints::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, owner validation, disclosure, and remediation decisions.", "notProved": ["No live inventory proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-excessive-data-exposure-in-api",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-excessive-data-exposure-in-api/SKILL.md", "sha256": "7e333a5fea4fa84f76f818d0b6f103c0db7f1d04fd528594f7490f6e9f65f852", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Excessive Data Exposure in API:L35"]},
+      "components": [
+        {"componentId": "exploiting-excessive-data-exposure-in-api::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed response schema, field classification, identity, policy, and evidence predicates.", "notProved": ["No endpoint call, data access, exploit, credential/session use, or exposure outcome proof."]},
+        {"componentId": "exploiting-excessive-data-exposure-in-api::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, identity, authorization, traffic, and production authorities.", "notProved": ["No pinned adapter, request runtime, or normalized evidence."]},
+        {"componentId": "exploiting-excessive-data-exposure-in-api::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive data-exposure testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-excessive-data-exposure-in-api::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, data handling, legal, owner, severity, and remediation decisions.", "notProved": ["No live exposure proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-mass-assignment-in-rest-apis",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md", "sha256": "23393f7b14703375d6487e099a3108186d299b359fab45e7c09281e41b479af9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Mass Assignment in REST APIs:L32"]},
+      "components": [
+        {"componentId": "exploiting-mass-assignment-in-rest-apis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed request, writable-field, role, schema, binding, and authorization manifest fields.", "notProved": ["No mutation, endpoint call, exploit, credential/session use, or mass-assignment outcome proof."]},
+        {"componentId": "exploiting-mass-assignment-in-rest-apis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, runtime, identity, authorization, and production authorities.", "notProved": ["No pinned adapter, request runtime, or normalized evidence."]},
+        {"componentId": "exploiting-mass-assignment-in-rest-apis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive mass-assignment testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-mass-assignment-in-rest-apis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, owner, severity, and remediation decisions.", "notProved": ["No live mutation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-api-fuzzing-with-restler",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-api-fuzzing-with-restler/SKILL.md", "sha256": "35f10c30791240738dd2e49cbb75087e807376fca93071d778214d599afdbc3d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing API Fuzzing with RESTler:L37"]},
+      "components": [
+        {"componentId": "performing-api-fuzzing-with-restler::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed fuzz-plan, endpoint, parameter, oracle, scope, and result manifest fields.", "notProved": ["No RESTler execution, endpoint calls, fuzzing, mutation, or security outcome proof."]},
+        {"componentId": "performing-api-fuzzing-with-restler::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use RESTler, API, traffic, authentication, authorization, and target authorities.", "notProved": ["No pinned adapter, fuzz runtime, credentials, or normalized evidence."]},
+        {"componentId": "performing-api-fuzzing-with-restler::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive API fuzzing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-api-fuzzing-with-restler::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, data handling, owner, and triage decisions.", "notProved": ["No live fuzz proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-api-inventory-and-discovery",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-api-inventory-and-discovery/SKILL.md", "sha256": "ab3c066754680dbb08416d9edbc5746887716861aba7fa9ab402af3c4de8c827", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing API Inventory and Discovery:L36"]},
+      "components": [
+        {"componentId": "performing-api-inventory-and-discovery::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed API route, schema, version, owner, documentation, identity, and evidence manifests.", "notProved": ["No live crawling, endpoint calls, traffic, shadow-endpoint finding, or security outcome proof."]},
+        {"componentId": "performing-api-inventory-and-discovery::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API discovery, gateway, traffic, runtime, and production authorities.", "notProved": ["No pinned adapter, crawler runtime, or normalized evidence."]},
+        {"componentId": "performing-api-inventory-and-discovery::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain API inventory and discovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-api-inventory-and-discovery::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, owner validation, disclosure, and remediation decisions.", "notProved": ["No live discovery proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-api-authentication-weaknesses",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-authentication-weaknesses/SKILL.md", "sha256": "465c92942f5c7f7e7b50e022ee598d5e52ce31c1d8bc3c6d281ae1519fa54d54", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing API Authentication Weaknesses:L36"]},
+      "components": [
+        {"componentId": "testing-api-authentication-weaknesses::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed auth-flow, token, session, identity, control, and evidence test manifests.", "notProved": ["No login, token, session, auth bypass, endpoint call, or security outcome proof."]},
+        {"componentId": "testing-api-authentication-weaknesses::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, IdP, credential, session, traffic, and production authorities.", "notProved": ["No pinned adapter, credentials, session runtime, or normalized evidence."]},
+        {"componentId": "testing-api-authentication-weaknesses::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive API authentication-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-api-authentication-weaknesses::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, credential/data handling, severity, and remediation decisions.", "notProved": ["No live authentication proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-api-for-broken-object-level-authorization",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-for-broken-object-level-authorization/SKILL.md", "sha256": "17e4baa94874d2da37fbea73aaa17a7a92908c32ed1ac75af19df4a995964a73", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing API for Broken Object Level Authorization:L37"]},
+      "components": [
+        {"componentId": "testing-api-for-broken-object-level-authorization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed subject/object/route/role/policy and evidence test-manifest fields.", "notProved": ["No live access, endpoint call, BOLA result, data exposure, or security outcome proof."]},
+        {"componentId": "testing-api-for-broken-object-level-authorization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, identity, authorization, credential/session, traffic, and production authorities.", "notProved": ["No pinned adapter, session runtime, or normalized evidence."]},
+        {"componentId": "testing-api-for-broken-object-level-authorization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive BOLA testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-api-for-broken-object-level-authorization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, data handling, owner, severity, and remediation decisions.", "notProved": ["No live authorization proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-api-for-mass-assignment-vulnerability",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-for-mass-assignment-vulnerability/SKILL.md", "sha256": "1368714ad95c0895e2db7509329954ee91e2b1227ff5229b81bfd5491ac807e2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing API for Mass Assignment Vulnerability:L36"]},
+      "components": [
+        {"componentId": "testing-api-for-mass-assignment-vulnerability::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed request, schema, writable-field, role, binding, and evidence test-manifest fields.", "notProved": ["No mutation, endpoint call, exploit, credential/session use, or mass-assignment outcome proof."]},
+        {"componentId": "testing-api-for-mass-assignment-vulnerability::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use API, runtime, identity, authorization, credential/session, and production authorities.", "notProved": ["No pinned adapter, request runtime, or normalized evidence."]},
+        {"componentId": "testing-api-for-mass-assignment-vulnerability::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive mass-assignment testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-api-for-mass-assignment-vulnerability::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, legal, data handling, owner, severity, and remediation decisions.", "notProved": ["No live mutation proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live API discovery, authentication/authorization engines, traffic, fuzzing/RESTler, endpoint calls, exploitation, credential/session, and production authorities remain blocked external engines.",
+    "No live enumeration, exploit, fuzz, auth bypass, data exposure, BOLA/BOPLA/mass-assignment outcome, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

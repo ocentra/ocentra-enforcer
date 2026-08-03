@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM07",
+  "artifactId": "RM07-CI-HOOK-DOGFOOD-ORACLE-20260803",
+  "artifactState": "bounded-evidence-only",
+  "closureClaim": false,
+  "materializedAtCandidateSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+  "sourceReport": {
+    "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "observedAtCandidateSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
+    "materializationBaseSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayCommits": [
+      "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+    ],
+    "evidenceLevel": "bounded-workflow-contract-and-fixture-evidence-native-release-unmeasured"
+  },
+  "authoritySeparation": {
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "overlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayVerdictSeparateFromPublic": true,
+    "closureClaim": false
+  },
+  "workflowPath": {
+    "workflow": ".github/workflows/release.yml",
+    "workflowBlobSha": "66364e4f2d17b72512cdc2340ebcf8437e0cdc8d",
+    "job": "build",
+    "jobAnchors": [
+      ".github/workflows/release.yml:81:jobs.build",
+      ".github/workflows/release.yml:82:if startsWith(github.ref, refs/tags/v)",
+      ".github/workflows/release.yml:83:needs validate",
+      ".github/workflows/release.yml:187:jobs.publish",
+      ".github/workflows/release.yml:188:if startsWith(github.ref, refs/tags/v)"
+    ],
+    "events": {
+      "push": {
+        "branches": ["main"],
+        "tags": ["v[0-9]+.[0-9]+.[0-9]+"]
+      },
+      "pull_request": {"branches": ["main"]},
+      "workflow_dispatch": true
+    },
+    "buildRefCondition": "startsWith(github.ref, 'refs/tags/v')",
+    "requiredDependency": "validate",
+    "smokeCommands": [
+      {
+        "name": "fail fixture",
+        "command": "$bin scan --files crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs",
+        "anchor": ".github/workflows/release.yml:147",
+        "expectedExit": 1,
+        "expectedMeaning": "blocking violation, never panic or silent success"
+      },
+      {
+        "name": "pass fixture",
+        "command": "$bin scan --files crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs",
+        "anchor": ".github/workflows/release.yml:160",
+        "expectedExit": 0
+      }
+    ],
+    "observedCliSyntax": "legacy --files option; native release execution was not run",
+    "matrix": [
+      {"target":"x86_64-pc-windows-msvc","os":"windows-latest","variants":["lite","full"]},
+      {"target":"x86_64-apple-darwin","os":"macos-15-intel","variants":["lite","full"]},
+      {"target":"aarch64-apple-darwin","os":"macos-latest","variants":["lite","full"]},
+      {"target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest","variants":["lite","full"]},
+      {"target":"x86_64-unknown-linux-musl","os":"ubuntu-latest","variants":["lite","full"]},
+      {"target":"aarch64-unknown-linux-gnu","os":"ubuntu-24.04-arm","variants":["lite","full"]}
+    ],
+    "requiredAggregation": "validate must pass; every build matrix target/variant must pass both smoke gates before publish may run; publish needs build"
+  },
+  "fixture": {
+    "failPath": "crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs",
+    "failBlobSha": "a8fb19c2680f272c2ba4c867129b7cb2d21e0859",
+    "failFileSha256": "A13D665A9823B5099B956FC489414E00F7B00423C22B806895AA20C5BD928DE4",
+    "behavioralSeed": "Option<i32>::None followed by maybe.unwrap(); source comments require native release scan exit 1"
+  },
+  "runs": [
+    {
+      "runId": "20260803065811-1b168e7c",
+      "command": ["node", "scripts/ci/verify-workflow-contract.mjs"],
+      "status": "passed",
+      "exitCode": 0,
+      "scope": "exact fbd64e9 disposable worktree workflow contract"
+    },
+    {
+      "runId": "20260803065938-e30d3182",
+      "command": ["cmd.exe", "/d", "/s", "/c", "npm run test:fixtures"],
+      "status": "passed",
+      "exitCode": 0,
+      "observation": "4/4 fixture tests passed"
+    },
+    {
+      "runId": "20260803065950-3e45c280",
+      "command": ["cmd.exe", "/d", "/s", "/c", "node --test --test-name-pattern \"common and CI fail fixtures emit their encoded rule IDs\" tests/enforcer-fixtures.test.mjs"],
+      "status": "passed",
+      "exitCode": 0,
+      "observation": "focused CI fail-fixture test passed 1/1"
+    },
+    {
+      "runId": "20260803065812-e79afd9c",
+      "status": "environment-only-superseded",
+      "observation": "missing effect before disposable npm ci; does not prove behavior or parity",
+      "doesNotProve": ["native candidate behavior", "parity"]
+    }
+  ],
+  "rows": [
+    {
+      "id": "RM07-RELEASE-BUILD-SMOKE-001",
+      "family": "release-build-smoke",
+      "workflowPath": ".github/workflows/release.yml",
+      "job": "build",
+      "sourceSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
+      "materializationSha": "dbb8d3934831727429d3feb40d5512954c3e16f7",
+      "disposition": "unknown",
+      "evidenceStatus": "bounded-workflow-and-fixture-only",
+      "proofNeeded": "Build the exact candidate release matrix and execute both native smoke commands on every target/variant, recording exit classes and aggregate gating.",
+      "doesNotProve": ["native candidate release smoke", "parity", "closure"]
+    },
+    {
+      "id": "RM07-DOGFOOD-001",
+      "family": "ci-hook-dogfood",
+      "workflowPath": ".github/workflows/dogfood.yml",
+      "job": "dogfood",
+      "sourceSha": "a7dd80fa42e1133a3510032277b5a5ddc0c14501",
+      "materializationSha": "a7dd80fa42e1133a3510032277b5a5ddc0c14501",
+      "workflowBlobSha": "7327a7d395f7b2e249b6fb26a774bb06fdb61f1a",
+      "sourceBlobs": {
+        "xtask/src/dogfood.rs": "95d581f246ae33e5e9e5566195bd774792094e24",
+        "xtask/src/dogfood_gate.rs": "50fd309d7205c3e8be8a35ef677d74da64e10cbb",
+        "xtask/dogfood-baseline.json": "b5b06297682a9c8a397a9e9efe2cbb9a089130fc"
+      },
+      "events": ["workflow_call", "pull_request", "push", "workflow_dispatch"],
+      "refConditions": {
+        "pullRequestBranches": ["main", "rust-build"],
+        "pushBranches": ["main"],
+        "workflowDispatch": true
+      },
+      "matrix": {
+        "os": ["ubuntu-latest", "windows-latest", "macos-latest"],
+        "failFast": false
+      },
+      "commands": [
+        "npm ci",
+        "node scripts/ci/verify-workflow-contract.mjs",
+        "node <frozen-temp>/scripts/ocentra-enforcer.mjs scan --root $GITHUB_WORKSPACE --languages rust --workspace",
+        "cargo build --locked -p xtask",
+        "cargo run --locked -p xtask -- dogfood --no-toolchain",
+        "cargo run --locked -p xtask -- dogfood-gate --no-toolchain"
+      ],
+      "requiredAggregation": "ci.yml requires needs.dogfood.result == success for non-docs-only changes alongside plan-impacted, impacted, workspace, local-parity, and policy.",
+      "deterministicFailureInjection": {
+        "sourceAnchor": "xtask/src/dogfood.rs:unbaselined_violation_fails_closed_without_a_snapshot",
+        "behavior": "A seeded unwrap violation without a baseline snapshot returns a failing violation result; malformed or hollow baselines also fail closed."
+      },
+      "runs": [
+        {
+          "runId": "20260803070851-4a1e478c",
+          "command": "npm ci --ignore-scripts --no-audit --no-fund && node scripts/ci/verify-workflow-contract.mjs",
+          "status": "passed",
+          "exitCode": 0
+        },
+        {
+          "runId": "20260803070909-cdd518ec",
+          "command": "cargo test -p xtask dogfood_gate::tests:: -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "5 passed, 0 failed, 20 filtered"
+        },
+        {
+          "runId": "20260803070956-2124495f",
+          "command": "cargo test -p xtask dogfood::tests:: -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "9 passed, 0 failed, 16 filtered; includes unbaselined seeded violation fail-closed"
+        },
+        {
+          "runId": "20260803070901-8ddad971",
+          "status": "superseded-command-shape-failure",
+          "observation": "Attempted cargo test -p xtask --lib dogfood_gate::tests::; xtask has no library target. This is not behavioral evidence or a parity verdict.",
+          "doesNotProve": ["dogfood behavior", "parity"]
+        }
+      ],
+      "independentEvidence": "Boss independently reproduced the exact workflow blob, three source blobs, caller aggregation condition, workflow contract PASS, dogfood_gate 5/5 PASS, and dogfood 9/9 PASS at source SHA a7dd80fa.",
+      "disposition": "unknown",
+      "evidenceStatus": "bounded-workflow-and-native-unit-test-only",
+      "proofNeeded": "Run the live dogfood workflow/event and native cargo build, dogfood, dogfood-gate, frozen scan, manifest upload, and all three OS matrix legs; compare exact outputs and aggregation.",
+      "doesNotProve": [
+        "live GitHub event/ref execution",
+        "frozen checkout fetch/install/scan in CI",
+        "native cargo build/dogfood/dogfood-gate process results",
+        "manifest upload",
+        "cross-OS runtime parity",
+        "native release scan --files behavior",
+        "RM07 closure",
+        "RM08 adjudication",
+        "exact-SHA aggregate",
+        "parity",
+        "cutover",
+        "retirement"
+      ]
+    },
+    {
+      "id": "RM07-HOOK-ADAPTERS-001",
+      "family": "ci-hook-adapters",
+      "sourceSha": "541d219dbe78357a65a99521f75bd1167ffc6ecf",
+      "materializationSha": "b23c0304294cf849f2b43a75ef3b414489e9cb43",
+      "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+      "sourceBlobs": {
+        "adapters/lefthook/lefthook.yml": "9d65e02445956243fc5539fe6206fa473cc69770",
+        "crates/enforcer-install/src/boundary/git_hooks.rs": "63dea9b40b2201b02ec69e1f837dfc4ee0181acd",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs": "2bb41e6a6ebf120e4765e68987981c71fc744f67",
+        "crates/enforcer-install/tests/fixtures/git-hooks/lefthook.yml": "9d65e02445956243fc5539fe6206fa473cc69770"
+      },
+      "publicSourceBlobs": {
+        "adapters/lefthook/lefthook.yml": "3f2bd92e690791d514b9f4379f6f7474e9af8ccb",
+        "adapters/git-hooks/pre-commit.sh": "391d66f4b314e6aef3a4d99e3149189a8baee5a1",
+        "tests/rust-rules-install.test.mjs": "8336417d7bfc900c0c44eea86fae6404344aa7b2"
+      },
+      "anchors": [
+        "adapters/lefthook/lefthook.yml:5 staged/workspace scope conditional",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:62 linked_worktree",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:115 target_path",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:164 set_worktree_hooks_path",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:310 build_writes",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:341 apply",
+        "crates/enforcer-install/src/boundary/git_hooks.rs:398 verify",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:8 hook_templates_default_to_staged_scope_with_workspace_opt_in",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:40 linked_worktree_without_worktree_config_refuses_shared_config_mutation",
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs:109 linked_worktree_plain_hook_is_per_worktree_and_never_common_hooks"
+      ],
+      "candidateBehavior": {
+        "scope": "All three templates default to staged scope; plain and Husky collect git diff --cached --name-only --diff-filter=ACMR and pass positional paths; Lefthook uses {staged_files}; scope=workspace selects --all. Plain and Husky explicitly skip successfully when no staged files are present.",
+        "lifecycle": "build_writes plans one selected-flavor write; apply supports PreserveExisting and Force; verify detects missing or drifted hook bytes; linked plain hooks use per-worktree .enforcer/hooks and config.worktree, and refuse shared-config mutation when extensions.worktreeConfig is unavailable.",
+        "unmeasured": "No native hook-flavor uninstall path or direct same-byte repeated-install test was observed; Lefthook command execution was source-only in this bounded run."
+      },
+      "publicBehavior": {
+        "scope": "Public pre-commit templates default to workspace scans using --workspace for the bounded POSIX, Husky, and Lefthook counterparts.",
+        "tests": "The bounded public suite covers exact dry-run/no-write adapter planning, requested Husky inclusion, template coverage, and staged precommit-ratchet behavior; no linked-worktree, direct Lefthook execution, uninstall, or idempotency proof was observed."
+      },
+      "behavioralDelta": "The candidate defaults to staged scope with workspace scanning as an explicit --all opt-in, while the public counterpart defaults to workspace scope. This is an observed semantic delta, not a parity verdict.",
+      "candidateRuns": [
+        {
+          "runId": "20260803071944-74707a5d",
+          "command": "cargo test -p enforcer-install --lib emitters::git_hooks::tests:: -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "8 passed, 0 failed, 264 filtered; flavor isolation, golden bytes, dry-run zero writes, PreserveExisting/Force, and verify pass/fail."
+        },
+        {
+          "runId": "20260803072151-59da3f7c",
+          "command": "cargo test -p enforcer-install --test git_hooks_fixtures -- --nocapture",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "3 passed, 0 failed; staged/workspace template contract and linked-worktree isolation/shared-config refusal."
+        }
+      ],
+      "publicRuns": [
+        {
+          "runId": "20260803072213-e26801ef",
+          "command": "node --test --test-name-pattern \"init dry-run reports exact adapter file plan|init includes Husky only when requested|adapter templates cover POSIX pre-commit|precommit ratchet permits staged hard-finding\" tests/rust-rules-install.test.mjs",
+          "status": "passed",
+          "exitCode": 0,
+          "observation": "4 passed, 0 failed; public dry-run/no-write, Husky selection, adapter template, and staged ratchet tests."
+        }
+      ],
+      "disposition": "unknown",
+      "evidenceStatus": "bounded-hook-source-and-focused-tests-only",
+      "proofNeeded": "Execute normalized candidate and public adapter commands in disposable staged and workspace fixtures, compare exit classes/findings/paths, and run install -> verify -> repeated install -> uninstall/restore where each authority exposes it. Exercise linked worktrees, fail-closed shared-config behavior, direct Lefthook execution, and cross-platform shell behavior before adjudicating the observed scope delta.",
+      "doesNotProve": [
+        "equal-or-stricter parity",
+        "candidate/public behavioral equivalence",
+        "live hook runner execution",
+        "native hook uninstall",
+        "same-byte repeated-install idempotency",
+        "public linked-worktree behavior",
+        "cross-platform shell parity",
+        "RM07 closure",
+        "RM08 adjudication",
+        "exact-SHA aggregate",
+        "cutover",
+        "retirement"
+      ]
+    }
+  ],
+  "proves": [
+    "Exact current materialization base and separate observed source candidate SHA are recorded.",
+    "The release build workflow/job event, tag-ref condition, validate dependency, smoke commands, and twelve target/variant matrix entries are source-inventoried.",
+    "The workflow contract command passed at the observed candidate SHA.",
+    "The deterministic MJS CI fixture suite and focused CI fail-fixture test passed in the disposable exact-SHA environment.",
+    "The seeded fail fixture is fixed by exact Git blob and file SHA-256 anchors."
+    ,
+    "Candidate native git-hook unit/fixture tests passed at exact source SHA; the public bounded hook tests passed separately."
+  ],
+  "doesNotProve": [
+    "Native candidate release binary execution or exit-1 behavior on the fail fixture.",
+    "Native candidate CLI semantic parity or positional-path syntax compatibility.",
+    "Any live GitHub event, runner, release matrix, build, publish, or rollback result.",
+    "Frozen public or private overlay behavioral parity.",
+    "RM07 closure, RM08 adjudication, exact-SHA aggregate, cutover, or retirement."
+    ,
+    "RM07 hook-adapter parity, lifecycle equivalence, or the observed staged/workspace semantic delta."
+  ]
+}
