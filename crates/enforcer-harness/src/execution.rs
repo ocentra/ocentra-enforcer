@@ -1,14 +1,21 @@
 //! Native process execution for the frozen MCP `ocentra_enforcer_run` tool.
 
+use std::io::{self, Read};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+    Arc,
+};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
-use enforcer_core::error::Result;
+use enforcer_core::error::{Error, Result};
 use enforcer_domain::config_types::{CrateName, HarnessConfig};
 use enforcer_domain::harness_types::{
-    HarnessCapturedOutput, HarnessCommandArgument, HarnessDomainName, HarnessLanguage,
-    HarnessPackageName, HarnessPinned, HarnessRunId, HarnessTag, HarnessTimestamp, HarnessToolName,
-    HarnessToolSpec,
+    HarnessBoundedExecution, HarnessCapturedOutput, HarnessCommandArgument, HarnessDomainName,
+    HarnessExecutionTermination, HarnessLanguage, HarnessPackageName, HarnessPinned, HarnessRunId,
+    HarnessTag, HarnessTimestamp, HarnessToolName, HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::telemetry_types::ProcessExitCode;
@@ -66,6 +73,278 @@ pub fn validate_allowlisted_request(
         }
     }
     Ok(())
+}
+
+/// Execute one reviewed command with bounded output and wall time.
+///
+/// The existing [`execute`] function remains the arbitrary user-invoked runner;
+/// this seam is the only path that combines the reviewed command and cwd policy
+/// with child-process limits. A timeout or output overflow always kills, waits
+/// for, and drains the child before returning a typed result.
+pub fn execute_allowlisted_bounded(
+    request: &ExecuteRequest,
+    spec: &HarnessToolSpec,
+) -> Result<HarnessBoundedExecution> {
+    validate_allowlisted_request(request, spec)?;
+    let executable = request.command.first().ok_or_else(|| {
+        Error::InvalidConfig("allowlisted tool command must not be empty".to_owned())
+    })?;
+    let cwd = request
+        .cwd
+        .as_deref()
+        .map(|relative| Path::new(request.repo_root.as_str()).join(relative))
+        .unwrap_or_else(|| Path::new(request.repo_root.as_str()).to_path_buf());
+
+    let mut command = Command::new(executable.as_str());
+    command
+        .args(
+            request
+                .command
+                .iter()
+                .skip(1)
+                .map(HarnessCommandArgument::as_str),
+        )
+        .current_dir(cwd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            let termination = if error.kind() == io::ErrorKind::NotFound {
+                HarnessExecutionTermination::MissingExecutable
+            } else {
+                HarnessExecutionTermination::SpawnFailed
+            };
+            return Ok(HarnessBoundedExecution::from_parts(
+                termination,
+                HarnessCapturedOutput::from_owned(String::new()),
+                HarnessCapturedOutput::from_owned(String::new()),
+                None,
+                false,
+            ));
+        }
+    };
+
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => return Err(reap_after_pipe_failure(&mut child, "stdout")),
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => return Err(reap_after_pipe_failure(&mut child, "stderr")),
+    };
+    let output_limit = usize::try_from(spec.limits().max_output_bytes()).unwrap_or(usize::MAX);
+    let output_bytes = Arc::new(AtomicUsize::new(0));
+    let output_overflow = Arc::new(AtomicBool::new(false));
+    let stdout_reader = spawn_bounded_reader(
+        stdout,
+        output_limit,
+        Arc::clone(&output_bytes),
+        Arc::clone(&output_overflow),
+    );
+    let stderr_reader = spawn_bounded_reader(
+        stderr,
+        output_limit,
+        output_bytes,
+        Arc::clone(&output_overflow),
+    );
+
+    let deadline = Instant::now() + Duration::from_millis(spec.limits().max_wall_time_ms());
+    let mut cleanup_error = None;
+    let (status, forced_termination) = loop {
+        if output_overflow.load(Ordering::Acquire) {
+            match terminate_and_reap(&mut child) {
+                Ok(status) => {
+                    break (
+                        Some(status),
+                        Some(HarnessExecutionTermination::OutputLimitExceeded),
+                    )
+                }
+                Err(error) => {
+                    cleanup_error = Some(error);
+                    break (None, Some(HarnessExecutionTermination::OutputLimitExceeded));
+                }
+            }
+        }
+        match child.try_wait() {
+            Ok(Some(exit_status)) => break (Some(exit_status), None),
+            Ok(None) => {}
+            Err(error) => {
+                record_cleanup_error(
+                    &mut cleanup_error,
+                    invalid_process_error("poll child", error),
+                );
+                match terminate_and_reap(&mut child) {
+                    Ok(status) => break (Some(status), None),
+                    Err(error) => {
+                        record_cleanup_error(&mut cleanup_error, error);
+                        break (None, None);
+                    }
+                }
+            }
+        }
+        if Instant::now() >= deadline {
+            match terminate_and_reap(&mut child) {
+                Ok(status) => break (Some(status), Some(HarnessExecutionTermination::TimedOut)),
+                Err(error) => {
+                    record_cleanup_error(&mut cleanup_error, error);
+                    break (None, Some(HarnessExecutionTermination::TimedOut));
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(1));
+    };
+
+    let stdout = match join_bounded_reader(stdout_reader) {
+        Ok(stdout) => stdout,
+        Err(error) => {
+            record_cleanup_error(&mut cleanup_error, error);
+            Vec::new()
+        }
+    };
+    let stderr = match join_bounded_reader(stderr_reader) {
+        Ok(stderr) => stderr,
+        Err(error) => {
+            record_cleanup_error(&mut cleanup_error, error);
+            Vec::new()
+        }
+    };
+    if let Some(error) = cleanup_error {
+        return Err(error);
+    }
+    let mut converted_budget = output_limit;
+    let (stdout, stdout_truncated) = bounded_lossy_output(&stdout, &mut converted_budget);
+    let (stderr, stderr_truncated) = bounded_lossy_output(&stderr, &mut converted_budget);
+    let termination = forced_termination.unwrap_or_else(|| {
+        if output_overflow.load(Ordering::Acquire) || stdout_truncated || stderr_truncated {
+            HarnessExecutionTermination::OutputLimitExceeded
+        } else if status.as_ref().is_some_and(ExitStatus::success) {
+            HarnessExecutionTermination::Completed
+        } else {
+            HarnessExecutionTermination::NonZeroExit
+        }
+    });
+    let exit_code = status.map(|exit_status| {
+        enforcer_domain::telemetry_types::ProcessExitCode::new(exit_status.code().unwrap_or(1))
+    });
+    Ok(HarnessBoundedExecution::from_parts(
+        termination,
+        HarnessCapturedOutput::from_owned(stdout),
+        HarnessCapturedOutput::from_owned(stderr),
+        exit_code,
+        true,
+    ))
+}
+
+fn spawn_bounded_reader<R>(
+    mut reader: R,
+    output_limit: usize,
+    output_bytes: Arc<AtomicUsize>,
+    output_overflow: Arc<AtomicBool>,
+) -> JoinHandle<io::Result<Vec<u8>>>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut captured = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = reader.read(&mut buffer)?;
+            if read == 0 {
+                break;
+            }
+            let previous = output_bytes.fetch_add(read, Ordering::AcqRel);
+            if previous >= output_limit {
+                output_overflow.store(true, Ordering::Release);
+                break;
+            }
+            let allowed = output_limit.saturating_sub(previous);
+            if read > allowed {
+                captured.extend(buffer.iter().take(allowed));
+                output_overflow.store(true, Ordering::Release);
+                break;
+            }
+            captured.extend(buffer.iter().take(read));
+        }
+        Ok(captured)
+    })
+}
+
+fn bounded_lossy_output(bytes: &[u8], remaining: &mut usize) -> (String, bool) {
+    let lossy = String::from_utf8_lossy(bytes);
+    let mut output = String::new();
+    let mut truncated = false;
+    for character in lossy.chars() {
+        let width = character.len_utf8();
+        if width > *remaining {
+            truncated = true;
+            break;
+        }
+        output.push(character);
+        *remaining -= width;
+    }
+    if output.len() < lossy.len() {
+        truncated = true;
+    }
+    (output, truncated)
+}
+
+fn join_bounded_reader(reader: JoinHandle<io::Result<Vec<u8>>>) -> Result<Vec<u8>> {
+    reader
+        .join()
+        .map_err(|_| Error::InvalidConfig("bounded output reader panicked".to_owned()))?
+        .map_err(|error| invalid_process_error("read child output", error))
+}
+
+fn terminate_and_reap(child: &mut Child) -> Result<ExitStatus> {
+    let kill_error = child.kill().err();
+    let wait_result = child.wait();
+    match (kill_error, wait_result) {
+        (None, Ok(status)) => Ok(status),
+        (Some(error), Ok(status)) if error.kind() == io::ErrorKind::NotFound => Ok(status),
+        (Some(kill_error), Ok(_)) => Err(Error::InvalidConfig(format!(
+            "terminate child failed: {kill_error}; child was reaped"
+        ))),
+        (None, Err(wait_error)) => Err(invalid_process_error("reap child", wait_error)),
+        (Some(kill_error), Err(wait_error)) => Err(Error::InvalidConfig(format!(
+            "terminate child failed: {kill_error}; reap child failed: {wait_error}"
+        ))),
+    }
+}
+
+fn reap_after_pipe_failure(child: &mut Child, stream: &str) -> Error {
+    let kill_error = child.kill().err();
+    let wait_error = child.wait().err();
+    let cleanup = match (kill_error, wait_error) {
+        (None, None) => "child was terminated and reaped".to_owned(),
+        (Some(kill_error), None) if kill_error.kind() == io::ErrorKind::NotFound => {
+            "child was already stopped and reaped".to_owned()
+        }
+        (Some(kill_error), None) => {
+            format!("terminate child failed: {kill_error}; child was reaped")
+        }
+        (None, Some(wait_error)) => format!("reap child failed: {wait_error}"),
+        (Some(kill_error), Some(wait_error)) => {
+            format!("terminate child failed: {kill_error}; reap child failed: {wait_error}")
+        }
+    };
+    Error::InvalidConfig(format!(
+        "bounded child did not expose {stream} pipe; {cleanup}"
+    ))
+}
+
+fn record_cleanup_error(slot: &mut Option<Error>, error: Error) {
+    match slot.take() {
+        Some(previous) => {
+            *slot = Some(Error::InvalidConfig(format!("{previous}; {error}")));
+        }
+        None => *slot = Some(error),
+    }
+}
+
+fn invalid_process_error(operation: &str, error: io::Error) -> Error {
+    Error::InvalidConfig(format!("{operation} failed: {error}"))
 }
 
 /// Execute without a shell, capture both streams, then persist the real outcome.

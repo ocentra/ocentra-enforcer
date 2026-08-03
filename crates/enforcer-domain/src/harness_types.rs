@@ -685,3 +685,97 @@ impl HarnessToolSpec {
         self.expected_version.as_ref()
     }
 }
+
+/// Closed termination outcome for one bounded allowlisted child process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessExecutionTermination {
+    /// The child exited with code zero.
+    Completed,
+    /// The child exited with a non-zero code.
+    NonZeroExit,
+    /// The configured executable was not found.
+    MissingExecutable,
+    /// The operating system rejected child creation for another reason.
+    SpawnFailed,
+    /// The wall-time limit elapsed and the child was terminated and reaped.
+    TimedOut,
+    /// The combined stdout/stderr limit was exceeded and the child was terminated and reaped.
+    OutputLimitExceeded,
+}
+
+impl HarnessExecutionTermination {
+    /// Stable termination spelling for later evidence consumers.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::NonZeroExit => "non-zero-exit",
+            Self::MissingExecutable => "missing-executable",
+            Self::SpawnFailed => "spawn-failed",
+            Self::TimedOut => "timed-out",
+            Self::OutputLimitExceeded => "output-limit-exceeded",
+        }
+    }
+}
+
+/// In-memory result of one bounded allowlisted invocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessBoundedExecution {
+    termination: HarnessExecutionTermination,
+    stdout: HarnessCapturedOutput,
+    stderr: HarnessCapturedOutput,
+    // BRAND-INVARIANT: absent only when no operating-system exit code exists.
+    exit_code: Option<crate::telemetry_types::ProcessExitCode>,
+    // BRAND-INVARIANT: true only after a spawned child has been reaped; false means no child spawned.
+    child_reaped: bool,
+}
+
+impl HarnessBoundedExecution {
+    /// Construct a result after the runner has completed child cleanup.
+    #[must_use]
+    pub fn from_parts(
+        termination: HarnessExecutionTermination,
+        stdout: HarnessCapturedOutput,
+        stderr: HarnessCapturedOutput,
+        exit_code: Option<crate::telemetry_types::ProcessExitCode>,
+        child_reaped: bool,
+    ) -> Self {
+        Self {
+            termination,
+            stdout,
+            stderr,
+            exit_code,
+            child_reaped,
+        }
+    }
+
+    /// Return the typed child termination outcome.
+    #[must_use]
+    pub const fn termination(&self) -> HarnessExecutionTermination {
+        self.termination
+    }
+
+    /// Return captured stdout, bounded by the reviewed combined-output limit.
+    #[must_use]
+    pub const fn stdout(&self) -> &HarnessCapturedOutput {
+        &self.stdout
+    }
+
+    /// Return captured stderr, bounded by the reviewed combined-output limit.
+    #[must_use]
+    pub const fn stderr(&self) -> &HarnessCapturedOutput {
+        &self.stderr
+    }
+
+    /// Return the operating-system exit code when one was available.
+    #[must_use]
+    pub const fn exit_code(&self) -> Option<crate::telemetry_types::ProcessExitCode> {
+        self.exit_code
+    }
+
+    /// Prove that a spawned child was reaped before the result was returned.
+    #[must_use]
+    pub const fn child_reaped(&self) -> bool {
+        self.child_reaped
+    }
+}
