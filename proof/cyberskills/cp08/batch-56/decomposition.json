@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-56",
+  "baselineCommit": "0732e762d0f0f76934610a04460d0c3e6ee10b46",
+  "family": "Canonical-order mixed identity protocol defense, incident response, SIEM, threat correlation, deception, and adversary-engagement skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "conducting-man-in-the-middle-attack-simulation",
+      "conducting-pass-the-ticket-attack",
+      "configuring-ldap-security-hardening",
+      "containing-active-breach",
+      "correlating-security-events-in-qradar",
+      "correlating-threat-campaigns",
+      "deploying-cloud-deception-with-decoy-resources",
+      "deploying-honeytokens-and-canarytokens",
+      "designing-adversary-engagement-with-mitre-engage",
+      "detecting-anomalous-authentication-patterns"
+    ],
+    "reason": "Deterministic lexicographic next-ten selection after 550 accepted identities; the catalog order intentionally spans identity protocol defense, incident response, SIEM and threat correlation, deception, and adversary engagement. Native work is limited to supplied typed manifests, with live and third-party authority blocked and advisory and manual authority retained."
+  },
+  "skills": [
+    {
+      "catalogId": "conducting-man-in-the-middle-attack-simulation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-man-in-the-middle-attack-simulation/SKILL.md", "sha256": "e15514bfe8bcb35c8ab4f246cf368cca1e1e6167cd9145de615a01733a6af1fb", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Man-in-the-Middle Attack Simulation:L29"]},
+      "components": [
+        {"id": "conducting-man-in-the-middle-attack-simulation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed network, identity, route, authorization, simulation-scope, control, owner, and evidence-manifest fields without intercepting traffic.", "notProved": ["traffic interception", "credential exposure", "session compromise"]},
+        {"id": "conducting-man-in-the-middle-attack-simulation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MITM tools, proxies, packet capture, networks, endpoints, credentials, sessions, and production infrastructure external.", "notProved": ["packet capture", "relay success", "security finding"]},
+        {"id": "conducting-man-in-the-middle-attack-simulation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive network-authentication hardening, safe simulation, and monitoring guidance as advisory.", "notProved": ["control efficacy", "assessment readiness"]},
+        {"id": "conducting-man-in-the-middle-attack-simulation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and owner validation, legal/privacy/safety scope, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "conducting-pass-the-ticket-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-pass-the-ticket-attack/SKILL.md", "sha256": "33dc713d928260e3ba15cb733e5136eabf263cc08d6e6e260bdfda8e0f659e3b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Pass-the-Ticket Attack:L35"]},
+      "components": [
+        {"id": "conducting-pass-the-ticket-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed principal, ticket, host, authorization, scope, expiry, mitigation, owner, and evidence-manifest fields without handling live tickets.", "notProved": ["ticket validity", "credential use", "lateral movement"]},
+        {"id": "conducting-pass-the-ticket-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Kerberos, domain controllers, AD, ticket tools, endpoints, credentials, sessions, and production identity systems external.", "notProved": ["ticket replay", "authentication", "domain compromise"]},
+        {"id": "conducting-pass-the-ticket-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Kerberos, credential, identity-hardening, and authorized-assessment guidance as advisory.", "notProved": ["mitigation efficacy", "attack-path validity"]},
+        {"id": "conducting-pass-the-ticket-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, domain and asset ownership, legal/safety scope, credential and data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "configuring-ldap-security-hardening",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/configuring-ldap-security-hardening/SKILL.md", "sha256": "0b1f311dc4b7781134d462b5c33b62cfd33dd8046b0a821b49e8d838d3944185", "availability": "available", "license": "Apache-2.0", "anchors": ["# Configuring LDAP Security Hardening:L52"]},
+      "components": [
+        {"id": "configuring-ldap-security-hardening::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed LDAP, TLS, bind, signing, channel, directory, owner, scope, exception, and evidence-manifest fields without contacting a directory.", "notProved": ["LDAP configuration", "transport security", "directory enforcement"]},
+        {"id": "configuring-ldap-security-hardening::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep LDAP servers, AD, IdPs, certificates, network services, directories, endpoints, and production enforcement systems external.", "notProved": ["live bind", "policy enforcement", "security outcome"]},
+        {"id": "configuring-ldap-security-hardening::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive LDAP signing, TLS, bind, certificate, and directory-hardening guidance as advisory.", "notProved": ["hardening efficacy", "configuration readiness"]},
+        {"id": "configuring-ldap-security-hardening::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require directory-owner approval, written scope, legal/privacy/safety review, certificate and credential handling, validation, exception, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "enforcement", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "containing-active-breach",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/containing-active-breach/SKILL.md", "sha256": "3e8883aa791d03627ede727ad1aade638954169ff88d7c7243a46f6013624bdc", "availability": "available", "license": "Apache-2.0", "anchors": ["# Containing Active Breaches:L35"]},
+      "components": [
+        {"id": "containing-active-breach::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed incident, asset, indicator, timeline, containment, owner, authorization, communication, recovery, and evidence-manifest fields.", "notProved": ["active breach", "incident scope", "containment success"]},
+        {"id": "containing-active-breach::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep EDR, SIEM, NDR, cloud consoles, endpoints, networks, ticketing, forensics, and production response systems external.", "notProved": ["live detection", "compromise", "containment or recovery outcome"]},
+        {"id": "containing-active-breach::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident-response, containment, communications, evidence, and recovery guidance as advisory.", "notProved": ["incident classification", "response readiness"]},
+        {"id": "containing-active-breach::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human incident authority, legal/privacy review, safety and business scope, evidence handling, analyst interpretation, severity, containment, remediation, recovery, rollback, and disclosure decisions.", "notProved": ["authorization", "incident truth", "response outcome"]}
+      ]
+    },
+    {
+      "catalogId": "correlating-security-events-in-qradar",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/correlating-security-events-in-qradar/SKILL.md", "sha256": "e93700ad34d3e244f17829dc68bb9eea09a97f1ad487d788e769f87168f6d305", "availability": "available", "license": "Apache-2.0", "anchors": ["# Correlating Security Events in QRadar:L35"]},
+      "components": [
+        {"id": "correlating-security-events-in-qradar::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed event, source, rule, correlation, timestamp, severity, case, owner, scope, and evidence-manifest fields without querying QRadar.", "notProved": ["event ingestion", "correlation truth", "alert fidelity"]},
+        {"id": "correlating-security-events-in-qradar::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep QRadar, SIEM, log sources, collectors, endpoints, networks, and production telemetry external.", "notProved": ["live events", "alert generation", "incident detection"]},
+        {"id": "correlating-security-events-in-qradar::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM correlation, rule review, tuning, and investigation guidance as advisory.", "notProved": ["rule efficacy", "monitoring coverage"]},
+        {"id": "correlating-security-events-in-qradar::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, data-owner validation, legal/privacy review, analyst interpretation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding truth", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "correlating-threat-campaigns",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/correlating-threat-campaigns/SKILL.md", "sha256": "7d7a0ec11e9a4a0659657808879f51ee6d2c4b32e2379d42032c054165531b38", "availability": "available", "license": "Apache-2.0", "anchors": ["# Correlating Threat Campaigns:L38"]},
+      "components": [
+        {"id": "correlating-threat-campaigns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed campaign, IOC, actor, relationship, source, timestamp, confidence, provenance, scope, and evidence-manifest fields.", "notProved": ["campaign identity", "actor attribution", "relationship truth"]},
+        {"id": "correlating-threat-campaigns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep TIPs, MISP, OpenCTI, OSINT, dark-web sources, enrichment, DNS, WHOIS, feeds, and live networks external.", "notProved": ["collection", "freshness", "infrastructure ownership"]},
+        {"id": "correlating-threat-campaigns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain campaign correlation, uncertainty, provenance, threat-intelligence, and dissemination guidance as advisory.", "notProved": ["intelligence quality", "dissemination suitability"]},
+        {"id": "correlating-threat-campaigns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, escalation, remediation, and disclosure decisions.", "notProved": ["analyst conclusion", "attribution", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "deploying-cloud-deception-with-decoy-resources",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/deploying-cloud-deception-with-decoy-resources/SKILL.md", "sha256": "38a696a5b3686fe575bbcd0de8cefe5f4272f65c2d0a422fcaffed91d566ef55", "availability": "available", "license": "Apache-2.0", "anchors": ["# Deploying Cloud Deception with Decoy Resources:L44"]},
+      "components": [
+        {"id": "deploying-cloud-deception-with-decoy-resources::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed cloud account, decoy resource, owner, scope, authorization, alert, isolation, cost, lifecycle, and evidence-manifest fields without deploying resources.", "notProved": ["resource deployment", "attacker interaction", "alert efficacy"]},
+        {"id": "deploying-cloud-deception-with-decoy-resources::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep cloud APIs, providers, consoles, decoy resources, IAM, networks, endpoints, and production tenants external.", "notProved": ["cloud access", "interaction", "detection outcome"]},
+        {"id": "deploying-cloud-deception-with-decoy-resources::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive deception, decoy design, safety, isolation, monitoring, and cleanup guidance as advisory.", "notProved": ["deception readiness", "monitoring efficacy"]},
+        {"id": "deploying-cloud-deception-with-decoy-resources::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and owner authorization, legal/privacy/safety review, cost and data handling, stop conditions, validation, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["authorization", "attacker behavior", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "deploying-honeytokens-and-canarytokens",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/deploying-honeytokens-and-canarytokens/SKILL.md", "sha256": "89e9c972c4c5c61b7ceba5f17fc708acb47403a789967ee72a5ff0084f7a2661", "availability": "available", "license": "Apache-2.0", "anchors": ["# Deploying Honeytokens and Canarytokens:L23"]},
+      "components": [
+        {"id": "deploying-honeytokens-and-canarytokens::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed token, placement, owner, scope, trigger, notification, expiration, privacy, authorization, and evidence-manifest fields without deploying tokens.", "notProved": ["token deployment", "trigger", "attacker identification"]},
+        {"id": "deploying-honeytokens-and-canarytokens::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Canarytokens, honeytoken services, mail, DNS, cloud, endpoints, networks, and notification systems external.", "notProved": ["trigger delivery", "identity attribution", "detection efficacy"]},
+        {"id": "deploying-honeytokens-and-canarytokens::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive honeytoken design, privacy, placement, monitoring, and cleanup guidance as advisory.", "notProved": ["token safety", "monitoring coverage"]},
+        {"id": "deploying-honeytokens-and-canarytokens::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and owner validation, legal/privacy/ethics review, data handling, stop conditions, analyst validation, escalation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "trigger outcome", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "designing-adversary-engagement-with-mitre-engage",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/designing-adversary-engagement-with-mitre-engage/SKILL.md", "sha256": "6f9230b7a8d4c29657d053af7453080e8dd47dca39458e0f22741e999ccdd41c", "availability": "available", "license": "Apache-2.0", "anchors": ["# Designing Adversary Engagement with MITRE Engage:L43"]},
+      "components": [
+        {"id": "designing-adversary-engagement-with-mitre-engage::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed engagement, objective, adversary behavior, scope, authorization, control, safety, owner, and evidence-manifest fields without executing an engagement.", "notProved": ["adversary behavior", "engagement success", "control efficacy"]},
+        {"id": "designing-adversary-engagement-with-mitre-engage::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MITRE Engage tooling, red-team operators, C2, phishing, exploits, scanners, endpoints, networks, and production systems external.", "notProved": ["execution", "compromise", "detection or response efficacy"]},
+        {"id": "designing-adversary-engagement-with-mitre-engage::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive adversary-engagement planning, threat modeling, safety, and improvement guidance as advisory.", "notProved": ["engagement readiness", "risk reduction"]},
+        {"id": "designing-adversary-engagement-with-mitre-engage::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset ownership, legal/privacy/ethics/safety review, stop conditions, data handling, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["authorization", "adversary outcome", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-anomalous-authentication-patterns",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-anomalous-authentication-patterns/SKILL.md", "sha256": "9a97dad02e90f0ba15b6b090673d763820e7d4160a50898093a2b8c6d7bd5cbc", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Anomalous Authentication Patterns:L68"]},
+      "components": [
+        {"id": "detecting-anomalous-authentication-patterns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed authentication event, principal, device, location, time, risk, rule, threshold, owner, and evidence-manifest fields without querying identity systems.", "notProved": ["authentication anomaly", "identity compromise", "detection efficacy"]},
+        {"id": "detecting-anomalous-authentication-patterns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep IdPs, MFA, directories, SIEM, UEBA, endpoints, sessions, cloud APIs, and production authentication systems external.", "notProved": ["live event truth", "risk score", "access decision"]},
+        {"id": "detecting-anomalous-authentication-patterns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive authentication monitoring, anomaly review, tuning, and response guidance as advisory.", "notProved": ["rule efficacy", "monitoring coverage"]},
+        {"id": "detecting-anomalous-authentication-patterns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require human authorization, identity and data-owner validation, legal/privacy review, analyst interpretation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "anomaly conclusion", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live interception, ticket replay, LDAP access, authentication, directory enumeration, credential access, persistence, or identity outcome is proved.",
+    "No active breach, SIEM event, alert, threat campaign, attribution, IOC validity, or incident-response outcome is proved.",
+    "No cloud deception deployment, honeytoken trigger, attacker interaction, cloud access, or detection efficacy is proved.",
+    "No adversary engagement, red-team execution, phishing, C2, scanning, exploit delivery, compromise, or response efficacy is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, remediation, rollback, recovery, disclosure, or security outcome is proved."
+  ]
+}
