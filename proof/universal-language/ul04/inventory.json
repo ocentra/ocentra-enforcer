@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "workpack": "UL04",
+  "baseline": "137f301509cd63870d217f21b92ffca7a767dd0a",
+  "scope": {
+    "factSlice": "function-declaration",
+    "sourceModel": "ParsedFile nine-collection v1 remains unchanged; UL04 adds a normalized consumer fact",
+    "selectedProviders": 4,
+    "selectedFixtures": 5,
+    "analysisCases": 7
+  },
+  "providers": [
+    { "language": "Rust", "provider": "tree-sitter-rust", "version": "0.23", "outcome": "ParsedClean", "functions": 1 },
+    { "language": "Python", "provider": "tree-sitter-python", "version": "0.23", "outcome": "ParsedClean", "functions": 1 },
+    { "language": "TypeScript", "provider": "tree-sitter-typescript", "version": "0.23", "outcome": "ParsedClean", "functions": 1 },
+    { "language": "Dart", "provider": "unavailable", "version": "0.25", "outcome": "ProviderUnavailable", "functions": 0 }
+  ],
+  "negativeOutcomes": [
+    { "case": "malformed_rust.rs", "outcome": "ParsedWithErrors", "errorNodesAtLeast": 1, "functionsMayBeRecovered": true },
+    { "case": "unsupported.txt", "outcome": "Unsupported", "functions": 0 },
+    { "case": "embedded-nul", "outcome": "UnsafeInputRefused", "parserInvoked": false, "functions": 0 }
+  ],
+  "invariants": [
+    "facts expose closed values and checked byte/line spans",
+    "raw tree-sitter nodes and source strings do not cross the public result boundary",
+    "unsupported, unavailable, malformed, and unsafe outcomes remain distinct"
+  ],
+  "doesNotProve": [
+    "semantic rule coverage",
+    "all 160 language identities have this selected provider",
+    "lossless extraction of every existing ParsedFile collection beyond the declared consumer slice"
+  ]
+}
