@@ -187,6 +187,18 @@ enum ScanFamilyProjectionError {
     InvalidSyntheticPath,
 }
 
+impl std::fmt::Display for ScanFamilyProjectionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidSyntheticPath => {
+                formatter.write_str("scan-family projection built an invalid synthetic path")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ScanFamilyProjectionError {}
+
 fn scan_family_for_matcher(
     matcher: DetectionMatcher,
 ) -> Result<Option<LanguageFamily>, ScanFamilyProjectionError> {
