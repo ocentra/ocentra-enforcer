@@ -154,8 +154,14 @@ pub enum MatcherWinner {
 /// One machine-readable literal-to-parser crosswalk row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LiteralProjection {
-    /// Stable literal row, disposition, parser IDs, keys, and winners.
-    Row(&'static str, LiteralProjectionDisposition, &'static [LanguageId], &'static [&'static str], &'static [MatcherWinner]),
+    /// Stable literal row, disposition, parser IDs, typed matchers, and winners.
+    Row(
+        &'static str,
+        LiteralProjectionDisposition,
+        &'static [LanguageId],
+        &'static [DetectionMatcher],
+        &'static [MatcherWinner],
+    ),
 }
 
 /// One explicit same-key collision resolution.
