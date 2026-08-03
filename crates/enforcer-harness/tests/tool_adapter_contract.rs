@@ -49,7 +49,8 @@ fn spec_with_probe(
     output: HarnessProbeOutput,
     expected_version: &str,
 ) -> Result<HarnessToolSpec> {
-    spec_with_probe_limits(
+    spec_with_probe_for_tool(
+        HarnessToolName::try_new("cargo".to_owned())?,
         main_command,
         probe_command,
         output,
@@ -67,10 +68,30 @@ fn spec_with_probe_limits(
     max_wall_time_ms: u64,
     max_output_bytes: u64,
 ) -> Result<HarnessToolSpec> {
+    spec_with_probe_for_tool(
+        HarnessToolName::try_new("cargo".to_owned())?,
+        main_command,
+        probe_command,
+        output,
+        expected_version,
+        max_wall_time_ms,
+        max_output_bytes,
+    )
+}
+
+fn spec_with_probe_for_tool(
+    tool: HarnessToolName,
+    main_command: Vec<HarnessCommandArgument>,
+    probe_command: Vec<HarnessCommandArgument>,
+    output: HarnessProbeOutput,
+    expected_version: &str,
+    max_wall_time_ms: u64,
+    max_output_bytes: u64,
+) -> Result<HarnessToolSpec> {
     let expected_version = HarnessStepVersion::try_new(expected_version.to_owned())?;
     let probe = HarnessToolProbe::try_new(probe_command, output)?;
     Ok(HarnessToolSpec::try_new(
-        HarnessToolName::try_new("cargo".to_owned())?,
+        tool,
         main_command,
         HarnessToolRequirement::Required,
         HarnessExecutionLimits::try_new(max_wall_time_ms, max_output_bytes, 100)?,
@@ -98,11 +119,25 @@ fn request(
     command: Vec<HarnessCommandArgument>,
     cwd: Option<String>,
 ) -> Result<ExecuteRequest> {
+    request_with_tool(
+        repo_root,
+        command,
+        cwd,
+        HarnessToolName::try_new("cargo".to_owned())?,
+    )
+}
+
+fn request_with_tool(
+    repo_root: RepoRoot,
+    command: Vec<HarnessCommandArgument>,
+    cwd: Option<String>,
+    tool: HarnessToolName,
+) -> Result<ExecuteRequest> {
     Ok(ExecuteRequest {
         repo_root,
         cwd,
         run_id: enforcer_domain::harness_types::HarnessRunId::try_new("contract-run".to_owned())?,
-        tool: HarnessToolName::try_new("cargo".to_owned())?,
+        tool,
         language: None,
         command,
         crate_name: None,
@@ -281,18 +316,19 @@ fn availability_preserves_missing_spawn_and_nonzero_causality() -> Result<()> {
     let temp = tempfile::TempDir::new()?;
     let root = RepoRoot::try_from(temp.path())?;
     let main = child_command("child_entry_outputs")?;
-
-    let missing_probe = vec![HarnessCommandArgument::try_new(
+    let missing_main = vec![HarnessCommandArgument::try_new(
         "ocentra-definitely-missing-ul07-probe".to_owned(),
     )?];
     let missing_spec = spec_with_probe(
-        main.clone(),
-        missing_probe,
+        missing_main.clone(),
+        missing_main.clone(),
         HarnessProbeOutput::Stdout,
         "1.2.3",
     )?;
-    let missing =
-        probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &missing_spec)?;
+    let missing = probe_allowlisted_tool(
+        &request(root.clone(), child_command("child_entry_outputs")?, None)?,
+        &missing_spec,
+    )?;
     assert_eq!(missing.availability(), HarnessToolAvailability::Missing);
     assert_eq!(
         missing.termination(),
@@ -516,25 +552,63 @@ fn availability_selects_one_typed_stream_without_fallback() -> Result<()> {
 
 #[test]
 fn availability_reads_a_clean_reviewed_stdout_record() -> Result<()> {
-    let temp = tempfile::TempDir::new()?;
-    let root = RepoRoot::try_from(temp.path())?;
-    let main = child_command("child_entry_outputs")?;
-    let git_probe = vec![
+    let current_dir = std::env::current_dir()?;
+    let root = RepoRoot::try_from(current_dir.as_path())?;
+    let git_command = vec![
         HarnessCommandArgument::try_new("git".to_owned())?,
-        HarnessCommandArgument::try_new("--version".to_owned())?,
+        HarnessCommandArgument::try_new("config".to_owned())?,
+        HarnessCommandArgument::try_new("--get".to_owned())?,
+        HarnessCommandArgument::try_new("core.repositoryformatversion".to_owned())?,
     ];
-    let reviewed = spec_with_probe(
-        main.clone(),
-        git_probe,
+    let reviewed = spec_with_probe_for_tool(
+        HarnessToolName::try_new("git".to_owned())?,
+        git_command.clone(),
+        git_command.clone(),
         HarnessProbeOutput::Stdout,
-        "git version 2.38.1.windows.1",
+        "0",
+        2_000,
+        1_024,
     )?;
-    let result = probe_allowlisted_tool(&request(root, main, None)?, &reviewed)?;
+    let result = probe_allowlisted_tool(
+        &request_with_tool(
+            root.clone(),
+            git_command.clone(),
+            None,
+            HarnessToolName::try_new("git".to_owned())?,
+        )?,
+        &reviewed,
+    )?;
     assert_eq!(result.availability(), HarnessToolAvailability::Available);
     assert_eq!(
         result.observed_version().map(HarnessStepVersion::as_str),
-        Some("git version 2.38.1.windows.1")
+        Some("0")
     );
+
+    let unrelated_probe = vec![HarnessCommandArgument::try_new("git".to_owned())?];
+    let unrelated = spec_with_probe_for_tool(
+        HarnessToolName::try_new("git".to_owned())?,
+        child_command("child_entry_outputs")?,
+        unrelated_probe,
+        HarnessProbeOutput::Stdout,
+        "unrelated",
+        2_000,
+        1_024,
+    )?;
+    let unrelated_result = probe_allowlisted_tool(
+        &request_with_tool(
+            root,
+            child_command("child_entry_outputs")?,
+            None,
+            HarnessToolName::try_new("git".to_owned())?,
+        )?,
+        &unrelated,
+    )?;
+    assert_eq!(
+        unrelated_result.availability(),
+        HarnessToolAvailability::Misconfigured
+    );
+    assert_eq!(unrelated_result.termination(), None);
+    assert_eq!(unrelated_result.observed_version(), None);
     Ok(())
 }
 

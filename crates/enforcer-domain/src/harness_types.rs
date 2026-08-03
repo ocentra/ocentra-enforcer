@@ -764,6 +764,21 @@ impl HarnessToolSpec {
                 "availability probe metadata is required before execution",
             )
         })?;
+        let main_executable = self.command.first().ok_or_else(|| {
+            DecodeError::new("command", "allowlisted tool command must not be empty")
+        })?;
+        let probe_executable = probe.command.first().ok_or_else(|| {
+            DecodeError::new(
+                "probe.command",
+                "availability probe command must not be empty",
+            )
+        })?;
+        if main_executable != probe_executable {
+            return Err(DecodeError::new(
+                "probe.command[0]",
+                "availability probe executable must match the main reviewed executable",
+            ));
+        }
         Ok(Self {
             // CLONE-JUSTIFICATION: the derived spec must own the same reviewed
             // tool identity while remaining independent of the caller spec.
