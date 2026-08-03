@@ -1238,6 +1238,7 @@ dependencies = [
  "enforcer-config",
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-syntax",
  "proptest",
  "serde",
  "serde_json",
