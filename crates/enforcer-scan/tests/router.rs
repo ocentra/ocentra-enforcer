@@ -12,8 +12,10 @@ use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
-    CanonicalCapabilityDisposition, CanonicalLanguageRouteResponse, CanonicalStructuralDisposition,
-    NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
+    CanonicalCapabilityDisposition, CanonicalConsumerCapabilityProjectionResponse,
+    CanonicalConsumerDisposition, CanonicalLanguageRouteResponse, CanonicalNativeToolDisposition,
+    CanonicalRulePackDisposition, CanonicalScanFamily, CanonicalScanFamilyDisposition,
+    CanonicalStructuralDisposition, NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
 };
 use enforcer_scan::router::plan::build_route_plan;
 use enforcer_scan::walk::{walk, IgnoreRules};
@@ -368,6 +370,19 @@ fn canonical_projection_keeps_identity_dispositions_separate(
             canonical_name: "Rust".to_owned(),
             structural: CanonicalStructuralDisposition::ParseFile,
             capability: CanonicalCapabilityDisposition::Unsupported,
+            consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse {
+                native_scan: CanonicalScanFamilyDisposition::Mapped {
+                    family: CanonicalScanFamily::Rust,
+                },
+                native_tool: CanonicalNativeToolDisposition::Mapped {
+                    tool: WireNativeTool::Cargo,
+                },
+                rule_packs: CanonicalRulePackDisposition::Mapped {
+                    packs: vec![RulePack::Rust, RulePack::Security],
+                },
+                cli: CanonicalConsumerDisposition::Unsupported,
+                ui: CanonicalConsumerDisposition::Unsupported,
+            },
         },
         CanonicalLanguageRouteResponse::SupplementalLiteral {
             literal_name: "nim".to_owned(),
@@ -383,7 +398,20 @@ fn canonical_projection_keeps_identity_dispositions_separate(
             canonical_name,
             structural: CanonicalStructuralDisposition::ParseFile,
             capability: CanonicalCapabilityDisposition::Unsupported,
+            consumer_capabilities:
+                CanonicalConsumerCapabilityProjectionResponse {
+                    native_scan: CanonicalScanFamilyDisposition::Mapped {
+                        family: CanonicalScanFamily::Rust,
+                    },
+                    native_tool: CanonicalNativeToolDisposition::Mapped {
+                        tool: WireNativeTool::Cargo,
+                    },
+                    rule_packs: CanonicalRulePackDisposition::Mapped { packs },
+                    cli: CanonicalConsumerDisposition::Unsupported,
+                    ui: CanonicalConsumerDisposition::Unsupported,
+                },
         } if canonical_name == "Rust"
+            && *packs == vec![RulePack::Rust, RulePack::Security]
     ));
     assert!(matches!(
         &response[1],
