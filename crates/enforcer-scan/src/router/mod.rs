@@ -23,6 +23,7 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::LanguageFamily;
 
 pub mod detect;
+pub mod identity;
 pub mod native_tie;
 pub mod plan;
 pub mod scope;
