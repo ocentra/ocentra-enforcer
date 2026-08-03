@@ -391,13 +391,11 @@ impl std::fmt::Display for HarnessLanguage {
 }
 
 // BRAND-INVARIANT: zero is normalized at the adapter seam; oversized values remain explicit.
-/// One-based source line reported by an external tool.
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 #[serde(transparent)]
-// BRAND-INVARIANT: zero is normalized at the adapter seam; oversized values remain explicit.
-/// One-based source location retained from an external tool.
+/// One-based source line reported by an external tool.
 pub struct HarnessSourceLine(u64);
 
 impl std::fmt::Debug for HarnessSourceLine {

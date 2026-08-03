@@ -52,11 +52,14 @@ pub fn validate_allowlisted_request(
     }
     if let Some(cwd) = request.cwd.as_deref() {
         let path = Path::new(cwd);
-        if path.is_absolute()
-            || path
-                .components()
-                .any(|component| matches!(component, std::path::Component::ParentDir))
-        {
+        if path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::Prefix(_)
+                    | std::path::Component::RootDir
+                    | std::path::Component::ParentDir
+            )
+        }) {
             return Err(enforcer_core::error::Error::InvalidConfig(
                 "allowlisted working directory must stay within the repository root".to_owned(),
             ));

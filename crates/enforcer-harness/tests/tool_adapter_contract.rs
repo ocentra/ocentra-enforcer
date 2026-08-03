@@ -1,6 +1,6 @@
 // source owner: crates/enforcer-domain/src/harness_types.rs
 // generator: cargo test -p enforcer-harness --test tool_adapter_contract
-// contractHash: 4402edb16007f9b96608689fa2025c9a12e644857765c0d881ef605376bdfddc
+// contractHash: 2ccae7474073653d7be42bbd3903bac8c1c818c0b3ddf70c7350381e2837299a
 
 use enforcer_core::error::{Error, Result};
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -160,14 +160,37 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
     )?;
 
     let absolute = request(
-        root,
-        command,
+        root.clone(),
+        command.clone(),
         Some(temp.path().to_string_lossy().into_owned()),
     )?;
     assert_rejection(
         validate_allowlisted_request(&absolute, &reviewed),
         "repository root",
     )?;
+
+    #[cfg(windows)]
+    {
+        let rooted_without_prefix = request(
+            root.clone(),
+            reviewed.command().to_vec(),
+            Some(r"\outside".to_owned()),
+        )?;
+        assert_rejection(
+            validate_allowlisted_request(&rooted_without_prefix, &reviewed),
+            "repository root",
+        )?;
+
+        let drive_relative = request(
+            root,
+            reviewed.command().to_vec(),
+            Some(r"C:outside".to_owned()),
+        )?;
+        assert_rejection(
+            validate_allowlisted_request(&drive_relative, &reviewed),
+            "repository root",
+        )?;
+    }
     Ok(())
 }
 
