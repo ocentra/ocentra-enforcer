@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-72",
+  "baselineCommit": "d1c7c7d68b104965dbf3032bec8fad82a8e62d0a",
+  "family": "Authorized security-assessment, access-governance, and defensive evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "mapping-mitre-attack-techniques",
+      "moving-laterally-with-netexec",
+      "operating-havoc-c2",
+      "operating-sliver-c2",
+      "performing-access-recertification-with-saviynt",
+      "performing-active-directory-penetration-test",
+      "performing-agentless-vulnerability-scanning",
+      "performing-api-rate-limiting-bypass",
+      "performing-api-security-testing-with-postman",
+      "performing-arp-spoofing-attack-simulation"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-71."
+  },
+  "accounting": {
+    "acceptedPrior": 710,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 720,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "mapping-mitre-attack-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/mapping-mitre-attack-techniques/SKILL.md",
+        "sha256": "4519a862b814c40385deb42f358a23cce6db4f2b04c2ccb18c23a48fe48feee3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Mapping MITRE ATT&CK Techniques:L50"]
+      },
+      "components": [
+        {"id":"mapping-mitre-attack-techniques::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed observation, tactic, technique, control, coverage, confidence, source, and evidence-manifest fields without live enrichment or detection-engine access.","notProved":["technique mapping","coverage truth","control effectiveness"]},
+        {"id":"mapping-mitre-attack-techniques::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep MITRE Navigator, ATT&CK data services, SIEM, EDR, threat-intelligence, endpoint, and network authorities external.","notProved":["live coverage","detection efficacy","attack-path reality"]},
+        {"id":"mapping-mitre-attack-techniques::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain ATT&CK mapping, defensive coverage review, control prioritization, and threat-model guidance as advisory.","notProved":["completeness","risk score","incident resolution"]},
+        {"id":"mapping-mitre-attack-techniques::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, ownership, legal/privacy/safety review, analyst validation, severity, remediation, rollback, and disclosure decisions.","notProved":["authorization","finding validity","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "moving-laterally-with-netexec",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/moving-laterally-with-netexec/SKILL.md",
+        "sha256": "f190284de77c0b80813f5d42df4793a2ab82af1912d69362794aeea154a288fc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Moving Laterally with NetExec:L24"]
+      },
+      "components": [
+        {"id":"moving-laterally-with-netexec::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed host, principal, protocol, route, command-plan, scope, stop-condition, and evidence-manifest fields only.","notProved":["host access","credential validity","lateral movement"]},
+        {"id":"moving-laterally-with-netexec::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep NetExec, SMB, WinRM, LDAP, MSSQL, credentials, endpoints, remote sessions, and network authorities external.","notProved":["enumeration","password spraying","remote execution"]},
+        {"id":"moving-laterally-with-netexec::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authorized lateral-movement assessment, hardening, segmentation, and defensive validation guidance as advisory.","notProved":["exposure","compromise","containment effectiveness"]},
+        {"id":"moving-laterally-with-netexec::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/privacy/safety approval, isolated scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","credential use","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "operating-havoc-c2",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/operating-havoc-c2/SKILL.md",
+        "sha256": "f3778d62b5e8a0cdc4a861ad982a75387259057534ad08fbb9272d9ad389ddb8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Operating Havoc C2:L23"]
+      },
+      "components": [
+        {"id":"operating-havoc-c2::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed C2 profile, listener, agent, build, lab-scope, authorization, safety, and evidence-manifest fields without construction or execution.","notProved":["C2 availability","agent behavior","post-exploitation"]},
+        {"id":"operating-havoc-c2::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Havoc, Yaotl, team servers, Demon agents, implants, indirect syscalls, sleep obfuscation, BOF/.NET tooling, endpoints, and networks external.","notProved":["beaconing","evasion","command execution"]},
+        {"id":"operating-havoc-c2::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain red-team emulation planning, C2 risk review, defensive detection design, and lab-safety guidance as advisory.","notProved":["emulation fidelity","detection efficacy","compromise"]},
+        {"id":"operating-havoc-c2::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, isolated lab scope, asset ownership, legal/ethics/safety review, stop conditions, analyst validation, and disclosure decisions.","notProved":["authorization","live operation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "operating-sliver-c2",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/operating-sliver-c2/SKILL.md",
+        "sha256": "0f1bdb826164eee226fa70fa047bc15af331e982aa5a2f2ee657067752a5de30",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Operating Sliver C2:L23"]
+      },
+      "components": [
+        {"id":"operating-sliver-c2::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed C2 profile, listener, implant, beacon, armory, lab-scope, authorization, safety, and evidence-manifest fields without construction or execution.","notProved":["C2 availability","implant behavior","pivoting"]},
+        {"id":"operating-sliver-c2::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Sliver servers, listeners, implants, beacons, BOF/.NET tooling, armory, endpoints, sessions, and networks external.","notProved":["beaconing","post-exploitation","command execution"]},
+        {"id":"operating-sliver-c2::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain adversary-emulation planning, C2 exposure review, defensive telemetry design, and lab-safety guidance as advisory.","notProved":["emulation fidelity","detection efficacy","compromise"]},
+        {"id":"operating-sliver-c2::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, isolated lab scope, asset ownership, legal/ethics/safety review, stop conditions, analyst validation, and disclosure decisions.","notProved":["authorization","live operation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-access-recertification-with-saviynt",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-access-recertification-with-saviynt/SKILL.md",
+        "sha256": "bb362438e6b2281fb5ae9df140ccae413360548b3fe287f47f1a6b124a3dc3d7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Access Recertification with Saviynt:L59"]
+      },
+      "components": [
+        {"id":"performing-access-recertification-with-saviynt::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed identity, entitlement, campaign, reviewer, owner, exception, due-date, decision, and evidence-manifest fields only.","notProved":["entitlement truth","review completion","access revocation"]},
+        {"id":"performing-access-recertification-with-saviynt::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Saviynt, IdP, directory, HR, identity-governance, session, and revocation authorities external.","notProved":["identity state","least privilege","compliance outcome"]},
+        {"id":"performing-access-recertification-with-saviynt::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain access-review, recertification, segregation-of-duties, least-privilege, and compliance guidance as advisory.","notProved":["review completeness","risk score","compliance"]},
+        {"id":"performing-access-recertification-with-saviynt::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authority, data-owner and reviewer decisions, legal/privacy review, exception approval, remediation, rollback, and disclosure handling.","notProved":["authorization","revocation","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-active-directory-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-active-directory-penetration-test/SKILL.md",
+        "sha256": "d9e8820603312311bba35baf84c163a2169254b71d764ceb2ac54dbc818bd934",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Active Directory Penetration Test:L33"]
+      },
+      "components": [
+        {"id":"performing-active-directory-penetration-test::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed domain, principal, ACL, trust, certificate, path, test-plan, scope, and evidence-manifest fields without directory access or exploitation.","notProved":["domain exposure","attack path","domain compromise"]},
+        {"id":"performing-active-directory-penetration-test::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep domain controllers, Active Directory, BloodHound, Kerberos, ADCS, DCSync, credentials, endpoints, and network authorities external.","notProved":["enumeration","privilege escalation","credential extraction"]},
+        {"id":"performing-active-directory-penetration-test::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authorized AD assessment, hardening, attack-path review, and defensive validation guidance as advisory.","notProved":["finding validity","compromise","remediation effectiveness"]},
+        {"id":"performing-active-directory-penetration-test::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, domain ownership, legal/privacy/safety review, scope and stop conditions, analyst validation, containment, and remediation decisions.","notProved":["authorization","exploitability","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-agentless-vulnerability-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-agentless-vulnerability-scanning/SKILL.md",
+        "sha256": "d007a112c5d36cbe1092d98ef6b11a84f1c4ca1ef4f03ba15ab7329653af2226",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Agentless Vulnerability Scanning:L36"]
+      },
+      "components": [
+        {"id":"performing-agentless-vulnerability-scanning::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed target, protocol, snapshot, API, discovery, finding, severity, owner, scope, and evidence-manifest fields only.","notProved":["asset discovery","vulnerability","exploitability"]},
+        {"id":"performing-agentless-vulnerability-scanning::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep scanners, network protocols, cloud snapshots, discovery APIs, endpoints, credentials, and production infrastructure external.","notProved":["scan result","coverage","remediation"]},
+        {"id":"performing-agentless-vulnerability-scanning::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain agentless assessment, scan planning, vulnerability triage, and defensive remediation guidance as advisory.","notProved":["finding validity","priority truth","security outcome"]},
+        {"id":"performing-agentless-vulnerability-scanning::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/privacy/safety review, scope, data handling, analyst validation, severity, and remediation decisions.","notProved":["authorization","scan delivery","remediation completion"]}
+      ]
+    },
+    {
+      "catalogId": "performing-api-rate-limiting-bypass",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-api-rate-limiting-bypass/SKILL.md",
+        "sha256": "1d9164ac68d1724c7fb84dc61615114aee114df615332661f91e9b85d81931a8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing API Rate Limiting Bypass:L37"]
+      },
+      "components": [
+        {"id":"performing-api-rate-limiting-bypass::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed route, request, header, identity, method, version, threshold, encoding, scope, and evidence-manifest fields without endpoint calls.","notProved":["rate-limit behavior","bypass","resource exhaustion"]},
+        {"id":"performing-api-rate-limiting-bypass::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep API endpoints, servers, proxies, fuzzers, payloads, authentication, sessions, traffic, and production systems external.","notProved":["live bypass","data exposure","availability impact"]},
+        {"id":"performing-api-rate-limiting-bypass::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain defensive rate-limit design, authorized testing, abuse-case review, and remediation guidance as advisory.","notProved":["control effectiveness","severity","security outcome"]},
+        {"id":"performing-api-rate-limiting-bypass::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, API ownership, legal/safety/data handling review, test limits, analyst validation, containment, and remediation decisions.","notProved":["authorization","bypass result","production impact"]}
+      ]
+    },
+    {
+      "catalogId": "performing-api-security-testing-with-postman",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-api-security-testing-with-postman/SKILL.md",
+        "sha256": "f35c3a67786f12d82a7a1acefd58c94e4c5818ca9c535029a81b63fc2138476e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing API Security Testing with Postman:L35"]
+      },
+      "components": [
+        {"id":"performing-api-security-testing-with-postman::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed API collection, environment, role, request, assertion, scope, authorization, and evidence-manifest fields only.","notProved":["authentication","authorization","injection","data exposure"]},
+        {"id":"performing-api-security-testing-with-postman::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Postman, Newman, ZAP, API endpoints, servers, browsers, sessions, credentials, payloads, and production authorities external.","notProved":["live test execution","vulnerability","security outcome"]},
+        {"id":"performing-api-security-testing-with-postman::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain API security collection design, OWASP review, defensive test planning, and remediation guidance as advisory.","notProved":["coverage","finding validity","remediation effectiveness"]},
+        {"id":"performing-api-security-testing-with-postman::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, API ownership, legal/safety/privacy and data-handling review, role validation, stop conditions, and remediation decisions.","notProved":["authorization","test result","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-arp-spoofing-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-arp-spoofing-attack-simulation/SKILL.md",
+        "sha256": "f77edca33a04dfd4679e5447c24284f9f965c93a22b889dcefdf3c863a70ec1d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing ARP Spoofing Attack Simulation:L30"]
+      },
+      "components": [
+        {"id":"performing-arp-spoofing-attack-simulation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed lab topology, host, MAC, ARP-control, detection, scope, stop-condition, and evidence-manifest fields without packet or interface access.","notProved":["ARP behavior","man-in-the-middle","network detection"]},
+        {"id":"performing-arp-spoofing-attack-simulation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep arpspoof, Ettercap, Scapy, network interfaces, packets, switches, endpoints, and production networks external.","notProved":["packet injection","traffic interception","control effectiveness"]},
+        {"id":"performing-arp-spoofing-attack-simulation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain isolated-lab simulation planning, ARP inspection, network defense, and detection design guidance as advisory.","notProved":["simulation fidelity","detection efficacy","containment"]},
+        {"id":"performing-arp-spoofing-attack-simulation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, network ownership, isolated lab scope, legal/ethics/safety review, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live interception","security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No ATT&CK mapping, lateral movement, C2 operation, access recertification, Active Directory assessment, vulnerability scan, API test, ARP simulation, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}
