@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP01",
+  "batch": "batch-01",
+  "baselineCommit": "4a39957d4",
+  "scope": "Read-only reconciliation of existing CyberSkills validators; no ledger application.",
+  "rules": [
+    {
+      "ruleId": "CYBER-CMD-INJECT.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cmd_injection.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-api-injection-vulnerabilities/SKILL.md",
+        "sha256": "71375285ab29f90c5eb49fa5dafbad97118229ce0a69af6c7c3aeb880462f636",
+        "anchors": ["## When to Use:L39", "## Prerequisites:L49", "## Workflow:L61"]
+      },
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/cmd_injection.json (flag/clean cases), crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cmd_injection",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "The source skill is generic API injection guidance and does not establish the validator's shell sink grammar. Modbus command-injection is a separate protocol family. No source-linked mapping is accepted."
+    },
+    {
+      "ruleId": "CYBER-SSRF.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/web_ssrf.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssrf-vulnerability-exploitation/SKILL.md",
+        "sha256": "254a1436ee357a9a46977835d185a9088c4b8e45fcbaf5031be5e95504b17806",
+        "anchors": ["## Instructions:L46", "## Examples:L63", "### AWS Metadata SSRF:L65"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag source text containing the enumerated cloud metadata endpoint literals recognized by SsrfMetadataValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.ssrf-metadata/{bad/metadata.py,good/safe.py}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/web_ssrf.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_web_ssrf",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove all SSRF, taint propagation, internal-network reachability, DNS rebinding, protocol-handler, or response-confirmation procedures described by the skill."
+    },
+    {
+      "ruleId": "CYBER-PATH-TRAVERSAL.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/path_traversal.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-directory-traversal-testing/SKILL.md",
+        "sha256": "c4c7de462403535b21c246b2194adf2f9a6c40131586dc73ede212a3f718e70f",
+        "anchors": ["### Step 1: Identify File Path Parameters:L50", "## Workflow:L48"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag matched file-operation sinks receiving literal or request-derived traversal paths under the validator's documented line heuristics.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.path-traversal/{bad/traverse.py,good/safe.py}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/path_traversal.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_path_traversal",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove every framework/file API, canonicalization correctness, filesystem authorization, archive traversal, or runtime request flow."
+    },
+    {
+      "ruleId": "CYBER-DESERIALIZE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/insecure_deser.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-insecure-deserialization/SKILL.md",
+        "sha256": "69d0e4c55310acca292fedfec514d40cee564574e8aa03db74cd49b103e9ab28",
+        "anchors": ["## When to Use:L32", "## Workflow:L50", "### Step 5: Test Python Pickle Deserialization:L190"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the unsafe deserialization API patterns enumerated by InsecureDeserializationValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.insecure-deserialization/{bad/deser.py,good/safe.py}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/insecure_deser.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_insecure_deser",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove exploitability, gadget-chain reachability, payload generation, runtime data provenance, or every Java/PHP/.NET/Python/Ruby deserializer."
+    },
+    {
+      "ruleId": "CYBER-SQLI-SOURCE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/sqli_source.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-sql-injection-vulnerabilities/SKILL.md",
+        "sha256": "7f8b8d773ef413c2af08d8993be9fc8e2fafbb98ca45701638ad303c5b370ad6",
+        "anchors": ["## When to Use:L38", "## Prerequisites:L48", "### Step 1: Injection Point Discovery:L58"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the source-to-query concatenation/interpolation patterns explicitly recognized by SqlInjectionSourceValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.sql-injection-source/{bad/vuln.py,good/safe.py}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/sqli_source.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_sqli_source",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove SQL injection exploitability, database-specific semantics, second-order flows, stored procedures, WAF behavior, or complete taint/dataflow coverage."
+    },
+    {
+      "ruleId": "CYBER-SSTI.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/ssti.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-template-injection-vulnerabilities/SKILL.md",
+        "sha256": "0ac2c69f239f602de658cf9bccb431207685397d29f80ea437eb6e7407f9b98f",
+        "anchors": ["## When to Use:L33", "## Prerequisites:L41", "### Step 1: Identify Template Injection Points:L52"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the template-expression/server-side rendering patterns implemented by TemplateInjectionValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/ssti.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_ssti",
+        "cliMcpCi": "existing registry/corpus evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove template-engine identification, expression evaluation, sandbox escape, code execution, or every engine/syntax described by the skill."
+    },
+    {
+      "ruleId": "CYBER-WEAK-CRYPTO.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/weak_crypto.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cryptographic-audit-of-application/SKILL.md",
+        "sha256": "c39ca781b08e121cb8f439090078bacff3cfb629cbe524c40e2de203aa4f86f9",
+        "anchors": ["## Objectives:L70", "### Cryptographic Weakness Categories:L80"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the weak algorithm, cipher-mode, and predictable-randomness patterns explicitly implemented by WeakCryptoValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/weak_crypto.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_weak_crypto",
+        "cliMcpCi": "existing registry/corpus evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove key size/KDF/secret lifecycle correctness, cryptographic strength generally, protocol-level TLS behavior, or every audit objective in the source skill."
+    },
+    {
+      "ruleId": "CYBER-TLS-VERIFY.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/tls_verify.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-security-assessment/SKILL.md",
+        "sha256": "fcb8643d06d506e2c7709a314ebdcced08e3c5b8b5d6a2da04ed734d091dbb48",
+        "anchors": ["### Step 3: Analyze Results:L53", "## Expected Output:L61"]
+      },
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-verify-disabled/{bad/insecure.py,good/secure.py}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/tls_verify.json",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "The source skill requires sslyze-based protocol/certificate/cipher assessment; its stated output does not establish the validator's source-level verify-disabled predicate. Keep this rule unlinked pending a source with an exact bounded invariant."
+    },
+    {
+      "ruleId": "CYBER-CORS.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/web_cors.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-cors-misconfiguration/SKILL.md",
+        "sha256": "f00f0bdea8ad16da64cf736c6925458bc1c32d84aa8bc8cd0ad69572fddff8bd",
+        "anchors": ["## When to Use:L33", "## Prerequisites:L41", "### Step 1: Identify CORS Configuration on Target Endpoints:L52"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag wildcard or null Access-Control-Allow-Origin combined with credential allowance under CorsMisconfigValidator's header-text contract.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cors-misconfig/{bad/wildcard_creds.txt,good/scoped.txt}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/web_cors.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_web_cors",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove origin reflection at runtime, preflight behavior, credential theft, allowlist correctness, or all browser/server deployment configurations."
+    },
+    {
+      "ruleId": "CYBER-AUTH-JWT.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/auth_jwt.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-jwt-token-security/SKILL.md",
+        "sha256": "d7b6b10a9ea2538b0b3cdb2bc4e608ecf84c27d188cbfcb5d2854579653319f9",
+        "anchors": ["## When to Use:L33", "## Prerequisites:L41", "### Step 2: Test Algorithm None Attack:L80"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag JWT none-algorithm use and short literal signing secrets under JwtSecurityValidator's source-text contract.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/auth.jwt-insecure/{bad/none_alg.js,good/verified.js}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/auth_jwt.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_auth_jwt",
+        "cliMcpCi": "existing registry/fixture evidence only; CP01 does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove token forgery, algorithm confusion across key types, kid/jku/x5u injection, authorization semantics, brute-force resistance, or runtime JWT library configuration."
+    }
+  ],
+  "derivedCounts": {
+    "rulesAudited": 10,
+    "acceptedNarrowedPredicate": 8,
+    "unprovedOrRejected": 2,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact is evidence-only and does not alter the 817-row disposition ledger.",
+    "A narrowed predicate is not whole-skill parity.",
+    "CLI, MCP, and CI reachability were not freshly executed in CP01; existing fixture/corpus references are not a new route proof.",
+    "The protected sourceUnavailable identity is outside this batch and remains governance state."
+  ]
+}
