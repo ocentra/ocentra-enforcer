@@ -1128,6 +1128,7 @@ name = "enforcer-literal-scan"
 version = "0.1.0"
 dependencies = [
  "enforcer-domain",
+ "enforcer-syntax",
  "enforcer-validator",
 ]
 
