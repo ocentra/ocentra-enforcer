@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-58",
+  "baselineCommit": "47e72e38dbf4d4951900b165f4786ea50c82bb1f",
+  "family": "Canonical-order mixed identity abuse, insider risk, Kerberos, SIEM and network movement detection skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "detecting-golden-ticket-forgery",
+      "detecting-insider-data-exfiltration-via-dlp",
+      "detecting-insider-threat-behaviors",
+      "detecting-insider-threat-with-ueba",
+      "detecting-kerberoasting-attacks",
+      "detecting-lateral-movement-with-splunk",
+      "detecting-lateral-movement-with-zeek",
+      "detecting-living-off-the-land-attacks",
+      "detecting-living-off-the-land-with-lolbas",
+      "detecting-mimikatz-execution-patterns"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Protected unresolved deletion; permanently excluded from proposal and accepted denominators pending explicit user decision."
+    },
+    "reason": "Deterministic lexicographic next-ten selection after 570 accepted identities, excluding the explicitly protected unresolved deletion by boss boundary. Native work is limited to supplied typed manifests, with live and third-party authority blocked and advisory and manual authority retained."
+  },
+  "accounting": {
+    "acceptedPrior": 570,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 580,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-golden-ticket-forgery",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-golden-ticket-forgery/SKILL.md", "sha256": "be56bbf82485f63782ee970ed28367f962ff75e2c9ed037acd9b9e0bc46a98de", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Golden Ticket Forgery:L38"]},
+      "components": [
+        {"id": "detecting-golden-ticket-forgery::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Kerberos ticket, principal, domain, timestamp, rule, owner, scope, and evidence-manifest fields without creating or replaying tickets.", "notProved": ["golden ticket", "ticket validity", "domain compromise"]},
+        {"id": "detecting-golden-ticket-forgery::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Kerberos, AD, domain controllers, ticket tools, SIEM, endpoints, credentials, and production identity systems external.", "notProved": ["ticket replay", "credential access", "detection efficacy"]},
+        {"id": "detecting-golden-ticket-forgery::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Kerberos monitoring, identity hardening, log review, and response guidance as advisory.", "notProved": ["rule efficacy", "identity protection"]},
+        {"id": "detecting-golden-ticket-forgery::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require domain ownership, written authorization, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-insider-data-exfiltration-via-dlp",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-insider-data-exfiltration-via-dlp/SKILL.md", "sha256": "65b664a335c1f543d5661a01c7613451f45042eb4bb73df41f3f9e569840babf", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Insider Data Exfiltration via DLP:L35"]},
+      "components": [
+        {"id": "detecting-insider-data-exfiltration-via-dlp::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed data, user, channel, policy, destination, event, classification, owner, scope, and evidence-manifest fields without inspecting live content.", "notProved": ["insider activity", "data exfiltration", "DLP finding"]},
+        {"id": "detecting-insider-data-exfiltration-via-dlp::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep DLP platforms, mail, cloud storage, endpoints, proxies, network telemetry, scanners, and production data external.", "notProved": ["live data movement", "policy match", "containment"]},
+        {"id": "detecting-insider-data-exfiltration-via-dlp::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive data classification, DLP policy, privacy, monitoring, and insider-risk guidance as advisory.", "notProved": ["policy efficacy", "user intent"]},
+        {"id": "detecting-insider-data-exfiltration-via-dlp::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require owner authorization, legal/privacy/HR review, data handling, analyst validation, uncertainty, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "exfiltration conclusion", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-insider-threat-behaviors",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-insider-threat-behaviors/SKILL.md", "sha256": "ba33a738c69e4480fe8804a9be833200244045b612741b0b4c429cafdbe38165", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Insider Threat Behaviors:L36"]},
+      "components": [
+        {"id": "detecting-insider-threat-behaviors::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed user, asset, event, behavior, baseline, risk, timestamp, owner, scope, and evidence-manifest fields without monitoring people or endpoints.", "notProved": ["insider threat", "user intent", "behavioral anomaly"]},
+        {"id": "detecting-insider-threat-behaviors::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep UEBA, DLP, HR, IdP, SIEM, EDR, endpoints, networks, and production user telemetry external.", "notProved": ["live behavior", "risk score", "person attribution"]},
+        {"id": "detecting-insider-threat-behaviors::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive insider-risk, privacy, governance, monitoring, and response guidance as advisory.", "notProved": ["model efficacy", "behavioral conclusion"]},
+        {"id": "detecting-insider-threat-behaviors::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, owner and HR/legal review, privacy and data handling, analyst validation, uncertainty, severity, escalation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "user culpability", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-insider-threat-with-ueba",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-insider-threat-with-ueba/SKILL.md", "sha256": "f15f0da5d131622a764020de8140a1f8d76648af4e946ed18c237557407394b6", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Insider Threat with UEBA:L33"]},
+      "components": [
+        {"id": "detecting-insider-threat-with-ueba::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed user, peer baseline, event, feature, risk, model, timestamp, owner, scope, and evidence-manifest fields without running UEBA.", "notProved": ["anomaly score", "insider threat", "user intent"]},
+        {"id": "detecting-insider-threat-with-ueba::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep UEBA, SIEM, DLP, HR, IdP, endpoints, networks, and production behavioral telemetry external.", "notProved": ["model result", "person attribution", "response action"]},
+        {"id": "detecting-insider-threat-with-ueba::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive UEBA, privacy, baseline, investigation, and insider-risk response guidance as advisory.", "notProved": ["model accuracy", "monitoring coverage"]},
+        {"id": "detecting-insider-threat-with-ueba::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, privacy/HR/legal review, data handling, analyst interpretation, uncertainty, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "culpability", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-kerberoasting-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-kerberoasting-attacks/SKILL.md", "sha256": "b0288f7d7ae2bc8e20c20a9e6b4fe7d503e44246c6730672cd7fb933e1273fe0", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Kerberoasting Attacks:L37"]},
+      "components": [
+        {"id": "detecting-kerberoasting-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Kerberos request, service principal, account, timestamp, rule, owner, scope, and evidence-manifest fields without requesting tickets.", "notProved": ["Kerberoasting", "ticket request", "credential cracking"]},
+        {"id": "detecting-kerberoasting-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AD, Kerberos, domain controllers, cracking tools, SIEM, endpoints, credentials, and production identity systems external.", "notProved": ["live ticket activity", "password recovery", "detection efficacy"]},
+        {"id": "detecting-kerberoasting-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive service-account, Kerberos, password, monitoring, and incident-response guidance as advisory.", "notProved": ["hardening efficacy", "account exposure"]},
+        {"id": "detecting-kerberoasting-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require domain ownership, written authorization, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-lateral-movement-with-splunk",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-lateral-movement-with-splunk/SKILL.md", "sha256": "f5312013f759de17a26347374c4f354c8c5b6a3d5c0484d12b6af480fc4bf23b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Lateral Movement with Splunk:L37"]},
+      "components": [
+        {"id": "detecting-lateral-movement-with-splunk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed event, source, destination, account, protocol, rule, timestamp, owner, scope, and evidence-manifest fields without querying Splunk.", "notProved": ["lateral movement", "event correlation", "detection efficacy"]},
+        {"id": "detecting-lateral-movement-with-splunk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Splunk, SIEM, logs, network telemetry, endpoints, credentials, sessions, and production infrastructure external.", "notProved": ["live telemetry", "movement path", "alert generation"]},
+        {"id": "detecting-lateral-movement-with-splunk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM correlation, investigation, tuning, and lateral-movement response guidance as advisory.", "notProved": ["rule efficacy", "monitoring coverage"]},
+        {"id": "detecting-lateral-movement-with-splunk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, data-owner validation, legal/privacy review, analyst interpretation, severity, escalation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "incident truth", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-lateral-movement-with-zeek",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-lateral-movement-with-zeek/SKILL.md", "sha256": "c2d7c7854a43a260353a4574f5ddd459a66b5b580f59f4492a45632586baf2f8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Lateral Movement with Zeek:L34"]},
+      "components": [
+        {"id": "detecting-lateral-movement-with-zeek::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed connection, host, protocol, event, timestamp, rule, owner, scope, and evidence-manifest fields without capturing network traffic.", "notProved": ["network movement", "packet truth", "detection efficacy"]},
+        {"id": "detecting-lateral-movement-with-zeek::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Zeek, packet capture, network taps, sensors, endpoints, credentials, and production networks external.", "notProved": ["live traffic", "movement path", "alert generation"]},
+        {"id": "detecting-lateral-movement-with-zeek::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive network monitoring, Zeek analysis, protocol review, and incident-response guidance as advisory.", "notProved": ["sensor coverage", "rule efficacy"]},
+        {"id": "detecting-lateral-movement-with-zeek::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, network and asset ownership, legal/privacy review, capture and data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "network finding", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-living-off-the-land-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-living-off-the-land-attacks/SKILL.md", "sha256": "54f05bd2f638b6766d0d43e853d2ba8aaaa097c92cf4fc8d105eb6a649de1fc8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Living Off the Land Attacks:L35"]},
+      "components": [
+        {"id": "detecting-living-off-the-land-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed process, binary, command, parent, host, user, rule, timestamp, owner, and evidence-manifest fields without executing commands.", "notProved": ["LOLBin execution", "malware behavior", "endpoint compromise"]},
+        {"id": "detecting-living-off-the-land-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, process monitors, EDR, shells, LOLBins, sandboxes, and production hosts external.", "notProved": ["process execution", "behavior", "detection efficacy"]},
+        {"id": "detecting-living-off-the-land-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive endpoint monitoring, application control, process analysis, and response guidance as advisory.", "notProved": ["control efficacy", "endpoint coverage"]},
+        {"id": "detecting-living-off-the-land-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require host and owner authorization, legal/safety review, process and evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "execution result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-living-off-the-land-with-lolbas",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-living-off-the-land-with-lolbas/SKILL.md", "sha256": "56cc9697e96f09933298804fcb94f5c08be9c7639f36abdf4b2371167380ae1c", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Living Off the Land with LOLBAS:L36"]},
+      "components": [
+        {"id": "detecting-living-off-the-land-with-lolbas::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed LOLBin, path, command, signature, process, host, rule, owner, scope, and evidence-manifest fields without loading or executing binaries.", "notProved": ["LOLBAS use", "execution", "malware behavior"]},
+        {"id": "detecting-living-off-the-land-with-lolbas::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep LOLBAS, Windows processes, EDR, application-control, sandboxes, endpoints, and production hosts external.", "notProved": ["binary execution", "process behavior", "detection efficacy"]},
+        {"id": "detecting-living-off-the-land-with-lolbas::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive LOLBin inventory, application control, signing, monitoring, and response guidance as advisory.", "notProved": ["control efficacy", "binary classification"]},
+        {"id": "detecting-living-off-the-land-with-lolbas::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require host and owner authorization, legal/safety review, sample and evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "execution result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-mimikatz-execution-patterns",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-mimikatz-execution-patterns/SKILL.md", "sha256": "4cc7f7f4b2619da62af68bdbcdfdc4ca3f8a47f2133612008ca4ea07f0d357bc", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Mimikatz Execution Patterns:L37"]},
+      "components": [
+        {"id": "detecting-mimikatz-execution-patterns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed process, binary, command, host, user, credential-risk, rule, owner, and evidence-manifest fields without executing Mimikatz.", "notProved": ["Mimikatz execution", "credential access", "host compromise"]},
+        {"id": "detecting-mimikatz-execution-patterns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Mimikatz, LSASS, memory, endpoints, EDR, process access, AD, credentials, and production hosts external.", "notProved": ["memory access", "credential extraction", "detection efficacy"]},
+        {"id": "detecting-mimikatz-execution-patterns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive credential protection, endpoint monitoring, identity hardening, and response guidance as advisory.", "notProved": ["control efficacy", "endpoint coverage"]},
+        {"id": "detecting-mimikatz-execution-patterns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require host and owner authorization, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live Kerberos, insider-risk, DLP, UEBA, SIEM, Zeek, network, endpoint, credential, or process telemetry is proved.",
+    "No ticket forgery, exfiltration, insider threat, Kerberoasting, lateral movement, credential access, or identity compromise is proved.",
+    "No live LOLBin, LOLBAS, Mimikatz, endpoint execution, network movement, alert, attribution, or detection efficacy is proved.",
+    "No incident, containment, revocation, remediation, recovery, production enforcement, or security outcome is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved."
+  ]
+}
