@@ -396,6 +396,9 @@ fn canonical_projection_keeps_identity_dispositions_separate(
         },
         CanonicalLanguageRouteResponse::SupplementalLiteral {
             literal_name: "nim".to_owned(),
+            detection_matcher: CanonicalDetectionMatcher::Extension {
+                value: "nim".to_owned(),
+            },
         },
         CanonicalLanguageRouteResponse::Unknown,
     ];
@@ -431,8 +434,10 @@ fn canonical_projection_keeps_identity_dispositions_separate(
     ));
     assert!(matches!(
         &response[1],
-        CanonicalLanguageRouteResponse::SupplementalLiteral { literal_name }
-            if literal_name == "nim"
+        CanonicalLanguageRouteResponse::SupplementalLiteral {
+            literal_name,
+            detection_matcher: CanonicalDetectionMatcher::Extension { value: matcher },
+        } if literal_name == "nim" && matcher == "nim"
     ));
     assert!(matches!(
         &response[2],
@@ -448,6 +453,8 @@ fn canonical_projection_keeps_identity_dispositions_separate(
     assert_eq!(wire[0]["structural"]["kind"], "parseFile");
     assert_eq!(wire[0]["capability"]["kind"], "unsupported");
     assert_eq!(wire[1]["kind"], "supplementalLiteral");
+    assert_eq!(wire[1]["detectionMatcher"]["kind"], "extension");
+    assert_eq!(wire[1]["detectionMatcher"]["value"], "nim");
     assert_eq!(wire[2]["kind"], "unknown");
     assert_eq!(
         serde_json::from_value::<Vec<CanonicalLanguageRouteResponse>>(wire)?,

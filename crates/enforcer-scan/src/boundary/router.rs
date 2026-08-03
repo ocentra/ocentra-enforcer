@@ -5,7 +5,8 @@
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::config_types::ResolvedNativeTie;
 use enforcer_domain::language_types::{
-    DetectionMatcher, LanguageId, LiteralDisposition, ScanFamilyDisposition,
+    DetectionMatcher, LanguageId, LiteralDisposition, LiteralProjection,
+    LiteralProjectionDisposition, ScanFamilyDisposition,
 };
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
@@ -369,6 +370,38 @@ fn validate_detection_matcher(
     }
 }
 
+/// Validate supplemental literal evidence against its typed literal row.
+///
+/// Supplemental rows have no parser identity, so validation uses the reviewed
+/// literal name and matcher slice rather than inventing a canonical ID.
+fn validate_supplemental_detection_matcher(
+    literal_name: &str,
+    matcher: &CanonicalDetectionMatcher,
+) -> Result<(), String> {
+    let matchers = enforcer_syntax::registry::literal_projections()
+        .iter()
+        .find_map(|projection| match projection {
+            LiteralProjection::Row(
+                name,
+                LiteralProjectionDisposition::LiteralOnly,
+                _,
+                matchers,
+                _,
+            ) if *name == literal_name => Some(*matchers),
+            _ => None,
+        })
+        .ok_or_else(|| "supplemental literal is absent from the reviewed registry".to_owned())?;
+    if matchers
+        .iter()
+        .copied()
+        .any(|expected| matcher.matches_registry_matcher(expected))
+    {
+        Ok(())
+    } else {
+        Err("detectionMatcher does not match the supplemental literal registry".to_owned())
+    }
+}
+
 /// One identity-preserving result for the opt-in canonical route projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalLanguageRouteResponse {
@@ -393,6 +426,8 @@ pub enum CanonicalLanguageRouteResponse {
     SupplementalLiteral {
         /// Stable supplemental literal identity.
         literal_name: String,
+        /// The selected typed matcher from the supplemental literal row.
+        detection_matcher: CanonicalDetectionMatcher,
     },
     /// No canonical or supplemental matcher applied.
     Unknown,
@@ -422,13 +457,15 @@ enum CanonicalLanguageRouteWire<'a> {
     SupplementalLiteral {
         #[serde(rename = "literalName")]
         literal_name: &'a str,
+        #[serde(rename = "detectionMatcher")]
+        detection_matcher: CanonicalDetectionMatcher,
     },
     #[serde(rename = "unknown")]
     Unknown,
 }
 
 #[derive(serde::Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", deny_unknown_fields, rename_all = "camelCase")]
 enum CanonicalLanguageRouteWireOwned {
     #[serde(rename = "canonical")]
     Canonical {
@@ -451,6 +488,8 @@ enum CanonicalLanguageRouteWireOwned {
     SupplementalLiteral {
         #[serde(rename = "literalName")]
         literal_name: String,
+        #[serde(rename = "detectionMatcher")]
+        detection_matcher: CanonicalDetectionMatcher,
     },
     #[serde(rename = "unknown")]
     Unknown,
@@ -481,9 +520,13 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 scan_family_disposition: scan_family_disposition_for_wire(*language_id)
                     .map_err(serde::ser::Error::custom)?,
             },
-            Self::SupplementalLiteral { literal_name } => {
-                CanonicalLanguageRouteWire::SupplementalLiteral { literal_name }
-            }
+            Self::SupplementalLiteral {
+                literal_name,
+                detection_matcher,
+            } => CanonicalLanguageRouteWire::SupplementalLiteral {
+                literal_name,
+                detection_matcher: detection_matcher.clone(),
+            },
             Self::Unknown => CanonicalLanguageRouteWire::Unknown,
         };
         serde::Serialize::serialize(&wire, serializer)
@@ -539,8 +582,16 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                     detection_matcher,
                 })
             }
-            CanonicalLanguageRouteWireOwned::SupplementalLiteral { literal_name } => {
-                Ok(Self::SupplementalLiteral { literal_name })
+            CanonicalLanguageRouteWireOwned::SupplementalLiteral {
+                literal_name,
+                detection_matcher,
+            } => {
+                validate_supplemental_detection_matcher(&literal_name, &detection_matcher)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(Self::SupplementalLiteral {
+                    literal_name,
+                    detection_matcher,
+                })
             }
             CanonicalLanguageRouteWireOwned::Unknown => Ok(Self::Unknown),
         }

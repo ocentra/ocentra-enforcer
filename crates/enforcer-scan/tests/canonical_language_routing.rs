@@ -236,8 +236,71 @@ fn literal_only_projection_is_supplemental_not_parser_identity() -> Result<(), S
     let routes = detect_language_identities(&[path], UnknownLanguagePolicy::Exclude);
     assert_eq!(
         routes,
-        vec![DetectedLanguageRoute::SupplementalLiteral { name }]
+        vec![DetectedLanguageRoute::SupplementalLiteral {
+            name,
+            matched_by: matcher,
+        }]
     );
+    Ok(())
+}
+
+#[test]
+fn supplemental_literal_wire_preserves_and_validates_matcher_evidence() -> Result<(), String> {
+    let base = serde_json::json!({
+        "kind": "supplementalLiteral",
+        "literalName": "nim",
+        "detectionMatcher": { "kind": "extension", "value": "nim" }
+    });
+    let response = serde_json::from_value::<CanonicalLanguageRouteResponse>(base.clone())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(
+        serde_json::to_value(&response).map_err(|error| error.to_string())?,
+        base
+    );
+
+    let mut missing_matcher = base.clone();
+    let Some(missing_matcher_object) = missing_matcher.as_object_mut() else {
+        return Err("supplemental wire fixture must be an object".to_owned());
+    };
+    missing_matcher_object.remove("detectionMatcher");
+
+    for (invalid, expected) in [
+        (missing_matcher, "detectionMatcher"),
+        (
+            {
+                let mut value = base.clone();
+                value["detectionMatcher"] = serde_json::json!({
+                    "kind": "future",
+                    "value": "nim"
+                });
+                value
+            },
+            "unknown variant",
+        ),
+        (
+            {
+                let mut value = base.clone();
+                value["detectionMatcher"] = serde_json::json!({
+                    "kind": "extension",
+                    "value": "py"
+                });
+                value
+            },
+            "supplemental literal registry",
+        ),
+        (
+            {
+                let mut value = base.clone();
+                value["futureField"] = serde_json::json!(true);
+                value
+            },
+            "unknown field",
+        ),
+    ] {
+        let error = serde_json::from_value::<CanonicalLanguageRouteResponse>(invalid)
+            .expect_err("invalid supplemental matcher evidence must be rejected");
+        assert!(error.to_string().contains(expected), "{error}");
+    }
     Ok(())
 }
 
@@ -766,8 +829,19 @@ fn collision_winner_is_typed_and_not_a_legacy_other_route() -> Result<(), String
         }
         (
             LiteralReference::SupplementalLiteralName(name),
-            [DetectedLanguageRoute::SupplementalLiteral { name: actual }],
-        ) => assert_eq!(name, *actual),
+            [DetectedLanguageRoute::SupplementalLiteral {
+                name: actual,
+                matched_by: actual_matcher,
+            }],
+        ) => {
+            assert_eq!(name, *actual);
+            assert!(matches!(
+                actual_matcher,
+                DetectionMatcher::Extension(_)
+                    | DetectionMatcher::ExactBasename(_)
+                    | DetectionMatcher::CompoundSuffix(_)
+            ));
+        }
         (expected, actual) => {
             return Err(format!(
                 "collision winner {expected:?} routed as {actual:?}"

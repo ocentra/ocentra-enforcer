@@ -2396,7 +2396,7 @@ fn reset_runs(args: &serde_json::Value) -> serde_json::Value {
 /// use; this boundary only validates the wire scope and projects the result.
 fn canonical_language_route_responses(
     routes: &[enforcer_scan::router::identity::DetectedLanguageRoute],
-) -> Vec<enforcer_scan::boundary::router::CanonicalLanguageRouteResponse> {
+) -> Result<Vec<enforcer_scan::boundary::router::CanonicalLanguageRouteResponse>, String> {
     routes
         .iter()
         .map(|route| match route {
@@ -2417,27 +2417,33 @@ fn canonical_language_route_responses(
                         enforcer_scan::boundary::router::CanonicalCapabilityDisposition::NotApplicable
                     }
                 };
-                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Canonical {
+                let Some(matched_by) = canonical.matched_by() else {
+                    return Err(
+                        "detected canonical route must retain its selected matcher".to_owned()
+                    );
+                };
+                Ok(enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Canonical {
                     language_id: canonical.id().as_nonzero_u16().get(),
                     canonical_name: canonical.canonical_name().to_string(),
                     structural,
                     literal_disposition: canonical.literal_disposition().into(),
                     capability,
                     consumer_capabilities: canonical.consumer_capabilities().into(),
-                    detection_matcher: canonical
-                        .matched_by()
-                        .map(Into::into)
-                        .expect("detected canonical route must retain its selected matcher"),
-                }
+                    detection_matcher: matched_by.into(),
+                })
             }
             enforcer_scan::router::identity::DetectedLanguageRoute::SupplementalLiteral {
                 name,
-            } => enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::SupplementalLiteral {
-                literal_name: (*name).to_owned(),
-            },
-            enforcer_scan::router::identity::DetectedLanguageRoute::Unknown => {
-                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Unknown
-            }
+                matched_by,
+            } => Ok(
+                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::SupplementalLiteral {
+                    literal_name: (*name).to_owned(),
+                    detection_matcher: (*matched_by).into(),
+                },
+            ),
+            enforcer_scan::router::identity::DetectedLanguageRoute::Unknown => Ok(
+                enforcer_scan::boundary::router::CanonicalLanguageRouteResponse::Unknown,
+            ),
         })
         .collect()
 }
@@ -2538,7 +2544,9 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
             &scope,
             enforcer_scan::router::identity::UnknownLanguagePolicy::Include,
         );
-        let projection = canonical_language_route_responses(&routes);
+        let Ok(projection) = canonical_language_route_responses(&routes) else {
+            return json_error("canonical language route lost typed matcher evidence");
+        };
         let Ok(projection) = serde_json::to_value(projection) else {
             return json_error("failed to encode canonical language projection");
         };
