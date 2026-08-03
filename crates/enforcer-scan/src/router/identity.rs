@@ -5,7 +5,7 @@
 //! native-tool values remain typed projections only and do not claim execution
 //! or scan success.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -175,6 +175,7 @@ pub struct CanonicalLanguageRoute {
     capability: RouteCapabilityDisposition,
     scan_family_disposition: ScanFamilyDisposition,
     consumer_capabilities: CanonicalConsumerCapabilities,
+    matched_by: Option<DetectionMatcher>,
 }
 
 impl CanonicalLanguageRoute {
@@ -219,6 +220,14 @@ impl CanonicalLanguageRoute {
     pub const fn consumer_capabilities(&self) -> CanonicalConsumerCapabilities {
         self.consumer_capabilities
     }
+
+    /// Return the typed matcher that produced this route, when the route came
+    /// from path detection. Registry-only projections intentionally have no
+    /// path evidence.
+    #[must_use]
+    pub const fn matched_by(&self) -> Option<DetectionMatcher> {
+        self.matched_by
+    }
 }
 
 /// One identity-preserving result from canonical path detection.
@@ -241,30 +250,40 @@ pub fn detect_language_identities(
     paths: &[RelPath],
     unknown_policy: UnknownLanguagePolicy,
 ) -> Vec<DetectedLanguageRoute> {
-    let mut canonical = BTreeSet::new();
+    let mut canonical = BTreeMap::new();
     let mut supplemental = BTreeSet::new();
     let mut found_unknown = false;
 
     for path in paths {
         match matched_reference(path) {
-            Some(LiteralReference::ParserId(id)) => {
-                canonical.insert(id);
+            Some((LiteralReference::ParserId(id), matcher)) => {
+                canonical
+                    .entry(id)
+                    .and_modify(|incumbent| {
+                        if matches!(
+                            compare_evidence_matchers(matcher, *incumbent),
+                            MatcherSelection::Replace
+                        ) {
+                            *incumbent = matcher;
+                        }
+                    })
+                    .or_insert(matcher);
             }
-            Some(LiteralReference::SupplementalLiteralName(name)) => {
+            Some((LiteralReference::SupplementalLiteralName(name), _)) => {
                 supplemental.insert(name);
             }
-            Some(LiteralReference::Fallback) | None
+            Some((LiteralReference::Fallback, _)) | None
                 if unknown_policy == UnknownLanguagePolicy::Include =>
             {
                 found_unknown = true;
             }
-            Some(LiteralReference::Fallback) | None => {}
+            Some((LiteralReference::Fallback, _)) | None => {}
         }
     }
 
     let mut routes = canonical
         .into_iter()
-        .filter_map(canonical_route)
+        .filter_map(|(id, matcher)| canonical_route_with_match(id, Some(matcher)))
         .map(DetectedLanguageRoute::Canonical)
         .collect::<Vec<_>>();
     routes.extend(
@@ -279,6 +298,13 @@ pub fn detect_language_identities(
 }
 
 fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
+    canonical_route_with_match(id, None)
+}
+
+fn canonical_route_with_match(
+    id: LanguageId,
+    matched_by: Option<DetectionMatcher>,
+) -> Option<CanonicalLanguageRoute> {
     let record = language_registry()
         .iter()
         .find(|record| record.id() == id)?;
@@ -294,6 +320,7 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
         capability,
         scan_family_disposition: scan_family_disposition(record.matchers()),
         consumer_capabilities: consumer_capabilities_for_matchers(record.matchers()),
+        matched_by,
     })
 }
 
@@ -409,7 +436,7 @@ fn scan_family_for_matcher(
     }
 }
 
-fn matched_reference(path: &RelPath) -> Option<LiteralReference> {
+fn matched_reference(path: &RelPath) -> Option<(LiteralReference, DetectionMatcher)> {
     for kind in detection_precedence().ordered_kinds() {
         let mut best: Option<(DetectionMatcher, LiteralReference)> = None;
 
@@ -466,8 +493,8 @@ fn matched_reference(path: &RelPath) -> Option<LiteralReference> {
             }
         }
 
-        if let Some((_, reference)) = best {
-            return Some(reference);
+        if let Some((matcher, reference)) = best {
+            return Some((reference, matcher));
         }
     }
     None
@@ -517,6 +544,62 @@ fn compare_matchers(candidate: DetectionMatcher, incumbent: DetectionMatcher) ->
             }
         }
         _ => MatcherSelection::Keep,
+    }
+}
+
+fn compare_evidence_matchers(
+    candidate: DetectionMatcher,
+    incumbent: DetectionMatcher,
+) -> MatcherSelection {
+    let precedence = detection_precedence().ordered_kinds();
+    let candidate_kind = matcher_kind(candidate);
+    let incumbent_kind = matcher_kind(incumbent);
+    let candidate_rank = precedence
+        .iter()
+        .position(|kind| *kind == candidate_kind)
+        .unwrap_or(precedence.len());
+    let incumbent_rank = precedence
+        .iter()
+        .position(|kind| *kind == incumbent_kind)
+        .unwrap_or(precedence.len());
+    if candidate_rank != incumbent_rank {
+        return if candidate_rank < incumbent_rank {
+            MatcherSelection::Replace
+        } else {
+            MatcherSelection::Keep
+        };
+    }
+    if let (
+        DetectionMatcher::CompoundSuffix(candidate),
+        DetectionMatcher::CompoundSuffix(incumbent),
+    ) = (candidate, incumbent)
+    {
+        return if candidate.len() != incumbent.len() {
+            if candidate.len() > incumbent.len() {
+                MatcherSelection::Replace
+            } else {
+                MatcherSelection::Keep
+            }
+        } else if candidate < incumbent {
+            MatcherSelection::Replace
+        } else {
+            MatcherSelection::Keep
+        };
+    }
+    let candidate_key = matcher_value(candidate);
+    let incumbent_key = matcher_value(incumbent);
+    if candidate_key < incumbent_key {
+        MatcherSelection::Replace
+    } else {
+        MatcherSelection::Keep
+    }
+}
+
+fn matcher_value(matcher: DetectionMatcher) -> &'static str {
+    match matcher {
+        DetectionMatcher::Extension(value)
+        | DetectionMatcher::ExactBasename(value)
+        | DetectionMatcher::CompoundSuffix(value) => value,
     }
 }
 
