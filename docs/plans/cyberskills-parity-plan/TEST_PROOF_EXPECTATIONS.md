@@ -4,7 +4,7 @@
 
 | Workpack | Required proof | Required gates | State |
 |---|---|---|---|
-| CP00 | 817 identities reconcile as 816 readable + one `sourceUnavailable` tracked blob `df48fa4149dd25956e730443d3582693a3f825a8`; unavailable cannot increase coverage; schema rejects missing/duplicate/malformed components | disposition focused test; plan test; enforcer-rules test; diff checks | PENDING |
+| CP00 | v3 verified projection reconciles 817 rows as 816 available + one protected `sourceUnavailable` tracked blob `df48fa4149dd25956e730443d3582693a3f825a8`; CP08 evidence derives 3,206 components as 758 complete + 58 partial; implementation and executable-proof coverage remain independent; schema rejects missing/duplicate/malformed components and correction-chain drift; this row records evidence/schema only | disposition focused test; plan test; enforcer-rules test; diff checks | PENDING |
 | CP01 | every accepted existing mapping has fingerprint, anchors, precise predicate, fail/pass evidence, and `notProved` | rule registry + relevant rule tests; disposition gate | PENDING |
 | CP02 | accepted UL02 ownership and UL03 extraction evidence; CyberSkills consumes the shared interface with no parser/grammar ownership or duplication | consumer adoption test; dependency-policy; clippy/fmt | PENDING |
 | CP03 | accepted UL04 fact capability evidence; required facts and unsupported/invalid/resource-limit outcomes are visible to CyberSkills consumers | consumer contract tests; parser parity; mutation-risk | PENDING |
