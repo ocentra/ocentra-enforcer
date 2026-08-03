@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-57",
+  "baselineCommit": "e1ad75654411e9d1c375815725573094ea6eb824",
+  "family": "Canonical-order mixed cloud credential and threat detection, identity defense, social engineering, malware execution, and incident-response skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "detecting-aws-credential-exposure-with-trufflehog",
+      "detecting-aws-guardduty-findings-automation",
+      "detecting-azure-lateral-movement",
+      "detecting-azure-storage-account-misconfigurations",
+      "detecting-bluetooth-low-energy-attacks",
+      "detecting-business-email-compromise-with-ai",
+      "detecting-credential-dumping-techniques",
+      "detecting-deepfake-audio-in-vishing-attacks",
+      "detecting-dll-sideloading-attacks",
+      "detecting-golden-ticket-attacks-in-kerberos-logs"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Protected unresolved deletion; excluded from the available denominator and from proposal and acceptance accounting."
+    },
+    "reason": "Deterministic lexicographic next-ten selection after 560 accepted identities, excluding the explicitly protected unresolved deletion by boss boundary. Native work is limited to supplied typed manifests, with live and third-party authority blocked and advisory and manual authority retained."
+  },
+  "accounting": {
+    "acceptedPrior": 560,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 570,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-aws-credential-exposure-with-trufflehog",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-credential-exposure-with-trufflehog/SKILL.md", "sha256": "d6555caec5051b4553032c3e7f548afb96562163f775eab0b1876829f098e28e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting AWS Credential Exposure with TruffleHog:L58"]},
+      "components": [
+        {"id": "detecting-aws-credential-exposure-with-trufflehog::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed secret, repository, artifact, source, owner, scope, scan-request, severity, remediation, and evidence-manifest fields without scanning or exposing credentials.", "notProved": ["secret presence", "credential validity", "credential exposure"]},
+        {"id": "detecting-aws-credential-exposure-with-trufflehog::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep TruffleHog, secret scanners, repositories, cloud APIs, AWS, endpoints, and production credentials external.", "notProved": ["secret scan result", "credential access", "remediation status"]},
+        {"id": "detecting-aws-credential-exposure-with-trufflehog::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive secret-handling, rotation, repository hygiene, and incident-response guidance as advisory.", "notProved": ["rotation efficacy", "exposure assessment"]},
+        {"id": "detecting-aws-credential-exposure-with-trufflehog::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository and owner validation, legal/privacy review, credential and data handling, analyst validation, severity, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-aws-guardduty-findings-automation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-guardduty-findings-automation/SKILL.md", "sha256": "e29b85e458225b44b1692e965a016d28a323f4c8ff6b15b5a8807ff719c45890", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting AWS GuardDuty Findings Automation:L33"]},
+      "components": [
+        {"id": "detecting-aws-guardduty-findings-automation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed AWS account, finding, event, rule, severity, owner, scope, workflow, and evidence-manifest fields without querying GuardDuty.", "notProved": ["finding truth", "cloud compromise", "automated response"]},
+        {"id": "detecting-aws-guardduty-findings-automation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep GuardDuty, CloudTrail, AWS APIs, Lambda, SIEM, endpoints, and production cloud accounts external.", "notProved": ["live telemetry", "finding generation", "response execution"]},
+        {"id": "detecting-aws-guardduty-findings-automation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive cloud detection, finding triage, automation safety, and response guidance as advisory.", "notProved": ["detection efficacy", "automation readiness"]},
+        {"id": "detecting-aws-guardduty-findings-automation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant authorization, account ownership, legal/privacy/safety review, data handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["authorization", "incident truth", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-azure-lateral-movement",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-azure-lateral-movement/SKILL.md", "sha256": "5c63cabc3852a064799de6e662b70e93d46fbbcdb22bc6de611922d5c3745436", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Azure Lateral Movement:L33"]},
+      "components": [
+        {"id": "detecting-azure-lateral-movement::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Azure identity, host, event, route, relationship, risk, scope, owner, and evidence-manifest fields without enumerating cloud resources.", "notProved": ["lateral movement", "cloud access", "identity compromise"]},
+        {"id": "detecting-azure-lateral-movement::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Azure, Entra ID, Activity Logs, Defender, CloudTrail-equivalents, endpoints, sessions, and production tenants external.", "notProved": ["live activity", "movement path", "detection result"]},
+        {"id": "detecting-azure-lateral-movement::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive cloud identity monitoring, lateral-movement analysis, and hardening guidance as advisory.", "notProved": ["monitoring coverage", "mitigation efficacy"]},
+        {"id": "detecting-azure-lateral-movement::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and asset ownership, written authorization, legal/privacy/safety review, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-azure-storage-account-misconfigurations",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-azure-storage-account-misconfigurations/SKILL.md", "sha256": "729b5c8e2a58e858fa2f574568453854c73466e01bd566dfc468a1e8aaafe830", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Azure Storage Account Misconfigurations:L41"]},
+      "components": [
+        {"id": "detecting-azure-storage-account-misconfigurations::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed storage account, access, network, encryption, ownership, policy, exception, and evidence-manifest fields without querying Azure.", "notProved": ["storage exposure", "configuration truth", "data access"]},
+        {"id": "detecting-azure-storage-account-misconfigurations::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Azure APIs, storage services, CSPM, scanners, IAM, networks, and production data external.", "notProved": ["live configuration", "public access", "security finding"]},
+        {"id": "detecting-azure-storage-account-misconfigurations::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive storage-hardening, access-control, encryption, and cloud-governance guidance as advisory.", "notProved": ["hardening efficacy", "data protection"]},
+        {"id": "detecting-azure-storage-account-misconfigurations::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant and data-owner authorization, legal/privacy review, data handling, analyst validation, severity, exception, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "exposure", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-bluetooth-low-energy-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-bluetooth-low-energy-attacks/SKILL.md", "sha256": "c0a68882c562c82189383216e49efbc267bc7e59ed06eb15da8d0bf4dae9183b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Bluetooth Low Energy Attacks:L37"]},
+      "components": [
+        {"id": "detecting-bluetooth-low-energy-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed BLE device, pairing, advertisement, protocol, timestamp, scope, owner, risk, and evidence-manifest fields without radio capture.", "notProved": ["BLE attack", "device compromise", "wireless detection"]},
+        {"id": "detecting-bluetooth-low-energy-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep BLE interfaces, radios, packet capture, sniffers, mobile devices, endpoints, and wireless networks external.", "notProved": ["wireless traffic", "attack execution", "detection efficacy"]},
+        {"id": "detecting-bluetooth-low-energy-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive BLE security, pairing, monitoring, and safe assessment guidance as advisory.", "notProved": ["device safety", "wireless coverage"]},
+        {"id": "detecting-bluetooth-low-energy-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require device ownership, written authorization, legal/privacy/safety review, radio and data handling, stop conditions, analyst validation, severity, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "attack result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-business-email-compromise-with-ai",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-business-email-compromise-with-ai/SKILL.md", "sha256": "6ea9aafc78f3b65442b562cc1da41fe518d2c46ed9d4057ef20039b2886e3380", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Business Email Compromise with AI:L80"]},
+      "components": [
+        {"id": "detecting-business-email-compromise-with-ai::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed email, sender, recipient, header, message, rule, model-input, confidence, owner, scope, and evidence-manifest fields without accessing mailboxes.", "notProved": ["BEC", "message authenticity", "AI accuracy"]},
+        {"id": "detecting-business-email-compromise-with-ai::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep mail systems, IdPs, AI/LLM services, threat intelligence, SIEM, endpoints, and live communications external.", "notProved": ["mailbox truth", "AI classification", "fraud detection"]},
+        {"id": "detecting-business-email-compromise-with-ai::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive BEC awareness, email analysis, human verification, and fraud-response guidance as advisory.", "notProved": ["model quality", "business protection"]},
+        {"id": "detecting-business-email-compromise-with-ai::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, mailbox and owner validation, legal/privacy review, data handling, analyst validation, uncertainty, escalation, payment containment, remediation, and disclosure decisions.", "notProved": ["authorization", "fraud conclusion", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-credential-dumping-techniques",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-credential-dumping-techniques/SKILL.md", "sha256": "e57160357b3abd3edeeba651ed6060df44aeb8eee134f7eb48a650415f62c683", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Credential Dumping Techniques:L64"]},
+      "components": [
+        {"id": "detecting-credential-dumping-techniques::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed process, artifact, credential-risk, host, event, rule, owner, scope, and evidence-manifest fields without inspecting memory or credentials.", "notProved": ["credential dumping", "credential recovery", "host compromise"]},
+        {"id": "detecting-credential-dumping-techniques::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep credential tools, LSASS, memory, endpoints, EDR, process access, domain services, and production hosts external.", "notProved": ["memory access", "credential extraction", "detection efficacy"]},
+        {"id": "detecting-credential-dumping-techniques::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive credential protection, endpoint monitoring, identity hardening, and response guidance as advisory.", "notProved": ["control efficacy", "endpoint coverage"]},
+        {"id": "detecting-credential-dumping-techniques::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require host and owner authorization, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-deepfake-audio-in-vishing-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-deepfake-audio-in-vishing-attacks/SKILL.md", "sha256": "cccaaf10656f99b318ea31e176bbc1dd4170efd4bd1d0fea41915355dc55419e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Deepfake Audio in Vishing Attacks:L80"]},
+      "components": [
+        {"id": "detecting-deepfake-audio-in-vishing-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed call, audio, speaker, consent, provenance, timestamp, model, confidence, owner, scope, and evidence-manifest fields without capturing or generating audio.", "notProved": ["deepfake", "speaker identity", "vishing success"]},
+        {"id": "detecting-deepfake-audio-in-vishing-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep telephony, voice models, AI services, call recording, live social channels, endpoints, and communication systems external.", "notProved": ["audio classification", "call outcome", "fraud detection"]},
+        {"id": "detecting-deepfake-audio-in-vishing-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive vishing awareness, verification, privacy, and social-engineering response guidance as advisory.", "notProved": ["model accuracy", "susceptibility"]},
+        {"id": "detecting-deepfake-audio-in-vishing-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, consent, legal/privacy/ethics review, recording and data handling, analyst validation, escalation, payment containment, remediation, and disclosure decisions.", "notProved": ["authorization", "identity conclusion", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-dll-sideloading-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-dll-sideloading-attacks/SKILL.md", "sha256": "9d54193c34a0629c0bd649b8e039eeaaae72145ae18e5eeebae474ab94a25cbe", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting DLL Sideloading Attacks:L37"]},
+      "components": [
+        {"id": "detecting-dll-sideloading-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed executable, DLL, path, signature, hash, dependency, process, owner, scope, and evidence-manifest fields without loading binaries.", "notProved": ["sideloading", "execution", "malware behavior"]},
+        {"id": "detecting-dll-sideloading-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Windows loaders, processes, endpoints, EDR, sandboxes, malware samples, and production hosts external.", "notProved": ["binary execution", "process behavior", "detection efficacy"]},
+        {"id": "detecting-dll-sideloading-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive binary-signing, dependency, endpoint-monitoring, and safe malware-analysis guidance as advisory.", "notProved": ["signature validity", "endpoint coverage"]},
+        {"id": "detecting-dll-sideloading-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require host and owner authorization, legal/safety review, sample and evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "execution result", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "detecting-golden-ticket-attacks-in-kerberos-logs",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-golden-ticket-attacks-in-kerberos-logs/SKILL.md", "sha256": "0e3ba0fd0c9b81d61a8845a38d8efc915b9d001939d08b992f05446fe21342bd", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Golden Ticket Attacks in Kerberos Logs:L31"]},
+      "components": [
+        {"id": "detecting-golden-ticket-attacks-in-kerberos-logs::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Kerberos event, principal, ticket, timestamp, rule, source, owner, scope, and evidence-manifest fields without querying domain logs.", "notProved": ["golden ticket", "ticket validity", "domain compromise"]},
+        {"id": "detecting-golden-ticket-attacks-in-kerberos-logs::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep domain controllers, Kerberos, AD, SIEM, log collectors, endpoints, credentials, and production identity systems external.", "notProved": ["live log truth", "ticket replay", "detection efficacy"]},
+        {"id": "detecting-golden-ticket-attacks-in-kerberos-logs::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Kerberos monitoring, identity hardening, log review, and incident-response guidance as advisory.", "notProved": ["rule efficacy", "identity protection"]},
+        {"id": "detecting-golden-ticket-attacks-in-kerberos-logs::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require domain ownership, written authorization, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "credential compromise", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live cloud, identity, BLE, email, credential, malware, Kerberos, or endpoint telemetry is proved.",
+    "No credential exposure, GuardDuty finding, Azure movement, storage exposure, authentication compromise, or ticket attack is proved.",
+    "No BEC, AI classification, deepfake, vishing, DLL execution, malware behavior, or detection efficacy is proved.",
+    "No incident, attribution, remediation, containment, revocation, recovery, or production security outcome is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved."
+  ]
+}
