@@ -124,6 +124,57 @@ pub enum CanonicalScanFamily {
     YamlOrConfig,
 }
 
+/// Consumer projection state for which no canonical-identity mapping is proved.
+///
+/// `Unsupported` describes this projection packet only; legacy coarse routes
+/// may still map the same repository to a capability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalConsumerDisposition {
+    /// No canonical-identity projection is mechanically proved.
+    #[serde(rename = "unsupported")]
+    Unsupported,
+    /// The consumer question does not apply to this projection.
+    #[serde(rename = "notApplicable")]
+    NotApplicable,
+}
+
+/// Typed consumer-capability values attached to the opt-in canonical route.
+///
+/// The native-scan field reuses the exact current scan-family mapping. The
+/// remaining fields are explicit negative dispositions because their current
+/// consumers have no canonical-identity mapping seam.
+/// ROUNDTRIP-TEST: `tests/canonical_language_routing.rs::scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_dispositions`
+/// proves this nested response DTO serializes and deserializes without loss.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct CanonicalConsumerCapabilityProjectionResponse {
+    /// Current native-scan family projection, if mechanically mapped.
+    pub native_scan: CanonicalScanFamilyDisposition,
+    /// Canonical-identity native-tool projection state.
+    pub native_tool: CanonicalConsumerDisposition,
+    /// Canonical-identity rule-pack projection state.
+    pub rule_packs: CanonicalConsumerDisposition,
+    /// Canonical-identity CLI projection state.
+    pub cli: CanonicalConsumerDisposition,
+    /// Canonical-identity UI projection state.
+    pub ui: CanonicalConsumerDisposition,
+}
+
+impl From<crate::router::identity::CanonicalConsumerCapabilities>
+    for CanonicalConsumerCapabilityProjectionResponse
+{
+    fn from(value: crate::router::identity::CanonicalConsumerCapabilities) -> Self {
+        Self {
+            native_scan: scan_family_to_wire(value.native_scan()),
+            native_tool: consumer_disposition_to_wire(value.native_tool()),
+            rule_packs: consumer_disposition_to_wire(value.rule_packs()),
+            cli: consumer_disposition_to_wire(value.cli()),
+            ui: consumer_disposition_to_wire(value.ui()),
+        }
+    }
+}
+
 /// One identity-preserving result for the opt-in canonical route projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalLanguageRouteResponse {
@@ -137,6 +188,8 @@ pub enum CanonicalLanguageRouteResponse {
         structural: CanonicalStructuralDisposition,
         /// Capability state proved by this packet.
         capability: CanonicalCapabilityDisposition,
+        /// Typed consumer capability states for this canonical identity.
+        consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
     },
     /// A named literal projection without a canonical parser identity.
     SupplementalLiteral {
@@ -160,6 +213,8 @@ enum CanonicalLanguageRouteWire<'a> {
         capability: CanonicalCapabilityDisposition,
         #[serde(rename = "scanFamilyDisposition")]
         scan_family_disposition: CanonicalScanFamilyDisposition,
+        #[serde(rename = "consumerCapabilities")]
+        consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
     },
     #[serde(rename = "supplementalLiteral")]
     SupplementalLiteral {
@@ -183,6 +238,8 @@ enum CanonicalLanguageRouteWireOwned {
         capability: CanonicalCapabilityDisposition,
         #[serde(rename = "scanFamilyDisposition")]
         scan_family_disposition: CanonicalScanFamilyDisposition,
+        #[serde(rename = "consumerCapabilities")]
+        consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse,
     },
     #[serde(rename = "supplementalLiteral")]
     SupplementalLiteral {
@@ -204,11 +261,13 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 canonical_name,
                 structural,
                 capability,
+                consumer_capabilities,
             } => CanonicalLanguageRouteWire::Canonical {
                 language_id: *language_id,
                 canonical_name,
                 structural: *structural,
                 capability: *capability,
+                consumer_capabilities: *consumer_capabilities,
                 scan_family_disposition: scan_family_disposition_for_wire(*language_id)
                     .map_err(serde::ser::Error::custom)?,
             },
@@ -233,6 +292,7 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                 structural,
                 capability,
                 scan_family_disposition,
+                consumer_capabilities,
             } => {
                 let expected = scan_family_disposition_for_wire(language_id)
                     .map_err(serde::de::Error::custom)?;
@@ -241,11 +301,19 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                         "scanFamilyDisposition does not match the canonical registry",
                     ));
                 }
+                let expected_consumers = consumer_capabilities_for_wire(language_id)
+                    .map_err(serde::de::Error::custom)?;
+                if consumer_capabilities != expected_consumers {
+                    return Err(serde::de::Error::custom(
+                        "consumerCapabilities does not match the canonical registry",
+                    ));
+                }
                 Ok(Self::Canonical {
                     language_id,
                     canonical_name,
                     structural,
                     capability,
+                    consumer_capabilities,
                 })
             }
             CanonicalLanguageRouteWireOwned::SupplementalLiteral { literal_name } => {
@@ -265,7 +333,23 @@ fn scan_family_disposition_for_wire(
         .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
     let disposition = crate::router::identity::canonical_scan_family_disposition(id)
         .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
-    Ok(match disposition {
+    Ok(scan_family_to_wire(disposition))
+}
+
+fn consumer_capabilities_for_wire(
+    language_id: u16,
+) -> Result<CanonicalConsumerCapabilityProjectionResponse, String> {
+    let nonzero = std::num::NonZeroU16::new(language_id)
+        .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
+    let id = LanguageId::try_from_registry_index(nonzero)
+        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+    crate::router::identity::canonical_consumer_capabilities(id)
+        .map(Into::into)
+        .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())
+}
+
+fn scan_family_to_wire(disposition: ScanFamilyDisposition) -> CanonicalScanFamilyDisposition {
+    match disposition {
         ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Rust) => {
             CanonicalScanFamilyDisposition::Mapped {
                 family: CanonicalScanFamily::Rust,
@@ -294,5 +378,18 @@ fn scan_family_disposition_for_wire(
         ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Unknown)
         | ScanFamilyDisposition::Unsupported => CanonicalScanFamilyDisposition::Unsupported,
         ScanFamilyDisposition::NotApplicable => CanonicalScanFamilyDisposition::NotApplicable,
-    })
+    }
+}
+
+fn consumer_disposition_to_wire(
+    disposition: crate::router::identity::ConsumerCapabilityState,
+) -> CanonicalConsumerDisposition {
+    match disposition {
+        crate::router::identity::ConsumerCapabilityState::Unsupported => {
+            CanonicalConsumerDisposition::Unsupported
+        }
+        crate::router::identity::ConsumerCapabilityState::NotApplicable => {
+            CanonicalConsumerDisposition::NotApplicable
+        }
+    }
 }
