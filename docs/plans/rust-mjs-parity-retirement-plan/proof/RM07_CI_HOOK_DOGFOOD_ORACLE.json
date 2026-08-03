@@ -20,6 +20,7 @@
   },
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
     "observedAtCandidateSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
     "materializationBaseSha": "ae08f1a30f74db8949ac395c0109490c43cfc517",
     "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
