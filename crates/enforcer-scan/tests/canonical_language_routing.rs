@@ -2,10 +2,12 @@
 
 use enforcer_domain::language_types::{
     DetectionMatcher, DetectionMatcherKind, LiteralDisposition, LiteralProjection,
-    LiteralProjectionDisposition, LiteralReference, StructuralLanguageSupport,
+    LiteralProjectionDisposition, LiteralReference, ScanFamilyDisposition,
+    StructuralLanguageSupport,
 };
 use enforcer_domain::paths::RelPath;
-use enforcer_domain::scan_types::RouteScope;
+use enforcer_domain::scan_types::{LanguageFamily, RouteScope};
+use enforcer_scan::boundary::router::CanonicalLanguageRouteResponse;
 use enforcer_scan::router::identity::{
     detect_language_identities, DetectedLanguageRoute, RouteCapabilityDisposition,
     UnknownLanguagePolicy,
@@ -226,6 +228,82 @@ fn recognized_structural_identity_is_explicitly_unsupported_in_p1b() -> Result<(
     };
     assert_eq!(route.id(), record.id());
     assert_eq!(route.capability(), RouteCapabilityDisposition::Unsupported);
+    Ok(())
+}
+
+#[test]
+fn scan_family_projection_is_separate_from_structural_and_literal_support() -> Result<(), String> {
+    for (path, expected) in [
+        (
+            "src/lib.rs",
+            ScanFamilyDisposition::Mapped(LanguageFamily::Rust),
+        ),
+        (
+            "web/index.js",
+            ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript),
+        ),
+        (
+            "config/settings.yaml",
+            ScanFamilyDisposition::Mapped(LanguageFamily::YamlOrConfig),
+        ),
+    ] {
+        let routes = detect_language_identities(&[rel(path)?], UnknownLanguagePolicy::Exclude);
+        let [DetectedLanguageRoute::Canonical(route)] = routes.as_slice() else {
+            return Err(format!(
+                "expected one canonical route for {path}: {routes:?}"
+            ));
+        };
+        assert_eq!(route.scan_family_disposition(), expected);
+        assert_eq!(route.capability(), RouteCapabilityDisposition::Unsupported);
+    }
+    Ok(())
+}
+
+#[test]
+fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_dispositions(
+) -> Result<(), String> {
+    let base = serde_json::json!({
+        "kind": "canonical",
+        "languageId": 1,
+        "canonicalName": "Rust",
+        "structural": { "kind": "parseFile" },
+        "capability": { "kind": "unsupported" },
+        "scanFamilyDisposition": { "kind": "mapped", "family": { "kind": "rust" } }
+    });
+
+    let mut missing = base.clone();
+    let Some(missing_object) = missing.as_object_mut() else {
+        return Err("canonical wire fixture must be an object".to_owned());
+    };
+    missing_object.remove("scanFamilyDisposition");
+    let missing_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(missing)
+        .expect_err("missing disposition must be rejected");
+    assert!(missing_error.to_string().contains("scanFamilyDisposition"));
+
+    let mut unknown = base.clone();
+    unknown["scanFamilyDisposition"] = serde_json::json!({ "kind": "future" });
+    let unknown_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown)
+        .expect_err("unknown disposition must be rejected");
+    assert!(unknown_error.to_string().contains("unknown variant"));
+
+    let mut mismatched = base.clone();
+    mismatched["scanFamilyDisposition"] =
+        serde_json::json!({ "kind": "mapped", "family": { "kind": "python" } });
+    let mismatch_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched)
+        .expect_err("mismatched disposition must be rejected");
+    assert!(mismatch_error
+        .to_string()
+        .contains("does not match the canonical registry"));
+
+    let duplicate = r#"{
+        "kind":"canonical","languageId":1,"canonicalName":"Rust",
+        "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
+        "scanFamilyDisposition":{"kind":"unsupported"}
+    }"#;
+    let duplicate_error = serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate)
+        .expect_err("duplicate disposition must be rejected");
+    assert!(duplicate_error.to_string().contains("duplicate field"));
     Ok(())
 }
 

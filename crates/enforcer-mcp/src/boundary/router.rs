@@ -4551,6 +4551,8 @@ mod tests {
                 && item["canonicalName"] == "Rust"
                 && item["structural"]["kind"] == "parseFile"
                 && item["capability"]["kind"] == "unsupported"
+                && item["scanFamilyDisposition"]["kind"] == "mapped"
+                && item["scanFamilyDisposition"]["family"]["kind"] == "rust"
         }));
         assert!(projection
             .iter()

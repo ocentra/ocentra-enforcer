@@ -4,6 +4,7 @@
 
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::config_types::ResolvedNativeTie;
+use enforcer_domain::language_types::{LanguageId, ScanFamilyDisposition};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
 /// Serializable projection of one resolved native-tool tie.
@@ -84,17 +85,53 @@ pub enum CanonicalCapabilityDisposition {
     NotApplicable,
 }
 
-/// One identity-preserving result for the opt-in canonical route projection.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Current extension-based validator-dispatch family projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalScanFamilyDisposition {
+    /// One existing validator-dispatch family is proved by every matcher.
+    #[serde(rename = "mapped")]
+    Mapped {
+        /// The existing coarse scan family.
+        family: CanonicalScanFamily,
+    },
+    /// No deterministic current family mapping is proved.
+    #[serde(rename = "unsupported")]
+    Unsupported,
+    /// The scan-family question does not apply.
+    #[serde(rename = "notApplicable")]
+    NotApplicable,
+}
+
+/// Closed wire names for the existing scan validator families.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalScanFamily {
+    /// Rust validator-dispatch family.
+    #[serde(rename = "rust")]
+    Rust,
+    /// TypeScript validator-dispatch family.
+    #[serde(rename = "typeScript")]
+    TypeScript,
+    /// Python validator-dispatch family.
+    #[serde(rename = "python")]
+    Python,
+    /// Terraform validator-dispatch family.
+    #[serde(rename = "terraform")]
+    Terraform,
+    /// YAML/config validator-dispatch family.
+    #[serde(rename = "yamlOrConfig")]
+    YamlOrConfig,
+}
+
+/// One identity-preserving result for the opt-in canonical route projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalLanguageRouteResponse {
     /// A canonical parser identity retained with honest capability state.
     Canonical {
         /// Stable one-based canonical identity.
-        #[serde(rename = "languageId")]
         language_id: u16,
         /// Validated canonical name from the reviewed registry.
-        #[serde(rename = "canonicalName")]
         canonical_name: String,
         /// Structural parser disposition.
         structural: CanonicalStructuralDisposition,
@@ -104,9 +141,158 @@ pub enum CanonicalLanguageRouteResponse {
     /// A named literal projection without a canonical parser identity.
     SupplementalLiteral {
         /// Stable supplemental literal identity.
-        #[serde(rename = "literalName")]
         literal_name: String,
     },
     /// No canonical or supplemental matcher applied.
     Unknown,
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum CanonicalLanguageRouteWire<'a> {
+    #[serde(rename = "canonical")]
+    Canonical {
+        #[serde(rename = "languageId")]
+        language_id: u16,
+        #[serde(rename = "canonicalName")]
+        canonical_name: &'a str,
+        structural: CanonicalStructuralDisposition,
+        capability: CanonicalCapabilityDisposition,
+        #[serde(rename = "scanFamilyDisposition")]
+        scan_family_disposition: CanonicalScanFamilyDisposition,
+    },
+    #[serde(rename = "supplementalLiteral")]
+    SupplementalLiteral {
+        #[serde(rename = "literalName")]
+        literal_name: &'a str,
+    },
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum CanonicalLanguageRouteWireOwned {
+    #[serde(rename = "canonical")]
+    Canonical {
+        #[serde(rename = "languageId")]
+        language_id: u16,
+        #[serde(rename = "canonicalName")]
+        canonical_name: String,
+        structural: CanonicalStructuralDisposition,
+        capability: CanonicalCapabilityDisposition,
+        #[serde(rename = "scanFamilyDisposition")]
+        scan_family_disposition: CanonicalScanFamilyDisposition,
+    },
+    #[serde(rename = "supplementalLiteral")]
+    SupplementalLiteral {
+        #[serde(rename = "literalName")]
+        literal_name: String,
+    },
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+impl serde::Serialize for CanonicalLanguageRouteResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let wire = match self {
+            Self::Canonical {
+                language_id,
+                canonical_name,
+                structural,
+                capability,
+            } => CanonicalLanguageRouteWire::Canonical {
+                language_id: *language_id,
+                canonical_name,
+                structural: *structural,
+                capability: *capability,
+                scan_family_disposition: scan_family_disposition_for_wire(*language_id)
+                    .map_err(serde::ser::Error::custom)?,
+            },
+            Self::SupplementalLiteral { literal_name } => {
+                CanonicalLanguageRouteWire::SupplementalLiteral { literal_name }
+            }
+            Self::Unknown => CanonicalLanguageRouteWire::Unknown,
+        };
+        serde::Serialize::serialize(&wire, serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match CanonicalLanguageRouteWireOwned::deserialize(deserializer)? {
+            CanonicalLanguageRouteWireOwned::Canonical {
+                language_id,
+                canonical_name,
+                structural,
+                capability,
+                scan_family_disposition,
+            } => {
+                let expected = scan_family_disposition_for_wire(language_id)
+                    .map_err(serde::de::Error::custom)?;
+                if scan_family_disposition != expected {
+                    return Err(serde::de::Error::custom(
+                        "scanFamilyDisposition does not match the canonical registry",
+                    ));
+                }
+                Ok(Self::Canonical {
+                    language_id,
+                    canonical_name,
+                    structural,
+                    capability,
+                })
+            }
+            CanonicalLanguageRouteWireOwned::SupplementalLiteral { literal_name } => {
+                Ok(Self::SupplementalLiteral { literal_name })
+            }
+            CanonicalLanguageRouteWireOwned::Unknown => Ok(Self::Unknown),
+        }
+    }
+}
+
+fn scan_family_disposition_for_wire(
+    language_id: u16,
+) -> Result<CanonicalScanFamilyDisposition, String> {
+    let nonzero = std::num::NonZeroU16::new(language_id)
+        .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
+    let id = LanguageId::try_from_registry_index(nonzero)
+        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+    let disposition = crate::router::identity::canonical_scan_family_disposition(id)
+        .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
+    Ok(match disposition {
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Rust) => {
+            CanonicalScanFamilyDisposition::Mapped {
+                family: CanonicalScanFamily::Rust,
+            }
+        }
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::TypeScript) => {
+            CanonicalScanFamilyDisposition::Mapped {
+                family: CanonicalScanFamily::TypeScript,
+            }
+        }
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Python) => {
+            CanonicalScanFamilyDisposition::Mapped {
+                family: CanonicalScanFamily::Python,
+            }
+        }
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Terraform) => {
+            CanonicalScanFamilyDisposition::Mapped {
+                family: CanonicalScanFamily::Terraform,
+            }
+        }
+        ScanFamilyDisposition::Mapped(
+            enforcer_domain::scan_types::LanguageFamily::YamlOrConfig,
+        ) => CanonicalScanFamilyDisposition::Mapped {
+            family: CanonicalScanFamily::YamlOrConfig,
+        },
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Unknown)
+        | ScanFamilyDisposition::Unsupported => CanonicalScanFamilyDisposition::Unsupported,
+        ScanFamilyDisposition::NotApplicable => CanonicalScanFamilyDisposition::NotApplicable,
+    })
 }
