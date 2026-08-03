@@ -3,7 +3,11 @@
 // Generator: crates/enforcer-syntax/src/boundary/language_registry_build.rs
 // schemaHash: 97dff487a6e01afbab60d36452243bfd68d766ea1ae119350d44633b25c7d878
 
-use enforcer_domain::language_types::{DetectionMatcherKind, DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, NO_LITERAL_PARSER_IDENTITY_COUNT, StructuralLanguageSupport};
+use enforcer_domain::language_types::{
+    DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceTieBreak, LanguageId,
+    LiteralDisposition, LiteralProjection, LiteralProjectionDisposition,
+    NO_LITERAL_PARSER_IDENTITY_COUNT, StructuralLanguageSupport,
+};
 use enforcer_syntax::boundary::language_registry::{render_source, validate_source};
 use enforcer_syntax::parsers::Language;
 use enforcer_syntax::registry::{collision_resolutions, detection_precedence, language_registry, literal_projections, record_for_parser};
@@ -244,6 +248,59 @@ fn metadata_has_typed_dispositions_and_collision_winners() -> TestResult {
 fn regeneration_is_deterministic_and_schema_is_valid() -> TestResult {
     must_result(validate_source(MANIFEST), "manifest must validate")?;
     assert_eq!(must_result(render_source(MANIFEST), "manifest must render")?, GENERATED);
+    Ok(())
+}
+
+fn normalized_matcher_key(matcher: DetectionMatcher) -> String {
+    match matcher {
+        DetectionMatcher::Extension(value) => format!("extension:{}", value.to_ascii_lowercase()),
+        DetectionMatcher::ExactBasename(value) => {
+            format!("exactBasename:{}", value.to_ascii_lowercase())
+        }
+        DetectionMatcher::CompoundSuffix(value) => {
+            format!("compoundSuffix:{}", value.to_ascii_lowercase())
+        }
+    }
+}
+
+#[test]
+fn typed_literal_projection_preserves_manifest_matchers() -> TestResult {
+    let value = manifest_value()?;
+    let manifest_rows = must_option(value["literalProjection"].as_array(), "literal projection")?;
+    assert_eq!(manifest_rows.len(), 68);
+    assert_eq!(literal_projections().len(), 68);
+
+    let mut literal_only_count = 0;
+    let mut fallback_count = 0;
+    for (manifest_row, generated_row) in manifest_rows.iter().zip(literal_projections()) {
+        let LiteralProjection::Row(name, disposition, _, matchers, _) = generated_row;
+        assert_eq!(manifest_row["literalName"].as_str(), Some(*name));
+        let expected = must_option(manifest_row["matcherKeys"].as_array(), "matcher keys")?
+            .iter()
+            .map(|key| {
+                key.as_str()
+                    .map(ToOwned::to_owned)
+                    .ok_or("matcher key must be a string".to_owned())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let actual = matchers
+            .iter()
+            .copied()
+            .map(normalized_matcher_key)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "typed matcher drift for {name}");
+        match disposition {
+            LiteralProjectionDisposition::LiteralOnly => literal_only_count += 1,
+            LiteralProjectionDisposition::Fallback => {
+                fallback_count += 1;
+                assert_eq!(*name, "unknown");
+                assert!(matchers.is_empty());
+            }
+            LiteralProjectionDisposition::Registered => {}
+        }
+    }
+    assert_eq!(literal_only_count, 5);
+    assert_eq!(fallback_count, 1);
     Ok(())
 }
 

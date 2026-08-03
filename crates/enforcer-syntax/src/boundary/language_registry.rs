@@ -269,6 +269,7 @@ struct ProjectionValue {
     classification: CrosswalkClass,
     disposition: ProjectionDisposition,
     parser_ids: Vec<u16>,
+    matchers: Vec<MatcherValue>,
     matcher_keys: Vec<String>,
     winner_refs: Vec<WinnerValue>,
 }
@@ -403,6 +404,19 @@ fn matcher_key(kind: MatcherKind, value: &str) -> String {
     format!("{}:{}", matcher_kind_name(kind), fold(value))
 }
 
+fn parse_matcher_key(value: &str) -> Result<MatcherValue, ManifestError> {
+    let (kind, matcher_value) = value
+        .split_once(':')
+        .ok_or_else(|| ManifestError::DuplicateMatcher(value.to_owned()))?;
+    if matcher_value.is_empty() {
+        return Err(ManifestError::DuplicateMatcher(value.to_owned()));
+    }
+    Ok(MatcherValue {
+        kind: parse_matcher_kind(kind)?,
+        value: matcher_value.to_owned(),
+    })
+}
+
 fn parse_literal_disposition(value: &Value) -> Result<(LiteralDisposition, Option<String>), ManifestError> {
     let kind = string_field(value, KEY_KIND)?;
     match kind.as_str() {
@@ -473,7 +487,15 @@ fn parse_projection(value: &Value) -> Result<ProjectionValue, ManifestError> {
         .iter()
         .map(|id| id.as_u64().and_then(|number| u16::try_from(number).ok()).ok_or_else(|| ManifestError::Json(ERROR_INTEGER.to_owned())))
         .collect::<Result<Vec<_>, ManifestError>>()?;
-    let matcher_keys = array_field(value, KEY_MATCHER_KEYS)?.iter().map(string_value).collect::<Result<Vec<_>, ManifestError>>()?;
+    let matchers = array_field(value, KEY_MATCHER_KEYS)?
+        .iter()
+        .map(string_value)
+        .map(|key| key.and_then(|key| parse_matcher_key(&key)))
+        .collect::<Result<Vec<_>, ManifestError>>()?;
+    let matcher_keys = matchers
+        .iter()
+        .map(|matcher| matcher_key(matcher.kind, &matcher.value))
+        .collect::<Vec<_>>();
     let winner_refs = array_field(value, KEY_WINNER_REFS)?
         .iter()
         .map(|winner| {
@@ -488,6 +510,7 @@ fn parse_projection(value: &Value) -> Result<ProjectionValue, ManifestError> {
         classification: parse_class(&string_field(value, KEY_CLASSIFICATION)?)?,
         disposition: parse_projection_disposition(&string_field(value, KEY_DISPOSITION)?)?,
         parser_ids,
+        matchers,
         matcher_keys,
         winner_refs,
     })
@@ -737,13 +760,11 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             return Err(ManifestError::InvalidReference(ERROR_FALLBACK_ROW.to_owned()));
         }
         let mut row_keys = HashSet::new();
-        for key in &row.matcher_keys {
+        for (matcher, key) in row.matchers.iter().zip(&row.matcher_keys) {
             if !row_keys.insert(key.clone()) {
                 return Err(ManifestError::DuplicateMatcher(key.clone()));
             }
-            let (kind, value) = key.split_once(':').ok_or_else(|| ManifestError::DuplicateMatcher(key.clone()))?;
-            let kind = parse_matcher_kind(kind)?;
-            if matcher_key(kind, value) != *key {
+            if matcher_key(matcher.kind, &matcher.value) != *key {
                 return Err(ManifestError::DuplicateMatcher(key.clone()));
             }
             let members = projection_members.entry(key.clone()).or_default();
@@ -978,7 +999,7 @@ fn render_projection_line(row: &ProjectionValue) -> String {
     line.push_str(LITERAL_PARSER_IDS);
     line.push_str(&render_parser_id_slice(&row.parser_ids));
     line.push_str(LITERAL_MATCHER_KEYS);
-    line.push_str(&render_str_slice(&row.matcher_keys));
+    line.push_str(&render_matchers(&row.matchers));
     line.push_str(LITERAL_WINNERS);
     line.push_str(&render_winner_slice(&row.winner_refs));
     line.push_str(LITERAL_SUFFIX);
