@@ -1262,6 +1262,7 @@ dependencies = [
  "enforcer-lang-ts",
  "enforcer-literal-scan",
  "enforcer-rules",
+ "enforcer-syntax",
  "enforcer-validator",
  "rayon",
  "regex",

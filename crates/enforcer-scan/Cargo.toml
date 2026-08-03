@@ -21,6 +21,8 @@ ts-rs = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Canonical identity routing consumes the typed registry metadata and precedence projection.
+enforcer-syntax = { path = "../enforcer-syntax", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Validator dispatch and event records form the scan engine's typed execution contract.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }

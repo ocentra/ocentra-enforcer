@@ -6,10 +6,16 @@
 
 use crate::parsers::Language;
 use enforcer_domain::language_types::{
-    CollisionResolution, DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceProjection, DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, LiteralProjection,
+    CollisionResolution, DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceProjection,
+    DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, MatcherWinner, StructuralLanguageSupport,
 };
 use std::num::NonZeroU16;
+
+/// Closed canonical parser name emitted by the reviewed registry.
+/// BRAND-INVARIANT: the value is created only from validated static registry data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CanonicalLanguageName(&'static str);
 
 /// One canonical parser identity and its structural parse disposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +52,12 @@ const fn language_id_from_registry_index(index: NonZeroU16) -> LanguageId {
 }
 
 impl LanguageRecord {
+    /// Return the stable one-based canonical identity.
+    #[must_use]
+    pub const fn id(&self) -> LanguageId {
+        self.id
+    }
+
     /// Return the parser identity preserved by this record.
     pub const fn parser(&self) -> Language {
         self.parser
@@ -54,6 +66,12 @@ impl LanguageRecord {
     /// Return the structural parse disposition.
     pub const fn structural(&self) -> StructuralLanguageSupport {
         self.structural
+    }
+
+    /// Return the validated canonical name from the reviewed registry.
+    #[must_use]
+    pub const fn canonical_name(&self) -> CanonicalLanguageName {
+        CanonicalLanguageName(self.canonical_name)
     }
 
     /// Return canonical detection matchers.
@@ -76,7 +94,9 @@ pub fn language_registry() -> &'static [LanguageRecord] {
 
 /// Find the canonical record for one existing parser variant.
 pub fn record_for_parser(language: Language) -> Option<&'static LanguageRecord> {
-    language_registry().iter().find(|record| record.parser() == language)
+    language_registry()
+        .iter()
+        .find(|record| record.parser() == language)
 }
 
 /// Return the complete literal-to-parser crosswalk.
