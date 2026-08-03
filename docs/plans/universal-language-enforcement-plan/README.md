@@ -59,6 +59,7 @@ The exact counts are re-derived by UL00 and must not remain hand-maintained trut
 ## Non-negotiable Boundaries
 
 - One task owns the grammar/parser migration surface at a time. UL03 cannot start without UL02's recorded ownership transfer.
+- [Accepted UL02 grammar ownership decision](./decisions/UL02-GRAMMAR-OWNERSHIP.md) is the governing record; UL03 remains gated until that decision and its grammar freeze are in force.
 - Language/security rule crates never depend on memory persistence, retrieval, SQLite, model runtime, or raw Tree-sitter nodes.
 - A parser failure, absent capability, unsupported framework, or unavailable tool is not a clean pass.
 - Existing text validators remain explicitly L0/L1 until migrated; no bulk relabeling.
