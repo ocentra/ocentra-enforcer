@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP01",
+  "batch": "batch-02",
+  "baselineCommit": "b717663bd",
+  "scope": "Read-only reconciliation of ten existing cloud, infrastructure, platform, and web-header validators; no ledger application.",
+  "rules": [
+    {
+      "ruleId": "CYBER-IAC-S3-SSE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-aws-s3-bucket-permissions/SKILL.md",
+        "sha256": "c0e9a74bfe4c50dece597dfef22e6392a775413863d37e4c29e428c7ccecc1f4",
+        "anchors": ["### Step 4: Verify Encryption and Versioning Settings:L120"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Terraform S3 resources lacking the server-side-encryption configuration recognized by S3EncryptionRequiredValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/{bad/no_sse.tf,good/sse.tf}; crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/iac_terraform.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_iac_terraform",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove every S3 encryption mode, KMS key policy, bucket policy, deployed AWS state, or the complete multi-tool audit workflow in the source skill."
+    },
+    {
+      "ruleId": "CYBER-IAC-SG-SSH.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
+        "sha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a",
+        "anchors": ["### Step 4: Create Custom OPA Policies for Organization Standards:L142"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag a Terraform security-group ingress rule exposing SSH to 0.0.0.0/0 under SgNoPublicSshIngressValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/_corpus/iac_terraform.json; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_iac_terraform",
+        "cliMcpCi": "existing registry/corpus evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove IPv6 exposure, non-Terraform security groups, ports other than the validator's SSH predicate, deployed reachability, or the complete Checkov/tfsec/Terrascan workflow."
+    },
+    {
+      "ruleId": "CYBER-AZURE-BLOB-PUBLIC.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-misconfigured-azure-storage/SKILL.md",
+        "sha256": "91cbf338d7cbf2e7931dd73e79a892160c14f627eb600a0dda62fb6a6e48684a",
+        "anchors": ["### Step 2: Detect Publicly Accessible Blob Containers:L86"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Azure storage configuration with public blob access enabled under AzureStoragePublicBlobValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/{bad/public.json,good/private.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cloud_azure",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove anonymous access from a live endpoint, SAS/key exposure, network firewall posture, remediation safety, or all Azure storage account types."
+    },
+    {
+      "ruleId": "CYBER-AZURE-HTTPS.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-misconfigured-azure-storage/SKILL.md",
+        "sha256": "91cbf338d7cbf2e7931dd73e79a892160c14f627eb600a0dda62fb6a6e48684a",
+        "anchors": ["### Step 1: Enumerate All Storage Accounts and Basic Configuration:L64"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Azure storage configuration where HTTPS-only traffic is disabled under AzureStorageRequireHttpsValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/{bad/http.json,good/https.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cloud_azure",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove transport behavior of deployed endpoints, certificate validity, redirects, client configuration, or all Azure network controls."
+    },
+    {
+      "ruleId": "CYBER-AZURE-TLS12.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_azure.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-misconfigured-azure-storage/SKILL.md",
+        "sha256": "91cbf338d7cbf2e7931dd73e79a892160c14f627eb600a0dda62fb6a6e48684a",
+        "anchors": ["### Step 4: Verify Encryption Settings and Key Management:L136"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Azure storage configuration with minimum TLS below 1.2 under AzureStorageMinTls12Validator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/{bad/tls10.json,good/tls12.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cloud_azure",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove negotiated protocol behavior, cipher-suite strength, certificate posture, or all Azure services and clients."
+    },
+    {
+      "ruleId": "CYBER-HEADERS-HSTS.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-security-headers-audit/SKILL.md",
+        "sha256": "7467c71ba1d46bb53d41bdc3d46965705550c2d2c2a35d3a94d27c2169f560e8",
+        "anchors": ["### Step 2: Assess Transport Security (HSTS):L77"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag missing or below-threshold Strict-Transport-Security header text under HstsMissingOrWeakValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/{bad/missing.json,good/strong.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_web_headers",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove browser preload enrollment, redirect behavior, mixed-content absence, live response headers, or deployment-wide transport security."
+    },
+    {
+      "ruleId": "CYBER-HEADERS-CSP.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-security-headers-audit/SKILL.md",
+        "sha256": "7467c71ba1d46bb53d41bdc3d46965705550c2d2c2a35d3a94d27c2169f560e8",
+        "anchors": ["### Step 3: Audit Content Security Policy (CSP):L108"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag missing Content-Security-Policy response-header text under CspMissingValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/{bad/missing.json,good/restrictive.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_web_headers",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove directive safety, CSP bypass resistance, report-only enforcement, browser evaluation, or policy correctness beyond presence."
+    },
+    {
+      "ruleId": "CYBER-COOKIE-SECURE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/web_headers.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-security-headers-audit/SKILL.md",
+        "sha256": "7467c71ba1d46bb53d41bdc3d46965705550c2d2c2a35d3a94d27c2169f560e8",
+        "anchors": ["### Step 5: Audit Cookie Security Attributes:L178"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Set-Cookie lines missing Secure, HttpOnly, or SameSite attributes under CookieSecureHttponlySamesiteValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/{bad/insecure.json,good/secure.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_web_headers",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove cookie scope, prefixes, lifetime, browser behavior, session fixation resistance, or live application response coverage."
+    },
+    {
+      "ruleId": "CYBER-K8S-POD.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/k8s_pod_security.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-kubernetes-pod-security-standards/SKILL.md",
+        "sha256": "97db23269a0ec865f051c6f207c4d5c43ede1257da74398fd74e4b1b16eb5269",
+        "anchors": ["### Step 3: Create Compliant Pod Specs:L132"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Kubernetes pod manifests violating the bounded security-context checks implemented by K8sPodSecurityValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.pod.security-hardening/{bad/privileged.yaml,good/hardened.yaml}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_k8s_pod_security",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove admission-controller enforcement, namespace labels, cluster runtime state, image provenance, network policy, or all Pod Security Standards controls."
+    },
+    {
+      "ruleId": "CYBER-DOCKER.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/dockerfile_hardening.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-containers-for-production/SKILL.md",
+        "sha256": "44b036d049933cc7c206aeb3e8261748782b4c8e7987c8e899fe3785335b4c65",
+        "anchors": ["### Step 1: Harden the Dockerfile:L74"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the Dockerfile hardening violations covered by DockerfileHardeningValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.dockerfile-hardening/{bad/Dockerfile,good/Dockerfile}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_dockerfile_hardening",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove daemon/runtime configuration, image scanning, signature verification, host audit policy, or complete CIS Docker Benchmark compliance."
+    }
+  ],
+  "derivedCounts": {
+    "rulesAudited": 10,
+    "acceptedNarrowedPredicate": 10,
+    "unprovedOrRejected": 0,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact is evidence-only and does not alter the 817-row disposition ledger.",
+    "A narrowed predicate is not whole-skill parity.",
+    "CLI, MCP, and CI reachability were not freshly executed in CP01; existing fixture/corpus references are not a new route proof.",
+    "The protected sourceUnavailable identity is outside this batch and remains governance state."
+  ]
+}
