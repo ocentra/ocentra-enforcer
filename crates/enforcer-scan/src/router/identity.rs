@@ -5,7 +5,7 @@
 //! native-tool values remain typed projections only and do not claim execution
 //! or scan success.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
@@ -235,8 +235,12 @@ impl CanonicalLanguageRoute {
 pub enum DetectedLanguageRoute {
     /// A parser identity from the canonical 160-row registry.
     Canonical(CanonicalLanguageRoute),
-    /// A named literal projection with no parser identity.
-    SupplementalLiteral { name: &'static str },
+    /// A named literal projection with no parser identity and its selected
+    /// typed matcher evidence.
+    SupplementalLiteral {
+        name: &'static str,
+        matched_by: DetectionMatcher,
+    },
     /// No canonical or supplemental matcher matched the path.
     Unknown,
 }
@@ -251,7 +255,7 @@ pub fn detect_language_identities(
     unknown_policy: UnknownLanguagePolicy,
 ) -> Vec<DetectedLanguageRoute> {
     let mut canonical = BTreeMap::new();
-    let mut supplemental = BTreeSet::new();
+    let mut supplemental = BTreeMap::new();
     let mut found_unknown = false;
 
     for path in paths {
@@ -269,8 +273,18 @@ pub fn detect_language_identities(
                     })
                     .or_insert(matcher);
             }
-            Some((LiteralReference::SupplementalLiteralName(name), _)) => {
-                supplemental.insert(name);
+            Some((LiteralReference::SupplementalLiteralName(name), matcher)) => {
+                supplemental
+                    .entry(name)
+                    .and_modify(|incumbent| {
+                        if matches!(
+                            compare_evidence_matchers(matcher, *incumbent),
+                            MatcherSelection::Replace
+                        ) {
+                            *incumbent = matcher;
+                        }
+                    })
+                    .or_insert(matcher);
             }
             Some((LiteralReference::Fallback, _)) | None
                 if unknown_policy == UnknownLanguagePolicy::Include =>
@@ -287,9 +301,9 @@ pub fn detect_language_identities(
         .map(DetectedLanguageRoute::Canonical)
         .collect::<Vec<_>>();
     routes.extend(
-        supplemental
-            .into_iter()
-            .map(|name| DetectedLanguageRoute::SupplementalLiteral { name }),
+        supplemental.into_iter().map(|(name, matched_by)| {
+            DetectedLanguageRoute::SupplementalLiteral { name, matched_by }
+        }),
     );
     if found_unknown {
         routes.push(DetectedLanguageRoute::Unknown);
