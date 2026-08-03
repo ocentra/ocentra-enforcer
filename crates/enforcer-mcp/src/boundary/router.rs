@@ -2421,6 +2421,7 @@ fn canonical_language_route_responses(
                     language_id: canonical.id().as_nonzero_u16().get(),
                     canonical_name: canonical.canonical_name().to_string(),
                     structural,
+                    literal_disposition: canonical.literal_disposition().into(),
                     capability,
                     consumer_capabilities: canonical.consumer_capabilities().into(),
                 }
@@ -4575,6 +4576,8 @@ mod tests {
                 && item["canonicalName"] == "Rust"
                 && item["structural"]["kind"] == "parseFile"
                 && item["capability"]["kind"] == "unsupported"
+                && item["literalDisposition"]
+                    == serde_json::json!({"kind": "registered", "literalName": "rust"})
                 && item["scanFamilyDisposition"]["kind"] == "mapped"
                 && item["scanFamilyDisposition"]["family"]["kind"] == "rust"
         }));
@@ -4610,6 +4613,10 @@ mod tests {
             .iter()
             .find(|item| item["kind"] == "canonical" && item["languageId"] == 3)
             .ok_or("canonical JavaScript projection missing")?;
+        assert_eq!(
+            javascript["literalDisposition"],
+            serde_json::json!({"kind": "registered", "literalName": "javascript"})
+        );
         assert_eq!(
             javascript["consumerCapabilities"]["nativeScan"]["family"]["kind"],
             serde_json::json!("typeScript")

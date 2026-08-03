@@ -11,7 +11,7 @@ use std::str::FromStr;
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::config_types::NativeTool;
 use enforcer_domain::language_types::{
-    DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralProjection,
+    DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralDisposition, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, MatcherWinner, ScanFamilyDisposition,
     StructuralLanguageSupport,
 };
@@ -171,6 +171,7 @@ pub struct CanonicalLanguageRoute {
     id: LanguageId,
     canonical_name: CanonicalLanguageName,
     structural: StructuralLanguageSupport,
+    literal_disposition: LiteralDisposition,
     capability: RouteCapabilityDisposition,
     scan_family_disposition: ScanFamilyDisposition,
     consumer_capabilities: CanonicalConsumerCapabilities,
@@ -193,6 +194,12 @@ impl CanonicalLanguageRoute {
     #[must_use]
     pub const fn structural(&self) -> StructuralLanguageSupport {
         self.structural
+    }
+
+    /// Return the reviewed registry literal disposition for this identity.
+    #[must_use]
+    pub const fn literal_disposition(&self) -> LiteralDisposition {
+        self.literal_disposition
     }
 
     /// Return the honest P1B capability disposition.
@@ -283,6 +290,7 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
         id,
         canonical_name: record.canonical_name(),
         structural: record.structural(),
+        literal_disposition: record.literal_disposition(),
         capability,
         scan_family_disposition: scan_family_disposition(record.matchers()),
         consumer_capabilities: consumer_capabilities_for_matchers(record.matchers()),
@@ -291,6 +299,10 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
 
 pub(crate) fn canonical_scan_family_disposition(id: LanguageId) -> Option<ScanFamilyDisposition> {
     canonical_route(id).map(|route| route.scan_family_disposition())
+}
+
+pub(crate) fn canonical_literal_disposition(id: LanguageId) -> Option<LiteralDisposition> {
+    canonical_route(id).map(|route| route.literal_disposition())
 }
 
 pub(crate) fn canonical_consumer_capabilities(
