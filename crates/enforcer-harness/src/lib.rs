@@ -67,6 +67,7 @@ macro_rules! domain_finding {
 }
 
 pub mod adapters;
+pub mod availability;
 pub mod ci_parity;
 pub mod config;
 pub mod duckdb_seam;
