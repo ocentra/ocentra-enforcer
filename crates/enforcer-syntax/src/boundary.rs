@@ -25,3 +25,5 @@ pub(crate) trait RetainedDisplay: Display {
 }
 
 impl<T> RetainedDisplay for T where T: Display + ?Sized {}
+
+pub mod language_registry;

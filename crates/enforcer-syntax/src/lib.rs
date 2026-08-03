@@ -4,7 +4,7 @@
 //! from `enforcer-memory`. It deliberately has no persistence, retrieval,
 //! embedding, model-runtime, coordination, or enforcement-rule dependency.
 
-mod boundary;
+pub mod boundary;
 
 pub mod facts;
 pub mod languages;
