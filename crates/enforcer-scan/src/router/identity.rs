@@ -2,12 +2,14 @@
 //!
 //! The syntax registry is the only source of parser identity and matcher
 //! metadata. This module projects that metadata into scan-owned route values;
-//! it does not claim parser, validator, or native-tool capability.
+//! native-tool values remain typed projections only and do not claim execution
+//! or scan success.
 
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::config_types::NativeTool;
 use enforcer_domain::language_types::{
     DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralProjection,
     LiteralProjectionDisposition, LiteralReference, MatcherWinner, ScanFamilyDisposition,
@@ -46,15 +48,30 @@ pub enum ConsumerCapabilityState {
     NotApplicable,
 }
 
+/// Typed native-tool identity projection for one canonical language.
+///
+/// `Mapped` means only that the canonical matchers mechanically resolve to an
+/// existing scan family with an existing typed native-tool mapping. It does
+/// not prove tool execution, configuration, or scan success.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeToolProjection {
+    /// An existing native-tool identity is mechanically mapped.
+    Mapped(NativeTool),
+    /// No canonical-identity native-tool mapping is proved.
+    Unsupported,
+    /// The native-tool question does not apply to this identity projection.
+    NotApplicable,
+}
+
 /// Typed consumer-capability projection attached to a canonical route.
 ///
-/// Native-tool, rule-pack, CLI, and UI values remain unsupported here because
-/// none has an exact canonical-identity mapping in the current consumers.
-/// Their legacy coarse mappings remain independent and unchanged.
+/// Native-tool values reuse only the exact scan-family mapping seam proved by
+/// the current consumer; rule-pack, CLI, and UI values remain independent
+/// unsupported dispositions. Legacy coarse mappings remain unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanonicalConsumerCapabilities {
     native_scan: ScanFamilyDisposition,
-    native_tool: ConsumerCapabilityState,
+    native_tool: NativeToolProjection,
     rule_packs: ConsumerCapabilityState,
     cli: ConsumerCapabilityState,
     ui: ConsumerCapabilityState,
@@ -69,7 +86,7 @@ impl CanonicalConsumerCapabilities {
 
     /// Return the canonical-identity native-tool projection state.
     #[must_use]
-    pub const fn native_tool(&self) -> ConsumerCapabilityState {
+    pub const fn native_tool(&self) -> NativeToolProjection {
         self.native_tool
     }
 
@@ -261,10 +278,24 @@ fn consumer_capabilities_for_matchers(
 ) -> CanonicalConsumerCapabilities {
     CanonicalConsumerCapabilities {
         native_scan: scan_family_disposition(matchers),
-        native_tool: ConsumerCapabilityState::Unsupported,
+        native_tool: native_tool_projection(matchers),
         rule_packs: ConsumerCapabilityState::Unsupported,
         cli: ConsumerCapabilityState::Unsupported,
         ui: ConsumerCapabilityState::Unsupported,
+    }
+}
+
+fn native_tool_projection(matchers: &[DetectionMatcher]) -> NativeToolProjection {
+    match scan_family_disposition(matchers) {
+        ScanFamilyDisposition::Mapped(family) => {
+            super::native_tie::native_tool_for_scan_family(family).map_or(
+                NativeToolProjection::Unsupported,
+                NativeToolProjection::Mapped,
+            )
+        }
+        ScanFamilyDisposition::Unsupported | ScanFamilyDisposition::NotApplicable => {
+            NativeToolProjection::Unsupported
+        }
     }
 }
 
@@ -526,6 +557,58 @@ mod scan_family_tests {
 }
 
 #[cfg(test)]
+mod native_tool_tests {
+    use super::{native_tool_projection, NativeToolProjection};
+    use enforcer_domain::config_types::NativeTool;
+    use enforcer_domain::language_types::DetectionMatcher;
+    use enforcer_syntax::registry::language_registry;
+
+    #[test]
+    fn native_tool_projection_preserves_the_160_row_denominator() {
+        let records = language_registry();
+        assert_eq!(records.len(), 160);
+
+        let mut cargo = 0;
+        let mut tsc = 0;
+        let mut unsupported = 0;
+        let mut not_applicable = 0;
+
+        for record in records {
+            match native_tool_projection(record.matchers()) {
+                NativeToolProjection::Mapped(NativeTool::Cargo) => cargo += 1,
+                NativeToolProjection::Mapped(NativeTool::Tsc) => tsc += 1,
+                NativeToolProjection::Mapped(_) => {
+                    assert!(false, "only Cargo and Tsc are mapped in this projection")
+                }
+                NativeToolProjection::Unsupported => unsupported += 1,
+                NativeToolProjection::NotApplicable => not_applicable += 1,
+            }
+        }
+
+        assert_eq!((cargo, tsc, unsupported, not_applicable), (1, 1, 158, 0));
+    }
+
+    #[test]
+    fn native_tool_projection_rejects_ambiguous_or_unmapped_matchers() {
+        for matchers in [
+            vec![],
+            vec![DetectionMatcher::ExactBasename("Dockerfile")],
+            vec![DetectionMatcher::CompoundSuffix(".env.local")],
+            vec![DetectionMatcher::Extension("unknown")],
+            vec![
+                DetectionMatcher::Extension("rs"),
+                DetectionMatcher::Extension("py"),
+            ],
+        ] {
+            assert_eq!(
+                native_tool_projection(&matchers),
+                NativeToolProjection::Unsupported
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::{canonical_route, RouteCapabilityDisposition};
     use enforcer_domain::language_types::StructuralLanguageSupport;
@@ -547,7 +630,15 @@ mod tests {
             assert_eq!(route.canonical_name(), record.canonical_name());
             assert_eq!(
                 route.consumer_capabilities().native_tool(),
-                super::ConsumerCapabilityState::Unsupported
+                match record.id().as_nonzero_u16().get() {
+                    1 => super::NativeToolProjection::Mapped(
+                        enforcer_domain::config_types::NativeTool::Cargo,
+                    ),
+                    3 => super::NativeToolProjection::Mapped(
+                        enforcer_domain::config_types::NativeTool::Tsc,
+                    ),
+                    _ => super::NativeToolProjection::Unsupported,
+                }
             );
             assert_eq!(
                 route.consumer_capabilities().rule_packs(),
