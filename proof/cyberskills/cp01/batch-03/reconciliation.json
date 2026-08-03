@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP01",
+  "batch": "batch-03",
+  "baselineCommit": "cf1b925e8",
+  "scope": "Read-only reconciliation of ten existing secret, cloud, Kubernetes, OAuth, protocol, supply-chain, WAF, and JavaScript validators; no ledger application.",
+  "rules": [
+    {
+      "ruleId": "CYBER-SECRET.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/provider_credentials.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-credential-exposure-with-trufflehog/SKILL.md",
+        "sha256": "d6555caec5051b4553032c3e7f548afb96562163f775eab0b1876829f098e28e",
+        "anchors": ["### Step 2: Scan Git Repositories for Exposed Credentials:L98"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag source text matching the provider credential and private-key patterns implemented by ProviderCredentialValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/secret.provider-credential/{bad/leaked.env,good/clean.rs}",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove credential validity, repository history completeness, revocation, secret rotation, non-AWS providers beyond the validator patterns, or the TruffleHog engine's full detector set."
+    },
+    {
+      "ruleId": "CYBER-AWS.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_aws.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-cloud-with-cis-benchmarks/SKILL.md",
+        "sha256": "c1ec47a63c60a1edfd95cd67aad9cdd84d8bdff01e9201389916bd0819611b03",
+        "anchors": ["### Step 2: Run Automated Assessment with Prowler:L83"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the bounded AWS Terraform exposure and encryption patterns implemented by AwsResourceHardeningValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.aws.resource-hardening/{bad/public.tf,good/hardened.tf}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cloud_aws",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove CIS benchmark completeness, deployed AWS state, IAM graph semantics, live network exposure, or Prowler/ScoutSuite equivalence."
+    },
+    {
+      "ruleId": "CYBER-K8S-RBAC.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/k8s_rbac.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-kubernetes-rbac-privilege-escalation/SKILL.md",
+        "sha256": "ed8041e8d4e51577ddb6a7f382eca827fae666d0350182874b1acf7ab9af43b3",
+        "anchors": ["### Step 3: Hunt the Escalation Primitives:L133"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag Kubernetes RBAC wildcard permissions and cluster-admin bindings under K8sRbacValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/{bad/wildcard.yaml,good/scoped.yaml}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_k8s_rbac",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove effective permissions across an active cluster, impersonation paths, admission enforcement, or all escalation primitives in the source procedure."
+    },
+    {
+      "ruleId": "CYBER-GCP.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_gcp.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-gcp-iam-permissions/SKILL.md",
+        "sha256": "5200c83cb8d96bb1e8dc7b36faf28f554665ed241d38731c4c64c6eaceccff28",
+        "anchors": ["### Step 1: Enumerate IAM Bindings Across the Organization:L55"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag the public IAM, open-firewall, and public Cloud SQL Terraform patterns implemented by GcpResourceHardeningValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.gcp.resource-hardening/{bad/public.tf,good/hardened.tf}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_cloud_gcp",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove organization-wide effective IAM, service-account key exposure, deployed firewall state, or IAM Recommender equivalence."
+    },
+    {
+      "ruleId": "CYBER-OAUTH.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/oauth_misconfig.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-oauth2-implementation-flaws/SKILL.md",
+        "sha256": "16282697f2e1cc8f333add3d30ce3ce0c33d4c0e8e66074ce4f583cc210d3278",
+        "anchors": ["### Step 2: Redirect URI Validation Testing:L98"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag OAuth implicit-flow, wildcard redirect_uri, and user-controlled redirect_uri patterns under OauthMisconfigValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.oauth-misconfig/{bad/vuln.js,good/safe.js}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_oauth_misconfig",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove live provider validation, state/PKCE behavior, token exchange, client registration, or all OAuth/OIDC implementation flaws."
+    },
+    {
+      "ruleId": "CYBER-MCP-POISON.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/mcp_tool_poisoning.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-mcp-servers-for-tool-poisoning/SKILL.md",
+        "sha256": "efcf2f5d77647dd44db2f9b181d5447107d5ee7cb94bfbedc5d04bb70596b579",
+        "anchors": ["### 1. Static scan of installed MCP configs:L81"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag prompt-injection, exfiltration, hidden-Unicode, and suspicious tool-description patterns implemented by McpToolPoisoningValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai.mcp-tool-poisoning/{bad/tools.json,good/tools.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_mcp_tool_poisoning",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove runtime tool behavior, server identity, hash pin lifecycle, authorization, or complete mcp-scan engine parity."
+    },
+    {
+      "ruleId": "CYBER-TLS.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/net_tls.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-tls-1-3-for-secure-communications/SKILL.md",
+        "sha256": "f98d7ad59b93bf0fe740ba07dc0651c98c94fdb946a5f52755365a9698624e28",
+        "anchors": ["### TLS 1.3 vs 1.2 Improvements:L68"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag legacy SSLv2/SSLv3/TLS1.0/TLS1.1 protocol configuration under TlsLegacyVersionValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-legacy/{bad/legacy.conf,good/modern.conf}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_net_tls",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove negotiated protocol behavior, certificate validation, cipher-suite safety, server deployment, or the complete TLS 1.3 configuration procedure."
+    },
+    {
+      "ruleId": "CYBER-DEPCONFUSION.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/dependency_confusion.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-dependency-confusion/SKILL.md",
+        "sha256": "ff2ca0885efe1c4b64803468475708be658e5ac2d01dbdff15178c6302f0797d",
+        "anchors": ["### 2. Scan npm manifests with confused:L89"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag unscoped internal-looking dependency names as claimable dependency-confusion candidates under DependencyConfusionClaimableValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/{bad/package.json,good/package.json}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_dependency_confusion",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove registry claimability, package ownership, version resolution, typosquatting, or confused/npm tool equivalence."
+    },
+    {
+      "ruleId": "CYBER-WAF-SQLI.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/waf_sqli.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-sql-injection-via-waf-logs/SKILL.md",
+        "sha256": "00bd344e89268088dfcab400c9e1ffcfc056df1ab5c15f3209cdd02f04a1696a",
+        "anchors": ["## Instructions:L49"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag SQL-injection signatures in log-line input under WafSqliSignatureValidator's scored log contract.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/{bad/union_select.log.txt,good/benign.log.txt}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_waf_sqli",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove WAF deployment, request attribution, SQL exploitability, database behavior, or complete ModSecurity rule coverage."
+    },
+    {
+      "ruleId": "CYBER-PROTO-POLLUTION.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/proto_pollution.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "accepted",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-prototype-pollution-in-javascript/SKILL.md",
+        "sha256": "06ac39615ca1ca7b5ad4081d8c5ed8203a1673b0f01d30a2198569561e3564b5",
+        "anchors": ["### Step 1 — Identify Prototype Pollution Sources:L55"]
+      },
+      "coverageKind": "narrowed-predicate",
+      "predicate": "Flag writes to prototype-sensitive keys and unsafe deep merges under PrototypePollutionValidator.",
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.prototype-pollution/{bad/vuln.js,good/safe.js}; crates/enforcer-lang-security/tests/cyberskills_corpus.rs::corpus_proto_pollution",
+        "cliMcpCi": "existing registry/fixture evidence only; this batch does not claim fresh CLI, MCP, or CI execution"
+      },
+      "notProved": "Does not prove runtime pollution, gadget reachability, DOM XSS, RCE, library-specific merge semantics, or complete exploit-chain behavior."
+    }
+  ],
+  "derivedCounts": {
+    "rulesAudited": 10,
+    "acceptedNarrowedPredicate": 10,
+    "unprovedOrRejected": 0,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact is evidence-only and does not alter the 817-row disposition ledger.",
+    "A narrowed predicate is not whole-skill parity.",
+    "CLI, MCP, and CI reachability were not freshly executed in CP01; existing fixture/corpus references are not a new route proof.",
+    "The protected sourceUnavailable identity is outside this batch and remains governance state."
+  ]
+}

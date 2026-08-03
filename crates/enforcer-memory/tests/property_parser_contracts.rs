@@ -6,11 +6,10 @@
 // contractHash: property_parser_contracts.rs
 // sourceOwner: enforcer-memory
 
-use enforcer_memory::{
-    analysis::query,
-    cli, ingest,
+use enforcer_memory::{analysis::query, cli, ingest, lesson, llama_cpp};
+use enforcer_syntax::{
     languages::{self, generic},
-    lesson, llama_cpp, parsers,
+    parsers,
 };
 use proptest::{
     prelude::any,
@@ -191,7 +190,9 @@ property_parser_contracts! {
     "src/languages/cpp.rs::parse" => |source: &str| languages::cpp::parse(source, false),
     "src/languages/csharp.rs::parse" => languages::csharp::parse,
     "src/languages/generic.rs::parse_with_spec" => |source: &str| {
-        let language: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
+        let language = enforcer_syntax::parsers::grammar_for_complexity(
+            enforcer_domain::memory_types::ComplexityLanguage::Rust,
+        );
         generic::parse_with_spec(
             source,
             &language,

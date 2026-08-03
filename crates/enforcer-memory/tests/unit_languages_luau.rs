@@ -1,15 +1,15 @@
 //! Hard tests for Luau, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_luau`]) -- there is no
+//! ([`enforcer_syntax::languages::generic::parse_luau`]) -- there is no
 //! bespoke `languages::luau` extractor to prove zero-regression against,
 //! so these tests assert against the grammar-shape ground truth recorded
-//! in [`enforcer_memory::languages::spec::LangSpec::luau`]'s own doc
+//! in [`enforcer_syntax::languages::spec::LangSpec::luau`]'s own doc
 //! comment directly: plain/dotted `function_declaration` naming, the
 //! anonymous `function_definition` literal, `type_definition` type
 //! aliases, ordinary calls, and branch recognition.
 
-use enforcer_memory::languages::generic::parse_luau;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_luau;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_luau";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

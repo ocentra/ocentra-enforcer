@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "profileName": "zod",
+  "language": "typescript",
+  "requirements": [
+    {
+      "requirement": "parse-at-boundary",
+      "enabled": true,
+      "severity": "error",
+      "families": [
+        { "family": "effect", "enabled": false },
+        { "family": "zod", "enabled": true },
+        { "family": "valibot", "enabled": false }
+      ]
+    },
+    {
+      "requirement": "schema-required",
+      "enabled": true,
+      "severity": "error",
+      "families": [
+        { "family": "effect", "enabled": false },
+        { "family": "zod", "enabled": true },
+        { "family": "valibot", "enabled": false }
+      ]
+    },
+    {
+      "requirement": "no-raw-boundary-strings",
+      "enabled": true,
+      "severity": "error",
+      "families": [
+        { "family": "effect", "enabled": false },
+        { "family": "zod", "enabled": true },
+        { "family": "valibot", "enabled": false }
+      ]
+    },
+    {
+      "requirement": "brand-domain-values",
+      "enabled": true,
+      "severity": "error",
+      "families": [
+        { "family": "effect", "enabled": false },
+        { "family": "zod", "enabled": true },
+        { "family": "valibot", "enabled": false }
+      ]
+    }
+  ],
+  "ruleToggles": [
+    { "ruleId": "FE-EFFECT-1.1", "enabled": true, "severity": "error" }
+  ]
+}

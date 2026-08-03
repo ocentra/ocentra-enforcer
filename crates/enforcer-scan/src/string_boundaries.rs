@@ -331,7 +331,10 @@ mod tests {
     fn finding_rejects_line_numbers_outside_the_domain_range(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let file: RelPath = "crates/example/src/service.rs".parse()?;
-        assert!(finding("RR-6.1", file, usize::MAX, "title", "source").is_err());
+        assert_eq!(
+            finding("RR-6.1", file, usize::MAX, "title", "source"),
+            Err("line overflow".to_owned())
+        );
         Ok(())
     }
 }

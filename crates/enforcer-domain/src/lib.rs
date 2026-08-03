@@ -27,6 +27,7 @@ pub mod cli_types;
 pub mod config_types;
 pub mod coordination_types;
 pub mod core_types;
+pub mod doctrine_profile_types;
 pub mod events_types;
 pub mod findings;
 pub mod harness_types;

@@ -1,16 +1,16 @@
 //! Hard tests for HLSL, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_hlsl`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_hlsl`])
 //! -- there is no bespoke `languages::hlsl` extractor to prove
 //! zero-regression against (HLSL has never had one in this crate). This
-//! grammar reuses [`enforcer_memory::languages::spec::LangSpec::cpp`]'s
+//! grammar reuses [`enforcer_syntax::languages::spec::LangSpec::cpp`]'s
 //! own arrays and declarator-unwrapping quirk verbatim (see that row's
 //! own doc comment: `tree-sitter-hlsl` is literally a fork of
 //! `tree-sitter-cpp`), so these tests assert the same declarator-nesting
 //! shape C++'s own tests already establish, plus HLSL's own accepted
 //! top-level-`cbuffer` parse-gap.
 
-use enforcer_memory::languages::generic::parse_hlsl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_hlsl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_hlsl";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

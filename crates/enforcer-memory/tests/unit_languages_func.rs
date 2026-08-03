@@ -1,9 +1,9 @@
 //! Hard tests for FunC, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_func`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_func`])
 //! -- there is no bespoke `languages::func` extractor to prove
 //! zero-regression against (FunC has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::func`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::func`]'s own doc
 //! comment directly: the real `function_definition` name field, the
 //! `function_application`/`method_call` confirmed grammar TYPO
 //! (`"agruments"`, not `"arguments"`) this crate's own
@@ -11,8 +11,8 @@
 //! confirmed-unextractable `#include` (parses as a bare `ERROR` node in
 //! this grammar, not a spec-writing gap).
 
-use enforcer_memory::languages::generic::parse_func;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_func;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_func";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

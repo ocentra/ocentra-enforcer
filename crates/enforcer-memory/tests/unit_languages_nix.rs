@@ -1,16 +1,16 @@
 //! Hard tests for Nix, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_nix`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_nix`])
 //! -- there is no bespoke `languages::nix` extractor to prove
 //! zero-regression against (Nix has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::nix`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::nix`]'s own doc comment
 //! directly: a `function_expression`'s own name is resolved from its
 //! ENCLOSING `binding`'s `attrpath`, an unbound lambda stays anonymous,
 //! and `apply_expression` calls are recorded per-node (not curry-chain
 //! collapsed).
 
-use enforcer_memory::languages::generic::parse_nix;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_nix;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_nix";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

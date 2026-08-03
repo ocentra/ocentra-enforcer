@@ -1,18 +1,18 @@
 //! Hard tests for PureScript, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_purescript`]) -- there
+//! ([`enforcer_syntax::languages::generic::parse_purescript`]) -- there
 //! is no bespoke `languages::purescript` extractor to prove
 //! zero-regression against (PureScript has never had one in this crate),
 //! so these tests assert against the grammar-shape ground truth recorded
 //! in
-//! [`enforcer_memory::languages::spec::LangSpec::purescript`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::purescript`]'s own doc
 //! comment directly: `function`'s own `"rhs"`-not-`"body"` field plus
 //! multi-child `"name"` filtering, `class_declaration`'s nested
 //! `class_head`/`class_name` naming, and `exp_apply`'s fieldless
 //! callee-plus-positional-arguments shape.
 
-use enforcer_memory::languages::generic::parse_purescript;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_purescript;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_purescript";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

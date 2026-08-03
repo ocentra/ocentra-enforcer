@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/*", "xtask"]
-exclude = ["crates/enforcer-memory/vendor"]
+exclude = ["crates/enforcer-syntax/vendor"]
 
 [workspace.package]
 version = "0.1.0"
@@ -33,105 +33,105 @@ enforcer-literal-scan = { path = "crates/enforcer-literal-scan", version = "0.1.
 # DEPENDENCY-JUSTIFICATION: typed plans and orchestration contracts.
 enforcer-plan = { path = "crates/enforcer-plan", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-squirrel-local is a local audited parser source retained for language parity.
-tree-sitter-squirrel-local = { path = "crates/enforcer-memory/vendor/tree-sitter-squirrel-local", version = "0.1.0" }
+tree-sitter-squirrel-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-squirrel-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-crystal is a local audited parser source retained for language parity.
-tree-sitter-crystal = { path = "crates/enforcer-memory/vendor/tree-sitter-crystal", version = "0.0.1" }
+tree-sitter-crystal = { path = "crates/enforcer-syntax/vendor/tree-sitter-crystal", version = "0.0.1" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-sway-local is a local audited parser source retained for language parity.
-tree-sitter-sway-local = { path = "crates/enforcer-memory/vendor/tree-sitter-sway-local", version = "0.1.0" }
+tree-sitter-sway-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-sway-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-wolfram-local is a local audited parser source retained for language parity.
-tree-sitter-wolfram-local = { path = "crates/enforcer-memory/vendor/tree-sitter-wolfram-local", version = "0.1.0" }
+tree-sitter-wolfram-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-wolfram-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-scss-local is a local audited parser source retained for language parity.
-tree-sitter-scss-local = { path = "crates/enforcer-memory/vendor/tree-sitter-scss-local", version = "0.1.0" }
+tree-sitter-scss-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-scss-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-bitbake-local is a local audited parser source retained for language parity.
-tree-sitter-bitbake-local = { path = "crates/enforcer-memory/vendor/tree-sitter-bitbake-local", version = "0.1.0" }
+tree-sitter-bitbake-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-bitbake-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-cairo-local is a local audited parser source retained for language parity.
-tree-sitter-cairo-local = { path = "crates/enforcer-memory/vendor/tree-sitter-cairo-local", version = "0.1.0" }
+tree-sitter-cairo-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-cairo-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-func-local is a local audited parser source retained for language parity.
-tree-sitter-func-local = { path = "crates/enforcer-memory/vendor/tree-sitter-func-local", version = "0.1.0" }
+tree-sitter-func-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-func-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-move-local is a local audited parser source retained for language parity.
-tree-sitter-move-local = { path = "crates/enforcer-memory/vendor/tree-sitter-move-local", version = "0.1.0" }
+tree-sitter-move-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-move-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-purescript is a local audited parser source retained for language parity.
-tree-sitter-purescript = { path = "crates/enforcer-memory/vendor/tree-sitter-purescript", version = "0.3.0" }
+tree-sitter-purescript = { path = "crates/enforcer-syntax/vendor/tree-sitter-purescript", version = "0.3.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-magma is a local audited parser source retained for language parity.
-tree-sitter-magma = { path = "crates/enforcer-memory/vendor/tree-sitter-magma", version = "0.1.0" }
+tree-sitter-magma = { path = "crates/enforcer-syntax/vendor/tree-sitter-magma", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-hare-local is a local audited parser source retained for language parity.
-tree-sitter-hare-local = { path = "crates/enforcer-memory/vendor/tree-sitter-hare-local", version = "0.1.0" }
+tree-sitter-hare-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-hare-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-ispc-local is a local audited parser source retained for language parity.
-tree-sitter-ispc-local = { path = "crates/enforcer-memory/vendor/tree-sitter-ispc-local", version = "0.1.0" }
+tree-sitter-ispc-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-ispc-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-pony-local is a local audited parser source retained for language parity.
-tree-sitter-pony-local = { path = "crates/enforcer-memory/vendor/tree-sitter-pony-local", version = "0.1.0" }
+tree-sitter-pony-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-pony-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-nasm-local is a local audited parser source retained for language parity.
-tree-sitter-nasm-local = { path = "crates/enforcer-memory/vendor/tree-sitter-nasm-local", version = "0.1.0" }
+tree-sitter-nasm-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-nasm-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-cobol-local is a local audited parser source retained for language parity.
-tree-sitter-cobol-local = { path = "crates/enforcer-memory/vendor/tree-sitter-cobol-local", version = "0.1.0" }
+tree-sitter-cobol-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-cobol-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-capnp-local is a local audited parser source retained for language parity.
-tree-sitter-capnp-local = { path = "crates/enforcer-memory/vendor/tree-sitter-capnp-local", version = "0.1.0" }
+tree-sitter-capnp-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-capnp-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-smithy-local is a local audited parser source retained for language parity.
-tree-sitter-smithy-local = { path = "crates/enforcer-memory/vendor/tree-sitter-smithy-local", version = "0.1.0" }
+tree-sitter-smithy-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-smithy-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-pine-local is a local audited parser source retained for language parity.
-tree-sitter-pine-local = { path = "crates/enforcer-memory/vendor/tree-sitter-pine-local", version = "0.1.0" }
+tree-sitter-pine-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-pine-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-teal-local is a local audited parser source retained for language parity.
-tree-sitter-teal-local = { path = "crates/enforcer-memory/vendor/tree-sitter-teal-local", version = "0.1.0" }
+tree-sitter-teal-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-teal-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-meson-local is a local audited parser source retained for language parity.
-tree-sitter-meson-local = { path = "crates/enforcer-memory/vendor/tree-sitter-meson-local", version = "0.1.0" }
+tree-sitter-meson-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-meson-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-fennel-local is a local audited parser source retained for language parity.
-tree-sitter-fennel-local = { path = "crates/enforcer-memory/vendor/tree-sitter-fennel-local", version = "0.1.0" }
+tree-sitter-fennel-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-fennel-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-pkl is a local audited parser source retained for language parity.
-tree-sitter-pkl = { package = "ocentra-tree-sitter-pkl", path = "crates/enforcer-memory/vendor/tree-sitter-pkl", version = "0.21.0" }
+tree-sitter-pkl = { package = "ocentra-tree-sitter-pkl", path = "crates/enforcer-syntax/vendor/tree-sitter-pkl", version = "0.21.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-gotemplate-local is a local audited parser source retained for language parity.
-tree-sitter-gotemplate-local = { path = "crates/enforcer-memory/vendor/tree-sitter-gotemplate-local", version = "0.1.0" }
+tree-sitter-gotemplate-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-gotemplate-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-smali-local is a local audited parser source retained for language parity.
-tree-sitter-smali-local = { path = "crates/enforcer-memory/vendor/tree-sitter-smali-local", version = "0.1.0" }
+tree-sitter-smali-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-smali-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-thrift-local is a local audited parser source retained for language parity.
-tree-sitter-thrift-local = { path = "crates/enforcer-memory/vendor/tree-sitter-thrift-local", version = "0.1.0" }
+tree-sitter-thrift-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-thrift-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-tablegen-local is a local audited parser source retained for language parity.
-tree-sitter-tablegen-local = { path = "crates/enforcer-memory/vendor/tree-sitter-tablegen-local", version = "0.1.0" }
+tree-sitter-tablegen-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-tablegen-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-gn-local is a local audited parser source retained for language parity.
-tree-sitter-gn-local = { path = "crates/enforcer-memory/vendor/tree-sitter-gn-local", version = "0.1.0" }
+tree-sitter-gn-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-gn-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-gomod-local is a local audited parser source retained for language parity.
-tree-sitter-gomod-local = { path = "crates/enforcer-memory/vendor/tree-sitter-gomod-local", version = "0.1.0" }
+tree-sitter-gomod-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-gomod-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-gitignore-local is a local audited parser source retained for language parity.
-tree-sitter-gitignore-local = { path = "crates/enforcer-memory/vendor/tree-sitter-gitignore-local", version = "0.1.0" }
+tree-sitter-gitignore-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-gitignore-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-hyprlang-local is a local audited parser source retained for language parity.
-tree-sitter-hyprlang-local = { path = "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local", version = "0.1.0" }
+tree-sitter-hyprlang-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-hyprlang-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-janet-local is a local audited parser source retained for language parity.
-tree-sitter-janet-local = { path = "crates/enforcer-memory/vendor/tree-sitter-janet-local", version = "0.1.0" }
+tree-sitter-janet-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-janet-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-json5-local is a local audited parser source retained for language parity.
-tree-sitter-json5-local = { path = "crates/enforcer-memory/vendor/tree-sitter-json5-local", version = "0.1.0" }
+tree-sitter-json5-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-json5-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-kdl-local is a local audited parser source retained for language parity.
-tree-sitter-kdl-local = { path = "crates/enforcer-memory/vendor/tree-sitter-kdl-local", version = "0.1.0" }
+tree-sitter-kdl-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-kdl-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-linkerscript-local is a local audited parser source retained for language parity.
-tree-sitter-linkerscript-local = { path = "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local", version = "0.1.0" }
+tree-sitter-linkerscript-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-linkerscript-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-liquid-local is a local audited parser source retained for language parity.
-tree-sitter-liquid-local = { path = "crates/enforcer-memory/vendor/tree-sitter-liquid-local", version = "0.1.0" }
+tree-sitter-liquid-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-liquid-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-markdown-local is a local audited parser source retained for language parity.
-tree-sitter-markdown-local = { path = "crates/enforcer-memory/vendor/tree-sitter-markdown-local", version = "0.1.0" }
+tree-sitter-markdown-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-markdown-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-mermaid-local is a local audited parser source retained for language parity.
-tree-sitter-mermaid-local = { path = "crates/enforcer-memory/vendor/tree-sitter-mermaid-local", version = "0.1.0" }
+tree-sitter-mermaid-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-mermaid-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-po-local is a local audited parser source retained for language parity.
-tree-sitter-po-local = { path = "crates/enforcer-memory/vendor/tree-sitter-po-local", version = "0.1.0" }
+tree-sitter-po-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-po-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-ron-local is a local audited parser source retained for language parity.
-tree-sitter-ron-local = { path = "crates/enforcer-memory/vendor/tree-sitter-ron-local", version = "0.1.0" }
+tree-sitter-ron-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-ron-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-sshclientconfig-local is a local audited parser source retained for language parity.
-tree-sitter-sshclientconfig-local = { path = "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local", version = "0.1.0" }
+tree-sitter-sshclientconfig-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-sshclientconfig-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-astro-local is a local audited parser source retained for language parity.
-tree-sitter-astro-local = { path = "crates/enforcer-memory/vendor/tree-sitter-astro-local", version = "0.1.0" }
+tree-sitter-astro-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-astro-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-beancount-local is a local audited parser source retained for language parity.
-tree-sitter-beancount-local = { path = "crates/enforcer-memory/vendor/tree-sitter-beancount-local", version = "0.1.0" }
+tree-sitter-beancount-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-beancount-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-bibtex-local is a local audited parser source retained for language parity.
-tree-sitter-bibtex-local = { path = "crates/enforcer-memory/vendor/tree-sitter-bibtex-local", version = "0.1.0" }
+tree-sitter-bibtex-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-bibtex-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-blade-local is a local audited parser source retained for language parity.
-tree-sitter-blade-local = { path = "crates/enforcer-memory/vendor/tree-sitter-blade-local", version = "0.1.0" }
+tree-sitter-blade-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-blade-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-csv-local is a local audited parser source retained for language parity.
-tree-sitter-csv-local = { path = "crates/enforcer-memory/vendor/tree-sitter-csv-local", version = "0.1.0" }
+tree-sitter-csv-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-csv-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-dockerfile-local is a local audited parser source retained for language parity.
-tree-sitter-dockerfile-local = { path = "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local", version = "0.1.0" }
+tree-sitter-dockerfile-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-dockerfile-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-dotenv-local is a local audited parser source retained for language parity.
-tree-sitter-dotenv-local = { path = "crates/enforcer-memory/vendor/tree-sitter-dotenv-local", version = "0.1.0" }
+tree-sitter-dotenv-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-dotenv-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-gitattributes-local is a local audited parser source retained for language parity.
-tree-sitter-gitattributes-local = { path = "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local", version = "0.1.0" }
+tree-sitter-gitattributes-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-gitattributes-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: vendored grammar tree-sitter-form-local is a local audited parser source retained for language parity.
-tree-sitter-form-local = { path = "crates/enforcer-memory/vendor/tree-sitter-form-local", version = "0.1.0" }
+tree-sitter-form-local = { path = "crates/enforcer-syntax/vendor/tree-sitter-form-local", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: serialization derives for workspace-owned contracts.
 serde = { version = "1.0.228", features = ["derive"] }
 # DEPENDENCY-JUSTIFICATION: JSON transport at CLI, MCP, and proof boundaries.

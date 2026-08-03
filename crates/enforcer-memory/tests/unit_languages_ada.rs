@@ -1,17 +1,17 @@
 //! Hard tests for Ada, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_ada`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_ada`])
 //! -- there is no bespoke `languages::ada` extractor to prove
 //! zero-regression against (Ada has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::ada`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::ada`]'s own doc comment
 //! directly: subprogram naming off a nested specification node,
 //! `full_type_declaration`'s positional (fieldless) name plus its
 //! `derived_type_definition` INHERITS, `with`/`use` clause IMPORTS, and
 //! `function_call`/`procedure_call_statement` callee reconstruction off
 //! their own real `name` field.
 
-use enforcer_memory::languages::generic::parse_ada;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_ada;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_ada";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

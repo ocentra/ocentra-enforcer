@@ -1,17 +1,17 @@
 //! Hard tests for TOML, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_toml`]).
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_toml`]).
 //! Grammar: `tree-sitter-toml-ng` 0.7.0, a real crates.io crate. Matches
 //! the baseline's own `CBM_LANG_TOML` row's `module_types = {"document"}`/
 //! `class_types = {"table", "table_array_element"}` -- both node kinds
 //! are entirely fieldless in this real grammar, so
-//! [`enforcer_memory::languages::generic::toml_quirk`] claims them by
+//! [`enforcer_syntax::languages::generic::toml_quirk`] claims them by
 //! positional key lookup rather than the generic engine's own
 //! field-based fallback, see
-//! [`enforcer_memory::languages::spec::LangSpec::toml`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::toml`]'s own doc
 //! comment.
 
-use enforcer_memory::languages::generic::parse_toml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_toml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_toml";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

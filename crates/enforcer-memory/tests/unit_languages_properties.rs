@@ -1,14 +1,14 @@
 //! Hard tests for Java/Jakarta `.properties`, onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_properties`]).
+//! ([`enforcer_syntax::languages::generic::parse_properties`]).
 //! Properties is a Tier-0 nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::properties`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::properties`]'s own doc
 //! comment): only its own real root node kind (`file`) is asserted --
 //! baseline's own `property`-as-symbol array is deliberately not
 //! mapped onto this row (no container a DEFINES edge could attach to,
 //! the same reasoning `LangSpec::wgsl`'s own row already applies).
 
-use enforcer_memory::languages::generic::parse_properties;
+use enforcer_syntax::languages::generic::parse_properties;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

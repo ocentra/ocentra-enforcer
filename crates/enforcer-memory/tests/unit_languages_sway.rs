@@ -1,16 +1,16 @@
 //! Hard tests for Sway, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_sway`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_sway`])
 //! -- there is no bespoke `languages::sway` extractor to prove
 //! zero-regression against (Sway has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::sway`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::sway`]'s own doc comment
 //! directly: Rust-shaped `function_item`/`call_expression` fields,
 //! `impl_item`'s `type`-field naming/scoping, `struct_item`/`abi_item`'s
 //! Struct/Interface relabeling, and `use_declaration`'s `argument`-field
 //! IMPORTS.
 
-use enforcer_memory::languages::generic::parse_sway;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_sway;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_sway";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

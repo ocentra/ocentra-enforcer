@@ -2457,3 +2457,26 @@ fn is_c_family_test_path(
         .any(|suffix| lower.ends_with(suffix));
     (under_test_dir || matches_suffix).into()
 }
+
+/// Return the grammar used by the memory complexity walk for a supported
+/// structural language. Keeping this provider beside the grammar bindings
+/// prevents memory consumers from carrying a second grammar dependency set.
+pub fn grammar_for_complexity(
+    language: enforcer_domain::memory_types::ComplexityLanguage,
+) -> tree_sitter::Language {
+    use enforcer_domain::memory_types::ComplexityLanguage;
+
+    match language {
+        ComplexityLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
+        ComplexityLanguage::TypeScriptOrJavaScript => {
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
+        }
+        ComplexityLanguage::Python => tree_sitter_python::LANGUAGE.into(),
+        ComplexityLanguage::Go => tree_sitter_go::LANGUAGE.into(),
+        ComplexityLanguage::Java => tree_sitter_java::LANGUAGE.into(),
+        ComplexityLanguage::C => tree_sitter_c::LANGUAGE.into(),
+        ComplexityLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+        ComplexityLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+        ComplexityLanguage::Php => tree_sitter_php::LANGUAGE_PHP.into(),
+    }
+}

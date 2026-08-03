@@ -1,17 +1,17 @@
 //! Hard tests for CFML (tag dialect), onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_cfml`]) -- there is no
+//! ([`enforcer_syntax::languages::generic::parse_cfml`]) -- there is no
 //! bespoke `languages::cfml` extractor to prove zero-regression against
 //! (CFML has never had one in this crate), so these tests assert
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::cfml`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::cfml`]'s own doc
 //! comment directly: `cf_function_tag`'s fully fieldless name
 //! resolution via `cf_attribute`/`cf_attribute_name`/
 //! `quoted_cf_attribute_value` descent, and real `call_expression`
 //! `function`/`arguments` fields.
 
-use enforcer_memory::languages::generic::parse_cfml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_cfml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_cfml";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)
