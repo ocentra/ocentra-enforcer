@@ -28,6 +28,7 @@
 
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
+use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 
 use enforcer_domain::boundary::validation::ValidationSourceText;
@@ -40,6 +41,8 @@ use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::scan_types::{LanguageFamily, ResolvedScope};
 use enforcer_domain::severity::Severity;
 use enforcer_domain::telemetry_types::SourceLine;
+use enforcer_validator::analysis::{AnalysisProvider, LegacyAnalysisProvider, PreparedAnalysis};
+use enforcer_validator::validator::ValidationDispatch;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 use crate::cargo_workspace_policy;
@@ -256,6 +259,22 @@ pub fn run_with_inline_test_policy(
     validators: &FamilyValidators,
     inline_test_policy: InlineTestPolicy,
 ) -> Report {
+    let provider = LegacyAnalysisProvider;
+    run_with_analysis_provider(scope, files, validators, &provider, inline_test_policy)
+}
+
+/// Run the engine with one parse-once analysis provider.
+///
+/// The default entry point remains legacy-compatible. This additive seam
+/// prepares each source once per `(file, content hash, provider version)` and
+/// passes the retained result to validators that declare a fact capability.
+pub fn run_with_analysis_provider(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    validators: &FamilyValidators,
+    provider: &dyn AnalysisProvider,
+    inline_test_policy: InlineTestPolicy,
+) -> Report {
     let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
         .par_iter()
         // CLONE-JUSTIFICATION: the parallel read phase must retain each
@@ -273,6 +292,20 @@ pub fn run_with_inline_test_policy(
         }
     }
 
+    let mut analysis_cache = crate::analysis_cache::AnalysisCache::default();
+    let analyses: BTreeMap<RelPath, PreparedAnalysis> = sources
+        .iter()
+        .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
+        .map(|(file, source)| {
+            (
+                file.clone(),
+                analysis_cache
+                    .prepare(file, source.as_source(), scope.kind, provider)
+                    .clone(),
+            )
+        })
+        .collect();
+
     let mut all_findings = sources
         .par_iter()
         .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
@@ -285,7 +318,11 @@ pub fn run_with_inline_test_policy(
                     source: source.as_source(),
                     scope: scope.kind,
                 };
-                per_file.extend(validator.validate(input));
+                if let ValidationDispatch::Ran(findings) =
+                    validator.validate_with_analysis(input, analyses.get(file))
+                {
+                    per_file.extend(findings);
+                }
             }
             per_file
         })

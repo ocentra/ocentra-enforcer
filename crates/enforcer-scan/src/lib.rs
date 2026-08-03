@@ -49,6 +49,7 @@
 //! modules directly, e.g. `enforcer_scan::engine::scan`.
 
 pub mod ai_rule_index;
+pub mod analysis_cache;
 pub mod architecture_policy;
 pub mod boundary;
 pub mod cargo_workspace_policy;
