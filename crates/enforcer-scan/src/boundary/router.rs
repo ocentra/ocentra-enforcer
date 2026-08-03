@@ -4,7 +4,7 @@
 
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::config_types::ResolvedNativeTie;
-use enforcer_domain::language_types::{LanguageId, ScanFamilyDisposition};
+use enforcer_domain::language_types::{LanguageId, LiteralDisposition, ScanFamilyDisposition};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 
 /// Serializable projection of one resolved native-tool tie.
@@ -83,6 +83,41 @@ pub enum CanonicalCapabilityDisposition {
     Unsupported,
     /// The identity is intentionally not applicable to structural routing.
     NotApplicable,
+}
+
+/// Reviewed literal-projection disposition for one canonical identity.
+///
+/// This is separate from structural parser support and supplemental literal
+/// routing. A registered value identifies the existing literal projection;
+/// it does not claim parser or validator capability.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", deny_unknown_fields, rename_all = "camelCase")]
+pub enum CanonicalLiteralDisposition {
+    /// The identity participates in a named literal projection row.
+    #[serde(rename = "registered")]
+    Registered {
+        /// Existing literal projection name from the reviewed registry.
+        #[serde(rename = "literalName")]
+        literal_name: String,
+    },
+    /// The identity has no current literal projection row.
+    #[serde(rename = "unsupported")]
+    Unsupported,
+    /// The literal projection question does not apply to this identity.
+    #[serde(rename = "notApplicable")]
+    NotApplicable,
+}
+
+impl From<LiteralDisposition> for CanonicalLiteralDisposition {
+    fn from(value: LiteralDisposition) -> Self {
+        match value {
+            LiteralDisposition::Registered { literal_name } => Self::Registered {
+                literal_name: literal_name.to_owned(),
+            },
+            LiteralDisposition::Unsupported => Self::Unsupported,
+            LiteralDisposition::NotApplicable => Self::NotApplicable,
+        }
+    }
 }
 
 /// Current extension-based validator-dispatch family projection.
@@ -273,6 +308,8 @@ pub enum CanonicalLanguageRouteResponse {
         canonical_name: String,
         /// Structural parser disposition.
         structural: CanonicalStructuralDisposition,
+        /// Reviewed literal-projection disposition.
+        literal_disposition: CanonicalLiteralDisposition,
         /// Capability state proved by this packet.
         capability: CanonicalCapabilityDisposition,
         /// Typed consumer capability states for this canonical identity.
@@ -297,6 +334,8 @@ enum CanonicalLanguageRouteWire<'a> {
         #[serde(rename = "canonicalName")]
         canonical_name: &'a str,
         structural: CanonicalStructuralDisposition,
+        #[serde(rename = "literalDisposition")]
+        literal_disposition: CanonicalLiteralDisposition,
         capability: CanonicalCapabilityDisposition,
         #[serde(rename = "scanFamilyDisposition")]
         scan_family_disposition: CanonicalScanFamilyDisposition,
@@ -322,6 +361,8 @@ enum CanonicalLanguageRouteWireOwned {
         #[serde(rename = "canonicalName")]
         canonical_name: String,
         structural: CanonicalStructuralDisposition,
+        #[serde(rename = "literalDisposition")]
+        literal_disposition: CanonicalLiteralDisposition,
         capability: CanonicalCapabilityDisposition,
         #[serde(rename = "scanFamilyDisposition")]
         scan_family_disposition: CanonicalScanFamilyDisposition,
@@ -347,12 +388,14 @@ impl serde::Serialize for CanonicalLanguageRouteResponse {
                 language_id,
                 canonical_name,
                 structural,
+                literal_disposition,
                 capability,
                 consumer_capabilities,
             } => CanonicalLanguageRouteWire::Canonical {
                 language_id: *language_id,
                 canonical_name,
                 structural: *structural,
+                literal_disposition: literal_disposition.clone(),
                 capability: *capability,
                 consumer_capabilities: consumer_capabilities.clone(),
                 scan_family_disposition: scan_family_disposition_for_wire(*language_id)
@@ -377,6 +420,7 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                 language_id,
                 canonical_name,
                 structural,
+                literal_disposition,
                 capability,
                 scan_family_disposition,
                 consumer_capabilities,
@@ -386,6 +430,13 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                 if scan_family_disposition != expected {
                     return Err(serde::de::Error::custom(
                         "scanFamilyDisposition does not match the canonical registry",
+                    ));
+                }
+                let expected_literal =
+                    literal_disposition_for_wire(language_id).map_err(serde::de::Error::custom)?;
+                if literal_disposition != expected_literal {
+                    return Err(serde::de::Error::custom(
+                        "literalDisposition does not match the canonical registry",
                     ));
                 }
                 let expected_consumers = consumer_capabilities_for_wire(language_id)
@@ -399,6 +450,7 @@ impl<'de> serde::Deserialize<'de> for CanonicalLanguageRouteResponse {
                     language_id,
                     canonical_name,
                     structural,
+                    literal_disposition,
                     capability,
                     consumer_capabilities,
                 })
@@ -421,6 +473,16 @@ fn scan_family_disposition_for_wire(
     let disposition = crate::router::identity::canonical_scan_family_disposition(id)
         .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
     Ok(scan_family_to_wire(disposition))
+}
+
+fn literal_disposition_for_wire(language_id: u16) -> Result<CanonicalLiteralDisposition, String> {
+    let nonzero = std::num::NonZeroU16::new(language_id)
+        .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
+    let id = LanguageId::try_from_registry_index(nonzero)
+        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+    let route = crate::router::identity::canonical_literal_disposition(id)
+        .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
+    Ok(route.into())
 }
 
 fn consumer_capabilities_for_wire(

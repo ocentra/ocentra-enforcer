@@ -120,6 +120,30 @@ fn canonical_denominators_and_crosswalk_remain_exact() -> Result<(), String> {
             .count(),
         85
     );
+    assert_eq!(
+        language_registry()
+            .iter()
+            .filter(|record| matches!(
+                record.literal_disposition(),
+                LiteralDisposition::Registered { .. }
+            ))
+            .count(),
+        75
+    );
+    assert_eq!(
+        language_registry()
+            .iter()
+            .filter(|record| record.literal_disposition() == LiteralDisposition::Unsupported)
+            .count(),
+        81
+    );
+    assert_eq!(
+        language_registry()
+            .iter()
+            .filter(|record| record.literal_disposition() == LiteralDisposition::NotApplicable)
+            .count(),
+        4
+    );
 
     let manifest: serde_json::Value = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -312,6 +336,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         "canonicalName": "Rust",
         "structural": { "kind": "parseFile" },
         "capability": { "kind": "unsupported" },
+        "literalDisposition": { "kind": "registered", "literalName": "rust" },
         "scanFamilyDisposition": { "kind": "mapped", "family": { "kind": "rust" } },
         "consumerCapabilities": {
             "nativeScan": { "kind": "mapped", "family": { "kind": "rust" } },
@@ -373,9 +398,55 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         .to_string()
         .contains("does not match the canonical registry"));
 
+    let mut missing_literal = base.clone();
+    let Some(missing_literal_object) = missing_literal.as_object_mut() else {
+        return Err("canonical wire fixture must be an object".to_owned());
+    };
+    missing_literal_object.remove("literalDisposition");
+    let missing_literal_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_literal)
+            .expect_err("missing literal disposition must be rejected");
+    assert!(missing_literal_error
+        .to_string()
+        .contains("literalDisposition"));
+
+    let mut unknown_literal = base.clone();
+    unknown_literal["literalDisposition"] = serde_json::json!({ "kind": "future" });
+    let unknown_literal_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_literal)
+            .expect_err("unknown literal disposition must be rejected");
+    assert!(unknown_literal_error
+        .to_string()
+        .contains("unknown variant"));
+
+    let mut mismatched_literal = base.clone();
+    mismatched_literal["literalDisposition"] = serde_json::json!({ "kind": "unsupported" });
+    let mismatched_literal_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_literal)
+            .expect_err("mismatched literal disposition must be rejected");
+    assert!(mismatched_literal_error
+        .to_string()
+        .contains("literalDisposition does not match"));
+
+    let duplicate_literal = r#"{
+        "kind":"canonical","languageId":1,"canonicalName":"Rust",
+        "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "literalDisposition":{"kind":"registered","literalName":"rust"},
+        "literalDisposition":{"kind":"registered","literalName":"rust"},
+        "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
+        "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"mapped","tool":"cargo"},"rulePacks":{"kind":"mapped","packs":["rust","security"]},"cli":{"kind":"mapped","language":"rust"},"ui":{"kind":"notApplicable"}}
+    }"#;
+    let duplicate_literal_error =
+        serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_literal)
+            .expect_err("duplicate literal disposition must be rejected");
+    assert!(duplicate_literal_error
+        .to_string()
+        .contains("duplicate field"));
+
     let duplicate = r#"{
         "kind":"canonical","languageId":1,"canonicalName":"Rust",
         "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "literalDisposition":{"kind":"registered","literalName":"rust"},
         "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
         "scanFamilyDisposition":{"kind":"unsupported"}
     }"#;
@@ -407,6 +478,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     let duplicate_ui = r#"{
         "kind":"canonical","languageId":1,"canonicalName":"Rust",
         "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "literalDisposition":{"kind":"registered","literalName":"rust"},
         "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
         "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"mapped","tool":"cargo"},"rulePacks":{"kind":"mapped","packs":["rust","security"]},"cli":{"kind":"mapped","language":"rust"},"ui":{"kind":"notApplicable"},"ui":{"kind":"notApplicable"}}
     }"#;
@@ -572,6 +644,7 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     let duplicate_consumer = r#"{
         "kind":"canonical","languageId":1,"canonicalName":"Rust",
         "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "literalDisposition":{"kind":"registered","literalName":"rust"},
         "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
         "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"unsupported"},"rulePacks":{"kind":"unsupported"},"cli":{"kind":"unsupported"},"ui":{"kind":"unsupported"}},
         "consumerCapabilities":{"nativeScan":{"kind":"unsupported"},"nativeTool":{"kind":"unsupported"},"rulePacks":{"kind":"unsupported"},"cli":{"kind":"unsupported"},"ui":{"kind":"unsupported"}}
