@@ -212,6 +212,12 @@ fn reviewed_route_projection_delta_accounts_for_the_exact_surface_growth(
             continue;
         }
         route_names.push(current.name.clone());
+        assert!(
+            current.input_schema["properties"]
+                .as_object()
+                .is_some_and(|properties| !properties.contains_key("consumerCapabilities")),
+            "consumer capability values are output-only and must not expand the route input schema"
+        );
         let current_bytes = serde_json::to_vec(current)?.len();
         old.input_schema["properties"]
             .as_object_mut()

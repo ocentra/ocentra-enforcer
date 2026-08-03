@@ -7,10 +7,12 @@ use enforcer_domain::language_types::{
 };
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::{LanguageFamily, RouteScope};
-use enforcer_scan::boundary::router::CanonicalLanguageRouteResponse;
+use enforcer_scan::boundary::router::{
+    CanonicalConsumerCapabilityProjectionResponse, CanonicalLanguageRouteResponse,
+};
 use enforcer_scan::router::identity::{
-    detect_language_identities, DetectedLanguageRoute, RouteCapabilityDisposition,
-    UnknownLanguagePolicy,
+    detect_language_identities, ConsumerCapabilityState, DetectedLanguageRoute,
+    RouteCapabilityDisposition, UnknownLanguagePolicy,
 };
 use enforcer_scan::router::plan::build_canonical_route_plan;
 use enforcer_syntax::registry::{
@@ -255,6 +257,15 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
         };
         assert_eq!(route.scan_family_disposition(), expected);
         assert_eq!(route.capability(), RouteCapabilityDisposition::Unsupported);
+        let consumers = route.consumer_capabilities();
+        assert_eq!(consumers.native_scan(), expected);
+        assert_eq!(
+            consumers.native_tool(),
+            ConsumerCapabilityState::Unsupported
+        );
+        assert_eq!(consumers.rule_packs(), ConsumerCapabilityState::Unsupported);
+        assert_eq!(consumers.cli(), ConsumerCapabilityState::Unsupported);
+        assert_eq!(consumers.ui(), ConsumerCapabilityState::Unsupported);
     }
     Ok(())
 }
@@ -263,13 +274,37 @@ fn scan_family_projection_is_separate_from_structural_and_literal_support() -> R
 fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_dispositions(
 ) -> Result<(), String> {
     let base = serde_json::json!({
-        "kind": "canonical",
+       "kind": "canonical",
         "languageId": 1,
         "canonicalName": "Rust",
         "structural": { "kind": "parseFile" },
         "capability": { "kind": "unsupported" },
-        "scanFamilyDisposition": { "kind": "mapped", "family": { "kind": "rust" } }
+        "scanFamilyDisposition": { "kind": "mapped", "family": { "kind": "rust" } },
+        "consumerCapabilities": {
+            "nativeScan": { "kind": "mapped", "family": { "kind": "rust" } },
+            "nativeTool": { "kind": "unsupported" },
+            "rulePacks": { "kind": "unsupported" },
+            "cli": { "kind": "unsupported" },
+            "ui": { "kind": "unsupported" }
+        }
     });
+
+    let round_tripped = serde_json::from_value::<CanonicalLanguageRouteResponse>(base.clone())
+        .map_err(|error| error.to_string())?;
+    assert_eq!(
+        serde_json::to_value(&round_tripped).map_err(|error| error.to_string())?,
+        base,
+        "canonical consumer response DTO must round-trip exactly"
+    );
+    let consumer = serde_json::from_value::<CanonicalConsumerCapabilityProjectionResponse>(
+        base["consumerCapabilities"].clone(),
+    )
+    .map_err(|error| error.to_string())?;
+    let consumer_wire = serde_json::to_string(&consumer).map_err(|error| error.to_string())?;
+    let consumer_back =
+        serde_json::from_str::<CanonicalConsumerCapabilityProjectionResponse>(&consumer_wire)
+            .map_err(|error| error.to_string())?;
+    assert_eq!(consumer_back, consumer);
 
     let mut missing = base.clone();
     let Some(missing_object) = missing.as_object_mut() else {
@@ -304,6 +339,61 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     let duplicate_error = serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate)
         .expect_err("duplicate disposition must be rejected");
     assert!(duplicate_error.to_string().contains("duplicate field"));
+
+    let mut missing_consumer = base.clone();
+    let Some(missing_consumer_object) = missing_consumer.as_object_mut() else {
+        return Err("canonical wire fixture must be an object".to_owned());
+    };
+    missing_consumer_object.remove("consumerCapabilities");
+    let missing_consumer_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_consumer)
+            .expect_err("missing consumer capabilities must be rejected");
+    assert!(missing_consumer_error
+        .to_string()
+        .contains("consumerCapabilities"));
+
+    let mut unknown_consumer = base.clone();
+    unknown_consumer["consumerCapabilities"]["nativeTool"] =
+        serde_json::json!({ "kind": "future" });
+    let unknown_consumer_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_consumer)
+            .expect_err("unknown consumer disposition must be rejected");
+    assert!(unknown_consumer_error
+        .to_string()
+        .contains("unknown variant"));
+
+    let mut unknown_consumer_field = base.clone();
+    unknown_consumer_field["consumerCapabilities"]["futureField"] = serde_json::json!(true);
+    let unknown_consumer_field_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_consumer_field)
+            .expect_err("unknown consumer field must be rejected");
+    assert!(unknown_consumer_field_error
+        .to_string()
+        .contains("unknown field"));
+
+    let mut mismatched_consumer = base.clone();
+    mismatched_consumer["consumerCapabilities"]["nativeTool"] =
+        serde_json::json!({ "kind": "notApplicable" });
+    let mismatched_consumer_error =
+        serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_consumer)
+            .expect_err("mismatched consumer disposition must be rejected");
+    assert!(mismatched_consumer_error
+        .to_string()
+        .contains("consumerCapabilities does not match"));
+
+    let duplicate_consumer = r#"{
+        "kind":"canonical","languageId":1,"canonicalName":"Rust",
+        "structural":{"kind":"parseFile"},"capability":{"kind":"unsupported"},
+        "scanFamilyDisposition":{"kind":"mapped","family":{"kind":"rust"}},
+        "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"unsupported"},"rulePacks":{"kind":"unsupported"},"cli":{"kind":"unsupported"},"ui":{"kind":"unsupported"}},
+        "consumerCapabilities":{"nativeScan":{"kind":"unsupported"},"nativeTool":{"kind":"unsupported"},"rulePacks":{"kind":"unsupported"},"cli":{"kind":"unsupported"},"ui":{"kind":"unsupported"}}
+    }"#;
+    let duplicate_consumer_error =
+        serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_consumer)
+            .expect_err("duplicate consumer capabilities must be rejected");
+    assert!(duplicate_consumer_error
+        .to_string()
+        .contains("duplicate field"));
     Ok(())
 }
 

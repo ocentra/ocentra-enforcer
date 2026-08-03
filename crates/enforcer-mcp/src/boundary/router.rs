@@ -2422,6 +2422,7 @@ fn canonical_language_route_responses(
                     canonical_name: canonical.canonical_name().to_string(),
                     structural,
                     capability,
+                    consumer_capabilities: canonical.consumer_capabilities().into(),
                 }
             }
             enforcer_scan::router::identity::DetectedLanguageRoute::SupplementalLiteral {
@@ -4511,6 +4512,26 @@ mod tests {
             .as_array()
             .is_some_and(|packs| packs.iter().any(|pack| pack == "rust")));
         assert!(value.get("canonicalLanguages").is_none());
+
+        let walked =
+            enforcer_scan::walk::walk(temp.path(), &enforcer_scan::walk::IgnoreRules::default())?;
+        let requested = walked
+            .into_iter()
+            .filter(|path| path.as_str() == "src/lib.rs")
+            .collect::<Vec<_>>();
+        let tie =
+            enforcer_config::project_tie::load_project_tie(&temp.path().join(".enforce/config"))?;
+        let mut expected = serde_json::to_value(enforcer_scan::router::plan::build_route_plan(
+            &requested,
+            &enforcer_domain::scan_types::RouteScope::Repo,
+            &tie,
+        ))?;
+        expected["ok"] = serde_json::Value::Bool(true);
+        assert_eq!(
+            serde_json::to_vec(&value)?,
+            serde_json::to_vec(&expected)?,
+            "default route JSON must remain byte-identical to the legacy plan plus ok"
+        );
         Ok(())
     }
 
@@ -4520,9 +4541,11 @@ mod tests {
         let temp = tempfile::tempdir()?;
         std::fs::create_dir_all(temp.path().join("src"))?;
         std::fs::create_dir_all(temp.path().join("fixtures"))?;
+        std::fs::create_dir_all(temp.path().join("web"))?;
         std::fs::write(temp.path().join("src/lib.rs"), "pub struct RouteFixture;\n")?;
         std::fs::write(temp.path().join("fixtures/example.nim"), "discard 1\n")?;
         std::fs::write(temp.path().join("fixtures/example.unknown"), "unknown\n")?;
+        std::fs::write(temp.path().join("web/index.js"), "console.log('route');\n")?;
 
         let outcome = dispatch(
             &tool("ocentra_enforcer_route")?,
@@ -4532,7 +4555,8 @@ mod tests {
                 "files": [
                     "src/lib.rs",
                     "fixtures/example.nim",
-                    "fixtures/example.unknown"
+                    "fixtures/example.unknown",
+                    "web/index.js"
                 ],
                 "identityProjection": "canonical",
             }),
@@ -4554,6 +4578,36 @@ mod tests {
                 && item["scanFamilyDisposition"]["kind"] == "mapped"
                 && item["scanFamilyDisposition"]["family"]["kind"] == "rust"
         }));
+        let rust = projection
+            .iter()
+            .find(|item| item["kind"] == "canonical" && item["languageId"] == 1)
+            .ok_or("canonical Rust projection missing")?;
+        assert_eq!(
+            rust["consumerCapabilities"]["nativeScan"],
+            rust["scanFamilyDisposition"]
+        );
+        for consumer in ["nativeTool", "rulePacks", "cli", "ui"] {
+            assert_eq!(
+                rust["consumerCapabilities"][consumer]["kind"],
+                serde_json::json!("unsupported"),
+                "{consumer} must not infer a canonical-identity capability"
+            );
+        }
+        let javascript = projection
+            .iter()
+            .find(|item| item["kind"] == "canonical" && item["languageId"] == 3)
+            .ok_or("canonical JavaScript projection missing")?;
+        assert_eq!(
+            javascript["consumerCapabilities"]["nativeScan"]["family"]["kind"],
+            serde_json::json!("typeScript")
+        );
+        for consumer in ["nativeTool", "rulePacks", "cli", "ui"] {
+            assert_eq!(
+                javascript["consumerCapabilities"][consumer]["kind"],
+                serde_json::json!("unsupported"),
+                "{consumer} must not infer a canonical-identity capability"
+            );
+        }
         assert!(projection
             .iter()
             .any(|item| item["kind"] == "supplementalLiteral" && item["literalName"] == "nim"));

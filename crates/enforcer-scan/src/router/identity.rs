@@ -33,6 +33,65 @@ pub enum RouteCapabilityDisposition {
     NotApplicable,
 }
 
+/// State of a consumer projection for one canonical identity.
+///
+/// `Unsupported` means this packet has no mechanically proved canonical
+/// identity projection for that consumer. It does not claim that the legacy
+/// coarse route lacks the capability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConsumerCapabilityState {
+    /// No canonical-identity projection is proved by this packet.
+    Unsupported,
+    /// The consumer question does not apply to this identity projection.
+    NotApplicable,
+}
+
+/// Typed consumer-capability projection attached to a canonical route.
+///
+/// Native-tool, rule-pack, CLI, and UI values remain unsupported here because
+/// none has an exact canonical-identity mapping in the current consumers.
+/// Their legacy coarse mappings remain independent and unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CanonicalConsumerCapabilities {
+    native_scan: ScanFamilyDisposition,
+    native_tool: ConsumerCapabilityState,
+    rule_packs: ConsumerCapabilityState,
+    cli: ConsumerCapabilityState,
+    ui: ConsumerCapabilityState,
+}
+
+impl CanonicalConsumerCapabilities {
+    /// Return the native-scan family projection proved by the existing matcher contract.
+    #[must_use]
+    pub const fn native_scan(&self) -> ScanFamilyDisposition {
+        self.native_scan
+    }
+
+    /// Return the canonical-identity native-tool projection state.
+    #[must_use]
+    pub const fn native_tool(&self) -> ConsumerCapabilityState {
+        self.native_tool
+    }
+
+    /// Return the canonical-identity rule-pack projection state.
+    #[must_use]
+    pub const fn rule_packs(&self) -> ConsumerCapabilityState {
+        self.rule_packs
+    }
+
+    /// Return the canonical-identity CLI projection state.
+    #[must_use]
+    pub const fn cli(&self) -> ConsumerCapabilityState {
+        self.cli
+    }
+
+    /// Return the canonical-identity UI projection state.
+    #[must_use]
+    pub const fn ui(&self) -> ConsumerCapabilityState {
+        self.ui
+    }
+}
+
 /// Policy for the explicit unknown-language fallback route.
 ///
 /// This is a routing decision, not a parser or validator capability. The
@@ -54,6 +113,7 @@ pub struct CanonicalLanguageRoute {
     structural: StructuralLanguageSupport,
     capability: RouteCapabilityDisposition,
     scan_family_disposition: ScanFamilyDisposition,
+    consumer_capabilities: CanonicalConsumerCapabilities,
 }
 
 impl CanonicalLanguageRoute {
@@ -85,6 +145,12 @@ impl CanonicalLanguageRoute {
     #[must_use]
     pub const fn scan_family_disposition(&self) -> ScanFamilyDisposition {
         self.scan_family_disposition
+    }
+
+    /// Return the typed consumer-capability projection.
+    #[must_use]
+    pub const fn consumer_capabilities(&self) -> CanonicalConsumerCapabilities {
+        self.consumer_capabilities
     }
 }
 
@@ -159,11 +225,18 @@ fn canonical_route(id: LanguageId) -> Option<CanonicalLanguageRoute> {
         structural: record.structural(),
         capability,
         scan_family_disposition: scan_family_disposition(record.matchers()),
+        consumer_capabilities: consumer_capabilities_for_matchers(record.matchers()),
     })
 }
 
 pub(crate) fn canonical_scan_family_disposition(id: LanguageId) -> Option<ScanFamilyDisposition> {
     canonical_route(id).map(|route| route.scan_family_disposition())
+}
+
+pub(crate) fn canonical_consumer_capabilities(
+    id: LanguageId,
+) -> Option<CanonicalConsumerCapabilities> {
+    canonical_route(id).map(|route| route.consumer_capabilities())
 }
 
 fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDisposition {
@@ -181,6 +254,18 @@ fn scan_family_disposition(matchers: &[DetectionMatcher]) -> ScanFamilyDispositi
         ScanFamilyDisposition::Unsupported,
         ScanFamilyDisposition::Mapped,
     )
+}
+
+fn consumer_capabilities_for_matchers(
+    matchers: &[DetectionMatcher],
+) -> CanonicalConsumerCapabilities {
+    CanonicalConsumerCapabilities {
+        native_scan: scan_family_disposition(matchers),
+        native_tool: ConsumerCapabilityState::Unsupported,
+        rule_packs: ConsumerCapabilityState::Unsupported,
+        cli: ConsumerCapabilityState::Unsupported,
+        ui: ConsumerCapabilityState::Unsupported,
+    }
 }
 
 fn scan_family_for_matcher(
@@ -460,6 +545,22 @@ mod tests {
             };
             assert_eq!(route.capability(), expected);
             assert_eq!(route.canonical_name(), record.canonical_name());
+            assert_eq!(
+                route.consumer_capabilities().native_tool(),
+                super::ConsumerCapabilityState::Unsupported
+            );
+            assert_eq!(
+                route.consumer_capabilities().rule_packs(),
+                super::ConsumerCapabilityState::Unsupported
+            );
+            assert_eq!(
+                route.consumer_capabilities().cli(),
+                super::ConsumerCapabilityState::Unsupported
+            );
+            assert_eq!(
+                route.consumer_capabilities().ui(),
+                super::ConsumerCapabilityState::Unsupported
+            );
         }
     }
 }
