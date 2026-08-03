@@ -1,0 +1,805 @@
+{
+  "schemaVersion": 1,
+  "identities": [
+    {
+      "id": 1,
+      "parserVariant": "Rust",
+      "structural": true
+    },
+    {
+      "id": 2,
+      "parserVariant": "TypeScript",
+      "structural": true
+    },
+    {
+      "id": 3,
+      "parserVariant": "JavaScript",
+      "structural": true
+    },
+    {
+      "id": 4,
+      "parserVariant": "Python",
+      "structural": true
+    },
+    {
+      "id": 5,
+      "parserVariant": "Go",
+      "structural": true
+    },
+    {
+      "id": 6,
+      "parserVariant": "Java",
+      "structural": true
+    },
+    {
+      "id": 7,
+      "parserVariant": "C",
+      "structural": true
+    },
+    {
+      "id": 8,
+      "parserVariant": "Cpp",
+      "structural": true
+    },
+    {
+      "id": 9,
+      "parserVariant": "CSharp",
+      "structural": true
+    },
+    {
+      "id": 10,
+      "parserVariant": "Php",
+      "structural": true
+    },
+    {
+      "id": 11,
+      "parserVariant": "Kotlin",
+      "structural": true
+    },
+    {
+      "id": 12,
+      "parserVariant": "Swift",
+      "structural": true
+    },
+    {
+      "id": 13,
+      "parserVariant": "Tsx",
+      "structural": true
+    },
+    {
+      "id": 14,
+      "parserVariant": "Solidity",
+      "structural": true
+    },
+    {
+      "id": 15,
+      "parserVariant": "Gdscript",
+      "structural": true
+    },
+    {
+      "id": 16,
+      "parserVariant": "Dart",
+      "structural": true
+    },
+    {
+      "id": 17,
+      "parserVariant": "Scala",
+      "structural": true
+    },
+    {
+      "id": 18,
+      "parserVariant": "Groovy",
+      "structural": true
+    },
+    {
+      "id": 19,
+      "parserVariant": "Ruby",
+      "structural": true
+    },
+    {
+      "id": 20,
+      "parserVariant": "Zig",
+      "structural": true
+    },
+    {
+      "id": 21,
+      "parserVariant": "ObjectiveC",
+      "structural": true
+    },
+    {
+      "id": 22,
+      "parserVariant": "Bash",
+      "structural": true
+    },
+    {
+      "id": 23,
+      "parserVariant": "Lua",
+      "structural": true
+    },
+    {
+      "id": 24,
+      "parserVariant": "Elixir",
+      "structural": true
+    },
+    {
+      "id": 25,
+      "parserVariant": "Haskell",
+      "structural": true
+    },
+    {
+      "id": 26,
+      "parserVariant": "OCaml",
+      "structural": true
+    },
+    {
+      "id": 27,
+      "parserVariant": "Erlang",
+      "structural": true
+    },
+    {
+      "id": 28,
+      "parserVariant": "Cuda",
+      "structural": true
+    },
+    {
+      "id": 29,
+      "parserVariant": "D",
+      "structural": true
+    },
+    {
+      "id": 30,
+      "parserVariant": "PowerShell",
+      "structural": true
+    },
+    {
+      "id": 31,
+      "parserVariant": "Fsharp",
+      "structural": true
+    },
+    {
+      "id": 32,
+      "parserVariant": "Gleam",
+      "structural": true
+    },
+    {
+      "id": 33,
+      "parserVariant": "Glsl",
+      "structural": true
+    },
+    {
+      "id": 34,
+      "parserVariant": "Ada",
+      "structural": true
+    },
+    {
+      "id": 35,
+      "parserVariant": "Apex",
+      "structural": true
+    },
+    {
+      "id": 36,
+      "parserVariant": "Crystal",
+      "structural": true
+    },
+    {
+      "id": 37,
+      "parserVariant": "R",
+      "structural": true
+    },
+    {
+      "id": 38,
+      "parserVariant": "Perl",
+      "structural": true
+    },
+    {
+      "id": 39,
+      "parserVariant": "Clojure",
+      "structural": true
+    },
+    {
+      "id": 40,
+      "parserVariant": "ConfigToml",
+      "structural": false
+    },
+    {
+      "id": 41,
+      "parserVariant": "ConfigJson",
+      "structural": false
+    },
+    {
+      "id": 42,
+      "parserVariant": "ConfigYaml",
+      "structural": false
+    },
+    {
+      "id": 43,
+      "parserVariant": "Julia",
+      "structural": true
+    },
+    {
+      "id": 44,
+      "parserVariant": "Odin",
+      "structural": true
+    },
+    {
+      "id": 45,
+      "parserVariant": "Pascal",
+      "structural": true
+    },
+    {
+      "id": 46,
+      "parserVariant": "Qml",
+      "structural": true
+    },
+    {
+      "id": 47,
+      "parserVariant": "Rescript",
+      "structural": true
+    },
+    {
+      "id": 48,
+      "parserVariant": "Squirrel",
+      "structural": true
+    },
+    {
+      "id": 49,
+      "parserVariant": "Sway",
+      "structural": true
+    },
+    {
+      "id": 50,
+      "parserVariant": "Starlark",
+      "structural": true
+    },
+    {
+      "id": 51,
+      "parserVariant": "Templ",
+      "structural": true
+    },
+    {
+      "id": 52,
+      "parserVariant": "Typst",
+      "structural": true
+    },
+    {
+      "id": 53,
+      "parserVariant": "Wgsl",
+      "structural": true
+    },
+    {
+      "id": 54,
+      "parserVariant": "Wolfram",
+      "structural": true
+    },
+    {
+      "id": 55,
+      "parserVariant": "Slang",
+      "structural": true
+    },
+    {
+      "id": 56,
+      "parserVariant": "Scss",
+      "structural": true
+    },
+    {
+      "id": 57,
+      "parserVariant": "Cmake",
+      "structural": true
+    },
+    {
+      "id": 58,
+      "parserVariant": "Makefile",
+      "structural": true
+    },
+    {
+      "id": 59,
+      "parserVariant": "Fortran",
+      "structural": true
+    },
+    {
+      "id": 60,
+      "parserVariant": "Vimscript",
+      "structural": true
+    },
+    {
+      "id": 61,
+      "parserVariant": "Puppet",
+      "structural": true
+    },
+    {
+      "id": 62,
+      "parserVariant": "Elm",
+      "structural": true
+    },
+    {
+      "id": 63,
+      "parserVariant": "Bicep",
+      "structural": true
+    },
+    {
+      "id": 64,
+      "parserVariant": "Bitbake",
+      "structural": true
+    },
+    {
+      "id": 65,
+      "parserVariant": "Cairo",
+      "structural": true
+    },
+    {
+      "id": 66,
+      "parserVariant": "Cfscript",
+      "structural": true
+    },
+    {
+      "id": 67,
+      "parserVariant": "Func",
+      "structural": true
+    },
+    {
+      "id": 68,
+      "parserVariant": "Move",
+      "structural": true
+    },
+    {
+      "id": 69,
+      "parserVariant": "Nickel",
+      "structural": true
+    },
+    {
+      "id": 70,
+      "parserVariant": "Jsonnet",
+      "structural": true
+    },
+    {
+      "id": 71,
+      "parserVariant": "Just",
+      "structural": true
+    },
+    {
+      "id": 72,
+      "parserVariant": "Hlsl",
+      "structural": true
+    },
+    {
+      "id": 73,
+      "parserVariant": "Ispc",
+      "structural": true
+    },
+    {
+      "id": 74,
+      "parserVariant": "Purescript",
+      "structural": true
+    },
+    {
+      "id": 75,
+      "parserVariant": "Magma",
+      "structural": true
+    },
+    {
+      "id": 76,
+      "parserVariant": "Hare",
+      "structural": true
+    },
+    {
+      "id": 77,
+      "parserVariant": "Pony",
+      "structural": true
+    },
+    {
+      "id": 78,
+      "parserVariant": "Nasm",
+      "structural": true
+    },
+    {
+      "id": 79,
+      "parserVariant": "Cobol",
+      "structural": true
+    },
+    {
+      "id": 80,
+      "parserVariant": "Commonlisp",
+      "structural": true
+    },
+    {
+      "id": 81,
+      "parserVariant": "Lean",
+      "structural": true
+    },
+    {
+      "id": 82,
+      "parserVariant": "Tlaplus",
+      "structural": true
+    },
+    {
+      "id": 83,
+      "parserVariant": "Verilog",
+      "structural": true
+    },
+    {
+      "id": 84,
+      "parserVariant": "Vhdl",
+      "structural": true
+    },
+    {
+      "id": 85,
+      "parserVariant": "Systemverilog",
+      "structural": true
+    },
+    {
+      "id": 86,
+      "parserVariant": "Capnp",
+      "structural": true
+    },
+    {
+      "id": 87,
+      "parserVariant": "EmacsLisp",
+      "structural": true
+    },
+    {
+      "id": 88,
+      "parserVariant": "Agda",
+      "structural": true
+    },
+    {
+      "id": 89,
+      "parserVariant": "Form",
+      "structural": true
+    },
+    {
+      "id": 90,
+      "parserVariant": "Awk",
+      "structural": true
+    },
+    {
+      "id": 91,
+      "parserVariant": "Fish",
+      "structural": true
+    },
+    {
+      "id": 92,
+      "parserVariant": "Zsh",
+      "structural": true
+    },
+    {
+      "id": 93,
+      "parserVariant": "Tcl",
+      "structural": true
+    },
+    {
+      "id": 94,
+      "parserVariant": "Scheme",
+      "structural": true
+    },
+    {
+      "id": 95,
+      "parserVariant": "Racket",
+      "structural": true
+    },
+    {
+      "id": 96,
+      "parserVariant": "Smithy",
+      "structural": true
+    },
+    {
+      "id": 97,
+      "parserVariant": "Pine",
+      "structural": true
+    },
+    {
+      "id": 98,
+      "parserVariant": "Matlab",
+      "structural": true
+    },
+    {
+      "id": 99,
+      "parserVariant": "Luau",
+      "structural": true
+    },
+    {
+      "id": 100,
+      "parserVariant": "Teal",
+      "structural": true
+    },
+    {
+      "id": 101,
+      "parserVariant": "Fennel",
+      "structural": true
+    },
+    {
+      "id": 102,
+      "parserVariant": "Meson",
+      "structural": true
+    },
+    {
+      "id": 103,
+      "parserVariant": "Kconfig",
+      "structural": true
+    },
+    {
+      "id": 104,
+      "parserVariant": "Hcl",
+      "structural": true
+    },
+    {
+      "id": 105,
+      "parserVariant": "Nix",
+      "structural": true
+    },
+    {
+      "id": 106,
+      "parserVariant": "Sql",
+      "structural": true
+    },
+    {
+      "id": 107,
+      "parserVariant": "Protobuf",
+      "structural": true
+    },
+    {
+      "id": 108,
+      "parserVariant": "Prisma",
+      "structural": true
+    },
+    {
+      "id": 109,
+      "parserVariant": "Pkl",
+      "structural": true
+    },
+    {
+      "id": 110,
+      "parserVariant": "Thrift",
+      "structural": true
+    },
+    {
+      "id": 111,
+      "parserVariant": "Wit",
+      "structural": true
+    },
+    {
+      "id": 112,
+      "parserVariant": "LlvmIr",
+      "structural": true
+    },
+    {
+      "id": 113,
+      "parserVariant": "TableGen",
+      "structural": true
+    },
+    {
+      "id": 114,
+      "parserVariant": "Cfml",
+      "structural": true
+    },
+    {
+      "id": 115,
+      "parserVariant": "Gotemplate",
+      "structural": true
+    },
+    {
+      "id": 116,
+      "parserVariant": "Devicetree",
+      "structural": true
+    },
+    {
+      "id": 117,
+      "parserVariant": "Smali",
+      "structural": true
+    },
+    {
+      "id": 118,
+      "parserVariant": "Json5",
+      "structural": true
+    },
+    {
+      "id": 119,
+      "parserVariant": "Kdl",
+      "structural": true
+    },
+    {
+      "id": 120,
+      "parserVariant": "LinkerScript",
+      "structural": true
+    },
+    {
+      "id": 121,
+      "parserVariant": "Liquid",
+      "structural": true
+    },
+    {
+      "id": 122,
+      "parserVariant": "Markdown",
+      "structural": true
+    },
+    {
+      "id": 123,
+      "parserVariant": "Mermaid",
+      "structural": true
+    },
+    {
+      "id": 124,
+      "parserVariant": "Po",
+      "structural": true
+    },
+    {
+      "id": 125,
+      "parserVariant": "Properties",
+      "structural": true
+    },
+    {
+      "id": 126,
+      "parserVariant": "Regex",
+      "structural": true
+    },
+    {
+      "id": 127,
+      "parserVariant": "Assembly",
+      "structural": true
+    },
+    {
+      "id": 128,
+      "parserVariant": "Astro",
+      "structural": true
+    },
+    {
+      "id": 129,
+      "parserVariant": "Beancount",
+      "structural": true
+    },
+    {
+      "id": 130,
+      "parserVariant": "Bibtex",
+      "structural": true
+    },
+    {
+      "id": 131,
+      "parserVariant": "Blade",
+      "structural": true
+    },
+    {
+      "id": 132,
+      "parserVariant": "Css",
+      "structural": true
+    },
+    {
+      "id": 133,
+      "parserVariant": "Csv",
+      "structural": true
+    },
+    {
+      "id": 134,
+      "parserVariant": "Diff",
+      "structural": true
+    },
+    {
+      "id": 135,
+      "parserVariant": "Dockerfile",
+      "structural": true
+    },
+    {
+      "id": 136,
+      "parserVariant": "Dotenv",
+      "structural": true
+    },
+    {
+      "id": 137,
+      "parserVariant": "Gitattributes",
+      "structural": true
+    },
+    {
+      "id": 138,
+      "parserVariant": "Gitignore",
+      "structural": true
+    },
+    {
+      "id": 139,
+      "parserVariant": "Gn",
+      "structural": true
+    },
+    {
+      "id": 140,
+      "parserVariant": "GoMod",
+      "structural": true
+    },
+    {
+      "id": 141,
+      "parserVariant": "Graphql",
+      "structural": true
+    },
+    {
+      "id": 142,
+      "parserVariant": "Html",
+      "structural": true
+    },
+    {
+      "id": 143,
+      "parserVariant": "Hyprlang",
+      "structural": true
+    },
+    {
+      "id": 144,
+      "parserVariant": "Ini",
+      "structural": true
+    },
+    {
+      "id": 145,
+      "parserVariant": "Janet",
+      "structural": true
+    },
+    {
+      "id": 146,
+      "parserVariant": "Jinja2",
+      "structural": true
+    },
+    {
+      "id": 147,
+      "parserVariant": "Jsdoc",
+      "structural": true
+    },
+    {
+      "id": 148,
+      "parserVariant": "Json",
+      "structural": true
+    },
+    {
+      "id": 149,
+      "parserVariant": "TextOnly",
+      "structural": false
+    },
+    {
+      "id": 150,
+      "parserVariant": "Requirements",
+      "structural": true
+    },
+    {
+      "id": 151,
+      "parserVariant": "Ron",
+      "structural": true
+    },
+    {
+      "id": 152,
+      "parserVariant": "Rst",
+      "structural": true
+    },
+    {
+      "id": 153,
+      "parserVariant": "Soql",
+      "structural": true
+    },
+    {
+      "id": 154,
+      "parserVariant": "Sosl",
+      "structural": true
+    },
+    {
+      "id": 155,
+      "parserVariant": "Sshconfig",
+      "structural": true
+    },
+    {
+      "id": 156,
+      "parserVariant": "Svelte",
+      "structural": true
+    },
+    {
+      "id": 157,
+      "parserVariant": "Toml",
+      "structural": true
+    },
+    {
+      "id": 158,
+      "parserVariant": "Vue",
+      "structural": true
+    },
+    {
+      "id": 159,
+      "parserVariant": "Xml",
+      "structural": true
+    },
+    {
+      "id": 160,
+      "parserVariant": "Yaml",
+      "structural": true
+    }
+  ]
+}

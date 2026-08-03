@@ -34,6 +34,7 @@ pub mod harness_types;
 pub mod hashes;
 pub mod ids;
 pub mod install_types;
+pub mod language_types;
 pub mod mcp_types;
 pub mod mechanization_types;
 pub mod memory_types;

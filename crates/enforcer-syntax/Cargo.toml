@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 description = "Shared language classification, grammar providers, safe parser boundaries, and normalized syntax extraction."
 publish = false
+build = "src/boundary/language_registry_build.rs"
 
 [dependencies]
 # The syntax boundary emits the shared, serialization-free memory facts used by
@@ -14,6 +15,8 @@ publish = false
 # do not inherit memory persistence, retrieval, or model dependencies.
 # DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
 tree-sitter = "0.25"
 # DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
@@ -322,3 +325,13 @@ bca-tree-sitter-tcl = "2.0"
 
 [lints]
 workspace = true
+
+[build-dependencies]
+# BUILD-DEPENDENCY-JUSTIFICATION: the syntax boundary generator parses the sole reviewed JSON manifest and emits only OUT_DIR Rust records.
+serde = { workspace = true }
+# BUILD-DEPENDENCY-JUSTIFICATION: the syntax boundary generator validates the closed manifest wire shape before code generation.
+serde_json = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.9.0"
+sha2 = { workspace = true }
