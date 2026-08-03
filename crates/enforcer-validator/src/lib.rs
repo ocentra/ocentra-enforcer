@@ -28,6 +28,7 @@
 //! `must`/`never` bullet's `[ruleId]` citation resolves to a real,
 //! registered rule — see [`doc_rule_parity`].
 
+pub mod analysis;
 pub mod doc_rule_parity;
 pub mod error;
 pub mod harness;
