@@ -94,18 +94,18 @@ fn parity_retirement_plan_has_all_workpacks_and_correct_authority() -> TestResul
         .find(|line| line.starts_with("| RM01 |"))
         .ok_or("missing RM01 index row")?;
     assert!(
-        rm01_row.ends_with("| ACTIVE-INVENTORY |"),
-        "RM01 must remain active until public-surface coverage is complete"
+        rm01_row.ends_with("| ACCEPTED |"),
+        "RM01 is accepted only after public-surface inventory coverage is complete"
     );
-    for blocked_id in ["RM02", "RM03", "RM04", "RM05", "RM06", "RM07"] {
-        let prefix = format!("| {blocked_id} |");
+    for active_id in ["RM02", "RM03", "RM04", "RM05", "RM06", "RM07"] {
+        let prefix = format!("| {active_id} |");
         let row = index
             .lines()
             .find(|line| line.starts_with(&prefix))
             .ok_or("missing dependent oracle index row")?;
         assert!(
-            row.ends_with("| BLOCKED |"),
-            "{blocked_id} must stay blocked while RM01 is incomplete"
+            row.ends_with("| ACTIVE-ORACLE |"),
+            "{active_id} must remain an active read-only oracle after RM01 acceptance"
         );
     }
     let workpacks: Vec<_> = std::fs::read_dir(plan.join("workpacks"))?
@@ -225,7 +225,7 @@ fn rm00_manifest_pins_public_plus_exact_overlay_authority() -> TestResult {
 }
 
 #[test]
-fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
+fn rm01_inventory_is_machine_readable_complete_and_unproved() -> TestResult {
     let root = workspace_root()?;
     let inventory_root = root.join("docs/plans/rust-mjs-parity-retirement-plan/inventory");
     let raw = std::fs::read_to_string(inventory_root.join("RM01_CAPABILITIES.json"))?;
@@ -249,7 +249,7 @@ fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
         matrix
             .pointer("/inventoryState")
             .and_then(serde_json::Value::as_str),
-        Some("incomplete")
+        Some("complete-unproved")
     );
     assert_eq!(
         matrix
@@ -261,7 +261,7 @@ fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
         matrix
             .pointer("/sourceReport/observedAtCandidateSha")
             .and_then(serde_json::Value::as_str),
-        Some("cf3bc4f7b210c8da4335f5e6779028b1882a1c10")
+        Some("e19076353d8cfc945b138311de9d4738021ec05d")
     );
     assert_eq!(
         matrix
@@ -273,13 +273,13 @@ fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
         matrix
             .pointer("/coverage/complete")
             .and_then(serde_json::Value::as_bool),
-        Some(false)
+        Some(true)
     );
     assert_eq!(
         matrix
             .pointer("/coverage/proposalRowCount")
             .and_then(serde_json::Value::as_u64),
-        Some(78)
+        Some(837)
     );
     assert_eq!(
         matrix
@@ -304,7 +304,7 @@ fn rm01_inventory_is_machine_readable_incomplete_and_unproved() -> TestResult {
         .pointer("/rows")
         .and_then(serde_json::Value::as_array)
         .ok_or("RM01 rows must be an array")?;
-    assert_eq!(rows.len(), 78);
+    assert_eq!(rows.len(), 837);
     let ids: BTreeSet<_> = rows
         .iter()
         .filter_map(|row| row.get("id").and_then(serde_json::Value::as_str))

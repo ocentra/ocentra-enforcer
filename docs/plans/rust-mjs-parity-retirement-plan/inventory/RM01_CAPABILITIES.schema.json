@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ocentra.dev/schemas/plans/rust-mjs-parity-rm01-capabilities.schema.json",
-  "$comment": "sourceOwner: docs/plans/rust-mjs-parity-retirement-plan/workpacks/rm01-capability-inventory.md; generator: boss-owned RM01 schema integrator; sourceHash: sha256:de56ed8805434177ae53b121e18ed5f7b6b3722be740f3752748270c06b13adf",
+  "$comment": "sourceOwner: docs/plans/rust-mjs-parity-retirement-plan/workpacks/rm01-capability-inventory.md; generator: boss-owned RM01 schema integrator; sourceHash: sha256:8f781b3e5cc8da06ffb2fefb5e73812c3be5ccff37d9f107ee0d2ca3bd02dbf9",
   "title": "Ocentra Enforcer RM01 Capability Inventory",
   "type": "object",
   "additionalProperties": false,
