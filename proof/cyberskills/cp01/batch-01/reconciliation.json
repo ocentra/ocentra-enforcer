@@ -121,7 +121,7 @@
       "source": {
         "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cryptographic-audit-of-application/SKILL.md",
         "sha256": "c39ca781b08e121cb8f439090078bacff3cfb629cbe524c40e2de203aa4f86f9",
-        "anchors": ["## Objectives:L70", "### Cryptographic Weakness Categories:L80"]
+        "anchors": ["## Objectives:L70", "### Cryptographic Weakness Categories:L82"]
       },
       "coverageKind": "narrowed-predicate",
       "predicate": "Flag the weak algorithm, cipher-mode, and predictable-randomness patterns explicitly implemented by WeakCryptoValidator.",
@@ -139,7 +139,7 @@
       "source": {
         "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-security-assessment/SKILL.md",
         "sha256": "fcb8643d06d506e2c7709a314ebdcced08e3c5b8b5d6a2da04ed734d091dbb48",
-        "anchors": ["### Step 3: Analyze Results:L53", "## Expected Output:L61"]
+        "anchors": ["### Step 3: Analyze Results:L59", "## Expected Output:L65"]
       },
       "coverageKind": "none",
       "predicate": null,
