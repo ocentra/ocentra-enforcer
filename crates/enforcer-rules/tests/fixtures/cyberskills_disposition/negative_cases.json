@@ -1,0 +1,17 @@
+[
+  {"name":"duplicate-catalog-id"},
+  {"name":"duplicate-source-path"},
+  {"name":"empty-reviewed-components"},
+  {"name":"reviewed-missing-components"},
+  {"name":"invalid-source-availability"},
+  {"name":"invalid-decomposition-state"},
+  {"name":"invalid-component-kind"},
+  {"name":"invalid-component-status"},
+  {"name":"malformed-source-sha"},
+  {"name":"unavailable-has-source-sha"},
+  {"name":"unavailable-has-components"},
+  {"name":"mechanical-missing-predicate"},
+  {"name":"mechanical-missing-not-proved"},
+  {"name":"stale-totals"},
+  {"name":"protected-blob-drift"}
+]

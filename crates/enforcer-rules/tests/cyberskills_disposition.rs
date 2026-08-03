@@ -1,14 +1,18 @@
-//! Mechanical retention proof for the complete CyberSkills corpus.
-//!
-//! This manifest deliberately distinguishes an explicitly evidenced mapping
-//! from a related-looking native rule.  Until a row names both a target and
-//! a per-skill evidence path, it remains unported or adapter-deferred.
+//! CP00 truth-ledger tests for CyberSkills identity and decomposition.
 
 use std::{collections::BTreeSet, path::PathBuf};
 
 use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
-use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
-use serde_json::Value;
+use enforcer_rules::{
+    cyberskills_disposition::{
+        parse_manifest, validate_manifest, ComponentKind, ComponentStatus, DecompositionState,
+        SourceAvailability, PROTECTED_CATALOG_ID, PROTECTED_SOURCE_PATH, PROTECTED_TRACKED_BLOB,
+    },
+    loader::{load_registry_from_records, parse_catalog},
+};
+use proptest::prelude::any;
+use proptest::proptest;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 const DISPOSITION_JSON: &str = include_str!("../dispositions/cyberskills-disposition.json");
@@ -17,6 +21,8 @@ const ADAPTER_RULES_JSON: &str = include_str!("../rules/cyberskills-adapters.jso
 const SOURCE_CATALOG: &str = include_str!(
     "../../../docs/plans/enforcer-selfhost-plan/refs/cyberskills-mechanization-catalog.md"
 );
+const NEGATIVE_FIXTURES: &str =
+    include_str!("fixtures/cyberskills_disposition/negative_cases.json");
 
 fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -33,47 +39,24 @@ fn registry_ids(json: &str, source: &str) -> Result<BTreeSet<String>, Box<dyn st
         .collect())
 }
 
-fn field<'a>(record: &'a Value, name: &str) -> Result<&'a str, Box<dyn std::error::Error>> {
-    record
-        .get(name)
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("record missing string {name}: {record}").into())
-}
-
-fn evidence_field<'a>(
-    evidence: &'a Value,
-    name: &str,
-) -> Result<&'a str, Box<dyn std::error::Error>> {
-    evidence
-        .get(name)
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| format!("evidence missing non-empty string {name}: {evidence}").into())
-}
-
 fn source_catalog_ids() -> BTreeSet<String> {
     let mut section = "";
     let mut ids = BTreeSet::new();
     for line in SOURCE_CATALOG.lines() {
         if let Some(heading) = line.strip_prefix("## ") {
-            section = "";
-            if let Some(name) = heading.split_whitespace().next() {
-                section = name;
-            }
+            section = heading.split_whitespace().next().unwrap_or("");
             continue;
         }
-        let table_id = line
-            .strip_prefix("| ")
-            .and_then(|row| row.split('|').next())
-            .map(str::trim);
         if matches!(section, "T1" | "T2" | "ADAPTER") {
-            if let Some(id) = table_id {
-                if id != "skill" && id != "---" {
-                    ids.insert(id.to_owned());
-                }
+            if let Some(id) = line
+                .strip_prefix("| ")
+                .and_then(|row| row.split('|').next())
+                .map(str::trim)
+                .filter(|id| *id != "skill" && *id != "---" && !id.is_empty())
+            {
+                ids.insert(id.to_owned());
             }
-        }
-        if section == "PROSE" {
+        } else if section == "PROSE" {
             if let Some(id) = line.strip_prefix("- ") {
                 ids.insert(id.trim().to_owned());
             }
@@ -86,229 +69,252 @@ fn source_catalog_ids() -> BTreeSet<String> {
 fn rule_catalog_directory_contains_only_valid_rule_record_arrays(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let rules_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules");
-    let mut catalog_paths: Vec<PathBuf> = std::fs::read_dir(&rules_dir)?
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&rules_dir)?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("json"))
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
         .collect();
-    catalog_paths.sort();
-    assert!(
-        !catalog_paths.is_empty(),
-        "rule catalog directory must not be empty"
-    );
-
-    for path in catalog_paths {
+    paths.sort();
+    assert_eq!(paths.len(), 36);
+    for path in paths {
         let raw = std::fs::read_to_string(&path)?;
-        let source = path.display().to_string();
         let json = RuleCatalogJson::try_from(raw)?;
-        let source = RuleCatalogSource::try_from(source)?;
-        let records = parse_catalog(&json, &source)?;
-        assert!(
-            !records.is_empty(),
-            "rule catalog must contain at least one record: {}",
-            path.display()
-        );
+        let source = RuleCatalogSource::try_from(path.display().to_string())?;
+        let _records = parse_catalog(&json, &source)?;
     }
     Ok(())
 }
 
 #[test]
-fn disposition_covers_the_entire_catalog_once_with_honest_totals(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let manifest: Value = serde_json::from_str(DISPOSITION_JSON)?;
-    let records = manifest
-        .get("records")
-        .and_then(Value::as_array)
-        .ok_or("manifest.records must be an array")?;
-    let totals = manifest.get("totals").ok_or("manifest.totals missing")?;
-
+fn manifest_preserves_identities_and_derives_counts() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest = parse_manifest(DISPOSITION_JSON)?;
+    let counts = validate_manifest(&manifest)?;
+    assert_eq!(counts.identity_rows, 817);
+    assert_eq!(counts.readable_sources, 816);
+    assert_eq!(counts.source_unavailable, 1);
+    assert_eq!(counts.reviewed_rows, 6);
+    assert_eq!(counts.decomposed_rows, 6);
+    assert_eq!(counts.implemented_components, 6);
+    assert_eq!(counts.proved_components, 0);
+    assert_eq!(counts.advisory_retained, 0);
+    assert_eq!(counts.manual_retained, 0);
+    assert_eq!(counts.unexplained_rows, 810);
+    assert_eq!(source_catalog_ids().len(), 817);
     assert_eq!(
-        records.len(),
-        817,
-        "every catalog skill needs one disposition"
+        manifest
+            .records
+            .iter()
+            .map(|record| record.catalog_id.as_str())
+            .collect::<BTreeSet<_>>(),
+        source_catalog_ids().iter().map(String::as_str).collect()
     );
+    let root = repo_root()?;
+    for record in manifest
+        .records
+        .iter()
+        .filter(|record| record.source_availability == SourceAvailability::Available)
+    {
+        let source = std::fs::read(root.join(&record.source_path))?;
+        assert_eq!(
+            format!("{:x}", Sha256::digest(source)),
+            record
+                .source_sha256
+                .as_deref()
+                .ok_or("available record missing source hash")?,
+            "available source fingerprint drifted for {}",
+            record.catalog_id
+        );
+    }
 
-    let mut ids = BTreeSet::new();
-    let mut paths = BTreeSet::new();
-    let mut disposition_counts = std::collections::BTreeMap::new();
-    for record in records {
-        let id = field(record, "catalogId")?;
-        let path = field(record, "sourcePath")?;
-        assert!(ids.insert(id.to_owned()), "duplicate catalog id: {id}");
-        assert!(
-            paths.insert(path.to_owned()),
-            "duplicate source path: {path}"
-        );
-        assert_eq!(
-            path,
-            format!("vendor/anthropic-cybersecurity-skills/skills/{id}/SKILL.md"),
-            "catalog path must remain canonical"
-        );
-        let disposition = field(record, "disposition")?;
-        assert!(
-            matches!(
-                disposition,
-                "native" | "unported" | "adapter-deferred" | "advisory-prose"
-            ),
-            "unknown disposition: {disposition}"
-        );
-        *disposition_counts.entry(disposition).or_insert(0usize) += 1;
-        assert!(!field(record, "rationale")?.trim().is_empty());
-    }
-    let expected_totals = [
-        ("catalogRows", records.len()),
-        (
-            "nativeMapped",
-            *disposition_counts.get("native").unwrap_or(&0),
-        ),
-        (
-            "unported",
-            *disposition_counts.get("unported").unwrap_or(&0),
-        ),
-        (
-            "adapterDeferred",
-            *disposition_counts.get("adapter-deferred").unwrap_or(&0),
-        ),
-        (
-            "advisoryProse",
-            *disposition_counts.get("advisory-prose").unwrap_or(&0),
-        ),
-    ];
-    for (key, count) in expected_totals {
-        assert_eq!(
-            totals.get(key).and_then(Value::as_u64),
-            Some(count as u64),
-            "manifest total {key} must be derived from records"
-        );
-    }
+    let unavailable = manifest
+        .records
+        .iter()
+        .find(|record| record.catalog_id == PROTECTED_CATALOG_ID)
+        .ok_or("protected identity must remain in the ledger")?;
+    assert_eq!(unavailable.source_path, PROTECTED_SOURCE_PATH);
     assert_eq!(
-        ids,
-        source_catalog_ids(),
-        "manifest ids must exactly match the checked-in source catalog"
+        unavailable.source_availability,
+        SourceAvailability::SourceUnavailable
+    );
+    assert_eq!(
+        unavailable.decomposition_state,
+        DecompositionState::Unavailable
+    );
+    assert!(unavailable.source_sha256.is_none());
+    assert_eq!(unavailable.source_anchors.len(), 0);
+    assert_eq!(unavailable.components.len(), 0);
+    assert_eq!(
+        unavailable
+            .unavailable_source
+            .as_ref()
+            .ok_or("protected identity missing unavailableSource")?["trackedBlob"],
+        PROTECTED_TRACKED_BLOB
     );
     Ok(())
 }
 
 #[test]
-fn explicit_registry_targets_exist_and_have_per_skill_evidence(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let manifest: Value = serde_json::from_str(DISPOSITION_JSON)?;
-    let records = manifest["records"]
-        .as_array()
-        .ok_or("manifest.records missing")?;
+fn manifest_round_trips_without_count_drift() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest = parse_manifest(DISPOSITION_JSON)?;
+    let before = validate_manifest(&manifest)?;
+    let encoded = serde_json::to_string(&manifest)?;
+    let reparsed = parse_manifest(&encoded)?;
+    let after = validate_manifest(&reparsed)?;
+    assert_eq!(before, after);
+    assert_eq!(
+        serde_json::to_value(&manifest)?,
+        serde_json::to_value(&reparsed)?
+    );
+    Ok(())
+}
+
+#[test]
+fn six_native_components_keep_source_and_fixture_evidence() -> Result<(), Box<dyn std::error::Error>>
+{
+    let manifest = parse_manifest(DISPOSITION_JSON)?;
     let root = repo_root()?;
     let native_ids = registry_ids(NATIVE_RULES_JSON, "rules/cyberskills.json")?;
-    let adapter_ids = registry_ids(ADAPTER_RULES_JSON, "rules/cyberskills-adapters.json")?;
-    let mut mapped = 0usize;
+    let _adapter_ids = registry_ids(ADAPTER_RULES_JSON, "rules/cyberskills-adapters.json")?;
+    let mut reviewed = 0;
 
-    for record in records {
-        let id = field(record, "catalogId")?;
-        let disposition = field(record, "disposition")?;
-        let native = record.get("nativeRuleId").and_then(Value::as_str);
-        let adapter = record.get("adapterRuleId").and_then(Value::as_str);
-        match disposition {
-            "native" => {
-                let rule_id =
-                    native.ok_or_else(|| format!("native row {id} has no nativeRuleId"))?;
-                assert!(
-                    adapter.is_none(),
-                    "native row {id} cannot also name adapterRuleId"
-                );
-                assert!(
-                    native_ids.contains(rule_id),
-                    "native target missing from registry: {rule_id}"
-                );
-                let evidence_path = field(record, "evidencePath")?;
-                let evidence_absolute_path = root.join(evidence_path);
-                let evidence: Value =
-                    serde_json::from_str(&std::fs::read_to_string(&evidence_absolute_path)?)?;
-                assert_eq!(
-                    evidence.get("schemaVersion").and_then(Value::as_u64),
-                    Some(1)
-                );
-                assert_eq!(evidence_field(&evidence, "catalogId")?, id);
-                assert_eq!(
-                    evidence_field(&evidence, "sourcePath")?,
-                    field(record, "sourcePath")?
-                );
-                assert_eq!(evidence_field(&evidence, "nativeRuleId")?, rule_id);
-                assert_eq!(evidence_field(&evidence, "coverage")?, "narrowed-predicate");
-                for key in ["predicate", "notProved"] {
-                    evidence_field(&evidence, key)?;
-                }
-                for key in ["nativeValidatorPath", "failFixture", "passFixture"] {
-                    let evidence_value = evidence_field(&evidence, key)?;
-                    assert!(
-                        root.join(evidence_value).is_file(),
-                        "evidence {key} path missing for {id}: {evidence_value}"
-                    );
-                }
-                let source_path = evidence_field(&evidence, "sourcePath")?;
-                let source = std::fs::read(&root.join(source_path))?;
-                let source_sha256 = evidence_field(&evidence, "sourceSha256")?;
-                assert!(
-                    source_sha256.len() == 64
-                        && source_sha256
-                            .bytes()
-                            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()),
-                    "evidence sourceSha256 must be lowercase hexadecimal for {id}"
-                );
-                assert_eq!(
-                    format!("{:x}", Sha256::digest(source)),
-                    source_sha256,
-                    "vendor source fingerprint drifted for {id}"
-                );
-                let source_text = std::fs::read_to_string(root.join(source_path))?;
-                let anchors = evidence
-                    .get("sourceAnchors")
-                    .and_then(Value::as_array)
-                    .filter(|anchors| !anchors.is_empty())
-                    .ok_or_else(|| format!("evidence sourceAnchors missing for {id}"))?;
-                for anchor in anchors {
-                    let anchor = anchor
-                        .as_str()
-                        .filter(|anchor| !anchor.trim().is_empty())
-                        .ok_or_else(|| format!("invalid source anchor for {id}"))?;
-                    assert!(
-                        source_text.contains(anchor),
-                        "source anchor drifted for {id}: {anchor}"
-                    );
-                }
-                mapped += 1;
-            }
-            "adapter-deferred" if adapter.is_some() => {
-                let rule_id =
-                    adapter.ok_or_else(|| format!("adapter row {id} has no adapterRuleId"))?;
-                assert!(
-                    native.is_none(),
-                    "adapter row {id} cannot also name nativeRuleId"
-                );
-                assert!(
-                    adapter_ids.contains(rule_id),
-                    "adapter target missing from registry: {rule_id}"
-                );
-                mapped += 1;
-            }
-            "adapter-deferred" | "unported" | "advisory-prose" => {
-                assert!(
-                    native.is_none() && adapter.is_none(),
-                    "unmapped row {id} names a registry target"
-                );
-            }
-            other => return Err(format!("unsupported disposition for {id}: {other}").into()),
+    for record in manifest
+        .records
+        .iter()
+        .filter(|record| record.decomposition_state == DecompositionState::Reviewed)
+    {
+        reviewed += 1;
+        assert_eq!(record.components.len(), 1);
+        let component = &record.components[0];
+        assert_eq!(component.kind, ComponentKind::NativePredicate);
+        assert_eq!(component.status, ComponentStatus::Implemented);
+        let implementation = component
+            .implementation_ref
+            .as_ref()
+            .ok_or("native component missing implementationRef")?;
+        let executor_rule_id = implementation["executorRuleId"]
+            .as_str()
+            .ok_or("executorRuleId must be a string")?;
+        assert_eq!(
+            native_ids.get(executor_rule_id).map(String::as_str),
+            Some(executor_rule_id)
+        );
+        assert_eq!(component.not_proved.len(), 1);
+        for kind in [
+            "source-attribution",
+            "validator",
+            "fail-fixture",
+            "pass-fixture",
+        ] {
+            assert!(component
+                .evidence_refs
+                .iter()
+                .any(|reference| reference["kind"] == kind));
         }
-        if native.is_some() || adapter.is_some() {
-            let evidence = field(record, "evidencePath")?;
-            assert!(
-                root.join(evidence).is_file(),
-                "mapping evidence missing for {id}: {evidence}"
-            );
-        }
+        let attribution_path = component
+            .evidence_refs
+            .iter()
+            .find(|reference| reference["kind"] == "source-attribution")
+            .ok_or("native component missing source attribution")?;
+        let attribution_path = attribution_path["path"]
+            .as_str()
+            .ok_or("source attribution path must be a string")?;
+        let attribution: Value =
+            serde_json::from_str(&std::fs::read_to_string(root.join(attribution_path))?)?;
+        assert_eq!(attribution["catalogId"], record.catalog_id);
+        assert_eq!(
+            attribution["sourceSha256"],
+            record
+                .source_sha256
+                .as_deref()
+                .ok_or("native record missing source hash")?
+        );
+        let source = std::fs::read(root.join(&record.source_path))?;
+        assert_eq!(
+            format!("{:x}", Sha256::digest(source)),
+            record
+                .source_sha256
+                .as_deref()
+                .ok_or("native record missing source hash")?
+        );
+        assert_eq!(component.evidence_refs.len(), 4);
     }
-
-    assert!(
-        mapped > 0,
-        "at least one native mapping needs checked-in evidence"
-    );
+    assert_eq!(reviewed, 6);
     Ok(())
+}
+
+fn mutate(mut root: Value, case_name: &str) -> Result<Value, Box<dyn std::error::Error>> {
+    let records = root["records"]
+        .as_array_mut()
+        .ok_or("records must be an array")?;
+    let reviewed = records
+        .iter()
+        .position(|record| record["catalogId"] == "exploiting-mass-assignment-in-rest-apis")
+        .ok_or("reviewed fixture row missing")?;
+    let unavailable = records
+        .iter()
+        .position(|record| record["catalogId"] == PROTECTED_CATALOG_ID)
+        .ok_or("protected fixture row missing")?;
+    match case_name {
+        "duplicate-catalog-id" => records[1]["catalogId"] = records[0]["catalogId"].clone(),
+        "duplicate-source-path" => records[1]["sourcePath"] = records[0]["sourcePath"].clone(),
+        "empty-reviewed-components" => records[reviewed]["components"] = json!([]),
+        "reviewed-missing-components" => {
+            records[reviewed]
+                .as_object_mut()
+                .ok_or("reviewed row must be an object")?
+                .remove("components");
+        }
+        "invalid-source-availability" => records[0]["sourceAvailability"] = json!("missing"),
+        "invalid-decomposition-state" => records[0]["decompositionState"] = json!("blocked"),
+        "invalid-component-kind" => records[reviewed]["components"][0]["kind"] = json!("guess"),
+        "invalid-component-status" => records[reviewed]["components"][0]["status"] = json!("done"),
+        "malformed-source-sha" => records[0]["sourceSha256"] = json!("ABC"),
+        "unavailable-has-source-sha" => records[unavailable]["sourceSha256"] = json!("00"),
+        "unavailable-has-components" => {
+            records[unavailable]["components"] = json!([{"componentId":"x"}])
+        }
+        "mechanical-missing-predicate" => {
+            records[reviewed]["components"][0]
+                .as_object_mut()
+                .ok_or("reviewed component must be an object")?
+                .remove("predicate");
+        }
+        "mechanical-missing-not-proved" => {
+            records[reviewed]["components"][0]
+                .as_object_mut()
+                .ok_or("reviewed component must be an object")?
+                .remove("notProved");
+        }
+        "stale-totals" => root["totals"] = json!({"nativeMapped": 99}),
+        "protected-blob-drift" => {
+            records[unavailable]["unavailableSource"]["trackedBlob"] = json!("00")
+        }
+        other => return Err(format!("unknown fixture case: {other}").into()),
+    }
+    Ok(root)
+}
+
+#[test]
+fn negative_fixture_matrix_rejects_contract_drift() -> Result<(), Box<dyn std::error::Error>> {
+    let cases: Vec<Value> = serde_json::from_str(NEGATIVE_FIXTURES)?;
+    let baseline: Value = serde_json::from_str(DISPOSITION_JSON)?;
+    for case in cases {
+        let name = case["name"].as_str().ok_or("fixture name missing")?;
+        let mutated = serde_json::to_string(&mutate(baseline.clone(), name)?)?;
+        assert!(
+            parse_manifest(&mutated)
+                .map(|manifest| validate_manifest(&manifest).is_err())
+                .unwrap_or(true),
+            "negative case unexpectedly accepted: {name}"
+        );
+    }
+    Ok(())
+}
+
+proptest! {
+    #[test]
+    fn parser_rejects_or_accepts_arbitrary_utf8_without_panicking(bytes in proptest::collection::vec(any::<u8>(), 0..512)) {
+        let raw = String::from_utf8_lossy(&bytes);
+        let _ = parse_manifest(&raw);
+    }
 }
