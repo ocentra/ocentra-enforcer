@@ -7,6 +7,7 @@
   "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
   "evidenceProvenance": {
     "sourceArtifactCommitSha": "5a6e597fde6959139e40aeb290d712da23d30adf",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
     "sourceArtifactMaterializationBaseSha": "f8e2896fa144fbfd0bceaef962ae735b50d87cdc",
     "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
     "currentMaterializationBaseSha": "8ba8d62bfc40b40826cc714f630d6d17c93ae7aa",
