@@ -3,13 +3,13 @@
   "workpackId": "RM04",
   "artifactId": "RM04-CONFIG-RULE-PROOF-FULL-COVERAGE",
   "artifactState": "full-row-coverage-bounded-evidence",
-  "materializedAtCandidateSha": "322525826e63ec006fbfef5c7cef3ee27d0ffa2d",
+  "materializedAtCandidateSha": "8ba8d62bfc40b40826cc714f630d6d17c93ae7aa",
   "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
   "evidenceProvenance": {
     "sourceArtifactCommitSha": "5a6e597fde6959139e40aeb290d712da23d30adf",
     "sourceArtifactMaterializationBaseSha": "f8e2896fa144fbfd0bceaef962ae735b50d87cdc",
     "evidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
-    "currentMaterializationBaseSha": "322525826e63ec006fbfef5c7cef3ee27d0ffa2d",
+    "currentMaterializationBaseSha": "8ba8d62bfc40b40826cc714f630d6d17c93ae7aa",
     "priorMaterializationBaseSha": "2d7a909f50c79f920132041ee086fa2ae8063822",
     "currentOracleCandidateSha": "2d7a909f50c79f920132041ee086fa2ae8063822",
     "priorAcceptedEvidenceCandidateSha": "e19076353d8cfc945b138311de9d4738021ec05d",
@@ -35590,7 +35590,7 @@
       "status": "passed",
       "exitCode": 0
     },
-    "currentMaterializationBaseSha": "322525826e63ec006fbfef5c7cef3ee27d0ffa2d",
+    "currentMaterializationBaseSha": "8ba8d62bfc40b40826cc714f630d6d17c93ae7aa",
     "priorMaterializationBaseSha": "2d7a909f50c79f920132041ee086fa2ae8063822",
     "currentOracleCandidateSha": "2d7a909f50c79f920132041ee086fa2ae8063822",
     "currentCoverageRows": 616,
@@ -35625,7 +35625,7 @@
   "unresolved": [
     "C2-18 remains not closed; this is bounded overlay evidence, not aggregate parity.",
     "Public 267 parity was not adjudicated by these overlay-specific runs.",
-    "The current materialization base is 286ddf6908753853ab55f24c0aca4a0d4d87a633; the evidence candidate is e19076353d8cfc945b138311de9d4738021ec05d and the source artifact provenance base is f8e2896fa144fbfd0bceaef962ae735b50d87cdc.",
+    "The current materialization base is 8ba8d62bfc40b40826cc714f630d6d17c93ae7aa; the evidence candidate is e19076353d8cfc945b138311de9d4738021ec05d and the source artifact provenance base is f8e2896fa144fbfd0bceaef962ae735b50d87cdc.",
     "609 of 616 RM04-owned rows have source/inventory coverage but no row-specific executable normalized public/candidate evidence.",
     "Current candidate aggregate execution is at 2d7a909f; the seven previously accepted C2-12..C2-18 evidence rows remain pinned to e1907635 and overlay evidence, not silently repinned.",
     "The public aggregate suite failed verify tests 83 and 84 on six SRC-* baseline findings; this is preserved as public evidence, not waived.",
