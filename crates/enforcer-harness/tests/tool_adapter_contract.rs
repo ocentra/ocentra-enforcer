@@ -6,24 +6,53 @@ use enforcer_core::error::{Error, Result};
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::config_types::HarnessConfig;
 use enforcer_domain::harness_types::{
-    HarnessCommandArgument, HarnessExecutionLimits, HarnessToolAvailability, HarnessToolDecision,
-    HarnessToolName, HarnessToolRequirement, HarnessToolSpec,
+    HarnessBoundedExecution, HarnessCommandArgument, HarnessExecutionLimits,
+    HarnessExecutionTermination, HarnessToolAvailability, HarnessToolDecision, HarnessToolName,
+    HarnessToolRequirement, HarnessToolSpec,
 };
 use enforcer_domain::paths::RepoRoot;
-use enforcer_harness::execution::{validate_allowlisted_request, ExecuteRequest};
+use enforcer_harness::execution::{
+    execute_allowlisted_bounded, validate_allowlisted_request, ExecuteRequest,
+};
 
 fn spec() -> Result<HarnessToolSpec> {
-    HarnessToolSpec::try_new(
-        HarnessToolName::try_new("cargo".to_owned())?,
+    spec_with_command(
         vec![
             HarnessCommandArgument::try_new("cargo".to_owned())?,
             HarnessCommandArgument::try_new("check".to_owned())?,
         ],
+        10_000,
+        1_048_576,
+    )
+}
+
+fn spec_with_command(
+    command: Vec<HarnessCommandArgument>,
+    max_wall_time_ms: u64,
+    max_output_bytes: u64,
+) -> Result<HarnessToolSpec> {
+    HarnessToolSpec::try_new(
+        HarnessToolName::try_new("cargo".to_owned())?,
+        command,
         HarnessToolRequirement::Required,
-        HarnessExecutionLimits::try_new(10_000, 1_048_576, 100)?,
+        HarnessExecutionLimits::try_new(max_wall_time_ms, max_output_bytes, 100)?,
         None,
     )
     .map_err(Into::into)
+}
+
+fn child_command(test_name: &str) -> Result<Vec<HarnessCommandArgument>> {
+    let executable = std::env::current_exe()
+        .map_err(|error| Error::InvalidConfig(format!("current test executable: {error}")))?;
+    Ok(vec![
+        HarnessCommandArgument::try_new(executable.to_string_lossy().into_owned())?,
+        HarnessCommandArgument::try_new("--exact".to_owned())?,
+        HarnessCommandArgument::try_new(test_name.to_owned())?,
+        HarnessCommandArgument::try_new("--nocapture".to_owned())?,
+        HarnessCommandArgument::try_new("--".to_owned())?,
+        HarnessCommandArgument::try_new("--ul07-child".to_owned())?,
+        HarnessCommandArgument::try_new("&|$()".to_owned())?,
+    ])
 }
 
 fn request(
@@ -56,9 +85,9 @@ fn assert_decode_error<T>(
     }
 }
 
-fn assert_rejection(result: Result<()>, expected: &str) -> Result<()> {
+fn assert_rejection<T>(result: Result<T>, expected: &str) -> Result<()> {
     let error = match result {
-        Ok(()) => {
+        Ok(_) => {
             return Err(Error::InvalidConfig(format!(
                 "expected rejection containing {expected}"
             )))
@@ -68,6 +97,28 @@ fn assert_rejection(result: Result<()>, expected: &str) -> Result<()> {
     if !error.to_string().contains(expected) {
         return Err(Error::InvalidConfig(format!(
             "rejection did not contain {expected}: {error}"
+        )));
+    }
+    Ok(())
+}
+
+fn assert_termination(
+    outcome: &HarnessBoundedExecution,
+    expected: HarnessExecutionTermination,
+    expected_reaped: bool,
+) -> Result<()> {
+    if outcome.termination() != expected {
+        return Err(Error::InvalidConfig(format!(
+            "expected termination {}, got {}",
+            expected.as_str(),
+            outcome.termination().as_str()
+        )));
+    }
+    if outcome.child_reaped() != expected_reaped {
+        return Err(Error::InvalidConfig(format!(
+            "bounded child reaped state was {}, expected {}",
+            outcome.child_reaped(),
+            expected_reaped
         )));
     }
     Ok(())
@@ -192,6 +243,211 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
         )?;
     }
     Ok(())
+}
+
+#[test]
+fn bounded_runner_captures_both_streams_and_zero_exit() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = child_command("child_entry_outputs")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::Completed, true)?;
+    if !outcome.stdout().as_str().contains("bounded-stdout") {
+        return Err(Error::InvalidConfig(
+            "bounded stdout did not preserve the child marker".to_owned(),
+        ));
+    }
+    if !outcome.stderr().as_str().contains("bounded-stderr") {
+        return Err(Error::InvalidConfig(
+            "bounded stderr did not preserve the child marker".to_owned(),
+        ));
+    }
+    if outcome.exit_code().map(|code| code.get()) != Some(0) {
+        return Err(Error::InvalidConfig(
+            "bounded zero-exit result did not preserve exit code".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn bounded_runner_distinguishes_nonzero_exit_and_missing_executable() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = child_command("child_entry_exits_nonzero")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
+    let nonzero = execute_allowlisted_bounded(&request(root.clone(), command, None)?, &reviewed)?;
+    assert_termination(&nonzero, HarnessExecutionTermination::NonZeroExit, true)?;
+    if nonzero.exit_code().map(|code| code.get()) != Some(7) {
+        return Err(Error::InvalidConfig(
+            "non-zero child result did not preserve exit code 7".to_owned(),
+        ));
+    }
+
+    let missing = vec![HarnessCommandArgument::try_new(
+        "ocentra-definitely-missing-ul07-tool".to_owned(),
+    )?];
+    let missing_spec = spec_with_command(missing.clone(), 2_000, 1_024)?;
+    let missing_outcome =
+        execute_allowlisted_bounded(&request(root, missing, None)?, &missing_spec)?;
+    assert_termination(
+        &missing_outcome,
+        HarnessExecutionTermination::MissingExecutable,
+        false,
+    )
+}
+
+#[test]
+fn bounded_runner_terminates_timeout_child_before_sentinel() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let sentinel = temp.path().join("ul07-timeout-sentinel");
+    let command = child_command("child_entry_writes_timeout_sentinel")?;
+    let reviewed = spec_with_command(command.clone(), 40, 1_024)?;
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::TimedOut, true)?;
+    std::thread::park_timeout(std::time::Duration::from_millis(400));
+    if sentinel.exists() {
+        return Err(Error::InvalidConfig(
+            "timed-out child wrote its post-boundary sentinel".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn bounded_runner_terminates_overflow_child_before_sentinel() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let sentinel = temp.path().join("ul07-overflow-sentinel");
+    let command = child_command("child_entry_overflows_then_writes_sentinel")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 32)?;
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(
+        &outcome,
+        HarnessExecutionTermination::OutputLimitExceeded,
+        true,
+    )?;
+    if outcome.stdout().as_str().len() + outcome.stderr().as_str().len() > 32 {
+        return Err(Error::InvalidConfig(
+            "bounded output retained more than the combined byte limit".to_owned(),
+        ));
+    }
+    std::thread::park_timeout(std::time::Duration::from_millis(400));
+    if sentinel.exists() {
+        return Err(Error::InvalidConfig(
+            "overflow child wrote its post-boundary sentinel".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn bounded_runner_preserves_literal_shell_metacharacters_and_calls_allowlist() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = child_command("child_entry_reports_literal_argument")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
+    let outcome =
+        execute_allowlisted_bounded(&request(root.clone(), command.clone(), None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::Completed, true)?;
+    if !outcome.stdout().as_str().contains("literal=true") {
+        return Err(Error::InvalidConfig(
+            "shell metacharacter was not passed as one literal argument".to_owned(),
+        ));
+    }
+
+    let mismatch = request(
+        root,
+        vec![HarnessCommandArgument::try_new(
+            "different-tool".to_owned(),
+        )?],
+        Some("../outside".to_owned()),
+    )?;
+    assert_rejection(
+        execute_allowlisted_bounded(&mismatch, &reviewed),
+        "allowlisted command",
+    )
+}
+
+#[test]
+fn bounded_runner_caps_lossy_utf8_without_expansion() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = child_command("child_entry_writes_invalid_utf8")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 32)?;
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(
+        &outcome,
+        HarnessExecutionTermination::OutputLimitExceeded,
+        true,
+    )?;
+    if outcome.stdout().as_str().len() + outcome.stderr().as_str().len() > 32 {
+        return Err(Error::InvalidConfig(
+            "lossy UTF-8 output exceeded the combined byte limit".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn child_entry_outputs() {
+    if child_mode() {
+        print!("bounded-stdout");
+        eprint!("bounded-stderr");
+    }
+}
+
+#[test]
+fn child_entry_exits_nonzero() {
+    if child_mode() {
+        std::process::exit(7);
+    }
+}
+
+#[test]
+fn child_entry_writes_timeout_sentinel() {
+    if child_mode() {
+        std::thread::park_timeout(std::time::Duration::from_millis(250));
+        let _ = std::fs::write("ul07-timeout-sentinel", "late");
+    }
+}
+
+#[test]
+fn child_entry_overflows_then_writes_sentinel() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stdout = std::io::stdout();
+        let _ = stdout.write_all(&vec![b'x'; 2_048]);
+        let _ = stdout.flush();
+        std::thread::park_timeout(std::time::Duration::from_millis(250));
+        let _ = std::fs::write("ul07-overflow-sentinel", "late");
+    }
+}
+
+#[test]
+fn child_entry_reports_literal_argument() {
+    if child_mode() {
+        let literal = std::env::args().any(|value| value == "&|$()");
+        print!("literal={literal}");
+    }
+}
+
+#[test]
+fn child_entry_writes_invalid_utf8() {
+    if child_mode() {
+        use std::io::Write;
+
+        let mut stdout = std::io::stdout();
+        let _ = stdout.write_all(&[0xff; 64]);
+        let _ = stdout.flush();
+    }
+}
+
+fn child_mode() -> bool {
+    std::env::args().any(|value| value == "--ul07-child")
 }
 
 #[test]
