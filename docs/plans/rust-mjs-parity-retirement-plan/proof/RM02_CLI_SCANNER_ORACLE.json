@@ -240,7 +240,7 @@
       ]
     },
     "productBlobProvenance": {
-      "comparisonBaseSha": "32fa5996",
+      "comparisonBaseSha": "32fa5996afb179248e8e6c3e55921da57eba2d28",
       "candidateSha": "89ed00186addb8bc2f496abadd8fe1697056cf78",
       "currentMaterializationBaseSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
       "unchangedCliBlobs": {
