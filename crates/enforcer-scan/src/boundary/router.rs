@@ -63,3 +63,50 @@ pub struct RoutePlanResponse {
     /// Native tools selected by the resolved project tie.
     pub native_tools: Vec<NativeToolRouteResponse>,
 }
+
+/// Structural parse disposition exposed by the opt-in canonical route projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalStructuralDisposition {
+    /// The canonical identity has a structural parser route.
+    ParseFile,
+    /// The canonical identity intentionally has no structural parser route.
+    NoParseFile,
+}
+
+/// Honest capability disposition exposed by the opt-in canonical route projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalCapabilityDisposition {
+    /// No validator or native capability is claimed by this packet.
+    Unsupported,
+    /// The identity is intentionally not applicable to structural routing.
+    NotApplicable,
+}
+
+/// One identity-preserving result for the opt-in canonical route projection.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CanonicalLanguageRouteResponse {
+    /// A canonical parser identity retained with honest capability state.
+    Canonical {
+        /// Stable one-based canonical identity.
+        #[serde(rename = "languageId")]
+        language_id: u16,
+        /// Validated canonical name from the reviewed registry.
+        #[serde(rename = "canonicalName")]
+        canonical_name: String,
+        /// Structural parser disposition.
+        structural: CanonicalStructuralDisposition,
+        /// Capability state proved by this packet.
+        capability: CanonicalCapabilityDisposition,
+    },
+    /// A named literal projection without a canonical parser identity.
+    SupplementalLiteral {
+        /// Stable supplemental literal identity.
+        #[serde(rename = "literalName")]
+        literal_name: String,
+    },
+    /// No canonical or supplemental matcher applied.
+    Unknown,
+}
