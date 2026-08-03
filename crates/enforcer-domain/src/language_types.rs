@@ -27,12 +27,24 @@ pub const NO_LITERAL_PARSER_IDENTITY_COUNT: usize = 85;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LanguageId(NonZeroU16);
 
+/// Rejection returned when a registry identity is outside the reviewed range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InvalidLanguageId;
+
 impl LanguageId {
-    /// Construct an identity from the canonical registry's one-based index.
+    /// Try to construct an identity from the canonical registry's one-based index.
+    #[must_use]
+    pub const fn try_from_registry_index(index: NonZeroU16) -> Result<Self, InvalidLanguageId> {
+        if index.get() <= PARSER_IDENTITY_COUNT { Ok(Self(index)) } else { Err(InvalidLanguageId) }
+    }
+
+    /// Construct a checked identity from the canonical registry's one-based index.
     ///
-    /// This constructor is used only by the statically reviewed registry
-    /// projection. Invalid generated data fails immediately.
+    /// This const-safe path is used only by the statically reviewed registry
+    /// projection. Invalid generated data fails at compile time rather than
+    /// being replaced with another identity.
     pub const fn from_registry_index(index: NonZeroU16) -> Self {
+        assert!(index.get() <= PARSER_IDENTITY_COUNT);
         Self(index)
     }
 }
@@ -66,6 +78,37 @@ pub enum DetectionMatcher {
     ExactBasename(&'static str),
     /// A compound suffix matcher.
     CompoundSuffix(&'static str),
+}
+
+/// Tie rule for matchers that share the same detection kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DetectionPrecedenceTieBreak {
+    /// Prefer the longest compound suffix before a shorter suffix.
+    LongestValue,
+}
+
+/// Reviewed matcher precedence metadata; this is policy data, not a detector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DetectionPrecedenceProjection {
+    ordered_kinds: [DetectionMatcherKind; 3],
+    same_kind_tie_break: DetectionPrecedenceTieBreak,
+}
+
+impl DetectionPrecedenceProjection {
+    /// Construct the typed projection emitted from the reviewed manifest.
+    pub const fn from_reviewed(ordered_kinds: [DetectionMatcherKind; 3], same_kind_tie_break: DetectionPrecedenceTieBreak) -> Self {
+        Self { ordered_kinds, same_kind_tie_break }
+    }
+
+    /// Return the global matcher-kind order.
+    pub const fn ordered_kinds(&self) -> &[DetectionMatcherKind; 3] {
+        &self.ordered_kinds
+    }
+
+    /// Return the same-kind tie rule.
+    pub const fn same_kind_tie_break(&self) -> DetectionPrecedenceTieBreak {
+        self.same_kind_tie_break
+    }
 }
 
 /// Typed disposition for a canonical identity's literal projection.

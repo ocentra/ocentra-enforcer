@@ -1,14 +1,15 @@
 //! Contract proof for the JSON-owned UL06 P1A1 registry.
 // Source owner: crates/enforcer-syntax/registry/languages.json
 // Generator: crates/enforcer-syntax/src/boundary/language_registry_build.rs
-// schemaHash: 6c0587966c88a5e4d32c69ff7b2f5a74e2bcb4beef671bd06dec4d9a8ddd7359
+// schemaHash: 97dff487a6e01afbab60d36452243bfd68d766ea1ae119350d44633b25c7d878
 
-use enforcer_domain::language_types::{LiteralDisposition, NO_LITERAL_PARSER_IDENTITY_COUNT, StructuralLanguageSupport};
+use enforcer_domain::language_types::{DetectionMatcherKind, DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, NO_LITERAL_PARSER_IDENTITY_COUNT, StructuralLanguageSupport};
 use enforcer_syntax::boundary::language_registry::{render_source, validate_source};
 use enforcer_syntax::parsers::Language;
-use enforcer_syntax::registry::{collision_resolutions, language_registry, literal_projections, record_for_parser};
+use enforcer_syntax::registry::{collision_resolutions, detection_precedence, language_registry, literal_projections, record_for_parser};
 use serde_json::Value;
 use std::collections::HashSet;
+use std::num::NonZeroU16;
 
 const MANIFEST: &str = include_str!("../registry/languages.json");
 const GENERATED: &str = include_str!(concat!(env!("OUT_DIR"), "/language_registry.rs"));
@@ -149,6 +150,11 @@ fn registry_is_exhaustive_unique_and_structurally_honest() -> TestResult {
         let record = must_option(record_for_parser(language), "all parser variants must be registered")?;
         assert_eq!(record.structural(), StructuralLanguageSupport::NoParseFile);
     }
+    assert_eq!(
+        detection_precedence().ordered_kinds(),
+        &[DetectionMatcherKind::ExactBasename, DetectionMatcherKind::CompoundSuffix, DetectionMatcherKind::Extension]
+    );
+    assert_eq!(detection_precedence().same_kind_tie_break(), DetectionPrecedenceTieBreak::LongestValue);
     Ok(())
 }
 
@@ -182,6 +188,31 @@ fn manifest_proves_exact_crosswalk_and_unmatched_denominators() -> TestResult {
     assert_eq!(actual_names, EXPECTED_LITERAL_NAMES);
     assert_eq!(literal_projections().len(), 68);
     assert_eq!(collision_resolutions().len(), 34);
+    assert_eq!(
+        value["detectionPrecedence"],
+        serde_json::json!({
+            "orderedKinds": ["exactBasename", "compoundSuffix", "extension"],
+            "sameKindTieBreak": "longestValue"
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn language_id_bounds_reject_zero_and_above_registry() -> TestResult {
+    assert!(NonZeroU16::new(0).is_none());
+    let Some(first) = NonZeroU16::new(1) else {
+        return Err("one must be a non-zero registry index".to_owned());
+    };
+    let Some(last) = NonZeroU16::new(160) else {
+        return Err("160 must be a non-zero registry index".to_owned());
+    };
+    let Some(too_high) = NonZeroU16::new(161) else {
+        return Err("161 must be a non-zero registry index".to_owned());
+    };
+    assert!(matches!(LanguageId::try_from_registry_index(first), Ok(_)));
+    assert!(matches!(LanguageId::try_from_registry_index(last), Ok(_)));
+    assert!(matches!(LanguageId::try_from_registry_index(too_high), Err(_)));
     Ok(())
 }
 
@@ -285,6 +316,22 @@ fn unknown_parser_variant_fails_generation_validation() -> TestResult {
     let mut value = manifest_value()?;
     value["identities"][0]["parserVariant"] = "UnknownLanguage".into();
     expect_error(&value, "UnknownParserVariant")
+}
+
+#[test]
+fn invalid_detection_precedence_is_rejected() -> TestResult {
+    let mut value = manifest_value()?;
+    value["detectionPrecedence"]["orderedKinds"] = serde_json::json!(["extension", "compoundSuffix", "exactBasename"]);
+    expect_error(&value, "DetectionPrecedence")
+}
+
+#[test]
+fn longest_compound_suffix_tie_rule_is_explicit() -> TestResult {
+    let value = manifest_value()?;
+    assert_eq!(value["detectionPrecedence"]["sameKindTieBreak"], "longestValue");
+    assert_eq!(detection_precedence().same_kind_tie_break(), DetectionPrecedenceTieBreak::LongestValue);
+    assert!(".env.local".len() > ".env".len());
+    Ok(())
 }
 
 #[test]

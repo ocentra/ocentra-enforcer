@@ -1,5 +1,9 @@
 {
   "schemaVersion": 2,
+  "detectionPrecedence": {
+    "orderedKinds": ["exactBasename", "compoundSuffix", "extension"],
+    "sameKindTieBreak": "longestValue"
+  },
   "identities": [
     {
       "id": 1,

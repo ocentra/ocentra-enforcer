@@ -46,6 +46,8 @@ const KEY_ONE_TO_MANY: &str = "oneToMany";
 const KEY_LITERAL_ONLY: &str = "literalOnly";
 const KEY_FALLBACK: &str = "fallback";
 const KEY_PARSER_ID: &str = "parserId";
+const KEY_ORDERED_KINDS: &str = "orderedKinds";
+const KEY_SAME_KIND_TIE_BREAK: &str = "sameKindTieBreak";
 
 const KIND_EXTENSION: &str = "extension";
 const KIND_EXACT_BASENAME: &str = "exactBasename";
@@ -60,6 +62,7 @@ const CLASS_LITERAL_ONLY: &str = "literalOnly";
 const CLASS_FALLBACK: &str = "fallback";
 const REFERENCE_PARSER_ID: &str = "parserId";
 const REFERENCE_SUPPLEMENTAL: &str = "supplementalLiteralName";
+const TIE_BREAK_LONGEST_VALUE: &str = "longestValue";
 
 const ERROR_OBJECT: &str = "manifest value must be an object";
 const ERROR_ARRAY: &str = "manifest value must be an array";
@@ -74,9 +77,20 @@ const ERROR_EMPTY_MATCHER: &str = "empty matcher value";
 const ERROR_FALLBACK_REFERENCE: &str = "fallback reference is only valid for the fallback row";
 const ERROR_FALLBACK_ROW: &str = "fallback row must be unknown with no parser IDs";
 const ERROR_UNMATCHED_COUNT: &str = "expected 85 unique parser IDs";
+const ERROR_PARSER_VARIANT_SET: &str = "parser variant sets are not equal";
+const ERROR_DETECTION_PRECEDENCE: &str = "invalid detection precedence projection";
+const DEBUG_LIST_PREFIX: &str = "[";
+const DEBUG_LIST_SEPARATOR: &str = ", ";
+const DEBUG_LIST_SUFFIX: &str = "]";
+const DEBUG_ENUM_PREFIX: &str = ": enum=";
+const DEBUG_MANIFEST_PREFIX: &str = "; manifest=";
+const DEBUG_ALL_PREFIX: &str = "; all=";
 const ERROR_DEBUG: &str = "{self:?}";
 const ENUM_START: &str = "pub enum Language {";
 const ENUM_END: &str = "}";
+const ALL_START: &str = "pub const ALL: [Self; 160] = [";
+const ALL_END: &str = "];";
+const SELF_PREFIX: &str = "Self::";
 const EMPTY: &str = "";
 const LIST_PREFIX: &str = "&[";
 const LIST_SUFFIX: &str = "]";
@@ -154,6 +168,9 @@ const MESSAGE_COLLISION_MISMATCH: &str = "collision resolution mismatch for ";
 const GENERATED_LANGUAGE_HEADER: &str = "pub static LANGUAGE_RECORDS: &[LanguageRecord] = &[\n";
 const GENERATED_LITERAL_HEADER: &str = "pub static LITERAL_PROJECTIONS: &[LiteralProjection] = &[\n";
 const GENERATED_COLLISION_HEADER: &str = "pub static COLLISION_RESOLUTIONS: &[CollisionResolution] = &[\n";
+const GENERATED_PRECEDENCE_HEADER: &str = "pub static DETECTION_PRECEDENCE: DetectionPrecedenceProjection = DetectionPrecedenceProjection::from_reviewed([";
+const GENERATED_PRECEDENCE_SEPARATOR: &str = ", ";
+const GENERATED_PRECEDENCE_SUFFIX: &str = "], DetectionPrecedenceTieBreak::LongestValue);\n\n";
 const GENERATED_TABLE_END: &str = "];\n\n";
 const GENERATED_FINAL_END: &str = "];\n";
 
@@ -161,6 +178,8 @@ const GENERATED_FINAL_END: &str = "];\n";
 struct ManifestWire {
     #[serde(rename = "schemaVersion")]
     schema_version: u16,
+    #[serde(rename = "detectionPrecedence")]
+    detection_precedence: Value,
     identities: Vec<Value>,
     #[serde(rename = "literalProjection")]
     literal_projection: Vec<Value>,
@@ -200,6 +219,17 @@ enum ProjectionDisposition {
     Registered,
     LiteralOnly,
     Fallback,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PrecedenceTieBreak {
+    LongestValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PrecedenceValue {
+    ordered_kinds: [MatcherKind; 3],
+    same_kind_tie_break: PrecedenceTieBreak,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -268,6 +298,8 @@ pub enum ManifestError {
     DuplicateParserVariant(String),
     /// A parser variant is not present in the real enum source.
     UnknownParserVariant(String),
+    /// The manifest, enum declaration, and Language::ALL projection differ.
+    ParserVariantSet(String),
     /// A parser variant is not a Rust identifier.
     InvalidParserVariant(String),
     /// Canonical names collide after case folding.
@@ -290,6 +322,8 @@ pub enum ManifestError {
     UnmatchedParserIds(String),
     /// Collision resolutions are missing, duplicated, or malformed.
     CollisionResolution(String),
+    /// Detection precedence metadata is missing or malformed.
+    DetectionPrecedence(String),
     /// A generated file could not be written.
     Io(String),
     /// Cargo did not provide an output directory.
@@ -490,6 +524,79 @@ fn parser_variants() -> HashSet<String> {
     variants
 }
 
+fn language_all_variants() -> HashSet<String> {
+    let mut variants = HashSet::new();
+    let mut inside = false;
+    for line in PARSER_ENUM_SOURCE.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(ALL_START) {
+            inside = true;
+            continue;
+        }
+        if inside && trimmed == ALL_END {
+            break;
+        }
+        if inside {
+            let candidate = trimmed.trim_end_matches(',');
+            if let Some(name) = candidate.strip_prefix(SELF_PREFIX) {
+                if is_rust_identifier(name) {
+                    variants.insert(name.to_owned());
+                }
+            }
+        }
+    }
+    variants
+}
+
+fn sorted_variants(values: &HashSet<String>) -> Vec<String> {
+    let mut result = values.iter().cloned().collect::<Vec<_>>();
+    result.sort();
+    result
+}
+
+fn debug_variant_list(values: &HashSet<String>) -> String {
+    let names = sorted_variants(values);
+    let mut result = String::from(DEBUG_LIST_PREFIX);
+    result.push_str(&names.join(DEBUG_LIST_SEPARATOR));
+    result.push_str(DEBUG_LIST_SUFFIX);
+    result
+}
+
+fn validate_parser_variant_sets(enum_variants: &HashSet<String>, manifest_variants: &HashSet<String>, all_variants: &HashSet<String>) -> Result<(), ManifestError> {
+    if enum_variants != manifest_variants || enum_variants != all_variants {
+        let enum_text = debug_variant_list(enum_variants);
+        let manifest_text = debug_variant_list(manifest_variants);
+        let all_text = debug_variant_list(all_variants);
+        return Err(ManifestError::ParserVariantSet(message(&[
+            ERROR_PARSER_VARIANT_SET,
+            DEBUG_ENUM_PREFIX,
+            &enum_text,
+            DEBUG_MANIFEST_PREFIX,
+            &manifest_text,
+            DEBUG_ALL_PREFIX,
+            &all_text,
+        ])));
+    }
+    Ok(())
+}
+
+fn parse_precedence(value: &Value) -> Result<PrecedenceValue, ManifestError> {
+    let kinds = array_field(value, KEY_ORDERED_KINDS)?;
+    if kinds.len() != 3 {
+        return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()));
+    }
+    let parsed = kinds.iter().map(|kind| parse_matcher_kind(&string_value(kind)?)).collect::<Result<Vec<_>, ManifestError>>()?;
+    let ordered_kinds = [parsed[0], parsed[1], parsed[2]];
+    if ordered_kinds != [MatcherKind::ExactBasename, MatcherKind::CompoundSuffix, MatcherKind::Extension] || ordered_kinds.iter().collect::<HashSet<_>>().len() != 3 {
+        return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()));
+    }
+    let same_kind_tie_break = match string_field(value, KEY_SAME_KIND_TIE_BREAK)?.as_str() {
+        TIE_BREAK_LONGEST_VALUE => PrecedenceTieBreak::LongestValue,
+        _ => return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned())),
+    };
+    Ok(PrecedenceValue { ordered_kinds, same_kind_tie_break })
+}
+
 fn validate_reference(reference: &Reference, parser_ids: &HashSet<u16>, literal_only_names: &HashSet<String>, allow_fallback: bool) -> Result<(), ManifestError> {
     match reference {
         Reference::ParserId(parser_id) if parser_ids.contains(parser_id) => Ok(()),
@@ -518,8 +625,10 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             actual: manifest.identities.len(),
         });
     }
+    parse_precedence(&manifest.detection_precedence)?;
 
     let known_variants = parser_variants();
+    let all_variants = language_all_variants();
     let identities = manifest.identities.iter().map(parse_identity).collect::<Result<Vec<_>, ManifestError>>()?;
     let mut parser_ids = HashSet::with_capacity(EXPECTED_IDENTITY_COUNT);
     let mut parser_variants_seen = HashSet::with_capacity(EXPECTED_IDENTITY_COUNT);
@@ -568,6 +677,7 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
         }
         identity_matchers.insert(identity.id, matchers);
     }
+    validate_parser_variant_sets(&known_variants, &parser_variants_seen, &all_variants)?;
     if structural_count != EXPECTED_STRUCTURAL_COUNT {
         return Err(ManifestError::StructuralCount {
             expected: EXPECTED_STRUCTURAL_COUNT,
@@ -889,11 +999,29 @@ fn render_collision_line(resolution: &CollisionValue) -> String {
     line
 }
 
+fn render_precedence(value: &PrecedenceValue) -> String {
+    let mut output = String::from(GENERATED_PRECEDENCE_HEADER);
+    output.push_str(
+        &value
+            .ordered_kinds
+            .iter()
+            .map(|kind| render_matcher_kind(*kind))
+            .collect::<Vec<_>>()
+            .join(GENERATED_PRECEDENCE_SEPARATOR),
+    );
+    match value.same_kind_tie_break {
+        PrecedenceTieBreak::LongestValue => output.push_str(GENERATED_PRECEDENCE_SUFFIX),
+    }
+    output
+}
+
 fn render_registry(manifest: &ManifestWire) -> Result<String, ManifestError> {
+    let precedence = parse_precedence(&manifest.detection_precedence)?;
     let identities = manifest.identities.iter().map(parse_identity).collect::<Result<Vec<_>, ManifestError>>()?;
     let projections = manifest.literal_projection.iter().map(parse_projection).collect::<Result<Vec<_>, ManifestError>>()?;
     let collisions = manifest.collision_resolutions.iter().map(parse_collision).collect::<Result<Vec<_>, ManifestError>>()?;
     let mut output = String::new();
+    output.push_str(&render_precedence(&precedence));
     output.push_str(GENERATED_LANGUAGE_HEADER);
     for identity in &identities {
         output.push_str(&render_record_line(identity));
@@ -918,6 +1046,23 @@ fn is_rust_identifier(value: &str) -> bool {
         return false;
     };
     (first == '_' || first.is_ascii_alphabetic()) && characters.all(|character| character == '_' || character.is_ascii_alphanumeric())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ManifestError, language_all_variants, parser_variants, validate_parser_variant_sets};
+    use std::collections::HashSet;
+
+    #[test]
+    fn parser_variant_sets_reject_omitted_and_extra_members() {
+        assert_eq!(parser_variants(), language_all_variants());
+        let enum_variants = HashSet::from(["Rust".to_owned(), "TypeScript".to_owned()]);
+        let all_variants = enum_variants.clone();
+        let omitted = HashSet::from(["Rust".to_owned()]);
+        assert!(matches!(validate_parser_variant_sets(&enum_variants, &omitted, &all_variants), Err(ManifestError::ParserVariantSet(_))));
+        let extra = HashSet::from(["Rust".to_owned(), "TypeScript".to_owned(), "Extra".to_owned()]);
+        assert!(matches!(validate_parser_variant_sets(&enum_variants, &extra, &all_variants), Err(ManifestError::ParserVariantSet(_))));
+    }
 }
 
 const KEY_CLASSIFICATION: &str = "classification";

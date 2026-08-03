@@ -6,8 +6,8 @@
 
 use crate::parsers::Language;
 use enforcer_domain::language_types::{
-    CollisionResolution, DetectionMatcher, DetectionMatcherKind, LanguageId, LiteralDisposition, LiteralProjection, LiteralProjectionDisposition, LiteralReference, MatcherWinner,
-    StructuralLanguageSupport,
+    CollisionResolution, DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceProjection, DetectionPrecedenceTieBreak, LanguageId, LiteralDisposition, LiteralProjection,
+    LiteralProjectionDisposition, LiteralReference, MatcherWinner, StructuralLanguageSupport,
 };
 use std::num::NonZeroU16;
 
@@ -37,7 +37,7 @@ pub struct LanguageRecord {
 const fn require_nonzero(index: Option<NonZeroU16>) -> NonZeroU16 {
     match index {
         Some(value) => value,
-        None => NonZeroU16::MIN,
+        None => loop {},
     }
 }
 
@@ -87,4 +87,9 @@ pub fn literal_projections() -> &'static [LiteralProjection] {
 /// Return explicit same-key matcher collision decisions.
 pub fn collision_resolutions() -> &'static [CollisionResolution] {
     COLLISION_RESOLUTIONS
+}
+
+/// Return the reviewed matcher precedence policy without running detection.
+pub fn detection_precedence() -> &'static DetectionPrecedenceProjection {
+    &DETECTION_PRECEDENCE
 }
