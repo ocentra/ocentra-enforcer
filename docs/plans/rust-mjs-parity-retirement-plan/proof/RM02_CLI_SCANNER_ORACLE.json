@@ -4,11 +4,11 @@
   "artifactId": "RM02-CLI-SCANNER-ORACLE-20260803",
   "artifactState": "bounded-evidence-only",
   "closureClaim": false,
-  "materializedAtCandidateSha": "9ade7d93e02a63726fdfc92c715ade7bbc770fc7",
+  "materializedAtCandidateSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
   "ownershipCorrection": {
     "decisionId": "RM08-PREREQUISITE-OWNER-DECISION",
     "decisionAuthority": "boss",
-    "decisionRecordedAtMaterializationSha": "9ade7d93e02a63726fdfc92c715ade7bbc770fc7",
+    "decisionRecordedAtMaterializationSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
     "previousDenominator": 54,
     "currentDenominator": 29,
     "transferredRowCount": 25,
@@ -63,11 +63,12 @@
   },
   "sourceReport": {
     "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
-    "currentMaterializationBaseSha": "9ade7d93e02a63726fdfc92c715ade7bbc770fc7",
+    "currentMaterializationBaseSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
     "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
     "evidenceCandidateShas": [
       "e19076353d8cfc945b138311de9d4738021ec05d",
-      "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04"
+      "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04",
+      "89ed00186addb8bc2f496abadd8fe1697056cf78"
     ],
     "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
     "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
@@ -79,13 +80,227 @@
     "rm00AuthoritySha": "83f9cba1679d02734fa624f7441768577c057a715e802dbdc1bcdeea97f65247",
     "rm01InventorySha": "adc71f7e17a51de33ac72a47eb10b1fb0c91d1e9b75e51dd2514b4fe78c99b59",
     "rm02WorkpackSha": "3f90dd764b364bbfdfa3ddb4c7fafc3c4ea7e59e00d3f4a32bf369da911e37a0",
-    "evidenceLevel": "bounded-cli-help-only"
+    "evidenceLevel": "bounded-cli-behavioral-and-route-evidence"
+  },
+  "behavioralEvidenceCorrection": {
+    "status": "bounded-behavioral-evidence-with-confirmed-semantic-delta",
+    "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
+    "currentMaterializationBaseSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
+    "candidateEvidenceSha": "89ed00186addb8bc2f496abadd8fe1697056cf78",
+    "publicAuthoritySha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "candidateBuild": {
+      "runId": null,
+      "command": [
+        "cargo",
+        "build",
+        "-vv",
+        "-p",
+        "enforcer-cli",
+        "--bin",
+        "enforcer"
+      ],
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "E:/Temp/rm02-candidate-target-89ed",
+        "TEMP": "E:/Temp/rm02-candidate-temp-89ed",
+        "TMP": "E:/Temp/rm02-candidate-temp-89ed"
+      },
+      "exitCode": 0,
+      "durationSeconds": 739.6,
+      "binaryPath": "E:/Temp/rm02-candidate-target-89ed/debug/enforcer.exe",
+      "binaryBytes": 245798400,
+      "binarySha256": "40A8524FDF1114F187CF2779DDA59702971F0547BE44A6B2345D2F0E85A9AB95"
+    },
+    "publicEnvironment": {
+      "worktree": "E:/Temp/rm02-public-267",
+      "authoritySha": "267af94b701bd592e01a47649e3c18c26ee04239",
+      "installCommand": ["npm", "ci"],
+      "installStatus": "passed",
+      "packageLockSha256": "26592AEA82EE0829B5641550C26FBFC3DEF285C5F9AA4139F0F5A613C27AF5C1",
+      "effectVersion": "3.21.4"
+    },
+    "publicObservations": {
+      "rootScanDelta": {
+        "runId": "rm02-public-c1-cli-004-scan-fail-root-20260803",
+        "command": [
+          "node",
+          "scripts/ocentra-enforcer.mjs",
+          "scan",
+          "--root",
+          "tests/fixtures/enforcer/rust",
+          "--profile",
+          "strict",
+          "--json"
+        ],
+        "exitCode": 1,
+        "diagnosticCount": 2,
+        "findings": ["RR-12.22", "HAR-2.4"],
+        "stdoutSha256": "21191CA90D895B71EC3B2F48A8AAEBA290DF02FE231259AF13776026ADE2566E",
+        "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      "rootFinding": {
+        "fixture": "tests/fixtures/enforcer/rust/rr-12.22-is-ok-weak-assert.fail.rs",
+        "fixtureGitBlobSha": "cdf9e48479db41afb8a9ee6df379249b431782af",
+        "fixtureSha256": "99D63EABEF1E838D3538F218E614BDDAE8387F00DA1381AA6B6EC214E2F588A6",
+        "rule": "RR-12.22",
+        "observation": "The public root scan fails nonzero and reports the seeded weak assertion plus the recurring HAR-2.4 malformed-JSON diagnostic."
+      },
+      "routeRuns": [
+        {"runId":"rm02-public-command-001-init-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"5425A6CEA7DC7349C8557FB65766DBBEA65A2D52AB20F1CCCDD801F674B1FFA4"},
+        {"runId":"rm02-public-command-002-codex-install-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"B8FAF44A4E6F7519D46C1BC9A490D4C7A2F18B613C66702833D7C4F7E3AF272E"},
+        {"runId":"rm02-public-command-003-codex-uninstall-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"9740827797A8AC0AE55761DA2114AD11785A570319B445DE16241DFD7E455238"},
+        {"runId":"rm02-public-command-004-codex-doctor-20260803","exitCode":1,"diagnosticCount":1,"stdoutSha256":"A8F6C2CFF3B2F66C7D13BB6FD7E1EBB419343CC80A448A7FBED2509B71C8504A"},
+        {"runId":"rm02-public-command-005-route-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"C7FEED88A48F2D351B760D40D00F937D63E5FFC9E0473A28B5AA20FC23FD8D57"},
+        {"runId":"rm02-public-command-006-run-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"5CEABCAAEA0DB07B464EB523F29A29DA58394179759183699F6EC9577A64C58F"},
+        {"runId":"rm02-public-command-007-runs-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"ADE86ACBC51305F7419247969FBB7617BA0C0F9DEE5B642C98E00AD99AC61A4D"},
+        {"runId":"rm02-public-command-008-verify-20260803","exitCode":1,"diagnosticCount":1,"stdoutSha256":"7779D299B819A4645DA549013DBA1AE70F9572228CCED2735D9D06AABB0145C8"},
+        {"runId":"rm02-public-command-009-advise-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"BC2A6CB46E812211B7880FE78312B224AD40839E4646C9C9B7C0A2778DA65564"},
+        {"runId":"rm02-public-command-010-check-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"97B1483B8A16DC09B56903A0AF0790BFD99B3D840A529B18EE5E956CE47786D1"},
+        {"runId":"rm02-public-command-011-explain-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"44B419E4999BC3CD75BA9DBD103092196137AEA1944C80E2EE8CF32EF498550E"},
+        {"runId":"rm02-public-command-012-doctor-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"9FA67B50C39549587282D8C951EE5122635B592A57587674B348AA9F220CA1AD"},
+        {"runId":"rm02-public-command-013-scan-20260803","exitCode":1,"diagnosticCount":2,"stdoutSha256":"8BBED228258E33922FB8F53D3180CFAFA6DB0B666233EA00CDDA43FC0BE67675"},
+        {"runId":"rm02-public-command-014-proof-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"C875FE2EFACF120C56ED91FBA8AFB52A090507E7AAF549AABB0D5E297481C9C6"},
+        {"runId":"rm02-public-command-015-coordination-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"91DE2C6F0C8632A5C83D77376B01EC2D07AC98A120F3D2E6B57FA46B99561656"},
+        {"runId":"rm02-public-command-016-ledger-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"DF8EA5FD9DE6B39B22D007E53A623322A8D9B8F8E680725AE1E34D5A2B1B8034"},
+        {"runId":"rm02-public-command-017-architecture-20260803","exitCode":0,"diagnosticCount":1,"stdoutSha256":"B00D0C45EC54E379FC74C867D161E45BCECFC30C7371540CC8F965062E0F0A1E"},
+        {"runId":"rm02-public-command-018-help-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"3B44D5CEECB558263C3C50AC89862F7725D0A58CC6B6FB355BF89B82C89AF0F8"}
+      ],
+      "mcp": {
+        "runId": "rm02-public-c1-cli-006-serve-entrypoint-20260803",
+        "command": ["node", "mcp/ocentra-enforcer-mcp.mjs", "--help"],
+        "exitCode": 0,
+        "stdioBehavior": "unmeasured"
+      }
+    },
+    "candidateObservations": {
+      "rootScanDelta": {
+        "runId": "rm02-candidate-c1-cli-004-scan-fail-root-89ed-20260803",
+        "command": ["E:/Temp/rm02-candidate-target-89ed/debug/enforcer.exe", "scan", "tests/fixtures/enforcer/rust"],
+        "exitCode": 0,
+        "diagnosticCount": 0,
+        "findings": [],
+        "stdoutSha256": "61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1",
+        "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      },
+      "runArtifacts": [
+        {"runId":"rm02-candidate-c1-cli-001-help-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"022798BFAE4EE595674606C1260C030CF52C44582B1C81729962F1B6668D8E90","stderrSha256":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"},
+        {"runId":"rm02-candidate-c1-cli-001-default-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-c1-cli-002-invalid-89ed-20260803","exitCode":2,"diagnosticCount":1,"stderrSha256":"2F83B90EDFF8B27303450BB5ECA7049294816C8D2D635F99D82C8E441F6CB7BC"},
+        {"runId":"rm02-candidate-c1-cli-003-pass-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-c1-cli-004-fail-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-c1-cli-004-fail-root-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-c1-cli-004-scan-fail-root-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-c1-cli-005-memory-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"5E3256114F347980F7A907DA6AAA36BE10220F627D2CAC6DE13B84DF49220924"},
+        {"runId":"rm02-candidate-c1-cli-006-serve-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"CCA3CF3608C4ECDBCA6C80E916328078919AA24459F1B62B2F6629908FB3B648"},
+        {"runId":"rm02-candidate-command-008-verify-local-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-command-010-check-clean-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-command-012-doctor-run-89ed-20260803","exitCode":1,"diagnosticCount":1,"stdoutSha256":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","stderrSha256":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"},
+        {"runId":"rm02-candidate-command-013-scan-clean-89ed-20260803","exitCode":0,"diagnosticCount":0,"stdoutSha256":"61C096286BAC550C1E4CB5516F736317F0A75D4E7C4BEA7B8288B45E49AFFFF1"},
+        {"runId":"rm02-candidate-command-014-proof-run-89ed-20260803","exitCode":70,"diagnosticCount":1,"stderrSha256":"412C3C111B6EA7A28877956E830D0D732E6CF8DB941F5F33EB7902E455544029"},
+        {"runId":"rm02-candidate-command-015-coordination-run-89ed-20260803","exitCode":70,"diagnosticCount":1,"stderrSha256":"F388E16AE3D8F57B52787D05FA6C929293D084AAA743F8E05788011B02BC62F5"},
+        {"runId":"rm02-candidate-command-016-ledger-run-89ed-20260803","exitCode":70,"diagnosticCount":1,"stderrSha256":"F388E16AE3D8F57B52787D05FA6C929293D084AAA743F8E05788011B02BC62F5"}
+      ],
+      "helpRouteRuns": [
+        {"runId":"rm02-candidate-command-001-init-89ed-20260803","command":"onboard --help","exitCode":0,"stdoutSha256":"10C8350128D1FFB732D4CB14AB01682FB0C59A9DAD19C9643C954239CEDA2C74"},
+        {"runId":"rm02-candidate-command-002-codex-install-89ed-20260803","command":"install --help","exitCode":0,"stdoutSha256":"F2E6787BE0EA570F2C59C54DE5F5D0C48D6B73BB727FA46C7CFC06AAE76C4514"},
+        {"runId":"rm02-candidate-command-003-codex-uninstall-89ed-20260803","command":"uninstall --help","exitCode":2,"stderrSha256":"29022DD256D71678656ED5D254ACFC07C25F4F16E8262DCB231B4B76BD89DC4C"},
+        {"runId":"rm02-candidate-command-004-codex-doctor-89ed-20260803","command":"doctor --help","exitCode":0,"stdoutSha256":"C346768662087E5A5C85F77B568E06B14960A9765F5EE021288FA1D426A59461"},
+        {"runId":"rm02-candidate-command-005-route-89ed-20260803","command":"route --help","exitCode":2,"stderrSha256":"CA0D9C0E34987052543FF04846ECC4CD6636FC88F2069963C6B8525855F7A6A9"},
+        {"runId":"rm02-candidate-command-006-run-89ed-20260803","command":"run --help","exitCode":2,"stderrSha256":"FF1C1D2574BF51B562B77ED65CA76A63D596AB84BA30E744AAFB3FC78D0C6834"},
+        {"runId":"rm02-candidate-command-007-runs-89ed-20260803","command":"runs --help","exitCode":2,"stderrSha256":"252D7F11709720115777B7D4DC310DC23C7A8775B300392E6AEA28E2EB5AC301"},
+        {"runId":"rm02-candidate-command-008-verify-89ed-20260803","command":"verify --help","exitCode":0,"stdoutSha256":"0ABADA87345AD290BF62DCB34F77FE521D00E85E16CB4FC1DF98649D72319538"},
+        {"runId":"rm02-candidate-command-009-advise-89ed-20260803","command":"advise --help","exitCode":0,"stdoutSha256":"0F3AD33DDA7E66B5C233C533171172E9B51C258893CBD2D3A3AE7F79520B826A"},
+        {"runId":"rm02-candidate-command-010-check-89ed-20260803","command":"check --help","exitCode":0,"stdoutSha256":"D8B02000130ADE698744EC2D7F46E7D305387F904F2313E1B8CC40CEFD0E72C8"},
+        {"runId":"rm02-candidate-command-011-explain-89ed-20260803","command":"explain --help","exitCode":2,"stderrSha256":"1AF9A9CF3B6996AA33F598C036C588ED2B5B6A3D86132B189DE4F4C020A9327C"},
+        {"runId":"rm02-candidate-command-012-doctor-89ed-20260803","command":"doctor --help","exitCode":0,"stdoutSha256":"C346768662087E5A5C85F77B568E06B14960A9765F5EE021288FA1D426A59461"},
+        {"runId":"rm02-candidate-command-013-scan-89ed-20260803","command":"scan --help","exitCode":0,"stdoutSha256":"A366954F2584F374705B86356BCB837AB61412AF5C08A663F4CB01CE5763EF0B"},
+        {"runId":"rm02-candidate-command-014-proof-89ed-20260803","command":"proof --help","exitCode":0,"stdoutSha256":"CA8EDFA9F08D42404A880ECC1114CB28CB10FE1AE3F833AF288C3660DEC39A1E"},
+        {"runId":"rm02-candidate-command-015-coordination-89ed-20260803","command":"coordination --help","exitCode":0,"stdoutSha256":"5F24A78FE05B27D03BCE394C7B6C85FCD70483EBCCC3E9EEB411520028FF7890"},
+        {"runId":"rm02-candidate-command-016-ledger-89ed-20260803","command":"ledger --help","exitCode":0,"stdoutSha256":"5F24A78FE05B27D03BCE394C7B6C85FCD70483EBCCC3E9EEB411520028FF7890"},
+        {"runId":"rm02-candidate-command-017-architecture-89ed-20260803","command":"architecture --help","exitCode":0,"stdoutSha256":"601754516A235D3A19C7597F7B7166C70FC2C3B1584D6B7345776392E44F7E7B"},
+        {"runId":"rm02-candidate-command-018-help-89ed-20260803","command":"help","exitCode":0,"stdoutSha256":"022798BFAE4EE595674606C1260C030CF52C44582B1C81729962F1B6668D8E90"}
+      ],
+      "unwiredSkeletonRoutes": [
+        {"command":"proof","exitCode":70,"runIds":["rm02-candidate-command-014-proof-run-89ed-20260803"],"observation":"The Rust proof route is an explicit skeleton/internal-error path."},
+        {"command":"coordination","exitCode":70,"runIds":["rm02-candidate-command-015-coordination-run-89ed-20260803"],"observation":"The Rust coordination route is an explicit skeleton/internal-error path."},
+        {"command":"ledger","exitCode":70,"runIds":["rm02-candidate-command-016-ledger-run-89ed-20260803"],"observation":"The Rust ledger route is an explicit skeleton/internal-error path."}
+      ],
+      "mcp": {
+        "status": "unmeasured",
+        "reason": "Only candidate serve help was run; MCP stdio request/response framing was not exercised."
+      },
+      "sideEffectingActions": {
+        "status": "unmeasured",
+        "commands": ["onboard", "install", "uninstall", "config"],
+        "reason": "Only help probes were permitted; install/onboard/config side effects were not executed."
+      },
+      "enhancements": [
+        {"runId":"rm02-candidate-enh-004-policy-89ed-20260803","command":"policy --help","exitCode":0,"stdoutSha256":"13D761AF25C420385ED4A93992C8DA5FE0E9B755BFEDF8DF5FF47AB455E89797"},
+        {"runId":"rm02-candidate-enh-005-config-89ed-20260803","command":"config --help","exitCode":2,"stderrSha256":"60EA002A0512531BF961590122E53C9D875A73BE6469ED7992A341FC0D23C3D4"}
+      ]
+    },
+    "productBlobProvenance": {
+      "comparisonBaseSha": "32fa5996afb179248e8e6c3e55921da57eba2d28",
+      "candidateSha": "89ed00186addb8bc2f496abadd8fe1697056cf78",
+      "currentMaterializationBaseSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
+      "unchangedCliBlobs": {
+        "crates/enforcer-cli/src/main.rs": "9596721b18c1e8739b8adabbb1fce3fec56bdae8",
+        "crates/enforcer-cli/src/cli.rs": "3f4c4894b02f8885b1d82f3ca716f868eb001d5e",
+        "crates/enforcer-cli/src/commands.rs": "6fcfc6817bee69562f4517e17a4b87806f7e87c4",
+        "crates/enforcer-cli/src/lifecycle.rs": "a4bd34a2a7b2aab236cd226788684af96a5f84dc"
+      },
+      "scannerDeltaBlobs": {
+        "crates/enforcer-scan/src/boundary/router.rs": {"base32fa":"bd76710fd4205578f9b049b37a1b6eee073899c6","candidate89ed":"fbd65ae001604803011744bf852e01c87b648355","current82d":"fbd65ae001604803011744bf852e01c87b648355"},
+        "crates/enforcer-scan/tests/router.rs": {"base32fa":"92852b2de6b7ec578c7f05bd78d6d16872fcb7bd","candidate89ed":"41f9b683d3c18f7e16ff2a03a4dd5370c21e3051","current82d":"41f9b683d3c18f7e16ff2a03a4dd5370c21e3051"}
+      },
+      "unchangedScannerBlobs": {
+        "crates/enforcer-scan/src/walk.rs": "3c635630e0bd5855c559c66a859d4820f1396172",
+        "crates/enforcer-scan/src/engine.rs": "a2ecf65dc1a8fef63d2ba92f623a753702222236"
+      }
+    },
+    "rr122RepairProposal": {
+      "authorizationRequired": true,
+      "productEditPerformed": false,
+      "publicFixture": "tests/fixtures/enforcer/rust/rr-12.22-is-ok-weak-assert.fail.rs",
+      "publicCommand": ["node","scripts/ocentra-enforcer.mjs","scan","--root","tests/fixtures/enforcer/rust","--profile","strict","--json"],
+      "candidateCommand": ["E:/Temp/rm02-candidate-target-89ed/debug/enforcer.exe","scan","tests/fixtures/enforcer/rust"],
+      "candidateAnchors": [
+        "crates/enforcer-cli/src/lifecycle.rs:run_check",
+        "crates/enforcer-cli/src/commands.rs:run_scoped_check",
+        "crates/enforcer-scan/src/scope.rs:resolve",
+        "crates/enforcer-scan/src/boundary/native_scan.rs:resolve_files_with_rules",
+        "crates/enforcer-scan/src/walk.rs:walk",
+        "crates/enforcer-scan/src/walk.rs:expand_explicit",
+        "crates/enforcer-scan/src/walk.rs:filter_explicit"
+      ],
+      "minimalOwningFiles": [
+        "crates/enforcer-cli/src/lifecycle.rs",
+        "crates/enforcer-cli/src/commands.rs",
+        "crates/enforcer-scan/src/boundary/native_scan.rs",
+        "crates/enforcer-scan/src/walk.rs",
+        "crates/enforcer-cli/tests/cli_integration.rs",
+        "crates/enforcer-scan/tests/"
+      ],
+      "proofPlan": [
+        "Reproduce the exact public root fixture and normalized RR-12.22 finding at the candidate current SHA.",
+        "Add focused candidate tests for explicit-file-under-ignored-directory and ordinary root-walk ignore behavior before any repair.",
+        "Prove the same root command reports RR-12.22 and exits 1 while preserving ordinary ignore policy and exit/finding normalization.",
+        "Run the public and candidate commands at one declared evidence SHA and retain raw stdout/stderr hashes; do not broaden to other missing routes."
+      ]
+    },
+    "doesNotProve": [
+      "Full RM02 behavioral parity or equal-or-stricter behavior.",
+      "That the historical RM00 decision-input candidate is repinned or authority-approved for this evidence.",
+      "MCP stdio framing/notifications, install/onboard/config side effects, or native release behavior.",
+      "A repair of the RR-12.22 root-scan semantic delta; product source was not edited.",
+      "RM02 closure, RM08 authorization, aggregate, cutover, or retirement."
+    ]
   },
   "authorityPinDiscrepancy": {
     "historicalRm00DecisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
-    "currentMaterializationBaseSha": "9ade7d93e02a63726fdfc92c715ade7bbc770fc7",
-    "status": "unresolved-boss-input-for-RM08",
-    "doesNotProve": "Current candidate is authority-approved or equivalent to historical RM00 input."
+    "currentMaterializationBaseSha": "82d8639e2999a5150aa41e4506f8cf751895041a",
+    "status": "historical-authority-pin-and-current-evidence-sha-have-distinct-roles",
+    "doesNotProve": "Current candidate is authority-approved or equivalent to historical RM00 input; the historical pin is retained without repinning evidence."
   },
   "sourceEvidence": [
     {
@@ -1482,23 +1697,28 @@
     }
   ],
   "unresolved": [
-    "Full CLI argv/usage/exit-class/pass-fail matrix unmeasured.",
+    "Full CLI argv/usage/exit-class/pass-fail matrix remains incomplete despite the bounded 89ed probes.",
     "Named-check findings and ordered normalized scanner output unmeasured.",
     "Rust/public rust-rules versus scan identity and wire/output equivalence unmeasured.",
     "C1-CLI-006 serve/MCP stdio equivalence unmeasured.",
-    "RM00 historical pin versus current materialization is unresolved boss input for RM08.",
+    "RR-12.22 root-scan semantic delta: public exit1 with RR-12.22/HAR-2.4 versus candidate exit0 with no findings; repair/adjudication is required.",
+    "Candidate MCP stdio framing/notification equivalence is unmeasured.",
+    "Install, onboard, uninstall, and config side effects remain unexecuted/unmeasured.",
     "C2 scanner/rules/policy/config rows remain RM04-owned and excluded."
   ],
   "proves": [
     "29 exact RM02-owned RM01 CLI IDs are recorded without invented IDs after the boss RM08 ownership correction.",
     "The 25 transferred RM01 named-check IDs are excluded from RM02 and cross-referenced to RM04 ownership without deleting their historical evidence from RM04.",
     "Exact public dependency repair recorded with effect 3.21.4 and package-lock hash.",
-    "Three exact-public and three exact-e190 help probes passed as bounded smoke evidence.",
-    "Source, materialization, and evidence SHAs are separate."
+    "The exact-current 89ed candidate binary was built successfully and its command-route observations are retained with raw artifact hashes.",
+    "The public/candidate RR-12.22 root-scan difference is preserved as a confirmed semantic delta, not normalized away.",
+    "Source, materialization, historical RM00, public, and evidence SHAs are separate."
   ],
   "doesNotProve": [
     "Full RM02 CLI/scanner parity or equal-or-stricter behavior.",
-    "Named-check/scanner findings, ordered diagnostics, exit classes, fixtures, serve, or side-effect parity.",
+    "Named-check/scanner findings beyond the bounded root-scan observation, ordered diagnostics, fixtures, serve, or side-effect parity.",
+    "MCP stdio behavior, install/onboard/config side effects, or unwired proof/coordination/ledger routes.",
+    "Repair or waiver of the RR-12.22 semantic delta.",
     "RM02 closure, RM08 authorization, aggregate, cutover, or retirement.",
     "Historical RM00 candidate pin replaced or accepted."
   ]
