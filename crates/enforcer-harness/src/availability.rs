@@ -1,6 +1,6 @@
 //! Typed availability and exact-version probing over the bounded runner.
 
-use enforcer_core::error::{Error, Result};
+use enforcer_core::error::Result;
 use enforcer_domain::harness_types::{
     HarnessCapturedOutput, HarnessExecutionTermination, HarnessStepVersion,
     HarnessToolAvailability, HarnessToolSpec,
@@ -72,13 +72,17 @@ pub fn probe_allowlisted_tool(
         Some(probe) => probe,
         None => return Ok(HarnessToolProbeResult::misconfigured()),
     };
-    let expected_version = match spec.expected_version() {
+    let expected_version = match spec
+        .expected_version()
+        .and_then(|version| HarnessStepVersion::from_manifest(version.as_str()))
+    {
         Some(version) => version,
         None => return Ok(HarnessToolProbeResult::misconfigured()),
     };
-    let probe_spec = spec
-        .probe_execution_spec()
-        .map_err(|error| Error::InvalidConfig(error.to_string()))?;
+    let probe_spec = match spec.probe_execution_spec() {
+        Ok(probe_spec) => probe_spec,
+        Err(_) => return Ok(HarnessToolProbeResult::misconfigured()),
+    };
     let mut probe_request = request.clone();
     probe_request.command = probe.command().to_vec();
     let execution = execute_allowlisted_bounded(&probe_request, &probe_spec)?;
