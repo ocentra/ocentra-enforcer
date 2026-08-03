@@ -1,5 +1,5 @@
-use enforcer_memory::languages::python::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::python::parse;
+use enforcer_syntax::parsers::SymbolKind;
 
 #[test]
 fn preserves_decorated_class_and_call_children() {

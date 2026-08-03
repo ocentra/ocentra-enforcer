@@ -1,6 +1,6 @@
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::languages::c::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::c::parse;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -180,7 +180,9 @@ int scan(int n) {
 "#;
     let mut parser = Parser::new();
     parser
-        .set_language(&tree_sitter_c::LANGUAGE.into())
+        .set_language(&enforcer_syntax::parsers::grammar_for_complexity(
+            enforcer_domain::memory_types::ComplexityLanguage::C,
+        ))
         .map_err(|e| format!("grammar loads: {e}"))?;
     let tree = parser
         .parse(src, None)

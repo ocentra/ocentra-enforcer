@@ -251,7 +251,6 @@ pub mod hf_cache;
 pub mod ids;
 pub mod impact;
 pub mod ingest;
-pub mod languages;
 pub mod learning;
 pub mod lesson;
 pub mod llama_cpp;
@@ -266,7 +265,6 @@ pub mod observations;
 pub mod ort_runtime;
 #[path = "boundary/owned.rs"]
 mod owned_boundary;
-pub mod parsers;
 pub mod projects;
 pub mod queue;
 pub mod ranking;

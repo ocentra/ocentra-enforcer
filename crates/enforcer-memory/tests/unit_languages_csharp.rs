@@ -1,5 +1,5 @@
-use enforcer_memory::languages::csharp::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::csharp::parse;
+use enforcer_syntax::parsers::SymbolKind;
 
 #[test]
 fn checked_child_traversal_preserves_csharp_members_attributes_and_routes() {
@@ -28,7 +28,7 @@ public class WidgetController : ControllerBase {
 }
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

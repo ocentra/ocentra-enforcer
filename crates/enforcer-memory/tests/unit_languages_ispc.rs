@@ -1,15 +1,15 @@
 //! Hard tests for ISPC, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_ispc`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_ispc`])
 //! -- there is no bespoke `languages::ispc` extractor to prove
 //! zero-regression against (ISPC has never had one in this crate). This
-//! grammar reuses [`enforcer_memory::languages::spec::LangSpec::c`]'s own
+//! grammar reuses [`enforcer_syntax::languages::spec::LangSpec::c`]'s own
 //! arrays and declarator-unwrapping quirk verbatim (see that row's own
 //! doc comment: this grammar is node-kind-and-field identical to plain C
 //! for every construct this crate's extraction scope reads), VENDORED
 //! via `vendor/tree-sitter-ispc-local/`.
 
-use enforcer_memory::languages::generic::parse_ispc;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_ispc;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_ispc";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

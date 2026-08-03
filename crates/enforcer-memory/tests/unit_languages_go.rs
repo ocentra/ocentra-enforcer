@@ -1,4 +1,4 @@
-//! Hard tests for the Go extractor ([`enforcer_memory::languages::go`]):
+//! Hard tests for the Go extractor ([`enforcer_syntax::languages::go`]):
 //! symbol labels (function/method/struct/interface/typealias/const/
 //! var/module), every edge kind Go supports (IMPORTS, CALLS, INHERITS
 //! via embedded struct fields, TYPE_REF, DEFINES; IMPLEMENTS is
@@ -9,9 +9,9 @@
 use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_domain::memory_types::ResolutionConfidence;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::languages::go::parse;
-use enforcer_memory::parsers::SymbolKind;
 use enforcer_memory::resolution::{self};
+use enforcer_syntax::languages::go::parse;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};

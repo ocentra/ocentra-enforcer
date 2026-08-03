@@ -1,17 +1,17 @@
 //! Hard tests for WGSL, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_wgsl`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_wgsl`])
 //! -- there is no bespoke `languages::wgsl` extractor to prove
 //! zero-regression against (WGSL has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::wgsl`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::wgsl`]'s own doc comment
 //! directly: `function_declaration`/`struct_declaration`'s ordinary
 //! `name` fields, `struct_declaration`'s Struct-kind relabeling,
 //! `type_constructor_or_function_call_expression`'s zero-field
 //! deepest-identifier-descent callee reconstruction, and
 //! `enable_directive`'s positional-child IMPORTS.
 
-use enforcer_memory::languages::generic::parse_wgsl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_wgsl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_wgsl";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

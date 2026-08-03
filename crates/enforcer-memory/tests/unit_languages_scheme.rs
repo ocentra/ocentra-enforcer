@@ -1,21 +1,21 @@
 //! Hard tests for Scheme, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_scheme`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_scheme`]) -- there is
 //! no bespoke `languages::scheme` extractor to prove zero-regression
 //! against (Scheme has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::scheme`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::scheme`]'s own doc
 //! comment directly: def-form recognition and disambiguation from a
 //! plain call (both are `list` nodes with no syntactic distinction), the
 //! baseline's own def-head keyword table narrowed to Scheme's real
 //! subset (`define`/`define-record-type`/...), the baseline's
 //! UNFILTERED call-callee recording (a def-form's own head keyword is
 //! ALSO recorded as a call -- intentional, matches
-//! [`enforcer_memory::languages::generic::clojure_quirks`]'s identical
+//! [`enforcer_syntax::languages::generic::clojure_quirks`]'s identical
 //! posture), and `import`/`require`/`load`/`include` IMPORTS.
 
-use enforcer_memory::languages::generic::parse_scheme;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_scheme;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -25,7 +25,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_scheme";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

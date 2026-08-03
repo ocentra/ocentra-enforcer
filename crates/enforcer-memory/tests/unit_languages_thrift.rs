@@ -1,18 +1,18 @@
 //! Hard tests for Thrift, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_thrift`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_thrift`]) -- there is
 //! no bespoke `languages::thrift` extractor to prove zero-regression
 //! against (Thrift has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::thrift`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::thrift`]'s own doc
 //! comment directly: the real `name_field = "type"` shared by
 //! struct/union/enum/senum/service/interaction, and the positional
 //! (unfielded) `function_definition`/`field`/`exception_definition`
-//! name extraction [`enforcer_memory::languages::generic::thrift_quirk`]
+//! name extraction [`enforcer_syntax::languages::generic::thrift_quirk`]
 //! performs instead.
 
-use enforcer_memory::languages::generic::parse_thrift;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_thrift;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_thrift";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

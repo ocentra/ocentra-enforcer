@@ -1,4 +1,4 @@
-use enforcer_memory::parsers::{classify, Language};
+use enforcer_syntax::parsers::{classify, Language};
 
 #[test]
 fn classify_recognizes_rust_typescript_python_config() {

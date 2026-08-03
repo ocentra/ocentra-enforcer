@@ -1,17 +1,17 @@
 //! Hard tests for Nickel, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_nickel`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_nickel`]) -- there is
 //! no bespoke `languages::nickel` extractor to prove zero-regression
 //! against (Nickel has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::nickel`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::nickel`]'s own doc
 //! comment directly: the parent-`let_binding`-climb name resolution for
 //! an unfielded `fun_expr`, the left-recursive curried-application
 //! `applicative` chain, and the `import`-token-as-`applicative`-child
 //! shape (NOT the baseline's dead `include`).
 
-use enforcer_memory::languages::generic::parse_nickel;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_nickel;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_nickel";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

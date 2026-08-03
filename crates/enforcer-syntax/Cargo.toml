@@ -1,0 +1,324 @@
+[package]
+name = "enforcer-syntax"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared language classification, grammar providers, safe parser boundaries, and normalized syntax extraction."
+publish = false
+
+[dependencies]
+# The syntax boundary emits the shared, serialization-free memory facts used by
+# graph and enforcement consumers. Grammar bindings are kept here so consumers
+# do not inherit memory persistence, retrieval, or model dependencies.
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-rust = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-typescript = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-python = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-go = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-java = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-c-sharp = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-php = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-c = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-cpp = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-kotlin-ng = "1.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-swift = "0.7"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-solidity = "1.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gdscript = "6.1.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-dart = "0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-scala = "0.26"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-groovy = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ruby = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-zig = "1.1.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-objc = "3.0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-lua = "0.5"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-elixir = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-bash = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-haskell = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ocaml = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-erlang = "0.19"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-cuda = "0.21"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-d = "0.8"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-powershell = "0.26"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-julia = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-odin = "1.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-pascal = "0.10"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-fsharp = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gleam = "1.0.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-r = "1.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-clojure = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-qmljs = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-squirrel-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-sfapex = "3.0.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ada = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-crystal = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-starlark = "1.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-templ = "2.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-wgsl-bevy = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-slang = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-sway-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-wolfram-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+# NATIVE-DEPENDENCY-JUSTIFICATION: The CMake grammar binding is a required
+# parser provider for CMake structural routes and its build script compiles
+# only the vendored grammar source shipped by the dependency.
+tree-sitter-cmake = "0.7"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-make = "1.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-fortran = "0.6"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-vim = "0.4"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-puppet = "1.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-elm = "5.9"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-scss-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-bicep = "1.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-nickel = "0.5"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-jsonnet = "0.0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-cfml = "0.26"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-bitbake-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-cairo-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-func-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-move-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-hlsl = "0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-just = "0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-purescript = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-magma = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-hare-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ispc-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-pony-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-nasm-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-commonlisp = "0.4"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-lean4 = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-tlaplus = "1.5"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-verilog = "1.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-vhdl = "1.4"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-systemverilog = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-cobol-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-elisp = "1.6"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-capnp-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-smithy-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-pine-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-matlab = "1.3.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-luau = "1.2.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-kconfig = "1.3.0"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-teal-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-meson-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-fennel-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-hcl = "1.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-nix = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-sequel = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-proto = "0.4"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-prisma-io = "1.6"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-pkl = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-fish = "3.6"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-zsh = "0.63"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-scheme = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-racket = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-devicetree = "0.15"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gotemplate-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-smali-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-thrift-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-tablegen-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-wit = "0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-llvm = "1.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-graphql = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-html = "0.23"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ini = "1.4"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-jinja2 = "0.0.16"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-jsdoc = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-json = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gn-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gomod-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gitignore-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-hyprlang-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-janet-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-properties = "0.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-regex = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-json5-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-kdl-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-linkerscript-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-liquid-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-markdown-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-mermaid-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-po-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-requirements = "0.6"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-rst = "0.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-toml-ng = "0.7"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-xml = "0.7"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-yaml = "0.7"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-svelte-next = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-vue-next = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-ron-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-sshclientconfig-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-asm = "0.24"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-css = "0.25"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-diff = "0.1"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-astro-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-beancount-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-bibtex-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-blade-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-csv-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-dockerfile-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-dotenv-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-gitattributes-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-agda = "=1.3.3"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+tree-sitter-form-local = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+ts-parser-perl = "1.2"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+arborium-rescript = "2.18"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+arborium-typst = "2.18"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+arborium-awk = "2.18"
+# DEPENDENCY-JUSTIFICATION: UL03 moved this binding from enforcer-memory so grammar and parser ownership is centralized in the syntax boundary.
+bca-tree-sitter-tcl = "2.0"
+
+[lints]
+workspace = true

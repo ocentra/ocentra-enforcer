@@ -1,16 +1,16 @@
 //! Hard tests for Haskell, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_haskell`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_haskell`])
 //! -- there is no bespoke `languages::haskell` extractor to prove
 //! zero-regression against (Haskell has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::haskell`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::haskell`]'s own doc
 //! comment directly: symbol kinds (`function`/`bind` as Function,
 //! `data_type`/`class`/`instance` as Class), `import`'s `module`-field
 //! IMPORTS, curried `apply` callee-head recovery, and `infix` operator-
 //! as-callee reconstruction.
 
-use enforcer_memory::languages::generic::parse_haskell;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_haskell;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_haskell";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

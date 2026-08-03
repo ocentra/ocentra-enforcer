@@ -1,15 +1,15 @@
 //! Hard tests for Vue single-file components, onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_vue`]). Grammar:
+//! ([`enforcer_syntax::languages::generic::parse_vue`]). Grammar:
 //! `tree-sitter-vue-next` 0.1.0, a real crates.io crate. Matches the
 //! baseline's own `CBM_LANG_VUE` row -- `empty_types` for every array
 //! except `module_types = {"document"}`; the embedded `<script>`
 //! JS-import re-parse the baseline also wires is DEFERRED, see
-//! [`enforcer_memory::languages::spec::LangSpec::vue`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::vue`]'s own doc
 //! comment for why.
 
-use enforcer_memory::languages::generic::parse_vue;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_vue;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

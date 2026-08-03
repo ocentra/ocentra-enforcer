@@ -1,15 +1,15 @@
 //! Hard tests for Kconfig, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_kconfig`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_kconfig`]) -- there is
 //! no bespoke `languages::kconfig` extractor to prove zero-regression
 //! against, so these tests assert against the grammar-shape ground truth
-//! recorded in [`enforcer_memory::languages::spec::LangSpec::kconfig`]'s
+//! recorded in [`enforcer_syntax::languages::spec::LangSpec::kconfig`]'s
 //! own doc comment directly: `config`/`menuconfig`/`choice` symbol
 //! extraction (NOT baseline's own `type_definition`, which has no name
 //! field at all), and `source`'s own quirk-claimed IMPORTS edge.
 
-use enforcer_memory::languages::generic::parse_kconfig;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_kconfig;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_kconfig";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

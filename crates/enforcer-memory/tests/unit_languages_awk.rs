@@ -1,15 +1,15 @@
 //! Hard tests for AWK, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_awk`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_awk`])
 //! -- there is no bespoke `languages::awk` extractor to prove
 //! zero-regression against (AWK has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::awk`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::awk`]'s own doc comment
 //! directly: `func_def` naming + scoped body walk despite having no
 //! `body`-named field, and `func_call` CALLS with positional `args`
 //! `arg_texts`.
 
-use enforcer_memory::languages::generic::parse_awk;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_awk;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_awk";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

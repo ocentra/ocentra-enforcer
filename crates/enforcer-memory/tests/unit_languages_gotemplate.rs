@@ -1,17 +1,17 @@
 //! Hard tests for Go Template, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_gotemplate`]) --
+//! ([`enforcer_syntax::languages::generic::parse_gotemplate`]) --
 //! grammar VENDORED (`vendor/tree-sitter-gotemplate-local/`). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::gotemplate`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::gotemplate`]'s own doc
 //! comment: `define_action`'s real `name`/`body` fields, and the three
 //! different call-shaped field names (`function_call`'s default
 //! `function`/`arguments`; `method_call`'s `method`/`arguments`;
 //! `template_action`'s `name`/singular `argument`) via
-//! [`enforcer_memory::languages::generic::gotemplate_call_override`].
+//! [`enforcer_syntax::languages::generic::gotemplate_call_override`].
 
-use enforcer_memory::languages::generic::parse_gotemplate;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_gotemplate;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_gotemplate";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

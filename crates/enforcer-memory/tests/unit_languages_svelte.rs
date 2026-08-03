@@ -1,15 +1,15 @@
 //! Hard tests for Svelte, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_svelte`]).
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_svelte`]).
 //! Grammar: `tree-sitter-svelte-next` 0.1.1, a real crates.io crate.
 //! Matches the baseline's own `CBM_LANG_SVELTE` row's `module_types =
 //! {"document"}`/`branch_types = {"if_statement", "each_statement",
 //! "await_statement"}` -- the embedded `<script>` JS-import re-parse the
 //! baseline also wires is DEFERRED, see
-//! [`enforcer_memory::languages::spec::LangSpec::svelte`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::svelte`]'s own doc
 //! comment for why.
 
-use enforcer_memory::languages::generic::parse_svelte;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_svelte;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

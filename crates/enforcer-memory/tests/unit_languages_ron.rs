@@ -1,15 +1,15 @@
 //! Hard tests for RON (Rusty Object Notation), onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_ron`]). Grammar
+//! ([`enforcer_syntax::languages::generic::parse_ron`]). Grammar
 //! VENDORED (`vendor/tree-sitter-ron-local/`) -- the published
 //! `tree-sitter-ron` crate's own binding pins an incompatible
 //! `tree-sitter` version, see
-//! [`enforcer_memory::languages::spec::LangSpec::ron`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::ron`]'s own doc
 //! comment. Matches the baseline's own `CBM_LANG_RON` row --
 //! `empty_types` for every array except `module_types = {"source_file"}`.
 
-use enforcer_memory::languages::generic::parse_ron;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_ron;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

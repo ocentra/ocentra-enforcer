@@ -1,13 +1,13 @@
 //! Hard tests for Hyprlang (Hyprland window-manager config language),
 //! onboarded directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_hyprlang`]) -- grammar
+//! ([`enforcer_syntax::languages::generic::parse_hyprlang`]) -- grammar
 //! VENDORED (`vendor/tree-sitter-hyprlang-local/`). Asserts the real
 //! root-node-kind correction documented in
-//! [`enforcer_memory::languages::spec::LangSpec::hyprlang`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::hyprlang`]'s own doc
 //! comment (`configuration`, not baseline's own dead `"source_file"`).
 
-use enforcer_memory::languages::generic::parse_hyprlang;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_hyprlang;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

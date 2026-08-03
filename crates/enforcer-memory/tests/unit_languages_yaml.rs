@@ -1,14 +1,14 @@
 //! Hard tests for YAML, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_yaml`]).
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_yaml`]).
 //! Grammar: `tree-sitter-yaml` 0.7.2, a real crates.io crate. Matches
 //! the baseline's own `CBM_LANG_YAML` row -- `empty_types` for every
 //! array except `module_types = {"stream"}` (the real file root, one
 //! level ABOVE the grammar's own `document` node -- see
-//! [`enforcer_memory::languages::spec::LangSpec::yaml`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::yaml`]'s own doc
 //! comment).
 
-use enforcer_memory::languages::generic::parse_yaml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_yaml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 
