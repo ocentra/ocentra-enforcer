@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM07",
+  "artifactId": "RM07-CI-HOOK-DOGFOOD-ORACLE-20260803",
+  "artifactState": "bounded-evidence-only",
+  "closureClaim": false,
+  "materializedAtCandidateSha": "dbb8d3934831727429d3feb40d5512954c3e16f7",
+  "sourceReport": {
+    "managerThreadId": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+    "observedAtCandidateSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
+    "materializationBaseSha": "dbb8d3934831727429d3feb40d5512954c3e16f7",
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "provenanceBaseSha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "privateOverlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayCommits": [
+      "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+    ],
+    "evidenceLevel": "bounded-workflow-contract-and-fixture-evidence-native-release-unmeasured"
+  },
+  "authoritySeparation": {
+    "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "overlaySha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+    "overlayVerdictSeparateFromPublic": true,
+    "closureClaim": false
+  },
+  "workflowPath": {
+    "workflow": ".github/workflows/release.yml",
+    "workflowBlobSha": "648acd20c551c315e1b587fdcdc91e99795ce8bd",
+    "job": "build",
+    "jobAnchors": [
+      ".github/workflows/release.yml:81:jobs.build",
+      ".github/workflows/release.yml:82:if startsWith(github.ref, refs/tags/v)",
+      ".github/workflows/release.yml:83:needs validate",
+      ".github/workflows/release.yml:187:jobs.publish",
+      ".github/workflows/release.yml:188:if startsWith(github.ref, refs/tags/v)"
+    ],
+    "events": {
+      "push": {
+        "branches": ["main"],
+        "tags": ["v[0-9]+.[0-9]+.[0-9]+"]
+      },
+      "pull_request": {"branches": ["main"]},
+      "workflow_dispatch": true
+    },
+    "buildRefCondition": "startsWith(github.ref, 'refs/tags/v')",
+    "requiredDependency": "validate",
+    "smokeCommands": [
+      {
+        "name": "fail fixture",
+        "command": "$bin scan --files crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs",
+        "anchor": ".github/workflows/release.yml:147",
+        "expectedExit": 1,
+        "expectedMeaning": "blocking violation, never panic or silent success"
+      },
+      {
+        "name": "pass fixture",
+        "command": "$bin scan --files crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs",
+        "anchor": ".github/workflows/release.yml:160",
+        "expectedExit": 0
+      }
+    ],
+    "observedCliSyntax": "legacy --files option; native release execution was not run",
+    "matrix": [
+      {"target":"x86_64-pc-windows-msvc","os":"windows-latest","variants":["lite","full"]},
+      {"target":"x86_64-apple-darwin","os":"macos-15-intel","variants":["lite","full"]},
+      {"target":"aarch64-apple-darwin","os":"macos-latest","variants":["lite","full"]},
+      {"target":"x86_64-unknown-linux-gnu","os":"ubuntu-latest","variants":["lite","full"]},
+      {"target":"x86_64-unknown-linux-musl","os":"ubuntu-latest","variants":["lite","full"]},
+      {"target":"aarch64-unknown-linux-gnu","os":"ubuntu-24.04-arm","variants":["lite","full"]}
+    ],
+    "requiredAggregation": "validate must pass; every build matrix target/variant must pass both smoke gates before publish may run; publish needs build"
+  },
+  "fixture": {
+    "failPath": "crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs",
+    "failBlobSha": "4c562b6deebbafc09e9bb396cec03ad932c0e24f",
+    "failFileSha256": "A13D665A9823B5099B956FC489414E00F7B00423C22B806895AA20C5BD928DE4",
+    "behavioralSeed": "Option<i32>::None followed by maybe.unwrap(); source comments require native release scan exit 1"
+  },
+  "runs": [
+    {
+      "runId": "20260803065811-1b168e7c",
+      "command": ["node", "scripts/ci/verify-workflow-contract.mjs"],
+      "status": "passed",
+      "exitCode": 0,
+      "scope": "exact fbd64e9 disposable worktree workflow contract"
+    },
+    {
+      "runId": "20260803065938-e30d3182",
+      "command": ["cmd.exe", "/d", "/s", "/c", "npm run test:fixtures"],
+      "status": "passed",
+      "exitCode": 0,
+      "observation": "4/4 fixture tests passed"
+    },
+    {
+      "runId": "20260803065950-3e45c280",
+      "command": ["cmd.exe", "/d", "/s", "/c", "node --test --test-name-pattern \"common and CI fail fixtures emit their encoded rule IDs\" tests/enforcer-fixtures.test.mjs"],
+      "status": "passed",
+      "exitCode": 0,
+      "observation": "focused CI fail-fixture test passed 1/1"
+    },
+    {
+      "runId": "20260803065812-e79afd9c",
+      "status": "environment-only-superseded",
+      "observation": "missing effect before disposable npm ci; does not prove behavior or parity",
+      "doesNotProve": ["native candidate behavior", "parity"]
+    }
+  ],
+  "rows": [
+    {
+      "id": "RM07-RELEASE-BUILD-SMOKE-001",
+      "family": "release-build-smoke",
+      "workflowPath": ".github/workflows/release.yml",
+      "job": "build",
+      "sourceSha": "fbd64e914bdd87089d24c7c25b970a2354dbf0d9",
+      "materializationSha": "dbb8d3934831727429d3feb40d5512954c3e16f7",
+      "disposition": "unknown",
+      "evidenceStatus": "bounded-workflow-and-fixture-only",
+      "proofNeeded": "Build the exact candidate release matrix and execute both native smoke commands on every target/variant, recording exit classes and aggregate gating.",
+      "doesNotProve": ["native candidate release smoke", "parity", "closure"]
+    }
+  ],
+  "proves": [
+    "Exact current materialization base and separate observed source candidate SHA are recorded.",
+    "The release build workflow/job event, tag-ref condition, validate dependency, smoke commands, and twelve target/variant matrix entries are source-inventoried.",
+    "The workflow contract command passed at the observed candidate SHA.",
+    "The deterministic MJS CI fixture suite and focused CI fail-fixture test passed in the disposable exact-SHA environment.",
+    "The seeded fail fixture is fixed by exact Git blob and file SHA-256 anchors."
+  ],
+  "doesNotProve": [
+    "Native candidate release binary execution or exit-1 behavior on the fail fixture.",
+    "Native candidate CLI semantic parity or positional-path syntax compatibility.",
+    "Any live GitHub event, runner, release matrix, build, publish, or rollback result.",
+    "Frozen public or private overlay behavioral parity.",
+    "RM07 closure, RM08 adjudication, exact-SHA aggregate, cutover, or retirement."
+  ]
+}
