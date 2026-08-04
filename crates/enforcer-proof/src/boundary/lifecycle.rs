@@ -289,8 +289,63 @@ impl NativeProofLifecycle {
             crate::envelope::git_state(&self.root),
             &bundle,
         );
-        self.import_run(&run)?;
+        let run_directory = self.persist_legacy_artifact_bytes(&bundle, &run)?;
+        if let Err(error) = self.import_run(&run) {
+            let _ = std::fs::remove_dir_all(run_directory);
+            return Err(error);
+        }
         Ok(run)
+    }
+
+    fn persist_legacy_artifact_bytes(
+        &self,
+        bundle: &crate::legacy_import::LegacyBundleEnvelope,
+        run: &crate::envelope::ProofRunEnvelope,
+    ) -> Result<PathBuf> {
+        if bundle.artifacts.len() != run.artifacts.len() {
+            return Err(Error::InvalidConfig(
+                "legacy artifact manifest and run record differ".to_owned(),
+            ));
+        }
+        let run_directory = self.proof_root.join("runs").join(run.run_id.as_str());
+        if run_directory.exists() {
+            return Err(Error::InvalidConfig("duplicate proof run id".to_owned()));
+        }
+        std::fs::create_dir_all(&run_directory)?;
+        let copy_result = bundle.artifacts.iter().zip(&run.artifacts).try_for_each(
+            |(legacy, declared)| -> Result<()> {
+                let source = self.root.join(legacy.path.as_str());
+                let canonical_source = source.canonicalize()?;
+                if !canonical_source.starts_with(&self.root) {
+                    return Err(Error::InvalidConfig(
+                        "legacy artifact source escapes repository root".to_owned(),
+                    ));
+                }
+                let bytes = std::fs::read(canonical_source)?;
+                let digest = enforcer_core::hash_chain::link_digest(None, &bytes);
+                if digest != legacy.sha256
+                    || u64::try_from(bytes.len()).unwrap_or(u64::MAX) != legacy.byte_length
+                    || declared.sha256 != legacy.sha256
+                    || declared.byte_length != legacy.byte_length
+                {
+                    return Err(Error::InvalidConfig(
+                        "legacy artifact changed while it was being imported".to_owned(),
+                    ));
+                }
+                let target = self.root.join(declared.path.as_str());
+                let parent = target.parent().ok_or_else(|| {
+                    Error::InvalidConfig("legacy artifact target has no parent".to_owned())
+                })?;
+                std::fs::create_dir_all(parent)?;
+                std::fs::write(target, bytes)?;
+                Ok(())
+            },
+        );
+        if let Err(error) = copy_result {
+            let _ = std::fs::remove_dir_all(&run_directory);
+            return Err(error);
+        }
+        Ok(run_directory)
     }
 
     /// Compare an imported run with freshly collected repository-contained

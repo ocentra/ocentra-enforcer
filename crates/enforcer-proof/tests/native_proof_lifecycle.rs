@@ -83,6 +83,37 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
 }
 
 #[test]
+fn legacy_import_copies_evidence_into_lifecycle_owned_storage() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let source = root.join("legacy/report.json");
+    std::fs::create_dir_all(source.parent().ok_or_else(|| {
+        enforcer_core::error::Error::InvalidConfig("legacy fixture has no parent".to_owned())
+    })?)?;
+    let expected = br#"{"status":"passed","claimsProved":["legacy survives"]}"#;
+    std::fs::write(&source, expected)?;
+
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    let proof_id: ProofId = "native.legacy".parse()?;
+    let run_id: ProofRunId = "legacy-custody".parse()?;
+    let run = lifecycle.import_legacy(&proof_id, &run_id, &["legacy"])?;
+    assert_eq!(run.artifacts.len(), 1);
+    let owned = root.join(run.artifacts[0].path.as_str());
+    assert_eq!(std::fs::read(&owned)?, expected);
+
+    std::fs::remove_file(source)?;
+    assert_eq!(std::fs::read(&owned)?, expected);
+    let reopened = NativeProofLifecycle::open(&root)?;
+    let status = reopened.status(&ProofStatusQuery {
+        proof_id: Some(proof_id),
+        status: None,
+        limit: 1,
+    })?;
+    assert_eq!(status.runs[0].artifacts, run.artifacts);
+    Ok(())
+}
+
+#[test]
 fn persisted_status_is_filtered_sorted_and_bounded_without_a_project_snapshot() -> Result<()> {
     let fixture = tempfile::tempdir()?;
     let root = fixture.path().canonicalize()?;
