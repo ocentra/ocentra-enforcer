@@ -484,10 +484,10 @@ fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
     {
         use std::os::unix::fs::MetadataExt;
 
-        return FileIdentity::Unix {
+        FileIdentity::Unix {
             device: metadata.dev(),
             inode: metadata.ino(),
-        };
+        }
     }
 
     #[cfg(windows)]
