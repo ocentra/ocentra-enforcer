@@ -93,6 +93,33 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
 }
 
 #[test]
+fn lifecycle_rejects_a_redirected_proof_state_root_before_writing() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let outside = tempfile::tempdir()?;
+    std::fs::create_dir_all(fixture.path().join(".enforce"))?;
+    let link = fixture.path().join(".enforce/proofs");
+    make_directory_symlink(outside.path(), &link)?;
+
+    assert!(matches!(
+        NativeProofLifecycle::open(fixture.path()),
+        Err(enforcer_core::error::Error::InvalidConfig(message))
+            if message == "proof state path must not be a symlink or reparse point"
+    ));
+    assert!(std::fs::read_dir(outside.path())?.next().is_none());
+    Ok(())
+}
+
+#[cfg(windows)]
+fn make_directory_symlink(source: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_dir(source, link)
+}
+
+#[cfg(not(windows))]
+fn make_directory_symlink(source: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(source, link)
+}
+
+#[test]
 fn legacy_import_copies_evidence_into_lifecycle_owned_storage() -> Result<()> {
     let fixture = tempfile::tempdir()?;
     let root = fixture.path().canonicalize()?;

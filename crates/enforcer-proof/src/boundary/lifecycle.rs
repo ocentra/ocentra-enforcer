@@ -126,7 +126,10 @@ impl NativeProofLifecycle {
     /// mutation.  This fail-closed check prevents appending after tampering.
     pub fn open(root: &Path) -> Result<Self> {
         let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-        let proof_root = root.join(".enforce").join("proofs");
+        let enforce_root = root.join(".enforce");
+        reject_redirected_state_path(&root, &enforce_root)?;
+        let proof_root = enforce_root.join("proofs");
+        reject_redirected_state_path(&root, &proof_root)?;
         if proof_root.join("journal.ndjson").exists() {
             ProofJournal::open(&proof_root.join("journal.ndjson"))?;
         }
@@ -571,6 +574,39 @@ impl NativeProofLifecycle {
         }
         Ok(canonical)
     }
+}
+
+fn reject_redirected_state_path(root: &Path, path: &Path) -> Result<()> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if metadata.file_type().is_symlink() || has_reparse_point(&metadata) {
+        return Err(Error::InvalidConfig(
+            "proof state path must not be a symlink or reparse point".to_owned(),
+        ));
+    }
+    let canonical = path.canonicalize()?;
+    if !canonical.starts_with(root) {
+        return Err(Error::InvalidConfig(
+            "proof state path escapes repository root".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn has_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+const fn has_reparse_point(_metadata: &std::fs::Metadata) -> bool {
+    false
 }
 
 fn resolve_pack_root() -> Result<PathBuf> {
