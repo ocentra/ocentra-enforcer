@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::boundary::validation::ValidationSourceText;
 use enforcer_domain::config_types::CrateName;
 use enforcer_domain::findings::{Report, ScanScope};
 use enforcer_domain::paths::{RelPath, RepoRoot};
@@ -189,37 +190,35 @@ pub fn execute_secret_policy(
 /// Execute the native secret policy over files currently staged in Git.
 ///
 /// This mirrors the standalone `secrets --staged` contract: Git selects the
-/// paths, while validation reads the working-tree source at those paths. The
-/// selection deliberately excludes deletions because there is no source left
-/// to validate.
+/// paths and supplies the staged blob bytes to validation. The selection
+/// deliberately excludes deletions because there is no source left to validate.
 pub fn execute_staged_secret_policy(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
 ) -> Result<NativeScanResult, NativeScanError> {
-    let paths = staged_files(repo_root, &IgnoreRules::default())?;
-    let staged_request = NativeScanRequest {
-        scope: NativeScanScope::Files(
-            paths
-                .into_iter()
-                .map(|path| PathBuf::from(path.as_str()))
-                .collect(),
-        ),
-        languages: request.languages.clone(),
-    };
-    if let NativeScanScope::Files(paths) = &staged_request.scope {
-        if paths.is_empty() {
-            let mut resolved = scope::resolve(&ScopeRequest::All, repo_root)?;
-            resolved.kind = ScanScope::Files;
-            let report =
-                engine::run_secret_policy(&resolved, &[]).map_err(NativeScanError::Decode)?;
-            return Ok(NativeScanResult {
-                scope: ScanScope::Files,
-                scanned_files: Vec::new(),
-                report,
-            });
-        }
+    let rules = project_ignore_rules(repo_root)?;
+    let mut paths = staged_files(repo_root, &rules)?;
+    if !request.languages.is_empty() {
+        paths.retain(|path| {
+            request
+                .languages
+                .iter()
+                .any(|language| language.matches(path))
+        });
     }
-    execute_secret_policy(&staged_request, repo_root)
+    let mut resolved = scope::resolve(&ScopeRequest::All, repo_root)?;
+    resolved.kind = ScanScope::Files;
+    let sources = paths
+        .iter()
+        .map(|path| staged_source(repo_root, path).map(|source| (path.clone(), source)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let report = engine::run_secret_policy_for_sources(&resolved, &sources)
+        .map_err(NativeScanError::Decode)?;
+    Ok(NativeScanResult {
+        scope: ScanScope::Files,
+        scanned_files: paths,
+        report,
+    })
 }
 
 /// Execute the dedicated TypeScript import-boundary rule only.
@@ -545,6 +544,11 @@ pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
 ) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
+    let rules = project_ignore_rules(repo_root)?;
+    resolve_files_with_rules(request, repo_root, &rules)
+}
+
+fn project_ignore_rules(repo_root: &RepoRoot) -> Result<IgnoreRules, NativeScanError> {
     let config_path = std::path::Path::new(repo_root.as_str()).join("ocentra-enforcer.config.json");
     let config = enforcer_config::load_project_config(&config_path).map_err(|error| {
         NativeScanError::Io {
@@ -552,8 +556,10 @@ pub(crate) fn resolve_files(
             reason: error.to_string(),
         }
     })?;
-    let rules = IgnoreRules::new(config.ignore_dirs, config.ignore_file_globs);
-    resolve_files_with_rules(request, repo_root, &rules)
+    Ok(IgnoreRules::new(
+        config.ignore_dirs,
+        config.ignore_file_globs,
+    ))
 }
 
 /// Resolve a native request through caller-supplied, already-validated ignore
@@ -765,6 +771,33 @@ fn staged_files(
         .map(str::parse)
         .collect::<Result<Vec<RelPath>, DecodeError>>()?;
     Ok(walk::filter_explicit(&paths, rules))
+}
+
+fn staged_source(
+    repo_root: &RepoRoot,
+    path: &RelPath,
+) -> Result<ValidationSourceText, NativeScanError> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_root.as_str())
+        .args(["cat-file", "blob"])
+        .arg(format!(":{}", path.as_str()))
+        .output()
+        .map_err(|error| NativeScanError::Io {
+            operation: "staged blob read",
+            reason: error.to_string(),
+        })?;
+    if !output.status.success() {
+        return Err(NativeScanError::Io {
+            operation: "staged blob read",
+            reason: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
+    }
+    let source = String::from_utf8(output.stdout).map_err(|error| NativeScanError::Io {
+        operation: "staged blob UTF-8 decode",
+        reason: error.to_string(),
+    })?;
+    Ok(ValidationSourceText::try_new(source))
 }
 
 #[cfg(test)]
@@ -1117,6 +1150,11 @@ mod tests {
             .args(["add", "src/staged.rs"])
             .status()?
             .success());
+        write(
+            temp.path(),
+            "src/staged.rs",
+            "pub fn worktree_is_clean() {}\n",
+        )?;
         let request = NativeScanRequest {
             scope: NativeScanScope::Workspace,
             languages: vec![NativeScanLanguage::Rust],

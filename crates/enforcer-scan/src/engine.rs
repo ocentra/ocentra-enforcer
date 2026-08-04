@@ -387,20 +387,29 @@ pub fn run_secret_policy(
     scope: &ResolvedScope,
     files: &[RelPath],
 ) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let sources = files
+        .par_iter()
+        .filter(|file| should_scan_source(scope, file))
+        .filter_map(|file| {
+            read_file_utf8(&scope.repo_root, file).map(|source| (file.clone(), source))
+        })
+        .collect::<Vec<_>>();
+    run_secret_policy_for_sources(scope, &sources)
+}
+
+/// Run the secret validators over source bytes supplied by an authoritative
+/// transport boundary, such as Git's staged index rather than the worktree.
+pub fn run_secret_policy_for_sources(
+    scope: &ResolvedScope,
+    sources: &[(RelPath, ValidationSourceText)],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
     let validators: Vec<Box<dyn Validator>> = vec![
         Box::new(enforcer_lang_security::rules::secret_scan::InlineSecretsValidator::new()?),
         Box::new(enforcer_lang_security::rules::secret_scan::SensitiveFilesValidator::new()?),
     ];
-    let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
-        .par_iter()
-        .filter(|file| should_scan_source(scope, file))
-        .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
-        .collect();
-    sources.retain(|(file, _)| !is_native_detector_authoring_surface(file, scope));
-
     let mut findings = sources
         .par_iter()
-        .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
+        .filter(|(file, _source)| !is_native_detector_authoring_surface(file, scope))
         .map(|(file, source)| {
             let input = ValidationInput {
                 file,
