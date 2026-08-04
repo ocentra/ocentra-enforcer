@@ -1088,21 +1088,35 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     }
     let declared_rule_ids: std::collections::BTreeSet<&str> =
         rule_ids.iter().map(|rule_id| rule_id.as_str()).collect();
-    for field in ["violations", "warnings", "waived", "findings"] {
-        if let Some(serde_json::Value::Array(findings)) = object.get_mut(field) {
-            findings.retain(|finding| {
-                finding
-                    .get("ruleId")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some_and(|rule_id| declared_rule_ids.contains(rule_id))
-            });
+    if name != "literal-risk" {
+        for field in ["violations", "warnings", "waived", "findings"] {
+            if let Some(serde_json::Value::Array(findings)) = object.get_mut(field) {
+                findings.retain(|finding| {
+                    finding
+                        .get("ruleId")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|rule_id| declared_rule_ids.contains(rule_id))
+                });
+            }
         }
     }
     let has_violation = object
         .get("violations")
         .and_then(serde_json::Value::as_array)
         .is_some_and(|violations| !violations.is_empty());
-    object.insert("ok".to_owned(), serde_json::Value::Bool(!has_violation));
+    let has_blocking_literal = name == "literal-risk"
+        && object
+            .get("findings")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|findings| {
+                findings.iter().any(|finding| {
+                    finding.get("blocking").and_then(serde_json::Value::as_bool) == Some(true)
+                })
+            });
+    object.insert(
+        "ok".to_owned(),
+        serde_json::Value::Bool(!has_violation && !has_blocking_literal),
+    );
     object.insert(
         "command".to_owned(),
         serde_json::Value::String("check".to_owned()),
@@ -5594,6 +5608,38 @@ mod tests {
             value["literalRiskReport"]["options"]["includeLow"],
             serde_json::json!(true)
         );
+        Ok(())
+    }
+
+    #[test]
+    fn check_literal_risk_preserves_blocking_native_verdict(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(
+            temp.path().join("src/config.ts"),
+            "const key = \"fakeLiteralSecret_ABCDEF1234567890_abcdef\";\n",
+        )?;
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "literal-risk",
+                "files": ["src/config.ts"],
+                "minScore": 0
+            }),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("literal-risk blocking fixture did not produce a result".into());
+        };
+
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings.iter().any(|finding| {
+                finding["blocking"] == serde_json::json!(true)
+                    && finding["ruleId"] == serde_json::json!("SEC-2.10")
+            })
+        }));
         Ok(())
     }
 
