@@ -8,6 +8,7 @@
 //! the d05 context-budget tool-surface measure (see [`tool_surface_bytes`])
 //! and by `tools/list`.
 //! Negative invalid-input coverage: malformed or corrupt payloads are rejected by this boundary.
+//! ROUNDTRIP-TEST: `tests::rule_explanation_round_trips_without_wire_drift`
 
 use crate::boundary::tool_descriptor::ToolDescriptorDto;
 use enforcer_domain::ids::RuleId;

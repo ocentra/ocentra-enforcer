@@ -279,6 +279,17 @@ struct ProjectionValue {
     winner_refs: Vec<WinnerValue>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CrosswalkCounts {
+    total: usize,
+    named: usize,
+    one_to_one: usize,
+    alias_collision: usize,
+    one_to_many: usize,
+    literal_only: usize,
+    fallback: usize,
+}
+
 #[derive(Debug, Clone)]
 struct CollisionValue {
     kind: MatcherKind,
@@ -662,7 +673,9 @@ fn parse_precedence(value: &Value) -> Result<PrecedenceValue, ManifestError> {
         .iter()
         .map(|kind| parse_matcher_kind(&string_value(kind)?))
         .collect::<Result<Vec<_>, ManifestError>>()?;
-    let ordered_kinds = [parsed[0], parsed[1], parsed[2]];
+    let ordered_kinds: [MatcherKind; 3] = parsed
+        .try_into()
+        .map_err(|_| ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()))?;
     if ordered_kinds
         != [
             MatcherKind::ExactBasename,
@@ -750,7 +763,9 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     let mut structural_count = 0;
     for (offset, identity) in identities.iter().enumerate() {
         let position = offset + 1;
-        if identity.id != position as u16 {
+        let expected_id =
+            u16::try_from(position).map_err(|_| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
+        if identity.id != expected_id {
             return Err(ManifestError::NonSequentialId {
                 position,
                 actual: identity.id,
@@ -831,23 +846,31 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     let mut literal_only_names = HashSet::new();
     let mut projection_parser_ids = HashSet::new();
     let mut projection_members = HashMap::<String, HashSet<String>>::new();
-    let mut category_counts = [0usize; 7];
+    let mut category_counts = CrosswalkCounts {
+        total: 0,
+        named: 0,
+        one_to_one: 0,
+        alias_collision: 0,
+        one_to_many: 0,
+        literal_only: 0,
+        fallback: 0,
+    };
     for row in &projections {
         if !literal_names.insert(row.literal_name.clone()) {
             return Err(ManifestError::DuplicateLiteralName(
                 row.literal_name.clone(),
             ));
         }
-        category_counts[0] += 1;
+        category_counts.total += 1;
         match row.classification {
-            CrosswalkClass::OneToOne => category_counts[2] += 1,
-            CrosswalkClass::AliasCollision => category_counts[3] += 1,
-            CrosswalkClass::OneToMany => category_counts[4] += 1,
-            CrosswalkClass::LiteralOnly => category_counts[5] += 1,
-            CrosswalkClass::Fallback => category_counts[6] += 1,
+            CrosswalkClass::OneToOne => category_counts.one_to_one += 1,
+            CrosswalkClass::AliasCollision => category_counts.alias_collision += 1,
+            CrosswalkClass::OneToMany => category_counts.one_to_many += 1,
+            CrosswalkClass::LiteralOnly => category_counts.literal_only += 1,
+            CrosswalkClass::Fallback => category_counts.fallback += 1,
         }
         if !matches!(row.classification, CrosswalkClass::Fallback) {
-            category_counts[1] += 1;
+            category_counts.named += 1;
         }
         if row.parser_ids.iter().any(|id| !parser_ids.contains(id)) {
             return Err(ManifestError::InvalidReference(message(&[
@@ -967,23 +990,23 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             }
         }
     }
-    let counts = [
-        value_u64(&manifest.crosswalk_counts, KEY_TOTAL)?,
-        value_u64(&manifest.crosswalk_counts, KEY_NAMED)?,
-        value_u64(&manifest.crosswalk_counts, KEY_ONE_TO_ONE)?,
-        value_u64(&manifest.crosswalk_counts, KEY_ALIAS_COLLISION)?,
-        value_u64(&manifest.crosswalk_counts, KEY_ONE_TO_MANY)?,
-        value_u64(&manifest.crosswalk_counts, KEY_LITERAL_ONLY)?,
-        value_u64(&manifest.crosswalk_counts, KEY_FALLBACK)?,
-    ];
+    let counts = CrosswalkCounts {
+        total: value_u64(&manifest.crosswalk_counts, KEY_TOTAL)?,
+        named: value_u64(&manifest.crosswalk_counts, KEY_NAMED)?,
+        one_to_one: value_u64(&manifest.crosswalk_counts, KEY_ONE_TO_ONE)?,
+        alias_collision: value_u64(&manifest.crosswalk_counts, KEY_ALIAS_COLLISION)?,
+        one_to_many: value_u64(&manifest.crosswalk_counts, KEY_ONE_TO_MANY)?,
+        literal_only: value_u64(&manifest.crosswalk_counts, KEY_LITERAL_ONLY)?,
+        fallback: value_u64(&manifest.crosswalk_counts, KEY_FALLBACK)?,
+    };
     if category_counts != counts
-        || category_counts[0] != EXPECTED_LITERAL_COUNT
-        || category_counts[1] != EXPECTED_NAMED_LITERAL_COUNT
-        || category_counts[2] != 51
-        || category_counts[3] != 3
-        || category_counts[4] != 8
-        || category_counts[5] != 5
-        || category_counts[6] != 1
+        || category_counts.total != EXPECTED_LITERAL_COUNT
+        || category_counts.named != EXPECTED_NAMED_LITERAL_COUNT
+        || category_counts.one_to_one != 51
+        || category_counts.alias_collision != 3
+        || category_counts.one_to_many != 8
+        || category_counts.literal_only != 5
+        || category_counts.fallback != 1
     {
         return Err(ManifestError::CrosswalkCounts(format!(
             "{category_counts:?}"
@@ -1003,7 +1026,9 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
         ));
     }
     let unmatched: HashSet<u16> = manifest.unmatched_parser_ids.iter().copied().collect();
-    for id in 1..=EXPECTED_IDENTITY_COUNT as u16 {
+    let expected_identity_count = u16::try_from(EXPECTED_IDENTITY_COUNT)
+        .map_err(|_| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
+    for id in 1..=expected_identity_count {
         let listed = unmatched.contains(&id);
         let projected = projection_parser_ids.contains(&id);
         if listed == projected {
@@ -1013,7 +1038,13 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
                 MESSAGE_COMPLEMENT_SUFFIX,
             )));
         }
-        let identity = &identities[usize::from(id - 1)];
+        let identity = identities.get(usize::from(id - 1)).ok_or_else(|| {
+            ManifestError::UnmatchedParserIds(number_message(
+                MESSAGE_COMPLEMENT,
+                id,
+                MESSAGE_COMPLEMENT_SUFFIX,
+            ))
+        })?;
         if listed && !identity.matchers.is_empty() {
             return Err(ManifestError::UnmatchedParserIds(number_message(
                 MESSAGE_UNMATCHED_MATCHERS,

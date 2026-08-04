@@ -538,7 +538,7 @@ fn input_scope_rejects_per_file_and_total_byte_overflow() -> Result<()> {
 
     let (_total_temp, total_root) = fixture()?;
     let chunk = vec![b'y'; 1_048_576];
-    for index in 0..8 {
+    for index in (0..8).map(|value| value) {
         fs::write(
             Path::new(total_root.as_str()).join(format!("fixture/src/chunk-{index}.rs")),
             &chunk,

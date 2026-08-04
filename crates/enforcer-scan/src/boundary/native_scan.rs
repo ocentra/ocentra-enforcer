@@ -64,6 +64,21 @@ pub struct NativeScanRequest {
     pub languages: Vec<NativeScanLanguage>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeScanSelection {
+    scope: NativeScanScope,
+    languages: Vec<NativeScanLanguage>,
+}
+
+impl From<&NativeScanRequest> for NativeScanSelection {
+    fn from(request: &NativeScanRequest) -> Self {
+        Self {
+            scope: request.scope.clone(),
+            languages: request.languages.clone(),
+        }
+    }
+}
+
 /// Result produced by the native request path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeScanResult {
@@ -225,6 +240,7 @@ pub fn execute_import_boundaries_policy(
         report,
     })
 }
+/// Executes the Rust re-export policy for an explicitly typed scan request.
 pub fn execute_reexports_policy(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
@@ -280,6 +296,7 @@ pub fn execute_docs_completeness(
     })
 }
 
+/// Validates project configuration lockdown for the requested repository scope.
 pub fn execute_config_lockdown(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
@@ -412,6 +429,7 @@ pub fn execute_generated_artifacts(
     })
 }
 
+/// Checks the single-source-of-truth contracts for an explicit repository root.
 pub fn execute_single_source_contracts(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
@@ -431,6 +449,7 @@ pub fn execute_single_source_contracts(
     })
 }
 
+/// Validates the generated AI rule index against its reviewed source inputs.
 pub fn execute_ai_rule_index(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
@@ -525,8 +544,9 @@ pub(crate) fn resolve_files_with_rules(
     repo_root: &RepoRoot,
     rules: &IgnoreRules,
 ) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
+    let selection = NativeScanSelection::from(request);
     let (scope_request, files, kind) =
-        match &request.scope {
+        match &selection.scope {
             NativeScanScope::Files(paths) => {
                 if paths.is_empty() {
                     return Err(
@@ -590,7 +610,7 @@ pub(crate) fn resolve_files_with_rules(
         };
     let mut resolved = scope::resolve(&scope_request, repo_root)?;
     resolved.kind = kind;
-    let files = filter_languages(files, &request.languages);
+    let files = filter_languages(files, &selection.languages);
     Ok((resolved, files))
 }
 
@@ -988,7 +1008,7 @@ mod tests {
             finding.finding().file.as_str() == "src/staged.rs"
                 && finding.finding().rule_id.as_str().starts_with("SEC-")
         }));
-        assert!(!result.report.violations.is_empty());
+        assert_eq!(result.report.violations.len(), 1);
         Ok(())
     }
 

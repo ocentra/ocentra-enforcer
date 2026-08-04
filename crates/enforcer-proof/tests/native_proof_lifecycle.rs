@@ -62,8 +62,13 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
     let fixture = tempfile::tempdir()?;
     let lifecycle = NativeProofLifecycle::open(fixture.path())?;
     let run: ProofRunId = "missing-run".parse()?;
-    let escaped = enforcer_domain::paths::RelPath::try_from("../outside".to_owned());
-    assert!(escaped.is_err());
+    let escaped = enforcer_domain::paths::RelPath::try_from("../outside".to_owned())
+        .expect_err("escaping relative path must be rejected");
+    assert_eq!(escaped.path, "relPath");
+    assert_eq!(
+        escaped.reason,
+        "invalid relative path: `..` segment escapes the repository root"
+    );
     let safe: enforcer_domain::paths::RelPath = "evidence.txt".parse()?;
     assert!(matches!(
         lifecycle.read_declared_artifact(&run, &safe),

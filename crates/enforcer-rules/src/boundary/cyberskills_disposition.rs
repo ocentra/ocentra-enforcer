@@ -29,6 +29,32 @@ mod projection;
 mod provenance;
 #[path = "cyberskills_disposition/source.rs"]
 mod source;
+
+/// A typed semantic validation failure for the CP00 disposition contract.
+/// BRAND-INVARIANT: every non-empty and empty validator message is valid error
+/// evidence; conversion preserves the validator's exact diagnostic text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DispositionValidationError(String);
+
+impl DispositionValidationError {
+    fn parse(message: String) -> Self {
+        Self(message)
+    }
+}
+
+impl From<String> for DispositionValidationError {
+    fn from(message: String) -> Self {
+        Self(message)
+    }
+}
+
+impl std::fmt::Display for DispositionValidationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for DispositionValidationError {}
 /// Validated semantic vocabulary and role-specific domain wrappers.
 #[path = "cyberskills_disposition/types.rs"]
 pub mod types;
@@ -81,6 +107,6 @@ pub struct DerivedDispositionCounts {
 /// Validate identity, source, decomposition, and evidence invariants.
 pub fn validate_manifest(
     manifest: &wire::manifest::CyberSkillsDispositionManifestDto,
-) -> Result<DerivedDispositionCounts, String> {
-    manifest::validate_manifest(manifest)
+) -> Result<DerivedDispositionCounts, DispositionValidationError> {
+    manifest::validate_manifest(manifest).map_err(DispositionValidationError::parse)
 }

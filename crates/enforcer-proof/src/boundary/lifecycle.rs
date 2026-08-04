@@ -832,7 +832,10 @@ mod tests {
         assert_eq!(catalog.product_name, "base");
         assert_eq!(catalog.proofs.len(), 1);
         assert_eq!(catalog.proofs[0].title, "profile");
-        assert!(load_pack_registry(fixture.path(), "../escape").is_err());
+        assert!(matches!(
+            load_pack_registry(fixture.path(), "../escape"),
+            Err(Error::InvalidConfig(_))
+        ));
         Ok(())
     }
 }

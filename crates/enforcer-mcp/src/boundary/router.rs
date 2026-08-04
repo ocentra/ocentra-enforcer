@@ -1365,12 +1365,12 @@ fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
 /// Execute named checks whose native implementation is intentionally narrower
 /// than the full language scanner.  The scan request boundary remains shared,
 /// so scope and language input cannot diverge between MCP tools.
-fn named_policy_unrecorded(args: &serde_json::Value, policy: &str) -> serde_json::Value {
+fn named_policy_unrecorded(args: &serde_json::Value, check_kind: &str) -> serde_json::Value {
     let (root, request) = match native_scan_request(args) {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    let result = match policy {
+    let result = match check_kind {
         "secrets" => match args.get("staged") {
             None | Some(serde_json::Value::Bool(false)) => {
                 enforcer_scan::boundary::native_scan::execute_secret_policy(&request, &root)
@@ -3876,7 +3876,7 @@ mod tests {
         assert_eq!(value["check"], serde_json::json!("reexports"));
         assert_eq!(value["ok"], serde_json::json!(false));
         let findings = value["findings"].as_array().ok_or("missing findings")?;
-        assert!(!findings.is_empty());
+        assert_eq!(findings.len(), 1);
         assert!(findings
             .iter()
             .all(|finding| finding["ruleId"] == "T1-NOREEXPORT.1"));
