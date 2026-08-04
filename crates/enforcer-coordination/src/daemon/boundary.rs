@@ -263,8 +263,14 @@ mod tests {
         let first = CoordinationLedgerRoot::parse(first_dir.path())?;
         let second = CoordinationLedgerRoot::parse(second_dir.path())?;
         let service = ensure(&first, "127.0.0.1", 0, Some("token-a"))?;
-        assert!(ensure(&second, "127.0.0.1", service.port, Some("token-a")).is_err());
-        assert!(ensure(&first, "127.0.0.1", service.port, Some("token-b")).is_err());
+        let different_root =
+            ensure(&second, "127.0.0.1", service.port, Some("token-a")).expect_err("root");
+        let different_token =
+            ensure(&first, "127.0.0.1", service.port, Some("token-b")).expect_err("token");
+        let expected =
+            "coordination daemon endpoint is already bound to different ledger authority";
+        assert_eq!(different_root.to_string(), expected);
+        assert_eq!(different_token.to_string(), expected);
         Ok(())
     }
 
