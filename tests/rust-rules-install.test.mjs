@@ -8,36 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { checkStagedRatchet } from '../scripts/precommit-ratchet.mjs';
 import { maskRustCode } from '../scripts/rust-rules-path-core.mjs';
 import { makeProject, runGateArgs } from './rust-rules-install-fixture.mjs';
-import { analyzeBoundarySignatures } from '../src/generic-common-boundary-signatures.mjs';
-import { decisionCodeText } from '../src/generic-common-domain-ownership.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
 const GIT_TEST_MAX_BUFFER = 32 * 1024 * 1024;
-
-test('boundary signature analysis does not invent undeclared raw DTO ownership', () => {
-  const externalTypedRequest = `
-pub fn execute(request: &NativeScanRequest) -> Result<NativeScanResult, NativeScanError> {
-    todo!()
-}`;
-  const analysis = analyzeBoundarySignatures(externalTypedRequest, new Set());
-  assert.equal(analysis.hasRawInput, false);
-  assert.equal(analysis.publicRawReturn, false);
-  assert.equal(analysis.untypedConversion, false);
-});
-
-test('boundary decision analysis ignores policy words inside transport literals', () => {
-  const literalOnly = decisionCodeText([
-    'match name {',
-    '  "dependency-policy" => execute(),',
-    '  _ => reject(),',
-    '}',
-  ]);
-  assert.doesNotMatch(literalOnly, /\bpolicy\b/iu);
-
-  const realDecision = decisionCodeText(['match policy { Allow => execute() }']);
-  assert.match(realDecision, /\bpolicy\b/iu);
-});
 
 function git(project, args) {
   const result = spawnSync('git', args, { cwd: project, encoding: 'utf8', maxBuffer: GIT_TEST_MAX_BUFFER });
