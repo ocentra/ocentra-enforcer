@@ -427,7 +427,12 @@ mod tests {
         let summary_path = legacy.join("summary.json");
         let mut summary: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&summary_path)?)?;
-        summary["storage"]["root"] = serde_json::json!(".ocentra-enforcer");
+        let outside = tempfile::TempDir::new()?;
+        let outside_victim = outside.path().join("victim");
+        std::fs::create_dir_all(&outside_victim)?;
+        std::fs::write(outside_victim.join("sentinel.txt"), "must survive")?;
+        summary["runId"] = serde_json::json!("../victim");
+        summary["storage"]["root"] = serde_json::json!(outside.path());
         std::fs::write(
             &summary_path,
             format!("{}\n", serde_json::to_string_pretty(&summary)?),
@@ -463,6 +468,10 @@ mod tests {
         assert!(
             !legacy.exists(),
             "frozen compatibility prune must delete an eligible legacy run"
+        );
+        assert!(
+            outside_victim.join("sentinel.txt").exists(),
+            "tampered summary paths must never control the deletion target"
         );
         Ok(())
     }
