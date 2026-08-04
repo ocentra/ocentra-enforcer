@@ -291,9 +291,17 @@ fn is_test_file(path: &str) -> bool {
 fn filename_hit(category: Category, path: &str) -> bool {
     let p = lower(path);
     match category {
-        Category::Unit => is_test_file(&p) || p.contains("/test/") || p.contains("/tests/"),
+        Category::Unit => {
+            is_test_file(&p)
+                || p.starts_with("test/")
+                || p.starts_with("tests/")
+                || p.contains("/test/")
+                || p.contains("/tests/")
+        }
         Category::Integration => {
-            p.contains("/test/integration/")
+            p.starts_with("test/integration/")
+                || p.starts_with("tests/integration/")
+                || p.contains("/test/integration/")
                 || p.contains("/tests/integration/")
                 || p.contains("integration-tests/")
                 || p.contains("integration_tests/")
@@ -585,7 +593,8 @@ struct CiAnalysis {
 }
 fn is_ci(path: &str) -> bool {
     let p = lower(path);
-    (p.contains("/.github/workflows/") && (p.ends_with(".yml") || p.ends_with(".yaml")))
+    ((p.starts_with(".github/workflows/") || p.contains("/.github/workflows/"))
+        && (p.ends_with(".yml") || p.ends_with(".yaml")))
         || p.ends_with(".gitlab-ci.yml")
         || p.ends_with("azure-pipelines.yml")
         || p.ends_with("azure-pipelines.yaml")
@@ -739,9 +748,19 @@ fn ci_gap_reason(ci: &TestDoctrineCiState) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::analyze;
+    use super::{analyze, filename_hit, is_ci};
     use enforcer_domain::paths::RepoRoot;
     use enforcer_domain::test_doctrine_types::TestDoctrineCategory as Category;
+
+    #[test]
+    fn recognizes_root_relative_test_and_workflow_paths() {
+        assert!(filename_hit(Category::Unit, "tests/helpers.rs"));
+        assert!(filename_hit(
+            Category::Integration,
+            "tests/integration/http.rs"
+        ));
+        assert!(is_ci(".github/workflows/ci.yml"));
+    }
 
     #[test]
     fn reports_nature_missing_categories_and_non_blocking_ci(
