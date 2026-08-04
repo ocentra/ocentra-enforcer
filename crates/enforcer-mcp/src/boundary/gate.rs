@@ -69,6 +69,7 @@ pub struct GateArgs {
     pub write: McpWriteIntent,
     pub dry_run: McpExecutionMode,
     pub action: Option<McpActionName>,
+    pub peek: bool,
 }
 
 impl Default for GateArgs {
@@ -77,6 +78,7 @@ impl Default for GateArgs {
             write: McpWriteIntent::Unspecified,
             dry_run: McpExecutionMode::Unspecified,
             action: None,
+            peek: false,
         }
     }
 }
@@ -99,6 +101,9 @@ pub fn should_block_stale_tool(
     if name.as_str() == "ocentra_enforcer_coordination_repair" {
         return matches!(args.write, McpWriteIntent::Write)
             || matches!(args.dry_run, McpExecutionMode::Apply);
+    }
+    if name.as_str() == "ocentra_enforcer_coordination_notify" {
+        return !args.peek;
     }
     match write_actions_for(name.as_str()) {
         Some(actions) => args
@@ -322,6 +327,26 @@ mod tests {
             McpFreshness::Stale,
         );
         assert!(dry_run_false, "dryRun:false must be refused while stale");
+        Ok(())
+    }
+
+    #[test]
+    fn notify_only_bypasses_the_stale_write_gate_when_peeking(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tool = tool("ocentra_enforcer_coordination_notify")?;
+        assert!(should_block_stale_tool(
+            &tool,
+            &GateArgs::default(),
+            McpFreshness::Stale,
+        ));
+        assert!(!should_block_stale_tool(
+            &tool,
+            &GateArgs {
+                peek: true,
+                ..GateArgs::default()
+            },
+            McpFreshness::Stale,
+        ));
         Ok(())
     }
 

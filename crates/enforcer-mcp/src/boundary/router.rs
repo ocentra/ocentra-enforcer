@@ -761,6 +761,10 @@ fn gate_args_from(args: &serde_json::Value) -> GateArgs {
             .get("action")
             .and_then(serde_json::Value::as_str)
             .and_then(|value| McpActionName::try_new(value).ok()),
+        peek: args
+            .get("peek")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
     }
 }
 
@@ -2787,10 +2791,10 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
             }
         }
         "ocentra_enforcer_coordination_workers" => {
-            coordination_event_rows(&root_path, "worker", "workers")
+            coordination_event_rows(&root_path, "worker.update", "workers")
         }
         "ocentra_enforcer_coordination_tasks" => {
-            coordination_event_rows(&root_path, "task", "tasks")
+            coordination_event_rows(&root_path, "task.update", "tasks")
         }
         "ocentra_enforcer_coordination_init" => coordination_init(args),
         "ocentra_enforcer_coordination_claim" => coordination_claim(args),
