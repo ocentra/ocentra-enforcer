@@ -600,7 +600,7 @@ fn mutation_risk_diff_keeps_deleted_policy_paths() -> Result<(), Box<dyn std::er
     let output = Command::new(binary_path()?)
         .current_dir(temp.path())
         .args([
-            "policy",
+            "check",
             "mutation-risk",
             "--base",
             "HEAD~1",

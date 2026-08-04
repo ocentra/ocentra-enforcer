@@ -25,6 +25,20 @@
 
 use std::path::PathBuf;
 
+/// Preserve required historical check routes before clap interprets the
+/// generic check positional scope. The canonical typed handler remains the
+/// policy action; only this exact documented spelling is rewritten.
+pub fn normalize_required_check_route(
+    mut args: Vec<std::ffi::OsString>,
+) -> Vec<std::ffi::OsString> {
+    if args.get(1).and_then(|value| value.to_str()) == Some("check")
+        && args.get(2).and_then(|value| value.to_str()) == Some("mutation-risk")
+    {
+        args[1] = "policy".into();
+    }
+    args
+}
+
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
 use crate::advise::AdviseTarget;

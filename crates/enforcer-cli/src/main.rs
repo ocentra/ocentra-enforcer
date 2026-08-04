@@ -39,7 +39,8 @@ fn to_process_exit_code(exit: ExitCode) -> ProcessExitCode {
 }
 
 fn run() -> ExitCode {
-    let cli = match Cli::try_parse() {
+    let args = enforcer_cli::cli::normalize_required_check_route(std::env::args_os().collect());
+    let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(err) => {
             // clap renders its own usage text to stdout/stderr via
