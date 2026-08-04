@@ -739,9 +739,7 @@ fn parse_proof_status(
         "failed" => Ok(enforcer_domain::proof_types::ProofStatus::Failed),
         "manual-required" => Ok(enforcer_domain::proof_types::ProofStatus::ManualRequired),
         "unavailable" => Ok(enforcer_domain::proof_types::ProofStatus::Unavailable),
-        "waived" => {
-            Err("status `waived` has no native persisted ProofStatus representation".to_owned())
-        }
+        "waived" => Ok(enforcer_domain::proof_types::ProofStatus::Waived),
         _ => {
             Err("status must be passed, failed, manual-required, unavailable, or waived".to_owned())
         }
@@ -3724,7 +3722,7 @@ fn json_error(message: &str) -> serde_json::Value {
 mod tests {
     #[cfg(unix)]
     use super::repository_output_directory;
-    use super::{dispatch, DispatchContext, DispatchOutcome};
+    use super::{dispatch, parse_proof_status, DispatchContext, DispatchOutcome};
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
     use std::process::Command;
@@ -3733,6 +3731,14 @@ mod tests {
         value: &str,
     ) -> Result<McpToolName, enforcer_domain::boundary::decode_error::DecodeError> {
         McpToolName::try_new(value)
+    }
+
+    #[test]
+    fn proof_status_decoder_accepts_the_advertised_waived_state() {
+        assert_eq!(
+            parse_proof_status("waived"),
+            Ok(enforcer_domain::proof_types::ProofStatus::Waived)
+        );
     }
 
     fn ctx(freshness: McpFreshness) -> DispatchContext {
