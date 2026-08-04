@@ -9,8 +9,10 @@ use enforcer_domain::{
         HarnessCommandArgument, HarnessDomainName, HarnessLanguage, HarnessPackageName,
         HarnessRunId, HarnessTag, HarnessToolName,
     },
-    paths::RepoRoot,
+    paths::{RelPath, RepoRoot},
 };
+
+static GENERATED_RUN_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Canonical request decoded from `ocentra_enforcer_run` MCP JSON.
 #[derive(Debug, Clone)]
@@ -68,12 +70,7 @@ pub(crate) fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, 
     let run_id = optional_text(args, "runId", "run")?
         .map(|text| HarnessRunId::try_new(text.to_owned()).map_err(|error| error.to_string()))
         .transpose()?
-        .unwrap_or_else(|| {
-            HarnessRunId::from_adapter(&format!(
-                "run-{}",
-                enforcer_core::platform::epoch_millis().unwrap_or(0)
-            ))
-        });
+        .unwrap_or_else(generated_run_id);
     let tool = match optional_text(args, "tool", "run")? {
         Some(text) => {
             HarnessToolName::try_new(text.to_owned()).map_err(|error| error.to_string())?
@@ -109,9 +106,10 @@ pub(crate) fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, 
             .collect::<Result<Vec<_>, _>>()?,
     };
 
+    let cwd = decode_cwd(args, &repo_root)?;
     Ok(HarnessRunRequest {
         repo_root,
-        cwd: optional_text(args, "cwd", "run")?.map(str::to_owned),
+        cwd,
         run_id,
         tool,
         language,
@@ -131,6 +129,37 @@ pub(crate) fn decode_run(args: &serde_json::Value) -> Result<HarnessRunRequest, 
             .transpose()?,
         tags,
     })
+}
+
+fn generated_run_id() -> HarnessRunId {
+    let sequence = GENERATED_RUN_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    HarnessRunId::from_adapter(&format!(
+        "run-{}-{}-{sequence}",
+        enforcer_core::platform::epoch_millis().unwrap_or(0),
+        std::process::id()
+    ))
+}
+
+fn decode_cwd(args: &serde_json::Value, repo_root: &RepoRoot) -> Result<Option<String>, String> {
+    let Some(raw) = optional_text(args, "cwd", "run")? else {
+        return Ok(None);
+    };
+    if raw == "." {
+        return Ok(None);
+    }
+    let relative =
+        RelPath::try_from(raw.to_owned()).map_err(|error| format!("invalid run cwd: {error}"))?;
+    let canonical_root = std::path::Path::new(repo_root.as_str())
+        .canonicalize()
+        .map_err(|error| format!("run root cannot be resolved: {error}"))?;
+    let canonical_cwd = canonical_root
+        .join(relative.as_str())
+        .canonicalize()
+        .map_err(|error| format!("run cwd cannot be resolved: {error}"))?;
+    if !canonical_cwd.starts_with(&canonical_root) {
+        return Err("run cwd must stay within the repository root".to_owned());
+    }
+    Ok(Some(relative.as_str().to_owned()))
 }
 
 /// Decode the frozen prune contract. Its historical optional query fields are
@@ -213,6 +242,33 @@ mod tests {
             .err()
             .ok_or_else(|| "non-string command entry was accepted".to_owned())?;
         assert_eq!(error, "run `command` entries must be strings");
+        Ok(())
+    }
+
+    #[test]
+    fn run_rejects_escaping_working_directories() -> Result<(), String> {
+        let root = tempfile::tempdir().map_err(|error| error.to_string())?;
+        let error = decode_run(&serde_json::json!({
+            "root": root.path().to_string_lossy(),
+            "cwd": "../outside",
+            "command": ["cargo", "check"]
+        }))
+        .err()
+        .ok_or_else(|| "escaping cwd was accepted".to_owned())?;
+        assert!(error.contains("invalid run cwd"));
+        Ok(())
+    }
+
+    #[test]
+    fn generated_run_ids_are_unique() -> Result<(), String> {
+        let root = tempfile::tempdir().map_err(|error| error.to_string())?;
+        let args = serde_json::json!({
+            "root": root.path().to_string_lossy(),
+            "command": ["cargo", "check"]
+        });
+        let first = decode_run(&args)?;
+        let second = decode_run(&args)?;
+        assert_ne!(first.run_id, second.run_id);
         Ok(())
     }
 }
