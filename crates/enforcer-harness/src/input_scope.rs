@@ -1,6 +1,6 @@
 //! BOUNDARY-INVARIANT: enumerate only one explicit, bounded Cargo input scope.
 //!
-//! The scope is exactly `Cargo.toml`, `Cargo.lock`, and recursive `src/**`
+//! The scope is exactly `Cargo.toml`, `Cargo.lock`, optional `build.rs`, and recursive `src/**`
 //! below the reviewed disposable cwd. The target directory is an exclusion
 //! derived from the already validated command argument.
 
@@ -74,6 +74,15 @@ pub fn compute_input_tree(
     };
     collector.collect_file("Cargo.toml", 0)?;
     collector.collect_file("Cargo.lock", 0)?;
+    match fs::symlink_metadata(cwd.join("build.rs")) {
+        Ok(_) => collector.collect_file("build.rs", 0)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(Error::InvalidConfig(format!(
+                "Cargo input scope build script metadata could not be read: {error}"
+            )));
+        }
+    }
     collector.collect_directory("src", 1)?;
     if collector.files.is_empty() {
         return Err(Error::InvalidConfig(

@@ -333,6 +333,29 @@ fn repository_root_cwd_accepts_nonexistent_contained_target() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn input_scope_digest_includes_the_selected_package_build_script() -> Result<()> {
+    let (temp, root) = fixture()?;
+    let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
+    let target = arg("target")?;
+    let limits = HarnessInputLimits::try_new(100, 20, 1_048_576, 8_388_608)?;
+
+    let without_build_script = compute_input_tree(&reviewed_request, &target, limits)?;
+    std::fs::write(
+        temp.path().join("fixture/build.rs"),
+        "fn main() { println!(\"cargo:rerun-if-changed=build.rs\"); }\n",
+    )?;
+    let with_build_script = compute_input_tree(&reviewed_request, &target, limits)?;
+
+    assert_eq!(
+        with_build_script.file_count(),
+        without_build_script.file_count() + 1
+    );
+    assert_ne!(with_build_script.digest(), without_build_script.digest());
+    Ok(())
+}
+
 #[cfg(windows)]
 #[test]
 fn non_ascii_reviewed_input_path_is_rejected_on_windows() -> Result<()> {
