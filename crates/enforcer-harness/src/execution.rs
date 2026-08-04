@@ -25,6 +25,8 @@ use enforcer_domain::telemetry_types::ProcessExitCode;
 use crate::storage::{record_run, RunInput, RunOutcome};
 
 const READER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
+const ARBITRARY_MAX_WALL_TIME: Duration = Duration::from_secs(30 * 60);
+const ARBITRARY_MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Fully decoded, boundary-owned request for one recorded native command.
 #[derive(Debug, Clone)]
@@ -90,6 +92,18 @@ pub fn execute_allowlisted_bounded(
     spec: &HarnessToolSpec,
 ) -> Result<HarnessBoundedExecution> {
     validate_allowlisted_request(request, spec)?;
+    execute_bounded_process(
+        request,
+        Duration::from_millis(spec.limits().max_wall_time_ms()),
+        usize::try_from(spec.limits().max_output_bytes()).unwrap_or(usize::MAX),
+    )
+}
+
+fn execute_bounded_process(
+    request: &ExecuteRequest,
+    max_wall_time: Duration,
+    output_limit: usize,
+) -> Result<HarnessBoundedExecution> {
     let executable = request.command.first().ok_or_else(|| {
         Error::InvalidConfig("allowlisted tool command must not be empty".to_owned())
     })?;
@@ -137,7 +151,6 @@ pub fn execute_allowlisted_bounded(
         Some(stderr) => stderr,
         None => return Err(reap_after_pipe_failure(&mut child, "stderr")),
     };
-    let output_limit = usize::try_from(spec.limits().max_output_bytes()).unwrap_or(usize::MAX);
     let output_bytes = Arc::new(AtomicUsize::new(0));
     let output_overflow = Arc::new(AtomicBool::new(false));
     let stdout_reader = spawn_bounded_reader(
@@ -153,7 +166,7 @@ pub fn execute_allowlisted_bounded(
         Arc::clone(&output_overflow),
     );
 
-    let deadline = Instant::now() + Duration::from_millis(spec.limits().max_wall_time_ms());
+    let deadline = Instant::now() + max_wall_time;
     let mut cleanup_error = None;
     let (status, forced_termination) = loop {
         if output_overflow.load(Ordering::Acquire) {
@@ -377,36 +390,20 @@ fn invalid_process_error(operation: &str, error: &io::Error) -> Error {
 /// Execute without a shell, capture both streams, then persist the real outcome.
 pub fn execute(request: &ExecuteRequest, config: &HarnessConfig) -> Result<RunOutcome> {
     let started_at = timestamp_now()?;
-    let cwd = request
-        .cwd
-        .as_deref()
-        .map(|relative| Path::new(request.repo_root.as_str()).join(relative))
-        .unwrap_or_else(|| Path::new(request.repo_root.as_str()).to_path_buf());
-    let executable = request.command.first().ok_or_else(|| {
-        enforcer_core::error::Error::InvalidConfig("run command must not be empty".to_owned())
-    })?;
-    let output = Command::new(executable.as_str())
-        .args(
-            request
-                .command
-                .iter()
-                .skip(1)
-                .map(HarnessCommandArgument::as_str),
-        )
-        .current_dir(cwd)
-        .output();
-    let (stdout, stderr, exit_code) = match output {
-        Ok(output) => (
-            String::from_utf8_lossy(&output.stdout).into_owned(),
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-            output.status.code().unwrap_or(1),
-        ),
-        Err(error) => (
-            String::new(),
-            format!("Harness child process failed ({}): {}", error.kind(), error),
-            1,
-        ),
+    let output =
+        execute_bounded_process(request, ARBITRARY_MAX_WALL_TIME, ARBITRARY_MAX_OUTPUT_BYTES)?;
+    let stdout = output.stdout().clone();
+    let stderr = if output.stderr().as_str().is_empty()
+        && output.termination() != HarnessExecutionTermination::Completed
+    {
+        HarnessCapturedOutput::from_owned(format!(
+            "Harness child process terminated: {}",
+            output.termination().as_str()
+        ))
+    } else {
+        output.stderr().clone()
     };
+    let exit_code = output.exit_code().map_or(1, ProcessExitCode::get);
     let ended_at = timestamp_now()?;
     record_run(
         &RunInput {
@@ -415,8 +412,8 @@ pub fn execute(request: &ExecuteRequest, config: &HarnessConfig) -> Result<RunOu
             tool: request.tool.clone(),
             language: request.language,
             command: request.command.clone(),
-            stdout: HarnessCapturedOutput::from_owned(stdout),
-            stderr: HarnessCapturedOutput::from_owned(stderr),
+            stdout,
+            stderr,
             exit_code: ProcessExitCode::new(exit_code),
             crate_name: request.crate_name.clone(),
             package_name: request
