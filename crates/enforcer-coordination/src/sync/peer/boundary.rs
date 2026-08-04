@@ -1,4 +1,5 @@
-//! Serialized peer-registry and HTTP-manifest boundary shapes.
+//! BOUNDARY-INVARIANT: peer registry and HTTP bytes are validated and bounded
+//! here before they enter the typed synchronization domain.
 
 use std::fs;
 use std::io::{Read, Write};
@@ -31,6 +32,7 @@ pub enum PeerSyncMode {
 }
 
 impl PeerSyncMode {
+    /// Parse one supported synchronization direction.
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "pull" => Ok(Self::Pull),
@@ -351,6 +353,7 @@ fn rejected(message: &'static str) -> CoordinationError {
     }
 }
 fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Result<String> {
+    const MAX_HTTP_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
     let endpoint = base
         .as_str()
         .strip_prefix("http://")
@@ -367,7 +370,12 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
         "GET {target} HTTP/1.1\r\nHost: {authority}\r\n{auth}Connection: close\r\n\r\n"
     )?;
     let mut response_bytes = Vec::new();
-    stream.read_to_end(&mut response_bytes)?;
+    stream
+        .take(u64::try_from(MAX_HTTP_RESPONSE_BYTES + 1).unwrap_or(u64::MAX))
+        .read_to_end(&mut response_bytes)?;
+    if response_bytes.len() > MAX_HTTP_RESPONSE_BYTES {
+        return Err(rejected("peer HTTP response exceeds the native read bound"));
+    }
     let response = String::from_utf8_lossy(&response_bytes);
     let (head, body) = response
         .split_once("\r\n\r\n")

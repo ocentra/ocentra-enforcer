@@ -99,6 +99,14 @@ pub fn execute_allowlisted_bounded(
     )
 }
 
+/// Execute an already-decoded command without recording a harness run, while
+/// retaining the same process-tree, wall-time, and output bounds as the public
+/// arbitrary harness runner. Proof lifecycle uses this seam because it owns a
+/// separate durable run envelope and must not create a second harness record.
+pub fn execute_unrecorded_bounded(request: &ExecuteRequest) -> Result<HarnessBoundedExecution> {
+    execute_bounded_process(request, ARBITRARY_MAX_WALL_TIME, ARBITRARY_MAX_OUTPUT_BYTES)
+}
+
 fn execute_bounded_process(
     request: &ExecuteRequest,
     max_wall_time: Duration,
@@ -184,7 +192,24 @@ fn execute_bounded_process(
             }
         }
         match child.try_wait() {
-            Ok(Some(exit_status)) => break (Some(exit_status), None),
+            Ok(Some(exit_status)) => {
+                // The process-group leader may exit while descendants retain
+                // inherited output pipes. Terminate the residual group before
+                // joining readers so a successful leader cannot leak children
+                // or wedge this request indefinitely.
+                if let Err(error) = child.kill() {
+                    if !matches!(
+                        error.kind(),
+                        io::ErrorKind::NotFound | io::ErrorKind::InvalidInput
+                    ) {
+                        record_cleanup_error(
+                            &mut cleanup_error,
+                            invalid_process_error("terminate residual process group", &error),
+                        );
+                    }
+                }
+                break (Some(exit_status), None);
+            }
             Ok(None) => {}
             Err(error) => {
                 record_cleanup_error(

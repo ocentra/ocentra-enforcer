@@ -393,19 +393,22 @@ fn root_path(root: &RepoRoot, path: &str) -> std::path::PathBuf {
     std::path::Path::new(root.as_str()).join(path)
 }
 fn resolve_config(root: &RepoRoot, explicit: Option<&str>) -> Option<Result<String, String>> {
-    explicit
-        .map(str::to_owned)
-        .filter(|path| root_path(root, path).is_file())
-        .map(Ok)
-        .or_else(|| {
-            [
-                "ocentra-enforcer.single-source-contracts.json",
-                "scripts/check-single-source-contracts.json",
-            ]
-            .into_iter()
-            .find(|path| root_path(root, path).is_file())
-            .map(|path| Ok(path.to_owned()))
-        })
+    if let Some(path) = explicit {
+        return Some(if root_path(root, path).is_file() {
+            Ok(path.to_owned())
+        } else {
+            Err(format!(
+                "explicit single-source contracts config does not exist: {path}"
+            ))
+        });
+    }
+    [
+        "ocentra-enforcer.single-source-contracts.json",
+        "scripts/check-single-source-contracts.json",
+    ]
+    .into_iter()
+    .find(|path| root_path(root, path).is_file())
+    .map(|path| Ok(path.to_owned()))
 }
 fn covered_by(contract: &serde_json::Value, path: &str) -> bool {
     contract
@@ -510,6 +513,25 @@ mod tests {
         }
         assert!(!non_blocking("src/contest/widget.ts"));
         assert!(!non_blocking("src/widget.ts"));
+    }
+
+    #[test]
+    fn explicit_missing_config_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let repo: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let result = check(&repo, ScanScope::Files, &[], Some("missing-contracts.json"));
+        let error = match result {
+            Ok(report) => {
+                return Err(format!(
+                    "explicit missing config unexpectedly returned report: {:?}",
+                    report.ok
+                )
+                .into());
+            }
+            Err(error) => error,
+        };
+        assert!(error.contains("explicit single-source contracts config does not exist"));
+        Ok(())
     }
     fn check_config(
         root: &std::path::Path,

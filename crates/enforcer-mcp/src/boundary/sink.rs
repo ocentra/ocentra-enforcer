@@ -166,15 +166,17 @@ fn write_reply(
     out.flush()
 }
 
-/// Default freshness used by the standalone `serve` entry point until the
-/// a02 fingerprint-over-running-artifact computation lands upstream and is
-/// threaded in (see [`crate::gate`]'s seam note). Deliberately
-/// conservative: `fresh()` (not gated) is safe ONLY because this skeleton
-/// pass has no persistent running-server-vs-disk drift yet â€” a02 replaces
-/// this call site, not this module's shape.
+/// Capture the running server artifact at startup so every subsequent tool
+/// call can fail closed if the executable is replaced on disk.
 pub fn default_dispatch_context(cli_path: impl AsRef<std::path::Path>) -> DispatchContext {
+    let startup_fingerprint = crate::fingerprint::build_running_mcp_fingerprint(None).ok();
     DispatchContext {
-        freshness: McpFreshness::Fresh,
+        freshness: if startup_fingerprint.is_some() {
+            McpFreshness::Fresh
+        } else {
+            McpFreshness::HashIncompatible
+        },
+        startup_fingerprint,
         cli_path: ArtifactPath::from_path(cli_path.as_ref()),
         validation_history: std::sync::Arc::new(std::sync::Mutex::new(
             crate::validation_history::ValidationHistory::default(),

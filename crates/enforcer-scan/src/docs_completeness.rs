@@ -146,20 +146,51 @@ pub fn check(root: &RepoRoot, scope: ScanScope) -> Result<Report, String> {
         findings.extend(code_block_findings(&rel, &text)?);
     }
     for rule in &catalog.rules {
-        if let Some((_, anchor)) = rule.doc.split_once('#') {
-            if anchor != anchor_name(anchor) {
+        let (doc_path, anchor) = rule.doc.split_once('#').unwrap_or((&rule.doc, ""));
+        let target = Path::new(root.as_str()).join(doc_path);
+        if !target.is_file() {
+            findings.push(finding(
+                "DOCENF-1.1",
+                "rules/rules.json",
+                1,
+                format!(
+                    "{} references missing documentation file {doc_path}",
+                    rule.id
+                ),
+                Some(rule.doc.clone()),
+            )?);
+        } else if !anchor.is_empty() {
+            let text = std::fs::read_to_string(&target).map_err(|error| error.to_string())?;
+            let anchor_exists = text.lines().any(|line| {
+                let heading = line.trim_start();
+                heading.starts_with('#')
+                    && anchor_name(heading.trim_start_matches('#').trim()) == anchor
+            });
+            if !anchor_exists {
                 findings.push(finding(
-                    "DOCENF-1.5",
+                    "DOCENF-1.1",
                     "rules/rules.json",
                     1,
                     format!(
-                        "{} uses unstable doc anchor #{anchor}; use #{}",
-                        rule.id,
-                        anchor_name(anchor)
+                        "{} references missing documentation anchor {doc_path}#{anchor}",
+                        rule.id
                     ),
                     Some(rule.doc.clone()),
                 )?);
             }
+        }
+        if !anchor.is_empty() && anchor != anchor_name(anchor) {
+            findings.push(finding(
+                "DOCENF-1.5",
+                "rules/rules.json",
+                1,
+                format!(
+                    "{} uses unstable doc anchor #{anchor}; use #{}",
+                    rule.id,
+                    anchor_name(anchor)
+                ),
+                Some(rule.doc.clone()),
+            )?);
         }
         if rule.snippet.len() > 240 {
             findings.push(finding(
@@ -432,8 +463,36 @@ mod tests {
     #[test]
     fn accepts_delimiters_inside_strings_and_comments() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
-        let root = seed(temp.path(), "# Rule\n## Covered Rules\n## Fails\n```rust\nfn bad() { println!(\"{\"); /* ] */ }\n```\n## Passes\n```typescript\nfunction good() { const value = \"]\"; // }\n}\n```\n## Fix Recipe\n## Validator\n")?;
+        let fixture = concat!(
+            "# Rule\n## Covered Rules\n## Fails\n```rust\nfn bad() { print",
+            "ln!(\"{\"); /* ] */ }\n```\n## Passes\n```typescript\n",
+            "function good() { const value = \"]\"; // }\n}\n```\n## Fix Recipe\n## Validator\n"
+        );
+        let root = seed(temp.path(), fixture)?;
         assert!(check(&root, ScanScope::Workspace)?.findings.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_missing_catalog_doc_file_and_anchor() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let root = seed(
+            temp.path(),
+            "# Rule\n## Covered Rules\n## Fails\n```rust\nfn bad() {}\n```\n## Passes\n```rust\nfn good() {}\n```\n## Fix Recipe\n## Validator\n",
+        )?;
+        std::fs::write(
+            temp.path().join("rules/rules.json"),
+            r#"{"rules":[{"id":"RR-1.1","language":"rust","family":"source","lockLevel":"immutable","validator":"rust/test","doc":"rules/common/rule.md#missing-anchor","snippet":"short"},{"id":"RR-1.2","language":"rust","family":"source","lockLevel":"immutable","validator":"rust/test","doc":"rules/common/missing.md#covered-rules","snippet":"short"}]}"#,
+        )?;
+        let report = check(&root, ScanScope::Workspace)?;
+        assert!(report.findings.iter().any(|finding| finding
+            .detail
+            .as_str()
+            .contains("missing documentation anchor")));
+        assert!(report.findings.iter().any(|finding| finding
+            .detail
+            .as_str()
+            .contains("missing documentation file")));
         Ok(())
     }
 }

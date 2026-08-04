@@ -6,7 +6,7 @@
 //! [`crate::boundary::fingerprint`].
 
 use enforcer_domain::mcp_types::{
-    self, FingerprintError, McpFingerprint, PackageVersion, StalenessReport,
+    FingerprintError, McpFingerprint, McpFreshness, PackageVersion, Staleness, StalenessReport,
 };
 use std::path::Path;
 
@@ -16,12 +16,21 @@ pub fn build_mcp_fingerprint(
     package_version: PackageVersion,
     ruleset_path: Option<&Path>,
 ) -> McpFingerprint {
-    mcp_types::build_mcp_fingerprint(binary_path, package_version, ruleset_path)
+    enforcer_domain::mcp_types::build_mcp_fingerprint(binary_path, package_version, ruleset_path)
 }
 
 /// Compare two canonical MCP fingerprints.
 pub fn compare_freshness(startup: &McpFingerprint, current: &McpFingerprint) -> StalenessReport {
-    mcp_types::compare_freshness(startup, current)
+    enforcer_domain::mcp_types::compare_freshness(startup, current)
+}
+
+/// Recompute one startup fingerprint and collapse its typed staleness verdict
+/// into the MCP routing freshness gate.
+pub fn current_mcp_freshness(startup: &McpFingerprint) -> McpFreshness {
+    match compare_freshness(startup, &startup.recompute()).verdict {
+        Staleness::Fresh => McpFreshness::Fresh,
+        Staleness::Stale => McpFreshness::Stale,
+    }
 }
 
 /// Build a fingerprint over the running executable and this MCP crate's

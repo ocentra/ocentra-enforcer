@@ -698,9 +698,14 @@ fn find_crate_root(
         let Ok(contents) = std::fs::read_to_string(path) else {
             continue;
         };
-        if contents
-            .lines()
-            .any(|line| line.trim() == format!("name = \"{}\"", crate_name.as_str()))
+        let Ok(document) = contents.parse::<toml_edit::DocumentMut>() else {
+            continue;
+        };
+        if document
+            .get("package")
+            .and_then(|package| package.get("name"))
+            .and_then(toml_edit::Item::as_str)
+            == Some(crate_name.as_str())
         {
             let root = manifest.as_str().strip_suffix("/Cargo.toml").unwrap_or("");
             if root.is_empty() {
@@ -725,7 +730,7 @@ fn diff_files(
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_root.as_str())
-        .args(["diff", "--name-only"])
+        .args(["diff", "--name-only", "-z"])
         .arg(format!("--diff-filter={diff_filter}"))
         .arg(base.as_str())
         .arg(head.as_str())
@@ -742,8 +747,16 @@ fn diff_files(
             reason: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         });
     }
-    let paths = String::from_utf8_lossy(&output.stdout)
-        .lines()
+    let paths = output
+        .stdout
+        .split(|byte| *byte == b'\0')
+        .filter(|path| !path.is_empty())
+        .map(|path| {
+            std::str::from_utf8(path)
+                .map_err(|error| DecodeError::new("diff path", error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
         .map(str::parse)
         .collect::<Result<Vec<RelPath>, DecodeError>>()?;
     Ok(walk::filter_explicit(&paths, rules))
@@ -820,8 +833,8 @@ fn staged_source(
 mod tests {
     use super::{
         execute, execute_dependency_policy, execute_mutation_risk_policy, execute_secret_policy,
-        execute_staged_secret_policy, resolve_files, NativeScanError, NativeScanLanguage,
-        NativeScanRequest, NativeScanScope,
+        execute_staged_secret_policy, find_crate_root, resolve_files, CrateRoot, NativeScanError,
+        NativeScanLanguage, NativeScanRequest, NativeScanScope,
     };
     use enforcer_domain::config_types::CrateName;
     use enforcer_domain::findings::ScanScope;
@@ -843,6 +856,24 @@ mod tests {
             std::fs::create_dir_all(parent)?;
         }
         std::fs::write(path, contents)?;
+        Ok(())
+    }
+
+    #[test]
+    fn crate_scope_reads_the_package_table_independent_of_toml_spacing(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "crates/member/Cargo.toml",
+            "[package]\nname='member'\nversion = \"0.1.0\"\n[package.metadata]\nname = \"not-the-package\"\n",
+        )?;
+        let files = vec!["crates/member/Cargo.toml".parse()?];
+        let crate_name: CrateName = "member".parse()?;
+        assert_eq!(
+            find_crate_root(&root(temp.path())?, &files, &crate_name)?,
+            CrateRoot::Nested("crates/member".parse()?)
+        );
         Ok(())
     }
 
@@ -1167,6 +1198,24 @@ mod tests {
             .violations
             .iter()
             .any(|finding| finding.finding().rule_id.as_str() == "SEC-1.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn secret_policy_does_not_drop_sensitive_paths_with_non_utf8_bytes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::write(temp.path().join(".env"), [0xff, 0xfe, 0xfd])?;
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Files(vec![".env".into()]),
+            languages: Vec::new(),
+        };
+        let result = execute_secret_policy(&request, &root(temp.path())?)?;
+        assert!(result
+            .report
+            .violations
+            .iter()
+            .any(|finding| finding.finding().rule_id.as_str() == "SEC-1.2"));
         Ok(())
     }
 

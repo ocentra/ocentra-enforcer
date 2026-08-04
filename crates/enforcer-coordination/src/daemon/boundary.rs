@@ -5,8 +5,10 @@
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use crate::error::{CoordinationError, Result};
 use enforcer_domain::coordination_types::CoordinationLedgerRoot;
@@ -35,7 +37,14 @@ impl serde::Serialize for EnsureStatus {
     }
 }
 
-static SERVICES: OnceLock<Mutex<BTreeMap<String, u16>>> = OnceLock::new();
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ServiceIdentity {
+    port: u16,
+    ledger_root: PathBuf,
+    token: Option<String>,
+}
+
+static SERVICES: OnceLock<Mutex<BTreeMap<String, ServiceIdentity>>> = OnceLock::new();
 
 /// Ensure an authenticated loopback coordination service is listening.
 pub fn ensure(
@@ -48,40 +57,46 @@ pub fn ensure(
         return Err(rejected("coordination ensure only permits loopback hosts"));
     }
     let key = format!("{host}:{port}");
+    let ledger_root = root
+        .as_path()
+        .canonicalize()
+        .unwrap_or_else(|_| root.as_path().to_path_buf());
+    let requested_token = token.map(str::to_owned);
     let services = SERVICES.get_or_init(|| Mutex::new(BTreeMap::new()));
-    if services
+    if let Some(existing) = services
         .lock()
         .map_err(|_poisoned| rejected("coordination daemon registry lock poisoned"))?
-        .contains_key(&key)
+        .get(&key)
+        .cloned()
     {
+        if existing.ledger_root != ledger_root || existing.token != requested_token {
+            return Err(rejected(
+                "coordination daemon endpoint is already bound to different ledger authority",
+            ));
+        }
         return Ok(EnsureStatus {
             host: host.to_owned(),
-            port,
+            port: existing.port,
             reused: true,
         });
     }
     let listener = TcpListener::bind(("127.0.0.1", port)).map_err(CoordinationError::Io)?;
     let actual_port = listener.local_addr().map_err(CoordinationError::Io)?.port();
-    let expected_token = token.map(str::to_owned);
-    let ledger_root = root.as_path().to_path_buf();
+    let expected_token = requested_token.clone();
+    let service_root = ledger_root.clone();
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
             let mut stream = stream;
-            let mut request = [0_u8; 4096];
-            let Ok(read) = stream.read(&mut request) else {
+            let Ok(Some(request)) = read_request_headers(&mut stream) else {
                 continue;
             };
-            let Some(bytes) = request.get(..read) else {
-                continue;
-            };
-            let request = String::from_utf8_lossy(bytes);
             let authorized = expected_token
                 .as_ref()
                 .is_none_or(|value| authorization_bearer(&request) == Some(value.as_str()));
             let response = if !authorized {
                 http_response("401 Unauthorized", "application/json", "")
             } else {
-                serve_request(&ledger_root, &request)
+                serve_request(&service_root, &request)
             };
             let _ = stream.write_all(&response);
         }
@@ -89,12 +104,42 @@ pub fn ensure(
     services
         .lock()
         .map_err(|_poisoned| rejected("coordination daemon registry lock poisoned"))?
-        .insert(format!("{host}:{actual_port}"), actual_port);
+        .insert(
+            format!("{host}:{actual_port}"),
+            ServiceIdentity {
+                port: actual_port,
+                ledger_root,
+                token: requested_token,
+            },
+        );
     Ok(EnsureStatus {
         host: host.to_owned(),
         port: actual_port,
         reused: false,
     })
+}
+
+fn read_request_headers(stream: &mut TcpStream) -> std::io::Result<Option<String>> {
+    const MAX_HEADER_BYTES: usize = 16 * 1024;
+    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    let mut request = Vec::with_capacity(1024);
+    let mut chunk = [0_u8; 1024];
+    loop {
+        let read = stream.read(&mut chunk)?;
+        if read == 0 {
+            return Ok(None);
+        }
+        let Some(bytes) = chunk.get(..read) else {
+            return Ok(None);
+        };
+        request.extend_from_slice(bytes);
+        if request.windows(4).any(|window| window == b"\r\n\r\n") {
+            return Ok(Some(String::from_utf8_lossy(&request).into_owned()));
+        }
+        if request.len() >= MAX_HEADER_BYTES {
+            return Ok(None);
+        }
+    }
 }
 
 fn authorization_bearer(request: &str) -> Option<&str> {
@@ -193,7 +238,7 @@ mod tests {
         let root_dir = tempfile::tempdir()?;
         let root = CoordinationLedgerRoot::parse(root_dir.path())?;
         let initial = ensure(&root, "127.0.0.1", 0, Some("token"))?;
-        let repeated = ensure(&root, "127.0.0.1", initial.port, Some("different-token"))?;
+        let repeated = ensure(&root, "127.0.0.1", initial.port, Some("token"))?;
         assert!(repeated.reused);
         assert_eq!(
             serde_json::to_value(&initial)?,
@@ -208,6 +253,33 @@ mod tests {
             request(initial.port, "/health", Some(("authorization", "token")))?
                 .starts_with("HTTP/1.1 200")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn ensure_rejects_endpoint_reuse_for_different_authority() -> crate::error::Result<()> {
+        let first_dir = tempfile::tempdir()?;
+        let second_dir = tempfile::tempdir()?;
+        let first = CoordinationLedgerRoot::parse(first_dir.path())?;
+        let second = CoordinationLedgerRoot::parse(second_dir.path())?;
+        let service = ensure(&first, "127.0.0.1", 0, Some("token-a"))?;
+        assert!(ensure(&second, "127.0.0.1", service.port, Some("token-a")).is_err());
+        assert!(ensure(&first, "127.0.0.1", service.port, Some("token-b")).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn ensured_service_reads_fragmented_headers_before_routing() -> crate::error::Result<()> {
+        let root_dir = tempfile::tempdir()?;
+        let root = CoordinationLedgerRoot::parse(root_dir.path())?;
+        let service = ensure(&root, "127.0.0.1", 0, Some("token"))?;
+        let mut stream = TcpStream::connect(("127.0.0.1", service.port))?;
+        stream.write_all(b"GET /health HTTP/1.1\r\nHost: local")?;
+        std::thread::park_timeout(std::time::Duration::from_millis(20));
+        stream.write_all(b"host\r\nauthorization: Bearer token\r\n\r\n")?;
+        let mut response = String::new();
+        stream.read_to_string(&mut response)?;
+        assert!(response.starts_with("HTTP/1.1 200"));
         Ok(())
     }
 

@@ -12,10 +12,14 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: serialize proof journal verification plus append across processes.
+fs2 = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: shared execution and domain contracts required
 # to capture and verify durable proof artifacts.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Proof commands share the harness-owned bounded process-tree executor while retaining proof-owned persistence.
+enforcer-harness = { path = "../enforcer-harness", version = "0.1.0" }
 
 [dev-dependencies]
 # DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for proof artifact

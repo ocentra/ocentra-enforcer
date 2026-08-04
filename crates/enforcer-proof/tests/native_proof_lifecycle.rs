@@ -93,6 +93,27 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
 }
 
 #[test]
+fn declared_artifact_read_rejects_bytes_changed_after_persistence() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    std::fs::write(root.join("evidence.txt"), b"original")?;
+    let proof_id = ProofId::try_from("native.lifecycle".to_owned())?;
+    let run_id = ProofRunId::try_from("artifact-integrity".to_owned())?;
+    let run = lifecycle.import_legacy(&proof_id, &run_id, &["evidence.txt"])?;
+    let artifact = run.artifacts.first().ok_or_else(|| {
+        enforcer_core::error::Error::InvalidConfig("run declared no artifact".to_owned())
+    })?;
+    std::fs::write(root.join(artifact.path.as_str()), b"tampered")?;
+    assert!(matches!(
+        lifecycle.read_declared_artifact(&run.run_id, &artifact.path),
+        Err(enforcer_core::error::Error::InvalidConfig(message))
+            if message == "declared artifact bytes do not match the persisted proof run"
+    ));
+    Ok(())
+}
+
+#[test]
 fn lifecycle_rejects_a_redirected_proof_state_root_before_writing() -> Result<()> {
     let fixture = tempfile::tempdir()?;
     let outside = tempfile::tempdir()?;

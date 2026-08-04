@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use enforcer_core::error::Result;
 use enforcer_domain::ids::RuleId;
@@ -360,17 +359,38 @@ pub fn run_proof(
         });
     }
 
-    let Some((program, command_args)) = args.command.split_first() else {
+    let Some((_program, _command_args)) = args.command.split_first() else {
         return Err(enforcer_core::error::Error::InvalidConfig(
             "proof command must include a program".to_owned(),
         ));
     };
-    let output = Command::new(program)
-        .args(command_args)
-        .current_dir(&args.root)
-        .output()?;
+    let repo_root = enforcer_domain::paths::RepoRoot::try_from(args.root.as_path())?;
+    let command = args
+        .command
+        .iter()
+        .map(|value| {
+            enforcer_domain::harness_types::HarnessCommandArgument::try_new(value.clone())
+                .map_err(enforcer_core::error::Error::Decode)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let execution = enforcer_harness::execution::execute_unrecorded_bounded(
+        &enforcer_harness::execution::ExecuteRequest {
+            repo_root,
+            cwd: None,
+            run_id: enforcer_domain::harness_types::HarnessRunId::from_adapter(
+                args.run_id.as_str(),
+            ),
+            tool: enforcer_domain::harness_types::HarnessToolName::from_adapter("proof"),
+            language: None,
+            command,
+            crate_name: None,
+            package_name: None,
+            domain: None,
+            tags: Vec::new(),
+        },
+    )?;
     let ended_at = now_iso();
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = execution.exit_code().map_or(1, |code| code.get());
     let status = if exit_code == 0 {
         ProofStatus::Passed
     } else {

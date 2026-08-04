@@ -12,6 +12,7 @@ use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::severity::Severity;
 use enforcer_domain::telemetry_types::SourceLine;
 
+/// Check configured imports, including side-effect-only imports, against policy.
 pub fn check(
     root: &RepoRoot,
     scope: ScanScope,
@@ -84,6 +85,15 @@ fn policy_matches(policy: &ImportBoundaryPolicy, path: &str) -> bool {
             .any(|root| path == root.as_str() || path.starts_with(&format!("{}/", root.as_str())))
 }
 fn import_specifier(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    if let Some(remainder) = trimmed.strip_prefix("import") {
+        let remainder = remainder.trim_start();
+        let quote = remainder.chars().next()?;
+        if matches!(quote, '\'' | '\"') {
+            let content = remainder.get(quote.len_utf8()..)?;
+            return content.split_once(quote).map(|(value, _)| value);
+        }
+    }
     let from = import_from_keyword(line)?;
     let remainder = line.get(from.checked_add("from".len())?..)?.trim_start();
     let quote = remainder.chars().next()?;
@@ -263,6 +273,36 @@ mod tests {
         assert_eq!(report.ok, ReportOutcome::Violations);
         assert_eq!(report.findings.len(), 1);
         assert!(report.findings[0].detail.as_str().contains("@infra/client"));
+        Ok(())
+    }
+
+    #[test]
+    fn side_effect_imports_are_checked_against_boundary_policy(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src/domain"))?;
+        std::fs::write(
+            temp.path().join("src/domain/bad.ts"),
+            "import '@infra/private';\n",
+        )?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","importBoundaryPolicies":[{"roots":["src/domain"],"forbiddenImports":["@infra/**"]}]}"#,
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let report = check(
+            &root,
+            ScanScope::Files,
+            &["src/domain/bad.ts".parse()?],
+            &config,
+        )?;
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0]
+            .detail
+            .as_str()
+            .contains("@infra/private"));
         Ok(())
     }
 

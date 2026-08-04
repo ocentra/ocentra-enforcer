@@ -423,11 +423,13 @@ impl NativeProofLifecycle {
     /// bounded; undeclared, escaping, or oversized artifacts fail closed.
     pub fn read_declared_artifact(&self, run_id: &ProofRunId, path: &RelPath) -> Result<Vec<u8>> {
         let run = self.read_run(run_id)?;
-        if !run.artifacts.iter().any(|artifact| artifact.path == *path) {
-            return Err(Error::InvalidConfig(
-                "artifact is not declared by this proof run".to_owned(),
-            ));
-        }
+        let artifact = run
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.path == *path)
+            .ok_or_else(|| {
+                Error::InvalidConfig("artifact is not declared by this proof run".to_owned())
+            })?;
         let target = self.contained_path(path)?;
         let metadata = std::fs::metadata(&target)?;
         if metadata.len() > MAX_DECLARED_ARTIFACT_BYTES {
@@ -435,9 +437,15 @@ impl NativeProofLifecycle {
                 "declared artifact exceeds read bound".to_owned(),
             ));
         }
-        let mut value = serde_json::Value::String(
-            String::from_utf8_lossy(&std::fs::read(target)?).into_owned(),
-        );
+        let bytes = std::fs::read(target)?;
+        let byte_length = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+        let digest = enforcer_core::hash_chain::link_digest(None, &bytes);
+        if byte_length != artifact.byte_length || digest != artifact.sha256 {
+            return Err(Error::InvalidConfig(
+                "declared artifact bytes do not match the persisted proof run".to_owned(),
+            ));
+        }
+        let mut value = serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned());
         Redactor::with_defaults()?.redact(&mut value);
         match value {
             serde_json::Value::String(redacted) => Ok(redacted.into_bytes()),

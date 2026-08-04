@@ -26,14 +26,15 @@ use enforcer_domain::{
     config_types::{ConfigProfileName, CrateName, HarnessArtifactByteLimit, HarnessRunLimit},
     coordination_types::{
         ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CoordinationBranch,
-        CoordinationLedgerRoot, CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
+        CoordinationLedgerRoot, CoordinationOwnerIdentity, CoordinationProjectId,
+        CoordinationRepoRoot, CoordinationWorktree,
     },
     harness_types::{
         HarnessArtifactKind, HarnessDomainName, HarnessPackageName, HarnessRunId, HarnessRunStatus,
         HarnessTag, HarnessToolName,
     },
     ids::{HubName, LaneId},
-    mcp_types::{ArtifactPath, McpActionName, McpFreshness, McpToolName},
+    mcp_types::{ArtifactPath, McpActionName, McpFingerprint, McpFreshness, McpToolName},
     paths::{RelPath, RepoRoot},
     scan_types::{CommitRef, RouteScope},
     severity::Severity,
@@ -63,8 +64,20 @@ pub enum DispatchOutcome {
 #[derive(Debug, Clone)]
 pub struct DispatchContext {
     pub freshness: McpFreshness,
+    pub startup_fingerprint: Option<McpFingerprint>,
     pub cli_path: ArtifactPath,
     pub validation_history: Arc<Mutex<ValidationHistory>>,
+}
+
+impl DispatchContext {
+    // BOUNDARY-INVARIANT: freshness is recomputed from immutable startup
+    // identity before routing a transport request.
+    fn current_freshness(&self) -> McpFreshness {
+        let Some(startup) = &self.startup_fingerprint else {
+            return self.freshness;
+        };
+        crate::fingerprint::current_mcp_freshness(startup)
+    }
 }
 
 /// Route one `tools/call`. `name` is taken as received on the wire (may be
@@ -101,7 +114,8 @@ pub fn dispatch(
     }
 
     let gate_args = gate_args_from(args);
-    if gate::should_block_stale_tool(&canonical, &gate_args, ctx.freshness) {
+    let freshness = ctx.current_freshness();
+    if gate::should_block_stale_tool(&canonical, &gate_args, freshness) {
         return DispatchOutcome::StaleRefused(Box::new(gate::stale_fallback(
             &canonical,
             ctx.freshness,
@@ -235,10 +249,13 @@ fn explain(args: &serde_json::Value) -> serde_json::Value {
 /// proof tools share the typed snapshot; mutation tools are explicit and do
 /// not fabricate legacy results when their native input is absent.
 fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Value {
-    let root = args
-        .get("root")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or(".");
+    let root = match args.get("root") {
+        None => ".",
+        Some(serde_json::Value::String(value)) => value.as_str(),
+        Some(_) => {
+            return serde_json::json!({"ok":false,"operation":operation,"error":"root must be a string"});
+        }
+    };
     let lifecycle = match enforcer_proof::boundary::lifecycle::NativeProofLifecycle::open(
         std::path::Path::new(root),
     ) {
@@ -773,12 +790,19 @@ fn gate_args_from(args: &serde_json::Value) -> GateArgs {
 fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     const SUPPORTED_FIELDS: &[&str] = &[
         "root",
+        "configPath",
+        "profile",
         "scope",
         "files",
         "crateName",
         "base",
         "head",
         "languages",
+        "cargo",
+        "diagnosticLimit",
+        "summaryOnly",
+        "groupBy",
+        "includeScope",
     ];
     let Some(object) = args.as_object() else {
         return json_error("scan arguments must be an object");
@@ -793,13 +817,139 @@ fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    if args
+        .get("configPath")
+        .is_some_and(|value| !value.is_string())
+    {
+        return json_error("scan `configPath` must be a string");
+    }
+    if args.get("profile").is_some_and(|value| !value.is_string()) {
+        return json_error("scan `profile` must be a string");
+    }
+    if args.get("cargo").is_some_and(|value| !value.is_boolean()) {
+        return json_error("scan `cargo` must be a boolean");
+    }
+    if args.get("cargo").and_then(serde_json::Value::as_bool) == Some(true) {
+        return json_error("scan `cargo: true` requires the bounded harness cargo adapter");
+    }
     let result = enforcer_scan::boundary::native_scan::execute(&request, &root)
         .map_err(|error| error.to_string())
-        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()));
+        .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
+        .and_then(|report| compact_scan_report(report, args));
     match result {
         Ok(value) => value,
         Err(err) => json_error(&err),
     }
+}
+
+fn compact_scan_report(
+    mut report: serde_json::Value,
+    args: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let summary_only = match args.get("summaryOnly") {
+        None => false,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return Err("scan `summaryOnly` must be a boolean".to_owned()),
+    };
+    let include_scope = match args.get("includeScope") {
+        None => true,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return Err("scan `includeScope` must be a boolean".to_owned()),
+    };
+    let limit = match args.get("diagnosticLimit") {
+        None => 20,
+        Some(value) => value
+            .as_u64()
+            .and_then(|number| usize::try_from(number).ok())
+            .ok_or_else(|| {
+                "scan `diagnosticLimit` must be a non-negative integer within platform bounds"
+                    .to_owned()
+            })?,
+    };
+    let group_by = match args.get("groupBy") {
+        None => None,
+        Some(serde_json::Value::String(value)) if matches!(value.as_str(), "file" | "slice") => {
+            Some(value.as_str())
+        }
+        Some(_) => return Err("scan `groupBy` must be `file` or `slice`".to_owned()),
+    };
+    let wants_compact = summary_only
+        || args.get("diagnosticLimit").is_some()
+        || group_by.is_some()
+        || !include_scope;
+    if !wants_compact {
+        return Ok(report);
+    }
+    let violations = report
+        .get("violations")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let warnings = report
+        .get("warnings")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let findings = violations
+        .iter()
+        .chain(&warnings)
+        .cloned()
+        .collect::<Vec<_>>();
+    let diagnostics = if summary_only {
+        Vec::new()
+    } else {
+        findings.iter().take(limit).cloned().collect::<Vec<_>>()
+    };
+    let mut compact = serde_json::Map::new();
+    for field in [
+        "ok",
+        "command",
+        "check",
+        "root",
+        "profileName",
+        "languages",
+        "bySeverity",
+    ] {
+        if let Some(value) = report.get(field) {
+            compact.insert(field.to_owned(), value.clone());
+        }
+    }
+    compact.insert(
+        "counts".to_owned(),
+        serde_json::json!({
+            "findings": findings.len(),
+            "violations": violations.len(),
+            "warnings": warnings.len(),
+            "returned": diagnostics.len(),
+            "truncated": findings.len() > diagnostics.len(),
+        }),
+    );
+    compact.insert(
+        "diagnostics".to_owned(),
+        serde_json::Value::Array(diagnostics),
+    );
+    if include_scope {
+        if let Some(scope) = report.get("scope") {
+            compact.insert("scope".to_owned(), scope.clone());
+        }
+    }
+    if let Some(group_by) = group_by {
+        let mut groups = std::collections::BTreeMap::<String, usize>::new();
+        let key = if group_by == "file" { "file" } else { "slice" };
+        for finding in &findings {
+            let label = finding
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("unknown");
+            *groups.entry(label.to_owned()).or_default() += 1;
+        }
+        compact.insert(
+            "groups".to_owned(),
+            serde_json::to_value(groups).map_err(|error| error.to_string())?,
+        );
+    }
+    report = serde_json::Value::Object(compact);
+    Ok(report)
 }
 
 fn native_scan_request(
@@ -2697,8 +2847,8 @@ fn mcp_status(ctx: &DispatchContext) -> serde_json::Value {
     serde_json::json!({
         "ok": true,
         "serverName": crate::name::SERVER_NAME,
-        "directWritesAllowed": matches!(ctx.freshness, McpFreshness::Fresh),
-        "hashCompatible": !matches!(ctx.freshness, McpFreshness::HashIncompatible),
+        "directWritesAllowed": matches!(ctx.current_freshness(), McpFreshness::Fresh),
+        "hashCompatible": !matches!(ctx.current_freshness(), McpFreshness::HashIncompatible),
         "aliasWindowOpen": crate::aliases::deprecation_window_open(),
         "toolCount": descriptors.len(),
         "toolSurfaceBytes": crate::registry::tool_surface_bytes(&descriptors),
@@ -3335,6 +3485,28 @@ fn coordination_context(
         .map(str::parse::<CommitRef>)
         .transpose()
         .map_err(|error| error.to_string())?;
+    let codex_thread_id = args
+        .get("codexThreadId")
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| "codexThreadId must be a string".to_owned())
+                .and_then(|value| {
+                    CoordinationOwnerIdentity::parse(value).map_err(|error| error.to_string())
+                })
+        })
+        .transpose()?;
+    let codex_session_id = args
+        .get("codexSessionId")
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| "codexSessionId must be a string".to_owned())
+                .and_then(|value| {
+                    CoordinationOwnerIdentity::parse(value).map_err(|error| error.to_string())
+                })
+        })
+        .transpose()?;
     Ok((
         hub,
         lane,
@@ -3343,8 +3515,8 @@ fn coordination_context(
             worktree_root,
             branch,
             commit,
-            codex_thread_id: None,
-            codex_session_id: None,
+            codex_thread_id,
+            codex_session_id,
         },
     ))
 }
@@ -3403,7 +3575,20 @@ fn coordination_closeout(args: &serde_json::Value) -> serde_json::Value {
     if args.get("allLanes").and_then(serde_json::Value::as_bool) == Some(true) {
         filters.lane_scope = enforcer_domain::coordination_types::CloseoutLaneScope::AllLanes;
     }
-    match api::closeout(&hub, &lane, &filters, &caller, None) {
+    let reason = match args
+        .get("reason")
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| "closeout reason must be a string".to_owned())
+                .and_then(|value| ClaimReason::parse(value).map_err(|error| error.to_string()))
+        })
+        .transpose()
+    {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    match api::closeout(&hub, &lane, &filters, &caller, reason.as_ref()) {
         Ok(events) => {
             serde_json::json!({"ok":true,"releasedEventCount":events.len(),"events":events})
         }
@@ -3757,11 +3942,34 @@ mod tests {
     fn ctx(freshness: McpFreshness) -> DispatchContext {
         DispatchContext {
             freshness,
+            startup_fingerprint: None,
             cli_path: ArtifactPath::from_path(std::path::Path::new("/abs/enforcer")),
             validation_history: std::sync::Arc::new(std::sync::Mutex::new(
                 crate::validation_history::ValidationHistory::default(),
             )),
         }
+    }
+
+    #[test]
+    fn dispatch_context_recomputes_freshness_from_startup_artifact(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let binary = temp.path().join("server.exe");
+        std::fs::write(&binary, b"startup")?;
+        let version = enforcer_domain::mcp_types::PackageVersion::try_new("1.0.0")?;
+        let startup = crate::fingerprint::build_mcp_fingerprint(&binary, version, None);
+        let context = DispatchContext {
+            freshness: McpFreshness::Fresh,
+            startup_fingerprint: Some(startup),
+            cli_path: ArtifactPath::from_path(&binary),
+            validation_history: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::validation_history::ValidationHistory::default(),
+            )),
+        };
+        assert_eq!(context.current_freshness(), McpFreshness::Fresh);
+        std::fs::write(binary, b"replaced")?;
+        assert_eq!(context.current_freshness(), McpFreshness::Stale);
+        Ok(())
     }
 
     #[test]
@@ -3979,14 +4187,14 @@ mod tests {
     }
 
     #[test]
-    fn scan_rejects_unsupported_schema_fields_instead_of_ignoring_them(
+    fn scan_rejects_fields_absent_from_the_advertised_schema(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_scan")?,
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
-                "profile": "strict",
+                "unexpected": "value",
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -3996,7 +4204,7 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(false));
         assert!(value["error"]
             .as_str()
-            .is_some_and(|message| message.contains("does not support `profile`")));
+            .is_some_and(|message| message.contains("does not support `unexpected`")));
         Ok(())
     }
 

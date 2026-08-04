@@ -150,6 +150,8 @@ clap = { version = "4", features = ["derive"] }
 rayon = "1"
 # DEPENDENCY-JUSTIFICATION: content hashing for artifacts, integrity, and findings.
 sha2 = "0.10.9"
+# DEPENDENCY-JUSTIFICATION: proof journal writers need a cross-process lock across replay verification and append.
+fs2 = "=0.4.3"
 # DEPENDENCY-JUSTIFICATION: async CLI and MCP runtime primitives.
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
 # DEPENDENCY-JUSTIFICATION: structured TOML edits for configuration workflows.

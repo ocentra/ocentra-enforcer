@@ -18,6 +18,9 @@ use enforcer_domain::telemetry_types::SourceLine;
 /// Match the frozen MJS generated-output classifier.
 pub fn is_generated_artifact_path(path: &str) -> bool {
     let path = path.replace('\\', "/");
+    if path.split('/').any(|segment| segment == "fixtures") {
+        return false;
+    }
     let segment_count = path.split('/').count();
     path.starts_with("output/")
         || path.starts_with("test-results/")
@@ -64,10 +67,9 @@ pub fn check(
                     is_scoped_generated_output_path(file.as_str())
                 };
                 generated
-                    && (!tracked
-                        || !allowlist
-                            .iter()
-                            .any(|pattern| glob_matches(pattern, file.as_str())))
+                    && !allowlist
+                        .iter()
+                        .any(|pattern| glob_matches(pattern, file.as_str()))
             })
             .filter_map(|file| finding(rule_id.clone(), file)),
     );
@@ -302,6 +304,12 @@ mod tests {
         assert!(!is_generated_artifact_path("target-proof.rs"));
         assert!(!is_generated_artifact_path("targeting/proof.json"));
         assert!(!is_generated_artifact_path(".tmpkeeper/report.json"));
+        assert!(!is_generated_artifact_path(
+            "tests/fixtures/project/dist/bundle.js"
+        ));
+        assert!(!is_generated_artifact_path(
+            "tests/fixtures/coverage/report.json"
+        ));
         assert!(!is_generated_artifact_path("src/domain/order.rs"));
     }
     #[test]
@@ -343,8 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn scope_mode_matches_frozen_root_paths_without_allowlist(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn scope_mode_honors_generated_path_allowlist() -> Result<(), Box<dyn std::error::Error>> {
         let root: RepoRoot = "C:/fixture".parse()?;
         let files = [
             "src/generated/client.rs".parse()?,
@@ -357,9 +364,7 @@ mod tests {
             false,
             &["output/**".to_owned()],
         )?;
-        assert_eq!(report.findings.len(), 1);
-        assert_eq!(report.findings[0].rule_id.as_str(), "GEN-1.2");
-        assert_eq!(report.findings[0].file.as_str(), "output/report.json");
+        assert!(report.findings.is_empty());
         Ok(())
     }
     #[test]

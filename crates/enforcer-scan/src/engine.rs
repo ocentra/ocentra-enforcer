@@ -424,8 +424,14 @@ pub fn run_secret_policy(
     let sources = files
         .par_iter()
         .filter(|file| should_scan_source(scope, file))
-        .filter_map(|file| {
-            read_file_utf8(&scope.repo_root, file).map(|source| (file.clone(), source))
+        .map(|file| {
+            // SensitiveFilesValidator is path-only and must still see a selected
+            // file when its bytes are not valid UTF-8. Inline content scanning
+            // receives an empty source in that case rather than silently
+            // removing the path from the secret gate.
+            let source = read_file_utf8(&scope.repo_root, file)
+                .unwrap_or_else(|| ValidationSourceText::try_new(String::new()));
+            (file.clone(), source)
         })
         .collect::<Vec<_>>();
     run_secret_policy_for_sources(scope, &sources)

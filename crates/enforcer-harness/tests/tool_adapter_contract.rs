@@ -796,6 +796,30 @@ fn bounded_runner_terminates_descendants_that_inherit_output_pipes() -> Result<(
 }
 
 #[test]
+fn bounded_runner_terminates_residual_group_after_leader_success() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let sentinel = temp.path().join("ul07-success-descendant-sentinel");
+    let command = child_command("child_entry_exits_after_spawning_descendant")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
+    let started = std::time::Instant::now();
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::Completed, true)?;
+    if started.elapsed() > std::time::Duration::from_secs(3) {
+        return Err(Error::InvalidConfig(
+            "successful leader left descendant-held output pipes open".to_owned(),
+        ));
+    }
+    std::thread::park_timeout(std::time::Duration::from_millis(1_500));
+    if sentinel.exists() {
+        return Err(Error::InvalidConfig(
+            "descendant survived the successful leader's process group".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
 fn bounded_runner_terminates_overflow_child_before_sentinel() -> Result<()> {
     let temp = tempfile::TempDir::new()?;
     let root = RepoRoot::try_from(temp.path())?;
@@ -993,6 +1017,42 @@ fn child_entry_writes_descendant_sentinel() {
         std::thread::park_timeout(std::time::Duration::from_secs(1));
         let _ = std::fs::write("ul07-descendant-sentinel", "late");
     }
+}
+
+#[test]
+fn child_entry_exits_after_spawning_descendant() {
+    if child_mode() {
+        let executable = match std::env::current_exe() {
+            Ok(executable) => executable,
+            Err(_error) => std::process::exit(91),
+        };
+        let mut descendant = std::process::Command::new(executable);
+        descendant.args([
+            "--exact",
+            "child_entry_writes_success_descendant_sentinel",
+            "--nocapture",
+            "--",
+            "--ul07-child",
+        ]);
+        match descendant.spawn() {
+            Ok(child) if child.id() != 0 => std::process::exit(0),
+            Ok(_child) => std::process::exit(92),
+            Err(_error) => std::process::exit(93),
+        }
+    }
+    assert!(!child_mode(), "child helper returned without exiting");
+}
+
+#[test]
+fn child_entry_writes_success_descendant_sentinel() {
+    if child_mode() {
+        std::thread::park_timeout(std::time::Duration::from_secs(1));
+        let _ = std::fs::write("ul07-success-descendant-sentinel", "late");
+    }
+    assert!(
+        !child_mode(),
+        "child helper returned without writing its sentinel"
+    );
 }
 
 #[test]

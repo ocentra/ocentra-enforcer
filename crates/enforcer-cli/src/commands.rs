@@ -74,7 +74,7 @@ fn git_diff_files(
         return Ok(Vec::new());
     };
     let output = std::process::Command::new("git")
-        .args(["diff", "--name-only"])
+        .args(["diff", "--name-only", "-z"])
         .arg(format!("--diff-filter={diff_filter}"))
         .arg(base.as_str())
         .arg(head.as_str())
@@ -83,9 +83,13 @@ fn git_diff_files(
     if !output.status.success() {
         return Err(std::io::Error::other("git diff --name-only failed"));
     }
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
+    output
+        .stdout
+        .split(|byte| *byte == b'\0')
+        .filter(|path| !path.is_empty())
         .map(|line| {
+            let line = std::str::from_utf8(line)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
             line.parse().map_err(|error| {
                 std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{error}"))
             })
@@ -294,7 +298,14 @@ fn run_single_source_contracts_policy(args: &SingleSourceContractsArgs) -> ExitC
                 return ExitCode::UsageError;
             }
         };
-    let files = match walk::walk(Path::new(root.as_str()), &walk::IgnoreRules::default()) {
+    let ignore_rules = match load_policy_ignore_rules(&root) {
+        Ok(value) => value,
+        Err(error) => {
+            output::print_internal_error(&format!("config load failed: {error}"));
+            return ExitCode::InternalError;
+        }
+    };
+    let files = match walk::walk(Path::new(root.as_str()), &ignore_rules) {
         Ok(value) => value,
         Err(error) => {
             output::print_internal_error(&format!("walk failed: {error}"));
