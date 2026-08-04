@@ -3395,6 +3395,10 @@ fn coordination_closeout(args: &serde_json::Value) -> serde_json::Value {
     };
     let mut filters = api::CloseoutFilters {
         lane: Some(lane.clone()),
+        codex_thread_id: caller.codex_thread_id.clone(),
+        codex_session_id: caller.codex_session_id.clone(),
+        project_id: Some(caller.project_id.clone()),
+        worktree_root: Some(caller.worktree_root.clone()),
         ..Default::default()
     };
     if args.get("allLanes").and_then(serde_json::Value::as_bool) == Some(true) {
@@ -5603,6 +5607,20 @@ mod tests {
             return Err("second claim was not dispatched".into());
         };
         assert_eq!(second_claim["ok"], serde_json::json!(true));
+
+        let mut sibling_claim_args = common.clone();
+        sibling_claim_args["worktreeRoot"] = serde_json::json!("E:/mcp-sibling");
+        sibling_claim_args["projectId"] = serde_json::json!("mcp-sibling");
+        sibling_claim_args["paths"] = serde_json::json!(["crates/sibling/src/lib.rs"]);
+        let DispatchOutcome::Result(sibling_claim) = dispatch(
+            &tool("ocentra_enforcer_coordination_claim")?,
+            &sibling_claim_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("sibling claim was not dispatched".into());
+        };
+        assert_eq!(sibling_claim["ok"], serde_json::json!(true));
+
         let DispatchOutcome::Result(closeout) = dispatch(
             &tool("ocentra_enforcer_coordination_closeout")?,
             &common,
@@ -5611,6 +5629,21 @@ mod tests {
             return Err("closeout was not dispatched".into());
         };
         assert_eq!(closeout["ok"], serde_json::json!(true));
+
+        let sibling_guard = serde_json::json!({
+            "root": root,
+            "hub": "mcp-e2e",
+            "lane": "lane-b",
+            "paths": ["crates/sibling/src/lib.rs"]
+        });
+        let DispatchOutcome::Result(sibling_still_claimed) = dispatch(
+            &tool("ocentra_enforcer_coordination_guard")?,
+            &sibling_guard,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("sibling guard was not dispatched".into());
+        };
+        assert_eq!(sibling_still_claimed["allowed"], serde_json::json!(false));
 
         assert!(matches!(
             dispatch(
