@@ -140,12 +140,15 @@ fn check(name: &'static str, ok: bool, detail: String) -> DoctorCheck {
 }
 
 fn command_exists(command: &str) -> bool {
-    Command::new(command).arg("--version").output().is_ok()
+    Command::new(command)
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{run, DoctorRequest};
+    use super::{command_exists, run, DoctorRequest};
     use crate::boundary::native_scan::{NativeScanRequest, NativeScanScope};
     use enforcer_domain::paths::RepoRoot;
 
@@ -186,6 +189,29 @@ mod tests {
             .iter()
             .find(|check| check.name() == "scope files")
             .is_some_and(|check| check.ok()));
+        Ok(())
+    }
+
+    #[test]
+    fn command_probe_rejects_an_installed_tool_that_exits_nonzero(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        #[cfg(windows)]
+        let tool = {
+            let path = temp.path().join("broken-tool.cmd");
+            std::fs::write(&path, "@exit /b 17\r\n")?;
+            path
+        };
+        #[cfg(unix)]
+        let tool = {
+            use std::os::unix::fs::PermissionsExt;
+            let path = temp.path().join("broken-tool");
+            std::fs::write(&path, "#!/bin/sh\nexit 17\n")?;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+            path
+        };
+
+        assert!(!command_exists(tool.to_string_lossy().as_ref()));
         Ok(())
     }
 }
