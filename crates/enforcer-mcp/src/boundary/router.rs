@@ -3484,10 +3484,24 @@ fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
     else {
         return json_error("coordination_guard requires `paths`");
     };
-    let requested: Vec<_> = paths.iter().filter_map(serde_json::Value::as_str).collect();
-    if requested.len() != paths.len() || requested.is_empty() {
-        return json_error("coordination_guard paths must be non-empty strings");
-    }
+    let requested = match paths
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .ok_or_else(|| "coordination_guard paths must be non-empty strings".to_owned())
+                .and_then(|value| ClaimPath::parse(value).map_err(|error| error.to_string()))
+                .and_then(|path| {
+                    enforcer_coordination::lock::singletons::normalize_coordination_path(&path)
+                        .map_err(|error| error.to_string())
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(value) if !value.is_empty() => value,
+        Ok(_) => return json_error("coordination_guard paths must be non-empty strings"),
+        Err(error) => return json_error(&error),
+    };
     match enforcer_coordination::sync::stream::read_all_streams(&root) {
         Ok(all) => {
             let active = enforcer_coordination::ledger::active_claims(&all.events);
@@ -3499,7 +3513,20 @@ fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
                         && claim
                             .paths
                             .iter()
-                            .any(|owned| requested.iter().any(|path| owned.as_str() == *path))
+                            .filter_map(|owned| {
+                                enforcer_coordination::lock::singletons::normalize_coordination_path(
+                                    owned,
+                                )
+                                .ok()
+                            })
+                            .any(|owned| {
+                                requested.iter().any(|path| {
+                                    matches!(
+                                        enforcer_coordination::lock::path_overlaps(&owned, path),
+                                        enforcer_domain::coordination_types::CoordinationMatch::Matches
+                                    )
+                                })
+                            })
                 })
                 .collect();
             serde_json::json!({"ok":blockers.is_empty(),"allowed":blockers.is_empty(),"blockerCount":blockers.len(),"blockers":blockers.iter().map(|claim| serde_json::json!({"lane":claim.lane.as_str(),"paths":claim.paths.iter().map(ClaimPath::as_str).collect::<Vec<_>>() })).collect::<Vec<_>>()})
@@ -5579,6 +5606,7 @@ mod tests {
 
         let mut conflicting_guard = guard_args.clone();
         conflicting_guard["lane"] = serde_json::json!("lane-b");
+        conflicting_guard["paths"] = serde_json::json!(["./crates\\example//src/lib.rs"]);
         let DispatchOutcome::Result(blocked) = dispatch(
             &tool("ocentra_enforcer_coordination_guard")?,
             &conflicting_guard,
