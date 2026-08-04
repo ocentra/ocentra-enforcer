@@ -9,6 +9,7 @@ use std::net::TcpListener;
 use std::sync::{Mutex, OnceLock};
 
 use crate::error::{CoordinationError, Result};
+use enforcer_domain::coordination_types::CoordinationLedgerRoot;
 use enforcer_domain::coordination_types::CoordinationRejection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,7 +38,12 @@ impl serde::Serialize for EnsureStatus {
 static SERVICES: OnceLock<Mutex<BTreeMap<String, u16>>> = OnceLock::new();
 
 /// Ensure an authenticated loopback coordination service is listening.
-pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus> {
+pub fn ensure(
+    root: &CoordinationLedgerRoot,
+    host: &str,
+    port: u16,
+    token: Option<&str>,
+) -> Result<EnsureStatus> {
     if host != "127.0.0.1" && host != "localhost" {
         return Err(rejected("coordination ensure only permits loopback hosts"));
     }
@@ -57,6 +63,7 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
     let listener = TcpListener::bind(("127.0.0.1", port)).map_err(CoordinationError::Io)?;
     let actual_port = listener.local_addr().map_err(CoordinationError::Io)?.port();
     let expected_token = token.map(str::to_owned);
+    let ledger_root = root.as_path().to_path_buf();
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
             let mut stream = stream;
@@ -70,13 +77,13 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
             let request = String::from_utf8_lossy(bytes);
             let authorized = expected_token
                 .as_ref()
-                .is_none_or(|value| request.contains(&format!("Authorization: Bearer {value}")));
-            let response = if authorized && request.starts_with("GET /health ") {
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 11\r\n\r\n{\"ok\":true}"
+                .is_none_or(|value| authorization_bearer(&request) == Some(value.as_str()));
+            let response = if !authorized {
+                http_response("401 Unauthorized", "application/json", "")
             } else {
-                "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"
+                serve_request(&ledger_root, &request)
             };
-            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.write_all(&response);
         }
     });
     services
@@ -90,6 +97,64 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
     })
 }
 
+fn authorization_bearer(request: &str) -> Option<&str> {
+    request.lines().skip(1).find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        if !name.trim().eq_ignore_ascii_case("authorization") {
+            return None;
+        }
+        value.trim().strip_prefix("Bearer ")
+    })
+}
+
+fn serve_request(root: &std::path::Path, request: &str) -> Vec<u8> {
+    let target = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1));
+    match target {
+        Some("/health") => http_response("200 OK", "application/json", "{\"ok\":true}"),
+        Some("/manifest") => match crate::sync::stream::list_stream_files(root) {
+            Ok(streams) => {
+                let body = serde_json::json!({
+                    "streams": streams.iter().map(|stream| stream.as_str()).collect::<Vec<_>>()
+                })
+                .to_string();
+                http_response("200 OK", "application/json", &body)
+            }
+            Err(_) => http_response("500 Internal Server Error", "application/json", ""),
+        },
+        Some(target) if target.starts_with("/streams/") => {
+            let requested = target.trim_start_matches("/streams/").replace("%25", "%");
+            match crate::sync::stream::list_stream_files(root).and_then(|streams| {
+                streams
+                    .into_iter()
+                    .find(|stream| stream.as_str() == requested)
+                    .ok_or_else(|| rejected("coordination stream was not found"))
+            }) {
+                Ok(stream_name) => {
+                    match std::fs::read_to_string(root.join("streams").join(stream_name.as_str())) {
+                        Ok(body) => http_response("200 OK", "application/x-ndjson", &body),
+                        Err(_) => {
+                            http_response("500 Internal Server Error", "application/json", "")
+                        }
+                    }
+                }
+                Err(_) => http_response("404 Not Found", "application/json", ""),
+            }
+        }
+        _ => http_response("404 Not Found", "application/json", ""),
+    }
+}
+
+fn http_response(status: &str, content_type: &str, body: &str) -> Vec<u8> {
+    format!(
+        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .into_bytes()
+}
+
 fn rejected(message: &'static str) -> CoordinationError {
     match CoordinationRejection::from_static(message) {
         Ok(reason) => CoordinationError::rejected(reason),
@@ -101,17 +166,22 @@ fn rejected(message: &'static str) -> CoordinationError {
 mod tests {
     use super::ensure;
     use crate::error::CoordinationError;
+    use enforcer_domain::coordination_types::CoordinationLedgerRoot;
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
-    fn request(port: u16, authorization: Option<&str>) -> Result<String, std::io::Error> {
+    fn request(
+        port: u16,
+        target: &str,
+        authorization: Option<(&str, &str)>,
+    ) -> Result<String, std::io::Error> {
         let mut stream = TcpStream::connect(("127.0.0.1", port))?;
         let auth = match authorization {
-            Some(value) => format!("Authorization: Bearer {value}\r\n"),
+            Some((name, value)) => format!("{name}: Bearer {value}\r\n"),
             None => String::new(),
         };
         stream.write_all(
-            format!("GET /health HTTP/1.1\r\nHost: localhost\r\n{auth}\r\n").as_bytes(),
+            format!("GET {target} HTTP/1.1\r\nHost: localhost\r\n{auth}\r\n").as_bytes(),
         )?;
         let mut response = String::new();
         stream.read_to_string(&mut response)?;
@@ -120,8 +190,10 @@ mod tests {
 
     #[test]
     fn ensure_is_idempotent_and_authenticates_health() -> crate::error::Result<()> {
-        let initial = ensure("127.0.0.1", 0, Some("token"))?;
-        let repeated = ensure("127.0.0.1", initial.port, Some("different-token"))?;
+        let root_dir = tempfile::tempdir()?;
+        let root = CoordinationLedgerRoot::parse(root_dir.path())?;
+        let initial = ensure(&root, "127.0.0.1", 0, Some("token"))?;
+        let repeated = ensure(&root, "127.0.0.1", initial.port, Some("different-token"))?;
         assert!(repeated.reused);
         assert_eq!(
             serde_json::to_value(&initial)?,
@@ -131,14 +203,39 @@ mod tests {
                 "reused": false,
             })
         );
-        assert!(request(initial.port, None)?.starts_with("HTTP/1.1 401"));
-        assert!(request(initial.port, Some("token"))?.starts_with("HTTP/1.1 200"));
+        assert!(request(initial.port, "/health", None)?.starts_with("HTTP/1.1 401"));
+        assert!(
+            request(initial.port, "/health", Some(("authorization", "token")))?
+                .starts_with("HTTP/1.1 200")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn ensured_service_serves_manifest_and_stream_routes() -> crate::error::Result<()> {
+        let root_dir = tempfile::tempdir()?;
+        std::fs::create_dir_all(root_dir.path().join("streams"))?;
+        std::fs::write(
+            root_dir.path().join("streams/node_lane.ndjson"),
+            "{\"seq\":1}\n",
+        )?;
+        let root = CoordinationLedgerRoot::parse(root_dir.path())?;
+        let service = ensure(&root, "127.0.0.1", 0, None)?;
+        let manifest = request(service.port, "/manifest", None)?;
+        assert!(manifest.starts_with("HTTP/1.1 200"));
+        assert!(manifest.contains("node_lane.ndjson"));
+        let stream = request(service.port, "/streams/node_lane.ndjson", None)?;
+        assert!(stream.starts_with("HTTP/1.1 200"));
+        assert!(stream.ends_with("{\"seq\":1}\n"));
         Ok(())
     }
 
     #[test]
     fn ensure_rejects_non_loopback_bind() -> Result<(), String> {
-        let error = ensure("0.0.0.0", 8787, None)
+        let root_dir = tempfile::tempdir().map_err(|error| error.to_string())?;
+        let root =
+            CoordinationLedgerRoot::parse(root_dir.path()).map_err(|error| error.to_string())?;
+        let error = ensure(&root, "0.0.0.0", 8787, None)
             .err()
             .ok_or("non-loopback daemon binds must be rejected")?;
         match error {

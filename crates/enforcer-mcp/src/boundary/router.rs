@@ -2817,6 +2817,12 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
 }
 
 fn coordination_ensure(args: &serde_json::Value) -> serde_json::Value {
+    let root = match coordination_storage_root(args, "coordination_ensure")
+        .and_then(|path| CoordinationLedgerRoot::parse(&path).map_err(|error| error.to_string()))
+    {
+        Ok(root) => root,
+        Err(error) => return json_error(&error),
+    };
     let host = args
         .get("host")
         .and_then(serde_json::Value::as_str)
@@ -2836,7 +2842,7 @@ fn coordination_ensure(args: &serde_json::Value) -> serde_json::Value {
         Some(serde_json::Value::String(value)) if !value.is_empty() => Some(value.as_str()),
         Some(_) => return json_error("coordination_ensure `token` must be a non-empty string"),
     };
-    match enforcer_coordination::daemon::boundary::ensure(host, port, token) {
+    match enforcer_coordination::daemon::boundary::ensure(&root, host, port, token) {
         Ok(status) => serde_json::json!({"ok":true,"service":status}),
         Err(error) => {
             let message = error.to_string();
