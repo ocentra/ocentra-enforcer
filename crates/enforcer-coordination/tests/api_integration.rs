@@ -123,12 +123,12 @@ fn stale_repair_is_dry_run_first_then_appends_claim_resolve(
         ClaimRequestArgs {
             repo_root: &repo_root,
             lane: &lane,
-            owns: &[ClaimPath::from_static("lib.rs")?],
+            owns: &[ClaimPath::from_static("src")?],
             caller: &context,
             reason: None,
         },
     )?;
-    let paths = [ClaimPath::from_static("lib.rs")?];
+    let paths = [ClaimPath::from_static("src/file.rs")?];
     let (matched, event) = repair_stale_claims(
         &hub,
         enforcer_coordination::api::RepairStaleClaimsArgs {

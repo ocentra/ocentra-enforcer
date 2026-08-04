@@ -32,13 +32,13 @@ use crate::domain::{self, HubConfig};
 use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::ledger::active_claims;
-use crate::lock::{blockers_for_request, enrich_claim, ClaimContext, RawClaim};
+use crate::lock::{blockers_for_request, enrich_claim, path_overlaps, ClaimContext, RawClaim};
 use crate::sync::{retention, stream::read_all_streams};
 use enforcer_domain::coordination_types::{
     ClaimContextPresence, ClaimEventId, ClaimFilterMatch, ClaimGroup, ClaimLane,
     ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope,
     CompactionKeepCount, CoordinationBranch, CoordinationEventKind, CoordinationLedgerRoot,
-    CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
+    CoordinationMatch, CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
     CoordinationRejection, CoordinationRepoRoot, CoordinationReportSummary,
     CoordinationReportTitle, CoordinationRepository, CoordinationWorktree, LockKind, NodeId,
     NodeName, Operation, RepairMatchCount, RepairMode, WriterId,
@@ -371,15 +371,15 @@ pub fn repair_stale_claims(
     let matched = active
         .into_iter()
         .filter(|claim| {
-            claim
-                .paths
-                .iter()
-                .any(|owned| paths.iter().any(|path| path == owned))
-                && owners.is_none_or(|owners| {
-                    owners
-                        .iter()
-                        .any(|owner| owner.as_str() == claim.writer.as_str())
-                })
+            claim.paths.iter().any(|owned| {
+                paths
+                    .iter()
+                    .any(|path| matches!(path_overlaps(path, owned), CoordinationMatch::Matches))
+            }) && owners.is_none_or(|owners| {
+                owners
+                    .iter()
+                    .any(|owner| owner.as_str() == claim.writer.as_str())
+            })
         })
         .count();
     if matches!(mode, RepairMode::DryRun) || matched == 0 {
