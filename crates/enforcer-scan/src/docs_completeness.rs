@@ -287,7 +287,7 @@ fn code_block_findings(rel: &str, text: &str) -> Result<Vec<Finding>, String> {
                     "py",
                 ]
                 .contains(&lang.to_ascii_lowercase().as_str())
-                    && !balanced(&block)
+                    && !balanced(&block, lang)
                 {
                     out.push(finding(
                         "DOCENF-1.3",
@@ -306,9 +306,57 @@ fn code_block_findings(rel: &str, text: &str) -> Result<Vec<Finding>, String> {
     }
     Ok(out)
 }
-fn balanced(value: &str) -> bool {
+fn balanced(value: &str, language: &str) -> bool {
     let mut stack = Vec::new();
-    for c in value.chars() {
+    let mut chars = value.chars().peekable();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut block_comment = false;
+    let python = matches!(language.to_ascii_lowercase().as_str(), "python" | "py");
+    while let Some(c) = chars.next() {
+        if block_comment {
+            if c == '*' && chars.peek() == Some(&'/') {
+                chars.next();
+                block_comment = false;
+            }
+            continue;
+        }
+        if let Some(delimiter) = quote {
+            if c == '\\' && !escaped {
+                escaped = true;
+                continue;
+            }
+            if c == delimiter && !escaped {
+                quote = None;
+            }
+            escaped = false;
+            continue;
+        }
+        if c == '/' && chars.peek() == Some(&'/') {
+            for rest in chars.by_ref() {
+                if rest == '\n' {
+                    break;
+                }
+            }
+            continue;
+        }
+        if c == '/' && chars.peek() == Some(&'*') {
+            chars.next();
+            block_comment = true;
+            continue;
+        }
+        if python && c == '#' {
+            for rest in chars.by_ref() {
+                if rest == '\n' {
+                    break;
+                }
+            }
+            continue;
+        }
+        if matches!(c, '\'' | '"' | '`') {
+            quote = Some(c);
+            continue;
+        }
         match c {
             '{' | '(' | '[' => stack.push(c),
             '}' if stack.pop() != Some('{') => return false,
@@ -318,7 +366,7 @@ fn balanced(value: &str) -> bool {
             _ => {}
         }
     }
-    stack.is_empty()
+    stack.is_empty() && quote.is_none() && !block_comment
 }
 fn finding(
     rule: &str,
@@ -377,6 +425,14 @@ mod tests {
     fn accepts_complete_source_rule_document() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = seed(temp.path(), "# Rule\n## Covered Rules\n## Fails\n```rust\nfn bad() {}\n```\n## Passes\n```rust\nfn good() {}\n```\n## Fix Recipe\n## Validator\n")?;
+        assert!(check(&root, ScanScope::Workspace)?.findings.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn accepts_delimiters_inside_strings_and_comments() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let root = seed(temp.path(), "# Rule\n## Covered Rules\n## Fails\n```rust\nfn bad() { println!(\"{\"); /* ] */ }\n```\n## Passes\n```typescript\nfunction good() { const value = \"]\"; // }\n}\n```\n## Fix Recipe\n## Validator\n")?;
         assert!(check(&root, ScanScope::Workspace)?.findings.is_empty());
         Ok(())
     }
