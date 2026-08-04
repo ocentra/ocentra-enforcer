@@ -247,6 +247,40 @@ pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidato
     run_with_inline_test_policy(scope, files, validators, InlineTestPolicy::Forbid)
 }
 
+/// Run only the cross-language common validator family over every selected
+/// file. This is the semantic backing for MCP's advertised `common` filter;
+/// it is not a file-extension alias.
+pub fn run_common(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    validators: &FamilyValidators,
+) -> Report {
+    let mut findings = files
+        .par_iter()
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .filter(|(file, _source)| {
+            should_scan_source(scope, file) && !is_native_detector_authoring_surface(file, scope)
+        })
+        .flat_map_iter(|(file, source)| {
+            validators
+                .common
+                .iter()
+                .flat_map(|validator| {
+                    validator.validate(ValidationInput {
+                        file,
+                        source: source.as_source(),
+                        scope: scope.kind,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    findings.sort_by(|left, right| {
+        (&left.file, left.line, &left.rule_id).cmp(&(&right.file, right.line, &right.rule_id))
+    });
+    fold_report(scope.kind, findings)
+}
+
 /// Run the engine with the resolved policy for non-Rust inline tests declared
 /// in production modules. Rust's `#[cfg(test)]` modules are idiomatic unit
 /// tests and are exempt from `TEST-2.2`; [`InlineTestPolicy::Forbid`] makes a

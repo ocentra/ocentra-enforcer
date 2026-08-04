@@ -28,6 +28,7 @@ use crate::walk::{self, IgnoreRules};
 /// Language filters supported by the native scan engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NativeScanLanguage {
+    Common,
     Rust,
     TypeScript,
     Python,
@@ -39,7 +40,8 @@ impl NativeScanLanguage {
     fn matches(self, path: &RelPath) -> bool {
         matches!(
             (self, classify(path)),
-            (Self::Rust, LanguageFamily::Rust)
+            (Self::Common, _)
+                | (Self::Rust, LanguageFamily::Rust)
                 | (Self::TypeScript, LanguageFamily::TypeScript)
                 | (Self::Python, LanguageFamily::Python)
                 | (Self::Terraform, LanguageFamily::Terraform)
@@ -146,7 +148,11 @@ pub fn execute(
 ) -> Result<NativeScanResult, NativeScanError> {
     let (resolved, files) = resolve_files(request, repo_root)?;
     let validators = build_family_validators()?;
-    let report = engine::run(&resolved, &files, &validators);
+    let report = if request.languages.as_slice() == [NativeScanLanguage::Common] {
+        engine::run_common(&resolved, &files, &validators)
+    } else {
+        engine::run(&resolved, &files, &validators)
+    };
     Ok(NativeScanResult {
         scope: resolved.kind,
         scanned_files: files,
@@ -652,10 +658,20 @@ fn filter_languages(files: Vec<RelPath>, languages: &[NativeScanLanguage]) -> Ve
     if languages.is_empty() {
         return files;
     }
+    let concrete = languages
+        .iter()
+        .copied()
+        .filter(|language| *language != NativeScanLanguage::Common)
+        .collect::<Vec<_>>();
+    let selected = if concrete.is_empty() {
+        languages
+    } else {
+        &concrete
+    };
     files
         .into_iter()
         .filter(|path| {
-            languages
+            selected
                 .iter()
                 .copied()
                 .any(|language| language.matches(path))
@@ -850,6 +866,34 @@ mod tests {
             files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
             ["src/lib.rs"]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn common_language_filter_does_not_run_rust_specific_validators(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "src/lib.rs",
+            "pub fn rust_specific() { let value: Option<i32> = None; value.unwrap(); }\n",
+        )?;
+        let result = execute(
+            &NativeScanRequest {
+                scope: NativeScanScope::Workspace,
+                languages: vec![NativeScanLanguage::Common],
+            },
+            &root(temp.path())?,
+        )?;
+        assert!(result
+            .scanned_files
+            .iter()
+            .any(|path| path.as_str() == "src/lib.rs"));
+        assert!(result
+            .report
+            .findings
+            .iter()
+            .all(|finding| finding.rule_id.as_str() != "RR-6.1"));
         Ok(())
     }
 

@@ -859,6 +859,7 @@ fn parse_scan_languages(
     values
         .iter()
         .map(|value| match value.as_str() {
+            Some("common") => Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::Common),
             Some("rust") => Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::Rust),
             Some("typescript") => {
                 Ok(enforcer_scan::boundary::native_scan::NativeScanLanguage::TypeScript)
@@ -3722,7 +3723,9 @@ fn json_error(message: &str) -> serde_json::Value {
 mod tests {
     #[cfg(unix)]
     use super::repository_output_directory;
-    use super::{dispatch, parse_proof_status, DispatchContext, DispatchOutcome};
+    use super::{
+        dispatch, parse_proof_status, parse_scan_languages, DispatchContext, DispatchOutcome,
+    };
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
     use std::process::Command;
@@ -3738,6 +3741,16 @@ mod tests {
         assert_eq!(
             parse_proof_status("waived"),
             Ok(enforcer_domain::proof_types::ProofStatus::Waived)
+        );
+    }
+
+    #[test]
+    fn scan_language_decoder_accepts_the_advertised_common_filter() {
+        assert_eq!(
+            parse_scan_languages(Some(&serde_json::json!(["common"]))),
+            Ok(vec![
+                enforcer_scan::boundary::native_scan::NativeScanLanguage::Common
+            ])
         );
     }
 
