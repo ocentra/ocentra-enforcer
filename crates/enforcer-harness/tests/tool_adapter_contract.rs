@@ -772,6 +772,30 @@ fn bounded_runner_terminates_timeout_child_before_sentinel() -> Result<()> {
 }
 
 #[test]
+fn bounded_runner_terminates_descendants_that_inherit_output_pipes() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let sentinel = temp.path().join("ul07-descendant-sentinel");
+    let command = child_command("child_entry_spawns_pipe_inheriting_descendant")?;
+    let reviewed = spec_with_command(command.clone(), 80, 1_024)?;
+    let started = std::time::Instant::now();
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::TimedOut, true)?;
+    if started.elapsed() > std::time::Duration::from_secs(3) {
+        return Err(Error::InvalidConfig(
+            "descendant-held output pipes exceeded the bounded shutdown window".to_owned(),
+        ));
+    }
+    std::thread::park_timeout(std::time::Duration::from_millis(1_500));
+    if sentinel.exists() {
+        return Err(Error::InvalidConfig(
+            "timed-out descendant survived process-tree termination".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
 fn bounded_runner_terminates_overflow_child_before_sentinel() -> Result<()> {
     let temp = tempfile::TempDir::new()?;
     let root = RepoRoot::try_from(temp.path())?;
@@ -936,6 +960,31 @@ fn child_entry_writes_timeout_sentinel() {
     if child_mode() {
         std::thread::park_timeout(std::time::Duration::from_millis(250));
         let _ = std::fs::write("ul07-timeout-sentinel", "late");
+    }
+}
+
+#[test]
+fn child_entry_spawns_pipe_inheriting_descendant() {
+    if child_mode() {
+        let executable = std::env::current_exe().expect("current test executable");
+        let mut descendant = std::process::Command::new(executable);
+        descendant.args([
+            "--exact",
+            "child_entry_writes_descendant_sentinel",
+            "--nocapture",
+            "--",
+            "--ul07-child",
+        ]);
+        let _child = descendant.spawn().expect("spawn descendant fixture");
+        std::thread::park_timeout(std::time::Duration::from_secs(5));
+    }
+}
+
+#[test]
+fn child_entry_writes_descendant_sentinel() {
+    if child_mode() {
+        std::thread::park_timeout(std::time::Duration::from_secs(1));
+        let _ = std::fs::write("ul07-descendant-sentinel", "late");
     }
 }
 

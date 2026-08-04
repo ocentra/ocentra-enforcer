@@ -29,6 +29,9 @@ uuid = { version = "=1.23.4", features = ["v4"] }
 # fingerprint (mirrors src/harness-parsers.mjs's `base64url` digest). Same
 # centralization note applies.
 base64 = "0.22"
+# DEPENDENCY-JUSTIFICATION: bounded harness execution must terminate the whole
+# process tree (Windows Job Object / POSIX process group), not only its leader.
+command-group = "=5.0.1"
 # toml_edit IS in [workspace.dependencies] (a01-owned root manifest); used
 # by d11's ci_parity module to read rust-toolchain.toml's `channel` key
 # without a hand-rolled TOML scanner.

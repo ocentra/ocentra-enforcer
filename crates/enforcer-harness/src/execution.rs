@@ -2,14 +2,16 @@
 
 use std::io::{self, Read};
 use std::path::Path;
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
+    mpsc::{self, Receiver, RecvTimeoutError},
     Arc,
 };
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use command_group::{CommandGroup, GroupChild};
 use enforcer_core::error::{Error, Result};
 use enforcer_domain::config_types::{CrateName, HarnessConfig};
 use enforcer_domain::harness_types::{
@@ -21,6 +23,8 @@ use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::telemetry_types::ProcessExitCode;
 
 use crate::storage::{record_run, RunInput, RunOutcome};
+
+const READER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Fully decoded, boundary-owned request for one recorded native command.
 #[derive(Debug, Clone)]
@@ -107,8 +111,7 @@ pub fn execute_allowlisted_bounded(
         .current_dir(cwd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    let mut child = match command.spawn() {
+    let mut child = match command.group_spawn() {
         Ok(child) => child,
         Err(error) => {
             let termination = if error.kind() == io::ErrorKind::NotFound {
@@ -126,11 +129,11 @@ pub fn execute_allowlisted_bounded(
         }
     };
 
-    let stdout = match child.stdout.take() {
+    let stdout = match child.inner().stdout.take() {
         Some(stdout) => stdout,
         None => return Err(reap_after_pipe_failure(&mut child, "stdout")),
     };
-    let stderr = match child.stderr.take() {
+    let stderr = match child.inner().stderr.take() {
         Some(stderr) => stderr,
         None => return Err(reap_after_pipe_failure(&mut child, "stderr")),
     };
@@ -237,38 +240,48 @@ pub fn execute_allowlisted_bounded(
     ))
 }
 
+struct BoundedReader {
+    receiver: Receiver<io::Result<Vec<u8>>>,
+    handle: JoinHandle<()>,
+}
+
 fn spawn_bounded_reader<R>(
     mut reader: R,
     output_limit: usize,
     output_bytes: Arc<AtomicUsize>,
     output_overflow: Arc<AtomicBool>,
-) -> JoinHandle<io::Result<Vec<u8>>>
+) -> BoundedReader
 where
     R: Read + Send + 'static,
 {
-    thread::spawn(move || {
-        let mut captured = Vec::new();
-        let mut buffer = [0_u8; 4096];
-        loop {
-            let read = reader.read(&mut buffer)?;
-            if read == 0 {
-                break;
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let handle = thread::spawn(move || {
+        let result = (|| {
+            let mut captured = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            loop {
+                let read = reader.read(&mut buffer)?;
+                if read == 0 {
+                    break;
+                }
+                let previous = output_bytes.fetch_add(read, Ordering::AcqRel);
+                if previous >= output_limit {
+                    output_overflow.store(true, Ordering::Release);
+                    break;
+                }
+                let allowed = output_limit.saturating_sub(previous);
+                if read > allowed {
+                    captured.extend(buffer.iter().take(allowed));
+                    output_overflow.store(true, Ordering::Release);
+                    break;
+                }
+                captured.extend(buffer.iter().take(read));
             }
-            let previous = output_bytes.fetch_add(read, Ordering::AcqRel);
-            if previous >= output_limit {
-                output_overflow.store(true, Ordering::Release);
-                break;
-            }
-            let allowed = output_limit.saturating_sub(previous);
-            if read > allowed {
-                captured.extend(buffer.iter().take(allowed));
-                output_overflow.store(true, Ordering::Release);
-                break;
-            }
-            captured.extend(buffer.iter().take(read));
-        }
-        Ok(captured)
-    })
+            Ok(captured)
+        })();
+        let _ignored = sender.send(result);
+    });
+    BoundedReader { receiver, handle }
 }
 
 fn bounded_lossy_output(bytes: &[u8], remaining: &mut usize) -> (String, bool) {
@@ -290,19 +303,33 @@ fn bounded_lossy_output(bytes: &[u8], remaining: &mut usize) -> (String, bool) {
     (output, truncated)
 }
 
-fn join_bounded_reader(reader: JoinHandle<io::Result<Vec<u8>>>) -> Result<Vec<u8>> {
+fn join_bounded_reader(reader: BoundedReader) -> Result<Vec<u8>> {
+    let output = match reader.receiver.recv_timeout(READER_SHUTDOWN_TIMEOUT) {
+        Ok(output) => output,
+        Err(RecvTimeoutError::Timeout) => {
+            return Err(Error::InvalidConfig(
+                "bounded output reader did not close after process-tree termination".to_owned(),
+            ));
+        }
+        Err(RecvTimeoutError::Disconnected) => {
+            return Err(Error::InvalidConfig(
+                "bounded output reader disconnected".to_owned(),
+            ));
+        }
+    };
     reader
+        .handle
         .join()
-        .map_err(|_panic| Error::InvalidConfig("bounded output reader panicked".to_owned()))?
-        .map_err(|error| invalid_process_error("read child output", &error))
+        .map_err(|_panic| Error::InvalidConfig("bounded output reader panicked".to_owned()))?;
+    output.map_err(|error| invalid_process_error("read child output", &error))
 }
 
-fn terminate_and_reap(child: &mut Child) -> Result<ExitStatus> {
+fn terminate_and_reap(child: &mut GroupChild) -> Result<ExitStatus> {
     let kill_error = child.kill().err();
     let wait_result = child.wait();
     match (kill_error, wait_result) {
         (None, Ok(status)) => Ok(status),
-        (Some(error), Ok(status)) if error.kind() == io::ErrorKind::NotFound => Ok(status),
+        (Some(error), Ok(status)) if error.kind() == io::ErrorKind::InvalidInput => Ok(status),
         (Some(kill_error), Ok(_)) => Err(Error::InvalidConfig(format!(
             "terminate child failed: {kill_error}; child was reaped"
         ))),
@@ -313,7 +340,7 @@ fn terminate_and_reap(child: &mut Child) -> Result<ExitStatus> {
     }
 }
 
-fn reap_after_pipe_failure(child: &mut Child, stream: &str) -> Error {
+fn reap_after_pipe_failure(child: &mut GroupChild, stream: &str) -> Error {
     let kill_error = child.kill().err();
     let wait_error = child.wait().err();
     let cleanup = match (kill_error, wait_error) {
