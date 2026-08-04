@@ -966,7 +966,13 @@ fn child_entry_writes_timeout_sentinel() {
 #[test]
 fn child_entry_spawns_pipe_inheriting_descendant() {
     if child_mode() {
-        let executable = std::env::current_exe().expect("current test executable");
+        let executable = match std::env::current_exe() {
+            Ok(executable) => executable,
+            Err(error) => {
+                eprintln!("current test executable unavailable: {error}");
+                std::process::exit(91);
+            }
+        };
         let mut descendant = std::process::Command::new(executable);
         descendant.args([
             "--exact",
@@ -975,7 +981,14 @@ fn child_entry_spawns_pipe_inheriting_descendant() {
             "--",
             "--ul07-child",
         ]);
-        let _child = descendant.spawn().expect("spawn descendant fixture");
+        let child = match descendant.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                eprintln!("descendant fixture spawn failed: {error}");
+                std::process::exit(92);
+            }
+        };
+        assert_ne!(child.id(), 0, "spawned descendant must have a process id");
         std::thread::park_timeout(std::time::Duration::from_secs(5));
     }
 }

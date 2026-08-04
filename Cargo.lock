@@ -851,6 +851,7 @@ dependencies = [
  "enforcer-proof",
  "enforcer-scan",
  "enforcer-ui",
+ "proptest",
  "serde",
  "serde_json",
  "tempfile",

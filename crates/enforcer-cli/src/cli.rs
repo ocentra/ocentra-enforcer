@@ -34,9 +34,42 @@ pub fn normalize_required_check_route(
     if args.get(1).and_then(|value| value.to_str()) == Some("check")
         && args.get(2).and_then(|value| value.to_str()) == Some("mutation-risk")
     {
-        args[1] = "policy".into();
+        if let Some(route) = args.get_mut(1) {
+            *route = "policy".into();
+        }
     }
     args
+}
+
+#[cfg(test)]
+mod route_normalization_tests {
+    use super::normalize_required_check_route;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn mutation_risk_route_normalization_preserves_every_trailing_argument(
+            tail in proptest::collection::vec("[^\\x00]*", 0..12)
+        ) {
+            let mut args = vec!["enforcer".into(), "check".into(), "mutation-risk".into()];
+            args.extend(tail.iter().map(std::ffi::OsString::from));
+            let normalized = normalize_required_check_route(args);
+            prop_assert_eq!(normalized.get(1).and_then(|value| value.to_str()), Some("policy"));
+            prop_assert_eq!(normalized.get(2).and_then(|value| value.to_str()), Some("mutation-risk"));
+            let normalized_tail = normalized.iter().skip(3).map(|value| value.to_string_lossy()).collect::<Vec<_>>();
+            prop_assert_eq!(normalized_tail, tail);
+        }
+
+        #[test]
+        fn unrelated_routes_are_never_rewritten(
+            route in "[^\\x00]*",
+            action in "[^\\x00]*"
+        ) {
+            prop_assume!(route != "check" || action != "mutation-risk");
+            let args = vec!["enforcer".into(), route.into(), action.into()];
+            prop_assert_eq!(normalize_required_check_route(args.clone()), args);
+        }
+    }
 }
 
 use clap::{ArgGroup, Args, Parser, Subcommand};

@@ -44,6 +44,8 @@ enforcer-ui = { path = "../enforcer-ui", version = "0.1.0", optional = true }
 # DEPENDENCY-JUSTIFICATION: Black-box CLI tests need isolated repositories and process assertions.
 tempfile = "3.27.0"
 assert_cmd = "2.2.2"
+# DEPENDENCY-JUSTIFICATION: argument-route normalizers require generated totality and preservation coverage.
+proptest = "=1.9.0"
 
 [lints]
 workspace = true
