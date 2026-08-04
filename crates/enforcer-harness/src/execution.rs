@@ -198,10 +198,7 @@ fn execute_bounded_process(
                 // joining readers so a successful leader cannot leak children
                 // or wedge this request indefinitely.
                 if let Err(error) = child.kill() {
-                    if !matches!(
-                        error.kind(),
-                        io::ErrorKind::NotFound | io::ErrorKind::InvalidInput
-                    ) {
+                    if !residual_group_is_already_gone(&error) {
                         record_cleanup_error(
                             &mut cleanup_error,
                             invalid_process_error("terminate residual process group", &error),
@@ -276,6 +273,23 @@ fn execute_bounded_process(
         exit_code,
         true,
     ))
+}
+
+fn residual_group_is_already_gone(error: &io::Error) -> bool {
+    if matches!(
+        error.kind(),
+        io::ErrorKind::NotFound | io::ErrorKind::InvalidInput
+    ) {
+        return true;
+    }
+    // command-group signals the Unix process group after its leader exits.
+    // A group with no remaining descendants returns ESRCH (3), which means
+    // the desired cleanup state has already been reached.
+    #[cfg(unix)]
+    if error.raw_os_error() == Some(3) {
+        return true;
+    }
+    false
 }
 
 struct BoundedReader {
