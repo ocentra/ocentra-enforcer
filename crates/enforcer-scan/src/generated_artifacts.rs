@@ -18,12 +18,18 @@ use enforcer_domain::telemetry_types::SourceLine;
 /// Match the frozen MJS generated-output classifier.
 pub fn is_generated_artifact_path(path: &str) -> bool {
     let path = path.replace('\\', "/");
+    let segment_count = path.split('/').count();
     path.starts_with("output/")
         || path.starts_with("test-results/")
         || path.starts_with("playwright-report/")
-        || path
-            .split('/')
-            .any(|part| matches!(part, "dist" | "build" | "coverage" | "generated"))
+        || path.split('/').enumerate().any(|(index, part)| {
+            matches!(part, "dist" | "build" | "coverage" | "generated")
+                || (index + 1 < segment_count
+                    && (part == "target"
+                        || part.starts_with("target-")
+                        || part == ".tmp"
+                        || part.starts_with(".tmp-")))
+        })
 }
 
 /// Produce the dedicated check report. `tracked` opts into the frozen MJS
@@ -285,6 +291,17 @@ mod tests {
     fn classifier_matches_frozen_mjs_roots_and_segments() {
         assert!(is_generated_artifact_path("output/run.json"));
         assert!(is_generated_artifact_path("src/generated/client.rs"));
+        assert!(is_generated_artifact_path("target/debug/enforcer.exe"));
+        assert!(is_generated_artifact_path(
+            "crates/example/target-proof/debug/output.bin"
+        ));
+        assert!(is_generated_artifact_path(".tmp/report.json"));
+        assert!(is_generated_artifact_path(
+            "crates/example/.tmp-proof/report.json"
+        ));
+        assert!(!is_generated_artifact_path("target-proof.rs"));
+        assert!(!is_generated_artifact_path("targeting/proof.json"));
+        assert!(!is_generated_artifact_path(".tmpkeeper/report.json"));
         assert!(!is_generated_artifact_path("src/domain/order.rs"));
     }
     #[test]
