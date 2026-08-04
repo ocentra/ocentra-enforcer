@@ -5569,7 +5569,7 @@ mod tests {
             };
             assert_eq!(message["ok"], serde_json::json!(true));
         }
-        let inbox_args = serde_json::json!({"root": root.clone(), "hub": "mcp-e2e"});
+        let inbox_args = serde_json::json!({"root": root, "hub": "mcp-e2e"});
         let DispatchOutcome::Result(inbox) = dispatch(
             &tool("ocentra_enforcer_coordination_inbox")?,
             &inbox_args,
