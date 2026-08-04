@@ -84,7 +84,7 @@ fn policy_matches(policy: &ImportBoundaryPolicy, path: &str) -> bool {
             .any(|root| path == root.as_str() || path.starts_with(&format!("{}/", root.as_str())))
 }
 fn import_specifier(line: &str) -> Option<&str> {
-    let from = line.find("from")?;
+    let from = import_from_keyword(line)?;
     let remainder = line.get(from.checked_add("from".len())?..)?.trim_start();
     let quote = remainder.chars().next()?;
     if !matches!(quote, '\'' | '\"' | '`') {
@@ -92,6 +92,53 @@ fn import_specifier(line: &str) -> Option<&str> {
     }
     let content = remainder.get(quote.len_utf8()..)?;
     content.split_once(quote).map(|(value, _)| value)
+}
+
+fn import_from_keyword(line: &str) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut index = 0;
+
+    while index < bytes.len() {
+        let byte = *bytes.get(index)?;
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active_quote {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+
+        if matches!(byte, b'\'' | b'"' | b'`') {
+            quote = Some(byte);
+            index += 1;
+            continue;
+        }
+
+        let end = index.checked_add("from".len())?;
+        if bytes.get(index..end) == Some(b"from")
+            && index
+                .checked_sub(1)
+                .and_then(|previous| bytes.get(previous))
+                .is_none_or(|value| !is_identifier_byte(*value))
+            && bytes
+                .get(end)
+                .is_none_or(|value| !is_identifier_byte(*value))
+        {
+            return Some(index);
+        }
+        index += 1;
+    }
+    None
+}
+
+fn is_identifier_byte(value: u8) -> bool {
+    value.is_ascii_alphanumeric() || matches!(value, b'_' | b'$')
 }
 fn glob_matches(pattern: &str, text: &str) -> bool {
     fn inner(pattern: &[u8], text: &[u8]) -> bool {
@@ -188,6 +235,34 @@ mod tests {
             report.findings[0].detail.as_str(),
             "domain may not depend on infra"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn import_binding_with_from_prefix_uses_the_from_keyword(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src/domain"))?;
+        std::fs::write(
+            temp.path().join("src/domain/bad.ts"),
+            "import { fromPromise } from '@infra/client';\n",
+        )?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default","importBoundaryPolicies":[{"roots":["src/domain"],"forbiddenImports":["@infra/**"]}]}"#,
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let report = check(
+            &root,
+            ScanScope::Files,
+            &["src/domain/bad.ts".parse()?],
+            &config,
+        )?;
+
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0].detail.as_str().contains("@infra/client"));
         Ok(())
     }
 
