@@ -3051,7 +3051,7 @@ fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
         Ok(source) => source,
         Err(error) => return unrunnable(row, &format!("failed to read {engine_rel}: {error}")),
     };
-    let Some(run_start) = source.find("pub fn run_with_inline_test_policy(") else {
+    let Some(run_start) = source.find("pub fn run_with_analysis_provider(") else {
         return unrunnable(row, "scan engine no longer exposes the core run function");
     };
     let run_body = &source[run_start..];
@@ -3059,7 +3059,7 @@ fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
         "read_file_utf8(&scope.repo_root, file)",
         "classify(file)",
         "validators.applicable(family, file, scope)",
-        "validator.validate(input)",
+        "validator.validate_with_analysis(input, analyses.get(file))",
         "fold_report(scope.kind, all_findings)",
     ];
     let mut previous = 0;
@@ -3174,7 +3174,7 @@ fn scan_hot_path_probe(row: &QaRow) -> RowResult {
             "pub fn run_scoped_check(",
             [
                 "enforcer_scan::scope::resolve(",
-                "resolve_files(&root, &resolved)",
+                "resolve_files(&root, &resolved, &ignore_rules)",
                 "engine::build_family_validators()",
                 "engine::run_with_inline_test_policy(",
                 "output::print_report(&report)",
@@ -3183,11 +3183,11 @@ fn scan_hot_path_probe(row: &QaRow) -> RowResult {
         ),
         (
             "crates/enforcer-scan/src/engine.rs",
-            "pub fn run_with_inline_test_policy(",
+            "pub fn run_with_analysis_provider(",
             [
                 "classify(file)",
                 "validators.applicable(family, file, scope)",
-                "validator.validate(input)",
+                "validator.validate_with_analysis(input, analyses.get(file))",
                 "fold_report(scope.kind, all_findings)",
             ]
             .as_slice(),
@@ -5393,9 +5393,9 @@ fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-mcp/context-budget-baseline.json",
                 &[
                     "\"version\": 1",
-                    "\"toolCount\": 98",
-                    "\"totalBytes\": 19888",
-                    "\"estimatedTokens\": 4972",
+                    "\"toolCount\": 102",
+                    "\"totalBytes\": 145299",
+                    "\"estimatedTokens\": 36324",
                     "\"tolerancePct\": 10.0",
                 ],
             ),
@@ -8482,7 +8482,7 @@ fn context_budget_baseline_probe(row: &QaRow) -> RowResult {
             (
                 "retrieval:context-budget-baseline:file",
                 "crates/enforcer-mcp/context-budget-baseline.json",
-                &["\"version\": 1", "\"toolCount\": 98", "\"tolerancePct\": 10.0"],
+                &["\"version\": 1", "\"toolCount\": 102", "\"tolerancePct\": 10.0"],
             ),
             (
                 "retrieval:context-budget-baseline:test",

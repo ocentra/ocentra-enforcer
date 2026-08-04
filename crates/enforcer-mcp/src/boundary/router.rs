@@ -2863,16 +2863,14 @@ fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
                     args.get("name")
                         .or_else(|| args.get("peer"))
                         .and_then(serde_json::Value::as_str)
-                        .ok_or("coordination_peer add requires `name`")?
-                        .to_owned(),
+                        .ok_or("coordination_peer add requires `name`")?,
                 )
                 .map_err(|error| error.to_string())?;
                 let url = CoordinationPeerUrl::parse(
                     args.get("url")
                         .or_else(|| args.get("peerUrl"))
                         .and_then(serde_json::Value::as_str)
-                        .ok_or("coordination_peer add requires `url`")?
-                        .to_owned(),
+                        .ok_or("coordination_peer add requires `url`")?,
                 )
                 .map_err(|error| error.to_string())?;
                 let token_env = args
@@ -2901,8 +2899,7 @@ fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
                     .or_else(|| args.get("peer"))
                     .and_then(serde_json::Value::as_str)
                     .ok_or_else(|| "coordination_peer remove requires `name`".to_owned())?;
-                let name = CoordinationPeerName::parse(raw.to_owned())
-                    .map_err(|error| error.to_string())?;
+                let name = CoordinationPeerName::parse(raw).map_err(|error| error.to_string())?;
                 peer::remove_peer(&root, &name).map_err(|error| error.to_string())
             })();
             match outcome {
@@ -2943,7 +2940,7 @@ fn coordination_sync(args: &serde_json::Value) -> serde_json::Value {
     let result = if std::path::Path::new(peer_raw).is_dir() {
         peer::sync_local(&root, std::path::Path::new(peer_raw))
     } else {
-        let resolved = CoordinationPeerUrl::parse(peer_raw.to_owned())
+        let resolved = CoordinationPeerUrl::parse(peer_raw)
             .map(|url| {
                 (
                     url,
@@ -2953,7 +2950,7 @@ fn coordination_sync(args: &serde_json::Value) -> serde_json::Value {
                 )
             })
             .or_else(|_| {
-                let name = CoordinationPeerName::parse(peer_raw.to_owned())?;
+                let name = CoordinationPeerName::parse(peer_raw)?;
                 let record = peer::resolve_peer(&root, &name)?;
                 Ok((record.url, peer::token_from_env(record.token_env.as_ref())?))
             });

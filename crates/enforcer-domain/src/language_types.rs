@@ -39,7 +39,6 @@ impl LanguageId {
     }
 
     /// Try to construct an identity from the canonical registry's one-based index.
-    #[must_use]
     pub const fn try_from_registry_index(index: NonZeroU16) -> Result<Self, InvalidLanguageId> {
         if index.get() <= PARSER_IDENTITY_COUNT {
             Ok(Self(index))

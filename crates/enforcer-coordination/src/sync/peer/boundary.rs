@@ -81,8 +81,8 @@ impl TryFrom<PeerRegistryDto> for PeerRegistry {
                 .into_iter()
                 .map(|entry| {
                     Ok(PeerRecord {
-                        name: CoordinationPeerName::parse(entry.name)?,
-                        url: CoordinationPeerUrl::parse(entry.url)?,
+                        name: CoordinationPeerName::parse(&entry.name)?,
+                        url: CoordinationPeerUrl::parse(&entry.url)?,
                         token_env: entry
                             .token_env
                             .map(CoordinationPeerTokenEnv::parse)
@@ -421,8 +421,8 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let registry = PeerRegistry {
             peers: vec![PeerRecord {
-                name: CoordinationPeerName::parse("left".to_owned())?,
-                url: CoordinationPeerUrl::parse("http://127.0.0.1:8787".to_owned())?,
+                name: CoordinationPeerName::parse("left")?,
+                url: CoordinationPeerUrl::parse("http://127.0.0.1:8787")?,
                 token_env: Some(CoordinationPeerTokenEnv::parse(
                     "LEDGER_PEER_TOKEN".to_owned(),
                 )?),
@@ -492,7 +492,7 @@ mod tests {
         let _network = network_test_lock()?;
         let ledger = tempfile::tempdir()?;
         let root = CoordinationLedgerRoot::parse(ledger.path())?;
-        let endpoint = CoordinationPeerUrl::parse(peer_server(
+        let endpoint = CoordinationPeerUrl::parse(&peer_server(
             vec![r#"{"streams":[]}"#.to_owned()],
             Some("correct"),
         )?)?;
@@ -512,7 +512,7 @@ mod tests {
         let _network = network_test_lock()?;
         let ledger = tempfile::tempdir()?;
         let root = CoordinationLedgerRoot::parse(ledger.path())?;
-        let endpoint = CoordinationPeerUrl::parse(peer_server(
+        let endpoint = CoordinationPeerUrl::parse(&peer_server(
             vec![r#"{"streams":["../escape.ndjson"]}"#.to_owned()],
             None,
         )?)?;

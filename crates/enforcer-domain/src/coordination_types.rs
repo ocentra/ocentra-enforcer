@@ -114,9 +114,10 @@ impl std::fmt::Display for NodeName {
 #[doc = "BRAND-INVARIANT: peer aliases are bounded safe coordination identities."]
 pub struct CoordinationPeerName(String);
 impl CoordinationPeerName {
-    pub fn parse(raw: String) -> Result<Self, DecodeError> {
-        (identity_spelling(&raw) == IdentitySpelling::Valid)
-            .then_some(Self(raw))
+    pub fn parse(raw: &str) -> Result<Self, DecodeError> {
+        (identity_spelling(raw) == IdentitySpelling::Valid)
+            // ALLOC-JUSTIFICATION: the validated peer identity owns its bounded spelling.
+            .then(|| Self(raw.to_owned()))
             .ok_or_else(|| DecodeError::new("coordinationPeerName", "expected a safe peer alias"))
     }
     pub fn as_str(&self) -> &str {
@@ -129,7 +130,7 @@ impl CoordinationPeerName {
 #[doc = "BRAND-INVARIANT: only explicit non-empty http endpoints are accepted by the native transport."]
 pub struct CoordinationPeerUrl(String);
 impl CoordinationPeerUrl {
-    pub fn parse(raw: String) -> Result<Self, DecodeError> {
+    pub fn parse(raw: &str) -> Result<Self, DecodeError> {
         if raw.starts_with("http://")
             && raw.len() > "http://".len()
             && !raw.chars().any(char::is_whitespace)
