@@ -249,7 +249,7 @@ impl CargoPilotEvidence {
 }
 
 /// Run the reviewed Cargo pilot entirely in memory.
-pub fn run_cargo_pilot(input: CargoPilotInput<'_>) -> Result<CargoPilotEvidence> {
+pub fn run_cargo_pilot(input: &CargoPilotInput<'_>) -> Result<CargoPilotEvidence> {
     let command_parts = input
         .request
         .command

@@ -173,7 +173,7 @@ pub fn execute_allowlisted_bounded(
             Err(error) => {
                 record_cleanup_error(
                     &mut cleanup_error,
-                    invalid_process_error("poll child", error),
+                    invalid_process_error("poll child", &error),
                 );
                 match terminate_and_reap(&mut child) {
                     Ok(status) => break (Some(status), None),
@@ -293,8 +293,8 @@ fn bounded_lossy_output(bytes: &[u8], remaining: &mut usize) -> (String, bool) {
 fn join_bounded_reader(reader: JoinHandle<io::Result<Vec<u8>>>) -> Result<Vec<u8>> {
     reader
         .join()
-        .map_err(|_| Error::InvalidConfig("bounded output reader panicked".to_owned()))?
-        .map_err(|error| invalid_process_error("read child output", error))
+        .map_err(|_panic| Error::InvalidConfig("bounded output reader panicked".to_owned()))?
+        .map_err(|error| invalid_process_error("read child output", &error))
 }
 
 fn terminate_and_reap(child: &mut Child) -> Result<ExitStatus> {
@@ -306,7 +306,7 @@ fn terminate_and_reap(child: &mut Child) -> Result<ExitStatus> {
         (Some(kill_error), Ok(_)) => Err(Error::InvalidConfig(format!(
             "terminate child failed: {kill_error}; child was reaped"
         ))),
-        (None, Err(wait_error)) => Err(invalid_process_error("reap child", wait_error)),
+        (None, Err(wait_error)) => Err(invalid_process_error("reap child", &wait_error)),
         (Some(kill_error), Err(wait_error)) => Err(Error::InvalidConfig(format!(
             "terminate child failed: {kill_error}; reap child failed: {wait_error}"
         ))),
@@ -343,7 +343,7 @@ fn record_cleanup_error(slot: &mut Option<Error>, error: Error) {
     }
 }
 
-fn invalid_process_error(operation: &str, error: io::Error) -> Error {
+fn invalid_process_error(operation: &str, error: &io::Error) -> Error {
     Error::InvalidConfig(format!("{operation} failed: {error}"))
 }
 

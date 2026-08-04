@@ -471,7 +471,7 @@ fn proof_status(args: &serde_json::Value) -> serde_json::Value {
         Err(error) => return proof_query_error("ocentra_enforcer_proof_status", error),
     };
     match lifecycle.status(&query) {
-        Ok(value) => encode_proof_status(value),
+        Ok(value) => encode_proof_status(&value),
         Err(error) => proof_query_error("ocentra_enforcer_proof_status", error.to_string()),
     }
 }
@@ -522,7 +522,7 @@ fn encode_proof_route(
 
 /// Render a typed persisted-run query result at the MCP JSON boundary.
 fn encode_proof_status(
-    value: enforcer_proof::boundary::lifecycle::ProofStatusResult,
+    value: &enforcer_proof::boundary::lifecycle::ProofStatusResult,
 ) -> serde_json::Value {
     serde_json::json!({
         "ok": true,
@@ -821,14 +821,8 @@ fn native_scan_request(
         },
         Some(_) => return Err("scan `files` must be an array".to_owned()),
     };
-    let languages = match parse_scan_languages(args.get("languages")) {
-        Ok(value) => value,
-        Err(message) => return Err(message),
-    };
-    let scope = match parse_scan_scope(args.get("scope"), files, args) {
-        Ok(value) => value,
-        Err(message) => return Err(message),
-    };
+    let languages = parse_scan_languages(args.get("languages"))?;
+    let scope = parse_scan_scope(args.get("scope"), files, args)?;
     Ok((
         root,
         enforcer_scan::boundary::native_scan::NativeScanRequest { scope, languages },
@@ -2777,14 +2771,14 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
                 .as_str()
                 .ok_or("repair paths must be strings")
                 .and_then(|path| {
-                    ClaimPath::parse(path).map_err(|_| "repair path failed validation")
+                    ClaimPath::parse(path).map_err(|_invalid| "repair path failed validation")
                 })
         })
         .collect::<Result<Vec<_>, _>>()
     {
         Ok(paths) if !paths.is_empty() => paths,
         Ok(_) => return json_error("coordination_repair paths must not be empty"),
-        Err(error) => return json_error(&error),
+        Err(error) => return json_error(error),
     };
     let owners = match args.get("owners").or_else(|| args.get("owner")) {
         None => None,
@@ -2823,7 +2817,16 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
         mode,
         enforcer_domain::coordination_types::RepairMode::DryRun
     );
-    match api::repair_stale_claims(&hub, &lane, &paths, owners.as_deref(), &caller, mode) {
+    match api::repair_stale_claims(
+        &hub,
+        api::RepairStaleClaimsArgs {
+            lane: &lane,
+            paths: &paths,
+            owners: owners.as_deref(),
+            caller: &caller,
+            mode,
+        },
+    ) {
         Ok((matched, event)) => {
             serde_json::json!({"ok":true,"action":"stale-claims","dryRun":dry_run,"matchedClaimCount":matched.get(),"event":event,"nextStep":if dry_run {"review exact matched claims then rerun with write:true"} else {"rerun coordination health"}})
         }
@@ -5290,7 +5293,7 @@ mod tests {
                 .join("node_peer.lane-a.ndjson"),
             "{\"id\":\"remote-evidence\"}\n",
         )?;
-        let mut sync_args = common.clone();
+        let mut sync_args = common;
         sync_args["peer"] = serde_json::json!(peer_root.path());
         let DispatchOutcome::Result(synced) = dispatch(
             &tool("ocentra_enforcer_coordination_sync")?,

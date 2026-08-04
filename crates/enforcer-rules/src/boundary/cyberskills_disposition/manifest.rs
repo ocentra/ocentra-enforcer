@@ -38,9 +38,7 @@ pub(super) struct ChainEntryMap<'a> {
 pub(super) fn validate_chain_entries<'a>(
     record: &wire::manifest::CyberSkillDispositionRecordDto,
     projection: &'a Cp08ProjectionDto,
-    hashes: &mut BTreeSet<String>,
-    successors: &mut BTreeMap<String, String>,
-    correction_ids: &mut BTreeSet<String>,
+    state: &mut super::provenance::EntryValidationState,
 ) -> Result<ChainEntryMap<'a>, String> {
     let entries = projection
         .provenance_chain
@@ -50,17 +48,13 @@ pub(super) fn validate_chain_entries<'a>(
     let mut results = Vec::new();
     for (index, entry) in projection.provenance_chain.iter().enumerate() {
         results.push(super::provenance::validate_entry_shape(
-            record,
-            entry,
-            index,
-            hashes,
-            successors,
-            correction_ids,
+            record, entry, index, state,
         ));
     }
     results.into_iter().find_map(Result::err).map_or_else(
         || {
-            successors
+            state
+                .successors
                 .iter()
                 .find_map(|(prior, successor)| {
                     (!entries.contains_key(prior.as_str())

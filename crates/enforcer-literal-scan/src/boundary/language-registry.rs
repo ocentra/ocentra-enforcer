@@ -253,7 +253,7 @@ pub(crate) fn matched_projection(path: &Path) -> Option<&'static LiteralProjecti
                         target
                     }
                 };
-                if best.map_or(true, |(best_length, _)| length > best_length) {
+                if best.is_none_or(|(best_length, _)| length > best_length) {
                     best = Some((length, target));
                 }
             }

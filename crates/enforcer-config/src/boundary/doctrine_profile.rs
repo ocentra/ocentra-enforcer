@@ -245,9 +245,11 @@ impl From<&DoctrineProfile> for WireDoctrineProfile {
 }
 
 fn state_from_bool(enabled: bool) -> RuleEnabled {
-    enabled
-        .then_some(RuleEnabled::Enabled)
-        .unwrap_or(RuleEnabled::Disabled)
+    if enabled {
+        RuleEnabled::Enabled
+    } else {
+        RuleEnabled::Disabled
+    }
 }
 
 fn ensure_schema_version(version: u32) -> Result<(), DecodeError> {

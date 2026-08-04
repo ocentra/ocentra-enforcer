@@ -115,7 +115,7 @@ fn doctor_with_current_environment() -> Result<ExitCode, InstallCommandFailure> 
         class: FailureClass::Internal,
         message: format!("cannot resolve the running enforcer binary: {error}"),
     })?;
-    let context = InstallRequestContext::try_with_defaults(binary.clone())
+    let context = InstallRequestContext::try_with_defaults(binary)
         .map_err(InstallError::from)
         .map_err(InstallCommandFailure::from)?;
     let home = home_dir()?;
@@ -141,7 +141,7 @@ pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
         class: FailureClass::Internal,
         message: format!("cannot resolve the running enforcer binary: {error}"),
     })?;
-    let context = InstallRequestContext::try_with_defaults(binary.clone())
+    let context = InstallRequestContext::try_with_defaults(binary)
         .map_err(InstallError::from)
         .map_err(InstallCommandFailure::from)?;
     let home = home_dir()?;

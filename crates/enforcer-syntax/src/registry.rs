@@ -56,9 +56,13 @@ pub struct LanguageRecord {
 }
 
 const fn require_nonzero(index: Option<NonZeroU16>) -> NonZeroU16 {
+    assert!(
+        index.is_some(),
+        "generated registry identity must be non-zero"
+    );
     match index {
         Some(value) => value,
-        None => loop {},
+        None => NonZeroU16::MIN,
     }
 }
 

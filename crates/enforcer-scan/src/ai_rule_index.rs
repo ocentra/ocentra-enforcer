@@ -12,6 +12,7 @@ use enforcer_domain::telemetry_types::SourceLine;
 
 const DEFAULT_MAX_LINES: usize = 220;
 
+/// Validate that AI rule files are indexed and remain within reviewed bounds.
 pub fn check(
     root: &RepoRoot,
     scope: ScanScope,
@@ -110,7 +111,7 @@ fn finding(path: &str, line: usize, detail: String) -> Result<Finding, String> {
         snippet: None,
         file: path.parse::<RelPath>().map_err(|error| error.to_string())?,
         line: FindingLine::known(SourceLine::try_new(
-            NonZeroU32::new(u32::try_from(line).map_err(|_| "line overflow")?)
+            NonZeroU32::new(u32::try_from(line).map_err(|_overflow| "line overflow")?)
                 .ok_or("line overflow")?,
         )),
     })

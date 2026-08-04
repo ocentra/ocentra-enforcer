@@ -75,7 +75,7 @@ pub fn analyze(
     let mut parser = Parser::new();
     parser
         .set_language(&grammar)
-        .map_err(|_| DecodeError::new("provider", "provider rejected the grammar binding"))?;
+        .map_err(|_error| DecodeError::new("provider", "provider rejected the grammar binding"))?;
     let tree = parser
         .parse(source_text, None)
         .ok_or_else(|| DecodeError::new("provider", "parser returned no syntax tree"))?;

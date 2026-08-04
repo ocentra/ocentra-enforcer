@@ -79,10 +79,11 @@ fn disabled_requirement_is_visible_and_explained() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn malformed_family_fails_with_a_typed_field_error() {
+fn malformed_family_fails_with_a_typed_field_error() -> Result<(), Box<dyn std::error::Error>> {
     let source = source();
     let error = decode_profile(MALFORMED, &source)
-        .expect_err("an unknown framework family must not silently default");
+        .err()
+        .ok_or("an unknown framework family must not silently default")?;
     let message = error.to_string();
     assert!(
         message.contains("requirements[0].families[2].family"),
@@ -92,19 +93,22 @@ fn malformed_family_fails_with_a_typed_field_error() {
         message.contains("unsupported doctrine framework family"),
         "unexpected malformed-family reason: {message}"
     );
+    Ok(())
 }
 
 #[test]
-fn incompatible_language_family_fails_closed() {
+fn incompatible_language_family_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
     let source = source();
     let raw = ZOD_PROFILE.replace("\"typescript\"", "\"python\"");
     let error = decode_profile(&raw, &source)
-        .expect_err("a TypeScript family must not be accepted by a Python profile");
+        .err()
+        .ok_or("a TypeScript family must not be accepted by a Python profile")?;
     let message = error.to_string();
     assert!(
         message.contains("not valid for language `python`"),
         "unexpected language-family diagnostic: {message}"
     );
+    Ok(())
 }
 
 #[test]

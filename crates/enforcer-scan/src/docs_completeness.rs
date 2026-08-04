@@ -27,6 +27,7 @@ struct Rule {
     snippet: String,
 }
 
+/// Validate that every catalog rule has complete indexed documentation.
 pub fn check(root: &RepoRoot, scope: ScanScope) -> Result<Report, String> {
     let catalog_path = Path::new(root.as_str()).join("rules/rules.json");
     let catalog: Catalog =
@@ -310,21 +311,10 @@ fn balanced(value: &str) -> bool {
     for c in value.chars() {
         match c {
             '{' | '(' | '[' => stack.push(c),
-            '}' => {
-                if stack.pop() != Some('{') {
-                    return false;
-                }
-            }
-            ')' => {
-                if stack.pop() != Some('(') {
-                    return false;
-                }
-            }
-            ']' => {
-                if stack.pop() != Some('[') {
-                    return false;
-                }
-            }
+            '}' if stack.pop() != Some('{') => return false,
+            ')' if stack.pop() != Some('(') => return false,
+            ']' if stack.pop() != Some('[') => return false,
+            '}' | ')' | ']' => {}
             _ => {}
         }
     }
@@ -346,7 +336,7 @@ fn finding(
         snippet: snippet.and_then(|s| FindingSnippet::new(s).ok()),
         file: file.parse::<RelPath>().map_err(|e| e.to_string())?,
         line: FindingLine::known(SourceLine::try_new(
-            NonZeroU32::new(u32::try_from(line).map_err(|_| "line overflow")?)
+            NonZeroU32::new(u32::try_from(line).map_err(|_overflow| "line overflow")?)
                 .ok_or("line overflow")?,
         )),
     })

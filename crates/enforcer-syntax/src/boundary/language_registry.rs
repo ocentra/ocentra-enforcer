@@ -673,9 +673,9 @@ fn parse_precedence(value: &Value) -> Result<PrecedenceValue, ManifestError> {
         .iter()
         .map(|kind| parse_matcher_kind(&string_value(kind)?))
         .collect::<Result<Vec<_>, ManifestError>>()?;
-    let ordered_kinds: [MatcherKind; 3] = parsed
-        .try_into()
-        .map_err(|_| ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()))?;
+    let ordered_kinds: [MatcherKind; 3] = parsed.try_into().map_err(|_error| {
+        ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned())
+    })?;
     if ordered_kinds
         != [
             MatcherKind::ExactBasename,
@@ -763,8 +763,8 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     let mut structural_count = 0;
     for (offset, identity) in identities.iter().enumerate() {
         let position = offset + 1;
-        let expected_id =
-            u16::try_from(position).map_err(|_| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
+        let expected_id = u16::try_from(position)
+            .map_err(|_error| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
         if identity.id != expected_id {
             return Err(ManifestError::NonSequentialId {
                 position,
@@ -1027,7 +1027,7 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     }
     let unmatched: HashSet<u16> = manifest.unmatched_parser_ids.iter().copied().collect();
     let expected_identity_count = u16::try_from(EXPECTED_IDENTITY_COUNT)
-        .map_err(|_| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
+        .map_err(|_error| ManifestError::Json(ERROR_INTEGER.to_owned()))?;
     for id in 1..=expected_identity_count {
         let listed = unmatched.contains(&id);
         let projected = projection_parser_ids.contains(&id);
@@ -1150,60 +1150,54 @@ fn render_reference(reference: &Reference) -> String {
     }
 }
 
-fn render_list(values: Vec<String>) -> String {
+fn render_list(values: impl IntoIterator<Item = String>) -> String {
     let mut result = String::from(LIST_PREFIX);
-    result.push_str(&values.join(COMMA_SPACE));
+    for (index, value) in values.into_iter().enumerate() {
+        if index > 0 {
+            result.push_str(COMMA_SPACE);
+        }
+        result.push_str(&value);
+    }
     result.push_str(LIST_SUFFIX);
     result
 }
 
 fn render_str_slice(values: &[String]) -> String {
-    render_list(values.iter().map(|value| rust_string(value)).collect())
+    render_list(values.iter().map(|value| rust_string(value)))
 }
 
 fn render_parser_id_slice(values: &[u16]) -> String {
     render_list(
         values
             .iter()
-            .map(|value| message(&[PARSER_ID_PREFIX, &value.to_string(), PARSER_ID_SUFFIX]))
-            .collect(),
+            .map(|value| message(&[PARSER_ID_PREFIX, &value.to_string(), PARSER_ID_SUFFIX])),
     )
 }
 
 fn render_matchers(values: &[MatcherValue]) -> String {
-    render_list(
-        values
-            .iter()
-            .map(|matcher| {
-                message(&[
-                    render_matcher_constructor(matcher.kind),
-                    &rust_string(&matcher.value),
-                    MATCHER_SUFFIX,
-                ])
-            })
-            .collect(),
-    )
+    render_list(values.iter().map(|matcher| {
+        message(&[
+            render_matcher_constructor(matcher.kind),
+            &rust_string(&matcher.value),
+            MATCHER_SUFFIX,
+        ])
+    }))
 }
 
 fn render_winner_slice(values: &[WinnerValue]) -> String {
-    render_list(
-        values
-            .iter()
-            .map(|winner| {
-                message(&[
-                    WINNER_PREFIX,
-                    &rust_string(&winner.matcher_key),
-                    WINNER_SEPARATOR,
-                    &render_reference(&winner.winner_ref),
-                    WINNER_SUFFIX,
-                ])
-            })
-            .collect(),
-    )
+    render_list(values.iter().map(|winner| {
+        message(&[
+            WINNER_PREFIX,
+            &rust_string(&winner.matcher_key),
+            WINNER_SEPARATOR,
+            &render_reference(&winner.winner_ref),
+            WINNER_SUFFIX,
+        ])
+    }))
 }
 
 fn render_reference_slice(values: &[Reference]) -> String {
-    render_list(values.iter().map(render_reference).collect())
+    render_list(values.iter().map(render_reference))
 }
 
 fn render_literal_disposition(
@@ -1352,6 +1346,21 @@ fn is_rust_identifier(value: &str) -> bool {
         && characters.all(|character| character == '_' || character.is_ascii_alphanumeric())
 }
 
+const KEY_CLASSIFICATION: &str = "classification";
+const KEY_DISPOSITION: &str = "disposition";
+const KEY_NORMALIZED_KEY: &str = "normalizedKey";
+
+/// Validate one raw reviewed manifest at the syntax boundary.
+pub fn validate_source(source: &str) -> Result<(), ManifestError> {
+    parse_manifest(source).map(|_| ())
+}
+
+/// Render one raw reviewed manifest into deterministic Rust source.
+pub fn render_source(source: &str) -> Result<String, ManifestError> {
+    let manifest = parse_manifest(source)?;
+    render_registry(&manifest)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1379,19 +1388,4 @@ mod tests {
             Err(ManifestError::ParserVariantSet(_))
         ));
     }
-}
-
-const KEY_CLASSIFICATION: &str = "classification";
-const KEY_DISPOSITION: &str = "disposition";
-const KEY_NORMALIZED_KEY: &str = "normalizedKey";
-
-/// Validate one raw reviewed manifest at the syntax boundary.
-pub fn validate_source(source: &str) -> Result<(), ManifestError> {
-    parse_manifest(source).map(|_| ())
-}
-
-/// Render one raw reviewed manifest into deterministic Rust source.
-pub fn render_source(source: &str) -> Result<String, ManifestError> {
-    let manifest = parse_manifest(source)?;
-    render_registry(&manifest)
 }

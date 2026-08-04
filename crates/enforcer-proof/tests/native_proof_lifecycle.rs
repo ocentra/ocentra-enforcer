@@ -63,7 +63,12 @@ fn malformed_and_escaping_artifact_inputs_fail_closed() -> Result<()> {
     let lifecycle = NativeProofLifecycle::open(fixture.path())?;
     let run: ProofRunId = "missing-run".parse()?;
     let escaped = enforcer_domain::paths::RelPath::try_from("../outside".to_owned())
-        .expect_err("escaping relative path must be rejected");
+        .err()
+        .ok_or_else(|| {
+            enforcer_core::error::Error::InvalidConfig(
+                "escaping relative path must be rejected".to_owned(),
+            )
+        })?;
     assert_eq!(escaped.path, "relPath");
     assert_eq!(
         escaped.reason,

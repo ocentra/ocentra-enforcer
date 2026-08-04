@@ -346,14 +346,27 @@ pub fn release(
 /// Resolve active claims only for exact requested paths and (when supplied)
 /// exact writers. Dry-run never appends; write mode emits one auditable
 /// `claim.resolve` event rather than mutating prior stream records.
+#[derive(Debug, Clone, Copy)]
+pub struct RepairStaleClaimsArgs<'a> {
+    pub lane: &'a LaneId,
+    pub paths: &'a [ClaimPath],
+    pub owners: Option<&'a [ClaimWriter]>,
+    pub caller: &'a CallerContext,
+    pub mode: RepairMode,
+}
+
+/// Match stale claims and optionally append one auditable resolution event.
 pub fn repair_stale_claims(
     hub: &Hub,
-    lane: &LaneId,
-    paths: &[ClaimPath],
-    owners: Option<&[ClaimWriter]>,
-    caller: &CallerContext,
-    mode: RepairMode,
+    args: RepairStaleClaimsArgs<'_>,
 ) -> Result<(RepairMatchCount, Option<HubEventResponse>)> {
+    let RepairStaleClaimsArgs {
+        lane,
+        paths,
+        owners,
+        caller,
+        mode,
+    } = args;
     let active = active_claims(&read_all_streams(hub.root.as_path())?.events);
     let matched = active
         .into_iter()

@@ -238,29 +238,30 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
         &mut out,
         path,
         1,
-        "SRC-2.6",
-        metrics.nesting,
-        limits.nesting,
-        "file nesting depth",
+        (
+            "SRC-2.6",
+            metrics.nesting,
+            limits.nesting,
+            "file nesting depth",
+        ),
     );
     push_if_over(
         &mut out,
         path,
         1,
-        "SRC-2.7",
-        metrics.branches,
-        limits.branches,
-        "file branch points",
+        (
+            "SRC-2.7",
+            metrics.branches,
+            limits.branches,
+            "file branch points",
+        ),
     );
     if let Some(limit) = limits.functions {
         push_if_over(
             &mut out,
             path,
             1,
-            "SRC-1.1",
-            starts.len(),
-            limit,
-            "file functions",
+            ("SRC-1.1", starts.len(), limit, "file functions"),
         );
     }
     if let Some(limit) = limits.classes {
@@ -269,11 +270,7 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
                 &mut out,
                 path,
                 1,
-                metrics.classes,
-                limit,
-                "file classes",
-                "SRC-1.1",
-                "SRC-2.5",
+                (metrics.classes, limit, "file classes", "SRC-1.1", "SRC-2.5"),
             );
         }
     }
@@ -282,10 +279,7 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
             &mut out,
             path,
             1,
-            "SRC-1.1",
-            metrics.exports,
-            limit,
-            "file exports",
+            ("SRC-1.1", metrics.exports, limit, "file exports"),
         );
     }
     if let Some(limit) = limits.types {
@@ -294,11 +288,13 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
                 &mut out,
                 path,
                 1,
-                metrics.types,
-                limit,
-                "file structs/enums",
-                "SRC-1.1",
-                "SRC-2.4",
+                (
+                    metrics.types,
+                    limit,
+                    "file structs/enums",
+                    "SRC-1.1",
+                    "SRC-2.4",
+                ),
             );
         }
     }
@@ -309,11 +305,13 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
                 &mut out,
                 path,
                 start + 1,
-                span,
-                limits.function_lines,
-                "function lines",
-                "SRC-1.1",
-                "SRC-2.2",
+                (
+                    span,
+                    limits.function_lines,
+                    "function lines",
+                    "SRC-1.1",
+                    "SRC-2.2",
+                ),
             );
         }
     }
@@ -322,11 +320,13 @@ fn inspect(path: &RelPath, source: &str, kind: SourceShapeKind, limits: Limits) 
             &mut out,
             path,
             limits.lines + 1,
-            lines.len(),
-            limits.lines,
-            "file lines",
-            "SRC-1.1",
-            "SRC-2.1",
+            (
+                lines.len(),
+                limits.lines,
+                "file lines",
+                "SRC-1.1",
+                "SRC-2.1",
+            ),
         );
     }
     out
@@ -678,37 +678,25 @@ fn push_if_over(
     out: &mut Vec<Finding>,
     path: &RelPath,
     line: usize,
-    rule: &str,
-    actual: usize,
-    maximum: usize,
-    label: &str,
+    limit: (&str, usize, usize, &str),
 ) {
+    let (rule, actual, maximum, label) = limit;
     if actual > maximum {
-        push(out, path, line, rule, actual, maximum, label);
+        push(out, path, line, (rule, actual, maximum, label));
     }
 }
 fn push_dual(
     out: &mut Vec<Finding>,
     path: &RelPath,
     line: usize,
-    actual: usize,
-    maximum: usize,
-    label: &str,
-    first: &str,
-    second: &str,
+    limit: (usize, usize, &str, &str, &str),
 ) {
-    push_if_over(out, path, line, first, actual, maximum, label);
-    push_if_over(out, path, line, second, actual, maximum, label);
+    let (actual, maximum, label, first, second) = limit;
+    push_if_over(out, path, line, (first, actual, maximum, label));
+    push_if_over(out, path, line, (second, actual, maximum, label));
 }
-fn push(
-    out: &mut Vec<Finding>,
-    path: &RelPath,
-    line: usize,
-    rule: &str,
-    actual: usize,
-    maximum: usize,
-    label: &str,
-) {
+fn push(out: &mut Vec<Finding>, path: &RelPath, line: usize, limit: (&str, usize, usize, &str)) {
+    let (rule, actual, maximum, label) = limit;
     let Ok(rule_id) = rule.parse::<RuleId>() else {
         return;
     };

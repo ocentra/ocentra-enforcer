@@ -131,11 +131,13 @@ fn stale_repair_is_dry_run_first_then_appends_claim_resolve(
     let paths = [ClaimPath::from_static("lib.rs")?];
     let (matched, event) = repair_stale_claims(
         &hub,
-        &lane,
-        &paths,
-        None,
-        &context,
-        enforcer_domain::coordination_types::RepairMode::DryRun,
+        enforcer_coordination::api::RepairStaleClaimsArgs {
+            lane: &lane,
+            paths: &paths,
+            owners: None,
+            caller: &context,
+            mode: enforcer_domain::coordination_types::RepairMode::DryRun,
+        },
     )?;
     assert_eq!(matched.get(), 1);
     assert!(event.is_none());
@@ -148,11 +150,13 @@ fn stale_repair_is_dry_run_first_then_appends_claim_resolve(
     );
     let (_, event) = repair_stale_claims(
         &hub,
-        &lane,
-        &paths,
-        None,
-        &context,
-        enforcer_domain::coordination_types::RepairMode::Write,
+        enforcer_coordination::api::RepairStaleClaimsArgs {
+            lane: &lane,
+            paths: &paths,
+            owners: None,
+            caller: &context,
+            mode: enforcer_domain::coordination_types::RepairMode::Write,
+        },
     )?;
     assert_eq!(
         event.ok_or("write must append event")?.kind,

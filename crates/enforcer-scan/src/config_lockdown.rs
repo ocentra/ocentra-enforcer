@@ -41,9 +41,11 @@ enum CheckKind {
     Waiver,
 }
 
+/// Validate locked configuration fields against the reviewed catalog.
 pub fn check_config_lockdown(path: &Path, root: &Path, scope: ScanScope) -> Result<Report, String> {
     check(path, root, scope, CheckKind::Lockdown)
 }
+/// Validate project waiver policy against the reviewed catalog.
 pub fn check_waiver_policy(path: &Path, root: &Path, scope: ScanScope) -> Result<Report, String> {
     check(path, root, scope, CheckKind::Waiver)
 }
@@ -164,7 +166,7 @@ fn lockdown_findings(
             }
         }
         if override_.enabled == Some(false)
-            && !(rule.lock_level == "immutable" && !rule.can_disable)
+            && (rule.lock_level != "immutable" || rule.can_disable)
             && !override_.has_complete_disable_waiver
         {
             findings.push(finding("CFG-1.8", file, format!("{id} disable lacks waiverId, owner, issue, reason, scope, expires, and remediation"), None)?);
@@ -270,7 +272,7 @@ fn waiver_findings(
                 missing.push(name);
             }
         }
-        if !waiver.scope.as_ref().is_some_and(|scope| !scope.is_empty()) {
+        if waiver.scope.as_ref().is_none_or(|scope| scope.is_empty()) {
             missing.push("scope");
         }
         if waiver.ci_allowed.is_none() {

@@ -50,52 +50,35 @@ fn spec_with_probe(
     output: HarnessProbeOutput,
     expected_version: &str,
 ) -> Result<HarnessToolSpec> {
-    spec_with_probe_for_tool(
-        HarnessToolName::try_new("cargo".to_owned())?,
+    spec_with_probe_for_tool(ProbeSpec {
+        tool: HarnessToolName::try_new("cargo".to_owned())?,
         main_command,
         probe_command,
         output,
         expected_version,
-        2_000,
-        1_024,
-    )
+        max_wall_time_ms: 2_000,
+        max_output_bytes: 1_024,
+    })
 }
 
-fn spec_with_probe_limits(
-    main_command: Vec<HarnessCommandArgument>,
-    probe_command: Vec<HarnessCommandArgument>,
-    output: HarnessProbeOutput,
-    expected_version: &str,
-    max_wall_time_ms: u64,
-    max_output_bytes: u64,
-) -> Result<HarnessToolSpec> {
-    spec_with_probe_for_tool(
-        HarnessToolName::try_new("cargo".to_owned())?,
-        main_command,
-        probe_command,
-        output,
-        expected_version,
-        max_wall_time_ms,
-        max_output_bytes,
-    )
-}
-
-fn spec_with_probe_for_tool(
+struct ProbeSpec<'a> {
     tool: HarnessToolName,
     main_command: Vec<HarnessCommandArgument>,
     probe_command: Vec<HarnessCommandArgument>,
     output: HarnessProbeOutput,
-    expected_version: &str,
+    expected_version: &'a str,
     max_wall_time_ms: u64,
     max_output_bytes: u64,
-) -> Result<HarnessToolSpec> {
-    let expected_version = HarnessStepVersion::try_new(expected_version.to_owned())?;
-    let probe = HarnessToolProbe::try_new(probe_command, output)?;
+}
+
+fn spec_with_probe_for_tool(spec: ProbeSpec<'_>) -> Result<HarnessToolSpec> {
+    let expected_version = HarnessStepVersion::try_new(spec.expected_version.to_owned())?;
+    let probe = HarnessToolProbe::try_new(spec.probe_command, spec.output)?;
     Ok(HarnessToolSpec::try_new(
-        tool,
-        main_command,
+        spec.tool,
+        spec.main_command,
         HarnessToolRequirement::Required,
-        HarnessExecutionLimits::try_new(max_wall_time_ms, max_output_bytes, 100)?,
+        HarnessExecutionLimits::try_new(spec.max_wall_time_ms, spec.max_output_bytes, 100)?,
         Some(expected_version),
     )?
     .with_probe(probe))
@@ -305,12 +288,9 @@ fn availability_requires_one_complete_reviewed_probe_contract() -> Result<()> {
     let main = child_command("child_entry_outputs")?;
     let probe_command = child_command("child_entry_probe_version")?;
     let missing_version = spec_with_command(main.clone(), 2_000, 1_024)?.with_probe(
-        HarnessToolProbe::try_new(probe_command.clone(), HarnessProbeOutput::Stdout)?,
+        HarnessToolProbe::try_new(probe_command, HarnessProbeOutput::Stdout)?,
     );
-    let result = probe_allowlisted_tool(
-        &request(root.clone(), main.clone(), None)?,
-        &missing_version,
-    )?;
+    let result = probe_allowlisted_tool(&request(root, main, None)?, &missing_version)?;
     assert_eq!(
         result.availability(),
         HarnessToolAvailability::Misconfigured
@@ -364,7 +344,7 @@ fn availability_preserves_missing_spawn_and_nonzero_causality() -> Result<()> {
     )?];
     let missing_spec = spec_with_probe(
         missing_main.clone(),
-        missing_main.clone(),
+        missing_main,
         HarnessProbeOutput::Stdout,
         "1.2.3",
     )?;
@@ -422,14 +402,15 @@ fn availability_maps_timeout_and_output_overflow_to_closed_states() -> Result<()
     let root = RepoRoot::try_from(temp.path())?;
     let main = child_command("child_entry_outputs")?;
 
-    let timeout_spec = spec_with_probe_limits(
-        main.clone(),
-        child_command("child_entry_writes_timeout_sentinel")?,
-        HarnessProbeOutput::Stdout,
-        "1.2.3",
-        40,
-        1_024,
-    )?;
+    let timeout_spec = spec_with_probe_for_tool(ProbeSpec {
+        tool: HarnessToolName::try_new("cargo".to_owned())?,
+        main_command: main.clone(),
+        probe_command: child_command("child_entry_writes_timeout_sentinel")?,
+        output: HarnessProbeOutput::Stdout,
+        expected_version: "1.2.3",
+        max_wall_time_ms: 40,
+        max_output_bytes: 1_024,
+    })?;
     let timeout =
         probe_allowlisted_tool(&request(root.clone(), main.clone(), None)?, &timeout_spec)?;
     assert_eq!(timeout.availability(), HarnessToolAvailability::TimedOut);
@@ -439,14 +420,15 @@ fn availability_maps_timeout_and_output_overflow_to_closed_states() -> Result<()
     );
     assert_eq!(timeout.observed_version(), None);
 
-    let overflow_spec = spec_with_probe_limits(
-        main.clone(),
-        child_command("child_entry_overflows_then_writes_sentinel")?,
-        HarnessProbeOutput::Stdout,
-        "1.2.3",
-        2_000,
-        32,
-    )?;
+    let overflow_spec = spec_with_probe_for_tool(ProbeSpec {
+        tool: HarnessToolName::try_new("cargo".to_owned())?,
+        main_command: main.clone(),
+        probe_command: child_command("child_entry_overflows_then_writes_sentinel")?,
+        output: HarnessProbeOutput::Stdout,
+        expected_version: "1.2.3",
+        max_wall_time_ms: 2_000,
+        max_output_bytes: 32,
+    })?;
     let overflow = probe_allowlisted_tool(&request(root, main, None)?, &overflow_spec)?;
     assert_eq!(
         overflow.availability(),
@@ -603,19 +585,19 @@ fn availability_reads_a_clean_reviewed_stdout_record() -> Result<()> {
         HarnessCommandArgument::try_new("--get".to_owned())?,
         HarnessCommandArgument::try_new("core.repositoryformatversion".to_owned())?,
     ];
-    let reviewed = spec_with_probe_for_tool(
-        HarnessToolName::try_new("git".to_owned())?,
-        git_command.clone(),
-        git_command.clone(),
-        HarnessProbeOutput::Stdout,
-        "0",
-        2_000,
-        1_024,
-    )?;
+    let reviewed = spec_with_probe_for_tool(ProbeSpec {
+        tool: HarnessToolName::try_new("git".to_owned())?,
+        main_command: git_command.clone(),
+        probe_command: git_command.clone(),
+        output: HarnessProbeOutput::Stdout,
+        expected_version: "0",
+        max_wall_time_ms: 2_000,
+        max_output_bytes: 1_024,
+    })?;
     let result = probe_allowlisted_tool(
         &request_with_tool(
             root.clone(),
-            git_command.clone(),
+            git_command,
             None,
             HarnessToolName::try_new("git".to_owned())?,
         )?,
@@ -628,15 +610,15 @@ fn availability_reads_a_clean_reviewed_stdout_record() -> Result<()> {
     );
 
     let unrelated_probe = vec![HarnessCommandArgument::try_new("git".to_owned())?];
-    let unrelated = spec_with_probe_for_tool(
-        HarnessToolName::try_new("git".to_owned())?,
-        child_command("child_entry_outputs")?,
-        unrelated_probe,
-        HarnessProbeOutput::Stdout,
-        "unrelated",
-        2_000,
-        1_024,
-    )?;
+    let unrelated = spec_with_probe_for_tool(ProbeSpec {
+        tool: HarnessToolName::try_new("git".to_owned())?,
+        main_command: child_command("child_entry_outputs")?,
+        probe_command: unrelated_probe,
+        output: HarnessProbeOutput::Stdout,
+        expected_version: "unrelated",
+        max_wall_time_ms: 2_000,
+        max_output_bytes: 1_024,
+    })?;
     let unrelated_result = probe_allowlisted_tool(
         &request_with_tool(
             root,
@@ -685,7 +667,7 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
 
     let absolute = request(
         root.clone(),
-        command.clone(),
+        command,
         Some(temp.path().to_string_lossy().into_owned()),
     )?;
     assert_rejection(
@@ -822,8 +804,7 @@ fn bounded_runner_preserves_literal_shell_metacharacters_and_calls_allowlist() -
     let root = RepoRoot::try_from(temp.path())?;
     let command = child_command("child_entry_reports_literal_argument")?;
     let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
-    let outcome =
-        execute_allowlisted_bounded(&request(root.clone(), command.clone(), None)?, &reviewed)?;
+    let outcome = execute_allowlisted_bounded(&request(root.clone(), command, None)?, &reviewed)?;
     assert_termination(&outcome, HarnessExecutionTermination::Completed, true)?;
     if !outcome.stdout().as_str().contains("literal=true") {
         return Err(Error::InvalidConfig(
@@ -867,8 +848,9 @@ fn bounded_runner_caps_lossy_utf8_without_expansion() -> Result<()> {
 #[test]
 fn child_entry_outputs() {
     if child_mode() {
-        print!("bounded-stdout");
-        eprint!("bounded-stderr");
+        use std::io::Write;
+        let _ = std::io::stdout().write_all(b"bounded-stdout");
+        let _ = std::io::stderr().write_all(b"bounded-stderr");
     }
 }
 
@@ -973,8 +955,9 @@ fn child_entry_overflows_then_writes_sentinel() {
 #[test]
 fn child_entry_reports_literal_argument() {
     if child_mode() {
+        use std::io::Write;
         let literal = std::env::args().any(|value| value == "&|$()");
-        print!("literal={literal}");
+        let _ = std::io::stdout().write_all(format!("literal={literal}").as_bytes());
     }
 }
 

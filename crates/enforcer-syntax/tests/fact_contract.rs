@@ -128,7 +128,9 @@ fn unsafe_input_is_refused_before_provider() {
 
 #[test]
 fn spans_reject_invalid_order_and_zero_lines() {
-    let reversed = ByteRange::try_from_range(10..2);
+    let start = 10;
+    let end = 2;
+    let reversed = ByteRange::try_from_range(start..end);
     assert_eq!(
         reversed.as_ref().err().map(|error| error.path.as_str()),
         Some("span.bytes")

@@ -290,7 +290,7 @@ fn supplemental_literal_wire_preserves_and_validates_matcher_evidence() -> Resul
         ),
         (
             {
-                let mut value = base.clone();
+                let mut value = base;
                 value["futureField"] = serde_json::json!(true);
                 value
             },
@@ -298,7 +298,8 @@ fn supplemental_literal_wire_preserves_and_validates_matcher_evidence() -> Resul
         ),
     ] {
         let error = serde_json::from_value::<CanonicalLanguageRouteResponse>(invalid)
-            .expect_err("invalid supplemental matcher evidence must be rejected");
+            .err()
+            .ok_or("invalid supplemental matcher evidence must be rejected")?;
         assert!(error.to_string().contains(expected), "{error}");
     }
     Ok(())
@@ -452,20 +453,23 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     };
     missing_object.remove("scanFamilyDisposition");
     let missing_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(missing)
-        .expect_err("missing disposition must be rejected");
+        .err()
+        .ok_or("missing disposition must be rejected")?;
     assert!(missing_error.to_string().contains("scanFamilyDisposition"));
 
     let mut unknown = base.clone();
     unknown["scanFamilyDisposition"] = serde_json::json!({ "kind": "future" });
     let unknown_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown)
-        .expect_err("unknown disposition must be rejected");
+        .err()
+        .ok_or("unknown disposition must be rejected")?;
     assert!(unknown_error.to_string().contains("unknown variant"));
 
     let mut mismatched = base.clone();
     mismatched["scanFamilyDisposition"] =
         serde_json::json!({ "kind": "mapped", "family": { "kind": "python" } });
     let mismatch_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched)
-        .expect_err("mismatched disposition must be rejected");
+        .err()
+        .ok_or("mismatched disposition must be rejected")?;
     assert!(mismatch_error
         .to_string()
         .contains("does not match the canonical registry"));
@@ -477,7 +481,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     missing_literal_object.remove("literalDisposition");
     let missing_literal_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_literal)
-            .expect_err("missing literal disposition must be rejected");
+            .err()
+            .ok_or("missing literal disposition must be rejected")?;
     assert!(missing_literal_error
         .to_string()
         .contains("literalDisposition"));
@@ -489,7 +494,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     missing_matcher_object.remove("detectionMatcher");
     let missing_matcher_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_matcher)
-            .expect_err("missing detection matcher must be rejected");
+            .err()
+            .ok_or("missing detection matcher must be rejected")?;
     assert!(missing_matcher_error
         .to_string()
         .contains("detectionMatcher"));
@@ -501,7 +507,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let unknown_matcher_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_matcher)
-            .expect_err("unknown detection matcher must be rejected");
+            .err()
+            .ok_or("unknown detection matcher must be rejected")?;
     assert!(unknown_matcher_error
         .to_string()
         .contains("unknown variant"));
@@ -513,7 +520,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let mismatched_matcher_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_matcher)
-            .expect_err("mismatched detection matcher must be rejected");
+            .err()
+            .ok_or("mismatched detection matcher must be rejected")?;
     assert!(mismatched_matcher_error
         .to_string()
         .contains("detectionMatcher does not match"));
@@ -522,7 +530,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     unknown_literal["literalDisposition"] = serde_json::json!({ "kind": "future" });
     let unknown_literal_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_literal)
-            .expect_err("unknown literal disposition must be rejected");
+            .err()
+            .ok_or("unknown literal disposition must be rejected")?;
     assert!(unknown_literal_error
         .to_string()
         .contains("unknown variant"));
@@ -531,7 +540,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     mismatched_literal["literalDisposition"] = serde_json::json!({ "kind": "unsupported" });
     let mismatched_literal_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_literal)
-            .expect_err("mismatched literal disposition must be rejected");
+            .err()
+            .ok_or("mismatched literal disposition must be rejected")?;
     assert!(mismatched_literal_error
         .to_string()
         .contains("literalDisposition does not match"));
@@ -546,7 +556,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     }"#;
     let duplicate_literal_error =
         serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_literal)
-            .expect_err("duplicate literal disposition must be rejected");
+            .err()
+            .ok_or("duplicate literal disposition must be rejected")?;
     assert!(duplicate_literal_error
         .to_string()
         .contains("duplicate field"));
@@ -559,7 +570,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         "scanFamilyDisposition":{"kind":"unsupported"}
     }"#;
     let duplicate_error = serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate)
-        .expect_err("duplicate disposition must be rejected");
+        .err()
+        .ok_or("duplicate disposition must be rejected")?;
     assert!(duplicate_error.to_string().contains("duplicate field"));
 
     let mut missing_consumer = base.clone();
@@ -569,7 +581,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     missing_consumer_object.remove("consumerCapabilities");
     let missing_consumer_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_consumer)
-            .expect_err("missing consumer capabilities must be rejected");
+            .err()
+            .ok_or("missing consumer capabilities must be rejected")?;
     assert!(missing_consumer_error
         .to_string()
         .contains("consumerCapabilities"));
@@ -580,7 +593,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     };
     consumer_object.remove("ui");
     let missing_ui_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_ui)
-        .expect_err("missing UI disposition must be rejected");
+        .err()
+        .ok_or("missing UI disposition must be rejected")?;
     assert!(missing_ui_error.to_string().contains("ui"));
 
     let duplicate_ui = r#"{
@@ -591,13 +605,15 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         "consumerCapabilities":{"nativeScan":{"kind":"mapped","family":{"kind":"rust"}},"nativeTool":{"kind":"mapped","tool":"cargo"},"rulePacks":{"kind":"mapped","packs":["rust","security"]},"cli":{"kind":"mapped","language":"rust"},"ui":{"kind":"notApplicable"},"ui":{"kind":"notApplicable"}}
     }"#;
     let duplicate_ui_error = serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_ui)
-        .expect_err("duplicate UI disposition must be rejected");
+        .err()
+        .ok_or("duplicate UI disposition must be rejected")?;
     assert!(duplicate_ui_error.to_string().contains("duplicate field"));
 
     let mut unknown_ui = base.clone();
     unknown_ui["consumerCapabilities"]["ui"] = serde_json::json!({"kind": "future"});
     let unknown_ui_error = serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_ui)
-        .expect_err("unknown UI disposition must be rejected");
+        .err()
+        .ok_or("unknown UI disposition must be rejected")?;
     assert!(unknown_ui_error.to_string().contains("unknown variant"));
 
     for ui in [
@@ -608,7 +624,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         mismatched_ui["consumerCapabilities"]["ui"] = ui;
         let mismatched_ui_error =
             serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_ui)
-                .expect_err("mapped or unsupported UI disposition must be rejected");
+                .err()
+                .ok_or("mapped or unsupported UI disposition must be rejected")?;
         assert!(mismatched_ui_error
             .to_string()
             .contains("consumerCapabilities does not match"));
@@ -619,7 +636,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         serde_json::json!({ "kind": "future" });
     let unknown_consumer_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_consumer)
-            .expect_err("unknown consumer disposition must be rejected");
+            .err()
+            .ok_or("unknown consumer disposition must be rejected")?;
     assert!(unknown_consumer_error
         .to_string()
         .contains("unknown variant"));
@@ -630,7 +648,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let missing_cli_language_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_cli_language)
-            .expect_err("mapped CLI disposition without a language must be rejected");
+            .err()
+            .ok_or("mapped CLI disposition without a language must be rejected")?;
     assert!(missing_cli_language_error
         .to_string()
         .contains("missing field `language`"));
@@ -642,7 +661,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let unknown_cli_language_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_cli_language)
-            .expect_err("unknown CLI language must be rejected");
+            .err()
+            .ok_or("unknown CLI language must be rejected")?;
     assert!(unknown_cli_language_error
         .to_string()
         .contains("unknown variant"));
@@ -654,7 +674,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let mismatched_cli_language_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_cli_language)
-            .expect_err("mismatched CLI language must be rejected");
+            .err()
+            .ok_or("mismatched CLI language must be rejected")?;
     assert!(mismatched_cli_language_error
         .to_string()
         .contains("consumerCapabilities does not match"));
@@ -664,7 +685,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         serde_json::json!({ "kind": "mapped" });
     let missing_native_tool_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_native_tool_value)
-            .expect_err("mapped native-tool disposition without a tool must be rejected");
+            .err()
+            .ok_or("mapped native-tool disposition without a tool must be rejected")?;
     assert!(missing_native_tool_error
         .to_string()
         .contains("missing field `tool`"));
@@ -674,7 +696,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         serde_json::json!({ "kind": "mapped", "tool": "future" });
     let unknown_native_tool_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_native_tool_value)
-            .expect_err("unknown native-tool identity must be rejected");
+            .err()
+            .ok_or("unknown native-tool identity must be rejected")?;
     assert!(unknown_native_tool_error
         .to_string()
         .contains("unknown variant"));
@@ -684,7 +707,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         serde_json::json!({ "kind": "mapped", "tool": "tsc" });
     let mismatched_native_tool_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_native_tool_value)
-            .expect_err("mismatched native-tool identity must be rejected");
+            .err()
+            .ok_or("mismatched native-tool identity must be rejected")?;
     assert!(mismatched_native_tool_error
         .to_string()
         .contains("consumerCapabilities does not match"));
@@ -695,7 +719,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let missing_rule_packs_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(missing_rule_packs)
-            .expect_err("mapped rule-pack disposition without packs must be rejected");
+            .err()
+            .ok_or("mapped rule-pack disposition without packs must be rejected")?;
     assert!(missing_rule_packs_error
         .to_string()
         .contains("missing field `packs`"));
@@ -707,7 +732,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     });
     let unknown_rule_pack_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_rule_pack)
-            .expect_err("unknown rule pack must be rejected");
+            .err()
+            .ok_or("unknown rule pack must be rejected")?;
     assert!(unknown_rule_pack_error
         .to_string()
         .contains("unknown variant"));
@@ -724,7 +750,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
         });
         let invalid_rule_packs_error =
             serde_json::from_value::<CanonicalLanguageRouteResponse>(invalid_rule_packs)
-                .expect_err("duplicate, wrong-order, or mismatched packs must be rejected");
+                .err()
+                .ok_or("duplicate, wrong-order, or mismatched packs must be rejected")?;
         assert!(invalid_rule_packs_error
             .to_string()
             .contains("consumerCapabilities does not match"));
@@ -734,17 +761,19 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     unknown_consumer_field["consumerCapabilities"]["futureField"] = serde_json::json!(true);
     let unknown_consumer_field_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(unknown_consumer_field)
-            .expect_err("unknown consumer field must be rejected");
+            .err()
+            .ok_or("unknown consumer field must be rejected")?;
     assert!(unknown_consumer_field_error
         .to_string()
         .contains("unknown field"));
 
-    let mut mismatched_consumer = base.clone();
+    let mut mismatched_consumer = base;
     mismatched_consumer["consumerCapabilities"]["nativeTool"] =
         serde_json::json!({ "kind": "notApplicable" });
     let mismatched_consumer_error =
         serde_json::from_value::<CanonicalLanguageRouteResponse>(mismatched_consumer)
-            .expect_err("mismatched consumer disposition must be rejected");
+            .err()
+            .ok_or("mismatched consumer disposition must be rejected")?;
     assert!(mismatched_consumer_error
         .to_string()
         .contains("consumerCapabilities does not match"));
@@ -759,7 +788,8 @@ fn scan_family_wire_rejects_missing_duplicate_unknown_and_mismatched_disposition
     }"#;
     let duplicate_consumer_error =
         serde_json::from_str::<CanonicalLanguageRouteResponse>(duplicate_consumer)
-            .expect_err("duplicate consumer capabilities must be rejected");
+            .err()
+            .ok_or("duplicate consumer capabilities must be rejected")?;
     assert!(duplicate_consumer_error
         .to_string()
         .contains("duplicate field"));

@@ -4,9 +4,9 @@
 // schemaHash: 97dff487a6e01afbab60d36452243bfd68d766ea1ae119350d44633b25c7d878
 
 use enforcer_domain::language_types::{
-    DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceTieBreak, LanguageId,
-    LiteralDisposition, LiteralProjection, LiteralProjectionDisposition, StructuralLanguageSupport,
-    NO_LITERAL_PARSER_IDENTITY_COUNT,
+    DetectionMatcher, DetectionMatcherKind, DetectionPrecedenceTieBreak, InvalidLanguageId,
+    LanguageId, LiteralDisposition, LiteralProjection, LiteralProjectionDisposition,
+    StructuralLanguageSupport, NO_LITERAL_PARSER_IDENTITY_COUNT,
 };
 use enforcer_syntax::boundary::language_registry::{render_source, validate_source};
 use enforcer_syntax::parsers::Language;
@@ -273,12 +273,18 @@ fn language_id_bounds_reject_zero_and_above_registry() -> TestResult {
     let Some(too_high) = NonZeroU16::new(161) else {
         return Err("161 must be a non-zero registry index".to_owned());
     };
-    assert!(matches!(LanguageId::try_from_registry_index(first), Ok(_)));
-    assert!(matches!(LanguageId::try_from_registry_index(last), Ok(_)));
-    assert!(matches!(
+    assert_eq!(
+        LanguageId::try_from_registry_index(first),
+        Ok(LanguageId::from_registry_index(first))
+    );
+    assert_eq!(
+        LanguageId::try_from_registry_index(last),
+        Ok(LanguageId::from_registry_index(last))
+    );
+    assert_eq!(
         LanguageId::try_from_registry_index(too_high),
-        Err(_)
-    ));
+        Err(InvalidLanguageId)
+    );
     Ok(())
 }
 

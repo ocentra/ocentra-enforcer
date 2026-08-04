@@ -19,13 +19,18 @@ fn all_true<const N: usize>(checks: [bool; N]) -> bool {
     checks.into_iter().all(std::convert::identity)
 }
 
+#[derive(Default)]
+pub(super) struct EntryValidationState {
+    pub(super) hashes: BTreeSet<String>,
+    pub(super) successors: BTreeMap<String, String>,
+    correction_ids: BTreeSet<String>,
+}
+
 pub(super) fn validate_entry_shape(
     record: &CyberSkillDispositionRecordDto,
     entry: &Cp08ProvenanceEntryDto,
     index: usize,
-    hashes: &mut BTreeSet<String>,
-    successors: &mut BTreeMap<String, String>,
-    correction_ids: &mut BTreeSet<String>,
+    state: &mut EntryValidationState,
 ) -> Result<(), String> {
     first_error([
         super::ensure(
@@ -43,14 +48,16 @@ pub(super) fn validate_entry_shape(
             &entry.kind_status,
         ),
         super::ensure(
-            hashes.insert(entry.artifact_sha256.as_str().to_owned()),
+            state
+                .hashes
+                .insert(entry.artifact_sha256.as_str().to_owned()),
             format!("duplicate CP08 artifact hash: {}", record.catalog_id),
         ),
         validate_relation(
             entry,
             index,
-            correction_ids,
-            successors,
+            &mut state.correction_ids,
+            &mut state.successors,
             record.catalog_id.as_str(),
         ),
     ])
@@ -117,26 +124,15 @@ pub(super) fn validate_chain(
     record: &CyberSkillDispositionRecordDto,
     projection: &Cp08ProjectionDto,
 ) -> Result<(), String> {
-    let mut hashes = BTreeSet::new();
-    let mut successors = BTreeMap::new();
-    let mut correction_ids = BTreeSet::new();
-    let chain = super::manifest::validate_chain_entries(
-        record,
-        projection,
-        &mut hashes,
-        &mut successors,
-        &mut correction_ids,
-    );
-    chain.map_or_else(
-        |error| Err(error),
-        |entries| {
-            super::cp08_chain::walk_chain(
-                record,
-                projection,
-                &successors,
-                &hashes,
-                &entries.by_hash,
-            )
-        },
-    )
+    let mut state = EntryValidationState::default();
+    let chain = super::manifest::validate_chain_entries(record, projection, &mut state);
+    chain.map_or_else(Err, |entries| {
+        super::cp08_chain::walk_chain(
+            record,
+            projection,
+            &state.successors,
+            &state.hashes,
+            &entries.by_hash,
+        )
+    })
 }

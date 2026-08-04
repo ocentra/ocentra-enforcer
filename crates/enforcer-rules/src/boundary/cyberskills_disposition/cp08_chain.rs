@@ -43,6 +43,13 @@ fn all_true<const N: usize>(checks: [bool; N]) -> bool {
     checks.into_iter().all(std::convert::identity)
 }
 
+struct ChainWalk<'a> {
+    entries: &'a BTreeMap<&'a str, &'a Cp08ProvenanceEntryDto>,
+    successors: &'a BTreeMap<String, String>,
+    reached: &'a mut BTreeSet<String>,
+    catalog_id: &'a str,
+}
+
 pub(super) fn walk_chain(
     record: &CyberSkillDispositionRecordDto,
     projection: &Cp08ProjectionDto,
@@ -55,14 +62,13 @@ pub(super) fn walk_chain(
         .first()
         .ok_or_else(|| format!("CP08 provenance chain empty: {}", record.catalog_id))?;
     let mut reached = BTreeSet::new();
-    let terminal_hash = follow_chain(
-        root,
-        root.artifact_sha256.as_str().to_owned(),
+    let mut walk = ChainWalk {
         entries,
         successors,
-        &mut reached,
-        record.catalog_id.as_str(),
-    )?;
+        reached: &mut reached,
+        catalog_id: record.catalog_id.as_str(),
+    };
+    let terminal_hash = follow_chain(root, root.artifact_sha256.as_str().to_owned(), &mut walk)?;
     let terminal = entries
         .get(terminal_hash.as_str())
         .ok_or_else(|| format!("terminal CP08 provenance missing: {}", record.catalog_id))?;
@@ -87,30 +93,21 @@ pub(super) fn walk_chain(
 fn follow_chain(
     current: &Cp08ProvenanceEntryDto,
     current_hash: String,
-    entries: &BTreeMap<&str, &Cp08ProvenanceEntryDto>,
-    successors: &BTreeMap<String, String>,
-    reached: &mut BTreeSet<String>,
-    catalog_id: &str,
+    walk: &mut ChainWalk<'_>,
 ) -> Result<String, String> {
     super::ensure(
-        reached.insert(current_hash.clone()),
-        format!("cycle in CP08 provenance chain: {}", catalog_id),
+        walk.reached.insert(current_hash.clone()),
+        format!("cycle in CP08 provenance chain: {}", walk.catalog_id),
     )?;
-    let Some(next_hash) = successors.get(&current_hash) else {
+    let Some(next_hash) = walk.successors.get(&current_hash) else {
         return Ok(current_hash);
     };
-    let next = entries
+    let next = walk
+        .entries
         .get(next_hash.as_str())
-        .ok_or_else(|| format!("orphan CP08 provenance chain: {}", catalog_id))?;
-    validate_transition(current, next, &current_hash, catalog_id)?;
-    follow_chain(
-        next,
-        next_hash.clone(),
-        entries,
-        successors,
-        reached,
-        catalog_id,
-    )
+        .ok_or_else(|| format!("orphan CP08 provenance chain: {}", walk.catalog_id))?;
+    validate_transition(current, next, &current_hash, walk.catalog_id)?;
+    follow_chain(next, next_hash.clone(), walk)
 }
 
 fn validate_transition(

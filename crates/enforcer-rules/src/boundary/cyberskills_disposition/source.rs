@@ -146,10 +146,11 @@ pub(super) fn validate_source_state(
     record: &CyberSkillDispositionRecordDto,
     counts: &mut DerivedDispositionCounts,
 ) -> Result<(), String> {
-    let validator = (record.source_availability == SourceAvailability::Available)
-        .then_some(validate_available as fn(_, _) -> _)
-        .unwrap_or(validate_unavailable);
-    validator(record, counts)
+    if record.source_availability == SourceAvailability::Available {
+        validate_available(record, counts)
+    } else {
+        validate_unavailable(record, counts)
+    }
 }
 
 fn validate_available(

@@ -279,7 +279,7 @@ fn finding(
         .map_err(|error| error.to_string())?,
         file,
         line: FindingLine::known(SourceLine::try_new(
-            NonZeroU32::new(u32::try_from(line).map_err(|_| "line overflow")?)
+            NonZeroU32::new(u32::try_from(line).map_err(|_overflow| "line overflow")?)
                 .ok_or("line overflow")?,
         )),
         snippet: FindingSnippet::new(snippet.trim().to_owned()).ok(),

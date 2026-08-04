@@ -390,17 +390,19 @@ fn inventory_preserves_all_parser_identities_and_denominators(
 }
 
 #[test]
-fn manifest_rejects_unsupported_state_surface_terms() {
+fn manifest_rejects_unsupported_state_surface_terms() -> Result<(), Box<dyn std::error::Error>> {
     let payload = r#"{
         "schemaVersion":"1.0.0",
         "generatedFrom":"unit-test",
         "rows":[{"languageId":"rust","aliases":[],"extensions":[],"basenames":[],"discovery":{"state":"supported","evidence":[],"providers":[],"notProved":[]},"lexical":{"state":"blocked","evidence":[],"providers":[],"notProved":["blocked"]},"structural":{"state":"blocked","evidence":[],"providers":[],"notProved":["blocked"]},"graph":{"state":"blocked","evidence":[],"providers":[],"notProved":["blocked"]},"ecosystem":{"state":"unsupported","evidence":[],"providers":[],"notProved":["unsupported"]},"rules":{"state":"blocked","evidence":[],"providers":[],"notProved":["blocked"]},"notProved":[]}]}"#;
-    let error = serde_json::from_str::<LanguageCapabilityManifest>(payload)
-        .expect_err("bare supported state must be rejected");
+    let Err(error) = serde_json::from_str::<LanguageCapabilityManifest>(payload) else {
+        return Err("bare supported state must be rejected".into());
+    };
     assert!(
         error.to_string().contains("unknown variant"),
         "unexpected closed-state rejection: {error}"
     );
+    Ok(())
 }
 
 #[test]
@@ -409,13 +411,14 @@ fn manifest_rejects_duplicate_language_id_and_extension_conflict(
     let mut duplicate_manifest: LanguageCapabilityManifest = serde_json::from_str(MANIFEST)?;
     let duplicate = duplicate_manifest
         .rows
-        .get(0)
+        .first()
         .cloned()
         .ok_or("expected at least one row")?;
     duplicate_manifest.rows.push(duplicate);
 
-    let duplicate_error = validate_manifest_for_invariants(&duplicate_manifest)
-        .expect_err("duplicate language identity must be rejected");
+    let Err(duplicate_error) = validate_manifest_for_invariants(&duplicate_manifest) else {
+        return Err("duplicate language identity must be rejected".into());
+    };
     assert!(
         duplicate_error.contains("duplicate language_id"),
         "unexpected duplicate rejection: {duplicate_error}"
@@ -438,8 +441,9 @@ fn manifest_rejects_duplicate_language_id_and_extension_conflict(
         .extensions
         .push(extension);
 
-    let extension_error = validate_manifest_for_invariants(&extension_manifest)
-        .expect_err("extension collision must be rejected");
+    let Err(extension_error) = validate_manifest_for_invariants(&extension_manifest) else {
+        return Err("extension collision must be rejected".into());
+    };
     assert!(
         extension_error.contains("extension `ts` conflict"),
         "unexpected extension rejection: {extension_error}"
@@ -457,8 +461,9 @@ fn manifest_rejects_missing_evidence_for_proved_layers() -> Result<(), Box<dyn s
         .discovery
         .evidence
         .clear();
-    let error =
-        validate_manifest_for_invariants(&manifest).expect_err("missing evidence must be rejected");
+    let Err(error) = validate_manifest_for_invariants(&manifest) else {
+        return Err("missing evidence must be rejected".into());
+    };
     assert!(
         error.contains("no evidence"),
         "unexpected missing-evidence rejection: {error}"
@@ -500,8 +505,9 @@ fn manifest_rejects_unreachable_provider_ids() -> Result<(), Box<dyn std::error:
         .get_mut(0)
         .ok_or("expected at least one row")?;
     mutate_provider(row, "non-existent-provider");
-    let error = validate_manifest_for_invariants(&manifest)
-        .expect_err("unreachable provider must be rejected");
+    let Err(error) = validate_manifest_for_invariants(&manifest) else {
+        return Err("unreachable provider must be rejected".into());
+    };
     assert!(
         error.contains("unsupported provider"),
         "unexpected provider rejection: {error}"

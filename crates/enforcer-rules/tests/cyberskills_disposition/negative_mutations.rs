@@ -7,10 +7,21 @@ use serde_json::{json, Value};
 
 use super::PROTECTED_CATALOG_ID;
 
+type MutationResult = Result<(), Box<dyn std::error::Error>>;
+
 struct MutationCase(
     &'static str,
-    fn(&mut Value, usize, usize, usize) -> Result<(), Box<dyn std::error::Error>>,
+    fn(&mut Value, usize, usize, usize) -> MutationResult,
 );
+
+struct CorrectionEntry<'a> {
+    correction_id: &'a str,
+    prior: &'a Value,
+    tag: &'a str,
+    present: &'a [&'a str],
+    missing: &'a [&'a str],
+    adds: &'a [&'a str],
+}
 
 pub(crate) fn mutate(
     mut root: Value,
@@ -265,22 +276,26 @@ fn append_pair(root: &mut Value, partial: usize) -> Result<(), Box<dyn std::erro
     append_entry(
         root,
         partial,
-        "corr-001",
-        prior.clone(),
-        "1",
-        &["native-predicate", "external-engine", "advisory", "manual"],
-        &[],
-        &["external-engine"],
+        &CorrectionEntry {
+            correction_id: "corr-001",
+            prior: &prior,
+            tag: "1",
+            present: &["native-predicate", "external-engine", "advisory", "manual"],
+            missing: &[],
+            adds: &["external-engine"],
+        },
     )?;
     append_entry(
         root,
         partial,
-        "corr-002",
-        prior,
-        "2",
-        FULL,
-        NONE,
-        &["external-engine"],
+        &CorrectionEntry {
+            correction_id: "corr-002",
+            prior: &prior,
+            tag: "2",
+            present: FULL,
+            missing: NONE,
+            adds: &["external-engine"],
+        },
     )
 }
 
@@ -298,30 +313,27 @@ fn append_correction(
     append_entry(
         root,
         record_index,
-        spec.id,
-        prior,
-        spec.tag,
-        spec.present,
-        spec.missing,
-        spec.adds,
+        &CorrectionEntry {
+            correction_id: spec.id,
+            prior: &prior,
+            tag: spec.tag,
+            present: spec.present,
+            missing: spec.missing,
+            adds: spec.adds,
+        },
     )
 }
 
 fn append_entry(
     root: &mut Value,
     record_index: usize,
-    correction_id: &str,
-    prior: Value,
-    tag: &str,
-    present: &[&str],
-    missing: &[&str],
-    adds: &[&str],
+    correction: &CorrectionEntry<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let source_sha = root["records"][record_index]["sourceSha256"]
         .as_str()
         .ok_or("source hash missing")?
         .to_owned();
-    let entry = json!({"relation":"additive-correction", "batch":"correction-01", "artifactPath":"proof/cyberskills/cp08/corrections/correction-01/decomposition.json", "artifactSha256":tag.repeat(64), "sourceSha256":source_sha, "artifactAnchors":["# additive correction:L1"], "componentCount":present.len(), "presentKinds":present, "missingKinds":missing, "kindStatus":{"native-predicate":"proposed", "external-engine":"blocked", "advisory":"retained", "manual":"retained"}, "correctionId":correction_id, "priorArtifactSha256":prior, "addsKinds":adds});
+    let entry = json!({"relation":"additive-correction", "batch":"correction-01", "artifactPath":"proof/cyberskills/cp08/corrections/correction-01/decomposition.json", "artifactSha256":correction.tag.repeat(64), "sourceSha256":source_sha, "artifactAnchors":["# additive correction:L1"], "componentCount":correction.present.len(), "presentKinds":correction.present, "missingKinds":correction.missing, "kindStatus":{"native-predicate":"proposed", "external-engine":"blocked", "advisory":"retained", "manual":"retained"}, "correctionId":correction.correction_id, "priorArtifactSha256":correction.prior, "addsKinds":correction.adds});
     root["records"][record_index]["cp08Projection"]["provenanceChain"]
         .as_array_mut()
         .ok_or("provenance chain must be an array")?

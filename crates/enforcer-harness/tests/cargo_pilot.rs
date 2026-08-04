@@ -104,7 +104,7 @@ fn input<'a>(
     spec: &'a HarnessToolSpec,
 ) -> Result<CargoPilotInput<'a>> {
     let computed = reviewed_input_tree_digest(request, spec)?;
-    CargoPilotInput::try_new(request, spec, computed).map_err(Into::into)
+    CargoPilotInput::try_new(request, spec, computed)
 }
 
 fn assert_invalid_config<T>(result: Result<T>, expected: &str) -> Result<()> {
@@ -149,7 +149,7 @@ fn clean_cargo_pilot_is_available_passed_and_in_memory() -> Result<()> {
     let (temp, root) = fixture()?;
     let spec = spec("target", EXPECTED_CARGO_VERSION)?;
     let request = request(root, spec.command().to_vec())?;
-    let evidence = run_cargo_pilot(input(&request, &spec)?)?;
+    let evidence = run_cargo_pilot(&input(&request, &spec)?)?;
 
     assert_eq!(evidence.availability(), HarnessToolAvailability::Available);
     assert_eq!(
@@ -183,7 +183,7 @@ fn invalid_cargo_source_is_nonzero_with_rust_diagnostics() -> Result<()> {
         .map_err(|error| Error::InvalidConfig(format!("invalid fixture source: {error}")))?;
     let spec = spec("target", EXPECTED_CARGO_VERSION)?;
     let request = request(root, spec.command().to_vec())?;
-    let evidence = run_cargo_pilot(input(&request, &spec)?)?;
+    let evidence = run_cargo_pilot(&input(&request, &spec)?)?;
 
     assert_eq!(evidence.availability(), HarnessToolAvailability::Available);
     assert_eq!(
@@ -287,7 +287,7 @@ fn exact_command_probe_and_target_contract_rejects_unsafe_variants() -> Result<(
 
     let metachar_spec = spec("target-&$", expected)?;
     let metachar_request = request(root, metachar_spec.command().to_vec())?;
-    let metachar = run_cargo_pilot(input(&metachar_request, &metachar_spec)?)?;
+    let metachar = run_cargo_pilot(&input(&metachar_request, &metachar_spec)?)?;
     assert_eq!(metachar.status(), HarnessRunStatus::Passed);
     let _ = exact_request;
     Ok(())
@@ -355,7 +355,7 @@ fn non_ascii_reviewed_input_path_is_rejected_on_windows() -> Result<()> {
 fn input_scope_bounded_read_rejects_file_grown_past_limit_before_read() -> Result<()> {
     let (temp, root) = fixture()?;
     let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
-    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
     fs::write(temp.path().join("fixture/src/lib.rs"), b"0123456789")
         .map_err(|error| Error::InvalidConfig(format!("grown input fixture: {error}")))?;
     let limits = HarnessInputLimits::try_new(3, 4, 8, 32)?;
@@ -468,7 +468,7 @@ fn declared_and_computed_input_digests_must_match_before_child() -> Result<()> {
         &reviewed_spec,
         validate(b"caller-declared-different"),
     )?;
-    let evidence = run_cargo_pilot(mismatched)?;
+    let evidence = run_cargo_pilot(&mismatched)?;
     assert_eq!(
         evidence.availability(),
         HarnessToolAvailability::Misconfigured
@@ -483,7 +483,7 @@ fn declared_and_computed_input_digests_must_match_before_child() -> Result<()> {
 #[test]
 fn input_scope_rejects_file_count_overflow() -> Result<()> {
     let (_temp, root) = fixture()?;
-    for (index, _) in std::iter::repeat(()).take(101).enumerate() {
+    for (index, _) in std::iter::repeat_n((), 101).enumerate() {
         let path = Path::new(root.as_str()).join(format!("fixture/src/generated-{index}.rs"));
         fs::write(path, b"pub fn generated() {}")
             .map_err(|error| Error::InvalidConfig(format!("file-count fixture: {error}")))?;
@@ -501,7 +501,7 @@ fn input_scope_rejects_file_count_overflow() -> Result<()> {
 fn input_scope_rejects_depth_overflow() -> Result<()> {
     let (_temp, root) = fixture()?;
     let mut relative = String::from("fixture/src");
-    for (index, _) in std::iter::repeat(()).take(17).enumerate() {
+    for (index, _) in std::iter::repeat_n((), 17).enumerate() {
         relative.push_str(&format!("/nested-{index}"));
         fs::create_dir_all(Path::new(root.as_str()).join(&relative))
             .map_err(|error| Error::InvalidConfig(format!("depth fixture: {error}")))?;
@@ -530,7 +530,7 @@ fn input_scope_rejects_per_file_and_total_byte_overflow() -> Result<()> {
     )
     .map_err(|error| Error::InvalidConfig(format!("per-file fixture: {error}")))?;
     let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
-    let reviewed_request = request(root.clone(), reviewed_spec.command().to_vec())?;
+    let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
     assert_invalid_config(
         CargoPilotInput::try_new(&reviewed_request, &reviewed_spec, validate(b"tree")),
         "per-file byte bound",
@@ -538,7 +538,7 @@ fn input_scope_rejects_per_file_and_total_byte_overflow() -> Result<()> {
 
     let (_total_temp, total_root) = fixture()?;
     let chunk = vec![b'y'; 1_048_576];
-    for index in (0..8).map(|value| value) {
+    for (index, _) in std::iter::repeat_n((), 8).enumerate() {
         fs::write(
             Path::new(total_root.as_str()).join(format!("fixture/src/chunk-{index}.rs")),
             &chunk,
@@ -602,7 +602,7 @@ fn unrelated_probe_executable_is_rejected_without_child() -> Result<()> {
         probe_command()?,
         HarnessProbeOutput::Stdout,
     )?);
-    let probe_request = request(root.clone(), main.clone())?;
+    let probe_request = request(root.clone(), main)?;
     assert_invalid_config(
         CargoPilotInput::try_new(&probe_request, &missing_version, validate(b"tree")),
         "exact pinned cargo stdout probe contract",
@@ -634,8 +634,8 @@ fn captured_digests_are_deterministic_and_config_tamper_is_visible() -> Result<(
     let (_temp, root) = fixture()?;
     let reviewed_spec = spec("target", EXPECTED_CARGO_VERSION)?;
     let reviewed_request = request(root, reviewed_spec.command().to_vec())?;
-    let first = run_cargo_pilot(input(&reviewed_request, &reviewed_spec)?)?;
-    let second = run_cargo_pilot(input(&reviewed_request, &reviewed_spec)?)?;
+    let first = run_cargo_pilot(&input(&reviewed_request, &reviewed_spec)?)?;
+    let second = run_cargo_pilot(&input(&reviewed_request, &reviewed_spec)?)?;
     assert_eq!(first.command_digest(), second.command_digest());
     assert_eq!(first.config_digest(), second.config_digest());
     assert_eq!(first.status(), second.status());
@@ -660,7 +660,7 @@ fn captured_digests_are_deterministic_and_config_tamper_is_visible() -> Result<(
     )
     .map_err(|error| Error::InvalidConfig(format!("tamper fixture lock: {error}")))?;
     assert_invalid_config(
-        run_cargo_pilot(drift_input),
+        run_cargo_pilot(&drift_input),
         "scope changed before availability probe",
     )?;
     assert!(!drift_temp.path().join("fixture/target").exists());

@@ -363,7 +363,14 @@ mod tests {
         let root: RepoRoot = temp.path().to_string_lossy().parse()?;
         let file: RelPath = "output/report.json".parse()?;
         assert_eq!(
-            check(&root, ScanScope::Files, &[file.clone()], true, &[])?.ok,
+            check(
+                &root,
+                ScanScope::Files,
+                std::slice::from_ref(&file),
+                true,
+                &[]
+            )?
+            .ok,
             ReportOutcome::Violations
         );
         assert_eq!(

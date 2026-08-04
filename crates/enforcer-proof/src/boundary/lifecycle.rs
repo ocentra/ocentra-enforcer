@@ -810,7 +810,7 @@ fn now_iso() -> String {
 #[cfg(test)]
 mod tests {
     use super::load_pack_registry;
-    use enforcer_core::error::Result;
+    use enforcer_core::error::{Error, Result};
 
     #[test]
     fn pack_catalog_merges_a_safe_profile_over_the_base_definition() -> Result<()> {

@@ -162,13 +162,36 @@ struct ArtifactStats {
     missing_external: usize,
 }
 
+type RecordMap<'a> = BTreeMap<
+    &'a str,
+    &'a enforcer_rules::cyberskills_disposition::wire::manifest::CyberSkillDispositionRecordDto,
+>;
+
+type KindSummary = (
+    BTreeMap<ComponentKind, ComponentStatus>,
+    Vec<String>,
+    Vec<String>,
+);
+
+struct ArtifactContext<'a> {
+    batch: &'a str,
+    relative_path: &'a str,
+    artifact_sha: &'a str,
+    records: &'a RecordMap<'a>,
+}
+
+struct ProjectionEvidence<'a> {
+    missing: &'a [String],
+    kinds: &'a [String],
+    artifact_statuses: &'a BTreeMap<ComponentKind, ComponentStatus>,
+    artifact: &'a ArtifactContext<'a>,
+    source_sha: &'a str,
+}
+
 fn validate_artifact(
     root: &Path,
     artifact_path: &Path,
-    records: &BTreeMap<
-        &str,
-        &enforcer_rules::cyberskills_disposition::wire::manifest::CyberSkillDispositionRecordDto,
-    >,
+    records: &RecordMap<'_>,
     ids: &mut BTreeSet<String>,
     stats: &mut ArtifactStats,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -182,29 +205,21 @@ fn validate_artifact(
         .strip_prefix(root)?
         .to_string_lossy()
         .replace('\\', "/");
+    let context = ArtifactContext {
+        batch: artifact_batch,
+        relative_path: &relative_path,
+        artifact_sha: &artifact_sha,
+        records,
+    };
     for skill in artifact["skills"].as_array().ok_or("CP08 skills missing")? {
-        validate_skill(
-            skill,
-            artifact_batch,
-            &relative_path,
-            &artifact_sha,
-            records,
-            ids,
-            stats,
-        )?;
+        validate_skill(skill, &context, ids, stats)?;
     }
     Ok(())
 }
 
 fn validate_skill(
     skill: &Value,
-    artifact_batch: &str,
-    relative_path: &str,
-    artifact_sha: &str,
-    records: &BTreeMap<
-        &str,
-        &enforcer_rules::cyberskills_disposition::wire::manifest::CyberSkillDispositionRecordDto,
-    >,
+    artifact: &ArtifactContext<'_>,
     ids: &mut BTreeSet<String>,
     stats: &mut ArtifactStats,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -215,7 +230,8 @@ fn validate_skill(
         ids.insert(catalog_id.to_owned()),
         "duplicate CP08 ID: {catalog_id}"
     );
-    let record = records
+    let record = artifact
+        .records
         .get(catalog_id)
         .ok_or_else(|| format!("CP08 ID missing from ledger: {catalog_id}"))?;
     assert_eq!(record.source_availability, SourceAvailability::Available);
@@ -232,18 +248,14 @@ fn validate_skill(
         .cp08_projection
         .as_ref()
         .ok_or("CP08 projection missing from ledger")?;
-    assert_projection_evidence(
-        skill,
-        record,
-        projection,
-        &missing,
-        &kinds,
-        artifact_statuses,
-        artifact_batch,
-        relative_path,
-        artifact_sha,
+    let evidence = ProjectionEvidence {
+        missing: &missing,
+        kinds: &kinds,
+        artifact_statuses: &artifact_statuses,
+        artifact,
         source_sha,
-    )?;
+    };
+    assert_projection_evidence(skill, record, projection, &evidence)?;
     stats.components += components.len();
     stats.complete += usize::from(missing.is_empty());
     stats.partial += usize::from(!missing.is_empty());
@@ -252,16 +264,7 @@ fn validate_skill(
     Ok(())
 }
 
-fn collect_kinds(
-    components: &[Value],
-) -> Result<
-    (
-        BTreeMap<ComponentKind, ComponentStatus>,
-        Vec<String>,
-        Vec<String>,
-    ),
-    Box<dyn std::error::Error>,
-> {
+fn collect_kinds(components: &[Value]) -> Result<KindSummary, Box<dyn std::error::Error>> {
     let statuses = components
         .iter()
         .map(|component| {
@@ -305,18 +308,19 @@ fn assert_projection_evidence(
     skill: &Value,
     record: &enforcer_rules::cyberskills_disposition::wire::manifest::CyberSkillDispositionRecordDto,
     projection: &enforcer_rules::cyberskills_disposition::wire::cp08::Cp08ProjectionDto,
-    missing: &[String],
-    kinds: &[String],
-    artifact_statuses: BTreeMap<ComponentKind, ComponentStatus>,
-    artifact_batch: &str,
-    relative_path: &str,
-    artifact_sha: &str,
-    source_sha: &str,
+    evidence: &ProjectionEvidence<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let ProjectionEvidence {
+        missing,
+        kinds,
+        artifact_statuses,
+        artifact,
+        source_sha,
+    } = evidence;
     assert_eq!(projection.component_count, kinds.len());
     assert_eq!(
         sorted_strings(projection.present_kinds.iter().map(enum_wire_value)),
-        sorted_strings(kinds.to_owned())
+        sorted_strings(kinds.iter().cloned())
     );
     assert_eq!(
         sorted_strings(
@@ -326,7 +330,7 @@ fn assert_projection_evidence(
                 .cloned()
                 .map(|kind| enum_wire_value(&kind))
         ),
-        sorted_strings(missing.to_owned())
+        sorted_strings(missing.iter().cloned())
     );
     assert_eq!(
         projection.status,
@@ -336,14 +340,14 @@ fn assert_projection_evidence(
             ProjectionStatus::Partial
         }
     );
-    assert_eq!(projection.kind_status, artifact_statuses);
+    assert_eq!(&projection.kind_status, *artifact_statuses);
     assert_eq!(projection.provenance_chain.len(), 1);
     let provenance = &projection.provenance_chain[0];
     assert_eq!(provenance.relation, ProvenanceRelation::Accepted);
-    assert_eq!(provenance.batch.as_str(), artifact_batch);
-    assert_eq!(provenance.artifact_path.as_str(), relative_path);
-    assert_eq!(provenance.artifact_sha256.as_str(), artifact_sha);
-    assert_eq!(provenance.source_sha256.as_str(), source_sha);
+    assert_eq!(provenance.batch.as_str(), artifact.batch);
+    assert_eq!(provenance.artifact_path.as_str(), artifact.relative_path);
+    assert_eq!(provenance.artifact_sha256.as_str(), artifact.artifact_sha);
+    assert_eq!(provenance.source_sha256.as_str(), *source_sha);
     let artifact_anchors: Vec<String> = serde_json::from_value(skill["source"]["anchors"].clone())?;
     assert_eq!(
         provenance

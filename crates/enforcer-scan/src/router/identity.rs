@@ -489,7 +489,7 @@ fn matched_reference(path: &RelPath) -> Option<(LiteralReference, DetectionMatch
                 };
                 let reference = collision_winner(matcher)
                     .or_else(|| matcher_winner(matcher, winners))
-                    .or_else(|| match parser_ids {
+                    .or(match parser_ids {
                         [id] => Some(LiteralReference::ParserId(*id)),
                         _ => None,
                     });
@@ -766,20 +766,20 @@ mod native_tool_tests {
         let mut tsc = 0;
         let mut unsupported = 0;
         let mut not_applicable = 0;
+        let mut unexpected = 0;
 
         for record in records {
             match native_tool_projection(record.matchers()) {
                 NativeToolProjection::Mapped(NativeTool::Cargo) => cargo += 1,
                 NativeToolProjection::Mapped(NativeTool::Tsc) => tsc += 1,
-                NativeToolProjection::Mapped(_) => {
-                    assert!(false, "only Cargo and Tsc are mapped in this projection")
-                }
+                NativeToolProjection::Mapped(_) => unexpected += 1,
                 NativeToolProjection::Unsupported => unsupported += 1,
                 NativeToolProjection::NotApplicable => not_applicable += 1,
             }
         }
 
         assert_eq!((cargo, tsc, unsupported, not_applicable), (1, 1, 158, 0));
+        assert_eq!(unexpected, 0);
     }
 
     #[test]
@@ -915,16 +915,14 @@ mod tests {
     use enforcer_syntax::registry::language_registry;
 
     #[test]
-    fn every_registry_identity_has_a_typed_route_disposition() {
+    fn every_registry_identity_has_a_typed_route_disposition() -> Result<(), String> {
         assert_eq!(language_registry().len(), 160);
         let ui_mapped = 0;
         let mut ui_unsupported = 0;
         let mut ui_not_applicable = 0;
         for record in language_registry() {
-            let Some(route) = canonical_route(record.id()) else {
-                assert!(false, "registry id must resolve to a route");
-                return;
-            };
+            let route = canonical_route(record.id())
+                .ok_or_else(|| "registry id must resolve to a route".to_owned())?;
             let expected = match record.structural() {
                 StructuralLanguageSupport::ParseFile => RouteCapabilityDisposition::Unsupported,
                 StructuralLanguageSupport::NoParseFile => RouteCapabilityDisposition::NotApplicable,
@@ -975,6 +973,7 @@ mod tests {
             }
         }
         assert_eq!((ui_mapped, ui_unsupported, ui_not_applicable), (0, 0, 160));
+        Ok(())
     }
 
     #[test]

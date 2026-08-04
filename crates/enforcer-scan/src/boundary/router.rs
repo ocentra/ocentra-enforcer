@@ -353,7 +353,7 @@ fn validate_detection_matcher(
     let nonzero = std::num::NonZeroU16::new(language_id)
         .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
     let id = LanguageId::try_from_registry_index(nonzero)
-        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+        .map_err(|_unknown| "canonical language id is outside the reviewed registry".to_owned())?;
     let record = enforcer_syntax::registry::language_registry()
         .iter()
         .find(|record| record.id() == id)
@@ -604,7 +604,7 @@ fn scan_family_disposition_for_wire(
     let nonzero = std::num::NonZeroU16::new(language_id)
         .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
     let id = LanguageId::try_from_registry_index(nonzero)
-        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+        .map_err(|_unknown| "canonical language id is outside the reviewed registry".to_owned())?;
     let disposition = crate::router::identity::canonical_scan_family_disposition(id)
         .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
     Ok(scan_family_to_wire(disposition))
@@ -614,7 +614,7 @@ fn literal_disposition_for_wire(language_id: u16) -> Result<CanonicalLiteralDisp
     let nonzero = std::num::NonZeroU16::new(language_id)
         .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
     let id = LanguageId::try_from_registry_index(nonzero)
-        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+        .map_err(|_unknown| "canonical language id is outside the reviewed registry".to_owned())?;
     let route = crate::router::identity::canonical_literal_disposition(id)
         .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())?;
     Ok(route.into())
@@ -626,7 +626,7 @@ fn consumer_capabilities_for_wire(
     let nonzero = std::num::NonZeroU16::new(language_id)
         .ok_or_else(|| "canonical language id must be non-zero".to_owned())?;
     let id = LanguageId::try_from_registry_index(nonzero)
-        .map_err(|_| "canonical language id is outside the reviewed registry".to_owned())?;
+        .map_err(|_unknown| "canonical language id is outside the reviewed registry".to_owned())?;
     crate::router::identity::canonical_consumer_capabilities(id)
         .map(Into::into)
         .ok_or_else(|| "canonical language id is absent from the reviewed registry".to_owned())

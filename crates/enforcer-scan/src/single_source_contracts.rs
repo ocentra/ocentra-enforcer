@@ -8,6 +8,7 @@ use enforcer_domain::severity::Severity;
 use enforcer_domain::telemetry_types::SourceLine;
 use std::num::NonZeroU32;
 
+/// Validate configured owner, mirror, and copied-value single-source contracts.
 pub fn check(
     root: &RepoRoot,
     scope: ScanScope,
@@ -256,22 +257,24 @@ fn rust_serde_rename(source: &str, enum_name: &str, variant: &str) -> Result<Str
         .and_then(|tail| tail.split_once('{').map(|(_, rest)| rest))
         .unwrap_or("");
     let body = body.split("\n}").next().unwrap_or(body);
-    let variant_marker = format!("{variant}");
-    for (index, line) in body.lines().enumerate() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with(&variant_marker)
-            && trimmed
-                .get(variant_marker.len()..)
+    for attribute in body.split("#[serde(rename").skip(1) {
+        let Some((rename, remainder)) = attribute.split_once(']') else {
+            continue;
+        };
+        let Some(value) = quoted_after(rename.split_once('=').map_or(rename, |(_, value)| value))
+        else {
+            continue;
+        };
+        let remainder = remainder.trim_start();
+        if remainder.starts_with(variant)
+            && remainder
+                .get(variant.len()..)
                 .unwrap_or("")
                 .chars()
                 .next()
                 .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_')
         {
-            let prefix = body.lines().take(index).collect::<Vec<_>>().join("\n");
-            let attribute = prefix.rsplit("#[serde(rename").next().unwrap_or("");
-            if let Some(value) = quoted_after(attribute) {
-                return Ok(value);
-            }
+            return Ok(value);
         }
     }
     Err(format!("{enum_name}::{variant} serde rename is missing"))
@@ -295,7 +298,7 @@ fn source_object_path(source: &str, path: &str) -> Result<String, String> {
                     .get(..suffix.len().saturating_sub(1))
                     .ok_or_else(|| format!("{path} array index is invalid"))?
                     .parse::<usize>()
-                    .map_err(|_| format!("{path} array index is invalid"))?,
+                    .map_err(|_invalid| format!("{path} array index is invalid"))?,
             ),
         ),
         Some(_) => return Err(format!("{path} array index is invalid")),
@@ -640,7 +643,8 @@ mod tests {
         let missing_selector =
             r#"{"contracts":[{"ownerPath":"src/owner.rs","values":[{"name":"code"}]}]}"#;
         let error = check_config(temp.path(), missing_selector, &["src/owner.rs"])
-            .expect_err("missing owner selector must reject the contract");
+            .err()
+            .ok_or("missing owner selector must reject the contract")?;
         assert!(error
             .to_string()
             .contains("unsupported contract value spec"));
@@ -650,7 +654,8 @@ mod tests {
             unknown_mirror_name,
             &["src/owner.rs", "src/mirror.rs"],
         )
-        .expect_err("mirror values must name an owner value");
+        .err()
+        .ok_or("mirror values must name an owner value")?;
         assert!(error
             .to_string()
             .contains("does not match an owner value name"));
@@ -660,7 +665,8 @@ mod tests {
             missing_mirror_selector,
             &["src/owner.rs", "src/mirror.rs"],
         )
-        .expect_err("missing mirror selector must reject the contract");
+        .err()
+        .ok_or("missing mirror selector must reject the contract")?;
         assert!(error
             .to_string()
             .contains("unsupported contract value spec"));

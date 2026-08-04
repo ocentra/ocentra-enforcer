@@ -14,6 +14,7 @@ use enforcer_domain::coordination_types::{
 };
 
 #[derive(Clone)]
+/// Validated peer-registry record with a redacted token environment name.
 pub struct PeerRecord {
     pub name: CoordinationPeerName,
     pub url: CoordinationPeerUrl,
@@ -30,10 +31,12 @@ impl std::fmt::Debug for PeerRecord {
     }
 }
 #[derive(Debug, Clone, Default)]
+/// Persisted collection of configured coordination peers.
 pub struct PeerRegistry {
     pub peers: Vec<PeerRecord>,
 }
 #[derive(Debug, Clone)]
+/// Bounded result of importing append-only peer stream suffixes.
 pub struct SyncResult {
     pub imported: usize,
     pub transferred_lines: usize,
@@ -42,6 +45,7 @@ pub struct SyncResult {
 
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// Serialized peer-registry boundary representation.
 pub struct PeerRegistryDto {
     pub peers: Vec<PeerRegistryEntryDto>,
 }
@@ -55,6 +59,7 @@ impl std::fmt::Debug for PeerRegistryDto {
 }
 #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// Serialized entry in a peer registry.
 pub struct PeerRegistryEntryDto {
     pub name: String,
     pub url: String,
@@ -112,6 +117,7 @@ impl From<&PeerRegistry> for PeerRegistryDto {
         }
     }
 }
+/// Decode and validate safe stream names from a peer manifest.
 pub fn decode_manifest(raw: &str) -> Result<Vec<String>> {
     #[derive(serde::Deserialize)]
     struct Manifest {
@@ -145,6 +151,7 @@ pub fn decode_manifest(raw: &str) -> Result<Vec<String>> {
         .collect()
 }
 
+/// Load the peer registry, treating an absent file as an empty registry.
 pub fn load_registry(root: &CoordinationLedgerRoot) -> Result<PeerRegistry> {
     let raw = match fs::read_to_string(registry_path(root.as_path())) {
         Ok(value) => value,
@@ -155,6 +162,7 @@ pub fn load_registry(root: &CoordinationLedgerRoot) -> Result<PeerRegistry> {
     };
     serde_json::from_str::<PeerRegistryDto>(&raw)?.try_into()
 }
+/// Insert or replace a peer and persist the deterministically ordered registry.
 pub fn add_peer(root: &CoordinationLedgerRoot, peer: PeerRecord) -> Result<PeerRegistry> {
     let mut registry = load_registry(root)?;
     registry.peers.retain(|existing| existing.name != peer.name);
@@ -165,6 +173,7 @@ pub fn add_peer(root: &CoordinationLedgerRoot, peer: PeerRecord) -> Result<PeerR
     save_registry(root, &registry)?;
     Ok(registry)
 }
+/// Remove a named peer and persist the resulting registry.
 pub fn remove_peer(
     root: &CoordinationLedgerRoot,
     name: &CoordinationPeerName,
@@ -174,6 +183,7 @@ pub fn remove_peer(
     save_registry(root, &registry)?;
     Ok(registry)
 }
+/// Resolve one configured peer by its validated name.
 pub fn resolve_peer(
     root: &CoordinationLedgerRoot,
     name: &CoordinationPeerName,
@@ -184,14 +194,17 @@ pub fn resolve_peer(
         .find(|peer| &peer.name == name)
         .ok_or_else(|| rejected("unknown peer alias"))
 }
+/// Resolve an optional peer token without persisting or logging its value.
 pub fn token_from_env(token_env: Option<&CoordinationPeerTokenEnv>) -> Result<Option<String>> {
     token_env
         .map(|name| {
-            std::env::var(name.as_str())
-                .map_err(|_| rejected("configured peer token environment variable is not set"))
+            std::env::var(name.as_str()).map_err(|_missing| {
+                rejected("configured peer token environment variable is not set")
+            })
         })
         .transpose()
 }
+/// Import compatible suffixes from a local peer ledger.
 pub fn sync_local(root: &CoordinationLedgerRoot, peer_root: &Path) -> Result<SyncResult> {
     sync_lines(
         root,
@@ -207,6 +220,7 @@ pub fn sync_local(root: &CoordinationLedgerRoot, peer_root: &Path) -> Result<Syn
             .collect::<Result<Vec<_>>>()?,
     )
 }
+/// Import compatible suffixes from an authenticated HTTP peer.
 pub fn sync_http(
     root: &CoordinationLedgerRoot,
     url: &CoordinationPeerUrl,
@@ -380,10 +394,7 @@ mod tests {
                     return;
                 };
                 let mut request_bytes = [0_u8; 2048];
-                let request_len = match socket.read(&mut request_bytes) {
-                    Ok(value) => value,
-                    Err(_) => 0,
-                };
+                let request_len: usize = socket.read(&mut request_bytes).unwrap_or_default();
                 let request = String::from_utf8_lossy(&request_bytes[..request_len]);
                 let permitted = token.as_ref().is_none_or(|value| {
                     request.contains(&format!("Authorization: Bearer {value}"))
@@ -476,8 +487,9 @@ mod tests {
     fn peer_registry_dto_rejects_malformed_peer_url() -> Result<(), Box<dyn std::error::Error>> {
         let decoded: PeerRegistryDto =
             serde_json::from_str(r#"{"peers":[{"name":"left","url":"https://not-supported"}]}"#)?;
-        let error =
-            PeerRegistry::try_from(decoded).expect_err("malformed peer URL must be rejected");
+        let error = PeerRegistry::try_from(decoded)
+            .err()
+            .ok_or("malformed peer URL must be rejected")?;
         let decode = match error {
             CoordinationError::Decode(error) => error,
             other => return Err(format!("expected a typed decode error, got {other:?}").into()),
@@ -497,7 +509,8 @@ mod tests {
             Some("correct"),
         )?)?;
         let error = super::sync_http(&root, &endpoint, Some("wrong"))
-            .expect_err("a bad bearer token must be rejected");
+            .err()
+            .ok_or("a bad bearer token must be rejected")?;
         match error {
             CoordinationError::Rejected(reason) => {
                 assert_eq!(reason.as_str(), "peer request was rejected or unavailable")
@@ -517,7 +530,8 @@ mod tests {
             None,
         )?)?;
         let error = super::sync_http(&root, &endpoint, None)
-            .expect_err("a manifest with path traversal must be rejected");
+            .err()
+            .ok_or("a manifest with path traversal must be rejected")?;
         match error {
             CoordinationError::Rejected(reason) => {
                 assert_eq!(

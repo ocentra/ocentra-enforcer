@@ -81,7 +81,7 @@ pub fn compute_input_tree(
         ));
     }
     collector.files.sort_by(|left, right| left.0.cmp(&right.0));
-    let file_count = u32::try_from(collector.files.len()).map_err(|_| {
+    let file_count = u32::try_from(collector.files.len()).map_err(|_overflow| {
         Error::InvalidConfig("Cargo input scope file count exceeds typed bounds".to_owned())
     })?;
     let digest = digest_scope(&collector.files, target_relative.as_str());
@@ -126,7 +126,7 @@ impl Collector<'_> {
                     "Cargo input scope directory changed during enumeration: {relative}: {error}"
                 ))
             })?;
-            let name = entry.file_name().into_string().map_err(|_| {
+            let name = entry.file_name().into_string().map_err(|_non_utf| {
                 Error::InvalidConfig("Cargo input scope contains a non-UTF path".to_owned())
             })?;
             let child = normalize_relative(&format!("{relative}/{name}"))?;
@@ -494,7 +494,7 @@ fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
     {
         use std::os::windows::fs::MetadataExt;
 
-        return FileIdentity::WindowsCreationTime(metadata.creation_time());
+        FileIdentity::WindowsCreationTime(metadata.creation_time())
     }
 
     #[cfg(not(any(unix, windows)))]

@@ -12,6 +12,7 @@ use crate::error::{CoordinationError, Result};
 use enforcer_domain::coordination_types::CoordinationRejection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Address and reuse status for the process-local coordination service.
 pub struct EnsureStatus {
     pub host: String,
     pub port: u16,
@@ -35,6 +36,7 @@ impl serde::Serialize for EnsureStatus {
 
 static SERVICES: OnceLock<Mutex<BTreeMap<String, u16>>> = OnceLock::new();
 
+/// Ensure an authenticated loopback coordination service is listening.
 pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus> {
     if host != "127.0.0.1" && host != "localhost" {
         return Err(rejected("coordination ensure only permits loopback hosts"));
@@ -43,7 +45,7 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
     let services = SERVICES.get_or_init(|| Mutex::new(BTreeMap::new()));
     if services
         .lock()
-        .map_err(|_| rejected("coordination daemon registry lock poisoned"))?
+        .map_err(|_poisoned| rejected("coordination daemon registry lock poisoned"))?
         .contains_key(&key)
     {
         return Ok(EnsureStatus {
@@ -79,7 +81,7 @@ pub fn ensure(host: &str, port: u16, token: Option<&str>) -> Result<EnsureStatus
     });
     services
         .lock()
-        .map_err(|_| rejected("coordination daemon registry lock poisoned"))?
+        .map_err(|_poisoned| rejected("coordination daemon registry lock poisoned"))?
         .insert(format!("{host}:{actual_port}"), actual_port);
     Ok(EnsureStatus {
         host: host.to_owned(),
@@ -136,8 +138,9 @@ mod tests {
 
     #[test]
     fn ensure_rejects_non_loopback_bind() -> Result<(), String> {
-        let error =
-            ensure("0.0.0.0", 8787, None).expect_err("non-loopback daemon binds must be rejected");
+        let error = ensure("0.0.0.0", 8787, None)
+            .err()
+            .ok_or("non-loopback daemon binds must be rejected")?;
         match error {
             CoordinationError::Rejected(reason) => assert_eq!(
                 reason.as_str(),
