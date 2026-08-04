@@ -117,15 +117,7 @@ fn rr_18_16(
         })
         .collect::<Result<Vec<_>, _>>()?;
     let mut findings = Vec::new();
-    let mut in_cfg_test = false;
-    for (index, line) in source.lines().enumerate() {
-        if line.contains("#[cfg(test)]") {
-            in_cfg_test = true;
-            continue;
-        }
-        if in_cfg_test && line.trim_start().starts_with('}') {
-            in_cfg_test = false;
-        }
+    for (index, (line, in_cfg_test)) in source.lines().zip(cfg_test_line_mask(source)).enumerate() {
         if !in_cfg_test
             && has_string_literal(line)
             && !allow.iter().any(|pattern| pattern.is_match(line))
@@ -140,6 +132,68 @@ fn rr_18_16(
         }
     }
     Ok(findings)
+}
+
+fn cfg_test_line_mask(source: &str) -> Vec<bool> {
+    let mut pending = false;
+    let mut depth = 0_i32;
+    source
+        .lines()
+        .map(|line| {
+            if depth > 0 {
+                depth += rust_brace_delta(line);
+                return true;
+            }
+            if line.contains("#[cfg(test)]") {
+                pending = true;
+            }
+            if pending {
+                let delta = rust_brace_delta(line);
+                if delta > 0 {
+                    depth = delta;
+                    pending = false;
+                } else if !line.trim().is_empty()
+                    && !line.trim_start().starts_with('#')
+                    && !line.contains("#[cfg(test)]")
+                {
+                    pending = false;
+                }
+                return true;
+            }
+            false
+        })
+        .collect()
+}
+
+fn rust_brace_delta(line: &str) -> i32 {
+    let mut chars = line.chars().peekable();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut delta = 0_i32;
+    while let Some(character) = chars.next() {
+        if quote.is_none() && character == '/' && chars.peek() == Some(&'/') {
+            break;
+        }
+        if let Some(delimiter) = quote {
+            if character == '\\' && !escaped {
+                escaped = true;
+                continue;
+            }
+            if character == delimiter && !escaped {
+                quote = None;
+            }
+            escaped = false;
+            continue;
+        }
+        if matches!(character, '\'' | '"') {
+            quote = Some(character);
+        } else if character == '{' {
+            delta += 1;
+        } else if character == '}' {
+            delta -= 1;
+        }
+    }
+    delta
 }
 
 fn rr_6_5(file: &RelPath, source: &str) -> Result<Vec<Finding>, String> {
@@ -288,7 +342,7 @@ fn finding(
 
 #[cfg(test)]
 mod tests {
-    use super::{finding, has_string_literal, rr_6_1, rr_6_5};
+    use super::{cfg_test_line_mask, finding, has_string_literal, rr_6_1, rr_6_5};
     use enforcer_domain::paths::RelPath;
 
     #[test]
@@ -325,6 +379,15 @@ mod tests {
     fn literal_classifier_requires_a_closed_literal() {
         assert!(has_string_literal("let value = \"runtime\";"));
         assert!(!has_string_literal("let value = quoted;"));
+    }
+
+    #[test]
+    fn cfg_test_mask_tracks_the_entire_module() {
+        let source = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn first() { assert_eq!(\"}\", \"}\"); }\n    #[test]\n    fn second() { println!(\"still test-only\"); }\n}\npub fn runtime() { println!(\"runtime\"); }\n";
+        assert_eq!(
+            cfg_test_line_mask(source),
+            vec![true, true, true, true, true, true, true, false]
+        );
     }
 
     #[test]
