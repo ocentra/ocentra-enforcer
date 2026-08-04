@@ -128,7 +128,7 @@ fn write_secret_policy_scope_config(root: &std::path::Path) -> std::io::Result<(
 fn write_ignored_secret_policy_sources(root: &std::path::Path) -> std::io::Result<()> {
     let fixture = root.join("crates/sample/fixtures/fail.ts");
     let vendor = root.join("vendor/example/SKILL.md");
-    let test = root.join("tests/native-policy-secret-fixture.ts");
+    let test = root.join("tests/fixtures/native-policy-secret-fixture.ts");
     std::fs::create_dir_all(
         fixture
             .parent()
@@ -337,7 +337,40 @@ fn native_secrets_policy_still_rejects_product_source_with_configured_exclusions
     assert!(stdout.contains("src/config.ts:1 SEC-1.1"));
     assert!(!stdout.contains("crates/sample/fixtures/fail.ts"));
     assert!(!stdout.contains("vendor/example/SKILL.md"));
-    assert!(!stdout.contains("tests/native-policy-secret-fixture.ts"));
+    assert!(!stdout.contains("tests/fixtures/native-policy-secret-fixture.ts"));
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_scans_non_fixture_test_sources() -> Result<(), Box<dyn std::error::Error>>
+{
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_scope_config(temp.path())?;
+    let source = temp.path().join("tests/integration/config.ts");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .ok_or_else(|| std::io::Error::other("test source has no parent"))?,
+    )?;
+    std::fs::write(&source, inline_secret_source())?;
+
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    let stdout = String::from_utf8(output.stdout)?;
+    assert_eq!(output.status.code(), Some(1));
+    let mut fields = stdout
+        .lines()
+        .find(|line| {
+            line.trim_start()
+                .starts_with("[error] tests/integration/config.ts:1 ")
+        })
+        .ok_or("missing test-source secret finding")?
+        .split_whitespace();
+    assert_eq!(fields.next(), Some("[error]"));
+    assert_eq!(fields.next(), Some("tests/integration/config.ts:1"));
+    assert_eq!(fields.next(), Some("SEC-1.1"));
     Ok(())
 }
 
