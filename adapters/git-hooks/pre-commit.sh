@@ -45,9 +45,8 @@ EOF
 
 if [ "$ENFORCER_MODE" = "local" ]; then
   node "$ROOT/scripts/precommit-ratchet.mjs" "$ROOT" "$ROOT"
-else
-  run_scoped_scan
 fi
+run_scoped_scan
 
 if [ "${OCENTRA_ENFORCER_LANGUAGES:-}" != "" ]; then
   run_enforcer scan --root "$ROOT" --all --languages "$OCENTRA_ENFORCER_LANGUAGES" --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
