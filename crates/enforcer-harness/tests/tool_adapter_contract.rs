@@ -968,10 +968,7 @@ fn child_entry_spawns_pipe_inheriting_descendant() {
     if child_mode() {
         let executable = match std::env::current_exe() {
             Ok(executable) => executable,
-            Err(error) => {
-                eprintln!("current test executable unavailable: {error}");
-                std::process::exit(91);
-            }
+            Err(_error) => std::process::exit(91),
         };
         let mut descendant = std::process::Command::new(executable);
         descendant.args([
@@ -983,10 +980,7 @@ fn child_entry_spawns_pipe_inheriting_descendant() {
         ]);
         let child = match descendant.spawn() {
             Ok(child) => child,
-            Err(error) => {
-                eprintln!("descendant fixture spawn failed: {error}");
-                std::process::exit(92);
-            }
+            Err(_error) => std::process::exit(92),
         };
         assert_ne!(child.id(), 0, "spawned descendant must have a process id");
         std::thread::park_timeout(std::time::Duration::from_secs(5));

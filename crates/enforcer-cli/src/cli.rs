@@ -44,7 +44,7 @@ pub fn normalize_required_check_route(
 #[cfg(test)]
 mod route_normalization_tests {
     use super::normalize_required_check_route;
-    use proptest::prelude::*;
+    use proptest::{prop_assert_eq, prop_assume, proptest};
 
     proptest! {
         #[test]
