@@ -588,13 +588,21 @@ pub(crate) fn resolve_files_with_rules(
                         reason: error.to_string(),
                     })?;
                 let crate_root = find_crate_root(repo_root, &all_files, name)?;
+                let nested_crate_roots = all_files
+                    .iter()
+                    .filter_map(|path| path.as_str().strip_suffix("/Cargo.toml"))
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>();
                 let files = all_files
                     .into_iter()
-                    .filter(|path| {
-                        path == &crate_root
-                            || path
-                                .as_str()
-                                .starts_with(&format!("{}/", crate_root.as_str()))
+                    .filter(|path| match &crate_root {
+                        CrateRoot::Repository => !nested_crate_roots
+                            .iter()
+                            .any(|root| path.as_str().starts_with(&format!("{root}/"))),
+                        CrateRoot::Nested(root) => {
+                            path == root
+                                || path.as_str().starts_with(&format!("{}/", root.as_str()))
+                        }
                     })
                     .collect();
                 (scope_request, files, ScanScope::Crate)
@@ -629,11 +637,17 @@ fn filter_languages(files: Vec<RelPath>, languages: &[NativeScanLanguage]) -> Ve
         .collect()
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum CrateRoot {
+    Repository,
+    Nested(RelPath),
+}
+
 fn find_crate_root(
     repo_root: &RepoRoot,
     files: &[RelPath],
     crate_name: &CrateName,
-) -> Result<RelPath, NativeScanError> {
+) -> Result<CrateRoot, NativeScanError> {
     for manifest in files
         .iter()
         .filter(|path| path.as_str().ends_with("Cargo.toml"))
@@ -648,9 +662,9 @@ fn find_crate_root(
         {
             let root = manifest.as_str().strip_suffix("/Cargo.toml").unwrap_or("");
             if root.is_empty() {
-                return "Cargo.toml".parse().map_err(Into::into);
+                return Ok(CrateRoot::Repository);
             }
-            return root.parse().map_err(Into::into);
+            return Ok(CrateRoot::Nested(root.parse()?));
         }
     }
     Err(NativeScanError::UnsupportedCrate {
@@ -841,6 +855,41 @@ mod tests {
                 .map(|path| path.as_str())
                 .collect::<Vec<_>>(),
             ["nested/member/Cargo.toml", "nested/member/src/lib.rs"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn root_package_crate_scope_includes_root_sources_but_not_nested_packages(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "Cargo.toml",
+            "[package]\nname = \"root-package\"\nversion = \"0.1.0\"\n\n[workspace]\nmembers = [\"crates/member\"]\n",
+        )?;
+        write(temp.path(), "src/lib.rs", "pub fn root_source() {}")?;
+        write(temp.path(), "build.rs", "fn main() {}")?;
+        write(
+            temp.path(),
+            "crates/member/Cargo.toml",
+            "[package]\nname = \"member\"\nversion = \"0.1.0\"\n",
+        )?;
+        write(
+            temp.path(),
+            "crates/member/src/lib.rs",
+            "pub fn member_source() {}",
+        )?;
+
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Crate("root-package".parse::<CrateName>()?),
+            languages: Vec::new(),
+        };
+        let (scope, files) = resolve_files(&request, &root(temp.path())?)?;
+        assert_eq!(scope.kind, ScanScope::Crate);
+        assert_eq!(
+            files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+            ["Cargo.toml", "build.rs", "src/lib.rs"]
         );
         Ok(())
     }
