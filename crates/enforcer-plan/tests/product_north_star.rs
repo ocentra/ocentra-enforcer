@@ -74,13 +74,13 @@ fn boss_dashboard_keeps_status_subordinate_to_exact_sha_proof() -> TestResult {
     require_all(
         &source,
         &[
-            "CP00-A",
-            "UL00",
-            "RM01",
+            "CP08 batch-30",
+            "UL06 P1A1",
+            "RM02-RM07 bounded read-only behavioral oracles",
             "Reuse-first tool adapter",
             "HOLD -> READY",
             "ACTIVE -> ACCEPTED",
-            "exact head SHA",
+            "integrationSha=<sha>",
             "never self-promote",
         ],
     );
