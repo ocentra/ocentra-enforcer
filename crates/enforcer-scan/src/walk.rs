@@ -161,10 +161,30 @@ pub fn expand_explicit(
     paths: &[RelPath],
     rules: &IgnoreRules,
 ) -> std::io::Result<Vec<RelPath>> {
+    let canonical_root = std::fs::canonicalize(root)?;
     let mut out = Vec::new();
     for path in paths {
         let absolute = root.join(path.as_str());
-        let file_type = std::fs::metadata(&absolute)?.file_type();
+        let file_type = std::fs::symlink_metadata(&absolute)?.file_type();
+        if file_type.is_symlink() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "explicit scan path must not be a symlink: {}",
+                    path.as_str()
+                ),
+            ));
+        }
+        let canonical = std::fs::canonicalize(&absolute)?;
+        if !canonical.starts_with(&canonical_root) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!(
+                    "explicit scan path must remain inside the repository: {}",
+                    path.as_str()
+                ),
+            ));
+        }
         if file_type.is_dir() {
             walk_into(root, &absolute, rules, &mut out)?;
         } else if file_type.is_file() && !rules.is_ignored(path) {
@@ -374,6 +394,45 @@ mod tests {
             files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
             vec!["src/lib.rs", "src/nested/mod.rs"]
         );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn expand_explicit_rejects_symlinked_files_and_escaping_directories(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::symlink;
+
+        let repository = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        write_file(
+            outside.path(),
+            "secret.rs",
+            "const SECRET: &str = \"outside\";",
+        )?;
+        symlink(
+            outside.path().join("secret.rs"),
+            repository.path().join("linked.rs"),
+        )?;
+        symlink(outside.path(), repository.path().join("linked-dir"))?;
+
+        let file_error = expand_explicit(
+            repository.path(),
+            &["linked.rs".parse()?],
+            &IgnoreRules::default(),
+        )
+        .err()
+        .ok_or("explicit file symlink must be rejected")?;
+        assert_eq!(file_error.kind(), std::io::ErrorKind::InvalidInput);
+
+        let directory_error = expand_explicit(
+            repository.path(),
+            &["linked-dir".parse()?],
+            &IgnoreRules::default(),
+        )
+        .err()
+        .ok_or("explicit directory symlink must be rejected")?;
+        assert_eq!(directory_error.kind(), std::io::ErrorKind::InvalidInput);
         Ok(())
     }
 }
