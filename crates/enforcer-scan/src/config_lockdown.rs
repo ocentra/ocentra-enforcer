@@ -52,6 +52,12 @@ pub fn check_waiver_policy(path: &Path, root: &Path, scope: ScanScope) -> Result
 
 fn check(path: &Path, root: &Path, scope: ScanScope, kind: CheckKind) -> Result<Report, String> {
     let diagnostics = enforcer_config::serde::diagnostics::inspect_project_config(path);
+    if let Some(error) = diagnostics.load_error.as_deref() {
+        return Err(format!(
+            "cannot inspect project configuration {}: {error}",
+            path.display()
+        ));
+    }
     let catalog = catalog(root)?;
     let file = path
         .file_name()
@@ -557,6 +563,23 @@ mod tests {
                     .any(|value| value.rule_id.as_str() == id),
                 "missing {id}"
             );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn governance_checks_fail_closed_when_config_cannot_be_decoded(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        seed(temp.path(), "{not-json")?;
+        let config = temp.path().join("ocentra-enforcer.config.json");
+
+        for result in [
+            check_config_lockdown(&config, temp.path(), ScanScope::Workspace),
+            check_waiver_policy(&config, temp.path(), ScanScope::Workspace),
+        ] {
+            let error = result.expect_err("malformed configuration must fail closed");
+            assert!(error.contains("cannot inspect project configuration"));
         }
         Ok(())
     }
