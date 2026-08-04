@@ -665,16 +665,6 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
         "repository root",
     )?;
 
-    let absolute = request(
-        root.clone(),
-        command,
-        Some(temp.path().to_string_lossy().into_owned()),
-    )?;
-    assert_rejection(
-        validate_allowlisted_request(&absolute, &reviewed),
-        "repository root",
-    )?;
-
     #[cfg(windows)]
     {
         let rooted_without_prefix = request(
@@ -688,7 +678,7 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
         )?;
 
         let drive_relative = request(
-            root,
+            root.clone(),
             reviewed.command().to_vec(),
             Some(r"C:outside".to_owned()),
         )?;
@@ -697,6 +687,16 @@ fn allowlisted_validation_requires_exact_command_and_repository_relative_cwd() -
             "repository root",
         )?;
     }
+
+    let absolute = request(
+        root,
+        command,
+        Some(temp.path().to_string_lossy().into_owned()),
+    )?;
+    assert_rejection(
+        validate_allowlisted_request(&absolute, &reviewed),
+        "repository root",
+    )?;
     Ok(())
 }
 
