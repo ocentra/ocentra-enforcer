@@ -255,16 +255,22 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let Some(run) = args.get("runId").and_then(serde_json::Value::as_str) else {
                 return serde_json::json!({"ok":false,"operation":operation,"error":"runId is required"});
             };
-            let command = args
-                .get("command")
-                .and_then(serde_json::Value::as_array)
-                .map(|items| {
-                    items
+            let command = match args.get("command") {
+                None => Vec::new(),
+                Some(serde_json::Value::Array(items)) => {
+                    let Some(command) = items
                         .iter()
-                        .filter_map(|item| item.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default();
+                        .map(|item| item.as_str().map(str::to_owned))
+                        .collect::<Option<Vec<_>>>()
+                    else {
+                        return serde_json::json!({"ok":false,"operation":operation,"error":"proof command must contain only strings"});
+                    };
+                    command
+                }
+                Some(_) => {
+                    return serde_json::json!({"ok":false,"operation":operation,"error":"proof command must be an array"});
+                }
+            };
             let proof_id = match proof.parse() {
                 Ok(value) => value,
                 Err(_) => {
@@ -3725,6 +3731,30 @@ mod tests {
             return Err("invalid proof status did not produce a result".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
+        Ok(())
+    }
+
+    #[test]
+    fn proof_run_rejects_non_string_command_elements() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_proof_run")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "proofId": "native.command",
+                "runId": "invalid-command",
+                "command": ["tool", "--count", 3, "file"]
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("invalid proof run did not produce a result".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(
+            value["error"],
+            serde_json::json!("proof command must contain only strings")
+        );
         Ok(())
     }
 
