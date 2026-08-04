@@ -430,10 +430,17 @@ fn covered_by(contract: &serde_json::Value, path: &str) -> bool {
             })
 }
 fn non_blocking(path: &str) -> bool {
-    path.contains("/tests/")
-        || path.starts_with("tests/")
-        || path.starts_with("docs/")
-        || path.ends_with("_tests.rs")
+    let normalized = path.replace('\\', "/");
+    let mut segments = normalized.split('/');
+    let file = normalized.rsplit('/').next().unwrap_or(normalized.as_str());
+    let conventional_test_file = [".test.", ".spec."]
+        .iter()
+        .any(|marker| file.contains(marker));
+    segments.any(|segment| matches!(segment, "test" | "tests"))
+        || normalized.starts_with("docs/")
+        || file.ends_with("_tests.rs")
+        || file.ends_with("_test.rs")
+        || conventional_test_file
 }
 fn finding(file: RelPath, detail: &str) -> Result<Finding, String> {
     Ok(Finding {
@@ -474,7 +481,7 @@ fn empty(scope: ScanScope) -> Report {
 
 #[cfg(test)]
 mod tests {
-    use super::check;
+    use super::{check, non_blocking};
     use enforcer_domain::findings::{ReportOutcome, ScanScope};
     use enforcer_domain::paths::{RelPath, RepoRoot};
 
@@ -487,6 +494,22 @@ mod tests {
         std::fs::create_dir_all(target.parent().ok_or("parent")?)?;
         std::fs::write(target, source)?;
         Ok(())
+    }
+
+    #[test]
+    fn conventional_test_directories_and_file_suffixes_are_non_blocking() {
+        for path in [
+            "packages/app/test/fixture.ts",
+            "packages/app/tests/fixture.ts",
+            "src/widget.test.ts",
+            "src/widget.spec.tsx",
+            "src/widget_test.rs",
+            "src/widget_tests.rs",
+        ] {
+            assert!(non_blocking(path), "expected {path} to be non-blocking");
+        }
+        assert!(!non_blocking("src/contest/widget.ts"));
+        assert!(!non_blocking("src/widget.ts"));
     }
     fn check_config(
         root: &std::path::Path,
