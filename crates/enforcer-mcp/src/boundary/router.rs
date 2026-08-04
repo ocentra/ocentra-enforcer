@@ -2776,16 +2776,25 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
         "ocentra_enforcer_coordination_inbox" => {
             match enforcer_coordination::sync::stream::read_all_streams(&root_path) {
                 Ok(all) => {
-                    let lane = args.get("lane").and_then(serde_json::Value::as_str);
+                    let lane = match args.get("lane") {
+                        Some(serde_json::Value::String(value)) => match value.parse::<LaneId>() {
+                            Ok(value) => value,
+                            Err(error) => return json_error(&error.to_string()),
+                        },
+                        Some(_) => return json_error("coordination_inbox `lane` must be a string"),
+                        None => match api::load_identity(&root_path) {
+                            Ok(config) => config.default_lane,
+                            Err(error) => return json_error(&error.to_string()),
+                        },
+                    };
                     let messages: Vec<_> = all
                         .events
                         .into_iter()
                         .filter(|event| {
-                            event.kind == "message"
-                                && lane.is_none_or(|value| event.to.as_deref() == Some(value))
+                            event.kind == "message" && event.to.as_deref() == Some(lane.as_str())
                         })
                         .collect();
-                    serde_json::json!({"ok":true,"messageCount":messages.len(),"messages":messages})
+                    serde_json::json!({"ok":true,"lane":lane.as_str(),"messageCount":messages.len(),"messages":messages})
                 }
                 Err(error) => json_error(&error.to_string()),
             }
@@ -5489,6 +5498,32 @@ mod tests {
             return Err("coordination init was not dispatched".into());
         };
         assert_eq!(initialized["ok"], serde_json::json!(true));
+
+        for target in ["lane-a", "lane-b"] {
+            let mut message_args = common.clone();
+            message_args["to"] = serde_json::json!(target);
+            message_args["body"] = serde_json::json!(format!("message for {target}"));
+            let DispatchOutcome::Result(message) = dispatch(
+                &tool("ocentra_enforcer_coordination_message")?,
+                &message_args,
+                &ctx(McpFreshness::Fresh),
+            ) else {
+                return Err("coordination message was not dispatched".into());
+            };
+            assert_eq!(message["ok"], serde_json::json!(true));
+        }
+        let inbox_args = serde_json::json!({"root": root, "hub": "mcp-e2e"});
+        let DispatchOutcome::Result(inbox) = dispatch(
+            &tool("ocentra_enforcer_coordination_inbox")?,
+            &inbox_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("coordination inbox was not dispatched".into());
+        };
+        assert_eq!(inbox["lane"], serde_json::json!("lane-a"));
+        assert_eq!(inbox["messageCount"], serde_json::json!(1));
+        assert_eq!(inbox["messages"][0]["to"], serde_json::json!("lane-a"));
+
         let mut claim_args = common.clone();
         claim_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);
         let DispatchOutcome::Result(claim) = dispatch(
