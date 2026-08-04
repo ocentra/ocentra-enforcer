@@ -545,7 +545,15 @@ pub(crate) fn resolve_files(
     request: &NativeScanRequest,
     repo_root: &RepoRoot,
 ) -> Result<(enforcer_domain::scan_types::ResolvedScope, Vec<RelPath>), NativeScanError> {
-    resolve_files_with_rules(request, repo_root, &IgnoreRules::default())
+    let config_path = std::path::Path::new(repo_root.as_str()).join("ocentra-enforcer.config.json");
+    let config = enforcer_config::load_project_config(&config_path).map_err(|error| {
+        NativeScanError::Io {
+            operation: "load project config",
+            reason: error.to_string(),
+        }
+    })?;
+    let rules = IgnoreRules::new(config.ignore_dirs, config.ignore_file_globs);
+    resolve_files_with_rules(request, repo_root, &rules)
 }
 
 /// Resolve a native request through caller-supplied, already-validated ignore
@@ -809,6 +817,39 @@ mod tests {
             files.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
             ["src/lib.rs"]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn workspace_scan_honors_project_ignore_directories() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        write(
+            temp.path(),
+            "ocentra-enforcer.config.json",
+            r#"{"schemaVersion":2,"profileName":"default","ignoreDirs":["generated"]}"#,
+        )?;
+        write(temp.path(), "src/keep.rs", "pub fn keep() {}\n")?;
+        write(
+            temp.path(),
+            "generated/skip.rs",
+            "pub fn ignored() { panic!(\"must not be scanned\"); }\n",
+        )?;
+        let result = execute(
+            &NativeScanRequest {
+                scope: NativeScanScope::Workspace,
+                languages: vec![NativeScanLanguage::Rust],
+            },
+            &root(temp.path())?,
+        )?;
+        assert!(result
+            .scanned_files
+            .iter()
+            .any(|path| path.as_str() == "src/keep.rs"));
+        assert!(result
+            .scanned_files
+            .iter()
+            .all(|path| path.as_str() != "generated/skip.rs"));
         Ok(())
     }
 
