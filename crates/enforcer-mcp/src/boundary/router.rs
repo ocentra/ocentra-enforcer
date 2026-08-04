@@ -1026,10 +1026,9 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         [NATIVE_SCAN_FIELDS, &["strictEmptyTestTrees"]].concat()
     } else if name == "ai-rule-index" {
         [NATIVE_SCAN_FIELDS, &["configPath", "maxLines"]].concat()
-    } else if name == "source-shape"
-        || name == "import-boundaries"
-        || name == "architecture-policy"
-        || name == "single-source-contracts"
+    } else if name == "single-source-contracts" {
+        [NATIVE_SCAN_FIELDS, &["configPath", "checkConfigPath"]].concat()
+    } else if name == "source-shape" || name == "import-boundaries" || name == "architecture-policy"
     {
         [NATIVE_SCAN_FIELDS, &["configPath"]].concat()
     } else {
@@ -1251,7 +1250,9 @@ fn named_single_source_contracts_unrecorded(args: &serde_json::Value) -> serde_j
     enforcer_scan::boundary::native_scan::execute_single_source_contracts(
         &request,
         &root,
-        args.get("configPath").and_then(serde_json::Value::as_str),
+        args.get("checkConfigPath")
+            .or_else(|| args.get("configPath"))
+            .and_then(serde_json::Value::as_str),
     )
     .map_err(|error| error.to_string())
     .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
@@ -4512,7 +4513,7 @@ mod tests {
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
                 "check": "single-source-contracts",
-                "configPath": "contracts.json",
+                "checkConfigPath": "contracts.json",
             }),
             &ctx(McpFreshness::Fresh),
         );
