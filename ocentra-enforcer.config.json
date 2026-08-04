@@ -18,7 +18,7 @@
     "crates/enforcer-config/src/model.rs",
     "crates/enforcer-scan/src/**",
     "crates/enforcer-scan/tests/**",
-    "crates/enforcer-memory/src/languages/**",
+    "crates/enforcer-syntax/src/languages/**",
     "crates/enforcer-memory/src/code_graph.rs",
     "crates/enforcer-memory/src/schema.rs",
     "crates/enforcer-memory/src/model_observations.rs",

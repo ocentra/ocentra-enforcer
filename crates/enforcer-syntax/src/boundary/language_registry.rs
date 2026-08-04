@@ -19,7 +19,8 @@ const EXPECTED_NO_PARSE_COUNT: usize = 4;
 const EXPECTED_LITERAL_COUNT: usize = 68;
 const EXPECTED_NAMED_LITERAL_COUNT: usize = 67;
 const EXPECTED_NO_LITERAL_COUNT: usize = 85;
-const PARSER_ENUM_SOURCE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/parsers/mod.rs"));
+const PARSER_ENUM_SOURCE: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/parsers/mod.rs"));
 
 const KEY_ID: &str = "id";
 const KEY_PARSER_VARIANT: &str = "parserVariant";
@@ -96,7 +97,8 @@ const LIST_PREFIX: &str = "&[";
 const LIST_SUFFIX: &str = "]";
 const COMMA_SPACE: &str = ", ";
 const INDENT: &str = "    ";
-const RECORD_PREFIX: &str = "LanguageRecord { id: language_id_from_registry_index(require_nonzero(NonZeroU16::new(";
+const RECORD_PREFIX: &str =
+    "LanguageRecord { id: language_id_from_registry_index(require_nonzero(NonZeroU16::new(";
 const RECORD_PARSER: &str = "))), parser: Language::";
 const RECORD_STRUCTURAL: &str = ", structural: ";
 const RECORD_CANONICAL: &str = ", canonical_name: ";
@@ -124,7 +126,8 @@ const WINNER_SEPARATOR: &str = ", ";
 const WINNER_SUFFIX: &str = ")";
 const PARSER_ID_PREFIX: &str = "language_id_from_registry_index(require_nonzero(NonZeroU16::new(";
 const PARSER_ID_SUFFIX: &str = ")))";
-const REFERENCE_PARSER_PREFIX: &str = "LiteralReference::ParserId(language_id_from_registry_index(require_nonzero(NonZeroU16::new(";
+const REFERENCE_PARSER_PREFIX: &str =
+    "LiteralReference::ParserId(language_id_from_registry_index(require_nonzero(NonZeroU16::new(";
 const REFERENCE_PARSER_SUFFIX: &str = "))))";
 const REFERENCE_SUPPLEMENTAL_PREFIX: &str = "LiteralReference::SupplementalLiteralName(";
 const REFERENCE_SUFFIX: &str = ")";
@@ -166,8 +169,10 @@ const MESSAGE_WINNER_NOT_MEMBER: &str = "winnerRef is not a member for ";
 const MESSAGE_COLLISION_MISMATCH: &str = "collision resolution mismatch for ";
 
 const GENERATED_LANGUAGE_HEADER: &str = "pub static LANGUAGE_RECORDS: &[LanguageRecord] = &[\n";
-const GENERATED_LITERAL_HEADER: &str = "pub static LITERAL_PROJECTIONS: &[LiteralProjection] = &[\n";
-const GENERATED_COLLISION_HEADER: &str = "pub static COLLISION_RESOLUTIONS: &[CollisionResolution] = &[\n";
+const GENERATED_LITERAL_HEADER: &str =
+    "pub static LITERAL_PROJECTIONS: &[LiteralProjection] = &[\n";
+const GENERATED_COLLISION_HEADER: &str =
+    "pub static COLLISION_RESOLUTIONS: &[CollisionResolution] = &[\n";
 const GENERATED_PRECEDENCE_HEADER: &str = "pub static DETECTION_PRECEDENCE: DetectionPrecedenceProjection = DetectionPrecedenceProjection::from_reviewed([";
 const GENERATED_PRECEDENCE_SEPARATOR: &str = ", ";
 const GENERATED_PRECEDENCE_SUFFIX: &str = "], DetectionPrecedenceTieBreak::LongestValue);\n\n";
@@ -340,15 +345,22 @@ impl Display for ManifestError {
 impl std::error::Error for ManifestError {}
 
 fn object(value: &Value) -> Result<&Map<String, Value>, ManifestError> {
-    value.as_object().ok_or_else(|| ManifestError::Json(ERROR_OBJECT.to_owned()))
+    value
+        .as_object()
+        .ok_or_else(|| ManifestError::Json(ERROR_OBJECT.to_owned()))
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> Result<&'a Value, ManifestError> {
-    object(value)?.get(key).ok_or_else(|| ManifestError::Json(format!("missing required field {key}")))
+    object(value)?
+        .get(key)
+        .ok_or_else(|| ManifestError::Json(format!("missing required field {key}")))
 }
 
 fn string_value(value: &Value) -> Result<String, ManifestError> {
-    value.as_str().map(ToOwned::to_owned).ok_or_else(|| ManifestError::Json(ERROR_STRING.to_owned()))
+    value
+        .as_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| ManifestError::Json(ERROR_STRING.to_owned()))
 }
 
 fn string_field(value: &Value, key: &str) -> Result<String, ManifestError> {
@@ -356,7 +368,9 @@ fn string_field(value: &Value, key: &str) -> Result<String, ManifestError> {
 }
 
 fn bool_field(value: &Value, key: &str) -> Result<bool, ManifestError> {
-    field(value, key)?.as_bool().ok_or_else(|| ManifestError::Json(ERROR_BOOLEAN.to_owned()))
+    field(value, key)?
+        .as_bool()
+        .ok_or_else(|| ManifestError::Json(ERROR_BOOLEAN.to_owned()))
 }
 
 fn integer_field(value: &Value, key: &str) -> Result<u16, ManifestError> {
@@ -367,7 +381,10 @@ fn integer_field(value: &Value, key: &str) -> Result<u16, ManifestError> {
 }
 
 fn array_field<'a>(value: &'a Value, key: &str) -> Result<&'a [Value], ManifestError> {
-    field(value, key)?.as_array().map(Vec::as_slice).ok_or_else(|| ManifestError::Json(ERROR_ARRAY.to_owned()))
+    field(value, key)?
+        .as_array()
+        .map(Vec::as_slice)
+        .ok_or_else(|| ManifestError::Json(ERROR_ARRAY.to_owned()))
 }
 
 fn fold(value: &str) -> String {
@@ -417,10 +434,15 @@ fn parse_matcher_key(value: &str) -> Result<MatcherValue, ManifestError> {
     })
 }
 
-fn parse_literal_disposition(value: &Value) -> Result<(LiteralDisposition, Option<String>), ManifestError> {
+fn parse_literal_disposition(
+    value: &Value,
+) -> Result<(LiteralDisposition, Option<String>), ManifestError> {
     let kind = string_field(value, KEY_KIND)?;
     match kind.as_str() {
-        kind if kind == KIND_REGISTERED => Ok((LiteralDisposition::Registered, Some(string_field(value, KEY_LITERAL_NAME)?))),
+        kind if kind == KIND_REGISTERED => Ok((
+            LiteralDisposition::Registered,
+            Some(string_field(value, KEY_LITERAL_NAME)?),
+        )),
         kind if kind == KIND_UNSUPPORTED => Ok((LiteralDisposition::Unsupported, None)),
         kind if kind == KIND_NOT_APPLICABLE => Ok((LiteralDisposition::NotApplicable, None)),
         _ => Err(ManifestError::Json(ERROR_UNKNOWN_DISPOSITION.to_owned())),
@@ -430,10 +452,17 @@ fn parse_literal_disposition(value: &Value) -> Result<(LiteralDisposition, Optio
 fn parse_reference(value: &Value) -> Result<Reference, ManifestError> {
     let kind = string_field(value, KEY_KIND)?;
     match kind.as_str() {
-        kind if kind == REFERENCE_PARSER_ID => Ok(Reference::ParserId(integer_field(value, KEY_PARSER_ID)?)),
-        kind if kind == REFERENCE_SUPPLEMENTAL => Ok(Reference::Supplemental(string_field(value, KEY_LITERAL_NAME)?)),
+        kind if kind == REFERENCE_PARSER_ID => {
+            Ok(Reference::ParserId(integer_field(value, KEY_PARSER_ID)?))
+        }
+        kind if kind == REFERENCE_SUPPLEMENTAL => Ok(Reference::Supplemental(string_field(
+            value,
+            KEY_LITERAL_NAME,
+        )?)),
         kind if kind == KEY_FALLBACK => Ok(Reference::Fallback),
-        _ => Err(ManifestError::InvalidReference(ERROR_UNKNOWN_REFERENCE.to_owned())),
+        _ => Err(ManifestError::InvalidReference(
+            ERROR_UNKNOWN_REFERENCE.to_owned(),
+        )),
     }
 }
 
@@ -448,8 +477,12 @@ fn parse_identity(value: &Value) -> Result<IdentityValue, ManifestError> {
             })
         })
         .collect::<Result<Vec<_>, ManifestError>>()?;
-    let aliases = array_field(value, KEY_ALIASES)?.iter().map(string_value).collect::<Result<Vec<_>, ManifestError>>()?;
-    let (literal_disposition, literal_name) = parse_literal_disposition(field(value, KEY_LITERAL_DISPOSITION)?)?;
+    let aliases = array_field(value, KEY_ALIASES)?
+        .iter()
+        .map(string_value)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
+    let (literal_disposition, literal_name) =
+        parse_literal_disposition(field(value, KEY_LITERAL_DISPOSITION)?)?;
     Ok(IdentityValue {
         id: integer_field(value, KEY_ID)?,
         parser_variant: string_field(value, KEY_PARSER_VARIANT)?,
@@ -485,7 +518,11 @@ fn parse_projection_disposition(value: &str) -> Result<ProjectionDisposition, Ma
 fn parse_projection(value: &Value) -> Result<ProjectionValue, ManifestError> {
     let parser_ids = array_field(value, KEY_PARSER_IDS)?
         .iter()
-        .map(|id| id.as_u64().and_then(|number| u16::try_from(number).ok()).ok_or_else(|| ManifestError::Json(ERROR_INTEGER.to_owned())))
+        .map(|id| {
+            id.as_u64()
+                .and_then(|number| u16::try_from(number).ok())
+                .ok_or_else(|| ManifestError::Json(ERROR_INTEGER.to_owned()))
+        })
         .collect::<Result<Vec<_>, ManifestError>>()?;
     let matchers = array_field(value, KEY_MATCHER_KEYS)?
         .iter()
@@ -517,7 +554,10 @@ fn parse_projection(value: &Value) -> Result<ProjectionValue, ManifestError> {
 }
 
 fn parse_collision(value: &Value) -> Result<CollisionValue, ManifestError> {
-    let members = array_field(value, KEY_MEMBERS)?.iter().map(parse_reference).collect::<Result<Vec<_>, ManifestError>>()?;
+    let members = array_field(value, KEY_MEMBERS)?
+        .iter()
+        .map(parse_reference)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     Ok(CollisionValue {
         kind: parse_matcher_kind(&string_field(value, KEY_KIND)?)?,
         normalized_key: string_field(value, KEY_NORMALIZED_KEY)?,
@@ -539,7 +579,11 @@ fn parser_variants() -> HashSet<String> {
         }
         if inside {
             let candidate = line.trim().trim_end_matches(',');
-            if !candidate.is_empty() && candidate.chars().all(|character| character == '_' || character.is_ascii_alphanumeric()) {
+            if !candidate.is_empty()
+                && candidate
+                    .chars()
+                    .all(|character| character == '_' || character.is_ascii_alphanumeric())
+            {
                 variants.insert(candidate.to_owned());
             }
         }
@@ -585,7 +629,11 @@ fn debug_variant_list(values: &HashSet<String>) -> String {
     result
 }
 
-fn validate_parser_variant_sets(enum_variants: &HashSet<String>, manifest_variants: &HashSet<String>, all_variants: &HashSet<String>) -> Result<(), ManifestError> {
+fn validate_parser_variant_sets(
+    enum_variants: &HashSet<String>,
+    manifest_variants: &HashSet<String>,
+    all_variants: &HashSet<String>,
+) -> Result<(), ManifestError> {
     if enum_variants != manifest_variants || enum_variants != all_variants {
         let enum_text = debug_variant_list(enum_variants);
         let manifest_text = debug_variant_list(manifest_variants);
@@ -606,28 +654,65 @@ fn validate_parser_variant_sets(enum_variants: &HashSet<String>, manifest_varian
 fn parse_precedence(value: &Value) -> Result<PrecedenceValue, ManifestError> {
     let kinds = array_field(value, KEY_ORDERED_KINDS)?;
     if kinds.len() != 3 {
-        return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()));
+        return Err(ManifestError::DetectionPrecedence(
+            ERROR_DETECTION_PRECEDENCE.to_owned(),
+        ));
     }
-    let parsed = kinds.iter().map(|kind| parse_matcher_kind(&string_value(kind)?)).collect::<Result<Vec<_>, ManifestError>>()?;
+    let parsed = kinds
+        .iter()
+        .map(|kind| parse_matcher_kind(&string_value(kind)?))
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     let ordered_kinds = [parsed[0], parsed[1], parsed[2]];
-    if ordered_kinds != [MatcherKind::ExactBasename, MatcherKind::CompoundSuffix, MatcherKind::Extension] || ordered_kinds.iter().collect::<HashSet<_>>().len() != 3 {
-        return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned()));
+    if ordered_kinds
+        != [
+            MatcherKind::ExactBasename,
+            MatcherKind::CompoundSuffix,
+            MatcherKind::Extension,
+        ]
+        || ordered_kinds.iter().collect::<HashSet<_>>().len() != 3
+    {
+        return Err(ManifestError::DetectionPrecedence(
+            ERROR_DETECTION_PRECEDENCE.to_owned(),
+        ));
     }
     let same_kind_tie_break = match string_field(value, KEY_SAME_KIND_TIE_BREAK)?.as_str() {
         TIE_BREAK_LONGEST_VALUE => PrecedenceTieBreak::LongestValue,
-        _ => return Err(ManifestError::DetectionPrecedence(ERROR_DETECTION_PRECEDENCE.to_owned())),
+        _ => {
+            return Err(ManifestError::DetectionPrecedence(
+                ERROR_DETECTION_PRECEDENCE.to_owned(),
+            ))
+        }
     };
-    Ok(PrecedenceValue { ordered_kinds, same_kind_tie_break })
+    Ok(PrecedenceValue {
+        ordered_kinds,
+        same_kind_tie_break,
+    })
 }
 
-fn validate_reference(reference: &Reference, parser_ids: &HashSet<u16>, literal_only_names: &HashSet<String>, allow_fallback: bool) -> Result<(), ManifestError> {
+fn validate_reference(
+    reference: &Reference,
+    parser_ids: &HashSet<u16>,
+    literal_only_names: &HashSet<String>,
+    allow_fallback: bool,
+) -> Result<(), ManifestError> {
     match reference {
         Reference::ParserId(parser_id) if parser_ids.contains(parser_id) => Ok(()),
-        Reference::ParserId(parser_id) => Err(ManifestError::InvalidReference(number_message(MESSAGE_UNKNOWN_PARSER, *parser_id, EMPTY))),
-        Reference::Supplemental(literal_name) if literal_only_names.contains(literal_name) => Ok(()),
-        Reference::Supplemental(literal_name) => Err(ManifestError::InvalidReference(message(&[MESSAGE_UNKNOWN_SUPPLEMENTAL, literal_name]))),
+        Reference::ParserId(parser_id) => Err(ManifestError::InvalidReference(number_message(
+            MESSAGE_UNKNOWN_PARSER,
+            *parser_id,
+            EMPTY,
+        ))),
+        Reference::Supplemental(literal_name) if literal_only_names.contains(literal_name) => {
+            Ok(())
+        }
+        Reference::Supplemental(literal_name) => Err(ManifestError::InvalidReference(message(&[
+            MESSAGE_UNKNOWN_SUPPLEMENTAL,
+            literal_name,
+        ]))),
         Reference::Fallback if allow_fallback => Ok(()),
-        Reference::Fallback => Err(ManifestError::InvalidReference(ERROR_FALLBACK_REFERENCE.to_owned())),
+        Reference::Fallback => Err(ManifestError::InvalidReference(
+            ERROR_FALLBACK_REFERENCE.to_owned(),
+        )),
     }
 }
 
@@ -652,7 +737,11 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
 
     let known_variants = parser_variants();
     let all_variants = language_all_variants();
-    let identities = manifest.identities.iter().map(parse_identity).collect::<Result<Vec<_>, ManifestError>>()?;
+    let identities = manifest
+        .identities
+        .iter()
+        .map(parse_identity)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     let mut parser_ids = HashSet::with_capacity(EXPECTED_IDENTITY_COUNT);
     let mut parser_variants_seen = HashSet::with_capacity(EXPECTED_IDENTITY_COUNT);
     let mut canonical_names = HashSet::with_capacity(EXPECTED_IDENTITY_COUNT);
@@ -662,23 +751,34 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     for (offset, identity) in identities.iter().enumerate() {
         let position = offset + 1;
         if identity.id != position as u16 {
-            return Err(ManifestError::NonSequentialId { position, actual: identity.id });
+            return Err(ManifestError::NonSequentialId {
+                position,
+                actual: identity.id,
+            });
         }
         if !parser_ids.insert(identity.id) {
             return Err(ManifestError::DuplicateId(identity.id));
         }
         if !parser_variants_seen.insert(identity.parser_variant.clone()) {
-            return Err(ManifestError::DuplicateParserVariant(identity.parser_variant.clone()));
+            return Err(ManifestError::DuplicateParserVariant(
+                identity.parser_variant.clone(),
+            ));
         }
         if !known_variants.contains(&identity.parser_variant) {
-            return Err(ManifestError::UnknownParserVariant(identity.parser_variant.clone()));
+            return Err(ManifestError::UnknownParserVariant(
+                identity.parser_variant.clone(),
+            ));
         }
         if !is_rust_identifier(&identity.parser_variant) {
-            return Err(ManifestError::InvalidParserVariant(identity.parser_variant.clone()));
+            return Err(ManifestError::InvalidParserVariant(
+                identity.parser_variant.clone(),
+            ));
         }
         let canonical_key = fold(&identity.canonical_name);
         if !canonical_names.insert(canonical_key.clone()) || !all_names.insert(canonical_key) {
-            return Err(ManifestError::DuplicateCanonicalName(identity.canonical_name.clone()));
+            return Err(ManifestError::DuplicateCanonicalName(
+                identity.canonical_name.clone(),
+            ));
         }
         for alias in &identity.aliases {
             if !all_names.insert(fold(alias)) {
@@ -691,7 +791,9 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
         let mut matchers = HashSet::new();
         for matcher in &identity.matchers {
             if matcher.value.is_empty() {
-                return Err(ManifestError::DuplicateMatcher(ERROR_EMPTY_MATCHER.to_owned()));
+                return Err(ManifestError::DuplicateMatcher(
+                    ERROR_EMPTY_MATCHER.to_owned(),
+                ));
             }
             let key = matcher_key(matcher.kind, &matcher.value);
             if !matchers.insert(key.clone()) {
@@ -720,7 +822,11 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             actual: manifest.literal_projection.len(),
         });
     }
-    let projections = manifest.literal_projection.iter().map(parse_projection).collect::<Result<Vec<_>, ManifestError>>()?;
+    let projections = manifest
+        .literal_projection
+        .iter()
+        .map(parse_projection)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     let mut literal_names = HashSet::with_capacity(EXPECTED_LITERAL_COUNT);
     let mut literal_only_names = HashSet::new();
     let mut projection_parser_ids = HashSet::new();
@@ -728,7 +834,9 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     let mut category_counts = [0usize; 7];
     for row in &projections {
         if !literal_names.insert(row.literal_name.clone()) {
-            return Err(ManifestError::DuplicateLiteralName(row.literal_name.clone()));
+            return Err(ManifestError::DuplicateLiteralName(
+                row.literal_name.clone(),
+            ));
         }
         category_counts[0] += 1;
         match row.classification {
@@ -742,22 +850,38 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             category_counts[1] += 1;
         }
         if row.parser_ids.iter().any(|id| !parser_ids.contains(id)) {
-            return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_UNKNOWN_PARSER])));
+            return Err(ManifestError::InvalidReference(message(&[
+                MESSAGE_ROW_PREFIX,
+                &row.literal_name,
+                MESSAGE_ROW_UNKNOWN_PARSER,
+            ])));
         }
         if row.parser_ids.iter().collect::<HashSet<_>>().len() != row.parser_ids.len() {
-            return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_REPEAT_PARSER])));
+            return Err(ManifestError::InvalidReference(message(&[
+                MESSAGE_ROW_PREFIX,
+                &row.literal_name,
+                MESSAGE_ROW_REPEAT_PARSER,
+            ])));
         }
         for id in &row.parser_ids {
             projection_parser_ids.insert(*id);
         }
         if matches!(row.classification, CrosswalkClass::LiteralOnly) {
             if !row.parser_ids.is_empty() {
-                return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_LITERAL_ONLY_IDS])));
+                return Err(ManifestError::InvalidReference(message(&[
+                    MESSAGE_ROW_PREFIX,
+                    &row.literal_name,
+                    MESSAGE_ROW_LITERAL_ONLY_IDS,
+                ])));
             }
             literal_only_names.insert(row.literal_name.clone());
         }
-        if matches!(row.classification, CrosswalkClass::Fallback) && (row.literal_name != UNKNOWN_LITERAL_NAME || !row.parser_ids.is_empty()) {
-            return Err(ManifestError::InvalidReference(ERROR_FALLBACK_ROW.to_owned()));
+        if matches!(row.classification, CrosswalkClass::Fallback)
+            && (row.literal_name != UNKNOWN_LITERAL_NAME || !row.parser_ids.is_empty())
+        {
+            return Err(ManifestError::InvalidReference(
+                ERROR_FALLBACK_ROW.to_owned(),
+            ));
         }
         let mut row_keys = HashSet::new();
         for (matcher, key) in row.matchers.iter().zip(&row.matcher_keys) {
@@ -770,7 +894,10 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             let members = projection_members.entry(key.clone()).or_default();
             for id in &row.parser_ids {
                 members.insert(format!("parser:{id}"));
-                if !identity_matchers.get(id).is_some_and(|set| set.contains(key)) {
+                if !identity_matchers
+                    .get(id)
+                    .is_some_and(|set| set.contains(key))
+                {
                     return Err(ManifestError::InvalidReference(message(&[
                         MESSAGE_ROW_PREFIX,
                         &row.literal_name,
@@ -786,7 +913,11 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
             }
         }
         if row.winner_refs.len() != row.matcher_keys.len() {
-            return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_WINNER_COUNT])));
+            return Err(ManifestError::InvalidReference(message(&[
+                MESSAGE_ROW_PREFIX,
+                &row.literal_name,
+                MESSAGE_ROW_WINNER_COUNT,
+            ])));
         }
         for winner in &row.winner_refs {
             if !row.matcher_keys.contains(&winner.matcher_key) {
@@ -798,16 +929,39 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
                 ])));
             }
             let allow_fallback = matches!(row.classification, CrosswalkClass::Fallback);
-            validate_reference(&winner.winner_ref, &parser_ids, &literal_only_names, allow_fallback)?;
+            validate_reference(
+                &winner.winner_ref,
+                &parser_ids,
+                &literal_only_names,
+                allow_fallback,
+            )?;
             match &winner.winner_ref {
-                Reference::ParserId(parser_id) if !row.parser_ids.contains(parser_id) && !matches!(row.classification, CrosswalkClass::Fallback) => {
-                    return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_WINNER_MEMBER])));
+                Reference::ParserId(parser_id)
+                    if !row.parser_ids.contains(parser_id)
+                        && !matches!(row.classification, CrosswalkClass::Fallback) =>
+                {
+                    return Err(ManifestError::InvalidReference(message(&[
+                        MESSAGE_ROW_PREFIX,
+                        &row.literal_name,
+                        MESSAGE_ROW_WINNER_MEMBER,
+                    ])));
                 }
-                Reference::Supplemental(literal_name) if !matches!(row.classification, CrosswalkClass::LiteralOnly) || literal_name != &row.literal_name => {
-                    return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_SUPPLEMENTAL])));
+                Reference::Supplemental(literal_name)
+                    if !matches!(row.classification, CrosswalkClass::LiteralOnly)
+                        || literal_name != &row.literal_name =>
+                {
+                    return Err(ManifestError::InvalidReference(message(&[
+                        MESSAGE_ROW_PREFIX,
+                        &row.literal_name,
+                        MESSAGE_ROW_SUPPLEMENTAL,
+                    ])));
                 }
                 Reference::Fallback if !matches!(row.classification, CrosswalkClass::Fallback) => {
-                    return Err(ManifestError::InvalidReference(message(&[MESSAGE_ROW_PREFIX, &row.literal_name, MESSAGE_ROW_FALLBACK])));
+                    return Err(ManifestError::InvalidReference(message(&[
+                        MESSAGE_ROW_PREFIX,
+                        &row.literal_name,
+                        MESSAGE_ROW_FALLBACK,
+                    ])));
                 }
                 _ => {}
             }
@@ -831,41 +985,81 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
         || category_counts[5] != 5
         || category_counts[6] != 1
     {
-        return Err(ManifestError::CrosswalkCounts(format!("{category_counts:?}")));
+        return Err(ManifestError::CrosswalkCounts(format!(
+            "{category_counts:?}"
+        )));
     }
 
-    if manifest.unmatched_parser_ids.len() != EXPECTED_NO_LITERAL_COUNT || manifest.unmatched_parser_ids.iter().collect::<HashSet<_>>().len() != EXPECTED_NO_LITERAL_COUNT {
-        return Err(ManifestError::UnmatchedParserIds(ERROR_UNMATCHED_COUNT.to_owned()));
+    if manifest.unmatched_parser_ids.len() != EXPECTED_NO_LITERAL_COUNT
+        || manifest
+            .unmatched_parser_ids
+            .iter()
+            .collect::<HashSet<_>>()
+            .len()
+            != EXPECTED_NO_LITERAL_COUNT
+    {
+        return Err(ManifestError::UnmatchedParserIds(
+            ERROR_UNMATCHED_COUNT.to_owned(),
+        ));
     }
     let unmatched: HashSet<u16> = manifest.unmatched_parser_ids.iter().copied().collect();
     for id in 1..=EXPECTED_IDENTITY_COUNT as u16 {
         let listed = unmatched.contains(&id);
         let projected = projection_parser_ids.contains(&id);
         if listed == projected {
-            return Err(ManifestError::UnmatchedParserIds(number_message(MESSAGE_COMPLEMENT, id, MESSAGE_COMPLEMENT_SUFFIX)));
+            return Err(ManifestError::UnmatchedParserIds(number_message(
+                MESSAGE_COMPLEMENT,
+                id,
+                MESSAGE_COMPLEMENT_SUFFIX,
+            )));
         }
         let identity = &identities[usize::from(id - 1)];
         if listed && !identity.matchers.is_empty() {
-            return Err(ManifestError::UnmatchedParserIds(number_message(MESSAGE_UNMATCHED_MATCHERS, id, MESSAGE_HAS_MATCHERS)));
+            return Err(ManifestError::UnmatchedParserIds(number_message(
+                MESSAGE_UNMATCHED_MATCHERS,
+                id,
+                MESSAGE_HAS_MATCHERS,
+            )));
         }
         if !listed && identity.matchers.is_empty() {
-            return Err(ManifestError::UnmatchedParserIds(number_message(MESSAGE_PROJECTED, id, MESSAGE_NO_MATCHERS)));
+            return Err(ManifestError::UnmatchedParserIds(number_message(
+                MESSAGE_PROJECTED,
+                id,
+                MESSAGE_NO_MATCHERS,
+            )));
         }
     }
 
-    let collisions = manifest.collision_resolutions.iter().map(parse_collision).collect::<Result<Vec<_>, ManifestError>>()?;
+    let collisions = manifest
+        .collision_resolutions
+        .iter()
+        .map(parse_collision)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     let mut resolutions = HashMap::new();
     for resolution in &collisions {
         let key = matcher_key(resolution.kind, &resolution.normalized_key);
         if resolutions.insert(key.clone(), resolution).is_some() {
-            return Err(ManifestError::CollisionResolution(message(&[MESSAGE_DUPLICATE_COLLISION, &key])));
+            return Err(ManifestError::CollisionResolution(message(&[
+                MESSAGE_DUPLICATE_COLLISION,
+                &key,
+            ])));
         }
-        if resolution.members.len() < 2 || resolution.members.iter().collect::<HashSet<_>>().len() != resolution.members.len() {
+        if resolution.members.len() < 2
+            || resolution.members.iter().collect::<HashSet<_>>().len() != resolution.members.len()
+        {
             return Err(ManifestError::CollisionResolution(key));
         }
-        validate_reference(&resolution.winner_ref, &parser_ids, &literal_only_names, false)?;
+        validate_reference(
+            &resolution.winner_ref,
+            &parser_ids,
+            &literal_only_names,
+            false,
+        )?;
         if !resolution.members.contains(&resolution.winner_ref) {
-            return Err(ManifestError::CollisionResolution(message(&[MESSAGE_WINNER_NOT_MEMBER, &key])));
+            return Err(ManifestError::CollisionResolution(message(&[
+                MESSAGE_WINNER_NOT_MEMBER,
+                &key,
+            ])));
         }
         for member in &resolution.members {
             validate_reference(member, &parser_ids, &literal_only_names, false)?;
@@ -873,14 +1067,18 @@ fn validate_manifest(manifest: &ManifestWire) -> Result<(), ManifestError> {
     }
     for (key, members) in projection_members {
         if (members.len() > 1) != resolutions.contains_key(&key) {
-            return Err(ManifestError::CollisionResolution(message(&[MESSAGE_COLLISION_MISMATCH, &key])));
+            return Err(ManifestError::CollisionResolution(message(&[
+                MESSAGE_COLLISION_MISMATCH,
+                &key,
+            ])));
         }
     }
     Ok(())
 }
 
 fn parse_manifest(source: &str) -> Result<ManifestWire, ManifestError> {
-    let manifest: ManifestWire = serde_json::from_str(source).map_err(|error| ManifestError::Json(error.to_string()))?;
+    let manifest: ManifestWire =
+        serde_json::from_str(source).map_err(|error| ManifestError::Json(error.to_string()))?;
     validate_manifest(&manifest)?;
     Ok(manifest)
 }
@@ -907,8 +1105,16 @@ fn render_matcher_constructor(kind: MatcherKind) -> &'static str {
 
 fn render_reference(reference: &Reference) -> String {
     match reference {
-        Reference::ParserId(parser_id) => message(&[REFERENCE_PARSER_PREFIX, &parser_id.to_string(), REFERENCE_PARSER_SUFFIX]),
-        Reference::Supplemental(literal_name) => message(&[REFERENCE_SUPPLEMENTAL_PREFIX, &rust_string(literal_name), REFERENCE_SUFFIX]),
+        Reference::ParserId(parser_id) => message(&[
+            REFERENCE_PARSER_PREFIX,
+            &parser_id.to_string(),
+            REFERENCE_PARSER_SUFFIX,
+        ]),
+        Reference::Supplemental(literal_name) => message(&[
+            REFERENCE_SUPPLEMENTAL_PREFIX,
+            &rust_string(literal_name),
+            REFERENCE_SUFFIX,
+        ]),
         Reference::Fallback => REFERENCE_FALLBACK.to_owned(),
     }
 }
@@ -925,14 +1131,25 @@ fn render_str_slice(values: &[String]) -> String {
 }
 
 fn render_parser_id_slice(values: &[u16]) -> String {
-    render_list(values.iter().map(|value| message(&[PARSER_ID_PREFIX, &value.to_string(), PARSER_ID_SUFFIX])).collect())
+    render_list(
+        values
+            .iter()
+            .map(|value| message(&[PARSER_ID_PREFIX, &value.to_string(), PARSER_ID_SUFFIX]))
+            .collect(),
+    )
 }
 
 fn render_matchers(values: &[MatcherValue]) -> String {
     render_list(
         values
             .iter()
-            .map(|matcher| message(&[render_matcher_constructor(matcher.kind), &rust_string(&matcher.value), MATCHER_SUFFIX]))
+            .map(|matcher| {
+                message(&[
+                    render_matcher_constructor(matcher.kind),
+                    &rust_string(&matcher.value),
+                    MATCHER_SUFFIX,
+                ])
+            })
             .collect(),
     )
 }
@@ -941,7 +1158,15 @@ fn render_winner_slice(values: &[WinnerValue]) -> String {
     render_list(
         values
             .iter()
-            .map(|winner| message(&[WINNER_PREFIX, &rust_string(&winner.matcher_key), WINNER_SEPARATOR, &render_reference(&winner.winner_ref), WINNER_SUFFIX]))
+            .map(|winner| {
+                message(&[
+                    WINNER_PREFIX,
+                    &rust_string(&winner.matcher_key),
+                    WINNER_SEPARATOR,
+                    &render_reference(&winner.winner_ref),
+                    WINNER_SUFFIX,
+                ])
+            })
             .collect(),
     )
 }
@@ -950,9 +1175,16 @@ fn render_reference_slice(values: &[Reference]) -> String {
     render_list(values.iter().map(render_reference).collect())
 }
 
-fn render_literal_disposition(disposition: LiteralDisposition, literal_name: Option<&str>) -> String {
+fn render_literal_disposition(
+    disposition: LiteralDisposition,
+    literal_name: Option<&str>,
+) -> String {
     match disposition {
-        LiteralDisposition::Registered => message(&[REGISTERED_PREFIX, &rust_string(literal_name.unwrap_or(EMPTY)), REGISTERED_SUFFIX]),
+        LiteralDisposition::Registered => message(&[
+            REGISTERED_PREFIX,
+            &rust_string(literal_name.unwrap_or(EMPTY)),
+            REGISTERED_SUFFIX,
+        ]),
         LiteralDisposition::Unsupported => LITERAL_UNSUPPORTED_RENDERED.to_owned(),
         LiteralDisposition::NotApplicable => LITERAL_NOT_APPLICABLE_RENDERED.to_owned(),
     }
@@ -967,7 +1199,11 @@ fn render_projection_disposition(disposition: ProjectionDisposition) -> &'static
 }
 
 fn render_structural(structural: bool) -> &'static str {
-    if structural { STRUCTURAL_PARSE } else { STRUCTURAL_NO_PARSE }
+    if structural {
+        STRUCTURAL_PARSE
+    } else {
+        STRUCTURAL_NO_PARSE
+    }
 }
 
 fn render_record_line(identity: &IdentityValue) -> String {
@@ -985,7 +1221,10 @@ fn render_record_line(identity: &IdentityValue) -> String {
     line.push_str(RECORD_MATCHERS);
     line.push_str(&render_matchers(&identity.matchers));
     line.push_str(RECORD_LITERAL);
-    line.push_str(&render_literal_disposition(identity.literal_disposition, identity.literal_name.as_deref()));
+    line.push_str(&render_literal_disposition(
+        identity.literal_disposition,
+        identity.literal_name.as_deref(),
+    ));
     line.push_str(RECORD_SUFFIX);
     line
 }
@@ -1038,9 +1277,21 @@ fn render_precedence(value: &PrecedenceValue) -> String {
 
 fn render_registry(manifest: &ManifestWire) -> Result<String, ManifestError> {
     let precedence = parse_precedence(&manifest.detection_precedence)?;
-    let identities = manifest.identities.iter().map(parse_identity).collect::<Result<Vec<_>, ManifestError>>()?;
-    let projections = manifest.literal_projection.iter().map(parse_projection).collect::<Result<Vec<_>, ManifestError>>()?;
-    let collisions = manifest.collision_resolutions.iter().map(parse_collision).collect::<Result<Vec<_>, ManifestError>>()?;
+    let identities = manifest
+        .identities
+        .iter()
+        .map(parse_identity)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
+    let projections = manifest
+        .literal_projection
+        .iter()
+        .map(parse_projection)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
+    let collisions = manifest
+        .collision_resolutions
+        .iter()
+        .map(parse_collision)
+        .collect::<Result<Vec<_>, ManifestError>>()?;
     let mut output = String::new();
     output.push_str(&render_precedence(&precedence));
     output.push_str(GENERATED_LANGUAGE_HEADER);
@@ -1066,12 +1317,15 @@ fn is_rust_identifier(value: &str) -> bool {
     let Some(first) = characters.next() else {
         return false;
     };
-    (first == '_' || first.is_ascii_alphabetic()) && characters.all(|character| character == '_' || character.is_ascii_alphanumeric())
+    (first == '_' || first.is_ascii_alphabetic())
+        && characters.all(|character| character == '_' || character.is_ascii_alphanumeric())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ManifestError, language_all_variants, parser_variants, validate_parser_variant_sets};
+    use super::{
+        language_all_variants, parser_variants, validate_parser_variant_sets, ManifestError,
+    };
     use std::collections::HashSet;
 
     #[test]
@@ -1080,9 +1334,19 @@ mod tests {
         let enum_variants = HashSet::from(["Rust".to_owned(), "TypeScript".to_owned()]);
         let all_variants = enum_variants.clone();
         let omitted = HashSet::from(["Rust".to_owned()]);
-        assert!(matches!(validate_parser_variant_sets(&enum_variants, &omitted, &all_variants), Err(ManifestError::ParserVariantSet(_))));
-        let extra = HashSet::from(["Rust".to_owned(), "TypeScript".to_owned(), "Extra".to_owned()]);
-        assert!(matches!(validate_parser_variant_sets(&enum_variants, &extra, &all_variants), Err(ManifestError::ParserVariantSet(_))));
+        assert!(matches!(
+            validate_parser_variant_sets(&enum_variants, &omitted, &all_variants),
+            Err(ManifestError::ParserVariantSet(_))
+        ));
+        let extra = HashSet::from([
+            "Rust".to_owned(),
+            "TypeScript".to_owned(),
+            "Extra".to_owned(),
+        ]);
+        assert!(matches!(
+            validate_parser_variant_sets(&enum_variants, &extra, &all_variants),
+            Err(ManifestError::ParserVariantSet(_))
+        ));
     }
 }
 
