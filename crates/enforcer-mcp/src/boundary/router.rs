@@ -2953,7 +2953,7 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
 /// the registry may name an environment variable, which is resolved only at
 /// the outbound transport boundary.
 fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
-    use enforcer_coordination::sync::peer::{self, PeerRecord};
+    use enforcer_coordination::sync::peer::{self, PeerRecord, PeerSyncMode};
     use enforcer_domain::coordination_types::{
         CoordinationLedgerRoot, CoordinationPeerName, CoordinationPeerTokenEnv, CoordinationPeerUrl,
     };
@@ -2963,7 +2963,7 @@ fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    let registry_json = |registry: peer::PeerRegistry| serde_json::json!({"ok":true,"registry":{"peers":registry.peers.into_iter().map(|entry| serde_json::json!({"name":entry.name.as_str(),"url":entry.url.as_str(),"mode":"pull","tokenEnv":entry.token_env.as_ref().map(|value| value.as_str())})).collect::<Vec<_>>()}});
+    let registry_json = |registry: peer::PeerRegistry| serde_json::json!({"ok":true,"registry":{"peers":registry.peers.into_iter().map(|entry| serde_json::json!({"name":entry.name.as_str(),"url":entry.url.as_str(),"mode":entry.mode.as_str(),"tokenEnv":entry.token_env.as_ref().map(|value| value.as_str())})).collect::<Vec<_>>()}});
     match args
         .get("action")
         .and_then(serde_json::Value::as_str)
@@ -2995,9 +2995,16 @@ fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
                     .map(|value| CoordinationPeerTokenEnv::parse(value.to_owned()))
                     .transpose()
                     .map_err(|error| error.to_string())?;
+                let mode = PeerSyncMode::parse(
+                    args.get("mode")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("pull"),
+                )
+                .map_err(|error| error.to_string())?;
                 Ok::<_, String>(PeerRecord {
                     name,
                     url,
+                    mode,
                     token_env,
                 })
             })();
@@ -5512,7 +5519,7 @@ mod tests {
             };
             assert_eq!(message["ok"], serde_json::json!(true));
         }
-        let inbox_args = serde_json::json!({"root": root, "hub": "mcp-e2e"});
+        let inbox_args = serde_json::json!({"root": root.clone(), "hub": "mcp-e2e"});
         let DispatchOutcome::Result(inbox) = dispatch(
             &tool("ocentra_enforcer_coordination_inbox")?,
             &inbox_args,
@@ -5523,6 +5530,26 @@ mod tests {
         assert_eq!(inbox["lane"], serde_json::json!("lane-a"));
         assert_eq!(inbox["messageCount"], serde_json::json!(1));
         assert_eq!(inbox["messages"][0]["to"], serde_json::json!("lane-a"));
+
+        let peer_args = serde_json::json!({
+            "root": root,
+            "action": "add",
+            "name": "peer-a",
+            "url": "http://127.0.0.1:8787",
+            "mode": "both"
+        });
+        let DispatchOutcome::Result(peer) = dispatch(
+            &tool("ocentra_enforcer_coordination_peer")?,
+            &peer_args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("coordination peer add was not dispatched".into());
+        };
+        assert_eq!(peer["ok"], serde_json::json!(true));
+        assert_eq!(
+            peer["registry"]["peers"][0]["mode"],
+            serde_json::json!("both")
+        );
 
         let mut claim_args = common.clone();
         claim_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);

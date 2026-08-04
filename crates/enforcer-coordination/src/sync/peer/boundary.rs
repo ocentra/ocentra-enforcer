@@ -18,7 +18,35 @@ use enforcer_domain::coordination_types::{
 pub struct PeerRecord {
     pub name: CoordinationPeerName,
     pub url: CoordinationPeerUrl,
+    pub mode: PeerSyncMode,
     pub token_env: Option<CoordinationPeerTokenEnv>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Directionality retained for one configured synchronization peer.
+pub enum PeerSyncMode {
+    Pull,
+    Push,
+    Both,
+}
+
+impl PeerSyncMode {
+    pub fn parse(value: &str) -> Result<Self> {
+        match value {
+            "pull" => Ok(Self::Pull),
+            "push" => Ok(Self::Push),
+            "both" => Ok(Self::Both),
+            _ => Err(rejected("peer mode must be pull, push, or both")),
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pull => "pull",
+            Self::Push => "push",
+            Self::Both => "both",
+        }
+    }
 }
 impl std::fmt::Debug for PeerRecord {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -26,6 +54,7 @@ impl std::fmt::Debug for PeerRecord {
             .debug_struct("PeerRecord")
             .field("name", &self.name)
             .field("url", &self.url)
+            .field("mode", &self.mode)
             .field("token_env", &"[redacted]")
             .finish()
     }
@@ -88,6 +117,7 @@ impl TryFrom<PeerRegistryDto> for PeerRegistry {
                     Ok(PeerRecord {
                         name: CoordinationPeerName::parse(&entry.name)?,
                         url: CoordinationPeerUrl::parse(&entry.url)?,
+                        mode: PeerSyncMode::parse(entry.mode.as_deref().unwrap_or("pull"))?,
                         token_env: entry
                             .token_env
                             .map(CoordinationPeerTokenEnv::parse)
@@ -111,7 +141,7 @@ impl From<&PeerRegistry> for PeerRegistryDto {
                         .token_env
                         .as_ref()
                         .map(|token| token.as_str().to_owned()),
-                    mode: Some("pull".to_owned()),
+                    mode: Some(peer.mode.as_str().to_owned()),
                 })
                 .collect(),
         }
@@ -380,6 +410,7 @@ fn peer_request_target(prefix: &str, path: &str) -> String {
 mod tests {
     use super::{
         peer_request_target, PeerRecord, PeerRegistry, PeerRegistryDto, PeerRegistryEntryDto,
+        PeerSyncMode,
     };
     use crate::error::CoordinationError;
     use enforcer_domain::coordination_types::CoordinationLedgerRoot;
@@ -502,6 +533,7 @@ mod tests {
             peers: vec![PeerRecord {
                 name: CoordinationPeerName::parse("left")?,
                 url: CoordinationPeerUrl::parse("http://127.0.0.1:8787")?,
+                mode: PeerSyncMode::Both,
                 token_env: Some(CoordinationPeerTokenEnv::parse(
                     "LEDGER_PEER_TOKEN".to_owned(),
                 )?),
@@ -511,6 +543,7 @@ mod tests {
         let decoded: PeerRegistryDto = serde_json::from_str(&encoded)?;
         let restored: PeerRegistry = decoded.try_into()?;
         assert_eq!(restored.peers[0].name.as_str(), "left");
+        assert_eq!(restored.peers[0].mode, PeerSyncMode::Both);
         assert_eq!(
             restored.peers[0]
                 .token_env
