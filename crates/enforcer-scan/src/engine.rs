@@ -351,9 +351,15 @@ pub fn run_with_analysis_provider(
 /// inventory as the full engine, so a scoped member cannot hide an external
 /// path behind an unscanned sibling manifest.
 pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report {
+    let workspace_inventory = workspace_manifest_inventory(&scope.repo_root);
+    let workspace_manifests = workspace_inventory
+        .iter()
+        .map(|(file, _source)| file)
+        .collect::<std::collections::BTreeSet<_>>();
     let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
         .par_iter()
         .filter(|file| file.as_str().ends_with("Cargo.toml"))
+        .filter(|file| file.as_str() == "Cargo.toml" || workspace_manifests.contains(file))
         .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
         .collect();
     if let Ok(workspace_manifest) = RelPath::try_new("Cargo.toml") {
@@ -364,7 +370,6 @@ pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report
             ));
         }
     }
-    let workspace_inventory = workspace_manifest_inventory(&scope.repo_root);
     let findings =
         cargo_workspace_policy::findings_for_sources_with_inventory(&sources, &workspace_inventory);
     fold_report(scope.kind, findings)
@@ -1107,7 +1112,9 @@ fn fold_report(scope: ScanScope, findings: impl IntoIterator<Item = Finding>) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{build_family_validators, fold_report, run, run_required_test_policy};
+    use super::{
+        build_family_validators, fold_report, run, run_dependency_policy, run_required_test_policy,
+    };
     use enforcer_domain::config_types::PrivateRustTestModuleAllowlistEntry;
     use enforcer_domain::findings::{Finding, FindingLine, ReportOutcome, ScanScope};
     use enforcer_domain::paths::{RelPath, RepoRoot};
@@ -1124,6 +1131,37 @@ mod tests {
             std::fs::create_dir_all(parent)?;
         }
         std::fs::write(path, contents)
+    }
+
+    #[test]
+    fn dependency_policy_ignores_unregistered_nested_cargo_packages(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"crates/member\"]\nresolver = \"2\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/member/Cargo.toml",
+            "[package]\nname = \"member\"\nversion = \"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "scratch/rogue/Cargo.toml",
+            "[package]\nname = \"rogue\"\nversion = \"0.1.0\"\n[dependencies]\noutside = { path = \"../outside\" }\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_dependency_policy(&resolved, &files);
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        assert!(report
+            .findings
+            .iter()
+            .all(|finding| finding.file.as_str() != "scratch/rogue/Cargo.toml"));
+        Ok(())
     }
 
     #[test]
