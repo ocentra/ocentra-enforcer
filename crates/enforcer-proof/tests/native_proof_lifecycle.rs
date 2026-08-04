@@ -43,15 +43,25 @@ fn success_manual_reopen_and_duplicate_runs_are_durable_and_fail_closed() -> Res
             .record_count
             >= 2
     );
+    let duplicate_effect = root.join("duplicate-command-ran.txt");
     let duplicate = if cfg!(windows) {
-        vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
+        vec![
+            "cmd".to_owned(),
+            "/C".to_owned(),
+            format!("echo repeated>\"{}\"", duplicate_effect.display()),
+        ]
     } else {
-        vec!["true".to_owned()]
+        vec![
+            "sh".to_owned(),
+            "-c".to_owned(),
+            format!("printf repeated > '{}'", duplicate_effect.display()),
+        ]
     };
     assert!(matches!(
         lifecycle.run(&args(root.clone(), "native-run", duplicate)?, None),
         Err(enforcer_core::error::Error::InvalidConfig(message)) if message == "duplicate proof run id"
     ));
+    assert!(!duplicate_effect.exists());
     let manual = lifecycle.run(&args(root, "native-manual", vec![])?, None)?;
     assert!(!manual.ok);
     Ok(())

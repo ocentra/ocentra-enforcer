@@ -373,21 +373,28 @@ impl NativeProofLifecycle {
                 "proof run root differs from lifecycle root".to_owned(),
             ));
         }
-        self.append_event(
-            "proof-started",
-            &args.run_id,
-            &args.proof_id,
-            serde_json::json!({}),
-        )?;
-        let outcome = run_proof(args, definition)?;
-        self.persist_run(&outcome.proof_run)?;
-        self.append_event(
-            "proof-finished",
-            &outcome.proof_run.run_id,
-            &outcome.proof_run.proof_id,
-            serde_json::json!({ "status": format!("{:?}", outcome.proof_run.status).to_ascii_lowercase() }),
-        )?;
-        Ok(outcome)
+        let reservation = self.reserve_run(&args.run_id)?;
+        let result = (|| {
+            self.append_event(
+                "proof-started",
+                &args.run_id,
+                &args.proof_id,
+                serde_json::json!({}),
+            )?;
+            let outcome = run_proof(args, definition)?;
+            self.persist_run(&outcome.proof_run)?;
+            self.append_event(
+                "proof-finished",
+                &outcome.proof_run.run_id,
+                &outcome.proof_run.proof_id,
+                serde_json::json!({ "status": format!("{:?}", outcome.proof_run.status).to_ascii_lowercase() }),
+            )?;
+            Ok(outcome)
+        })();
+        if result.is_err() && !reservation.join(PROJECT_PROOF_RUN_FILE).exists() {
+            let _ = std::fs::remove_dir_all(reservation);
+        }
+        result
     }
 
     /// Persist an imported/externally collected run through the same journal
@@ -488,6 +495,19 @@ impl NativeProofLifecycle {
         std::fs::write(&temp_path, serde_json::to_vec(run)?)?;
         std::fs::rename(temp_path, final_path)?;
         Ok(())
+    }
+
+    fn reserve_run(&self, run_id: &ProofRunId) -> Result<PathBuf> {
+        let runs_root = self.proof_root.join("runs");
+        std::fs::create_dir_all(&runs_root)?;
+        let directory = runs_root.join(run_id.as_str());
+        match std::fs::create_dir(&directory) {
+            Ok(()) => Ok(directory),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                Err(Error::InvalidConfig("duplicate proof run id".to_owned()))
+            }
+            Err(error) => Err(error.into()),
+        }
     }
 
     fn read_run(&self, run_id: &ProofRunId) -> Result<crate::envelope::ProofRunEnvelope> {
