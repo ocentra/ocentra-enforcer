@@ -597,7 +597,15 @@ mod tests {
             check_config_lockdown(&config, temp.path(), ScanScope::Workspace),
             check_waiver_policy(&config, temp.path(), ScanScope::Workspace),
         ] {
-            let error = result.expect_err("malformed configuration must fail closed");
+            let error = match result {
+                Ok(findings) => {
+                    return Err(format!(
+                        "malformed configuration unexpectedly produced findings: {findings:?}"
+                    )
+                    .into());
+                }
+                Err(error) => error,
+            };
             assert!(error.contains("cannot inspect project configuration"));
         }
         Ok(())
