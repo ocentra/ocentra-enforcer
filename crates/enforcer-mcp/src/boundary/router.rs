@@ -1334,9 +1334,17 @@ fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     };
     let root_path = std::path::Path::new(root.as_str());
     let output = match args.get("output") {
-        Some(serde_json::Value::String(value)) => root_path.join(value),
+        Some(serde_json::Value::String(value)) => {
+            match repository_output_directory(root_path, value) {
+                Ok(path) => path,
+                Err(error) => return json_error(&error),
+            }
+        }
         Some(_) => return json_error("sbom `output` must be a string"),
-        None => root_path.join("target").join("security"),
+        None => match repository_output_directory(root_path, "target/security") {
+            Ok(path) => path,
+            Err(error) => return json_error(&error),
+        },
     };
     let dry_run = match args.get("dryRun") {
         None | Some(serde_json::Value::Bool(false)) => false,
@@ -1368,6 +1376,48 @@ fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
         }),
         Err(error) => json_error(&error),
     }
+}
+
+fn repository_output_directory(
+    root: &std::path::Path,
+    value: &str,
+) -> Result<std::path::PathBuf, String> {
+    let relative = value
+        .parse::<enforcer_domain::paths::RelPath>()
+        .map_err(|error| format!("sbom `output` must be repository-relative: {error}"))?;
+    let canonical_root = std::fs::canonicalize(root)
+        .map_err(|error| format!("cannot resolve sbom repository root: {error}"))?;
+    let mut current = root.to_path_buf();
+    for component in std::path::Path::new(relative.as_str()).components() {
+        current.push(component);
+        match std::fs::symlink_metadata(&current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() {
+                    return Err(format!(
+                        "sbom `output` must not traverse a symlink: {}",
+                        current.display()
+                    ));
+                }
+                let canonical = std::fs::canonicalize(&current).map_err(|error| {
+                    format!(
+                        "cannot resolve sbom output ancestor {}: {error}",
+                        current.display()
+                    )
+                })?;
+                if !canonical.starts_with(&canonical_root) {
+                    return Err("sbom `output` must remain inside the repository".to_owned());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error) => {
+                return Err(format!(
+                    "cannot inspect sbom output ancestor {}: {error}",
+                    current.display()
+                ))
+            }
+        }
+    }
+    Ok(root.join(relative.as_str()))
 }
 
 /// Execute named checks whose native implementation is intentionally narrower
@@ -3608,6 +3658,8 @@ fn json_error(message: &str) -> serde_json::Value {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use super::repository_output_directory;
     use super::{dispatch, DispatchContext, DispatchOutcome};
     use enforcer_domain::mcp_types::McpToolName;
     use enforcer_domain::mcp_types::{ArtifactPath, McpFreshness};
@@ -4255,14 +4307,23 @@ mod tests {
     #[test]
     fn check_sbom_generates_a_lockfile_bound_native_artifact(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let output = tempfile::tempdir()?;
+        let workspace = tempfile::tempdir()?;
+        std::fs::create_dir_all(workspace.path().join("src"))?;
+        std::fs::write(
+            workspace.path().join("Cargo.toml"),
+            "[package]\nname = \"custom-output-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )?;
+        std::fs::write(workspace.path().join("src/lib.rs"), "pub fn app() {}\n")?;
+        std::fs::write(
+            workspace.path().join("Cargo.lock"),
+            "version = 4\n\n[[package]]\nname = \"custom-output-app\"\nversion = \"0.1.0\"\n",
+        )?;
         let outcome = dispatch(
             &tool("ocentra_enforcer_check")?,
             &serde_json::json!({
-                "root": workspace.to_string_lossy(),
+                "root": workspace.path().to_string_lossy(),
                 "check": "sbom",
-                "output": output.path().to_string_lossy(),
+                "output": "artifacts/security",
             }),
             &ctx(McpFreshness::Fresh),
         );
@@ -4273,6 +4334,7 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(true));
         let artifact = value["artifact"].as_str().ok_or("missing sbom artifact")?;
         assert!(std::path::Path::new(artifact).is_file());
+        assert!(std::path::Path::new(artifact).starts_with(workspace.path()));
         Ok(())
     }
 
@@ -4286,7 +4348,7 @@ mod tests {
             &serde_json::json!({
                 "root": temp.path().to_string_lossy(),
                 "check": "sbom",
-                "output": output.to_string_lossy(),
+                "output": "unwritten-output",
                 "dryRun": true,
             }),
             &ctx(McpFreshness::Fresh),
@@ -4314,6 +4376,39 @@ mod tests {
         assert!(value["error"]
             .as_str()
             .is_some_and(|error| error.contains("dryRun` must be a boolean")));
+
+        let absolute_output = temp.path().to_string_lossy().into_owned();
+        for escaping in ["../outside", absolute_output.as_str()] {
+            let rejected = dispatch(
+                &tool("ocentra_enforcer_check")?,
+                &serde_json::json!({
+                    "root": temp.path().to_string_lossy(),
+                    "check": "sbom",
+                    "output": escaping,
+                    "dryRun": true,
+                }),
+                &ctx(McpFreshness::Fresh),
+            );
+            let DispatchOutcome::Result(value) = rejected else {
+                return Err("escaping SBOM output did not produce a result".into());
+            };
+            assert_eq!(value["ok"], serde_json::json!(false));
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn check_sbom_rejects_a_symlinked_output_ancestor() -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::symlink;
+
+        let repository = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        symlink(outside.path(), repository.path().join("linked-output"))?;
+        let error = repository_output_directory(repository.path(), "linked-output/security")
+            .err()
+            .ok_or("symlinked SBOM output must be rejected")?;
+        assert!(error.starts_with("sbom `output` must not traverse a symlink:"));
         Ok(())
     }
 
