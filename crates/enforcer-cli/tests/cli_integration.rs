@@ -533,6 +533,21 @@ fn base_head_and_paths_collision_is_a_usage_error() -> Result<(), Box<dyn std::e
 }
 
 #[test]
+fn option_shaped_commit_ref_is_rejected_before_git_execution(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_pass_fixture(temp.path())?;
+    let output_path = temp.path().join("escaped.txt");
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["check", "--base=--output=escaped.txt", "--head", "HEAD"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(2));
+    assert!(!output_path.exists());
+    Ok(())
+}
+
+#[test]
 fn no_scope_at_all_is_a_usage_error() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     write_pass_fixture(temp.path())?;

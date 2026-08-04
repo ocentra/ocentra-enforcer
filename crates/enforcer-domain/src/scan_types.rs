@@ -1006,6 +1006,12 @@ impl std::str::FromStr for CommitRef {
         if trimmed.is_empty() {
             return Err(DecodeError::new("scope.commitRef", "must not be empty"));
         }
+        if trimmed.starts_with('-') {
+            return Err(DecodeError::new(
+                "scope.commitRef",
+                "must not begin with `-` because Git would interpret it as an option",
+            ));
+        }
         // ALLOC-JUSTIFICATION: the canonical domain value owns this text beyond the caller lifetime.
         Ok(Self(trimmed.to_owned()))
     }
