@@ -30,8 +30,8 @@ use enforcer_domain::{
         CoordinationRepoRoot, CoordinationWorktree,
     },
     harness_types::{
-        HarnessArtifactKind, HarnessDomainName, HarnessPackageName, HarnessRunId, HarnessRunStatus,
-        HarnessTag, HarnessToolName,
+        HarnessArtifactKind, HarnessCommandArgument, HarnessDomainName, HarnessLanguage,
+        HarnessPackageName, HarnessRunId, HarnessRunStatus, HarnessTag, HarnessToolName,
     },
     ids::{HubName, LaneId},
     mcp_types::{ArtifactPath, McpActionName, McpFingerprint, McpFreshness, McpToolName},
@@ -829,17 +829,132 @@ fn scan_unrecorded(args: &serde_json::Value) -> serde_json::Value {
     if args.get("cargo").is_some_and(|value| !value.is_boolean()) {
         return json_error("scan `cargo` must be a boolean");
     }
-    if args.get("cargo").and_then(serde_json::Value::as_bool) == Some(true) {
-        return json_error("scan `cargo: true` requires the bounded harness cargo adapter");
-    }
-    let result = enforcer_scan::boundary::native_scan::execute(&request, &root)
+    let explicit_config = match scan_config(args, &root) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let scan = match explicit_config.as_ref() {
+        Some(config) => {
+            enforcer_scan::boundary::native_scan::execute_with_config(&request, &root, config)
+        }
+        None => enforcer_scan::boundary::native_scan::execute(&request, &root),
+    };
+    let result = scan
         .map_err(|error| error.to_string())
         .and_then(|result| serde_json::to_value(result.report).map_err(|error| error.to_string()))
-        .and_then(|report| compact_scan_report(report, args));
+        .and_then(|report| compact_scan_report(report, args))
+        .and_then(|report| append_cargo_scan(report, args, &root));
     match result {
         Ok(value) => value,
         Err(err) => json_error(&err),
     }
+}
+
+fn scan_config(
+    args: &serde_json::Value,
+    root: &RepoRoot,
+) -> Result<Option<enforcer_domain::config_types::EffectiveConfig>, String> {
+    if let Some(value) = args.get("configPath") {
+        let text = value
+            .as_str()
+            .ok_or_else(|| "scan `configPath` must be a string".to_owned())?;
+        let configured = std::path::Path::new(text);
+        let path = if configured.is_absolute() {
+            configured.to_path_buf()
+        } else {
+            std::path::Path::new(root.as_str()).join(configured)
+        };
+        if !path.is_file() {
+            return Err(format!(
+                "scan configPath does not name an existing file: {}",
+                path.display()
+            ));
+        }
+        return enforcer_config::load_project_config(&path)
+            .map(Some)
+            .map_err(|error| error.to_string());
+    }
+    let Some(profile) = args.get("profile") else {
+        return Ok(None);
+    };
+    let profile = ConfigProfileName::try_new(
+        profile
+            .as_str()
+            .ok_or_else(|| "scan `profile` must be a string".to_owned())?
+            .to_owned(),
+    )
+    .map_err(|error| error.to_string())?;
+    enforcer_config::resolve::resolve_profile_only(&profile)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+fn append_cargo_scan(
+    mut report: serde_json::Value,
+    args: &serde_json::Value,
+    root: &RepoRoot,
+) -> Result<serde_json::Value, String> {
+    if args.get("cargo").and_then(serde_json::Value::as_bool) != Some(true) {
+        return Ok(report);
+    }
+    let command = [
+        "cargo",
+        "check",
+        "--locked",
+        "--workspace",
+        "--all-targets",
+        "--message-format=json",
+    ]
+    .into_iter()
+    .map(|value| {
+        HarnessCommandArgument::try_new(value.to_owned()).map_err(|error| error.to_string())
+    })
+    .collect::<Result<Vec<_>, _>>()?;
+    let request = enforcer_harness::execution::ExecuteRequest {
+        repo_root: root.clone(),
+        cwd: None,
+        run_id: cargo_scan_run_id()?,
+        tool: HarnessToolName::try_new("cargo-check".to_owned())
+            .map_err(|error| error.to_string())?,
+        language: Some(HarnessLanguage::Rust),
+        command,
+        crate_name: None,
+        package_name: None,
+        domain: None,
+        tags: Vec::new(),
+    };
+    let outcome = enforcer_harness::execution::execute_unrecorded_bounded(&request)
+        .map_err(|error| error.to_string())?;
+    let passed = outcome.exit_code().is_some_and(|code| code.get() == 0)
+        && matches!(
+            outcome.termination(),
+            enforcer_domain::harness_types::HarnessExecutionTermination::Completed
+        );
+    let object = report
+        .as_object_mut()
+        .ok_or_else(|| "scan report must be a JSON object".to_owned())?;
+    object.insert(
+        "cargo".to_owned(),
+        serde_json::json!({
+            "ok": passed,
+            "termination": outcome.termination().as_str(),
+            "exitCode": outcome.exit_code().map(|code| code.get()),
+            "stdout": outcome.stdout().as_str(),
+            "stderr": outcome.stderr().as_str(),
+            "childReaped": outcome.child_reaped(),
+        }),
+    );
+    if !passed {
+        object.insert("ok".to_owned(), serde_json::Value::Bool(false));
+    }
+    Ok(report)
+}
+
+fn cargo_scan_run_id() -> Result<HarnessRunId, String> {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    HarnessRunId::try_new(format!("mcp-scan-cargo-{}-{sequence}", std::process::id()))
+        .map_err(|error| error.to_string())
 }
 
 fn compact_scan_report(
@@ -4205,6 +4320,81 @@ mod tests {
         assert!(value["error"]
             .as_str()
             .is_some_and(|message| message.contains("does not support `unexpected`")));
+        Ok(())
+    }
+
+    #[test]
+    fn scan_honors_advertised_profile_and_config_controls() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn clean() {}\n")?;
+        let profile = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "files": ["src/lib.rs"],
+                "profile": "strict",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(profile) = profile else {
+            return Err("profile scan did not produce a result".into());
+        };
+        assert!(profile.get("error").is_none());
+
+        let missing = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "files": ["src/lib.rs"],
+                "configPath": "missing-config.json",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(missing) = missing else {
+            return Err("missing-config scan did not produce a result".into());
+        };
+        assert_eq!(missing["ok"], serde_json::json!(false));
+        assert!(missing["error"].as_str().is_some_and(|value| {
+            value.contains("missing-config.json") || value.contains("config")
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn scan_cargo_control_runs_the_bounded_native_adapter() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn clean() {}\n")?;
+        std::fs::write(
+            temp.path().join("Cargo.toml"),
+            "[package]\nname = \"mcp-scan-cargo-fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )?;
+        std::fs::write(
+            temp.path().join("Cargo.lock"),
+            "# This file is automatically @generated by Cargo.\nversion = 4\n\n[[package]]\nname = \"mcp-scan-cargo-fixture\"\nversion = \"0.1.0\"\n",
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_scan")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "files": ["src/lib.rs"],
+                "cargo": true,
+                "summaryOnly": true,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("cargo scan did not produce a result".into());
+        };
+        assert_eq!(value["cargo"]["ok"], serde_json::json!(true));
+        assert_eq!(
+            value["cargo"]["termination"],
+            serde_json::json!("completed")
+        );
+        assert_eq!(value["cargo"]["childReaped"], serde_json::json!(true));
         Ok(())
     }
 

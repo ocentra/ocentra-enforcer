@@ -147,11 +147,32 @@ pub fn execute(
     repo_root: &RepoRoot,
 ) -> Result<NativeScanResult, NativeScanError> {
     let (resolved, files) = resolve_files(request, repo_root)?;
+    execute_resolved(request, &resolved, files)
+}
+
+/// Execute a typed native scan with caller-selected, already-decoded project
+/// configuration. This is used by transport adapters that expose an explicit
+/// config or embedded profile instead of the repository-default config.
+pub fn execute_with_config(
+    request: &NativeScanRequest,
+    repo_root: &RepoRoot,
+    config: &enforcer_domain::config_types::EffectiveConfig,
+) -> Result<NativeScanResult, NativeScanError> {
+    let rules = IgnoreRules::new(config.ignore_dirs.clone(), config.ignore_file_globs.clone());
+    let (resolved, files) = resolve_files_with_rules(request, repo_root, &rules)?;
+    execute_resolved(request, &resolved, files)
+}
+
+fn execute_resolved(
+    request: &NativeScanRequest,
+    resolved: &enforcer_domain::scan_types::ResolvedScope,
+    files: Vec<RelPath>,
+) -> Result<NativeScanResult, NativeScanError> {
     let validators = build_family_validators()?;
     let report = if request.languages.as_slice() == [NativeScanLanguage::Common] {
-        engine::run_common(&resolved, &files, &validators)
+        engine::run_common(resolved, &files, &validators)
     } else {
-        engine::run(&resolved, &files, &validators)
+        engine::run(resolved, &files, &validators)
     };
     Ok(NativeScanResult {
         scope: resolved.kind,
