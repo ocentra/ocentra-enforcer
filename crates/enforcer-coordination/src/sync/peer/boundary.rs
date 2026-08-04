@@ -328,7 +328,7 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
     let (authority, prefix) = endpoint.split_once('/').unwrap_or((endpoint, ""));
     let mut stream = TcpStream::connect(authority)?;
     stream.set_read_timeout(Some(std::time::Duration::from_secs(5)))?;
-    let target = format!("/{prefix}{}", path.trim_start_matches('/'));
+    let target = peer_request_target(prefix, path);
     let auth = token
         .map(|value| format!("Authorization: Bearer {value}\r\n"))
         .unwrap_or_default();
@@ -336,33 +336,51 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
         stream,
         "GET {target} HTTP/1.1\r\nHost: {authority}\r\n{auth}Connection: close\r\n\r\n"
     )?;
-    let mut response = String::new();
-    let mut chunk = [0_u8; 4096];
-    loop {
-        match stream.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(size) => {
-                let bytes = chunk
-                    .get(..size)
-                    .ok_or_else(|| rejected("peer response length exceeded buffer"))?;
-                response.push_str(&String::from_utf8_lossy(bytes))
-            }
-            Err(_error) if !response.is_empty() => break,
-            Err(error) => return Err(error.into()),
-        }
-    }
+    let mut response_bytes = Vec::new();
+    stream.read_to_end(&mut response_bytes)?;
+    let response = String::from_utf8_lossy(&response_bytes);
     let (head, body) = response
         .split_once("\r\n\r\n")
         .ok_or_else(|| rejected("peer returned malformed HTTP response"))?;
     if !head.starts_with("HTTP/1.1 200") && !head.starts_with("HTTP/1.0 200") {
         return Err(rejected("peer request was rejected or unavailable"));
     }
+    if head.lines().any(|line| {
+        line.split_once(':').is_some_and(|(name, value)| {
+            name.eq_ignore_ascii_case("transfer-encoding")
+                && !value.trim().eq_ignore_ascii_case("identity")
+        })
+    }) {
+        return Err(rejected("peer returned unsupported HTTP body framing"));
+    }
+    if let Some(length) = head.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("content-length")
+            .then(|| value.trim().parse::<usize>().ok())
+            .flatten()
+    }) {
+        if body.len() != length {
+            return Err(rejected("peer returned incomplete HTTP response body"));
+        }
+    }
     Ok(body.to_owned())
+}
+
+fn peer_request_target(prefix: &str, path: &str) -> String {
+    let prefix = prefix.trim_matches('/');
+    let path = path.trim_start_matches('/');
+    if prefix.is_empty() {
+        format!("/{path}")
+    } else {
+        format!("/{prefix}/{path}")
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{PeerRecord, PeerRegistry, PeerRegistryDto, PeerRegistryEntryDto};
+    use super::{
+        peer_request_target, PeerRecord, PeerRegistry, PeerRegistryDto, PeerRegistryEntryDto,
+    };
     use crate::error::CoordinationError;
     use enforcer_domain::coordination_types::CoordinationLedgerRoot;
     use enforcer_domain::coordination_types::{
@@ -434,6 +452,47 @@ mod tests {
             }
         });
         Ok(format!("http://{address}"))
+    }
+
+    fn truncated_peer_server() -> Result<String, Box<dyn std::error::Error>> {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let address = listener.local_addr()?;
+        std::thread::spawn(move || {
+            let Ok((mut socket, _)) = listener.accept() else {
+                return;
+            };
+            let mut request = [0_u8; 1024];
+            let _ = socket.read(&mut request);
+            let _ = socket.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{\"streams\":[",
+            );
+            let _ = socket.shutdown(Shutdown::Write);
+        });
+        Ok(format!("http://{address}"))
+    }
+
+    #[test]
+    fn peer_request_targets_preserve_path_separators() {
+        assert_eq!(peer_request_target("", "/manifest"), "/manifest");
+        assert_eq!(peer_request_target("api", "/manifest"), "/api/manifest");
+        assert_eq!(
+            peer_request_target("api/", "/streams/lane.ndjson"),
+            "/api/streams/lane.ndjson"
+        );
+    }
+
+    #[test]
+    fn http_get_rejects_a_truncated_content_length_body() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let _network = network_test_lock()?;
+        let endpoint = CoordinationPeerUrl::parse(&truncated_peer_server()?)?;
+        let error = super::http_get(&endpoint, "/manifest", None)
+            .err()
+            .ok_or("truncated peer response must fail")?;
+        assert!(error
+            .to_string()
+            .contains("peer returned incomplete HTTP response body"));
+        Ok(())
     }
 
     #[test]
