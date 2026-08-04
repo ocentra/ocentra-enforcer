@@ -458,17 +458,23 @@ impl NativeProofLifecycle {
     /// Reset only the lifecycle-owned state.  The reset is journaled before
     /// mutation and cannot affect any path outside `.enforce/proofs`.
     pub fn reset(&self) -> Result<()> {
-        if self.proof_root.join("journal.ndjson").exists() {
-            let snapshot = self.snapshot()?;
-            let id: ProofId = "lifecycle-reset".parse().map_err(Error::Decode)?;
-            let run: ProofRunId = "lifecycle-reset".parse().map_err(Error::Decode)?;
-            let _ = snapshot;
-            self.append_event("proof-reset-started", &run, &id, serde_json::json!({}))?;
-        }
+        let id: ProofId = "lifecycle-reset".parse().map_err(Error::Decode)?;
+        let run: ProofRunId = "lifecycle-reset".parse().map_err(Error::Decode)?;
+        self.append_event("proof-reset-started", &run, &id, serde_json::json!({}))?;
         if self.proof_root.exists() {
-            std::fs::remove_dir_all(&self.proof_root)?;
+            for entry in std::fs::read_dir(&self.proof_root)? {
+                let entry = entry?;
+                if entry.file_name() == std::ffi::OsStr::new("journal.ndjson") {
+                    continue;
+                }
+                if entry.file_type()?.is_dir() {
+                    std::fs::remove_dir_all(entry.path())?;
+                } else {
+                    std::fs::remove_file(entry.path())?;
+                }
+            }
         }
-        Ok(())
+        self.append_event("proof-reset-finished", &run, &id, serde_json::json!({}))
     }
 
     fn persist_run(&self, run: &crate::envelope::ProofRunEnvelope) -> Result<()> {

@@ -114,6 +114,38 @@ fn legacy_import_copies_evidence_into_lifecycle_owned_storage() -> Result<()> {
 }
 
 #[test]
+fn reset_removes_runs_but_preserves_completed_audit_records() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    let command = if cfg!(windows) {
+        vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
+    } else {
+        vec!["true".to_owned()]
+    };
+    lifecycle.run(&args(root.clone(), "reset-me", command)?, None)?;
+    lifecycle.reset()?;
+
+    let reopened = NativeProofLifecycle::open(&root)?;
+    assert!(reopened.snapshot()?.runs.is_empty());
+    let journal = std::fs::read_to_string(root.join(".enforce/proofs/journal.ndjson"))?;
+    let events = journal
+        .lines()
+        .map(serde_json::from_str::<serde_json::Value>)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    assert_eq!(
+        events
+            .iter()
+            .rev()
+            .take(2)
+            .filter_map(|event| event["record"]["eventType"].as_str())
+            .collect::<Vec<_>>(),
+        ["proof-reset-finished", "proof-reset-started"]
+    );
+    Ok(())
+}
+
+#[test]
 fn persisted_status_is_filtered_sorted_and_bounded_without_a_project_snapshot() -> Result<()> {
     let fixture = tempfile::tempdir()?;
     let root = fixture.path().canonicalize()?;
