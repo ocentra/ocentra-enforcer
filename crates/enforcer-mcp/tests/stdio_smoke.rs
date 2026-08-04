@@ -133,6 +133,15 @@ fn stdio_coordination_report_index_and_notify_replay_the_real_temp_ledger(
     let mut stdin = child.stdin.take().ok_or("child has no stdin")?;
     let mut reader = BufReader::new(child.stdout.take().ok_or("child has no stdout")?);
     let root = ledger.path().to_string_lossy();
+    let init = round_trip(
+        &mut stdin,
+        &mut reader,
+        &serde_json::json!({
+            "jsonrpc":"2.0","id":0,"method":"tools/call",
+            "params":{"name":"ocentra_enforcer_coordination_init","arguments":{"root":root,"hub":"test-hub","lane":"primary"}}
+        }),
+    )?;
+    assert_eq!(init["result"]["ok"], true);
     let report = round_trip(
         &mut stdin,
         &mut reader,
