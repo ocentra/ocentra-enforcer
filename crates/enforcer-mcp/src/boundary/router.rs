@@ -2637,22 +2637,47 @@ fn mcp_status(ctx: &DispatchContext) -> serde_json::Value {
 /// a successful response must always correspond to a real native ledger
 /// read or append-only event.
 fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value {
-    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error(&format!("{operation} requires a `root` ledger path"));
+    let root_path = match coordination_storage_root(args, operation) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
-    let root_path = std::path::Path::new(root_raw);
+    if operation != "ocentra_enforcer_coordination_init"
+        && operation != "ocentra_enforcer_coordination_ensure"
+    {
+        let ledger_root = match CoordinationLedgerRoot::parse(&root_path) {
+            Ok(value) => value,
+            Err(error) => return json_error(&error.to_string()),
+        };
+        let hub = match api::open(ledger_root) {
+            Ok(value) => value,
+            Err(error) => return json_error(&error.to_string()),
+        };
+        if let Some(raw_hub) = args.get("hub").and_then(serde_json::Value::as_str) {
+            let requested = match raw_hub.parse::<HubName>() {
+                Ok(value) => value,
+                Err(error) => return json_error(&error.to_string()),
+            };
+            if hub.config.hub != requested {
+                return serde_json::json!({
+                    "ok": false,
+                    "code": "coordination_hub_mismatch",
+                    "error": "requested hub does not match the initialized ledger authority",
+                });
+            }
+        }
+    }
     match operation {
         "ocentra_enforcer_coordination_status" | "ocentra_enforcer_coordination_health" => {
             coordination_status(args)
         }
         "ocentra_enforcer_coordination_streams" => {
-            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+            match enforcer_coordination::sync::stream::read_all_streams(&root_path) {
                 Ok(all) => serde_json::json!({
                     "ok": true,
                     "eventCount": all.events.len(),
                     "duplicateCount": all.duplicate_count.as_nonzero().map_or(0, std::num::NonZeroUsize::get),
                     "warningCount": all.warnings.len(),
-                    "streams": enforcer_coordination::sync::stream::list_stream_files(root_path)
+                    "streams": enforcer_coordination::sync::stream::list_stream_files(&root_path)
                         .map(|names| names.into_iter().map(|name| name.as_str().to_owned()).collect::<Vec<_>>())
                         .unwrap_or_default(),
                 }),
@@ -2660,7 +2685,7 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
             }
         }
         "ocentra_enforcer_coordination_presence" => {
-            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+            match enforcer_coordination::sync::stream::read_all_streams(&root_path) {
                 Ok(all) => {
                     let mut lanes = std::collections::BTreeSet::new();
                     let mut writers = std::collections::BTreeSet::new();
@@ -2674,7 +2699,7 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
             }
         }
         "ocentra_enforcer_coordination_inbox" => {
-            match enforcer_coordination::sync::stream::read_all_streams(root_path) {
+            match enforcer_coordination::sync::stream::read_all_streams(&root_path) {
                 Ok(all) => {
                     let lane = args.get("lane").and_then(serde_json::Value::as_str);
                     let messages: Vec<_> = all
@@ -2691,10 +2716,10 @@ fn coordination(operation: &str, args: &serde_json::Value) -> serde_json::Value 
             }
         }
         "ocentra_enforcer_coordination_workers" => {
-            coordination_event_rows(root_path, "worker", "workers")
+            coordination_event_rows(&root_path, "worker", "workers")
         }
         "ocentra_enforcer_coordination_tasks" => {
-            coordination_event_rows(root_path, "task", "tasks")
+            coordination_event_rows(&root_path, "task", "tasks")
         }
         "ocentra_enforcer_coordination_init" => coordination_init(args),
         "ocentra_enforcer_coordination_claim" => coordination_claim(args),
@@ -2842,13 +2867,11 @@ fn coordination_peer(args: &serde_json::Value) -> serde_json::Value {
     use enforcer_domain::coordination_types::{
         CoordinationLedgerRoot, CoordinationPeerName, CoordinationPeerTokenEnv, CoordinationPeerUrl,
     };
-    let root = match args
-        .get("root")
-        .and_then(serde_json::Value::as_str)
-        .and_then(|raw| CoordinationLedgerRoot::parse(std::path::Path::new(raw)).ok())
+    let root = match coordination_storage_root(args, "coordination_peer")
+        .and_then(|path| CoordinationLedgerRoot::parse(&path).map_err(|error| error.to_string()))
     {
-        Some(value) => value,
-        None => return json_error("coordination_peer requires a valid `root` ledger path"),
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     let registry_json = |registry: peer::PeerRegistry| serde_json::json!({"ok":true,"registry":{"peers":registry.peers.into_iter().map(|entry| serde_json::json!({"name":entry.name.as_str(),"url":entry.url.as_str(),"mode":"pull","tokenEnv":entry.token_env.as_ref().map(|value| value.as_str())})).collect::<Vec<_>>()}});
     match args
@@ -2923,13 +2946,11 @@ fn coordination_sync(args: &serde_json::Value) -> serde_json::Value {
     use enforcer_domain::coordination_types::{
         CoordinationLedgerRoot, CoordinationPeerName, CoordinationPeerUrl,
     };
-    let root = match args
-        .get("root")
-        .and_then(serde_json::Value::as_str)
-        .and_then(|raw| CoordinationLedgerRoot::parse(std::path::Path::new(raw)).ok())
+    let root = match coordination_storage_root(args, "coordination_sync")
+        .and_then(|path| CoordinationLedgerRoot::parse(&path).map_err(|error| error.to_string()))
     {
-        Some(value) => value,
-        None => return json_error("coordination_sync requires a valid `root` ledger path"),
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     let peer_raw = match args
         .get("peer")
@@ -2995,10 +3016,11 @@ fn coordination_report(args: &serde_json::Value) -> serde_json::Value {
 }
 
 fn coordination_index(args: &serde_json::Value) -> serde_json::Value {
-    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("coordination_index requires a `root` ledger path");
+    let root = match coordination_storage_root(args, "coordination_index") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
-    match enforcer_coordination::ledger::materialize(std::path::Path::new(root)) {
+    match enforcer_coordination::ledger::materialize(&root) {
         Ok(snapshot) => serde_json::json!({
             "ok":true,
             "indexKind":"derived-stream-replay",
@@ -3043,9 +3065,9 @@ fn coordination_notify(args: &serde_json::Value) -> serde_json::Value {
 /// paths, compaction must never create authority as a side effect: its root,
 /// hub identity, and retention count are all checked before any stream write.
 fn coordination_compact(args: &serde_json::Value) -> serde_json::Value {
-    let root_raw = match args.get("root").and_then(serde_json::Value::as_str) {
-        Some(value) => value,
-        None => return json_error("coordination_compact requires a `root` ledger path"),
+    let root_path = match coordination_storage_root(args, "coordination_compact") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     let requested_hub = match args.get("hub").and_then(serde_json::Value::as_str) {
         Some(value) => match value.parse::<HubName>() {
@@ -3061,7 +3083,7 @@ fn coordination_compact(args: &serde_json::Value) -> serde_json::Value {
     if let Err(error) = lane_raw.parse::<LaneId>() {
         return json_error(&error.to_string());
     }
-    let root = match CoordinationLedgerRoot::parse(std::path::Path::new(root_raw)) {
+    let root = match CoordinationLedgerRoot::parse(&root_path) {
         Ok(value) => value,
         Err(error) => return json_error(&error.to_string()),
     };
@@ -3128,8 +3150,9 @@ fn coordination_event_rows(root: &std::path::Path, kind: &str, field: &str) -> s
 }
 
 fn coordination_init(args: &serde_json::Value) -> serde_json::Value {
-    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("coordination_init requires a `root` ledger path");
+    let root = match coordination_storage_root(args, "coordination_init") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     let Some(hub_raw) = args.get("hub").and_then(serde_json::Value::as_str) else {
         return json_error("coordination_init requires a `hub` name");
@@ -3140,7 +3163,7 @@ fn coordination_init(args: &serde_json::Value) -> serde_json::Value {
     let (Ok(hub), Ok(lane)) = (hub_raw.parse::<HubName>(), lane_raw.parse::<LaneId>()) else {
         return json_error("hub/lane failed enforcer-domain brand validation");
     };
-    match api::init(std::path::Path::new(root), &hub, &lane) {
+    match api::init(&root, &hub, &lane) {
         Ok(config) => {
             serde_json::json!({"ok":true,"hub":config.hub.as_str(),"defaultLane":config.default_lane.as_str(),"nodeId":config.node_id.as_str()})
         }
@@ -3148,14 +3171,29 @@ fn coordination_init(args: &serde_json::Value) -> serde_json::Value {
     }
 }
 
+/// Resolve the durable coordination authority separately from repository context.
+/// New callers name it `stateRoot`; the old `root` field remains a compatibility
+/// fallback for legacy clients that used one path for both meanings.
+fn coordination_storage_root(
+    args: &serde_json::Value,
+    operation: &str,
+) -> Result<std::path::PathBuf, String> {
+    match args.get("stateRoot") {
+        Some(serde_json::Value::String(value)) => Ok(std::path::PathBuf::from(value)),
+        Some(_) => Err(format!("{operation} `stateRoot` must be a string")),
+        None => args
+            .get("root")
+            .and_then(serde_json::Value::as_str)
+            .map(std::path::PathBuf::from)
+            .ok_or_else(|| format!("{operation} requires a `stateRoot` ledger path")),
+    }
+}
+
 fn coordination_context(
     args: &serde_json::Value,
     operation: &str,
 ) -> Result<(Hub, LaneId, CallerContext), String> {
-    let root = args
-        .get("root")
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| format!("{operation} requires a `root` ledger path"))?;
+    let ledger_path = coordination_storage_root(args, operation)?;
     let hub_raw = args
         .get("hub")
         .and_then(serde_json::Value::as_str)
@@ -3170,14 +3208,17 @@ fn coordination_context(
     let lane = lane_raw
         .parse::<LaneId>()
         .map_err(|error| error.to_string())?;
-    let root_path = std::path::Path::new(root);
     let ledger_root =
-        CoordinationLedgerRoot::parse(root_path).map_err(|error| error.to_string())?;
-    let config = api::init(root_path, &hub_name, &lane).map_err(|error| error.to_string())?;
+        CoordinationLedgerRoot::parse(&ledger_path).map_err(|error| error.to_string())?;
+    let hub = api::open(ledger_root).map_err(|error| error.to_string())?;
+    if hub.config.hub != hub_name {
+        return Err("requested hub does not match the initialized ledger authority".to_owned());
+    }
     let worktree_raw = args
         .get("worktreeRoot")
         .and_then(serde_json::Value::as_str)
-        .unwrap_or(root);
+        .or_else(|| args.get("root").and_then(serde_json::Value::as_str))
+        .ok_or_else(|| format!("{operation} requires `worktreeRoot` or repository `root`"))?;
     let worktree_root =
         CoordinationWorktree::parse(worktree_raw).map_err(|error| error.to_string())?;
     let branch = CoordinationBranch::parse(
@@ -3199,10 +3240,7 @@ fn coordination_context(
         .transpose()
         .map_err(|error| error.to_string())?;
     Ok((
-        Hub {
-            root: ledger_root,
-            config,
-        },
+        hub,
         lane,
         CallerContext {
             project_id,
@@ -3334,8 +3372,9 @@ fn coordination_mail(args: &serde_json::Value) -> serde_json::Value {
 }
 
 fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
-    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("coordination_guard requires a `root` ledger path");
+    let root = match coordination_storage_root(args, "coordination_guard") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     let Some(paths) = args
         .get("paths")
@@ -3348,7 +3387,7 @@ fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
     if requested.len() != paths.len() || requested.is_empty() {
         return json_error("coordination_guard paths must be non-empty strings");
     }
-    match enforcer_coordination::sync::stream::read_all_streams(std::path::Path::new(root)) {
+    match enforcer_coordination::sync::stream::read_all_streams(&root) {
         Ok(all) => {
             let active = enforcer_coordination::ledger::active_claims(&all.events);
             let lane = args.get("lane").and_then(serde_json::Value::as_str);
@@ -3370,12 +3409,12 @@ fn coordination_guard(args: &serde_json::Value) -> serde_json::Value {
 
 /// `ocentra_enforcer_coordination_status` — read-only; delegates to
 /// `enforcer-coordination`'s ledger projection over whatever hub root the
-/// caller names. Deliberately minimal args (`root`, `hub`, `lane`) — the
+/// caller names. Deliberately minimal args (`stateRoot`, `hub`, `lane`) — the
 /// full argument surface is a sibling wiring pass.
 fn coordination_status(args: &serde_json::Value) -> serde_json::Value {
-    let root = match args.get("root").and_then(serde_json::Value::as_str) {
-        Some(root) => std::path::PathBuf::from(root),
-        None => return json_error("coordination_status requires a `root` path"),
+    let root = match coordination_storage_root(args, "coordination_status") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
     };
     match enforcer_coordination::sync::stream::read_all_streams(&root) {
         Ok(all) => {
@@ -3392,11 +3431,15 @@ fn coordination_status(args: &serde_json::Value) -> serde_json::Value {
 
 /// `ocentra_enforcer_coordination_claim` — the write tool this workpack's
 /// L1/L2/L13 requirements exist for. Delegates entirely to
-/// `enforcer_coordination::api::{init, claim_all}`; this handler's only job
+/// `enforcer_coordination::api::{open, claim_all}`; this handler's only job
 /// is JSON<->typed decoding, never re-implementing claim semantics.
 fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
-    let Some(root) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("coordination_claim requires a `root` path");
+    let ledger_path = match coordination_storage_root(args, "coordination_claim") {
+        Ok(value) => value,
+        Err(error) => return json_error(&error),
+    };
+    let Some(repo_root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
+        return json_error("coordination_claim requires repository `root`");
     };
     let Some(hub_raw) = args.get("hub").and_then(serde_json::Value::as_str) else {
         return json_error("coordination_claim requires a `hub` name");
@@ -3435,7 +3478,7 @@ fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
     let worktree_root = match CoordinationWorktree::parse(
         args.get("worktreeRoot")
             .and_then(serde_json::Value::as_str)
-            .unwrap_or(root),
+            .unwrap_or(repo_root_raw),
     ) {
         Ok(value) => value,
         Err(err) => return json_error(&err.to_string()),
@@ -3479,23 +3522,25 @@ fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
         None => None,
     };
 
-    let root_path = std::path::Path::new(root);
-    let ledger_root = match CoordinationLedgerRoot::parse(root_path) {
+    let ledger_root = match CoordinationLedgerRoot::parse(&ledger_path) {
         Ok(value) => value,
         Err(err) => return json_error(&err.to_string()),
     };
-    let repo_root = match CoordinationRepoRoot::parse(root_path) {
+    let repo_root = match CoordinationRepoRoot::parse(std::path::Path::new(repo_root_raw)) {
         Ok(value) => value,
         Err(err) => return json_error(&err.to_string()),
     };
-    let hub_config = match api::init(root_path, &hub_name, &lane_id) {
-        Ok(config) => config,
+    let hub = match api::open(ledger_root) {
+        Ok(value) => value,
         Err(err) => return json_error(&err.to_string()),
     };
-    let hub = Hub {
-        root: ledger_root,
-        config: hub_config,
-    };
+    if hub.config.hub != hub_name {
+        return serde_json::json!({
+            "ok": false,
+            "code": "coordination_hub_mismatch",
+            "error": "requested hub does not match the initialized ledger authority",
+        });
+    }
     let outcome = api::claim_all(
         &hub,
         ClaimRequestArgs {
@@ -5113,6 +5158,14 @@ mod tests {
             "projectId": "test-project",
             "reason": "router end-to-end fixture",
         });
+        let DispatchOutcome::Result(initialized) = dispatch(
+            &tool("ocentra_enforcer_coordination_init")?,
+            &args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("coordination init did not produce a result".into());
+        };
+        assert_eq!(initialized["ok"], serde_json::json!(true));
         let outcome = dispatch(
             &tool("ocentra_enforcer_coordination_claim")?,
             &args,
@@ -5123,6 +5176,69 @@ mod tests {
         };
         assert_eq!(value["ok"], serde_json::json!(true));
         assert_eq!(value["eventCount"], serde_json::json!(1));
+        Ok(())
+    }
+
+    #[test]
+    fn coordination_state_root_is_authority_while_root_remains_repository_context(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let repository = tempfile::tempdir()?;
+        let state = tempfile::tempdir()?;
+        let args = serde_json::json!({
+            "root": repository.path().to_string_lossy(),
+            "stateRoot": state.path().to_string_lossy(),
+            "hub": "state-root-test",
+            "lane": "lane-a",
+            "worktreeRoot": repository.path().to_string_lossy(),
+            "branch": "rust-build",
+            "projectId": "state-root-test",
+        });
+        let DispatchOutcome::Result(initialized) = dispatch(
+            &tool("ocentra_enforcer_coordination_init")?,
+            &args,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("stateRoot init was not dispatched".into());
+        };
+        assert_eq!(initialized["ok"], serde_json::json!(true));
+        assert!(!repository.path().join("identity").exists());
+        assert!(state.path().join("identity").exists());
+
+        let DispatchOutcome::Result(status) = dispatch(
+            &tool("ocentra_enforcer_coordination_status")?,
+            &serde_json::json!({"stateRoot": state.path().to_string_lossy()}),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("stateRoot-only status was not dispatched".into());
+        };
+        assert_eq!(status["ok"], serde_json::json!(true));
+        Ok(())
+    }
+
+    #[test]
+    fn coordination_claim_refuses_missing_hub_without_creating_authority(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let repository = tempfile::tempdir()?;
+        let state = tempfile::tempdir()?;
+        let before = std::fs::read_dir(state.path())?.count();
+        let DispatchOutcome::Result(value) = dispatch(
+            &tool("ocentra_enforcer_coordination_claim")?,
+            &serde_json::json!({
+                "root": repository.path().to_string_lossy(),
+                "stateRoot": state.path().to_string_lossy(),
+                "hub": "missing-hub",
+                "lane": "lane-a",
+                "paths": ["crates/example/src/lib.rs"],
+                "worktreeRoot": repository.path().to_string_lossy(),
+                "branch": "rust-build",
+                "projectId": "missing-hub-test",
+            }),
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("missing-hub claim was not dispatched".into());
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(std::fs::read_dir(state.path())?.count(), before);
         Ok(())
     }
 
@@ -5215,6 +5331,14 @@ mod tests {
             "root": root, "hub": "mcp-e2e", "lane": "lane-a",
             "worktreeRoot": "E:/mcp-e2e", "branch": "rust-build", "projectId": "mcp-e2e"
         });
+        let DispatchOutcome::Result(initialized) = dispatch(
+            &tool("ocentra_enforcer_coordination_init")?,
+            &common,
+            &ctx(McpFreshness::Fresh),
+        ) else {
+            return Err("coordination init was not dispatched".into());
+        };
+        assert_eq!(initialized["ok"], serde_json::json!(true));
         let mut claim_args = common.clone();
         claim_args["paths"] = serde_json::json!(["crates/example/src/lib.rs"]);
         let DispatchOutcome::Result(claim) = dispatch(
