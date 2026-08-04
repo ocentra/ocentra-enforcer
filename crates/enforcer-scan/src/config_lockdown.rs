@@ -413,7 +413,17 @@ fn parse_civil_date(value: &str) -> Option<(i32, u32, u32)> {
     let year = parts.next()?.parse().ok()?;
     let month = parts.next()?.parse().ok()?;
     let day = parts.next()?.parse().ok()?;
-    if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+    if parts.next().is_some() || !(1..=12).contains(&month) {
+        return None;
+    }
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        2 if leap_year => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    if !(1..=days_in_month).contains(&day) {
         return None;
     }
     Some((year, month, day))
@@ -497,6 +507,7 @@ fn finding(
 
 #[cfg(test)]
 mod tests {
+    use super::parse_civil_date;
     use super::{check_config_lockdown, check_waiver_policy};
     use enforcer_domain::findings::ScanScope;
     fn seed(root: &std::path::Path, config: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -565,6 +576,14 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn civil_date_parser_rejects_impossible_dates_and_accepts_leap_days() {
+        assert_eq!(parse_civil_date("2028-02-29"), Some((2028, 2, 29)));
+        assert_eq!(parse_civil_date("2027-02-29"), None);
+        assert_eq!(parse_civil_date("2027-02-31"), None);
+        assert_eq!(parse_civil_date("2026-04-31"), None);
     }
 
     #[test]
