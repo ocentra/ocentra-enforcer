@@ -262,7 +262,19 @@ pub fn execute_mutation_risk_policy(
     repo_root: &RepoRoot,
     policy: &crate::mutation_risk::MutationRiskPolicy,
 ) -> Result<NativeScanResult, NativeScanError> {
-    let (resolved, files) = resolve_files(request, repo_root)?;
+    let (resolved, files) = match &request.scope {
+        NativeScanScope::Diff { base, head } => {
+            let scope_request = ScopeRequest::Diff {
+                base: base.clone(),
+                head: head.clone(),
+            };
+            let mut resolved = scope::resolve(&scope_request, repo_root)?;
+            resolved.kind = ScanScope::Diff;
+            let files = diff_files(repo_root, base, head, &IgnoreRules::default(), true)?;
+            (resolved, files)
+        }
+        _ => resolve_files(request, repo_root)?,
+    };
     let report = crate::mutation_risk::check(resolved.kind, &files, policy).map_err(|reason| {
         NativeScanError::Io {
             operation: "mutation-risk check",
@@ -612,7 +624,7 @@ pub(crate) fn resolve_files_with_rules(
                     base: base.clone(),
                     head: head.clone(),
                 };
-                let files = diff_files(repo_root, base, head, rules)?;
+                let files = diff_files(repo_root, base, head, rules, false)?;
                 (scope_request, files, ScanScope::Diff)
             }
         };
@@ -677,11 +689,14 @@ fn diff_files(
     base: &CommitRef,
     head: &CommitRef,
     rules: &IgnoreRules,
+    include_deletions: bool,
 ) -> Result<Vec<RelPath>, NativeScanError> {
+    let diff_filter = if include_deletions { "ACMRD" } else { "ACMR" };
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_root.as_str())
-        .args(["diff", "--name-only", "--diff-filter=ACMR"])
+        .args(["diff", "--name-only"])
+        .arg(format!("--diff-filter={diff_filter}"))
         .arg(base.as_str())
         .arg(head.as_str())
         .output()
@@ -747,8 +762,9 @@ fn staged_files(
 #[cfg(test)]
 mod tests {
     use super::{
-        execute, execute_dependency_policy, execute_secret_policy, execute_staged_secret_policy,
-        resolve_files, NativeScanError, NativeScanLanguage, NativeScanRequest, NativeScanScope,
+        execute, execute_dependency_policy, execute_mutation_risk_policy, execute_secret_policy,
+        execute_staged_secret_policy, resolve_files, NativeScanError, NativeScanLanguage,
+        NativeScanRequest, NativeScanScope,
     };
     use enforcer_domain::config_types::CrateName;
     use enforcer_domain::findings::ScanScope;
@@ -918,6 +934,7 @@ mod tests {
             .success());
         write(temp.path(), "Cargo.toml", "[workspace]\nmembers = []\n")?;
         write(temp.path(), "src/old.rs", "pub fn old() {}")?;
+        write(temp.path(), "rules/deleted.json", "{}")?;
         assert!(Command::new("git")
             .arg("-C")
             .arg(temp.path())
@@ -931,6 +948,7 @@ mod tests {
             .status()?
             .success());
         write(temp.path(), "src/new.rs", "pub fn new_file() {}")?;
+        std::fs::remove_file(temp.path().join("rules/deleted.json"))?;
         assert!(Command::new("git")
             .arg("-C")
             .arg(temp.path())
@@ -961,6 +979,25 @@ mod tests {
             ["src/new.rs"]
         );
         assert_eq!(result.report.scope, ScanScope::Diff);
+
+        let mutation = execute_mutation_risk_policy(
+            &request,
+            &root(temp.path())?,
+            &crate::mutation_risk::MutationRiskPolicy::default(),
+        )?;
+        assert_eq!(
+            mutation
+                .scanned_files
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            ["rules/deleted.json", "src/new.rs"]
+        );
+        assert!(mutation
+            .report
+            .violations
+            .iter()
+            .any(|finding| finding.finding().file.as_str() == "rules/deleted.json"));
         Ok(())
     }
 

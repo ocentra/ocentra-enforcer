@@ -43,18 +43,9 @@ fn resolve_files(
     let root_path = Path::new(root.as_str());
     let all_files = walk::walk(root_path, ignore_rules)?;
     if resolved.kind == enforcer_domain::findings::ScanScope::Diff {
-        let Some((base, head)) = &resolved.diff_range else {
-            return Ok(Vec::new());
-        };
-        let output = std::process::Command::new("git")
-            .args(["diff", "--name-only", base.as_str(), head.as_str()])
-            .current_dir(root.as_str())
-            .output()?;
-        if !output.status.success() {
-            return Err(std::io::Error::other("git diff --name-only failed"));
-        }
-        let changed = String::from_utf8_lossy(&output.stdout);
-        let changed: std::collections::BTreeSet<_> = changed.lines().collect();
+        let changed = git_diff_files(root, resolved, "ACMR")?;
+        let changed: std::collections::BTreeSet<_> =
+            changed.iter().map(|path| path.as_str()).collect();
         return Ok(all_files
             .into_iter()
             .filter(|file| changed.contains(file.as_str()))
@@ -72,6 +63,34 @@ fn resolve_files(
                 .any(|explicit| file.as_str().starts_with(explicit.as_str()))
         })
         .collect())
+}
+
+fn git_diff_files(
+    root: &RepoRoot,
+    resolved: &ResolvedScope,
+    diff_filter: &str,
+) -> std::io::Result<Vec<enforcer_domain::paths::RelPath>> {
+    let Some((base, head)) = &resolved.diff_range else {
+        return Ok(Vec::new());
+    };
+    let output = std::process::Command::new("git")
+        .args(["diff", "--name-only"])
+        .arg(format!("--diff-filter={diff_filter}"))
+        .arg(base.as_str())
+        .arg(head.as_str())
+        .current_dir(root.as_str())
+        .output()?;
+    if !output.status.success() {
+        return Err(std::io::Error::other("git diff --name-only failed"));
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|line| {
+            line.parse().map_err(|error| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{error}"))
+            })
+        })
+        .collect()
 }
 
 /// Load the authoritative policy-source exclusions once at the CLI boundary.
@@ -200,7 +219,11 @@ fn run_mutation_risk_policy(args: &MutationRiskArgs) -> ExitCode {
             return ExitCode::UsageError;
         }
     };
-    let files = match resolve_files(&root, &resolved, &walk::IgnoreRules::default()) {
+    let files = match if resolved.kind == enforcer_domain::findings::ScanScope::Diff {
+        git_diff_files(&root, &resolved, "ACMRD")
+    } else {
+        resolve_files(&root, &resolved, &walk::IgnoreRules::default())
+    } {
         Ok(files) => files,
         Err(error) => {
             output::print_internal_error(&format!("mutation-risk file resolution failed: {error}"));

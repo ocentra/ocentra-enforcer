@@ -548,6 +548,82 @@ fn option_shaped_commit_ref_is_rejected_before_git_execution(
 }
 
 #[test]
+fn mutation_risk_diff_keeps_deleted_policy_paths() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("rules"))?;
+    std::fs::write(temp.path().join("rules/deleted.json"), "{}")?;
+    assert!(Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args(["add", "."])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "baseline",
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    std::fs::remove_file(temp.path().join("rules/deleted.json"))?;
+    assert!(Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "delete policy",
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args([
+            "policy",
+            "mutation-risk",
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+        ])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout)?;
+    let mut fields = stdout
+        .lines()
+        .find(|line| {
+            line.trim_start()
+                .starts_with("[error] rules/deleted.json:1 ")
+        })
+        .ok_or("deleted policy finding is missing")?
+        .split_whitespace();
+    assert_eq!(fields.next(), Some("[error]"));
+    assert_eq!(fields.next(), Some("rules/deleted.json:1"));
+    Ok(())
+}
+
+#[test]
 fn no_scope_at_all_is_a_usage_error() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     write_pass_fixture(temp.path())?;
