@@ -393,9 +393,18 @@ mod tests {
                 let Ok((mut socket, _)) = listener.accept() else {
                     return;
                 };
-                let mut request_bytes = [0_u8; 2048];
-                let request_len: usize = socket.read(&mut request_bytes).unwrap_or_default();
-                let request = String::from_utf8_lossy(&request_bytes[..request_len]);
+                let mut request_bytes = Vec::new();
+                let mut chunk = [0_u8; 512];
+                while !request_bytes.windows(4).any(|window| window == b"\r\n\r\n") {
+                    let Ok(read) = socket.read(&mut chunk) else {
+                        return;
+                    };
+                    if read == 0 {
+                        break;
+                    }
+                    request_bytes.extend_from_slice(&chunk[..read]);
+                }
+                let request = String::from_utf8_lossy(&request_bytes);
                 let permitted = token.as_ref().is_none_or(|value| {
                     request.contains(&format!("Authorization: Bearer {value}"))
                 });

@@ -73,18 +73,31 @@ fn xtask_dogfood_is_green_on_the_live_workspace_with_nonzero_ran_count(
         .ok_or_else(|| {
             std::io::Error::other("expected crates/enforcer-cli two levels under the root")
         })?;
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "-p",
-            "xtask",
-            "--quiet",
-            "--",
-            "dogfood",
-            "--no-toolchain",
-        ])
-        .current_dir(workspace_root)
-        .output()?;
+    let xtask_name = if cfg!(windows) { "xtask.exe" } else { "xtask" };
+    let xtask = std::env::current_exe()?
+        .parent()
+        .and_then(std::path::Path::parent)
+        .map(|target_profile| target_profile.join(xtask_name))
+        .filter(|candidate| candidate.is_file());
+    let output = if let Some(xtask) = xtask {
+        Command::new(xtask)
+            .args(["dogfood", "--no-toolchain"])
+            .current_dir(workspace_root)
+            .output()?
+    } else {
+        Command::new("cargo")
+            .args([
+                "run",
+                "-p",
+                "xtask",
+                "--quiet",
+                "--",
+                "dogfood",
+                "--no-toolchain",
+            ])
+            .current_dir(workspace_root)
+            .output()?
+    };
     let rendered_stdout = String::from_utf8_lossy(&output.stdout);
     let rendered_stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(
