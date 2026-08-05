@@ -378,10 +378,7 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
     let read_result = stream
         .take(u64::try_from(MAX_HTTP_RESPONSE_BYTES + 1).unwrap_or(u64::MAX))
         .read_to_end(&mut response_bytes);
-    if let Err(error) = read_result {
-        if response_bytes.is_empty() {
-            return Err(error.into());
-        }
+    if read_result.is_err() {
         return Err(rejected("peer returned incomplete HTTP response body"));
     }
     if response_bytes.len() > MAX_HTTP_RESPONSE_BYTES {
@@ -511,8 +508,20 @@ mod tests {
             let Ok((mut socket, _)) = listener.accept() else {
                 return;
             };
-            let mut request = [0_u8; 1024];
-            let _ = socket.read(&mut request);
+            let mut request = Vec::new();
+            let mut chunk = [0_u8; 256];
+            while request.len() <= 8 * 1024 {
+                let Ok(read) = socket.read(&mut chunk) else {
+                    return;
+                };
+                if read == 0 {
+                    return;
+                }
+                request.extend_from_slice(&chunk[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
             let _ = socket.write_all(
                 b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{\"streams\":[",
             );
@@ -539,9 +548,12 @@ mod tests {
         let error = super::http_get(&endpoint, "/manifest", None)
             .err()
             .ok_or("truncated peer response must fail")?;
-        assert!(error
-            .to_string()
-            .contains("peer returned incomplete HTTP response body"));
+        assert!(
+            error
+                .to_string()
+                .contains("peer returned incomplete HTTP response body"),
+            "unexpected truncated-response error: {error}"
+        );
         Ok(())
     }
 
