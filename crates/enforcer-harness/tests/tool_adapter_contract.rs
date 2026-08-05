@@ -147,7 +147,7 @@ fn assert_rejection<T>(result: Result<T>, expected: &str) -> Result<()> {
         Ok(_) => {
             return Err(Error::InvalidConfig(format!(
                 "expected rejection containing {expected}"
-            )))
+            )));
         }
         Err(error) => error,
     };
@@ -727,6 +727,22 @@ fn bounded_runner_captures_both_streams_and_zero_exit() -> Result<()> {
 }
 
 #[test]
+fn bounded_runner_closes_child_stdin() -> Result<()> {
+    let temp = tempfile::TempDir::new()?;
+    let root = RepoRoot::try_from(temp.path())?;
+    let command = child_command("child_entry_reads_stdin_to_eof")?;
+    let reviewed = spec_with_command(command.clone(), 2_000, 1_024)?;
+    let outcome = execute_allowlisted_bounded(&request(root, command, None)?, &reviewed)?;
+    assert_termination(&outcome, HarnessExecutionTermination::Completed, true)?;
+    if !outcome.stdout().as_str().contains("stdin-eof") {
+        return Err(Error::InvalidConfig(
+            "child stdin did not reach EOF".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+#[test]
 fn bounded_runner_distinguishes_nonzero_exit_and_missing_executable() -> Result<()> {
     let temp = tempfile::TempDir::new()?;
     let root = RepoRoot::try_from(temp.path())?;
@@ -899,6 +915,17 @@ fn child_entry_outputs() {
         use std::io::Write;
         let _ = std::io::stdout().write_all(b"bounded-stdout");
         let _ = std::io::stderr().write_all(b"bounded-stderr");
+    }
+}
+
+#[test]
+fn child_entry_reads_stdin_to_eof() {
+    if child_mode() {
+        use std::io::{Read, Write};
+        let mut bytes = Vec::new();
+        let _ = std::io::stdin().read_to_end(&mut bytes);
+        assert!(bytes.is_empty(), "bounded child stdin must be closed");
+        let _ = std::io::stdout().write_all(b"stdin-eof");
     }
 }
 

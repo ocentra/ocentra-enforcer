@@ -115,7 +115,12 @@ pub fn check(
     config: &EffectiveConfig,
 ) -> Result<Report, String> {
     let mut findings = Vec::new();
-    for policy in &config.source_shape_policies {
+    let policies = if config.source_shape_policies.is_empty() {
+        default_source_shape_policies()?
+    } else {
+        config.source_shape_policies.clone()
+    };
+    for policy in &policies {
         for path in files.iter().filter(|path| policy_matches(policy, path)) {
             let absolute = std::path::Path::new(root.as_str()).join(path.as_str());
             let source = std::fs::read_to_string(&absolute).map_err(|error| {
@@ -159,6 +164,96 @@ pub fn check(
         waived: Vec::new(),
         findings,
     })
+}
+
+fn default_source_shape_policies() -> Result<Vec<SourceShapePolicy>, String> {
+    fn roots(values: &[&str]) -> Result<Vec<RelPath>, String> {
+        values
+            .iter()
+            .map(|value| value.parse::<RelPath>().map_err(|error| error.to_string()))
+            .collect()
+    }
+    fn extensions(
+        values: &[&str],
+    ) -> Result<Vec<enforcer_domain::config_types::ConfigField>, String> {
+        values
+            .iter()
+            .map(|value| {
+                Ok(enforcer_domain::config_types::ConfigField::from_owned(
+                    (*value).to_owned(),
+                ))
+            })
+            .collect()
+    }
+    fn limit(value: usize) -> Result<std::num::NonZeroUsize, String> {
+        std::num::NonZeroUsize::new(value)
+            .ok_or_else(|| "source-shape default limit must be non-zero".to_owned())
+    }
+    let policy = |roots_: &[&str],
+                  extensions_: &[&str],
+                  kind,
+                  classes: Option<usize>,
+                  exports: Option<usize>,
+                  functions: Option<usize>,
+                  lines: usize,
+                  types: Option<usize>|
+     -> Result<SourceShapePolicy, String> {
+        Ok(SourceShapePolicy {
+            roots: roots(roots_)?,
+            extensions: extensions(extensions_)?,
+            kind,
+            max_classes: classes.map(limit).transpose()?,
+            max_exports: exports.map(limit).transpose()?,
+            max_functions: functions.map(limit).transpose()?,
+            max_function_lines: Some(limit(80)?),
+            max_lines: Some(limit(lines)?),
+            max_types: types.map(limit).transpose()?,
+            max_nesting_depth: None,
+            max_branches: None,
+        })
+    };
+    Ok(vec![
+        policy(
+            &["src", "apps"],
+            &[".ts", ".tsx"],
+            SourceShapeKind::Typescript,
+            Some(1),
+            Some(35),
+            None,
+            1000,
+            None,
+        )?,
+        policy(
+            &["packages"],
+            &[".ts", ".tsx"],
+            SourceShapeKind::Typescript,
+            Some(1),
+            Some(45),
+            None,
+            1000,
+            None,
+        )?,
+        policy(
+            &["src", "crates"],
+            &[".rs"],
+            SourceShapeKind::Rust,
+            None,
+            None,
+            Some(18),
+            1000,
+            Some(24),
+        )?,
+        policy(
+            &["src", "apps", "packages", "tools"],
+            &[".py"],
+            SourceShapeKind::Python,
+            Some(4),
+            None,
+            Some(30),
+            800,
+            None,
+        )?,
+    ])
 }
 
 fn policy_matches(policy: &SourceShapePolicy, path: &RelPath) -> bool {
@@ -735,6 +830,29 @@ mod tests {
     fn glob_semantics_distinguish_segment_and_recursive_wildcards() {
         assert!(glob_matches("src/**/x.rs", "src/a/x.rs"));
         assert!(!glob_matches("src/*.rs", "src/a/x.rs"));
+    }
+    #[test]
+    fn missing_policy_configuration_uses_the_frozen_defaults(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        let source = (0..19)
+            .map(|index| format!("fn function_{index}() {{}}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(temp.path().join("src/lib.rs"), source)?;
+        std::fs::write(
+            temp.path().join("config.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        let config = load_project_config(&temp.path().join("config.json"))?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let report = check(&root, ScanScope::Files, &["src/lib.rs".parse()?], &config)?;
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.rule_id.as_str() == "SRC-1.1"));
+        Ok(())
     }
     #[test]
     fn config_driven_override_changes_only_the_selected_file(

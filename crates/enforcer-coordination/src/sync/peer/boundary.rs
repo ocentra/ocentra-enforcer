@@ -188,7 +188,7 @@ pub fn load_registry(root: &CoordinationLedgerRoot) -> Result<PeerRegistry> {
     let raw = match fs::read_to_string(registry_path(root.as_path())) {
         Ok(value) => value,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(PeerRegistry::default())
+            return Ok(PeerRegistry::default());
         }
         Err(error) => return Err(error.into()),
     };
@@ -283,24 +283,29 @@ fn sync_lines(
         conflicts: Vec::new(),
     };
     for (name, peer_lines) in remote {
-        let local = read_lines(&dir.join(&name))?;
-        if local.len() > peer_lines.len()
-            || !local
-                .iter()
-                .zip(&peer_lines)
-                .all(|(left, right)| left == right)
-        {
-            result
-                .conflicts
-                .push(write_conflict(&dir, &name, &peer_lines)?);
-            continue;
+        let outcome = crate::sync::stream::with_named_stream_lock(root.as_path(), &name, || {
+            let local = read_lines(&dir.join(&name))?;
+            if local.len() > peer_lines.len()
+                || !local
+                    .iter()
+                    .zip(&peer_lines)
+                    .all(|(left, right)| left == right)
+            {
+                return Ok(Err(write_conflict(&dir, &name, &peer_lines)?));
+            }
+            let suffix = peer_lines
+                .get(local.len()..)
+                .ok_or_else(|| rejected("peer suffix range invalid"))?;
+            append_suffix(&dir.join(&name), suffix)?;
+            Ok(Ok(suffix.len()))
+        })?;
+        match outcome {
+            Ok(imported) => {
+                result.imported += imported;
+                result.transferred_lines += imported;
+            }
+            Err(conflict) => result.conflicts.push(conflict),
         }
-        let suffix = peer_lines
-            .get(local.len()..)
-            .ok_or_else(|| rejected("peer suffix range invalid"))?;
-        append_suffix(&dir.join(&name), suffix)?;
-        result.imported += suffix.len();
-        result.transferred_lines += suffix.len();
     }
     Ok(result)
 }
@@ -674,6 +679,36 @@ mod tests {
             .join("streams")
             .join(&result.conflicts[0])
             .exists());
+        Ok(())
+    }
+
+    #[test]
+    fn sync_lines_holds_the_same_lock_as_local_appends() -> Result<(), Box<dyn std::error::Error>> {
+        let ledger = tempfile::tempdir()?;
+        let streams = ledger.path().join("streams");
+        std::fs::create_dir_all(&streams)?;
+        let lock = streams.join("node.a.lock");
+        std::fs::write(&lock, "held")?;
+        let root = CoordinationLedgerRoot::parse(ledger.path())?;
+        let worker = std::thread::spawn(move || {
+            super::sync_lines(
+                &root,
+                vec![("node.a.ndjson".to_owned(), vec!["remote".to_owned()])],
+            )
+        });
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(streams.join("node.a.ndjson"), "local\n")?;
+        std::fs::remove_file(lock)?;
+        let result = match worker.join() {
+            Ok(result) => result?,
+            Err(panic) => std::panic::resume_unwind(panic),
+        };
+        assert_eq!(result.imported, 0);
+        assert_eq!(result.conflicts.len(), 1);
+        assert_eq!(
+            std::fs::read_to_string(streams.join("node.a.ndjson"))?,
+            "local\n"
+        );
         Ok(())
     }
 }

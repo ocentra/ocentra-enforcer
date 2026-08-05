@@ -402,6 +402,26 @@ fn report_replay_index_and_notifier_cursor_are_durable_but_not_authoritative(
 }
 
 #[test]
+fn notifier_state_file_cannot_escape_the_ledger() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let lane: LaneId = "primary".parse()?;
+    let outside = hub.root.as_path().join("outside.json");
+    std::fs::write(&outside, "sentinel")?;
+    let result = notify(
+        &hub,
+        &lane,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: Some(std::path::PathBuf::from("../outside.json")),
+        },
+    );
+    assert!(result.is_err());
+    assert_eq!(std::fs::read_to_string(outside)?, "sentinel");
+    Ok(())
+}
+
+#[test]
 fn releasing_one_path_preserves_the_remaining_claimed_paths(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;

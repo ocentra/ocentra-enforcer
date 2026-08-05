@@ -131,6 +131,7 @@ fn execute_bounded_process(
                 .map(HarnessCommandArgument::as_str),
         )
         .current_dir(cwd)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = match command.group_spawn() {
@@ -183,7 +184,7 @@ fn execute_bounded_process(
                     break (
                         Some(status),
                         Some(HarnessExecutionTermination::OutputLimitExceeded),
-                    )
+                    );
                 }
                 Err(error) => {
                     cleanup_error = Some(error);

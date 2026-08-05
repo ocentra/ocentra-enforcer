@@ -303,15 +303,32 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
             let canonical_root = std::path::Path::new(root)
                 .canonicalize()
                 .unwrap_or_else(|_| std::path::PathBuf::from(root));
+            let capability = match args.get("capability") {
+                None => None,
+                Some(serde_json::Value::String(value)) => {
+                    match enforcer_domain::proof_types::ProofCapability::try_from(value.clone()) {
+                        Ok(value) => Some(value),
+                        Err(error) => return proof_query_error(operation, error.to_string()),
+                    }
+                }
+                Some(_) => {
+                    return proof_query_error(operation, "capability must be a string".to_owned());
+                }
+            };
+            let pin = match args.get("pin") {
+                None => false,
+                Some(serde_json::Value::Bool(value)) => *value,
+                Some(_) => return proof_query_error(operation, "pin must be a boolean".to_owned()),
+            };
             let request = enforcer_proof::harness::RunProofArgs {
                 proof_id,
                 root: canonical_root,
                 run_id,
                 command,
-                capability: None,
+                capability,
                 claims_proved: Vec::new(),
                 claims_not_proved: Vec::new(),
-                pin: false,
+                pin,
             };
             match lifecycle.run(&request, None) {
                 Ok(outcome) => {
@@ -362,9 +379,27 @@ fn proof_lifecycle(operation: &str, args: &serde_json::Value) -> serde_json::Val
                     return serde_json::json!({"ok":false,"operation":operation,"error":"invalid artifact path"});
                 }
             };
+            let limit = match args.get("limitBytes") {
+                None => None,
+                Some(value) => match value.as_u64().and_then(|value| usize::try_from(value).ok()) {
+                    Some(value) => Some(value),
+                    None => {
+                        return proof_query_error(
+                            operation,
+                            "limitBytes must be a non-negative integer within platform bounds"
+                                .to_owned(),
+                        );
+                    }
+                },
+            };
             match lifecycle.read_declared_artifact(&run_id, &path) {
                 Ok(bytes) => {
-                    serde_json::json!({"ok":true,"operation":operation,"artifact":String::from_utf8_lossy(&bytes)})
+                    let returned = limit.map_or(bytes.as_slice(), |limit| {
+                        bytes
+                            .get(..bytes.len().min(limit))
+                            .unwrap_or(bytes.as_slice())
+                    });
+                    serde_json::json!({"ok":true,"operation":operation,"artifact":String::from_utf8_lossy(returned)})
                 }
                 Err(error) => {
                     serde_json::json!({"ok":false,"operation":operation,"error":error.to_string()})
@@ -1266,6 +1301,10 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "base",
         "head",
         "languages",
+        "diagnosticLimit",
+        "summaryOnly",
+        "groupBy",
+        "includeScope",
     ];
     let allowed_fields = if name == "literal-risk" {
         [
@@ -1400,6 +1439,10 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
         "check".to_owned(),
         serde_json::Value::String(name.to_owned()),
     );
+    report = match compact_scan_report(report, args) {
+        Ok(report) => report,
+        Err(error) => return json_error(&error),
+    };
     if let Some(root) = args.get("root").and_then(serde_json::Value::as_str) {
         record_validation_at_root(ctx, root, ValidationKind::Check, &report);
     }
@@ -1485,7 +1528,7 @@ fn named_architecture_policy_unrecorded(args: &serde_json::Value) -> serde_json:
     let config = match enforcer_config::load_project_config(&config_path) {
         Ok(config) => config,
         Err(error) => {
-            return json_error(&format!("cannot load architecture-policy config: {error}"))
+            return json_error(&format!("cannot load architecture-policy config: {error}"));
         }
     };
     enforcer_scan::boundary::native_scan::execute_architecture_policy(&request, &root, &config)
@@ -1580,7 +1623,7 @@ fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json:
     let config = match enforcer_config::load_project_config(&config_path) {
         Ok(value) => value,
         Err(error) => {
-            return json_error(&format!("cannot load generated-artifacts config: {error}"))
+            return json_error(&format!("cannot load generated-artifacts config: {error}"));
         }
     };
     match enforcer_scan::boundary::native_scan::execute_generated_artifacts(
@@ -1690,7 +1733,7 @@ fn repository_output_directory(
                 return Err(format!(
                     "cannot inspect sbom output ancestor {}: {error}",
                     current.display()
-                ))
+                ));
             }
         }
     }
@@ -1841,7 +1884,7 @@ fn named_rust_string_boundaries_unrecorded(args: &serde_json::Value) -> serde_js
         Err(error) => {
             return json_error(&format!(
                 "cannot load no-naked-domain-strings config: {error}"
-            ))
+            ));
         }
     };
     enforcer_scan::boundary::native_scan::execute_rust_string_boundaries_policy(
@@ -2399,23 +2442,32 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
     };
     let files = match args.get("files") {
         None => None,
-        Some(serde_json::Value::Array(values)) => values
+        Some(serde_json::Value::Array(values)) => match values
             .iter()
             .map(|value| value.as_str().map(std::path::PathBuf::from))
-            .collect(),
+            .collect::<Option<Vec<_>>>()
+        {
+            Some(values) => Some(values),
+            None => return json_error("doctor `files` must contain only paths"),
+        },
         Some(_) => return json_error("doctor `files` must be an array"),
     };
     let scope = match parse_scan_scope(args.get("scope"), files, args) {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
-    let config_path = args
-        .get("configPath")
-        .and_then(serde_json::Value::as_str)
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json")
-        });
+    let config_path = match args.get("configPath") {
+        None => std::path::Path::new(root.as_str()).join("ocentra-enforcer.config.json"),
+        Some(serde_json::Value::String(value)) => {
+            let configured = std::path::Path::new(value);
+            if configured.is_absolute() {
+                configured.to_path_buf()
+            } else {
+                std::path::Path::new(root.as_str()).join(configured)
+            }
+        }
+        Some(_) => return json_error("doctor `configPath` must be a string"),
+    };
     let config = match args.get("profile").and_then(serde_json::Value::as_str) {
         Some(profile) => ConfigProfileName::try_new(profile.to_owned())
             .map_err(|error| error.to_string())
@@ -3117,7 +3169,10 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
         .get("action")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("stale-claims");
-    if !matches!(action, "stale-claims" | "claim-conflicts" | "conflicts") {
+    if matches!(action, "claim-conflicts" | "conflicts") {
+        return serde_json::json!({"ok":false,"code":"native_conflict_repair_not_implemented","error":"conflict repair requires a conflict-specific native substrate"});
+    }
+    if action != "stale-claims" {
         return serde_json::json!({"ok":false,"code":"native_repair_substrate_not_implemented","error":"legacy-hash and sequence repair require the durable stream-integrity substrate"});
     }
     let (hub, lane, caller) = match coordination_context(args, "coordination_repair") {
@@ -3171,11 +3226,7 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
         },
         Some(_) => return json_error("repair owner(s) must be strings"),
     };
-    let mode = if args.get("write").and_then(serde_json::Value::as_bool) == Some(true) {
-        enforcer_domain::coordination_types::RepairMode::Write
-    } else {
-        enforcer_domain::coordination_types::RepairMode::DryRun
-    };
+    let mode = coordination_repair_mode(args);
     let dry_run = matches!(
         mode,
         enforcer_domain::coordination_types::RepairMode::DryRun
@@ -3194,6 +3245,18 @@ fn coordination_repair(args: &serde_json::Value) -> serde_json::Value {
             serde_json::json!({"ok":true,"action":"stale-claims","dryRun":dry_run,"matchedClaimCount":matched.get(),"event":event,"nextStep":if dry_run {"review exact matched claims then rerun with write:true"} else {"rerun coordination health"}})
         }
         Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn coordination_repair_mode(
+    args: &serde_json::Value,
+) -> enforcer_domain::coordination_types::RepairMode {
+    if args.get("write").and_then(serde_json::Value::as_bool) == Some(true)
+        || args.get("dryRun").and_then(serde_json::Value::as_bool) == Some(false)
+    {
+        enforcer_domain::coordination_types::RepairMode::Write
+    } else {
+        enforcer_domain::coordination_types::RepairMode::DryRun
     }
 }
 
@@ -4451,9 +4514,11 @@ mod tests {
         assert_eq!(value["check"], serde_json::json!("no-zod-source"));
         assert_eq!(value["ok"], serde_json::json!(false));
         assert!(value.get("error").is_none());
-        assert!(value["findings"].as_array().is_some_and(|findings| findings
-            .iter()
-            .any(|finding| finding["ruleId"] == "TS-1.2" && finding["file"] == "src/schema.ts")));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .any(|finding| finding["ruleId"] == "TS-1.2" && finding["file"] == "src/schema.ts")
+        }));
         Ok(())
     }
 
@@ -5464,6 +5529,133 @@ mod tests {
     }
 
     #[test]
+    fn named_check_applies_the_advertised_compact_output_fields(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "fn one() {}\nfn two() {}\n")?;
+        std::fs::write(
+            temp.path().join("source.json"),
+            r#"{"schemaVersion":2,"profileName":"default","sourceShapePolicies":[{"roots":["src"],"extensions":[".rs"],"kind":"rust","maxFunctions":1}]}"#,
+        )?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "source-shape",
+                "configPath": "source.json",
+                "summaryOnly": false,
+                "diagnosticLimit": 1,
+                "groupBy": "file",
+                "includeScope": false,
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("compact named check did not produce a result".into());
+        };
+        assert!(value.get("error").is_none(), "{value}");
+        assert_eq!(value["counts"]["returned"], serde_json::json!(1));
+        assert_eq!(
+            value["groups"].as_object().map(serde_json::Map::len),
+            Some(1)
+        );
+        assert!(value.get("scope").is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn doctor_resolves_relative_config_under_root_and_rejects_malformed_files(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn clean() {}\n")?;
+        std::fs::write(
+            temp.path().join("doctor.json"),
+            r#"{"schemaVersion":2,"profileName":"default"}"#,
+        )?;
+        let value = super::doctor(&serde_json::json!({
+            "root": temp.path().to_string_lossy(),
+            "configPath": "doctor.json",
+            "scope": "files",
+            "files": ["src/lib.rs"],
+        }));
+        assert!(value.get("error").is_none(), "{value}");
+        assert_eq!(value["command"], serde_json::json!("doctor"));
+        let malformed = super::doctor(&serde_json::json!({
+            "root": temp.path().to_string_lossy(),
+            "files": ["src/lib.rs", 7],
+        }));
+        assert_eq!(malformed["ok"], serde_json::json!(false));
+        assert!(malformed["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("only paths")));
+        Ok(())
+    }
+
+    #[test]
+    fn proof_run_and_artifact_preserve_advertised_options() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        let run = super::proof_lifecycle(
+            "ocentra_enforcer_proof_run",
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "proofId": "native.mcp-options",
+                "runId": "mcp-options",
+                "command": [],
+                "capability": "manual-required",
+                "pin": true,
+            }),
+        );
+        assert_eq!(
+            run["run"]["capability"],
+            serde_json::json!("manual-required")
+        );
+        assert_eq!(run["run"]["pinned"], serde_json::json!(true));
+
+        std::fs::write(temp.path().join("legacy.txt"), b"abcdef")?;
+        let imported = super::proof_lifecycle(
+            "ocentra_enforcer_proof_import_legacy",
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "proofId": "native.mcp-artifact",
+                "runId": "mcp-artifact",
+                "legacyPaths": ["legacy.txt"],
+            }),
+        );
+        let artifact = imported["run"]["artifacts"][0]["path"]
+            .as_str()
+            .ok_or("imported run did not declare an artifact")?;
+        let limited = super::proof_lifecycle(
+            "ocentra_enforcer_proof_artifact",
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "runId": "mcp-artifact",
+                "artifact": artifact,
+                "limitBytes": 3,
+            }),
+        );
+        assert_eq!(limited["artifact"], serde_json::json!("abc"));
+        Ok(())
+    }
+
+    #[test]
+    fn repair_mode_honors_dry_run_false_and_rejects_conflict_aliases() {
+        assert_eq!(
+            super::coordination_repair_mode(&serde_json::json!({"dryRun": false})),
+            enforcer_domain::coordination_types::RepairMode::Write
+        );
+        let rejected = super::coordination_repair(&serde_json::json!({
+            "action": "conflicts"
+        }));
+        assert_eq!(
+            rejected["code"],
+            serde_json::json!("native_conflict_repair_not_implemented")
+        );
+    }
+
+    #[test]
     fn diagnostics_prefers_the_advertised_diagnostic_limit(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
@@ -5583,9 +5775,11 @@ mod tests {
             return Err("config-lockdown did not dispatch".into());
         };
         assert_eq!(value["check"], serde_json::json!("config-lockdown"));
-        assert!(value["findings"].as_array().is_some_and(|findings| findings
-            .iter()
-            .any(|finding| finding["ruleId"] == "CFG-1.1")));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .any(|finding| finding["ruleId"] == "CFG-1.1")
+        }));
         Ok(())
     }
 
@@ -5607,9 +5801,11 @@ mod tests {
             return Err("waiver-policy did not dispatch".into());
         };
         assert_eq!(value["check"], serde_json::json!("waiver-policy"));
-        assert!(value["findings"].as_array().is_some_and(|findings| findings
-            .iter()
-            .any(|finding| finding["ruleId"] == "WAIVER-1.1")));
+        assert!(value["findings"].as_array().is_some_and(|findings| {
+            findings
+                .iter()
+                .any(|finding| finding["ruleId"] == "WAIVER-1.1")
+        }));
         Ok(())
     }
 
@@ -6495,9 +6691,10 @@ mod tests {
             return Err("generated-artifacts did not dispatch".into());
         };
         assert_eq!(value["ok"], serde_json::json!(false));
-        assert!(value["findings"].as_array().is_some_and(|rows| rows
-            .iter()
-            .any(|row| row["ruleId"] == "GEN-1.1" && row["file"] == "src/generated.rs")));
+        assert!(value["findings"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|row| row["ruleId"] == "GEN-1.1" && row["file"] == "src/generated.rs")
+        }));
         Ok(())
     }
     #[test]

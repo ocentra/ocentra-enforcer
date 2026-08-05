@@ -50,7 +50,19 @@ pub fn check(
     // than widening the marker scan to every tracked file.
     let mut findings = marker_findings(root, files);
     let candidates = if tracked {
-        tracked_files(root)?
+        let tracked = tracked_files(root)?;
+        if scope == ScanScope::Workspace {
+            tracked
+        } else {
+            let selected = files
+                .iter()
+                .map(RelPath::as_str)
+                .collect::<std::collections::BTreeSet<_>>();
+            tracked
+                .into_iter()
+                .filter(|path| selected.contains(path.as_str()))
+                .collect()
+        }
     } else {
         files.to_vec()
     };
@@ -432,6 +444,36 @@ mod tests {
             .findings
             .iter()
             .any(|finding| finding.file.as_str() == "output/report.json"));
+        Ok(())
+    }
+
+    #[test]
+    fn tracked_inventory_does_not_widen_a_file_scope() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("output"))?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("output/report.json"), "{}")?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn clean() {}\n")?;
+        assert!(std::process::Command::new("git")
+            .arg("init")
+            .current_dir(temp.path())
+            .status()?
+            .success());
+        assert!(std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(temp.path())
+            .status()?
+            .success());
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let selected: RelPath = "src/lib.rs".parse()?;
+        assert_eq!(
+            check(&root, ScanScope::Files, &[selected], true, &[])?.ok,
+            ReportOutcome::Clean
+        );
+        assert_eq!(
+            check(&root, ScanScope::Workspace, &[], true, &[])?.ok,
+            ReportOutcome::Violations
+        );
         Ok(())
     }
 }

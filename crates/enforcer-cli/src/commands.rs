@@ -74,27 +74,49 @@ fn git_diff_files(
         return Ok(Vec::new());
     };
     let output = std::process::Command::new("git")
-        .args(["diff", "--name-only", "-z"])
+        .args(["diff", "--name-status", "-z"])
         .arg(format!("--diff-filter={diff_filter}"))
         .arg(base.as_str())
         .arg(head.as_str())
         .current_dir(root.as_str())
         .output()?;
     if !output.status.success() {
-        return Err(std::io::Error::other("git diff --name-only failed"));
+        return Err(std::io::Error::other("git diff --name-status failed"));
     }
-    output
+    let mut fields = output
         .stdout
         .split(|byte| *byte == b'\0')
-        .filter(|path| !path.is_empty())
-        .map(|line| {
-            let line = std::str::from_utf8(line)
+        .filter(|field| !field.is_empty());
+    let mut paths = Vec::new();
+    while let Some(status_field) = fields.next() {
+        let status = std::str::from_utf8(status_field)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+        let mut record_path = |field: &[u8]| -> std::io::Result<()> {
+            let path = std::str::from_utf8(field)
                 .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
-            line.parse().map_err(|error| {
+            paths.push(path.parse().map_err(|error| {
                 std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{error}"))
-            })
-        })
-        .collect()
+            })?);
+            Ok(())
+        };
+        let path = fields.next().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "git diff --name-status emitted an incomplete record",
+            )
+        })?;
+        record_path(path)?;
+        if status.starts_with('R') || status.starts_with('C') {
+            let destination = fields.next().ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "git diff --name-status emitted an incomplete rename or copy record",
+                )
+            })?;
+            record_path(destination)?;
+        }
+    }
+    Ok(paths)
 }
 
 /// Load the authoritative policy-source exclusions once at the CLI boundary.
@@ -200,7 +222,9 @@ pub fn run_policy(action: &PolicyAction) -> ExitCode {
 fn run_mutation_risk_policy(args: &MutationRiskArgs) -> ExitCode {
     let request = match crate::scope::resolve_request(&args.scope) {
         Ok(enforcer_domain::scan_types::ScopeRequest::All) => {
-            output::print_usage_error("mutation-risk requires explicit paths or --base <sha> --head <sha>; --all is not a mutation set");
+            output::print_usage_error(
+                "mutation-risk requires explicit paths or --base <sha> --head <sha>; --all is not a mutation set",
+            );
             return ExitCode::UsageError;
         }
         Ok(request) => request,

@@ -843,10 +843,7 @@ fn staged_source(
             reason: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         });
     }
-    let source = String::from_utf8(output.stdout).map_err(|error| NativeScanError::Io {
-        operation: "staged blob UTF-8 decode",
-        reason: error.to_string(),
-    })?;
+    let source = String::from_utf8(output.stdout).unwrap_or_default();
     Ok(ValidationSourceText::try_new(source))
 }
 
@@ -1288,6 +1285,42 @@ mod tests {
                 && finding.finding().rule_id.as_str().starts_with("SEC-")
         }));
         assert_eq!(result.report.violations.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn staged_secret_policy_keeps_non_utf8_paths_for_path_rules(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        assert!(Command::new("git")
+            .arg("init")
+            .arg(temp.path())
+            .status()?
+            .success());
+        std::fs::write(temp.path().join(".env"), [0xff, 0xfe, 0xfd])?;
+        assert!(Command::new("git")
+            .arg("-C")
+            .arg(temp.path())
+            .args(["add", ".env"])
+            .status()?
+            .success());
+        let request = NativeScanRequest {
+            scope: NativeScanScope::Workspace,
+            languages: Vec::new(),
+        };
+        let result = execute_staged_secret_policy(&request, &root(temp.path())?)?;
+        assert_eq!(
+            result
+                .scanned_files
+                .iter()
+                .map(|path| path.as_str())
+                .collect::<Vec<_>>(),
+            [".env"]
+        );
+        assert!(result.report.violations.iter().any(|finding| {
+            finding.finding().file.as_str() == ".env"
+                && finding.finding().rule_id.as_str() == "SEC-1.2"
+        }));
         Ok(())
     }
 

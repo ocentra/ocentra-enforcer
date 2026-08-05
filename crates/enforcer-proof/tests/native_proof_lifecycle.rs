@@ -154,6 +154,26 @@ fn lifecycle_rejects_a_redirected_runs_root_before_reserving_a_run() -> Result<(
     Ok(())
 }
 
+#[test]
+fn legacy_import_rejects_a_redirected_runs_root_before_copying() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let outside = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    std::fs::write(root.join("legacy.txt"), b"evidence")?;
+    std::fs::create_dir_all(root.join(".enforce/proofs"))?;
+    make_directory_symlink(outside.path(), &root.join(".enforce/proofs/runs"))?;
+    let proof_id: ProofId = "native.redirected-import".parse()?;
+    let run_id: ProofRunId = "redirected-import".parse()?;
+    assert!(matches!(
+        lifecycle.import_legacy(&proof_id, &run_id, &["legacy.txt"]),
+        Err(enforcer_core::error::Error::InvalidConfig(message))
+            if message == "proof state path must not be a symlink or reparse point"
+    ));
+    assert!(std::fs::read_dir(outside.path())?.next().is_none());
+    Ok(())
+}
+
 #[cfg(windows)]
 fn make_directory_symlink(source: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
     std::os::windows::fs::symlink_dir(source, link)

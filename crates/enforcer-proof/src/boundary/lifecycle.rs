@@ -310,11 +310,16 @@ impl NativeProofLifecycle {
                 "legacy artifact manifest and run record differ".to_owned(),
             ));
         }
-        let run_directory = self.proof_root.join("runs").join(run.run_id.as_str());
+        let runs_root = self.proof_root.join("runs");
+        reject_redirected_state_path(&self.root, &runs_root)?;
+        std::fs::create_dir_all(&runs_root)?;
+        reject_redirected_state_path(&self.root, &runs_root)?;
+        let run_directory = runs_root.join(run.run_id.as_str());
         if run_directory.exists() {
             return Err(Error::InvalidConfig("duplicate proof run id".to_owned()));
         }
-        std::fs::create_dir_all(&run_directory)?;
+        std::fs::create_dir(&run_directory)?;
+        reject_redirected_state_path(&self.root, &run_directory)?;
         let copy_result = bundle.artifacts.iter().zip(&run.artifacts).try_for_each(
             |(legacy, declared)| -> Result<()> {
                 let source = self.root.join(legacy.path.as_str());

@@ -13,6 +13,11 @@ use crate::core::HarnessAdapter;
 use crate::error::{InstallError, InstallResult};
 use enforcer_domain::install_types::{InstallBinaryPath, InstallRootPath};
 
+#[cfg(all(unix, not(target_os = "macos")))]
+const ZED_CONFIG_DIRECTORY: &str = "zed";
+#[cfg(any(windows, target_os = "macos"))]
+const ZED_CONFIG_DIRECTORY: &str = "Zed";
+
 /// Build every native user-level harness adapter from validated process paths.
 ///
 /// The registry is complete and ordered deterministically. Callers must not
@@ -92,7 +97,10 @@ pub fn adapter_registry(
             WindsurfAdapter::try_new(home_path.to_path_buf(), binary.clone())
                 .map_err(InstallError::from)?,
         ),
-        Box::new(ZedAdapter::try_new(config_root.join("Zed"), binary).map_err(InstallError::from)?),
+        Box::new(
+            ZedAdapter::try_new(config_root.join(ZED_CONFIG_DIRECTORY), binary)
+                .map_err(InstallError::from)?,
+        ),
         Box::new(AiderAdapter::new()),
         Box::new(OpenCodeAdapter::new()),
     ];
@@ -102,6 +110,8 @@ pub fn adapter_registry(
 #[cfg(test)]
 mod tests {
     use super::adapter_registry;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    use super::ZED_CONFIG_DIRECTORY;
     use enforcer_domain::install_types::{InstallBinaryPath, InstallRootPath};
 
     #[test]
@@ -133,5 +143,11 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn zed_uses_the_lowercase_linux_config_directory() {
+        assert_eq!(ZED_CONFIG_DIRECTORY, "zed");
     }
 }
