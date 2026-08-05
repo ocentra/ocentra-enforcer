@@ -130,6 +130,30 @@ fn lifecycle_rejects_a_redirected_proof_state_root_before_writing() -> Result<()
     Ok(())
 }
 
+#[test]
+fn lifecycle_rejects_a_redirected_runs_root_before_reserving_a_run() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let outside = tempfile::tempdir()?;
+    let root = fixture.path().canonicalize()?;
+    let lifecycle = NativeProofLifecycle::open(&root)?;
+    std::fs::create_dir_all(root.join(".enforce/proofs"))?;
+    let link = root.join(".enforce/proofs/runs");
+    make_directory_symlink(outside.path(), &link)?;
+    let command = if cfg!(windows) {
+        vec!["cmd".to_owned(), "/C".to_owned(), "exit 0".to_owned()]
+    } else {
+        vec!["true".to_owned()]
+    };
+
+    assert!(matches!(
+        lifecycle.run(&args(root, "redirected-runs", command)?, None),
+        Err(enforcer_core::error::Error::InvalidConfig(message))
+            if message == "proof state path must not be a symlink or reparse point"
+    ));
+    assert!(std::fs::read_dir(outside.path())?.next().is_none());
+    Ok(())
+}
+
 #[cfg(windows)]
 fn make_directory_symlink(source: &std::path::Path, link: &std::path::Path) -> std::io::Result<()> {
     std::os::windows::fs::symlink_dir(source, link)
@@ -250,5 +274,28 @@ fn inventory_is_safe_and_optional_rows_are_bounded() -> Result<()> {
     })?;
     assert_eq!(bounded.scripts.len(), 1);
     assert_eq!(bounded.omitted_script_count, 1);
+    Ok(())
+}
+
+#[test]
+fn inventory_rejects_a_redirected_scripts_root() -> Result<()> {
+    let fixture = tempfile::tempdir()?;
+    let outside = tempfile::tempdir()?;
+    std::fs::write(
+        outside.path().join("external-proof.mjs"),
+        "spawn('external');",
+    )?;
+    std::fs::create_dir_all(fixture.path().join("scripts"))?;
+    make_directory_symlink(outside.path(), &fixture.path().join("scripts/test"))?;
+    let lifecycle = NativeProofLifecycle::open(fixture.path())?;
+
+    assert!(matches!(
+        lifecycle.inventory(&ProofInventoryQuery {
+            include_scripts: true,
+            limit: 10,
+        }),
+        Err(enforcer_core::error::Error::InvalidConfig(message))
+            if message == "proof script root must not be a symlink or reparse point"
+    ));
     Ok(())
 }

@@ -275,6 +275,10 @@ pub struct GeneratedArtifactsArgs {
 }
 #[derive(Debug, Args)]
 pub struct MutationRiskArgs {
+    /// Repository root containing the mutation set. Relative values are
+    /// resolved against the current working directory before validation.
+    #[arg(long)]
+    pub root: Option<PathBuf>,
     /// Limit mutation-risk to explicit paths or an explicit Git diff. `--all`
     /// is intentionally rejected: a workspace walk is not a mutation set.
     #[command(flatten)]
@@ -434,6 +438,37 @@ mod tests {
         assert!(
             matches!(diff.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.base.as_deref() == Some("main") && args.scope.head.as_deref() == Some("HEAD"))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn documented_mutation_risk_route_accepts_an_explicit_root(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let normalized = super::normalize_required_check_route(
+            [
+                "enforcer",
+                "check",
+                "mutation-risk",
+                "--root",
+                ".",
+                "--base",
+                "origin/main",
+                "--head",
+                "HEAD",
+            ]
+            .into_iter()
+            .map(std::ffi::OsString::from)
+            .collect(),
+        );
+        let cli = Cli::try_parse_from(normalized)?;
+        assert!(matches!(
+            cli.command,
+            Command::Policy {
+                action: super::PolicyAction::MutationRisk(args)
+            } if args.root.as_deref() == Some(std::path::Path::new("."))
+                && args.scope.base.as_deref() == Some("origin/main")
+                && args.scope.head.as_deref() == Some("HEAD")
+        ));
         Ok(())
     }
 

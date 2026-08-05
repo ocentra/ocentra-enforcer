@@ -496,8 +496,12 @@ impl NativeProofLifecycle {
     }
 
     fn persist_run(&self, run: &crate::envelope::ProofRunEnvelope) -> Result<()> {
-        let directory = self.proof_root.join("runs").join(run.run_id.as_str());
+        let runs_root = self.proof_root.join("runs");
+        reject_redirected_state_path(&self.root, &runs_root)?;
+        let directory = runs_root.join(run.run_id.as_str());
         std::fs::create_dir_all(&directory)?;
+        reject_redirected_state_path(&self.root, &runs_root)?;
+        reject_redirected_state_path(&self.root, &directory)?;
         let final_path = directory.join(PROJECT_PROOF_RUN_FILE);
         if final_path.exists() {
             return Err(Error::InvalidConfig("duplicate proof run id".to_owned()));
@@ -510,7 +514,9 @@ impl NativeProofLifecycle {
 
     fn reserve_run(&self, run_id: &ProofRunId) -> Result<PathBuf> {
         let runs_root = self.proof_root.join("runs");
+        reject_redirected_state_path(&self.root, &runs_root)?;
         std::fs::create_dir_all(&runs_root)?;
+        reject_redirected_state_path(&self.root, &runs_root)?;
         let directory = runs_root.join(run_id.as_str());
         match std::fs::create_dir(&directory) {
             Ok(()) => Ok(directory),
@@ -685,8 +691,24 @@ fn compact_proof(proof: &ProofDefinitionEnvelope) -> RoutedProofDefinition {
 }
 
 fn collect_inventory_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<ProofScript>> {
-    if !scripts_root.is_dir() {
+    let metadata = match std::fs::symlink_metadata(scripts_root) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    if metadata.file_type().is_symlink() || has_reparse_point(&metadata) {
+        return Err(Error::InvalidConfig(
+            "proof script root must not be a symlink or reparse point".to_owned(),
+        ));
+    }
+    if !metadata.is_dir() {
         return Ok(Vec::new());
+    }
+    let canonical_scripts_root = scripts_root.canonicalize()?;
+    if !canonical_scripts_root.starts_with(root) {
+        return Err(Error::InvalidConfig(
+            "proof script root escapes repository root".to_owned(),
+        ));
     }
     let mut files = Vec::new();
     let mut directories = vec![scripts_root.to_path_buf()];

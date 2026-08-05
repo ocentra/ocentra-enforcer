@@ -209,7 +209,25 @@ fn run_mutation_risk_policy(args: &MutationRiskArgs) -> ExitCode {
             return ExitCode::UsageError;
         }
     };
-    let root = match current_repo_root() {
+    let root = match args
+        .root
+        .as_ref()
+        .map_or_else(current_repo_root, |requested| {
+            let absolute = if requested.is_absolute() {
+                requested.clone()
+            } else {
+                std::env::current_dir()
+                    .map_err(|error| format!("cannot read current directory: {error}"))?
+                    .join(requested)
+            };
+            let canonical = absolute
+                .canonicalize()
+                .map_err(|error| format!("cannot resolve mutation-risk root: {error}"))?;
+            canonical
+                .to_string_lossy()
+                .parse::<RepoRoot>()
+                .map_err(|error| error.to_string())
+        }) {
         Ok(root) => root,
         Err(error) => {
             output::print_internal_error(&error);

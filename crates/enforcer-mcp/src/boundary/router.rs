@@ -1258,6 +1258,8 @@ fn check(args: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
     const NATIVE_SCAN_FIELDS: &[&str] = &[
         "check",
         "root",
+        "configPath",
+        "profile",
         "scope",
         "files",
         "crateName",
@@ -2612,11 +2614,12 @@ fn diagnostics(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    let diagnostics_filter = effective_diagnostics_filter(&request);
     match enforcer_harness::query::run_diagnostics(
         std::path::Path::new(request.root.as_str()),
         &request.config,
         &request.query,
-        &request.diagnostics,
+        &diagnostics_filter,
     ) {
         Ok((true, Some(run_id), diagnostics)) => serde_json::json!({
             "ok": true, "runId": run_id, "diagnostics": diagnostics,
@@ -2628,6 +2631,15 @@ fn diagnostics(args: &serde_json::Value) -> serde_json::Value {
             "ok": true, "diagnostics": diagnostics,
         }),
         Err(error) => json_error(&error.to_string()),
+    }
+}
+
+fn effective_diagnostics_filter(
+    request: &HarnessQueryRequest,
+) -> enforcer_harness::query::DiagnosticsFilter {
+    enforcer_harness::query::DiagnosticsFilter {
+        limit: request.diagnostic_limit.or(request.diagnostics.limit),
+        ..request.diagnostics.clone()
     }
 }
 
@@ -2813,58 +2825,30 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(err) => return json_error(&err.to_string()),
     };
-    let requested_files = match args.get("files") {
-        None => Vec::new(),
-        Some(serde_json::Value::Array(values)) => match values
-            .iter()
-            .map(|value| value.as_str().map(str::to_owned))
-            .collect::<Option<Vec<_>>>()
-        {
-            Some(values) => values,
-            None => return json_error("route `files` must contain only paths"),
-        },
-        Some(_) => return json_error("route `files` must be an array"),
-    };
-    let scope_name = match args.get("scope") {
-        None if requested_files.is_empty() => "workspace",
-        None => "files",
-        Some(serde_json::Value::String(value)) if value == "workspace" || value == "files" => {
-            value.as_str()
-        }
-        Some(_) => {
-            return json_error("native MCP route supports only `files` or `workspace` scope");
-        }
-    };
-    if scope_name == "files" && requested_files.is_empty() {
-        return json_error("route `scope: files` requires at least one file");
-    }
-    if scope_name == "workspace" && !requested_files.is_empty() {
-        return json_error("route `scope: workspace` cannot combine with `files`");
-    }
-
     let root_path = std::path::Path::new(root.as_str());
-    let mut paths =
-        match enforcer_scan::walk::walk(root_path, &enforcer_scan::walk::IgnoreRules::default()) {
-            Ok(value) => value,
-            Err(err) => return json_error(&format!("route walk failed: {err}")),
-        };
-    if scope_name == "files" {
-        paths.retain(|path| requested_files.iter().any(|file| path.as_str() == file));
-        if paths.is_empty() {
-            return json_error("route `files` did not resolve to any walked source files");
+    let (_, request) = match native_scan_request(args) {
+        Ok(value) => value,
+        Err(error) => return json_error(&error.replace("scan", "route")),
+    };
+    let route_scope = match &request.scope {
+        enforcer_scan::boundary::native_scan::NativeScanScope::Workspace => RouteScope::Workspace,
+        enforcer_scan::boundary::native_scan::NativeScanScope::Files(_)
+        | enforcer_scan::boundary::native_scan::NativeScanScope::Crate(_)
+        | enforcer_scan::boundary::native_scan::NativeScanScope::Diff { .. } => RouteScope::Repo,
+    };
+    let paths = match enforcer_scan::boundary::native_scan::execute(&request, &root) {
+        Ok(result) if result.scanned_files.is_empty() => {
+            return json_error("route scope did not resolve to any source files");
         }
-    }
+        Ok(result) => result.scanned_files,
+        Err(error) => return json_error(&format!("route scope resolution failed: {error}")),
+    };
     let tie =
         match enforcer_config::project_tie::load_project_tie(&root_path.join(".enforce/config")) {
             Ok(value) => value,
             Err(err) => return json_error(&format!("route config failed: {err}")),
         };
-    let scope = if scope_name == "workspace" {
-        RouteScope::Workspace
-    } else {
-        RouteScope::Repo
-    };
-    let plan = enforcer_scan::router::plan::build_route_plan(&paths, &scope, &tie);
+    let plan = enforcer_scan::router::plan::build_route_plan(&paths, &route_scope, &tie);
     let Ok(serde_json::Value::Object(mut value)) = serde_json::to_value(plan) else {
         return json_error("native route produced an invalid report shape");
     };
@@ -2874,7 +2858,7 @@ fn route(args: &serde_json::Value) -> serde_json::Value {
     ) {
         let routes = enforcer_scan::router::plan::build_canonical_route_plan(
             &paths,
-            &scope,
+            &route_scope,
             enforcer_scan::router::identity::UnknownLanguagePolicy::Include,
         );
         let Ok(projection) = canonical_language_route_responses(&routes) else {
@@ -3324,22 +3308,31 @@ fn coordination_sync(args: &serde_json::Value) -> serde_json::Value {
     };
     let result = if std::path::Path::new(peer_raw).is_dir() {
         peer::sync_local(&root, std::path::Path::new(peer_raw))
+    } else if peer_raw.contains("://") {
+        match CoordinationPeerUrl::parse(peer_raw) {
+            Ok(url) => peer::sync_http(
+                &root,
+                &url,
+                args.get("token").and_then(serde_json::Value::as_str),
+            ),
+            Err(error) => Err(enforcer_coordination::error::CoordinationError::from(error)),
+        }
     } else {
-        let resolved = CoordinationPeerUrl::parse(peer_raw)
-            .map(|url| {
-                (
-                    url,
-                    args.get("token")
-                        .and_then(serde_json::Value::as_str)
-                        .map(str::to_owned),
-                )
+        CoordinationPeerName::parse(peer_raw)
+            .map_err(enforcer_coordination::error::CoordinationError::from)
+            .and_then(|name| peer::resolve_peer(&root, &name))
+            .and_then(|record| {
+                if record.mode == peer::PeerSyncMode::Push {
+                    return Err(enforcer_coordination::error::CoordinationError::rejected(
+                        enforcer_domain::coordination_types::CoordinationRejection::parse(
+                            "push-only peer cannot be used as a pull synchronization source",
+                        )
+                        .map_err(enforcer_coordination::error::CoordinationError::from)?,
+                    ));
+                }
+                let token = peer::token_from_env(record.token_env.as_ref())?;
+                peer::sync_http(&root, &record.url, token.as_deref())
             })
-            .or_else(|_| {
-                let name = CoordinationPeerName::parse(peer_raw)?;
-                let record = peer::resolve_peer(&root, &name)?;
-                Ok((record.url, peer::token_from_env(record.token_env.as_ref())?))
-            });
-        resolved.and_then(|(url, token)| peer::sync_http(&root, &url, token.as_deref()))
     };
     match result {
         Ok(sync) => {
@@ -5208,6 +5201,34 @@ mod tests {
     }
 
     #[test]
+    fn route_decodes_every_scope_advertised_by_its_schema() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path().to_string_lossy();
+        let (_, crate_request) = super::native_scan_request(&serde_json::json!({
+            "root": root,
+            "scope": "crate",
+            "crateName": "enforcer-mcp",
+        }))?;
+        assert!(matches!(
+            crate_request.scope,
+            enforcer_scan::boundary::native_scan::NativeScanScope::Crate(_)
+        ));
+
+        let (_, diff_request) = super::native_scan_request(&serde_json::json!({
+            "root": root,
+            "scope": "diff",
+            "base": "origin/main",
+            "head": "HEAD",
+        }))?;
+        assert!(matches!(
+            diff_request.scope,
+            enforcer_scan::boundary::native_scan::NativeScanScope::Diff { .. }
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn route_canonical_projection_preserves_typed_identity_outcomes(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
@@ -5413,6 +5434,92 @@ mod tests {
         assert!(value["violations"]
             .as_array()
             .is_some_and(|items| !items.is_empty()));
+        Ok(())
+    }
+
+    #[test]
+    fn named_check_accepts_the_profile_field_advertised_by_its_schema(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        std::fs::create_dir_all(temp.path().join("src"))?;
+        std::fs::write(temp.path().join("src/lib.rs"), "pub fn clean() {}\n")?;
+        let outcome = dispatch(
+            &tool("ocentra_enforcer_check")?,
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "check": "source-shape",
+                "scope": "files",
+                "files": ["src/lib.rs"],
+                "profile": "strict",
+            }),
+            &ctx(McpFreshness::Fresh),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            return Err("profiled named check did not produce a result".into());
+        };
+        assert!(!value["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("does not support `profile`")));
+        Ok(())
+    }
+
+    #[test]
+    fn diagnostics_prefers_the_advertised_diagnostic_limit(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let request = super::decode_harness_query(
+            &serde_json::json!({
+                "root": temp.path().to_string_lossy(),
+                "limit": 9,
+                "diagnosticLimit": 2,
+            }),
+            "diagnostics",
+        )?;
+        let filter = super::effective_diagnostics_filter(&request);
+        assert_eq!(
+            filter
+                .limit
+                .map(enforcer_domain::config_types::HarnessRunLimit::get),
+            Some(2)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn coordination_sync_rejects_a_registered_push_only_peer_without_network_io(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let ledger = tempfile::tempdir()?;
+        let state_root = ledger.path().join("state");
+        let root = enforcer_domain::coordination_types::CoordinationLedgerRoot::parse(&state_root)?;
+        enforcer_coordination::sync::peer::add_peer(
+            &root,
+            enforcer_coordination::sync::peer::PeerRecord {
+                name: enforcer_domain::coordination_types::CoordinationPeerName::parse(
+                    "push-only",
+                )?,
+                url: enforcer_domain::coordination_types::CoordinationPeerUrl::parse(
+                    "http://127.0.0.1:9",
+                )?,
+                mode: enforcer_coordination::sync::peer::PeerSyncMode::Push,
+                token_env: None,
+            },
+        )?;
+        let peer_name =
+            enforcer_domain::coordination_types::CoordinationPeerName::parse("push-only")?;
+        assert_eq!(
+            enforcer_coordination::sync::peer::resolve_peer(&root, &peer_name)?.mode,
+            enforcer_coordination::sync::peer::PeerSyncMode::Push
+        );
+
+        let sync = super::coordination_sync(&serde_json::json!({
+            "stateRoot": state_root.to_string_lossy(),
+            "peer": "push-only"
+        }));
+        assert_eq!(sync["ok"], serde_json::json!(false));
+        assert_eq!(
+            sync["error"],
+            serde_json::json!("push-only peer cannot be used as a pull synchronization source")
+        );
         Ok(())
     }
 
