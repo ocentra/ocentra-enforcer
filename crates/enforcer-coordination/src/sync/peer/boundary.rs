@@ -375,9 +375,15 @@ fn http_get(base: &CoordinationPeerUrl, path: &str, token: Option<&str>) -> Resu
         "GET {target} HTTP/1.1\r\nHost: {authority}\r\n{auth}Connection: close\r\n\r\n"
     )?;
     let mut response_bytes = Vec::new();
-    stream
+    let read_result = stream
         .take(u64::try_from(MAX_HTTP_RESPONSE_BYTES + 1).unwrap_or(u64::MAX))
-        .read_to_end(&mut response_bytes)?;
+        .read_to_end(&mut response_bytes);
+    if let Err(error) = read_result {
+        if response_bytes.is_empty() {
+            return Err(error.into());
+        }
+        return Err(rejected("peer returned incomplete HTTP response body"));
+    }
     if response_bytes.len() > MAX_HTTP_RESPONSE_BYTES {
         return Err(rejected("peer HTTP response exceeds the native read bound"));
     }
