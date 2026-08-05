@@ -416,7 +416,18 @@ fn notifier_state_file_cannot_escape_the_ledger() -> Result<(), Box<dyn std::err
             state_file: Some(std::path::PathBuf::from("../outside.json")),
         },
     );
-    assert!(result.is_err());
+    let error = match result {
+        Err(error) => error,
+        Ok(response) => {
+            return Err(
+                format!("escaping notifier state file unexpectedly returned {response:?}").into(),
+            );
+        }
+    };
+    assert_eq!(
+        error.to_string(),
+        "notifier state file must stay inside the ledger notifier directory"
+    );
     assert_eq!(std::fs::read_to_string(outside)?, "sentinel");
     Ok(())
 }
