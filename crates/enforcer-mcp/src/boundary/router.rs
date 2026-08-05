@@ -555,7 +555,10 @@ fn proof_inventory(args: &serde_json::Value) -> serde_json::Value {
 fn encode_proof_route(
     value: enforcer_proof::boundary::lifecycle::ProofRouteResult,
 ) -> serde_json::Value {
-    let scope = proof_route_scope_json(&value.query);
+    let scope = match serde_json::to_value(enforcer_proof::harness::route_scope(&value.query)) {
+        Ok(scope) => scope,
+        Err(error) => return json_error(&error.to_string()),
+    };
     let proofs = value.proofs.into_iter().map(|proof| {
         serde_json::json!({
             "id": proof.id,
@@ -631,28 +634,6 @@ fn encode_proof_inventory(
         "omittedScriptCount": value.omitted_script_count,
         "scripts": scripts.collect::<Vec<_>>(),
     })
-}
-
-/// Project the typed route query into the frozen MCP scope envelope.
-fn proof_route_scope_json(
-    query: &enforcer_proof::boundary::proof_query::ProofRouteQuery,
-) -> serde_json::Value {
-    if let Some(proof_id) = &query.proof_id {
-        return serde_json::json!({"mode":"proof","proofId":proof_id.as_str()});
-    }
-    if !query.files.is_empty() {
-        return serde_json::json!({
-            "mode":"files",
-            "files":query.files.iter().map(enforcer_domain::paths::RelPath::as_str).collect::<Vec<_>>()
-        });
-    }
-    if let Some(plan) = &query.plan {
-        return serde_json::json!({"mode":"plan","plan":plan});
-    }
-    if let Some(capability) = &query.capability {
-        return serde_json::json!({"mode":"capability","capability":capability.as_str()});
-    }
-    serde_json::json!({"mode":query.scope.as_deref().unwrap_or("workspace")})
 }
 
 fn proof_lifecycle_for_root(
@@ -1102,6 +1083,20 @@ fn compact_scan_report(
     Ok(report)
 }
 
+fn repo_root_or_cwd(args: &serde_json::Value, operation: &str) -> Result<RepoRoot, String> {
+    match args.get("root") {
+        Some(serde_json::Value::String(value)) => {
+            value.parse::<RepoRoot>().map_err(|error| error.to_string())
+        }
+        Some(_) => Err(format!("{operation} `root` must be a string")),
+        None => std::env::current_dir()
+            .map_err(|error| error.to_string())?
+            .to_string_lossy()
+            .parse::<RepoRoot>()
+            .map_err(|error| error.to_string()),
+    }
+}
+
 fn native_scan_request(
     args: &serde_json::Value,
 ) -> Result<
@@ -1111,12 +1106,7 @@ fn native_scan_request(
     ),
     String,
 > {
-    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return Err("scan requires a `root` path".to_owned());
-    };
-    let root = root_raw
-        .parse::<RepoRoot>()
-        .map_err(|error| error.to_string())?;
+    let root = repo_root_or_cwd(args, "scan")?;
     let files = match args.get("files") {
         None => None,
         Some(serde_json::Value::Array(values)) => match values
@@ -1645,12 +1635,9 @@ fn named_generated_artifacts_unrecorded(args: &serde_json::Value) -> serde_json:
 /// Generate a deterministic, lockfile-bound native Cargo SBOM. The output is
 /// an explicit artifact path rather than a synthetic scanner finding.
 fn named_sbom_unrecorded(args: &serde_json::Value) -> serde_json::Value {
-    let Some(root_raw) = args.get("root").and_then(serde_json::Value::as_str) else {
-        return json_error("sbom requires a `root` path");
-    };
-    let root = match root_raw.parse::<RepoRoot>() {
+    let root = match repo_root_or_cwd(args, "sbom") {
         Ok(root) => root,
-        Err(error) => return json_error(&error.to_string()),
+        Err(error) => return json_error(&error),
     };
     let root_path = std::path::Path::new(root.as_str());
     let output = match args.get("output") {
@@ -2426,17 +2413,7 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
     {
         return json_error(&format!("doctor does not support `{field}`"));
     }
-    let root = match args.get("root").and_then(serde_json::Value::as_str) {
-        Some(value) => value.parse::<RepoRoot>().map_err(|error| error.to_string()),
-        None => std::env::current_dir()
-            .map_err(|error| error.to_string())
-            .and_then(|path| {
-                path.to_string_lossy()
-                    .parse::<RepoRoot>()
-                    .map_err(|error| error.to_string())
-            }),
-    };
-    let root = match root {
+    let root = match repo_root_or_cwd(args, "doctor") {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
@@ -2468,15 +2445,21 @@ fn doctor(args: &serde_json::Value) -> serde_json::Value {
         }
         Some(_) => return json_error("doctor `configPath` must be a string"),
     };
-    let config = match args.get("profile").and_then(serde_json::Value::as_str) {
-        Some(profile) => ConfigProfileName::try_new(profile.to_owned())
-            .map_err(|error| error.to_string())
-            .and_then(|profile| {
-                enforcer_config::resolve::resolve_profile_only(&profile)
+    let config = if args.get("configPath").is_some() {
+        enforcer_config::load_project_config(&config_path).map_err(|error| error.to_string())
+    } else {
+        match args.get("profile") {
+            Some(serde_json::Value::String(profile)) => {
+                ConfigProfileName::try_new(profile.to_owned())
                     .map_err(|error| error.to_string())
-            }),
-        None => {
-            enforcer_config::load_project_config(&config_path).map_err(|error| error.to_string())
+                    .and_then(|profile| {
+                        enforcer_config::resolve::resolve_profile_only(&profile)
+                            .map_err(|error| error.to_string())
+                    })
+            }
+            Some(_) => Err("doctor `profile` must be a string".to_owned()),
+            None => enforcer_config::load_project_config(&config_path)
+                .map_err(|error| error.to_string()),
         }
     };
     let config = match config {
@@ -5016,6 +4999,19 @@ mod tests {
     }
 
     #[test]
+    fn check_sbom_defaults_a_missing_root_to_the_server_cwd() {
+        let value = super::named_sbom_unrecorded(&serde_json::json!({"dryRun": true}));
+        assert_eq!(value["ok"], serde_json::json!(true), "{value}");
+        assert_eq!(value["check"], serde_json::json!("sbom"));
+        assert_eq!(value["dryRun"], serde_json::json!(true));
+        let malformed = super::named_sbom_unrecorded(&serde_json::json!({
+            "root": 7,
+            "dryRun": true,
+        }));
+        assert_eq!(malformed["error"], "sbom `root` must be a string");
+    }
+
+    #[test]
     fn run_status_records_an_executed_named_check_as_validation(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
@@ -5529,6 +5525,28 @@ mod tests {
     }
 
     #[test]
+    fn scan_and_named_check_default_missing_roots_to_the_server_cwd(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let expected = std::env::current_dir()?
+            .to_string_lossy()
+            .parse::<enforcer_domain::paths::RepoRoot>()?;
+        for args in [
+            serde_json::json!({"scope": "files", "files": ["Cargo.toml"]}),
+            serde_json::json!({"check": "source-shape", "scope": "files", "files": ["Cargo.toml"]}),
+        ] {
+            let (root, _) = super::native_scan_request(&args)?;
+            assert_eq!(root, expected);
+        }
+        assert_eq!(
+            super::native_scan_request(&serde_json::json!({"root": 7}))
+                .err()
+                .as_deref(),
+            Some("scan `root` must be a string")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn named_check_applies_the_advertised_compact_output_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
@@ -5577,11 +5595,13 @@ mod tests {
         let value = super::doctor(&serde_json::json!({
             "root": temp.path().to_string_lossy(),
             "configPath": "doctor.json",
+            "profile": "strict",
             "scope": "files",
             "files": ["src/lib.rs"],
         }));
         assert!(value.get("error").is_none(), "{value}");
         assert_eq!(value["command"], serde_json::json!("doctor"));
+        assert_eq!(value["profileName"], serde_json::json!("default"));
         let malformed = super::doctor(&serde_json::json!({
             "root": temp.path().to_string_lossy(),
             "files": ["src/lib.rs", 7],
