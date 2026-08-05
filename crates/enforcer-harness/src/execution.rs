@@ -293,6 +293,21 @@ fn residual_group_is_already_gone(error: &io::Error) -> bool {
     false
 }
 
+fn termination_failure_after_reap_is_benign(error: &io::Error) -> bool {
+    if residual_group_is_already_gone(error) {
+        return true;
+    }
+    // On macOS, command-group can race a short-lived process-group leader:
+    // killpg reports EPERM after the leader has exited, while wait still
+    // successfully reaps that owned child. Reader shutdown remains bounded,
+    // so a descendant retaining either output pipe still fails closed.
+    #[cfg(target_os = "macos")]
+    if error.raw_os_error() == Some(1) {
+        return true;
+    }
+    false
+}
+
 struct BoundedReader {
     receiver: Receiver<io::Result<Vec<u8>>>,
     handle: JoinHandle<()>,
@@ -382,7 +397,7 @@ fn terminate_and_reap(child: &mut GroupChild) -> Result<ExitStatus> {
     let wait_result = child.wait();
     match (kill_error, wait_result) {
         (None, Ok(status)) => Ok(status),
-        (Some(error), Ok(status)) if error.kind() == io::ErrorKind::InvalidInput => Ok(status),
+        (Some(error), Ok(status)) if termination_failure_after_reap_is_benign(&error) => Ok(status),
         (Some(kill_error), Ok(_)) => Err(Error::InvalidConfig(format!(
             "terminate child failed: {kill_error}; child was reaped"
         ))),
