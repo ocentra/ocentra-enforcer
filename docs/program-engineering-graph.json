@@ -15,7 +15,7 @@
       "planKeys": ["cyberskills-parity-plan"],
       "state": "active",
       "managerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
-      "currentBundle": "Graph first; then approved CP08 decomposition and native dogfood",
+      "currentBundle": "Cyber-owned graph audit; then approved CP08 decomposition and native dogfood",
       "subgraph": {
         "path": "docs/engineering-graph.json",
         "ownerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
