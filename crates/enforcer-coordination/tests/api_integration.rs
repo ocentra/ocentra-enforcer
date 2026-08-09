@@ -404,7 +404,10 @@ fn release_does_not_clear_another_lane() -> Result<(), Box<dyn std::error::Error
         &caller("wt-b", "branch-b")?,
         None,
     );
-    let error = result.expect_err("a caller cannot release another lane's claim");
+    let error = match result {
+        Ok(_) => return Err("a caller cannot release another lane's claim".into()),
+        Err(error) => error,
+    };
     assert_eq!(
         error.to_string(),
         "coordination release matched no caller-owned active claims"
