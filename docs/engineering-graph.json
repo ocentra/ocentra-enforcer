@@ -76,7 +76,8 @@
       "WP/CP11/IF-incident-response/B02": "validation",
       "WP/CP11/IF-incident-response/B03": "validation",
       "WP/CP11/IF-malware-analysis/B01": "validation",
-      "WP/CP11/IF-malware-analysis/B02": "validation"
+      "WP/CP11/IF-malware-analysis/B02": "validation",
+      "WP/CP11/IF-malware-analysis/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1431,6 +1432,36 @@
           "CP11 batch-41 validates ten unique malware-analysis records with ten retained advisory and ten retained manual components",
           "CP11 batch-41 artifact SHA-256 is 7f5a4cac5d9e5cddd36733bd97cfa697aff2db7ef9538a23fbf07d82e3833473 and is 15592 bytes",
           "graph.next advances from malware-analysis B02 to B03 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live sample execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution",
+          "sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-42": {
+        "run_id": "20260809-engineering-graph-cp11-batch-42-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5c86bb2d3cfd88952762f466fc049ed9360021d8",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-12/decomposition.json",
+          "proof/cyberskills/cp08/batch-30/decomposition.json",
+          "proof/cyberskills/cp08/batch-43/decomposition.json",
+          "proof/cyberskills/cp08/batch-59/decomposition.json",
+          "proof/cyberskills/cp08/batch-74/decomposition.json",
+          "proof/cyberskills/cp11/batch-42/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-42 validates ten unique malware-analysis records with ten retained advisory and ten retained manual components",
+          "CP11 batch-42 artifact SHA-256 is 70299f64bd49ae5305edf9b51b7f62fc5e07db743a38160b8edd99fb7e3a2939 and is 15252 bytes",
+          "graph.next advances from malware-analysis B03 to B04 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
