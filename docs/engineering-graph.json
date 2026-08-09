@@ -43,6 +43,7 @@
       "EXT/UL07": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
+      "WP/CP10": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3611,7 +3612,7 @@
         "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture; cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture; cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness --quiet; cargo fmt -p enforcer-harness -- --check; git diff --check; scoped Enforcer route, strict scan, source-shape, and secrets",
         "status": "passed",
         "exit_code": 0,
-        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
         "source_paths": [
           "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
           "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
@@ -3625,7 +3626,7 @@
         "proves": [
           "the pinned Trivy 0.68.2 reference adapter parses recorded JSON and normalizes findings through the existing Rust seam",
           "the bounded live invocation uses a repository-relative target, explicit arguments, and honest missing/failed/malformed/timeout/overflow outcomes",
-          "the focused CP07 suite passes 5/5 and the existing generic CyberSkills adapter suite remains green",
+          "the focused CP07 suite passes 6/6 and the existing generic CyberSkills adapter suite remains green",
           "the graph records CP07 locally and advances graph.next without promoting external evidence into native implementation or executable proof"
         ],
         "does_not_prove": [
@@ -3640,14 +3641,14 @@
         "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture",
         "status": "passed",
         "exit_code": 0,
-        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
         "source_paths": [
           "crates/enforcer-harness/tests/cyberskills_trivy.rs",
           "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
           "proof/cyberskills/cp07/current-reconciliation.json"
         ],
         "proves": [
-          "CP07 recorded normalization and optional live handling pass 5/5",
+          "CP07 recorded normalization and optional live handling pass 6/6",
           "live unavailable or failed states never become pass"
         ],
         "does_not_prove": [
@@ -3660,7 +3661,7 @@
         "command": "cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness --quiet; cargo fmt -p enforcer-harness -- --check",
         "status": "passed",
         "exit_code": 0,
-        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
         "source_paths": [
           "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
           "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs"
@@ -3678,7 +3679,7 @@
         "command": "OCENTRA_TRIVY_EXECUTABLE=<exact-installed-binary> cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture",
         "status": "passed",
         "exit_code": 0,
-        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
         "source_paths": [
           "crates/enforcer-harness/tests/cyberskills_trivy.rs",
           "proof/cyberskills/cp07/current-reconciliation.json"
@@ -3690,6 +3691,48 @@
           "that CI hosts have Trivy, that the database is fresh, or that external execution is required",
           "overall CyberSkills parity or security outcomes",
           "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP10/adapter-tests": {
+        "run_id": "20260809-cp10-trivy-adapter-mapping",
+        "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture; cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness; cargo fmt -p enforcer-harness -- --check; git diff --check; scoped Enforcer route, strict scan, source-shape, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
+        "source_paths": [
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mapping.rs",
+          "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+          "proof/cyberskills/cp10/batch-01/mapping.json"
+        ],
+        "proves": [
+          "the existing Trivy adapter and typed CP10 mapping validator pass recorded, malformed, protected-source, and deterministic parser tests",
+          "one CP08 external-engine component is mapped to the reviewed Trivy config JSON protocol without a skill-specific process wrapper"
+        ],
+        "does_not_prove": [
+          "native CyberSkills implementation, executable proof, image or registry scanning, or security outcomes",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP10/disposition-gate": {
+        "run_id": "20260809-cp10-trivy-disposition-gate",
+        "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy cp10_mapping -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "9ca3768503df46e77fd310c5a5c9e552c83811dd",
+        "source_paths": [
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mapping.rs",
+          "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+          "proof/cyberskills/cp08/batch-36/decomposition.json",
+          "proof/cyberskills/cp10/batch-01/mapping.json"
+        ],
+        "proves": [
+          "CP10 mapping validation preserves CP08 source/artifact provenance and rejects protected or contradictory component identities",
+          "recorded Trivy evidence is distinct from native implementation and executable-proof coverage"
+        ],
+        "does_not_prove": [
+          "Trivy correctness, database freshness, live CI or cloud execution, remediation, or security outcomes",
+          "overall CyberSkills parity or plan completion"
         ]
       }
     }

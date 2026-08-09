@@ -24,6 +24,9 @@ use serde::Deserialize;
 use super::seam::{AdapterOutcome, EngineFindingEnvelope};
 use crate::execution::{execute_unrecorded_bounded, ExecuteRequest};
 
+/// Validates CP10's recorded Trivy-to-component mapping contract.
+pub mod mapping;
+
 const EXECUTABLE: &str = "trivy";
 const ENGINE_VERSION: &str = "0.68.2";
 const RUN_ID: &str = "cp07-trivy-live";

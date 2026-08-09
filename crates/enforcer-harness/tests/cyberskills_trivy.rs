@@ -8,7 +8,9 @@ use std::path::Path;
 use enforcer_domain::harness_types::HarnessToolAvailability;
 use enforcer_domain::paths::RepoRoot;
 use enforcer_harness::adapters::cyberskills::seam::AdapterOutcome;
-use enforcer_harness::adapters::cyberskills::trivy::{parse_report, run};
+use enforcer_harness::adapters::cyberskills::trivy::{
+    mapping::validate_mapping_manifest, parse_report, run,
+};
 use proptest::{prelude::any, proptest};
 
 fn repo_root() -> Result<RepoRoot, Box<dyn std::error::Error>> {
@@ -98,9 +100,29 @@ fn optional_live_run_is_honest_and_matches_recorded_first_finding(
 
 proptest! {
     #[test]
-    fn trivy_parser_is_total_and_deterministic(raw in any::<String>()) {
+fn trivy_parser_is_total_and_deterministic(raw in any::<String>()) {
         let first = parse_report(&raw).is_ok();
         let second = parse_report(&raw).is_ok();
         assert_eq!(first, second);
     }
+}
+
+#[test]
+fn cp10_mapping_manifest_matches_the_recorded_engine_contract(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mappings = validate_mapping_manifest(include_str!(
+        "../../../proof/cyberskills/cp10/batch-01/mapping.json"
+    ))?;
+    assert_eq!(mappings, 1);
+    Ok(())
+}
+
+#[test]
+fn cp10_mapping_rejects_protected_source_identity() {
+    let raw = include_str!("../../../proof/cyberskills/cp10/batch-01/mapping.json").replace(
+        "scanning-iac-and-images-with-trivy",
+        "detecting-fileless-malware-techniques",
+    );
+    let error = validate_mapping_manifest(&raw).expect_err("protected source must be rejected");
+    assert!(error.to_string().contains("protected source is excluded"));
 }
