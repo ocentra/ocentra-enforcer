@@ -10,12 +10,13 @@ use enforcer_coordination::api::{
     open, release, repair_stale_claims, report, send_message, CallerContext, ClaimRequestArgs,
     CloseoutFilters, Hub,
 };
+use enforcer_coordination::domain::HubConfig;
 use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
 use enforcer_domain::coordination_types::{
     ClaimEventId, ClaimPath, CoordinationBranch, CoordinationLedgerRoot, CoordinationMessageBody,
     CoordinationProjectId, CoordinationRepoRoot, CoordinationReportSummary,
-    CoordinationReportTitle, CoordinationWorktree,
+    CoordinationReportTitle, CoordinationWorktree, NodeId, NodeName,
 };
 use enforcer_domain::ids::{HubName, LaneId};
 use enforcer_domain::scan_types::CommitRef;
@@ -283,6 +284,61 @@ fn closeout_does_not_release_another_lane() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
+fn closeout_node_filter_preserves_another_node() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let other_hub = Hub {
+        root: hub.root.clone(),
+        config: HubConfig {
+            node_id: NodeId::parse("node_other".to_owned())?,
+            node_name: NodeName::parse("other".to_owned())?,
+            ..hub.config.clone()
+        },
+    };
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("a.rs"), "// a")?;
+    std::fs::write(repo.path().join("b.rs"), "// b")?;
+    let lane: LaneId = "primary".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("a.rs")?],
+            caller: &caller("wt-a", "branch-a")?,
+            reason: None,
+        },
+    )?;
+    claim_all(
+        &other_hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("b.rs")?],
+            caller: &caller("wt-b", "branch-b")?,
+            reason: None,
+        },
+    )?;
+
+    let filters = CloseoutFilters {
+        lane: Some(lane.clone()),
+        node_id_prefix: Some(hub.config.node_id.clone()),
+        ..Default::default()
+    };
+    let events = closeout(&hub, &lane, &filters, &caller("wt-a", "branch-a")?, None)?;
+    assert_eq!(events.len(), 1);
+
+    let remaining = active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(hub.root.as_path())?.events,
+    );
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].writer.as_str(), "node_other.primary");
+    assert_eq!(remaining[0].paths, vec![ClaimPath::from_static("b.rs")?]);
+    Ok(())
+}
+
+#[test]
 fn release_and_message_acknowledgement_are_public_operations(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
@@ -318,6 +374,46 @@ fn release_and_message_acknowledgement_are_public_operations(
         acknowledgement.message_id.as_deref(),
         Some(message.id.as_str())
     );
+    Ok(())
+}
+
+#[test]
+fn release_does_not_clear_another_lane() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "lane-a")?;
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("a.rs"), "// a")?;
+    let lane_a: LaneId = "lane-a".parse()?;
+    let lane_b: LaneId = "lane-b".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane_a,
+            owns: &[ClaimPath::from_static("a.rs")?],
+            caller: &caller("wt-a", "branch-a")?,
+            reason: None,
+        },
+    )?;
+
+    let result = release(
+        &hub,
+        &lane_b,
+        &[ClaimPath::from_static("a.rs")?],
+        &caller("wt-b", "branch-b")?,
+        None,
+    );
+    let error = result.expect_err("a caller cannot release another lane's claim");
+    assert_eq!(
+        error.to_string(),
+        "coordination release matched no caller-owned active claims"
+    );
+    let remaining = active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(hub.root.as_path())?.events,
+    );
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].lane.as_str(), "lane-a");
     Ok(())
 }
 
