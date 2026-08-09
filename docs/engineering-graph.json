@@ -44,6 +44,7 @@
       "EXT/UL05": "done",
       "EXT/UL06": "done",
       "EXT/UL07": "done",
+      "EXT/UL08": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -3634,6 +3635,29 @@
           "native CyberSkills implementation, executable proof, third-party engine execution, live security behavior, or overall parity",
           "downstream UL04-UL14 or CP02-CP13 completion; UL03 remains validation because its historical full-suite evidence is unresolved",
           "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/UL08/fact-backed-rule-pilot": {
+        "run_id": "20260809-ul08-fact-backed-rule-pilot",
+        "command": "cargo test --locked -p enforcer-scan --test fact_backed_error_handling -- --nocapture; cargo test --locked -p enforcer-lang-rust -- --nocapture; cargo check --locked -p enforcer-lang-rust -p enforcer-scan; cargo clippy --locked -p enforcer-lang-rust -p enforcer-scan --all-targets -- -D warnings; cargo fmt -p enforcer-lang-rust -p enforcer-scan -- --check; git diff --check; scoped Enforcer route, source-shape, strict scan, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d66623df4e76fe69c809c9c59e4cb401bddbe640",
+        "source_paths": [
+          "proof/universal-language/ul08/current-fact-backed-rule-pilot.json",
+          "crates/enforcer-lang-rust/src/rules/error_handling.rs",
+          "crates/enforcer-scan/tests/fact_backed_error_handling.rs"
+        ],
+        "proves": [
+          "T1-RUSTERR.1 consumes the existing normalized FunctionFact capability through the existing analysis dispatch seam.",
+          "Fact-backed and legacy fixtures preserve rule identity, severity, source span, ordering, and explicit unavailable-analysis behavior.",
+          "The focused package tests, locked check, clippy, formatting, diff, and exact-file Enforcer gates pass at the pushed packet commit.",
+          "graph.next may advance past UL08 without promoting a rule pilot into default scan wiring, native CyberSkills implementation, executable proof, external execution, or security outcomes."
+        ],
+        "does_not_prove": [
+          "The default scan entry point is not rewired from LegacyAnalysisProvider; default scans still skip this fact-required rule until a later bounded packet.",
+          "Other rules, other languages, the full 816-skill intent matrix, native CyberSkills implementation, executable proof, live behavior, or security outcomes.",
+          "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
         ]
       },
       "TEST/CP06/security-engine-consumer-contract": {
