@@ -113,7 +113,8 @@
     "WP/CP11/IF-threat-detection/B01": "validation",
     "WP/CP11/IF-threat-hunting/B01": "validation",
     "WP/CP11/IF-threat-hunting/B02": "validation",
-    "WP/CP11/IF-threat-hunting/B03": "validation"
+    "WP/CP11/IF-threat-hunting/B03": "validation",
+    "WP/CP11/IF-threat-hunting/B04": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2584,6 +2585,39 @@
         ],
         "artifact_sha256": "b97dd82d6fdf776ba66a00191d2b53d071195cd2cea839b21d7f0e7121d7ffdf",
         "artifact_bytes": 15901,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-79": {
+        "run_id": "20260809-engineering-graph-cp11-batch-79-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5184e0333ec7ac1882c1446aeb096418aab19dc6",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-24/decomposition.json",
+          "proof/cyberskills/cp08/batch-26/decomposition.json",
+          "proof/cyberskills/cp08/batch-63/decomposition.json",
+          "proof/cyberskills/cp08/batch-64/decomposition.json",
+          "proof/cyberskills/cp11/batch-79/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-79 validates ten unique threat-hunting records with ten retained advisory and ten retained manual components",
+          "CP11 batch-79 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from threat-hunting B04 to B05 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live endpoint, host, process, credential, directory, cloud, packet, network, SIEM, EDR, or production execution",
+          "data staging, lateral movement, DCSync, timestomping, DNS persistence or tunneling, domain fronting, WMI movement, cloud abuse, LOLBin execution, detection efficacy, hunting result, attribution, containment, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "83c9f01cd3e446d087f7c9ebe6f6fbee9b15f314544f40b6ffb47b69654f2ed1",
+        "artifact_bytes": 15044,
         "skill_count": 10,
         "component_count": 40
       }
