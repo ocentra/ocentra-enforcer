@@ -42,6 +42,7 @@
       "EXT/UL03": "validation",
       "EXT/UL07": "done",
       "WP/CP06": "done",
+      "WP/CP07": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3602,6 +3603,92 @@
         ],
         "does_not_prove": [
           "CP07 or later workpack completion, native CyberSkills implementation, overall parity, or security outcomes",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP07/trivy-adapter-pilot": {
+        "run_id": "20260809-cp07-trivy-adapter-pilot",
+        "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture; cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture; cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness --quiet; cargo fmt -p enforcer-harness -- --check; git diff --check; scoped Enforcer route, strict scan, source-shape, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "source_paths": [
+          "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
+          "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+          "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/recorded.json",
+          "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/clean.json",
+          "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/malformed.json",
+          "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/unknown-severity.json",
+          "proof/cyberskills/cp07/current-reconciliation.json"
+        ],
+        "proves": [
+          "the pinned Trivy 0.68.2 reference adapter parses recorded JSON and normalizes findings through the existing Rust seam",
+          "the bounded live invocation uses a repository-relative target, explicit arguments, and honest missing/failed/malformed/timeout/overflow outcomes",
+          "the focused CP07 suite passes 5/5 and the existing generic CyberSkills adapter suite remains green",
+          "the graph records CP07 locally and advances graph.next without promoting external evidence into native implementation or executable proof"
+        ],
+        "does_not_prove": [
+          "Trivy correctness, its rule database freshness, its complete methodology, or a universal live engine guarantee",
+          "native implementation of the underlying CyberSkills intents, executable proof, remediation, or security outcomes",
+          "a user installation or purchase requirement; the adapter is reference-only and optional",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP07/focused-live-recorded-tests": {
+        "run_id": "20260809-cp07-focused-live-recorded-tests",
+        "command": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "source_paths": [
+          "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
+          "proof/cyberskills/cp07/current-reconciliation.json"
+        ],
+        "proves": [
+          "CP07 recorded normalization and optional live handling pass 5/5",
+          "live unavailable or failed states never become pass"
+        ],
+        "does_not_prove": [
+          "native implementation, external engine correctness, or security outcomes",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP07/harness-crate": {
+        "run_id": "20260809-cp07-harness-crate",
+        "command": "cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness --quiet; cargo fmt -p enforcer-harness -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "source_paths": [
+          "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs"
+        ],
+        "proves": [
+          "the Trivy adapter compiles and the full enforcer-harness crate remains green"
+        ],
+        "does_not_prove": [
+          "Trivy correctness, native CyberSkills implementation, or executable proof",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP07/optional-ci-proof": {
+        "run_id": "20260809-cp07-optional-ci-proof",
+        "command": "OCENTRA_TRIVY_EXECUTABLE=<exact-installed-binary> cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "613ff96c341d66ba751f035735a899a290d0b43d",
+        "source_paths": [
+          "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+          "proof/cyberskills/cp07/current-reconciliation.json"
+        ],
+        "proves": [
+          "the optional exact-SHA/live lane can run when the pinned engine is present and otherwise reports a typed honest outcome"
+        ],
+        "does_not_prove": [
+          "that CI hosts have Trivy, that the database is fresh, or that external execution is required",
+          "overall CyberSkills parity or security outcomes",
           "protected vendor source, which remains excluded and untouched"
         ]
       }

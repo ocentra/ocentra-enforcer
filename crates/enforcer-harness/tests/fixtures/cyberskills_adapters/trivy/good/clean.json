@@ -1,0 +1,9 @@
+{
+  "SchemaVersion": 2,
+  "Results": [
+    {
+      "Target": "IAC-1.1.pass.tf",
+      "Misconfigurations": []
+    }
+  ]
+}

@@ -1329,7 +1329,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     assert_eq!(ul03.state, DerivedState::Validation);
     assert_eq!(ul07.state, DerivedState::Done);
     assert_eq!(cp06.state, DerivedState::Done);
-    assert_eq!(next["selected"]["id"], "WP/CP07");
+    assert_eq!(next["selected"]["id"], "WP/CP10");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
