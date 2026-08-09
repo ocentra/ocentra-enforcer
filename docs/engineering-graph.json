@@ -66,7 +66,8 @@
       "WP/CP11/IF-digital-forensics/B04": "validation",
       "WP/CP11/IF-digital-forensics/B05": "validation",
       "WP/CP11/IF-endpoint-security/B01": "validation",
-      "WP/CP11/IF-endpoint-security/B02": "validation"
+      "WP/CP11/IF-endpoint-security/B02": "validation",
+      "WP/CP11/IF-hardware-firmware-security/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1121,6 +1122,36 @@
           "native implementation or executable-proof coverage",
           "live endpoint, host, process, file, registry, device, network, cloud, production, EDR, SIEM, HIDS, DLP, FIM, vulnerability, or external-service execution",
           "credential extraction, persistence, evasion, detection efficacy, remediation success, attribution, privacy, legal, safety, or security outcomes",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-32": {
+        "run_id": "20260809-engineering-graph-cp11-batch-32-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "e65fc187676c686cd63823598bdce0e8599c6707",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-45/decomposition.json",
+          "proof/cyberskills/cp08/batch-53/decomposition.json",
+          "proof/cyberskills/cp08/batch-59/decomposition.json",
+          "proof/cyberskills/cp08/batch-63/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp11/batch-32/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-32 validates six unique hardware-firmware-security records with six retained advisory and six retained manual components",
+          "CP11 batch-32 artifact SHA-256 is 727ce4600688aabb8bb43161ba2f8230c7886b315b7240e01ea11c31b442aa7b and is 9618 bytes",
+          "graph.next advances from completed hardware-firmware-security retention to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live firmware, boot, hardware, device, endpoint, cloud, host, packet, production, or external-service execution",
+          "exploit delivery, credential capture, secure-boot bypass, persistence, attestation validity, firmware integrity, supply-chain truth, remediation success, attribution, privacy, legal, safety, or security outcomes",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
