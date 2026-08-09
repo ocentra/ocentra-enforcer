@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-51",
+  "family": "IF/ot-ics-security",
+  "baselineCommit": "372a1329b2c92629cef9f87a5a4942a414d562d8",
+  "scope": "Retain advisory and manual content for the deterministic first OT/ICS security packet from immutable CP08 evidence; native predicates are limited to static supplied historian, DNP3, Modbus, SCADA, zone, segment, asset, remote-access, control, and evidence manifests; no live PLC, historian, SCADA, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, safety, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-anomalies-in-industrial-control-systems",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-anomalies-in-industrial-control-systems/SKILL.md",
+        "sha256": "5a24d19d4fc3b3e79b58440f154ea2e02c97f73179bc7ae66b91cce1f26c593f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Anomalies in Industrial Control Systems:L44"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {"status": "retained", "purpose": "Retain OT anomaly, historian, protocol, asset, zone, monitoring, and defensive safety guidance.", "notProved": ["Guidance is not live anomaly detection, control state, safety truth, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, asset/plant ownership, safety and legal review, stop conditions, change approval, rollback, and analyst validation.", "notProved": ["No live controller, network, process, credential, session, or production action is proved."]}
+    },
+    {
+      "catalogId": "detecting-attacks-on-historian-servers",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-attacks-on-historian-servers/SKILL.md", "sha256": "3d4b4db9fd0a6389d456b55d89cb3734477fb9a225a76f6fa3969ce40c04c05b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Attacks on Historian Servers:L36"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json", "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"},
+      "advisory": {"status": "retained", "purpose": "Retain historian security, event review, OT monitoring, response, and defensive data-integrity guidance.", "notProved": ["Guidance is not live historian state, attack detection, integrity, attribution, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, historian ownership, safety/privacy/legal review, evidence handling, stop conditions, rollback, and disclosure decisions.", "notProved": ["No live historian, endpoint, process, credential, session, or production response is proved."]}
+    },
+    {
+      "catalogId": "detecting-attacks-on-scada-systems",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-attacks-on-scada-systems/SKILL.md", "sha256": "b88aabac28421dbb186f1f9c5d813a0f64b3d0a76a519ce74becf7971c3466ee", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Attacks on SCADA Systems:L46"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json", "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"},
+      "advisory": {"status": "retained", "purpose": "Retain SCADA architecture, alert review, protocol, historian, segmentation, monitoring, and defensive OT guidance.", "notProved": ["Guidance is not live SCADA state, attack detection, containment, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, plant and system ownership, safety/legal/privacy review, stop conditions, change approval, rollback, and analyst validation.", "notProved": ["No live SCADA, PLC, network, credential, session, or production action is proved."]}
+    },
+    {
+      "catalogId": "detecting-dnp3-protocol-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-dnp3-protocol-anomalies/SKILL.md", "sha256": "2cf0b91c8708c78901f9bfb9e7862c10916aeea4748026e98b10c58c9a6db6e2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting DNP3 Protocol Anomalies:L43"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json", "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"},
+      "advisory": {"status": "retained", "purpose": "Retain DNP3 protocol, anomaly, telemetry, zone, monitoring, and defensive OT guidance.", "notProved": ["Guidance is not live DNP3 traffic, anomaly detection, device state, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, protocol and asset ownership, safety/legal/privacy review, safe scope, stop conditions, rollback, and analyst validation.", "notProved": ["No live DNP3 channel, controller, packet, credential, session, or production action is proved."]}
+    },
+    {
+      "catalogId": "detecting-modbus-command-injection-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-modbus-command-injection-attacks/SKILL.md", "sha256": "393513463711134048cd1b88b75a8011a7d1cbad3f3b4abd774b1911775dc0b5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Modbus Command Injection Attacks:L36"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json", "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"},
+      "advisory": {"status": "retained", "purpose": "Retain Modbus command, protocol, anomaly, monitoring, safety, and defensive OT testing guidance.", "notProved": ["Guidance is not live command injection, protocol behavior, controller state, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, isolated lab scope, asset ownership, safety/legal/privacy review, stop conditions, rollback, and analyst validation.", "notProved": ["No live Modbus, PLC, packet, credential, session, exploit, or production command is proved."]}
+    },
+    {
+      "catalogId": "detecting-modbus-protocol-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-modbus-protocol-anomalies/SKILL.md", "sha256": "5ca739901c9953eb02eaec19dccf815bd1837581745883ee63391efd59d3074f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Modbus Protocol Anomalies:L45"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json", "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"},
+      "advisory": {"status": "retained", "purpose": "Retain Modbus protocol, telemetry, anomaly, monitoring, segmentation, and defensive OT guidance.", "notProved": ["Guidance is not live Modbus traffic, anomaly detection, device state, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, protocol and asset ownership, safety/legal/privacy review, stop conditions, rollback, and analyst validation.", "notProved": ["No live Modbus, PLC, packet, credential, session, or production action is proved."]}
+    },
+    {
+      "catalogId": "detecting-stuxnet-style-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-stuxnet-style-attacks/SKILL.md", "sha256": "cfa5e0d1da29aaa938bf292ab1efb8214bc574da4b9ceeac178c3c1c4d27561d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Stuxnet-Style Attacks:L37"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-60/decomposition.json", "artifactSha256": "1228d05c312f7e3be21d1254ac4e1b44407974f9c7db3ea990b1ca999304563f"},
+      "advisory": {"status": "retained", "purpose": "Retain OT threat, malware, PLC, protocol, detection, response, safety, and defensive resilience guidance.", "notProved": ["Guidance is not live malware detection, PLC compromise, attribution, containment, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, plant ownership, legal/safety/privacy review, evidence handling, stop conditions, rollback, and incident decisions.", "notProved": ["No live PLC, malware, network, credential, session, exploit, or production response is proved."]}
+    },
+    {
+      "catalogId": "implementing-conduit-security-for-ot-remote-access",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-conduit-security-for-ot-remote-access/SKILL.md", "sha256": "460884e9fb1647ce6046a16b2d613134a25b909a75530358358b8c8c60e3fee2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Conduit Security for OT Remote Access:L36"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json", "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"},
+      "advisory": {"status": "retained", "purpose": "Retain OT remote-access, conduit, jump-host, segmentation, identity, monitoring, and defensive safety guidance.", "notProved": ["Guidance is not live remote access, VPN, identity, session, conduit enforcement, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, remote-access ownership, safety/legal/privacy review, least privilege, enrollment/revocation, stop conditions, rollback, and analyst validation.", "notProved": ["No live VPN, jump host, IAM, endpoint, credential, session, or production access is proved."]}
+    },
+    {
+      "catalogId": "implementing-dragos-platform-for-ot-monitoring",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-dragos-platform-for-ot-monitoring/SKILL.md", "sha256": "25f415047517a40fcefc732aea99b7b1ed7453c1fd33532df1db352e321dc10f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Dragos Platform for OT Monitoring:L44"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json", "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"},
+      "advisory": {"status": "retained", "purpose": "Retain OT monitoring, asset, threat, network, historian, alert, and defensive incident guidance.", "notProved": ["Guidance is not live Dragos telemetry, asset truth, alert efficacy, attribution, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, plant and platform ownership, safety/legal/privacy review, data handling, stop conditions, rollback, and analyst validation.", "notProved": ["No live Dragos, sensor, endpoint, network, credential, session, or production monitoring is proved."]}
+    },
+    {
+      "catalogId": "implementing-ics-firewall-with-tofino",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ics-firewall-with-tofino/SKILL.md", "sha256": "7a17522e45ca1e60528e875393b1534d5b1bdd8586c225d0a9f949ab1b92e618", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing ICS Firewall with Tofino:L36"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json", "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"},
+      "advisory": {"status": "retained", "purpose": "Retain ICS firewall, zones, conduits, protocol, rule review, monitoring, and defensive safety guidance.", "notProved": ["Guidance is not live firewall state, rule enforcement, traffic, safety, or security outcome."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, plant/network ownership, safety/legal/privacy review, rule approval, maintenance window, rollback, and analyst validation.", "notProved": ["No live firewall, controller, PLC, packet, credential, session, or production enforcement is proved."]}
+    }
+  ],
+  "derivedCounts": {"skills": 10, "advisoryRetained": 10, "manualRetained": 10, "nativeImplemented": 0, "executableProof": 0, "externalExecuted": 0},
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live PLC, historian, SCADA, DNP3, Modbus, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, safety, or production action is proved.",
+    "No OT asset truth, anomaly detection, attack detection, protocol truth, monitoring efficacy, access enforcement, safety outcome, attribution, remediation, or security outcome is proved.",
+    "This packet contains the first 10 OT/ICS security skills; the remaining 19 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
