@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-18",
+  "family": "IF/container-security",
+  "baselineCommit": "ab47104903be6c2db8ea53dd7f1e40e1d89b6b5f",
+  "scope": "Retain advisory and manual content for the final deterministic container-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "scanning-kubernetes-manifests-with-kubesec",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-kubernetes-manifests-with-kubesec/SKILL.md",
+        "sha256": "630541ae397af8ed7b17d04c1e6cb68f4f3ef1ac0fdc5329770c30e5414e7fed",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### Security Scoring System:L56",
+          "### Scanning a Single Manifest:L103",
+          "## Security Checks Reference:L276"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Kubesec score interpretation, CI/admission workflow, and remediation guidance.",
+        "notProved": [
+          "No CI or admission proof."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose the authoritative scan endpoint, review score thresholds, and approve manifest remediation/admission policy.",
+        "notProved": [
+          "No live endpoint, admission webhook, or CI proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "securing-container-registry-with-harbor",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-container-registry-with-harbor/SKILL.md",
+        "sha256": "2fc97a43b7967d1112c81d79a2356f48e29b42803f1dd7554a8ba6d8181556c2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Securing Container Registry with Harbor:L30",
+          "## Workflow:L52",
+          "### Step 1: Install Harbor with Security Configuration:L54"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Harbor installation, policy, replication, retention, and operational guidance.",
+        "notProved": [
+          "No Harbor deployment-completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Configure TLS, identity, scanner, replication, and retention settings and validate impact in the target environment.",
+        "notProved": [
+          "No Harbor instance or operational proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "securing-helm-chart-deployments",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-helm-chart-deployments/SKILL.md",
+        "sha256": "571f0b2c51a31b87d4ff84eeaad9de8bfeade94d6d88662be4c91f45cac2f282",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Securing Helm Chart Deployments:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Helm chart, values, image, RBAC, secret, resource, provenance, release, and rollback guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove chart security or deployment correctness."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, chart and release approval, secret handling, validation, severity, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human chart, release, secret, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Kubernetes, Docker, Harbor, Helm, Kubesec, Calico, Cosign, OPA/Gatekeeper, kube-bench, Trivy, Grype, Tetragon/eBPF, etcd, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution is proved.",
+    "No policy correctness, provenance, signature, access, isolation, admission, benchmark, vulnerability coverage, detection efficacy, hardening, remediation, containment, recovery, attribution, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
