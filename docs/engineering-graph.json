@@ -109,7 +109,8 @@
     "WP/CP11/IF-soc-operations/B05": "validation",
     "WP/CP11/IF-soc-operations/B06": "validation",
     "WP/CP11/IF-soc-operations/B07": "validation",
-    "WP/CP11/IF-supply-chain-security/B01": "validation"
+    "WP/CP11/IF-supply-chain-security/B01": "validation",
+    "WP/CP11/IF-threat-detection/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2449,6 +2450,34 @@
           "native implementation or executable-proof coverage",
           "live registry, package, dependency, scanner, CI runner, signing authority, key, artifact store, deployment, or production execution",
           "malicious-package, typosquatting, vulnerability, secret, signature, provenance, CI, artifact, release, remediation, rollback, disclosure, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-75": {
+        "run_id": "20260809-engineering-graph-cp11-batch-75-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "654eeda65a0562a4a7e43307ee7819b793797491",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-57/decomposition.json",
+          "proof/cyberskills/cp08/batch-58/decomposition.json",
+          "proof/cyberskills/cp08/batch-59/decomposition.json",
+          "proof/cyberskills/cp11/batch-75/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-75 validates seven unique threat-detection records with seven retained advisory and seven retained manual components",
+          "CP11 batch-75 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from threat-detection B01 to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live credential, process, endpoint, directory, authentication, ticket, RDP, SIEM, EDR, network, or production execution",
+          "credential extraction, ticket forgery, insider attribution, living-off-the-land detection, brute-force detection, containment, remediation, or security outcome",
           "protected detecting-fileless-malware-techniques available/readable"
         ]
       }
