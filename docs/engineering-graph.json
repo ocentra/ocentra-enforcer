@@ -45,6 +45,7 @@
       "EXT/UL06": "done",
       "EXT/UL07": "done",
       "EXT/UL08": "done",
+      "EXT/UL09": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -3657,6 +3658,32 @@
         "does_not_prove": [
           "The default scan entry point is not rewired from LegacyAnalysisProvider; default scans still skip this fact-required rule until a later bounded packet.",
           "Other rules, other languages, the full 816-skill intent matrix, native CyberSkills implementation, executable proof, live behavior, or security outcomes.",
+          "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+        ]
+      },
+      "TEST/UL09/schema-framework-adapter": {
+        "run_id": "20260809-ul09-schema-framework-adapter",
+        "command": "cargo test --locked -p enforcer-lang-ts --all-targets -- --nocapture; cargo test --locked -p enforcer-config --test doctrine_profile -- --nocapture; cargo test --locked -p enforcer-rules --test frontend_react_registry -- --nocapture; cargo check --locked -p enforcer-lang-ts -p enforcer-config -p enforcer-rules -p enforcer-scan; cargo fmt -p enforcer-lang-ts -p enforcer-config -p enforcer-rules -p enforcer-scan -- --check; git diff --check; exact-file Enforcer route, strict scan, source-shape, secrets, no-zod-source, no-test-doubles, weak-assertions, validation-bypass, placeholder-implementation, and reexports",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "ca510ebe1f2b1f777d08a4827a72e1b255e0e7c3",
+        "source_paths": [
+          "crates/enforcer-lang-ts/src/rules/mod.rs",
+          "crates/enforcer-lang-ts/src/rules/schema_framework.rs",
+          "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
+          "proof/universal-language/ul09/current-schema-framework-adapter.json"
+        ],
+        "proves": [
+          "UL09 recognizes typed Effect, Zod, and Valibot schema-framework boundary evidence from existing TypeScript source text while excluding comments and quoted strings.",
+          "DoctrineProfile remains the policy owner: the same neutral Zod observation resolves differently under enabled and disabled profile data without mutating evidence.",
+          "The existing FE-EFFECT-1.1 compatibility consumer reuses the adapter and its existing fixtures and registry linkage remain green.",
+          "The pushed packet passes 55 TypeScript package targets, doctrine profile 5/5, frontend registry 7/7, locked package checks, affected-package fmt, diff-check, and exact-file Enforcer gates with 0 findings, violations, and warnings.",
+          "The graph lifecycle can advance past UL09 without promoting adapter recognition into universal coverage, native CyberSkills implementation, executable proof, external execution, or security outcomes."
+        ],
+        "does_not_prove": [
+          "Default production scan wiring is not globally rewired to select a doctrine profile for every framework adapter.",
+          "Universal parser coverage, every schema library, Python/Pydantic implementation, live third-party execution, or production security behavior.",
+          "Native CyberSkills implementation, executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall plan completion.",
           "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
         ]
       },
