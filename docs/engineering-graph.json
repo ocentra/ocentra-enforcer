@@ -51,7 +51,8 @@
       "WP/CP11/IF-cloud-security/B07": "validation",
       "WP/CP11/IF-compliance-governance/B01": "validation",
       "WP/CP11/IF-container-security/B01": "validation",
-      "WP/CP11/IF-container-security/B02": "validation"
+      "WP/CP11/IF-container-security/B02": "validation",
+      "WP/CP11/IF-container-security/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -688,6 +689,34 @@
           "native implementation or executable-proof coverage",
           "live Kubernetes, Docker, Calico, Cosign, OPA, Gatekeeper, pod-security, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution",
           "policy correctness, provenance, signature, access, isolation, admission, detection, hardening, remediation, containment, recovery, attribution, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-17": {
+        "run_id": "20260809-engineering-graph-cp11-batch-17-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "98a8c269aa77ac15da8dc6fdb436209ad138af64",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-02/decomposition.json",
+          "proof/cyberskills/cp08/batch-03/decomposition.json",
+          "proof/cyberskills/cp08/batch-14/decomposition.json",
+          "proof/cyberskills/cp08/batch-49/decomposition.json",
+          "proof/cyberskills/cp11/batch-17/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-17 validates ten unique container-security records with retained advisory and manual boundaries",
+          "CP11 batch-17 artifact SHA-256 is 481cb15322a6dd0c73d5a9c73d8227b4ce0152182cdc1844d7cf9d37d411d6c2 and is 14468 bytes",
+          "graph.next advances from container-security B03 to B04 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live Kubernetes, Docker, Calico, Cosign, OPA, Gatekeeper, kube-bench, Trivy, Grype, Tetragon/eBPF, etcd, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution",
+          "policy correctness, provenance, signature, access, isolation, admission, benchmark, vulnerability coverage, detection efficacy, hardening, remediation, containment, recovery, attribution, or security outcomes"
         ]
       }
     }
