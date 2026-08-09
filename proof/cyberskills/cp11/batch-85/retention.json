@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-85",
+  "family": "IF/threat-intelligence",
+  "baselineCommit": "26f041d5f4d9b603127c0c302335f12f83f280a2",
+  "scope": "Retain the fourth threat-intelligence, TAXII, lifecycle, ATT&CK, OpenCTI, dark-web, MISP, AI-assisted OSINT, brand-monitoring, indicator, and reputation guidance from immutable CP08 evidence; native predicates are limited to static supplied IOC, source, citation, actor, relationship, feed, enrichment, confidence, provenance, scope, lifecycle, ATT&CK, brand, indicator, reputation, and evidence manifests; live OSINT, TAXII servers, OpenCTI, dark web, MISP, AI/LLM, brand monitoring, Shodan, DNS, WHOIS, hosting, enrichment, network, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-taxii-server-with-opentaxii",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-taxii-server-with-opentaxii/SKILL.md",
+        "sha256": "4829e268f93dc45c61634a55225b22e099256a20b6f95e200b53c240702ba8c0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing TAXII Server with OpenTAXII:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-threat-intelligence-lifecycle-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-threat-intelligence-lifecycle-management/SKILL.md",
+        "sha256": "d47e64ae53a50f23796872b4272f7f2786349ff61ce8c117de77503351504825",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Threat Intelligence Lifecycle Management:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "managing-intelligence-lifecycle",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-intelligence-lifecycle/SKILL.md",
+        "sha256": "ea35b92c49d47f44fab5db9564455f5321b462caf379ba2d8ab358d6ca3de53d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Managing Intelligence Lifecycle:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "mapping-mitre-attack-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/mapping-mitre-attack-techniques/SKILL.md",
+        "sha256": "4519a862b814c40385deb42f358a23cce6db4f2b04c2ccb18c23a48fe48feee3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Mapping MITRE ATT&CK Techniques:L50"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "modeling-threats-with-opencti",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/modeling-threats-with-opencti/SKILL.md",
+        "sha256": "80a07baa912aff58838465b79ff303994d47bd7afe893296b97f914ccd82a3af",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Modeling Threats with OpenCTI:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "monitoring-darkweb-sources",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/monitoring-darkweb-sources/SKILL.md",
+        "sha256": "d778a2fb6ec2a8edf07118da5a560832f6930634ce2678e702529804648d1bc6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Monitoring Dark Web Sources:L72"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "operationalizing-misp-threat-feeds",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/operationalizing-misp-threat-feeds/SKILL.md",
+        "sha256": "cd21b30ef9c40a7c32eb08081a20acc41b6db58f1305a3e5fed225427eba1d01",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Operationalizing MISP Threat Feeds:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-ai-driven-osint-correlation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ai-driven-osint-correlation/SKILL.md",
+        "sha256": "96d041525e37944a080fff486854e5935880ba449a7d032efac0576ce1df5981",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing AI-Driven OSINT Correlation:L51"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-brand-monitoring-for-impersonation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-brand-monitoring-for-impersonation/SKILL.md",
+        "sha256": "aa50148754f553d26661af277c8586dd640bc5d28b5b87391be01759b120880b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Brand Monitoring for Impersonation:L63"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-dark-web-monitoring-for-threats",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dark-web-monitoring-for-threats/SKILL.md",
+        "sha256": "09cda63a123b0943c73b62f84b00ac302ee1f18ff972040fc2b0fb0ca4435534",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Dark Web Monitoring for Threats:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, lifecycle, ATT&CK, OSINT, campaign, brand, indicator, reputation, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, OSINT, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OSINT, TAXII, OpenCTI, dark-web, MISP, AI/LLM, brand-monitoring, Shodan, DNS, WHOIS, hosting, enrichment, feed, network, or production execution.",
+    "No source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, report accuracy, detection, compromise, dissemination, remediation, or security outcome is proved.",
+    "This packet covers the fourth ten threat-intelligence skills; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, intelligence platforms, feeds, enrichment services, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
+

@@ -119,7 +119,8 @@
     "WP/CP11/IF-threat-hunting/B06": "validation",
     "WP/CP11/IF-threat-intelligence/B01": "validation",
     "WP/CP11/IF-threat-intelligence/B02": "validation",
-    "WP/CP11/IF-threat-intelligence/B03": "validation"
+    "WP/CP11/IF-threat-intelligence/B03": "validation",
+    "WP/CP11/IF-threat-intelligence/B04": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2794,6 +2795,41 @@
         ],
         "artifact_sha256": "49c3834e3730088c2d0691bb8f6908e86d03faacfb07dc91fea7b820748b3e6b",
         "artifact_bytes": 17565,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-85": {
+        "run_id": "20260809-engineering-graph-cp11-batch-85-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "26f041d5f4d9b603127c0c302335f12f83f280a2",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-40/decomposition.json",
+          "proof/cyberskills/cp08/batch-70/decomposition.json",
+          "proof/cyberskills/cp08/batch-71/decomposition.json",
+          "proof/cyberskills/cp08/batch-72/decomposition.json",
+          "proof/cyberskills/cp08/batch-73/decomposition.json",
+          "proof/cyberskills/cp08/batch-74/decomposition.json",
+          "proof/cyberskills/cp11/batch-85/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-85 validates ten unique threat-intelligence records with ten retained advisory and ten retained manual components",
+          "CP11 batch-85 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from threat-intelligence B04 to B05 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live OSINT, TAXII, OpenCTI, dark-web, MISP, AI/LLM, brand-monitoring, Shodan, DNS, WHOIS, hosting, enrichment, feed, network, or production execution",
+          "source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, report accuracy, detection, compromise, dissemination, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "d8c3217dce0dcd3722b4cfd4e89ede9839cf497ee74448a72a7fbfe8b0514922",
+        "artifact_bytes": 17302,
         "skill_count": 10,
         "component_count": 40
       }
