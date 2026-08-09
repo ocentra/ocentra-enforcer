@@ -127,7 +127,8 @@
     "WP/CP11/IF-vulnerability-management/B02": "validation",
     "WP/CP11/IF-vulnerability-management/B03": "validation",
     "WP/CP11/IF-web-application-security/B01": "validation",
-    "WP/CP11/IF-web-application-security/B02": "validation"
+      "WP/CP11/IF-web-application-security/B02": "validation",
+      "WP/CP11/IF-web-application-security/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3077,6 +3078,41 @@
         ],
         "artifact_sha256": "65862533b0a36bdc5dbcb1fd426391ba8a9627e3d745aa731643e7746b209d7c",
         "artifact_bytes": 14274,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-93": {
+        "run_id": "20260809-engineering-graph-cp11-batch-93-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "b7b2da663b3ec87fabcaa552af487b3f3979c0e7",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-41/decomposition.json",
+          "proof/cyberskills/cp08/batch-51/decomposition.json",
+          "proof/cyberskills/cp08/batch-74/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp08/batch-78/decomposition.json",
+          "proof/cyberskills/cp08/batch-79/decomposition.json",
+          "proof/cyberskills/cp11/batch-93/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-93 validates ten unique web-application-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-93 source SHA-256, anchors, Apache-2.0 labels, and CP08 provenance are validated from immutable evidence",
+          "graph.next advances from web-application-security B02 to B03 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live applications, endpoints, browsers, servers, Burp, ZAP, fuzzers, payloads, databases, DNS, registries, credentials, sessions, or production execution",
+          "exploitability, authentication, authorization, parser behavior, data exposure, vulnerability, finding, discovery, ownership, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "e5b7e2908b22e700d61cc82708c849af7455e6c568a575d689ef7f24e8c1d939",
+        "artifact_bytes": 16402,
         "skill_count": 10,
         "component_count": 40
       }
