@@ -58,7 +58,8 @@
       "WP/CP11/IF-cryptography/B02": "validation",
       "WP/CP11/IF-data-protection/B01": "validation",
       "WP/CP11/IF-deception-technology/B01": "validation",
-      "WP/CP11/IF-devsecops/B01": "validation"
+      "WP/CP11/IF-devsecops/B01": "validation",
+      "WP/CP11/IF-devsecops/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -887,6 +888,35 @@
           "native implementation or executable-proof coverage",
           "live GitLab, GitHub Actions, Aqua, AFL++, GitHub Advanced Security, IaC scanner, Open Policy Agent, Gitleaks, Semgrep, container registry, artifact store, CI runner, deployment, endpoint, cloud, or production execution",
           "vulnerability truth, secret detection, signature validity, provenance validity, CI security, artifact integrity, release approval, remediation, rollback, compliance, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-24": {
+        "run_id": "20260809-engineering-graph-cp11-batch-24-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "1b50830dff9a488c1c74884cb71e2f3b2a540975",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-03/decomposition.json",
+          "proof/cyberskills/cp08/batch-36/decomposition.json",
+          "proof/cyberskills/cp08/batch-50/decomposition.json",
+          "proof/cyberskills/cp08/batch-71/decomposition.json",
+          "proof/cyberskills/cp08/batch-79/decomposition.json",
+          "proof/cyberskills/cp11/batch-24/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-24 validates eight unique DevSecOps records with eight retained advisory and eight retained manual components",
+          "CP11 batch-24 artifact SHA-256 is 33a9c11b9b71ab340e2a48e843389fa8cc8065ffda05c6e0df803b079af83a93 and is 12233 bytes",
+          "graph.next advances from DevSecOps B02 to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live OWASP ZAP, GitHub Actions, container scanner, Snyk, OWASP Threat Dragon, Trivy, GitHub workflow, registry, artifact store, CI runner, deployment, endpoint, cloud, or production execution",
+          "vulnerability truth, dependency risk, image hardening, threat-model validity, secret detection, provenance validity, CI security, artifact integrity, release approval, remediation, rollback, compliance, or security outcomes"
         ]
       }
     }
