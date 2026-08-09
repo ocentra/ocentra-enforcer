@@ -124,7 +124,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let next = graph.next_json()?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "WP/CP11/IF-cloud-security/B01");
+    assert_eq!(next["selected"]["id"], "WP/CP11/IF-cloud-security/B02");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
