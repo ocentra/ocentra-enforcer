@@ -135,11 +135,15 @@
       "kind": "workpack",
       "title": "Repo-owned overall engineering graph bootstrap",
       "path": "docs/program-engineering-graph.json",
-      "state": "active",
+      "state": "done",
       "parent": "GOAL/enforcer-system",
       "metadata": {
         "scope": "cross-program Enforcer system graph; CyberSkills remains a subordinate graph",
         "subgraphs": ["docs/engineering-graph.json"],
+        "completionEvidence": {
+          "mergeCommit": "2ba966a4379398ecc20fdc8f51a3c60e05945cb1",
+          "checks": ["program-graph tests 6/6", "graph validate 0 issues", "route PASS", "source-shape 0 findings", "scan 0 findings"]
+        },
         "completionContract": {
           "requiredPaths": [
             "docs/program-engineering-graph.json",
