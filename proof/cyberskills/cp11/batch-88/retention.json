@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-88",
+  "family": "IF/vulnerability-management",
+  "baselineCommit": "3378f55b8b93273c562752be9377301ac49f9473",
+  "scope": "Retain the first vulnerability-management, patching, SLA, dashboard, exception, exploitation-reference, attack-path, cloud-posture, continuous-validation, and prioritization guidance from immutable CP08 evidence; native predicates are limited to static supplied asset, vulnerability, finding, score, exception, remediation, SLA, owner, patch, asset, path, cloud, validation, evidence, and notification manifests; live scanners, Greenbone, DefectDojo, Metasploit, XM Cyber, CSPM, BAS, EPSS, ticketing, endpoint, cloud, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "building-patch-tuesday-response-process",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-patch-tuesday-response-process/SKILL.md",
+        "sha256": "a6337a3371248836dff4fc7865ca5a09ce5f58e35f63de54fe254d1ecc10bcbe",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Patch Tuesday Response Process:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-vulnerability-aging-and-sla-tracking",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-aging-and-sla-tracking/SKILL.md",
+        "sha256": "5682910bf893e15c96bc04f39a413e4dc1cbf6af5b9d675e125e9ad8edcf00a1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Vulnerability Aging and SLA Tracking:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-vulnerability-dashboard-with-defectdojo",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-dashboard-with-defectdojo/SKILL.md",
+        "sha256": "ffac7a59f45337cf45fcd0199db2b85a7de790c098b9773837be97a55bdca4d7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Vulnerability Dashboard with DefectDojo:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-vulnerability-exception-tracking-system",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-vulnerability-exception-tracking-system/SKILL.md",
+        "sha256": "3ec50ca329a0d96c5b90b34b1035a4abbf78e9490d63fd2a5273d7e90db76d8d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Vulnerability Exception Tracking System:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "exploiting-vulnerabilities-with-metasploit-framework",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-vulnerabilities-with-metasploit-framework/SKILL.md",
+        "sha256": "0eb225298ad32c90a48aee3b27461013f27b56e7a809392f5d49d13a99e02e55",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Exploiting Vulnerabilities with Metasploit Framework:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-62/decomposition.json",
+        "artifactSha256": "57b725c6fb1aa6777e36474888053a306bc60e4654cd111a0b26dc5ed5c2aa16"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-attack-path-analysis-with-xm-cyber",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-attack-path-analysis-with-xm-cyber/SKILL.md",
+        "sha256": "ba7a152ee244c865c658e8c85a8528696b528ecad622aa9ecf506bc79bf04760",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Attack Path Analysis with XM Cyber:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-cloud-vulnerability-posture-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-vulnerability-posture-management/SKILL.md",
+        "sha256": "45193f9b63488373cf803d69007910150e0c6ff9fe11923c1ee205290aa1c301",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Cloud Vulnerability Posture Management:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-27/decomposition.json",
+        "artifactSha256": "f2da8b0c94a52862d08b619990e25798f0047ecb0502b6fa9fc82fcc86fe6956"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-continuous-security-validation-with-bas",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-continuous-security-validation-with-bas/SKILL.md",
+        "sha256": "d40ac11a4b274937f9846ea0ab7b9e4c9d9acbfadc528c764733db078d380569",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Continuous Security Validation with BAS:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-epss-score-for-vulnerability-prioritization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-epss-score-for-vulnerability-prioritization/SKILL.md",
+        "sha256": "f712ac926f9b71fc2864d95ceb79dd037259d99e469a6c682f7d7239b6a50451",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing EPSS Score for Vulnerability Prioritization:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-patch-management-workflow",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-patch-management-workflow/SKILL.md",
+        "sha256": "6929ede1a11539ddf7f305938184e33fe0501b31f916cd34a6c2f280d3957fdf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Patch Management Workflow:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability, patch, exception, risk, prioritization, attack-path, cloud-posture, and remediation guidance as advisory.",
+        "notProved": [
+          "No live vulnerability, exploitability, score truth, priority truth, remediation, SLA, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ownership, legal/safety/privacy review, data handling, analyst validation, severity, exception, remediation, SLA, escalation, disclosure, and rollback decisions.",
+        "notProved": [
+          "No human authorization, asset ownership, severity, exception, remediation, SLA, approval, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live scanner, Greenbone, DefectDojo, Metasploit, XM Cyber, CSPM, BAS, EPSS, ticketing, endpoint, cloud, exploit, or production execution.",
+    "No vulnerability truth, exploitability, priority, remediation, SLA, delivery, approval, attack path, cloud posture, or security outcome is proved.",
+    "This packet covers the first ten vulnerability-management skills; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, platforms, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
