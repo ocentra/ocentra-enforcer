@@ -16,6 +16,11 @@
       "state": "active",
       "managerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
       "currentBundle": "Graph first; then approved CP08 decomposition and native dogfood",
+      "subgraph": {
+        "path": "docs/engineering-graph.json",
+        "ownerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
+        "authority": "Cyber-owned executable graph; imported here as a subordinate program graph"
+      },
       "authority": "User-directed Cyber graph instruction plus the CyberSkills plan/workpack proof contract"
     },
     {
@@ -49,7 +54,7 @@
   "crossEdges": [
     {
       "from": "WP/cyberskills-parity-plan/CP08",
-      "to": "WP/cyberskills-graph-bootstrap",
+      "to": "WP/enforcer-graph-bootstrap",
       "kind": "depends-on",
       "reason": "The Cyber corpus expansion starts only after the repo-owned engineering graph is validated."
     },
@@ -126,15 +131,15 @@
   },
   "extraNodes": [
     {
-      "id": "WP/cyberskills-graph-bootstrap",
+      "id": "WP/enforcer-graph-bootstrap",
       "kind": "workpack",
       "title": "Repo-owned overall engineering graph bootstrap",
       "path": "docs/program-engineering-graph.json",
       "state": "active",
-      "parent": "PROGRAM/cyberskills",
+      "parent": "GOAL/enforcer-system",
       "metadata": {
-        "managerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
-        "scope": "overall Enforcer system graph including CyberSkills",
+        "scope": "cross-program Enforcer system graph; CyberSkills remains a subordinate graph",
+        "subgraphs": ["docs/engineering-graph.json"],
         "completionContract": {
           "requiredPaths": [
             "docs/program-engineering-graph.json",

@@ -17,13 +17,15 @@ workpack indexes, proof artifacts, AGENTS rules, or frozen authorities.
 `docs/program-engineering-graph.json` is the graph configuration. The CLI
 imports every directory under `docs/plans`, parses each existing
 `WORKPACK_INDEX.md`, and reports plans without an index instead of inventing
-workpacks. CyberSkills is a first-class program node and its graph-first
-manager instruction is represented in the program metadata. The Universal
+workpacks. CyberSkills is a first-class program node and its manager-owned
+subgraph is referenced as subordinate input at `docs/engineering-graph.json`;
+this control plane does not reimplement Cyber's graph. The Universal
 Language and Rust/MJS programs are represented alongside it, as is the
 Enforcer self-host plan.
 
-The graph also records the boss-owned bootstrap workpack that validates this
-control plane before Cyber corpus work is considered ready. The two Cyber rows
+The graph also records the boss-owned cross-program bootstrap workpack that
+validates this control plane before dependent corpus work is considered ready.
+The two Cyber rows
 already accepted by the committed program dashboard are explicit lifecycle
 overrides with their source recorded; ordinary index labels are never treated
 as completion proof by themselves. Plans without an index (currently the UI

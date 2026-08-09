@@ -49,4 +49,6 @@ ownership. Do not mark work complete by editing graph data; completion requires
 the workpack contract and its retained evidence. If a plan index is missing or
 an imported dependency is ambiguous, report it as a blocker instead of
 guessing. CyberSkills, Universal Language Enforcement, Rust/MJS parity, and
-the Enforcer self-host plan are all represented in this control plane.
+the Enforcer self-host plan are all represented in this control plane. The
+Cyber-specific executable graph remains owned by the Cyber manager and is
+referenced as a subordinate graph; this control plane must not duplicate it.
