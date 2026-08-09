@@ -124,7 +124,8 @@
     "WP/CP11/IF-threat-intelligence/B05": "validation",
     "WP/CP11/IF-threat-intelligence/B06": "validation",
     "WP/CP11/IF-vulnerability-management/B01": "validation",
-    "WP/CP11/IF-vulnerability-management/B02": "validation"
+    "WP/CP11/IF-vulnerability-management/B02": "validation",
+    "WP/CP11/IF-vulnerability-management/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2972,6 +2973,39 @@
         "artifact_bytes": 15205,
         "skill_count": 10,
         "component_count": 40
+      },
+      "TEST/CP11/retention-batch-90": {
+        "run_id": "20260809-engineering-graph-cp11-batch-90-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "8f5a0a6f6ccfcba27c283d5307e6b8f5466cedd7",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-33/decomposition.json",
+          "proof/cyberskills/cp08/batch-50/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp08/batch-82/decomposition.json",
+          "proof/cyberskills/cp11/batch-90/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-90 validates five unique vulnerability-management records with five retained advisory and five retained manual components",
+          "CP11 batch-90 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next closes vulnerability-management retention and advances to web-application-security B01 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live Nikto, web application, Nessus, CVSS, SSVC, scanner, endpoint, network, ticketing, credential, or production execution",
+          "vulnerability truth, exploitability, priority, remediation, SLA, delivery, approval, assessment, notification, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "4d5c4f192dbd0d8aa5510db55908a98f987e2475df9da48f2b1aaf477711fdaa",
+        "artifact_bytes": 9022,
+        "skill_count": 5,
+        "component_count": 20
       }
     }
   }
