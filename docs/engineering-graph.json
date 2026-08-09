@@ -37,6 +37,7 @@
     "lifecycle": {
       "WP/CP00": "done",
       "EXT/UL00": "done",
+      "EXT/UL01": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3375,6 +3376,38 @@
           "UL01 or UL02 completion",
           "native parser, validator, rule, or CyberSkills implementation",
           "executable proof, live tools, or security outcomes"
+        ]
+      },
+      "TEST/UL01/current-doctrine-profile": {
+        "run_id": "20260809-ul01-doctrine-profile",
+        "command": "cargo test --locked -p enforcer-config --test doctrine_profile -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "2edd1aba40fc786da94cc8ac40eee4efe93d750b",
+        "artifact": "proof/universal-language/ul01/current-reconciliation.json",
+        "artifact_sha256": "fb3363daf45276510a62b92552cf2656610b2bcc8933509c12761550791cea1e",
+        "source_paths": [
+          "proof/universal-language/ul01/current-reconciliation.json",
+          "crates/enforcer-domain/src/doctrine_profile_types.rs",
+          "crates/enforcer-config/src/boundary/doctrine_profile.rs",
+          "crates/enforcer-config/tests/doctrine_profile.rs",
+          "crates/enforcer-config/profiles/doctrine/effect-default.json",
+          "crates/enforcer-config/profiles/doctrine/zod.json",
+          "crates/enforcer-config/tests/fixtures/doctrine_profile/malformed-unknown-family.json",
+          "crates/enforcer-config/tests/fixtures/doctrine_profile/disabled-requirement.json"
+        ],
+        "proves": [
+          "UL01 typed doctrine profiles resolve shape requirements through selected profile data",
+          "the existing Effect compatibility default and explicit Zod profile round-trip with four requirements each",
+          "malformed family, incompatible language/family, and unexplained disabling are rejected or remain visibly disabled",
+          "DoctrineVerdict is opaque and can only be constructed by resolver-owned private constructors",
+          "graph.next advances deterministically to EXT/UL02 without promoting universal language coverage or CyberSkills parity",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "framework detection accuracy or universal parser/language coverage",
+          "UL02 or later workpack completion",
+          "native CyberSkills implementation, executable proof, external tools, or security outcomes"
         ]
       }
     }

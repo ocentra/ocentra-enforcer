@@ -3,7 +3,7 @@
 use enforcer_config::doctrine_profile::{decode_profile, encode_profile, load_embedded_profile};
 use enforcer_domain::config_types::{ConfigProfileName, ConfigSource};
 use enforcer_domain::doctrine_profile_types::{
-    DoctrineFrameworkFamily, DoctrineLanguage, DoctrineRequirement, DoctrineVerdict,
+    DoctrineFrameworkFamily, DoctrineLanguage, DoctrineRequirement,
 };
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
@@ -23,30 +23,27 @@ fn the_same_shape_flips_only_with_the_selected_profile() -> Result<(), Box<dyn s
     let effect = decode_profile(EFFECT_DEFAULT, &source)?;
     let zod = decode_profile(ZOD_PROFILE, &source)?;
 
-    assert_eq!(
-        effect.resolve(
+    assert!(effect
+        .resolve(
             DoctrineLanguage::Typescript,
             DoctrineRequirement::SchemaRequired,
             DoctrineFrameworkFamily::Zod,
-        ),
-        DoctrineVerdict::Rejected
-    );
-    assert_eq!(
-        zod.resolve(
+        )
+        .is_rejected());
+    assert!(zod
+        .resolve(
             DoctrineLanguage::Typescript,
             DoctrineRequirement::SchemaRequired,
             DoctrineFrameworkFamily::Zod,
-        ),
-        DoctrineVerdict::Accepted
-    );
-    assert_eq!(
-        effect.resolve(
+        )
+        .is_accepted());
+    assert!(effect
+        .resolve(
             DoctrineLanguage::Typescript,
             DoctrineRequirement::SchemaRequired,
             DoctrineFrameworkFamily::Effect,
-        ),
-        DoctrineVerdict::Accepted
-    );
+        )
+        .is_accepted());
     Ok(())
 }
 
@@ -54,14 +51,13 @@ fn the_same_shape_flips_only_with_the_selected_profile() -> Result<(), Box<dyn s
 fn disabled_requirement_is_visible_and_explained() -> Result<(), Box<dyn std::error::Error>> {
     let source = source();
     let profile = decode_profile(DISABLED, &source)?;
-    assert_eq!(
-        profile.resolve(
+    assert!(profile
+        .resolve(
             DoctrineLanguage::Typescript,
             DoctrineRequirement::ParseAtBoundary,
             DoctrineFrameworkFamily::Effect,
-        ),
-        DoctrineVerdict::RequirementDisabled
-    );
+        )
+        .is_requirement_disabled());
     let policy = profile
         .requirements()
         .find(|(requirement, _)| **requirement == DoctrineRequirement::ParseAtBoundary)
