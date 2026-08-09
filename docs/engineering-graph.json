@@ -89,7 +89,8 @@
       "WP/CP11/IF-ot-ics-security/B01": "validation",
       "WP/CP11/IF-ot-ics-security/B02": "validation",
       "WP/CP11/IF-ot-ics-security/B03": "validation",
-      "WP/CP11/IF-penetration-testing/B01": "validation"
+      "WP/CP11/IF-penetration-testing/B01": "validation",
+      "WP/CP11/IF-penetration-testing/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1824,6 +1825,40 @@
           "CP11 batch-54 validates ten unique penetration-testing records with ten retained advisory and ten retained manual components",
           "CP11 batch-54 artifact SHA-256 is d6b1ed2200f4372002d18078ce8e3ed7aefc6ebcbd377f648c0e9daa015d4941 and is 15907 bytes",
           "graph.next advances from penetration-testing B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, social channel, wireless interface, or production execution",
+          "exploitability, credential capture, compromise, attribution, detection efficacy, remediation success, safety outcome, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-55": {
+        "run_id": "20260809-engineering-graph-cp11-batch-55-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "57c1cdb91b57fbe463125c15b5532b27bbaf7c16",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-51/decomposition.json",
+          "proof/cyberskills/cp08/batch-62/decomposition.json",
+          "proof/cyberskills/cp08/batch-66/decomposition.json",
+          "proof/cyberskills/cp08/batch-72/decomposition.json",
+          "proof/cyberskills/cp08/batch-73/decomposition.json",
+          "proof/cyberskills/cp08/batch-76/decomposition.json",
+          "proof/cyberskills/cp08/batch-77/decomposition.json",
+          "proof/cyberskills/cp08/batch-79/decomposition.json",
+          "proof/cyberskills/cp08/batch-80/decomposition.json",
+          "proof/cyberskills/cp11/batch-55/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-55 validates ten unique penetration-testing records with ten retained advisory and ten retained manual components",
+          "CP11 batch-55 artifact SHA-256 and source evidence are validated from the immutable CP08 batch artifacts",
+          "graph.next advances from penetration-testing B02 to B03 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
