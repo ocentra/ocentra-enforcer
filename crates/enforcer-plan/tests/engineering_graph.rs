@@ -6,7 +6,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use enforcer_plan::graph::{CyberPlanGraph, NodeId, NodeKind};
+use enforcer_plan::graph::{CyberPlanGraph, DerivedState, NodeId, NodeKind};
 
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -1321,9 +1321,11 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
 ) -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
+    let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "EXT/UL03");
+    assert_eq!(ul03.state, DerivedState::Validation);
+    assert_eq!(next["selected"]["id"], "EXT/UL07");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

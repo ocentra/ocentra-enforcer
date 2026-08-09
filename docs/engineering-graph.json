@@ -39,6 +39,7 @@
       "EXT/UL00": "done",
       "EXT/UL01": "done",
       "EXT/UL02": "done",
+      "EXT/UL03": "validation",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3453,6 +3454,33 @@
           "UL03 extraction, parser behavior preservation, grammar-license preservation, or G3 Stage 5 parity",
           "CP02 consumer adoption, native CyberSkills implementation, executable proof, external tools, or security outcomes",
           "stale historical plan-state labels are a completion authority; they remain unchanged",
+          "overall Universal Language or CyberSkills plan completion"
+        ]
+      },
+      "TEST/UL03/syntax-extraction-gates": {
+        "run_id": "20260809-ul03-syntax-extraction-gates",
+        "command": "cargo test --locked -p enforcer-syntax --quiet; cargo check --locked -p enforcer-memory --tests; targeted enforcer-memory parser/language/graph tests; RUN_LIVE_PARITY=1 feature_parity_harness; cargo tree; cargo metadata --format-version 1 --no-deps; cargo fmt --check; git diff --check; scoped Enforcer scan",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "bfba374a8dda0c088f512e200a7f9badf46c7d6f",
+        "source_paths": [
+          "proof/universal-language/ul03/inventory.json",
+          "proof/universal-language/ul03/provenance.json",
+          "crates/enforcer-syntax/Cargo.toml",
+          "crates/enforcer-syntax/src/lib.rs",
+          "crates/enforcer-memory/Cargo.toml",
+          "crates/enforcer-memory/tests/feature_parity_harness.rs"
+        ],
+        "proves": [
+          "UL03 shared syntax ownership is already integrated in enforcer-syntax without a duplicate memory grammar owner",
+          "enforcer-syntax tests pass 30/30 and the targeted enforcer-memory parser, language, graph, and property suites pass 156/156",
+          "the recorded Stage 5 parity harness passes 23/23 rows with 15 equal, 8 better, and 0 worse or unrunnable",
+          "the dependency boundary, metadata, formatting, diff, and scoped Enforcer checks for the extraction surface pass",
+          "graph.next must keep UL03 in validation until the unresolved full-package QA evidence is separately repaired"
+        ],
+        "does_not_prove": [
+          "full cargo test --locked -p enforcer-memory --tests closure: the current shallow history run reached 67 passed and 2 failed historical QA rows (QA-159 and the aggregate QA gate reporting QA-063, QA-159, QA-166, QA-167, QA-168, QA-171, QA-172, and QA-173 as unrunnable)",
+          "new parser facts, validator integration, enforcement rules, native CyberSkills implementation, executable proof, external tools, or security outcomes",
           "overall Universal Language or CyberSkills plan completion"
         ]
       }
