@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-62",
+  "family": "IF/ransomware-defense",
+  "baselineCommit": "389766f7800562b3e0c192e15c762fe3323636c6",
+  "scope": "Retain advisory and manual ransomware-defense content from immutable CP08 evidence; native predicates are limited to static supplied kill-switch, tabletop, recovery, backup, containment, authorization, owner, stop-condition, and evidence manifests; no live endpoint, network, malware, backup, restore, production, or recovery execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-ransomware-kill-switch-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ransomware-kill-switch-detection/SKILL.md",
+        "sha256": "c0dabbefe668b205d89db668ff42a9caccb2295209352ed19a0e8471f367e597",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Ransomware Kill Switch Detection:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain kill-switch detection planning, signal review, defensive response, evidence, and recovery guidance.",
+        "notProved": ["No live kill-switch signal, detection efficacy, containment, or recovery outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, endpoint and network scope, legal/safety review, stop conditions, analyst validation, containment, restoration, and remediation decisions.",
+        "notProved": ["No human detection, containment, restore, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ransomware-tabletop-exercise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ransomware-tabletop-exercise/SKILL.md",
+        "sha256": "8e0866f1547c9b34c6ac6dfd79db15a8cfa65f843c76ec79b6897d414f28955d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Ransomware Tabletop Exercise:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain tabletop exercise, communications, decision, containment, recovery, evidence, and defensive readiness guidance.",
+        "notProved": ["No tabletop participation, decision quality, readiness, containment, or recovery outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written exercise authorization, named participants, scope, legal/safety review, stop conditions, analyst facilitation, notification, recovery, and disclosure decisions.",
+        "notProved": ["No human exercise, authorization, decision, containment, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "recovering-from-ransomware-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/recovering-from-ransomware-attack/SKILL.md",
+        "sha256": "4444d8ef7116fe7dd74f475d00c134f827a9c3f30bf7c711dfa6fcde955fe063",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Recovering from Ransomware Attack:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ransomware recovery, restoration, evidence, communications, validation, resilience, and defensive remediation guidance.",
+        "notProved": ["No live recovery, restore integrity, business continuity, RTO/RPO, or remediation outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require business and incident-owner authorization, system and data scope, legal/privacy review, restore validation, containment, rollback, notification, and disclosure decisions.",
+        "notProved": ["No human recovery, restore, containment, rollback, notification, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, network, host, malware, backup, restore, tabletop, packet, production, or recovery execution.",
+    "No ransomware prevention, detection, attribution, containment, backup integrity, restore integrity, RTO/RPO, remediation success, safety outcome, or security outcome is proved.",
+    "The ransomware-defense family is catalog-covered for retained advisory/manual evidence only; no native or executable-proof coverage is claimed.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, endpoint/network/backup systems, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
