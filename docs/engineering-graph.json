@@ -48,7 +48,8 @@
       "WP/CP11/IF-cloud-security/B04": "validation",
       "WP/CP11/IF-cloud-security/B05": "validation",
       "WP/CP11/IF-cloud-security/B06": "validation",
-      "WP/CP11/IF-cloud-security/B07": "validation"
+      "WP/CP11/IF-cloud-security/B07": "validation",
+      "WP/CP11/IF-compliance-governance/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -601,6 +602,33 @@
           "native implementation or executable-proof coverage",
           "live AWS, Azure, Kubernetes, Lambda, container registry, Defender, IAM, cloud provider, account, tenant, identity, credential, policy, image, signer, admission controller, scanner, endpoint, network, session, containment, remediation, recovery, or production execution",
           "permission, access, least privilege, vulnerability, signature, provenance, posture, compliance, detection, exploitation, attribution, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-14": {
+        "run_id": "20260809-engineering-graph-cp11-batch-14-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "0565734c842e2f2544d88c87ce4972b51e523499",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-48/decomposition.json",
+          "proof/cyberskills/cp08/batch-71/decomposition.json",
+          "proof/cyberskills/cp08/batch-78/decomposition.json",
+          "proof/cyberskills/cp11/batch-14/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-14 validates ten unique compliance-governance records with retained advisory and manual boundaries",
+          "CP11 batch-14 artifact SHA-256 is a8be0f0ac2c12bf1542fc1d9b856ec44a0e753e1288b7318336c00199190017c and is 17829 bytes",
+          "graph.next advances from compliance-governance B01 to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live assessor, regulator, auditor, GRC, scanner, ticketing, cloud, host, endpoint, system, data, evidence, vendor, legal, privacy, or production execution",
+          "compliance, certification, authorization, risk, maturity, control operation, audit, attestation, legal conclusion, remediation, approval, or security outcomes"
         ]
       }
     }
