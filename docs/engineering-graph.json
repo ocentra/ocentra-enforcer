@@ -72,7 +72,8 @@
       "WP/CP11/IF-identity-access-management/B02": "validation",
       "WP/CP11/IF-identity-access-management/B03": "validation",
       "WP/CP11/IF-identity-access-management/B04": "validation",
-      "WP/CP11/IF-incident-response/B01": "validation"
+      "WP/CP11/IF-incident-response/B01": "validation",
+      "WP/CP11/IF-incident-response/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1308,6 +1309,39 @@
           "CP11 batch-37 validates ten unique incident-response records with ten retained advisory and ten retained manual components",
           "CP11 batch-37 artifact SHA-256 is 9ef83b8a757188b24ce52a7d0da04eaeaa24f43ad8921c32f2ac435ef43ac2b1 and is 13524 bytes",
           "graph.next advances from incident-response B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live detection, investigation, attribution, triage, containment, eradication, recovery, acquisition, endpoint, network, cloud, SIEM, or production execution",
+          "incident severity, compromise, IOC validity, timeline truth, legal conclusion, privacy conclusion, remediation success, RTO/RPO, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-38": {
+        "run_id": "20260809-engineering-graph-cp11-batch-38-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "49f447089a7c8953422924336780ebfcb104927f",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-08/decomposition.json",
+          "proof/cyberskills/cp08/batch-10/decomposition.json",
+          "proof/cyberskills/cp08/batch-18/decomposition.json",
+          "proof/cyberskills/cp08/batch-23/decomposition.json",
+          "proof/cyberskills/cp08/batch-35/decomposition.json",
+          "proof/cyberskills/cp08/batch-56/decomposition.json",
+          "proof/cyberskills/cp08/batch-60/decomposition.json",
+          "proof/cyberskills/cp08/batch-71/decomposition.json",
+          "proof/cyberskills/cp11/batch-38/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-38 validates ten unique incident-response records with ten retained advisory and ten retained manual components",
+          "CP11 batch-38 artifact SHA-256 is 3cc1d52043919a8c122dd76f000e5e01d97a7795ed8aa7e56ef7399dbd4b5177 and is 13908 bytes",
+          "graph.next advances from incident-response B02 to B03 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
