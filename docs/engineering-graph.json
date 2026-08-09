@@ -54,7 +54,8 @@
       "WP/CP11/IF-container-security/B02": "validation",
       "WP/CP11/IF-container-security/B03": "validation",
       "WP/CP11/IF-container-security/B04": "validation",
-      "WP/CP11/IF-cryptography/B01": "validation"
+      "WP/CP11/IF-cryptography/B01": "validation",
+      "WP/CP11/IF-cryptography/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -767,6 +768,33 @@
           "CP11 batch-19 validates ten unique cryptography records with retained advisory and manual boundaries",
           "CP11 batch-19 artifact SHA-256 is ec84e82b8ed04173cf27bb475a441590633190edb3ba8026bd2fcd4bffaaa527 and is 14393 bytes",
           "graph.next advances from cryptography B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live OpenSSL, HSM, KMS, TLS endpoint, certificate authority, messaging service, identity provider, hashcat, cloud, device, key store, network, or production cryptographic execution",
+          "key strength, confidentiality, authenticity, integrity, signature, certificate, rotation, encryption, decryption, authentication, interoperability, migration, audit, cracking, compliance, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-20": {
+        "run_id": "20260809-engineering-graph-cp11-batch-20-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "edb3221b5415f8dd8cfca4f5621b5ad426f74998",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-25/decomposition.json",
+          "proof/cyberskills/cp08/batch-45/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp11/batch-20/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-20 validates six unique cryptography records with retained advisory and manual boundaries",
+          "CP11 batch-20 artifact SHA-256 is ef5390ff68aaf5600f77bf4aa5a9be2b2f4e5cb146fab68efa40206c5c262bd1 and is 8782 bytes",
+          "graph.next advances from cryptography B02 to data-protection B01 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
