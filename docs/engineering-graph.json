@@ -46,6 +46,7 @@
       "EXT/UL07": "done",
       "EXT/UL08": "done",
       "EXT/UL09": "done",
+      "EXT/UL10": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -3684,6 +3685,40 @@
           "Default production scan wiring is not globally rewired to select a doctrine profile for every framework adapter.",
           "Universal parser coverage, every schema library, Python/Pydantic implementation, live third-party execution, or production security behavior.",
           "Native CyberSkills implementation, executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall plan completion.",
+          "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+        ]
+      },
+      "TEST/UL10/existing-language-routing": {
+        "run_id": "20260809-ul10-existing-language-routing",
+        "command": "cargo test --locked -p enforcer-lang-dart --all-targets -- --nocapture; cargo check --locked -p enforcer-scan; cargo test --locked -p enforcer-scan --lib -- --nocapture; cargo test --locked -p enforcer-scan --test router -- --nocapture; cargo test --locked -p enforcer-scan --test canonical_language_routing -- --nocapture; cargo fmt -p enforcer-domain -p enforcer-scan -- --check; git diff --check; exact-file Enforcer route, strict scan, source-shape, secrets, validation-bypass, placeholder-implementation, and reexports",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "30bdaf408034e536b305d6ba3db06e0c2e57ce32",
+        "source_paths": [
+          "Cargo.lock",
+          "crates/enforcer-domain/src/scan_types.rs",
+          "crates/enforcer-scan/Cargo.toml",
+          "crates/enforcer-scan/src/engine.rs",
+          "crates/enforcer-scan/src/router/mod.rs",
+          "crates/enforcer-scan/src/router/plan.rs",
+          "crates/enforcer-scan/src/router/native_tie.rs",
+          "crates/enforcer-scan/src/router/identity.rs",
+          "crates/enforcer-scan/src/boundary/router.rs",
+          "crates/enforcer-scan/src/boundary/native_scan.rs",
+          "crates/enforcer-scan/tests/router.rs",
+          "crates/enforcer-scan/tests/canonical_language_routing.rs",
+          "proof/universal-language/ul10/current-language-routing.json"
+        ],
+        "proves": [
+          "The existing Dart validator family is wired into the Rust scan engine, selected by .dart classification, and emits a real DART-BANG-1.1 finding on an inline fail fixture.",
+          "Dart route planning selects the Dart, security, literal-floor, and security-audit packs and the typed Dart native-tool route.",
+          "The canonical scan-family wire enum preserves a typed Dart route through serialization and deserialization.",
+          "The existing Dart fixture-parity suite, enforcer-scan library and routing suites, locked check, formatting, diff, and exact-file Enforcer gates pass at the pushed packet commit."
+        ],
+        "does_not_prove": [
+          "CFML or Go routing; explicit MCP Dart language-filter support; Dart SDK/analyzer/live external tooling or production security outcomes.",
+          "All Dart rule semantics beyond the existing fixture suite and DART-BANG-1.1 engine execution.",
+          "Native CyberSkills implementation, executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall program completion.",
           "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
         ]
       },
