@@ -59,7 +59,8 @@
       "WP/CP11/IF-data-protection/B01": "validation",
       "WP/CP11/IF-deception-technology/B01": "validation",
       "WP/CP11/IF-devsecops/B01": "validation",
-      "WP/CP11/IF-devsecops/B02": "validation"
+      "WP/CP11/IF-devsecops/B02": "validation",
+      "WP/CP11/IF-digital-forensics/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -917,6 +918,34 @@
           "native implementation or executable-proof coverage",
           "live OWASP ZAP, GitHub Actions, container scanner, Snyk, OWASP Threat Dragon, Trivy, GitHub workflow, registry, artifact store, CI runner, deployment, endpoint, cloud, or production execution",
           "vulnerability truth, dependency risk, image hardening, threat-model validity, secret detection, provenance validity, CI security, artifact integrity, release approval, remediation, rollback, compliance, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-25": {
+        "run_id": "20260809-engineering-graph-cp11-batch-25-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "f7e10b332b0b3744097cf2268f18ec7dcc422c9b",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-08/decomposition.json",
+          "proof/cyberskills/cp08/batch-12/decomposition.json",
+          "proof/cyberskills/cp08/batch-15/decomposition.json",
+          "proof/cyberskills/cp08/batch-23/decomposition.json",
+          "proof/cyberskills/cp11/batch-25/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-25 validates ten unique digital-forensics records with ten retained advisory and ten retained manual components",
+          "CP11 batch-25 artifact SHA-256 is 7bd77903b153139f5c743bc82fdd3bc5baac503d84162c968072bdfba1f30933 and is 15062 bytes",
+          "graph.next advances from digital-forensics B01 to the next dependency-legal packet without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live disk imaging, browser, Autopsy, Docker, email, Linux host or kernel, file system, MFT, PST, memory, device, cloud, endpoint, network, packet, database, acquisition, imaging, or production execution",
+          "credential extraction, file recovery, timeline or hash truth, chain-of-custody validity, evidentiary validity, attribution, remediation, recovery, privacy, legal, or security outcomes"
         ]
       }
     }
