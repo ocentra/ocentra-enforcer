@@ -80,7 +80,8 @@
       "WP/CP11/IF-malware-analysis/B03": "validation",
       "WP/CP11/IF-malware-analysis/B04": "validation",
       "WP/CP11/IF-mobile-security/B01": "validation",
-      "WP/CP11/IF-mobile-security/B02": "validation"
+      "WP/CP11/IF-mobile-security/B02": "validation",
+      "WP/CP11/IF-network-security/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1554,6 +1555,35 @@
           "native implementation or executable-proof coverage",
           "live mobile device, app, exploit, credential, session, traffic, endpoint, runtime instrumentation, or external execution",
           "vulnerability validity, exploitability, certificate-pinning bypass success, malware detection efficacy, privacy conclusion, legal conclusion, remediation success, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-46": {
+        "run_id": "20260809-engineering-graph-cp11-batch-46-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "b435bf61d6a700fca56e5596b47a6e2f523d7a5f",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-13/decomposition.json",
+          "proof/cyberskills/cp08/batch-24/decomposition.json",
+          "proof/cyberskills/cp08/batch-46/decomposition.json",
+          "proof/cyberskills/cp08/batch-56/decomposition.json",
+          "proof/cyberskills/cp11/batch-46/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-46 validates ten unique network-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-46 artifact SHA-256 is 06d08b6585109146328ce8a51b3d26be3d3cc6d70b6eb284c37cb4ee00507802 and is 15961 bytes",
+          "graph.next advances from network-security B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live network, host, DNS, packet capture, scanner, exploit, credential, session, wireless interface, or production execution",
+          "network discovery truth, traffic truth, detection efficacy, intrusion attribution, segmentation enforcement, firewall correctness, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
