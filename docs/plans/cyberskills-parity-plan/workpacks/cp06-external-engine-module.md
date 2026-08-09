@@ -47,16 +47,16 @@ Define the security consumer contract that CP07 and CP10 use: required tool capa
 
 ## Requirement Checklist
 
-- [ ] No shell command string; executable and arguments are typed/separate.
-- [ ] No inherited environment except an explicit allowlist.
-- [ ] No network or credential access by default.
-- [ ] Output parsing is bounded and schema-versioned.
-- [ ] Unknown severity/taxonomy is explicit, not silently coerced.
-- [ ] Engine file/location data is normalized without discarding provenance.
-- [ ] Required-versus-optional availability is policy, not an adapter guess.
-- [ ] A failed or absent engine cannot satisfy an engine component.
-- [ ] Recorded fixtures cannot claim they represent a live run.
-- [ ] Dogfood excludes only external artifacts/wrappers, not Rust gates.
+- [x] No shell command string; executable and arguments are typed/separate.
+- [x] No inherited environment except an explicit allowlist.
+- [x] No network or credential access by default.
+- [x] Output parsing is bounded and schema-versioned.
+- [x] Unknown severity/taxonomy is explicit, not silently coerced.
+- [x] Engine file/location data is normalized without discarding provenance.
+- [x] Required-versus-optional availability is policy, not an adapter guess.
+- [x] A failed or absent engine cannot satisfy an engine component.
+- [x] Recorded fixtures cannot claim they represent a live run.
+- [x] Dogfood excludes only external artifacts/wrappers, not Rust gates.
 
 ## Acceptance And Proof
 

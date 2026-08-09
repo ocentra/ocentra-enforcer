@@ -41,6 +41,7 @@
       "EXT/UL02": "done",
       "EXT/UL03": "validation",
       "EXT/UL07": "done",
+      "WP/CP06": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3515,6 +3516,92 @@
         "does_not_prove": [
           "native CyberSkills implementation, executable proof, third-party engine execution, live security behavior, or overall parity",
           "downstream UL04-UL14 or CP02-CP13 completion; UL03 remains validation because its historical full-suite evidence is unresolved",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP06/security-engine-consumer-contract": {
+        "run_id": "20260809-cp06-security-engine-consumer-contract",
+        "command": "cargo test --locked -p enforcer-harness --test cp06_security_consumer_contract -- --nocapture; cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture; cargo fmt -p enforcer-harness -- --check; git diff --check; scoped Enforcer route, strict scan, source-shape, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d14140f36d0865b03105d20ea0049dfe197687f2",
+        "source_paths": [
+          "crates/enforcer-harness/tests/cp06_security_consumer_contract.rs",
+          "crates/enforcer-harness/tests/fixtures/cp06_security_consumer/security-engine-contract.json",
+          "proof/cyberskills/cp06/current-reconciliation.json",
+          "proof/universal-language/ul07/current-reconciliation.json",
+          "crates/enforcer-domain/src/harness_types.rs",
+          "crates/enforcer-harness/src/execution.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/seam.rs"
+        ],
+        "proves": [
+          "CP06 declares a versioned CyberSkills security consumer contract and conformance fixture over the accepted UL07 seam",
+          "the focused CP06 contract suite passes 6/6 and the existing CyberSkills adapter suite passes 4/4",
+          "required engine demand blocks every non-running availability state and policy-rejected or dishonest recorded outcomes",
+          "graph.next can advance past CP06 without promoting external execution into native implementation or proof"
+        ],
+        "does_not_prove": [
+          "a live third-party engine, engine correctness, native CyberSkills implementation, or executable security proof",
+          "CP07, CP09, CP10, CP11, CP12, CP13, or overall CyberSkills parity",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP06/consumer-conformance-tests": {
+        "run_id": "20260809-cp06-consumer-conformance-tests",
+        "command": "cargo test --locked -p enforcer-harness --test cp06_security_consumer_contract -- --nocapture; cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d14140f36d0865b03105d20ea0049dfe197687f2",
+        "source_paths": [
+          "crates/enforcer-harness/tests/cp06_security_consumer_contract.rs",
+          "crates/enforcer-harness/tests/fixtures/cp06_security_consumer/security-engine-contract.json",
+          "proof/cyberskills/cp06/current-reconciliation.json"
+        ],
+        "proves": [
+          "the CP06 consumer conformance tests pass 6/6 and the existing CyberSkills adapter compatibility tests pass 4/4",
+          "required engine demand rejects unavailable, policy-rejected, malformed, and dishonest recorded outcomes"
+        ],
+        "does_not_prove": [
+          "live external engine execution, native CyberSkills implementation, executable security proof, or security outcomes",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP06/ul07-acceptance-artifact": {
+        "run_id": "20260809-cp06-ul07-acceptance-artifact",
+        "command": "validated dependency on immutable proof/universal-language/ul07/current-reconciliation.json",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d14140f36d0865b03105d20ea0049dfe197687f2",
+        "source_paths": [
+          "proof/universal-language/ul07/current-reconciliation.json"
+        ],
+        "proves": [
+          "CP06 consumes the accepted UL07 typed availability, bounded request, recorded-output, and outcome seam",
+          "the CP06 packet does not create a second generic runner or engine registry"
+        ],
+        "does_not_prove": [
+          "a live third-party tool, external engine correctness, native CyberSkills implementation, or executable proof",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP06/plan-test": {
+        "run_id": "20260809-cp06-plan-test",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d14140f36d0865b03105d20ea0049dfe197687f2",
+        "source_paths": [
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "docs/plans/cyberskills-parity-plan/workpacks/cp06-external-engine-module.md"
+        ],
+        "proves": [
+          "the graph imports CP06's accepted evidence and advances graph.next past CP06 without promoting external execution into native implementation or executable proof",
+          "the CP06 requirement checklist is explicitly reconciled to the recorded consumer and UL07 evidence"
+        ],
+        "does_not_prove": [
+          "CP07 or later workpack completion, native CyberSkills implementation, overall parity, or security outcomes",
           "protected vendor source, which remains excluded and untouched"
         ]
       }
