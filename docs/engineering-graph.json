@@ -41,6 +41,7 @@
       "EXT/UL02": "done",
       "EXT/UL03": "done",
       "EXT/UL04": "done",
+      "EXT/UL05": "done",
       "EXT/UL07": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
@@ -3535,6 +3536,38 @@
           "validator or rule migration, native CyberSkills implementation, executable proof, or security outcomes",
           "overall Universal Language or CyberSkills plan completion",
           "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/UL05/analysis-bridge-gates": {
+        "run_id": "20260809-ul05-analysis-bridge-gates",
+        "command": "cargo test --locked -p enforcer-validator --tests; cargo test --locked -p enforcer-scan --test analysis_dispatch -- --nocapture; cargo check --locked -p enforcer-validator; cargo check --locked -p enforcer-scan; cargo clippy --locked -p enforcer-validator --all-targets -- -D warnings; cargo clippy --locked -p enforcer-scan --all-targets -- -D warnings; cargo fmt --check; git diff --check; scoped Enforcer route, source-shape, strict scan, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c5d9668434bc1c454e62a7f0b4d0b7586ec164dd",
+        "source_paths": [
+          "proof/universal-language/ul05/current-analysis-bridge.json",
+          "crates/enforcer-validator/src/analysis.rs",
+          "crates/enforcer-validator/src/validator.rs",
+          "crates/enforcer-validator/src/lib.rs",
+          "crates/enforcer-validator/tests/analysis_contract.rs",
+          "crates/enforcer-scan/src/analysis_cache.rs",
+          "crates/enforcer-scan/src/engine.rs",
+          "crates/enforcer-scan/src/lib.rs",
+          "crates/enforcer-scan/tests/analysis_dispatch.rs",
+          "docs/engineering-graph.json",
+          "crates/enforcer-plan/tests/engineering_graph.rs"
+        ],
+        "proves": [
+          "UL05 has one parse-once analysis bridge with explicit legacy, fact-backed, unavailable, and parser-failure outcomes.",
+          "Validator and scan focused contracts, package checks, clippy, formatting, diff, and scoped Enforcer gates pass.",
+          "The vendor-dependent dogfood tests remain an explicit protected-corpus prerequisite and are not treated as a pass when the corpus is absent.",
+          "graph.next advances to EXT/UL06 without promoting native implementation, executable proof, external execution, or security outcomes."
+        ],
+        "does_not_prove": [
+          "The two vendor-dependent enforcer-scan dogfood tests in this isolated corpus-absent worktree.",
+          "Any migrated validator, native CyberSkills implementation, executable proof, third-party engine execution, live behavior, or security outcome.",
+          "Overall Universal Language or CyberSkills plan completion.",
+          "The protected detecting-fileless-malware-techniques source, which remains excluded and untouched."
         ]
       },
       "TEST/UL07/current-harness-adapter-contract": {
