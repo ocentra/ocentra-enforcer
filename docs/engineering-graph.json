@@ -132,7 +132,8 @@
       "WP/CP11/IF-web-application-security/B04": "validation",
       "WP/CP11/IF-web-application-security/B05": "validation",
       "WP/CP11/IF-wireless-security/B01": "validation",
-      "WP/CP11/IF-zero-trust-architecture/B01": "validation"
+      "WP/CP11/IF-zero-trust-architecture/B01": "validation",
+      "WP/CP11/IF-zero-trust-architecture/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3247,6 +3248,38 @@
         "artifact_bytes": 15922,
         "skill_count": 10,
         "component_count": 40
+      },
+      "TEST/CP11/retention-batch-98": {
+        "run_id": "20260809-engineering-graph-cp11-batch-98-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "f66757fcc4eb1d81190ed0f8ccf9cdf1793568ad",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-09/decomposition.json",
+          "proof/cyberskills/cp08/batch-42/decomposition.json",
+          "proof/cyberskills/cp08/batch-68/decomposition.json",
+          "proof/cyberskills/cp11/batch-98/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-98 validates eight unique zero-trust-architecture records with eight retained advisory and eight retained manual components",
+          "CP11 batch-98 source SHA-256, anchors, Apache-2.0 labels, and CP08 provenance are validated from immutable evidence",
+          "graph.next advances past the completed zero-trust-architecture retention family without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live cloud providers, identity providers, devices, endpoints, networks, VPNs, gateways, sessions, SAML, mTLS, DNS, SaaS, credentials, tenants, targets, or production enforcement",
+          "identity, device posture, access, admission, federation, segmentation, policy, revocation, maturity, finding, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "2a6b2c6fe51eb21abbca12be4a4c417d401d8621eae97afe54e16807b4ca79c1",
+        "artifact_bytes": 13220,
+        "skill_count": 8,
+        "component_count": 32
       }
     }
   }
