@@ -94,7 +94,8 @@
       "WP/CP11/IF-penetration-testing/B03": "validation",
       "WP/CP11/IF-phishing-defense/B01": "validation",
       "WP/CP11/IF-phishing-defense/B02": "validation",
-      "WP/CP11/IF-privacy-compliance/B01": "validation"
+      "WP/CP11/IF-privacy-compliance/B01": "validation",
+      "WP/CP11/IF-purple-team/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1983,6 +1984,32 @@
           "native implementation or executable-proof coverage",
           "live personal-data access, subject portal, identity, data store, processor, regulator, production application, or privacy-authority execution",
           "legal conclusion, consent truth, data-flow truth, privacy risk, compliance posture, redaction completeness, remediation success, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      }
+      ,"TEST/CP11/retention-batch-60": {
+        "run_id": "20260809-engineering-graph-cp11-batch-60-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "389a87c774888454743524cd9addc27de502cd42",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-77/decomposition.json",
+          "proof/cyberskills/cp11/batch-60/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-60 validates one unique purple-team record with one retained advisory and one retained manual component",
+          "CP11 batch-60 artifact SHA-256 and source evidence are validated from the immutable CP08 batch artifact",
+          "graph.next advances from purple-team B01 to the next dependency-legal intent family without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live endpoint, cloud, host, device, packet, production, or external-service execution, exploit delivery, credential capture, or compromise",
+          "control effectiveness, telemetry completeness, detection efficacy, attribution, remediation success, safety outcome, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
