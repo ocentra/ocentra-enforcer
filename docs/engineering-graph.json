@@ -131,7 +131,8 @@
       "WP/CP11/IF-web-application-security/B03": "validation",
       "WP/CP11/IF-web-application-security/B04": "validation",
       "WP/CP11/IF-web-application-security/B05": "validation",
-      "WP/CP11/IF-wireless-security/B01": "validation"
+      "WP/CP11/IF-wireless-security/B01": "validation",
+      "WP/CP11/IF-zero-trust-architecture/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3215,6 +3216,37 @@
         "artifact_bytes": 4905,
         "skill_count": 2,
         "component_count": 8
+      },
+      "TEST/CP11/retention-batch-97": {
+        "run_id": "20260809-engineering-graph-cp11-batch-97-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "a4a9e0098777957c53d83189a8e02d2e5ec8eb70",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-05/decomposition.json",
+          "proof/cyberskills/cp08/batch-19/decomposition.json",
+          "proof/cyberskills/cp11/batch-97/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-97 validates ten unique zero-trust-architecture records with ten retained advisory and ten retained manual components",
+          "CP11 batch-97 source SHA-256, anchors, Apache-2.0 labels, and CP08 provenance are validated from immutable evidence",
+          "graph.next advances from zero-trust-architecture B01 to B02 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live cloud providers, identity providers, devices, endpoints, networks, VPNs, gateways, sessions, SAML, mTLS, DNS, SaaS, credentials, tenants, or production enforcement",
+          "identity, device posture, access, admission, federation, segmentation, policy, revocation, maturity, finding, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "6d3f6781a8965067a958875b3e5149d1c598af5ba367b5c82c023a0100893900",
+        "artifact_bytes": 15922,
+        "skill_count": 10,
+        "component_count": 40
       }
     }
   }
