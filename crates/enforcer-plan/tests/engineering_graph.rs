@@ -72,6 +72,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
     let cp11_ot_ics_security_batch03 = NodeId::new("WP/CP11/IF-ot-ics-security/B03")?;
     let cp11_penetration_testing_batch01 = NodeId::new("WP/CP11/IF-penetration-testing/B01")?;
     let cp11_penetration_testing_batch02 = NodeId::new("WP/CP11/IF-penetration-testing/B02")?;
+    let cp11_penetration_testing_batch03 = NodeId::new("WP/CP11/IF-penetration-testing/B03")?;
 
     assert_eq!(status.workpacks.len(), 14 + status.intent.packet_count);
     assert_eq!(status.catalog.total, 817);
@@ -691,6 +692,20 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
             .map(String::as_str),
         Some("10")
     );
+    let cp11_penetration_testing_batch03_node = graph
+        .node(&cp11_penetration_testing_batch03)
+        .ok_or("CP11 penetration-testing B03 packet must be imported")?;
+    assert_eq!(
+        cp11_penetration_testing_batch03_node.kind,
+        NodeKind::Workpack
+    );
+    assert_eq!(
+        cp11_penetration_testing_batch03_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("3")
+    );
     assert!(
         status.validation.is_valid(),
         "{:?}",
@@ -706,7 +721,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let next = graph.next_json()?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "WP/CP11/IF-penetration-testing/B03");
+    assert_eq!(next["selected"]["id"], "WP/CP11/IF-phishing-defense/B01");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
