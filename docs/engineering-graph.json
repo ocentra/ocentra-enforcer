@@ -3323,6 +3323,34 @@
           "external tool execution, live system behavior, or security outcomes",
           "protected detecting-fileless-malware-techniques is available or readable"
         ]
+      },
+      "TEST/UL00/current-source-reconciliation": {
+        "run_id": "20260809-ul00-current-source-reconciliation",
+        "command": "cargo test --locked -p enforcer-rules --test language_capability_inventory -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5b86d0074b75dc8d97f0a53e6effc62345363bcf",
+        "source_paths": [
+          "proof/universal-language/ul00/current-reconciliation.json",
+          "proof/universal-language/ul00/inventory.json",
+          "crates/enforcer-rules/tests/language_capability_inventory.rs",
+          "crates/enforcer-syntax/registry/languages.json",
+          "crates/enforcer-syntax/src/parsers/mod.rs",
+          "crates/enforcer-syntax/Cargo.toml",
+          "crates/enforcer-syntax/src/languages/spec.rs",
+          "crates/enforcer-syntax/vendor"
+        ],
+        "proves": [
+          "graph.next-selected UL00 has a current source-authority reconciliation rather than a stale pre-UL03 inventory claim",
+          "160 parser identities, 156 structural identities, four explicit no-parse identities, 146 grammar declarations, 145 bindings, 473 vendor files, 51 vendor directories, and 155 LangSpec rows are machine-validated",
+          "historical UL00 evidence remains preserved and current enforcer-syntax authority is explicit",
+          "no UL00 lifecycle, implementation, proof, parity, or protected-source status is auto-promoted"
+        ],
+        "does_not_prove": [
+          "UL00 or later Universal Language workpack completion",
+          "semantic parser facts, validator reachability, native CyberSkills implementation, or executable proof",
+          "external tools, live systems, or security outcomes"
+        ]
       }
     }
   }
