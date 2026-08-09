@@ -100,7 +100,8 @@
       "WP/CP11/IF-ransomware-defense/B02": "validation",
       "WP/CP11/IF-red-teaming/B01": "validation",
       "WP/CP11/IF-red-teaming/B02": "validation",
-      "WP/CP11/IF-red-teaming/B03": "validation"
+      "WP/CP11/IF-red-teaming/B03": "validation",
+      "WP/CP11/IF-red-teaming/B04": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2155,6 +2156,36 @@
           "CP11 batch-65 validates ten unique red-teaming records with ten retained advisory and ten retained manual components",
           "CP11 batch-65 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
           "graph.next advances from red-teaming B03 to B04 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live credential access, C2, persistence, reconnaissance, exploit delivery, lateral movement, endpoint, network, directory, packet, or production execution",
+          "compromise, credential capture, privilege escalation, attribution, detection efficacy, containment, remediation success, safety outcome, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-66": {
+        "run_id": "20260809-engineering-graph-cp11-batch-66-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c9895d8b9581e38ec58c21ce3ff08c2ed0842f3d",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-12/decomposition.json",
+          "proof/cyberskills/cp08/batch-40/decomposition.json",
+          "proof/cyberskills/cp08/batch-77/decomposition.json",
+          "proof/cyberskills/cp08/batch-78/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp11/batch-66/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-66 validates five unique red-teaming records with five retained advisory and five retained manual components",
+          "CP11 batch-66 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from red-teaming B04 to the next dependency-legal intent family without promoting decomposition to implementation or proof",
           "protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
