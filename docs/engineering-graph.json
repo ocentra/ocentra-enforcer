@@ -95,7 +95,8 @@
       "WP/CP11/IF-phishing-defense/B01": "validation",
       "WP/CP11/IF-phishing-defense/B02": "validation",
       "WP/CP11/IF-privacy-compliance/B01": "validation",
-      "WP/CP11/IF-purple-team/B01": "validation"
+      "WP/CP11/IF-purple-team/B01": "validation",
+      "WP/CP11/IF-ransomware-defense/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1986,8 +1987,8 @@
           "legal conclusion, consent truth, data-flow truth, privacy risk, compliance posture, redaction completeness, remediation success, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
-      }
-      ,"TEST/CP11/retention-batch-60": {
+      },
+      "TEST/CP11/retention-batch-60": {
         "run_id": "20260809-engineering-graph-cp11-batch-60-focused",
         "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
         "status": "passed",
@@ -2010,6 +2011,34 @@
           "native implementation or executable-proof coverage",
           "live endpoint, cloud, host, device, packet, production, or external-service execution, exploit delivery, credential capture, or compromise",
           "control effectiveness, telemetry completeness, detection efficacy, attribution, remediation success, safety outcome, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-61": {
+        "run_id": "20260809-engineering-graph-cp11-batch-61-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "018a782e11540257c00e0b6900cf870275c19a5d",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-18/decomposition.json",
+          "proof/cyberskills/cp08/batch-29/decomposition.json",
+          "proof/cyberskills/cp08/batch-67/decomposition.json",
+          "proof/cyberskills/cp11/batch-61/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-61 validates ten unique ransomware-defense records with ten retained advisory and ten retained manual components",
+          "CP11 batch-61 artifact SHA-256 and source evidence are validated from the immutable CP08 batch artifacts",
+          "graph.next advances from ransomware-defense B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live endpoint, network, host, backup, restore, honeypot, canary, packet, production, or recovery execution",
+          "ransomware prevention, detection, encryption, attribution, containment, backup integrity, restore integrity, RTO/RPO, remediation success, safety outcome, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
