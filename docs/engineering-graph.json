@@ -43,7 +43,8 @@
       "WP/CP11/IF-api-security/B03": "validation",
       "WP/CP11/IF-blockchain-security/B01": "validation",
       "WP/CP11/IF-cloud-security/B01": "validation",
-      "WP/CP11/IF-cloud-security/B02": "validation"
+      "WP/CP11/IF-cloud-security/B02": "validation",
+      "WP/CP11/IF-cloud-security/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -451,6 +452,34 @@
           "native implementation or executable-proof coverage",
           "live cloud provider, tenant, identity, storage, workload, Kubernetes, Terraform, SIEM, scanner, endpoint, network, credential, session, containment, remediation, recovery, or production execution",
           "whole-skill parity, compliance, detection, attribution, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-09": {
+        "run_id": "20260809-engineering-graph-cp11-batch-09-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5bfe74b3a8b8a55dc218b7290dd987bd2fcf81fc",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-04/decomposition.json",
+          "proof/cyberskills/cp08/batch-09/decomposition.json",
+          "proof/cyberskills/cp08/batch-37/decomposition.json",
+          "proof/cyberskills/cp08/batch-59/decomposition.json",
+          "proof/cyberskills/cp11/batch-09/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-09 validates ten unique cloud-security records with retained advisory and manual boundaries",
+          "CP11 batch-09 artifact SHA-256 is 32d6036896fa3aa7a283973a313211f034820994dc7d675c6bda9f7b63701752 and is 17767 bytes",
+          "graph.next advances from cloud-security B03 to B04 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live cloud provider, tenant, identity, storage, workload, function, Kubernetes, Terraform, SIEM, scanner, endpoint, network, credential, session, containment, remediation, recovery, or production execution",
+          "whole-skill parity, compliance, detection, exploitation, attribution, remediation outcomes, or security outcomes"
         ]
       }
     }
