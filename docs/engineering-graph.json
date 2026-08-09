@@ -47,6 +47,7 @@
       "EXT/UL08": "done",
       "EXT/UL09": "done",
       "EXT/UL10": "done",
+      "EXT/UL13": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -3719,6 +3720,35 @@
           "CFML or Go routing; explicit MCP Dart language-filter support; Dart SDK/analyzer/live external tooling or production security outcomes.",
           "All Dart rule semantics beyond the existing fixture suite and DART-BANG-1.1 engine execution.",
           "Native CyberSkills implementation, executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall program completion.",
+          "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+        ]
+      },
+      "TEST/UL13/graph-route-coverage": {
+        "run_id": "20260809-ul13-graph-route-coverage",
+        "command": "cargo test --locked -p enforcer-validator --test semantic_predicate -- --nocapture; cargo test --locked -p enforcer-memory --test semantic_provider -- --nocapture; cargo test --locked -p enforcer-validator --lib; cargo test --locked -p enforcer-memory --lib; cargo check --locked -p enforcer-domain -p enforcer-validator -p enforcer-memory; cargo fmt -p enforcer-domain -p enforcer-validator -p enforcer-memory -- --check; git diff --check; exact-file Enforcer route, strict scan, source-shape, secrets, validation-bypass, placeholder-implementation, and reexports",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "1ea12fd3f55afed76f88fc038b178e3586de5acb",
+        "source_paths": [
+          "crates/enforcer-domain/src/lib.rs",
+          "crates/enforcer-domain/src/semantic_types.rs",
+          "crates/enforcer-validator/src/lib.rs",
+          "crates/enforcer-validator/src/semantic.rs",
+          "crates/enforcer-memory/src/lib.rs",
+          "crates/enforcer-memory/src/semantic_provider.rs",
+          "crates/enforcer-validator/tests/semantic_predicate.rs",
+          "crates/enforcer-memory/tests/semantic_provider.rs",
+          "proof/universal-language/ul13/graph-route-coverage.json"
+        ],
+        "proves": [
+          "A typed read-only CodeGraph provider carries the requested repository path, expected source commit, graph digest, schema version, edge counts, route-impact counts, and test-coverage signal.",
+          "The route-coverage predicate passes only for complete route impact with test coverage, fails for complete route impact without coverage, and returns no-claim for absent, partial, stale, cyclic, or unavailable evidence.",
+          "The UL13 focused tests, validator and memory package tests, locked checks, formatting, diff-check, and exact-file Enforcer gates pass at the pushed packet commit."
+        ],
+        "does_not_prove": [
+          "Graph completeness, security correctness, vulnerability absence, or production route behavior.",
+          "Persistence, SQLite, arbitrary process execution, external semantic tools, parser completeness, or live analysis.",
+          "Native CyberSkills implementation, executable CyberSkills proof, CP08 promotion, overall CyberSkills parity, or overall plan completion.",
           "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
         ]
       },

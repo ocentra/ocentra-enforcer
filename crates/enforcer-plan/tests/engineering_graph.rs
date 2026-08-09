@@ -1329,6 +1329,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let ul08 = graph.inspect(&NodeId::new("EXT/UL08")?)?;
     let ul09 = graph.inspect(&NodeId::new("EXT/UL09")?)?;
     let ul10 = graph.inspect(&NodeId::new("EXT/UL10")?)?;
+    let ul13 = graph.inspect(&NodeId::new("EXT/UL13")?)?;
     let cp06 = graph.inspect(&NodeId::new("WP/CP06")?)?;
 
     assert_eq!(next["decision"], "selected");
@@ -1340,8 +1341,9 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     assert_eq!(ul08.state, DerivedState::Done);
     assert_eq!(ul09.state, DerivedState::Done);
     assert_eq!(ul10.state, DerivedState::Done);
+    assert_eq!(ul13.state, DerivedState::Done);
     assert_eq!(cp06.state, DerivedState::Done);
-    assert_eq!(next["selected"]["id"], "EXT/UL13");
+    assert_eq!(next["selected"]["id"], "WP/CP02");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
