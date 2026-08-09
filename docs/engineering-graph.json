@@ -38,6 +38,7 @@
       "WP/CP00": "done",
       "EXT/UL00": "done",
       "EXT/UL01": "done",
+      "EXT/UL02": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3408,6 +3409,51 @@
           "framework detection accuracy or universal parser/language coverage",
           "UL02 or later workpack completion",
           "native CyberSkills implementation, executable proof, external tools, or security outcomes"
+        ]
+      },
+      "TEST/UL02/grammar-ownership-decision": {
+        "run_id": "20260809-ul02-grammar-ownership-audit",
+        "command": "coordination health plus read-only source/claim inventory for the frozen grammar surface",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "0ac339de23aa6f71dd50d267bfd7e84363258bfd",
+        "decision_commit": "0ac339de23aa6f71dd50d267bfd7e84363258bfd",
+        "decision_sha256": "c003242337ad07190364ef25e6683148166342146c5d0015cdd65090aea09115",
+        "decision_base_commit": "3d3de6e63ecd07da7e2f980007dfcdce68df4fff",
+        "decision_base_tree": "f042bab7c3e593fb77fdc99267c8d1a33830b98c",
+        "acceptance_event": "evt_da17dc38e30e465c9730ba1d1466a162",
+        "audit_head": "ca3e628e75e68f664f3c74d3d821be5700854065",
+        "canonical_head": "033d933d98d1e30fb904bdd6adefa4e06dc3f6c7",
+        "source_paths": [
+          "docs/plans/universal-language-enforcement-plan/decisions/UL02-GRAMMAR-OWNERSHIP.md",
+          "docs/plans/universal-language-enforcement-plan/README.md",
+          "docs/plans/cyberskills-parity-plan/README.md",
+          "docs/plans/universal-language-enforcement-plan/PLAN_STATE.md",
+          "docs/plans/universal-language-enforcement-plan/WORKPACK_INDEX.md",
+          "docs/plans/cyberskills-parity-plan/PLAN_STATE.md",
+          "docs/plans/cyberskills-parity-plan/WORKPACK_INDEX.md"
+        ],
+        "claim_audit": {
+          "grammar_surface_claims": 0,
+          "conflicts": 0,
+          "hard_conflicts": 0,
+          "merge_risks": 0,
+          "protected_source_present": false,
+          "uncommitted_grammar_work": false
+        },
+        "proves": [
+          "UL02 has one accepted decision record with an exact migration base/tree and G3-after-extraction sequencing",
+          "the decision names enforcer-memory as the frozen pre-transfer owner and enforcer-syntax as the sole post-transfer owner",
+          "the freeze, in-flight admission, ordered move, rollback, and post-transfer parity gates are explicit",
+          "the accepted decision is linked from both the Universal Language and CyberSkills plan readmes",
+          "the live audit found no overlapping grammar-surface claim, hard conflict, merge risk, or uncommitted grammar work",
+          "graph.next advances to UL03 without modifying grammar source or promoting parser parity, implementation, proof, or CyberSkills outcomes"
+        ],
+        "does_not_prove": [
+          "UL03 extraction, parser behavior preservation, grammar-license preservation, or G3 Stage 5 parity",
+          "CP02 consumer adoption, native CyberSkills implementation, executable proof, external tools, or security outcomes",
+          "stale historical plan-state labels are a completion authority; they remain unchanged",
+          "overall Universal Language or CyberSkills plan completion"
         ]
       }
     }

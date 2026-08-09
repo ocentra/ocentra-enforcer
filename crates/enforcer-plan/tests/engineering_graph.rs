@@ -158,6 +158,8 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
     assert_eq!(ul00_status["state"], "done");
     let ul01_status = graph.inspect_json(&ul01)?;
     assert_eq!(ul01_status["state"], "done");
+    let ul02_status = graph.inspect_json(&ul02)?;
+    assert_eq!(ul02_status["state"], "done");
     let ul02_node = graph
         .node(&ul02)
         .ok_or("UL02 dependency workpack must be imported")?;
@@ -1321,7 +1323,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let next = graph.next_json()?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "EXT/UL02");
+    assert_eq!(next["selected"]["id"], "EXT/UL03");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
