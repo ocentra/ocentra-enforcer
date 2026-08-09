@@ -79,7 +79,8 @@
       "WP/CP11/IF-malware-analysis/B02": "validation",
       "WP/CP11/IF-malware-analysis/B03": "validation",
       "WP/CP11/IF-malware-analysis/B04": "validation",
-      "WP/CP11/IF-mobile-security/B01": "validation"
+      "WP/CP11/IF-mobile-security/B01": "validation",
+      "WP/CP11/IF-mobile-security/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1520,6 +1521,33 @@
           "CP11 batch-44 validates ten unique mobile-security records with ten retained advisory and ten retained manual components",
           "CP11 batch-44 artifact SHA-256 is cfb24b165bc08ad66b6e87f46169fac2f3eb986e2c28ade08b61479f7dfb1513 and is 15864 bytes",
           "graph.next advances from mobile-security B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live mobile device, app, exploit, credential, session, traffic, endpoint, runtime instrumentation, or external execution",
+          "vulnerability validity, exploitability, certificate-pinning bypass success, malware detection efficacy, privacy conclusion, legal conclusion, remediation success, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-45": {
+        "run_id": "20260809-engineering-graph-cp11-batch-45-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "72b6c042e192ddc66d679758445ded596ab416fb",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-21/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp11/batch-45/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-45 validates three unique mobile-security records with three retained advisory and three retained manual components",
+          "CP11 batch-45 artifact SHA-256 is 8dea7340addb1f84107230d3dfa99fd06a46bcbe71cc990b750caba379dbcb70 and is 6071 bytes",
+          "graph.next advances from completed mobile-security retention to network-security B01 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
