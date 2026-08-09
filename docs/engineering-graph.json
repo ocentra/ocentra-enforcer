@@ -120,7 +120,8 @@
     "WP/CP11/IF-threat-intelligence/B01": "validation",
     "WP/CP11/IF-threat-intelligence/B02": "validation",
     "WP/CP11/IF-threat-intelligence/B03": "validation",
-    "WP/CP11/IF-threat-intelligence/B04": "validation"
+    "WP/CP11/IF-threat-intelligence/B04": "validation",
+    "WP/CP11/IF-threat-intelligence/B05": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2830,6 +2831,41 @@
         ],
         "artifact_sha256": "d8c3217dce0dcd3722b4cfd4e89ede9839cf497ee74448a72a7fbfe8b0514922",
         "artifact_bytes": 17302,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-86": {
+        "run_id": "20260809-engineering-graph-cp11-batch-86-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c5eb0b8e56b593ecd99c9e0a8fcc2703a2dd945d",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-30/decomposition.json",
+          "proof/cyberskills/cp08/batch-40/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp08/batch-76/decomposition.json",
+          "proof/cyberskills/cp08/batch-77/decomposition.json",
+          "proof/cyberskills/cp08/batch-79/decomposition.json",
+          "proof/cyberskills/cp11/batch-86/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-86 validates ten unique threat-intelligence records with ten retained advisory and ten retained manual components",
+          "CP11 batch-86 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from threat-intelligence B05 to B06 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live VirusTotal, Shodan, SpiderFoot, paste-site, credential, Atomic Red Team, MISP, STIX, TAXII, OSINT, enrichment, feed, network, dark-web, or production execution",
+          "source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, report accuracy, detection, compromise, dissemination, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "c45422669f439117d34128d403612ed95496467c31680b92ab051fe9dee1f7bb",
+        "artifact_bytes": 17498,
         "skill_count": 10,
         "component_count": 40
       }
