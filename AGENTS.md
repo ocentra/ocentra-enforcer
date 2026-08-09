@@ -30,3 +30,25 @@ enforcer verify --root . --profile strict
 
 Do not add bypass comments, skipped tests, broad waivers, re-export shims, or
 rule downgrades to make a gate pass.
+
+## Program graph control plane
+
+Before starting or reporting planned work, query the repo-owned graph:
+
+```text
+node scripts/program-graph.mjs validate
+node scripts/program-graph.mjs status
+node scripts/program-graph.mjs ready
+node scripts/program-graph.mjs why <graph-id>
+```
+
+The graph is authoritative for dependency/readiness/blocker state. Existing
+plan/workpack Markdown, tests, proof artifacts, ADRs, and coordination claims
+remain authoritative for intent, evidence, architecture, and execution
+ownership. Do not mark work complete by editing graph data; completion requires
+the workpack contract and its retained evidence. If a plan index is missing or
+an imported dependency is ambiguous, report it as a blocker instead of
+guessing. CyberSkills, Universal Language Enforcement, Rust/MJS parity, and
+the Enforcer self-host plan are all represented in this control plane. The
+Cyber-specific executable graph remains owned by the Cyber manager and is
+referenced as a subordinate graph; this control plane must not duplicate it.
