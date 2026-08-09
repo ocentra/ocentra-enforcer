@@ -1322,14 +1322,16 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
+    let ul04 = graph.inspect(&NodeId::new("EXT/UL04")?)?;
     let ul07 = graph.inspect(&NodeId::new("EXT/UL07")?)?;
     let cp06 = graph.inspect(&NodeId::new("WP/CP06")?)?;
 
     assert_eq!(next["decision"], "selected");
     assert_eq!(ul03.state, DerivedState::Done);
+    assert_eq!(ul04.state, DerivedState::Done);
     assert_eq!(ul07.state, DerivedState::Done);
     assert_eq!(cp06.state, DerivedState::Done);
-    assert_eq!(next["selected"]["id"], "EXT/UL04");
+    assert_eq!(next["selected"]["id"], "EXT/UL05");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

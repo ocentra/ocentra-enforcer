@@ -40,6 +40,7 @@
       "EXT/UL01": "done",
       "EXT/UL02": "done",
       "EXT/UL03": "done",
+      "EXT/UL04": "done",
       "EXT/UL07": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
@@ -3507,6 +3508,33 @@
         "does_not_prove": [
           "new parser facts, validator integration, enforcement rules, native CyberSkills implementation, executable proof, or security outcomes",
           "overall Universal Language or CyberSkills plan completion"
+        ]
+      },
+      "TEST/UL04/fact-contract-gates": {
+        "run_id": "20260809-ul04-fact-contract-gates",
+        "command": "cargo test --locked -p enforcer-syntax --tests; cargo check --locked -p enforcer-syntax; cargo clippy --locked -p enforcer-syntax --all-targets -- -D warnings; cargo fmt -p enforcer-domain -p enforcer-syntax -- --check; git diff --check; scoped Enforcer route, source-shape, strict scan, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "28994115f104cca0d290ad5a2a3511159ce0950e",
+        "source_paths": [
+          "proof/universal-language/ul04/current-fact-contract.json",
+          "crates/enforcer-domain/src/syntax_types.rs",
+          "crates/enforcer-syntax/src/facts/function_facts.rs",
+          "crates/enforcer-syntax/tests/fact_contract.rs",
+          "proof/universal-language/ul04/inventory.json",
+          "proof/universal-language/ul04/provenance.json"
+        ],
+        "proves": [
+          "the bounded function-declaration fact slice passes 30 enforcer-syntax tests across positive, malformed, unsafe, unavailable, property, and registry coverage",
+          "typed language/file/provider/version/outcome/provenance and checked byte/line-span contracts compile and pass cargo check and clippy",
+          "graph.next may advance past UL04 without promoting syntax facts into validator behavior, native CyberSkills implementation, executable proof, or security outcomes"
+        ],
+        "does_not_prove": [
+          "all language identities have a provider or this fact slice",
+          "lossless extraction of every ParsedFile collection beyond the declared function fact",
+          "validator or rule migration, native CyberSkills implementation, executable proof, or security outcomes",
+          "overall Universal Language or CyberSkills plan completion",
+          "protected vendor source, which remains excluded and untouched"
         ]
       },
       "TEST/UL07/current-harness-adapter-contract": {
