@@ -276,6 +276,7 @@ pub mod resolution;
 pub mod retriever;
 pub mod runtime_probe;
 pub mod search;
+pub mod semantic_provider;
 pub mod sessionstart;
 pub mod similarity;
 pub mod snippet;

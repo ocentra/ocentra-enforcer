@@ -32,4 +32,5 @@ pub mod analysis;
 pub mod doc_rule_parity;
 pub mod error;
 pub mod harness;
+pub mod semantic;
 pub mod validator;
