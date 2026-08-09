@@ -126,7 +126,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
     let cp11_zero_trust_architecture_batch02 =
         NodeId::new("WP/CP11/IF-zero-trust-architecture/B02")?;
 
-    assert_eq!(status.workpacks.len(), 14 + status.intent.packet_count);
+    assert_eq!(status.workpacks.len(), 29 + status.intent.packet_count);
     assert_eq!(status.catalog.total, 817);
     assert_eq!(status.catalog.source_unavailable, 1);
     assert_eq!(status.catalog.decomposed_complete, 758);
@@ -139,6 +139,30 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
     assert_eq!(status.intent.protected_excluded, 1);
     assert!(status.intent.native_packet_count > 0);
     assert!(status.intent.retention_packet_count > 0);
+    let ul00 = NodeId::new("EXT/UL00")?;
+    let ul02 = NodeId::new("EXT/UL02")?;
+    let ul00_node = graph
+        .node(&ul00)
+        .ok_or("UL00 dependency workpack must be imported")?;
+    assert_eq!(ul00_node.kind, NodeKind::Workpack);
+    assert_eq!(
+        ul00_node.metadata.get("routingStatus").map(String::as_str),
+        Some("READY-AUDIT")
+    );
+    assert_eq!(
+        ul00_node.metadata.get("routingOnly").map(String::as_str),
+        Some("true")
+    );
+    let ul02_node = graph
+        .node(&ul02)
+        .ok_or("UL02 dependency workpack must be imported")?;
+    assert_eq!(ul02_node.kind, NodeKind::Workpack);
+    assert_eq!(
+        ul02_node.metadata.get("routingStatus").map(String::as_str),
+        Some("DECISION-READY")
+    );
+    let ul02_why = graph.why(&ul02)?;
+    assert_eq!(ul02_why.chain, vec![ul02.clone(), ul00.clone()]);
     let cp01_node = graph
         .node(&cp01_batch05)
         .ok_or("CP01 batch-05 evidence node must be imported")?;
@@ -1291,8 +1315,8 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
 
-    assert_eq!(next["decision"], "blocked");
-    assert!(next["selected"].is_null());
+    assert_eq!(next["decision"], "selected");
+    assert_eq!(next["selected"]["id"], "EXT/UL00");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

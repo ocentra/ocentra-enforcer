@@ -13,6 +13,8 @@
   },
   "workpack_index": "docs/plans/cyberskills-parity-plan/WORKPACK_INDEX.md",
   "workpack_root": "docs/plans/cyberskills-parity-plan/workpacks",
+  "dependency_workpack_index": "docs/plans/universal-language-enforcement-plan/WORKPACK_INDEX.md",
+  "dependency_workpack_root": "docs/plans/universal-language-enforcement-plan/workpacks",
   "test_proof_expectations": "docs/plans/cyberskills-parity-plan/TEST_PROOF_EXPECTATIONS.md",
   "catalog_path": "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
   "intent_matrix_path": "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
@@ -24,6 +26,7 @@
   ],
   "import": {
     "workpacks": true,
+    "dependency_workpacks": true,
     "catalog": true,
     "cp01_proofs": true,
     "cp08_proofs": true,
@@ -3280,6 +3283,46 @@
         "artifact_bytes": 13220,
         "skill_count": 8,
         "component_count": 32
+      },
+      "TEST/GRAPH/universal-dependency-import": {
+        "run_id": "20260809-engineering-graph-universal-dependency-import-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "53892d74e56ba17e131f6f46845d7d73c8de1fd5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "docs/plans/universal-language-enforcement-plan/WORKPACK_INDEX.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul00-capability-truth-inventory.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul01-shape-driven-doctrine.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul02-grammar-ownership-transfer.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul03-shared-syntax-extraction.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul04-facts-and-parse-honesty.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul05-validator-analysis-bridge.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul06-canonical-language-routing.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul07-reuse-first-tool-adapter.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul08-fact-backed-rule-pilot.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul09-schema-framework-adapters.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul10-existing-language-routing.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul11-language-capability-waves.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul12-generic-fact-rule-families.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul13-graph-and-semantic-providers.md",
+          "docs/plans/universal-language-enforcement-plan/workpacks/ul14-closure-and-dogfood.md"
+        ],
+        "proves": [
+          "all 15 Universal Language workpacks are imported as first-class routing-only EXT/UL00 through EXT/UL14 nodes",
+          "graph.next selects EXT/UL00 as the first dependency-legal packet",
+          "unresolved or profile-derived dependencies remain explicit blockers and no lifecycle, implementation, proof, or parity status is promoted",
+          "the protected sourceUnavailable catalog row and protected vendor boundary remain excluded"
+        ],
+        "does_not_prove": [
+          "UL00 or any Universal Language workpack implementation",
+          "parser, grammar, validator, rule, native CyberSkills, or executable-proof parity",
+          "external tool execution, live system behavior, or security outcomes",
+          "protected detecting-fileless-malware-techniques is available or readable"
+        ]
       }
     }
   }

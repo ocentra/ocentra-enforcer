@@ -391,6 +391,8 @@ pub struct SeedNode {
 pub struct ImportConfig {
     /// Import CP00-CP13 Markdown workpacks.
     pub workpacks: bool,
+    /// Import the Universal Language dependency workpacks as first-class nodes.
+    pub dependency_workpacks: bool,
     /// Import the CyberSkills disposition catalog rows.
     pub catalog: bool,
     /// Import immutable CP08 decomposition evidence.
@@ -407,6 +409,7 @@ impl Default for ImportConfig {
     fn default() -> Self {
         Self {
             workpacks: true,
+            dependency_workpacks: false,
             catalog: true,
             cp08_proofs: true,
             cp01_proofs: true,
@@ -501,6 +504,10 @@ pub struct GraphManifest {
     pub workpack_index: GraphPath,
     /// Existing Markdown workpack directory.
     pub workpack_root: GraphPath,
+    /// Optional dependency-plan workpack index imported as first-class nodes.
+    pub dependency_workpack_index: Option<GraphPath>,
+    /// Optional dependency-plan workpack directory.
+    pub dependency_workpack_root: Option<GraphPath>,
     /// Existing proof/gate table.
     pub test_proof_expectations: GraphPath,
     /// Existing v3 disposition ledger.
@@ -548,6 +555,19 @@ impl GraphManifest {
         {
             return Err(GraphError::InvalidValue(
                 "manifest contains an unsafe intent matrix path".to_owned(),
+            ));
+        }
+        if self
+            .dependency_workpack_index
+            .as_ref()
+            .is_some_and(|path| !is_safe_relative_path(path.as_str()))
+            || self
+                .dependency_workpack_root
+                .as_ref()
+                .is_some_and(|path| !is_safe_relative_path(path.as_str()))
+        {
+            return Err(GraphError::InvalidValue(
+                "manifest contains an unsafe dependency workpack path".to_owned(),
             ));
         }
         let mut run_ids = BTreeSet::new();
@@ -687,6 +707,9 @@ struct ImportConfigWire {
     #[doc = "DEFAULT-JUSTIFICATION: omitted workpack import switches retain the enabled default."]
     #[serde(default = "default_true")]
     workpacks: bool,
+    #[doc = "DEFAULT-JUSTIFICATION: dependency workpack import is opt-in for v1 compatibility."]
+    #[serde(default)]
+    dependency_workpacks: bool,
     #[doc = "DEFAULT-JUSTIFICATION: omitted catalog import switches retain the enabled default."]
     #[serde(default = "default_true")]
     catalog: bool,
@@ -737,6 +760,12 @@ struct GraphManifestWire {
     plan: SeedNodeWire,
     workpack_index: GraphPath,
     workpack_root: GraphPath,
+    #[doc = "DEFAULT-JUSTIFICATION: v1 manifests may omit the optional dependency workpack index."]
+    #[serde(default)]
+    dependency_workpack_index: Option<GraphPath>,
+    #[doc = "DEFAULT-JUSTIFICATION: v1 manifests may omit the optional dependency workpack root."]
+    #[serde(default)]
+    dependency_workpack_root: Option<GraphPath>,
     test_proof_expectations: GraphPath,
     catalog_path: GraphPath,
     #[doc = "DEFAULT-JUSTIFICATION: v1 manifests may omit the optional intent matrix. "]
@@ -770,6 +799,7 @@ impl From<ImportConfigWire> for ImportConfig {
     fn from(value: ImportConfigWire) -> Self {
         Self {
             workpacks: value.workpacks,
+            dependency_workpacks: value.dependency_workpacks,
             catalog: value.catalog,
             cp08_proofs: value.cp08_proofs,
             cp01_proofs: value.cp01_proofs,
@@ -816,6 +846,8 @@ impl From<GraphManifestWire> for GraphManifest {
             plan: value.plan.into(),
             workpack_index: value.workpack_index,
             workpack_root: value.workpack_root,
+            dependency_workpack_index: value.dependency_workpack_index,
+            dependency_workpack_root: value.dependency_workpack_root,
             test_proof_expectations: value.test_proof_expectations,
             catalog_path: value.catalog_path,
             intent_matrix_path: value.intent_matrix_path,
@@ -841,6 +873,7 @@ impl From<&ImportConfig> for ImportConfigWire {
     fn from(value: &ImportConfig) -> Self {
         Self {
             workpacks: value.workpacks,
+            dependency_workpacks: value.dependency_workpacks,
             catalog: value.catalog,
             cp08_proofs: value.cp08_proofs,
             cp01_proofs: value.cp01_proofs,
@@ -887,6 +920,8 @@ impl From<&GraphManifest> for GraphManifestWire {
             plan: (&value.plan).into(),
             workpack_index: value.workpack_index.clone(),
             workpack_root: value.workpack_root.clone(),
+            dependency_workpack_index: value.dependency_workpack_index.clone(),
+            dependency_workpack_root: value.dependency_workpack_root.clone(),
             test_proof_expectations: value.test_proof_expectations.clone(),
             catalog_path: value.catalog_path.clone(),
             intent_matrix_path: value.intent_matrix_path.clone(),
@@ -1092,6 +1127,9 @@ impl CyberPlanGraph {
         manifest.validate()?;
         let mut graph = Self::new_for_root(root, manifest);
         graph.import_seeds()?;
+        if graph.manifest.import.dependency_workpacks {
+            graph.import_dependency_workpacks()?;
+        }
         if graph.manifest.import.workpacks {
             graph.import_workpacks()?;
         }
@@ -1379,6 +1417,114 @@ impl CyberPlanGraph {
             .collect();
         for path in paths {
             self.import_one_workpack(&path, &workpack_ids, &proof_rows)?;
+        }
+        Ok(())
+    }
+
+    fn import_dependency_workpacks(&mut self) -> Result<(), GraphError> {
+        let index_path = self
+            .manifest
+            .dependency_workpack_index
+            .as_ref()
+            .ok_or_else(|| {
+                GraphError::InvalidValue(
+                    "dependency workpack import is enabled without an index".to_owned(),
+                )
+            })?;
+        let root_path = self
+            .manifest
+            .dependency_workpack_root
+            .as_ref()
+            .ok_or_else(|| {
+                GraphError::InvalidValue(
+                    "dependency workpack import is enabled without a root".to_owned(),
+                )
+            })?;
+        let index = fs::read_to_string(self.root.join(index_path.as_str()))?;
+        let root = self.root.join(root_path.as_str());
+        let mut paths: Vec<PathBuf> = fs::read_dir(root)?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("md"))
+            .collect();
+        paths.sort();
+        let workpack_ids: BTreeMap<String, NodeId> = paths
+            .iter()
+            .filter_map(|path| {
+                let stem = path.file_stem()?.to_str()?;
+                let title = first_heading(&fs::read_to_string(path).ok()?)?;
+                let key = workpack_key(&title, stem);
+                key.starts_with("UL")
+                    .then(|| NodeId::new(format!("EXT/{key}")))
+                    .and_then(Result::ok)
+                    .map(|id| (key, id))
+            })
+            .collect();
+        for path in paths {
+            self.import_one_dependency_workpack(&path, &workpack_ids, &index)?;
+        }
+        Ok(())
+    }
+
+    fn import_one_dependency_workpack(
+        &mut self,
+        path: &Path,
+        workpack_ids: &BTreeMap<String, NodeId>,
+        index: &str,
+    ) -> Result<(), GraphError> {
+        let contents = fs::read_to_string(path)?;
+        let stem = path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| {
+                GraphError::InvalidValue("dependency workpack has no UTF-8 stem".to_owned())
+            })?;
+        let title = first_heading(&contents).unwrap_or_else(|| stem.to_owned());
+        let key = workpack_key(&title, stem);
+        if !key.starts_with("UL") {
+            return Err(GraphError::InvalidValue(format!(
+                "dependency workpack `{stem}` is not a UL workpack"
+            )));
+        }
+        let id = NodeId::new(format!("EXT/{key}"))?;
+        let index_row = parse_index_row(index, &key).ok_or_else(|| {
+            GraphError::InvalidValue(format!(
+                "dependency workpack `{key}` is missing from its index"
+            ))
+        })?;
+        let relative = relative_path(&self.root, path)?;
+        let mut node = GraphNode::new(
+            id.clone(),
+            NodeKind::Workpack,
+            title,
+            Some(relative),
+            CompletionContract::default(),
+        );
+        node.metadata
+            .insert("routingStatus".to_owned(), index_row.status);
+        node.metadata
+            .insert("ownerClass".to_owned(), index_row.owner);
+        node.metadata
+            .insert("batchLimit".to_owned(), index_row.batch_limit);
+        node.metadata
+            .insert("primaryOwns".to_owned(), index_row.owns);
+        node.metadata.insert(
+            "dependencyPlan".to_owned(),
+            "universal-language-enforcement-plan".to_owned(),
+        );
+        node.metadata
+            .insert("routingOnly".to_owned(), "true".to_owned());
+        self.add_node(node)?;
+        for dependency in dependency_tokens(&contents) {
+            let target = dependency_target(&dependency, workpack_ids)?;
+            if target.as_str().starts_with("EXT/") && !self.nodes.contains_key(&target) {
+                self.add_node(external_dependency(&target, &dependency))?;
+            }
+            self.add_edge(GraphEdge {
+                from: id.clone(),
+                to: target,
+                kind: EdgeKind::DependsOn,
+            });
         }
         Ok(())
     }
@@ -2513,7 +2659,10 @@ fn workpack_key(title: &str, stem: &str) -> String {
     title
         .split_whitespace()
         .next()
-        .filter(|value| value.to_ascii_uppercase().starts_with("CP"))
+        .filter(|value| {
+            let value = value.to_ascii_uppercase();
+            value.starts_with("CP") || value.starts_with("UL")
+        })
         .unwrap_or(stem)
         .to_ascii_uppercase()
 }
