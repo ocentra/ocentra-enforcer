@@ -117,7 +117,8 @@
     "WP/CP11/IF-threat-hunting/B04": "validation",
     "WP/CP11/IF-threat-hunting/B05": "validation",
     "WP/CP11/IF-threat-hunting/B06": "validation",
-    "WP/CP11/IF-threat-intelligence/B01": "validation"
+    "WP/CP11/IF-threat-intelligence/B01": "validation",
+    "WP/CP11/IF-threat-intelligence/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2721,6 +2722,40 @@
         ],
         "artifact_sha256": "cb97a4be5b21b8092aa93611e561396ba68155f7fbcb8d23179b1d7cd90c54e2",
         "artifact_bytes": 18349,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-83": {
+        "run_id": "20260809-engineering-graph-cp11-batch-83-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "4a97a4636a4455f4286175c2d9553860ff75d7d9",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-16/decomposition.json",
+          "proof/cyberskills/cp08/batch-25/decomposition.json",
+          "proof/cyberskills/cp08/batch-40/decomposition.json",
+          "proof/cyberskills/cp08/batch-53/decomposition.json",
+          "proof/cyberskills/cp08/batch-54/decomposition.json",
+          "proof/cyberskills/cp11/batch-83/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-83 validates ten unique threat-intelligence records with ten retained advisory and ten retained manual components",
+          "CP11 batch-83 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from threat-intelligence B02 to B03 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live MISP, OpenCTI, OSINT, DNS, WHOIS, certificate, hosting, enrichment, feed, network, dark-web, or production execution",
+          "source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, detection, compromise, dissemination, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "96fd82ca14083d1d941778127bc9698cac455b09ba00d0c9d4523a173263f436",
+        "artifact_bytes": 17541,
         "skill_count": 10,
         "component_count": 40
       }

@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-83",
+  "family": "IF/threat-intelligence",
+  "baselineCommit": "4a97a4636a4455f4286175c2d9553860ff75d7d9",
+  "scope": "Retain the next threat-intelligence, MISP, certificate, DNS, IOC, enrichment, adversary-infrastructure, CTI, OpenCTI, OSINT, and feed-sharing guidance from immutable CP08 evidence; native predicates are limited to static supplied IOC, source, citation, actor, relationship, feed, enrichment, confidence, provenance, scope, sharing, and evidence manifests; live OSINT, MISP, OpenCTI, DNS, WHOIS, certificate logs, hosting, enrichment, network, dark web, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-threat-landscape-with-misp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-threat-landscape-with-misp/SKILL.md",
+        "sha256": "bace1cce4f30db743fdcb1188356d5519ace39a749f9445c6d9144e7a937e220",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Analyzing Threat Landscape with MISP:L40"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-16/decomposition.json",
+        "artifactSha256": "252c4f4bb825f5f938866d83697f49c4afb9258cf1c13a1a0575307d922934e9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live MISP, feed, OSINT, actor, campaign, source truth, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-typosquatting-domains-with-dnstwist",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-typosquatting-domains-with-dnstwist/SKILL.md",
+        "sha256": "5f7907617b20023655794787a206f5a879fc05aa853d43ba79d69bfe5dd4fde8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Typosquatting Domains with DNSTwist:L61"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live DNS, domain, dnstwist, ownership, phishing, or source-freshness result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "auditing-tls-certificate-transparency-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-tls-certificate-transparency-logs/SKILL.md",
+        "sha256": "9885e9fb0f540680b2af59809a0c458038af18fe7a57d017157a76a05e1cf48d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mukul975",
+        "anchors": [
+          "# Auditing TLS Certificate Transparency Logs:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live certificate-transparency query, certificate, domain ownership, or phishing result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "automating-ioc-enrichment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/automating-ioc-enrichment/SKILL.md",
+        "sha256": "185037aedd5f7c642f53ed3539620c0ff7833aadaa22959b5df534062488f4c4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Automating IOC Enrichment:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live IOC enrichment, DNS, WHOIS, hosting, feed, indicator validity, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-adversary-infrastructure-tracking-system",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-adversary-infrastructure-tracking-system/SKILL.md",
+        "sha256": "c8cbb72ee7e8c5b4b3784af88a75763dc6378374051d4fbcc6678025a5bee3fa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Adversary Infrastructure Tracking System:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live infrastructure collection, relationship, ownership, actor attribution, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-attack-pattern-library-from-cti-reports",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-attack-pattern-library-from-cti-reports/SKILL.md",
+        "sha256": "93ebe38553514b69d474f587bb0afaaf6e612f55dc5461bed679d60f14170457",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Building Attack Pattern Library from CTI Reports:L38"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-16/decomposition.json",
+        "artifactSha256": "252c4f4bb825f5f938866d83697f49c4afb9258cf1c13a1a0575307d922934e9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live CTI collection, attack-pattern validity, ATT&CK mapping, or attribution result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-ioc-defanging-and-sharing-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-ioc-defanging-and-sharing-pipeline/SKILL.md",
+        "sha256": "2951a706bfb8fd62bf9c744f0dcf0c5c4c1d9c5ad3308ff57918caaf13e7c23a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building IOC Defanging and Sharing Pipeline:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live IOC collection, defanging, sharing, dissemination, indicator validity, or outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-ioc-enrichment-pipeline-with-opencti",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-ioc-enrichment-pipeline-with-opencti/SKILL.md",
+        "sha256": "758a5471da6d0068f4a9d2407a9343be654513c38cffba913279632116eef969",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building IOC Enrichment Pipeline with OpenCTI:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live OpenCTI, enrichment, relationship, indicator validity, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-threat-actor-profile-from-osint",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-actor-profile-from-osint/SKILL.md",
+        "sha256": "b179b5f51f83e02da111758ac88d51f2b007e02266fb8efcce7f01f7bcb440e5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Threat Actor Profile from OSINT:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live OSINT collection, actor identity, attribution, confidence, or profile truth is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-threat-feed-aggregation-with-misp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-feed-aggregation-with-misp/SKILL.md",
+        "sha256": "0fb1b2feb6e7cbb03d7241ad20b91193394c6b7eb489bc8b02463687e1206f0a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Threat Feed Aggregation with MISP:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, enrichment, relationship, attribution, reporting, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live MISP, feed aggregation, freshness, indicator validity, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live MISP, OpenCTI, OSINT, DNS, WHOIS, certificate, hosting, enrichment, feed, network, dark-web, or production execution.",
+    "No source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, detection, compromise, dissemination, remediation, or security outcome is proved.",
+    "This packet covers the second ten threat-intelligence skills; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, intelligence platforms, feeds, enrichment services, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
+
