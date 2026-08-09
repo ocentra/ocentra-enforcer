@@ -74,7 +74,8 @@
       "WP/CP11/IF-identity-access-management/B04": "validation",
       "WP/CP11/IF-incident-response/B01": "validation",
       "WP/CP11/IF-incident-response/B02": "validation",
-      "WP/CP11/IF-incident-response/B03": "validation"
+      "WP/CP11/IF-incident-response/B03": "validation",
+      "WP/CP11/IF-malware-analysis/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1377,6 +1378,34 @@
           "native implementation or executable-proof coverage",
           "live detection, investigation, attribution, triage, containment, eradication, recovery, acquisition, endpoint, network, cloud, SIEM, or production execution",
           "incident severity, compromise, IOC validity, timeline truth, legal conclusion, privacy conclusion, remediation success, RTO/RPO, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-40": {
+        "run_id": "20260809-engineering-graph-cp11-batch-40-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "860d34bdde680ca83e8c09a05a444b8fca260ff5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-17/decomposition.json",
+          "proof/cyberskills/cp08/batch-26/decomposition.json",
+          "proof/cyberskills/cp08/batch-52/decomposition.json",
+          "proof/cyberskills/cp11/batch-40/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-40 validates ten unique malware-analysis records with ten retained advisory and ten retained manual components",
+          "CP11 batch-40 artifact SHA-256 is af26dc16b94b380925cfc428733f0ab81d60e627fe4893cf23c81616c0dbdd42 and is 14793 bytes",
+          "graph.next advances from malware-analysis B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live sample execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution",
+          "sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
