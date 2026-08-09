@@ -10,7 +10,7 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::scan_types::{LanguageFamily, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
     CanonicalCliLanguage, CanonicalConsumerCapabilityProjectionResponse,
-    CanonicalConsumerDisposition, CanonicalLanguageRouteResponse,
+    CanonicalConsumerDisposition, CanonicalLanguageRouteResponse, CanonicalScanFamily,
 };
 use enforcer_scan::router::identity::{
     detect_language_identities, CliLanguage, CliLanguageProjection, ConsumerCapabilityState,
@@ -878,5 +878,16 @@ fn collision_winner_is_typed_and_not_a_legacy_other_route() -> Result<(), String
             ))
         }
     }
+    Ok(())
+}
+
+#[test]
+fn dart_scan_family_wire_round_trips_as_a_typed_route() -> Result<(), String> {
+    let wire = serde_json::to_value(CanonicalScanFamily::Dart)
+        .map_err(|error| format!("Dart scan-family serialization failed: {error}"))?;
+    assert_eq!(wire["kind"], serde_json::Value::String("dart".to_owned()));
+    let restored: CanonicalScanFamily = serde_json::from_value(wire)
+        .map_err(|error| format!("Dart scan-family deserialization failed: {error}"))?;
+    assert_eq!(restored, CanonicalScanFamily::Dart);
     Ok(())
 }

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL10",
+  "kind": "existing-language-routing",
+  "baseCommit": "60672dfcfe1610548d108d727446147d73a4a292",
+  "claimEvents": [
+    "evt_a56b3f0dc68f449690aff605868a9e04",
+    "evt_29bbdcb889e74211b6f77c0266a2dbff"
+  ],
+  "language": "dart",
+  "selection": {
+    "requirement": "existing-language-routing",
+    "batchLimit": "one language, one shared routing integration",
+    "packetFocus": "route the existing Dart validator family through native scan classification, plan, tool identity, and execution"
+  },
+  "integration": {
+    "existingValidatorCrate": "crates/enforcer-lang-dart",
+    "validatorEntryPoint": "enforcer_lang_dart::all_validators",
+    "validatorExecution": "enforcer-scan::engine::run dispatches LanguageFamily::Dart validators and preserves legacy text fallback when analysis facts are unavailable",
+    "scanFamily": "LanguageFamily::Dart",
+    "rulePack": "RulePack::Dart",
+    "nativeTool": "NativeTool::Dart",
+    "fileMatcher": ".dart",
+    "newDependencies": true,
+    "newDependency": "workspace path dependency enforcer-lang-dart",
+    "newParserOrFactContract": false,
+    "newExternalTool": false,
+    "sharedRegistryChanged": false,
+    "mcpLanguageFilter": "frozen and unchanged; the current MCP parser accepts rust/typescript/python/common only, so MCP explicit dart-language filtering remains notProved"
+  },
+  "fixtures": [
+    {
+      "path": "crates/enforcer-lang-dart/tests/fixtures/DART-BANG-1.1/fail.dart",
+      "role": "existing Dart validator fail fixture"
+    },
+    {
+      "path": "crates/enforcer-lang-dart/tests/fixtures/DART-BANG-1.1/pass.dart",
+      "role": "existing Dart validator pass fixture"
+    },
+    {
+      "role": "inline scan-engine fixture",
+      "proves": "a .dart source with an unchecked null assertion reaches DART-BANG-1.1 through the real scan engine"
+    },
+    {
+      "role": "inline route-plan fixture",
+      "proves": "a repository containing main.dart receives Dart, security, literal-floor, and security-audit packs plus the typed Dart native-tool route"
+    }
+  ],
+  "sourceHashes": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9f773ae6f8f4fffd7aaccabeff786215cdabf4a055f6aadb4b962a52b01da8da",
+      "bytes": 137674
+    },
+    {
+      "path": "crates/enforcer-domain/src/scan_types.rs",
+      "sha256": "84804d96b6f7b7aac468c8300e2109269d2694afe11a9f7983f2b6e412842962",
+      "bytes": 47032
+    },
+    {
+      "path": "crates/enforcer-scan/Cargo.toml",
+      "sha256": "1e70f95dfd92edbfff1517df3d2c1cfe60c747e8f2facebe7bc2d23404dffcbd",
+      "bytes": 3230
+    },
+    {
+      "path": "crates/enforcer-scan/src/engine.rs",
+      "sha256": "506a3dff768e2e94144608f20b94c6c96c11a771f5d56a65fdfbb38621a7d0a5",
+      "bytes": 63710
+    },
+    {
+      "path": "crates/enforcer-scan/src/router/mod.rs",
+      "sha256": "002510dbdddf65456547f3de7e6442de767db091fe03af8ad05fc26e670273b2",
+      "bytes": 3541
+    },
+    {
+      "path": "crates/enforcer-scan/src/router/plan.rs",
+      "sha256": "d1d65740afab98d389d6656a7d8fdf626e5e17e2048795eee1e636c64f0a5832",
+      "bytes": 14178
+    },
+    {
+      "path": "crates/enforcer-scan/src/router/native_tie.rs",
+      "sha256": "6edb2a1656321c29ebc9f23a7f8a9d223f9d3440211a45df9cf85d6a309332f9",
+      "bytes": 6531
+    },
+    {
+      "path": "crates/enforcer-scan/src/router/identity.rs",
+      "sha256": "aa600b3e00d7168865676c5487cc3885dc2c585000100020c9c00dd4c6c7ffd2",
+      "bytes": 38394
+    },
+    {
+      "path": "crates/enforcer-scan/src/boundary/router.rs",
+      "sha256": "5d5689f89cf4f9fbde7cbb95b2927d13073e952af8abadfec08d3b5169500a1c",
+      "bytes": 30203
+    },
+    {
+      "path": "crates/enforcer-scan/src/boundary/native_scan.rs",
+      "sha256": "18c1fbedc1a84b04524a95716ca6cf2b245ff3699b622fbe384e462c1eed9f88",
+      "bytes": 47393
+    },
+    {
+      "path": "crates/enforcer-scan/tests/router.rs",
+      "sha256": "f9ab7c7da391188aada68d53361975f3d942f2ecf343dc0bf896bd9f0abcee2b",
+      "bytes": 20392
+    },
+    {
+      "path": "crates/enforcer-scan/tests/canonical_language_routing.rs",
+      "sha256": "8161594133474fbed0b14d5210c4bb983e547c07ada99cf6ec381f7c06abf754",
+      "bytes": 36218
+    }
+  ],
+  "existingSourceEvidence": [
+    {
+      "path": "crates/enforcer-lang-dart/src/lib.rs",
+      "sha256": "35383b7f9292f8882dda1b4055e7389da2f84a191cd03d361875918a351358e2",
+      "bytes": 5815
+    },
+    {
+      "path": "crates/enforcer-lang-dart/tests/fixture_parity.rs",
+      "sha256": "b979aa447864baf2365228ef622785b9c71b8d32ccad20e38b56a3909f4b2766",
+      "bytes": 5807
+    },
+    {
+      "path": "docs/plans/universal-language-enforcement-plan/workpacks/ul10-existing-language-routing.md",
+      "sha256": "64f14e1542a3ad680e2c70064e7ef07b22a414fb00d370b125443ccfc80788af",
+      "bytes": 2955
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt -p enforcer-scan -- --check",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo check --locked -p enforcer-scan",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --locked -p enforcer-lang-dart --all-targets -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-scan --lib -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 169,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-scan --test router -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 11,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-scan --test canonical_language_routing -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 13,
+        "failed": 0
+      }
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "ocentra_enforcer_route --profile strict --scope files --exact-ul10-paths",
+      "exitCode": 0
+    },
+    {
+      "command": "ocentra_enforcer_scan --profile strict --scope files --exact-ul10-paths",
+      "exitCode": 0,
+      "findings": 0,
+      "violations": 0,
+      "warnings": 0,
+      "effectiveScannedFiles": 12
+    }
+  ],
+  "enforcer": {
+    "status": "passed-scoped",
+    "scope": [
+      "Cargo.lock",
+      "crates/enforcer-domain/src/scan_types.rs",
+      "crates/enforcer-scan/Cargo.toml",
+      "crates/enforcer-scan/src/engine.rs",
+      "crates/enforcer-scan/src/router/mod.rs",
+      "crates/enforcer-scan/src/router/plan.rs",
+      "crates/enforcer-scan/src/router/native_tie.rs",
+      "crates/enforcer-scan/src/router/identity.rs",
+      "crates/enforcer-scan/src/boundary/router.rs",
+      "crates/enforcer-scan/src/boundary/native_scan.rs",
+      "crates/enforcer-scan/tests/router.rs",
+      "crates/enforcer-scan/tests/canonical_language_routing.rs",
+      "proof/universal-language/ul10/current-language-routing.json"
+    ],
+    "route": {
+      "profile": "strict",
+      "scope": "files",
+      "exitCode": 0
+    },
+    "strictScan": {
+      "exitCode": 0,
+      "findings": 0,
+      "violations": 0,
+      "warnings": 0,
+      "effectiveScannedFiles": 12,
+      "nonCodeClaimedFiles": ["Cargo.lock"]
+    },
+    "reusableChecks": {
+      "source-shape": 0,
+      "secrets": 0,
+      "validation-bypass": 0,
+      "placeholder-implementation": 0,
+      "reexports": 0
+    }
+  },
+  "protectedBoundary": {
+    "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+    "existsInIsolatedWorktree": false,
+    "read": false,
+    "touched": false,
+    "counted": false
+  },
+  "proves": [
+    "Existing Dart validators are wired into the Rust scan engine, selected by .dart classification, and emit a real DART-BANG-1.1 finding on an inline fail fixture.",
+    "A Dart repository receives the Dart rule pack, cross-cutting security/literal/audit packs, and the typed Dart native-tool route through the route-plan boundary.",
+    "The canonical scan-family wire enum preserves a typed Dart route through serialization and deserialization.",
+    "The existing Dart crate's fixture parity suite remains green without adding a Dart analyzer dependency or executing an external tool.",
+    "The lockfile is current for the workspace path dependency and the enforcer-scan package compiles under --locked."
+  ],
+  "doesNotProve": [
+    "CFML or Go routing, which remain separate UL10 choices and are not changed by this one-language packet.",
+    "Explicit MCP language-filter support for dart; the frozen MCP parser remains unchanged and currently accepts only rust/typescript/python/common.",
+    "Dart SDK, analyzer, formatter, package manager, live repository tooling, external execution, or production security outcomes.",
+    "All Dart rule semantics beyond the existing crate fixture suite and the engine's DART-BANG-1.1 execution proof.",
+    "Native CyberSkills implementation, executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall program completion.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+  ]
+}

@@ -1194,6 +1194,7 @@ dependencies = [
  "enforcer-domain",
  "enforcer-events",
  "enforcer-lang-common",
+ "enforcer-lang-dart",
  "enforcer-lang-iac",
  "enforcer-lang-k8s",
  "enforcer-lang-py",

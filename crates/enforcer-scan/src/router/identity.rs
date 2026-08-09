@@ -672,6 +672,7 @@ mod scan_family_tests {
         let mut rust = 0;
         let mut typescript = 0;
         let mut python = 0;
+        let mut dart = 0;
         let mut terraform = 0;
         let mut yaml_or_config = 0;
         let mut unknown = 0;
@@ -683,6 +684,7 @@ mod scan_family_tests {
                 ScanFamilyDisposition::Mapped(LanguageFamily::Rust) => rust += 1,
                 ScanFamilyDisposition::Mapped(LanguageFamily::TypeScript) => typescript += 1,
                 ScanFamilyDisposition::Mapped(LanguageFamily::Python) => python += 1,
+                ScanFamilyDisposition::Mapped(LanguageFamily::Dart) => dart += 1,
                 ScanFamilyDisposition::Mapped(LanguageFamily::Terraform) => terraform += 1,
                 ScanFamilyDisposition::Mapped(LanguageFamily::YamlOrConfig) => yaml_or_config += 1,
                 ScanFamilyDisposition::Mapped(LanguageFamily::Unknown) => unknown += 1,
@@ -692,10 +694,10 @@ mod scan_family_tests {
         }
 
         assert_eq!(
-            (rust, typescript, python, terraform, yaml_or_config),
-            (1, 1, 0, 0, 1)
+            (rust, typescript, python, dart, terraform, yaml_or_config),
+            (1, 1, 0, 1, 0, 1)
         );
-        assert_eq!(unsupported, 157);
+        assert_eq!(unsupported, 156);
         assert_eq!(not_applicable, 0);
         assert_eq!(unknown, 0);
     }
@@ -764,6 +766,7 @@ mod native_tool_tests {
 
         let mut cargo = 0;
         let mut tsc = 0;
+        let mut dart = 0;
         let mut unsupported = 0;
         let mut not_applicable = 0;
         let mut unexpected = 0;
@@ -772,13 +775,17 @@ mod native_tool_tests {
             match native_tool_projection(record.matchers()) {
                 NativeToolProjection::Mapped(NativeTool::Cargo) => cargo += 1,
                 NativeToolProjection::Mapped(NativeTool::Tsc) => tsc += 1,
+                NativeToolProjection::Mapped(NativeTool::Dart) => dart += 1,
                 NativeToolProjection::Mapped(_) => unexpected += 1,
                 NativeToolProjection::Unsupported => unsupported += 1,
                 NativeToolProjection::NotApplicable => not_applicable += 1,
             }
         }
 
-        assert_eq!((cargo, tsc, unsupported, not_applicable), (1, 1, 158, 0));
+        assert_eq!(
+            (cargo, tsc, dart, unsupported, not_applicable),
+            (1, 1, 1, 157, 0)
+        );
         assert_eq!(unexpected, 0);
     }
 
@@ -825,6 +832,7 @@ mod rule_pack_tests {
                         packs,
                         [RulePack::Rust, RulePack::Security]
                             | [RulePack::TypeScript, RulePack::Security]
+                            | [RulePack::Dart, RulePack::Security]
                     ));
                 }
                 RulePackProjection::Unsupported => unsupported += 1,
@@ -832,7 +840,7 @@ mod rule_pack_tests {
             }
         }
 
-        assert_eq!((mapped, unsupported, not_applicable), (2, 158, 0));
+        assert_eq!((mapped, unsupported, not_applicable), (3, 157, 0));
     }
 
     #[test]
@@ -938,6 +946,9 @@ mod tests {
                     3 => super::NativeToolProjection::Mapped(
                         enforcer_domain::config_types::NativeTool::Tsc,
                     ),
+                    16 => super::NativeToolProjection::Mapped(
+                        enforcer_domain::config_types::NativeTool::Dart,
+                    ),
                     _ => super::NativeToolProjection::Unsupported,
                 }
             );
@@ -950,6 +961,10 @@ mod tests {
                     ]),
                     3 => super::RulePackProjection::Mapped(&[
                         enforcer_domain::scan_types::RulePack::TypeScript,
+                        enforcer_domain::scan_types::RulePack::Security,
+                    ]),
+                    16 => super::RulePackProjection::Mapped(&[
+                        enforcer_domain::scan_types::RulePack::Dart,
                         enforcer_domain::scan_types::RulePack::Security,
                     ]),
                     _ => super::RulePackProjection::Unsupported,
