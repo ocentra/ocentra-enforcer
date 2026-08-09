@@ -54,10 +54,10 @@ missing IDs, unsafe/missing paths, cycles, invalid lifecycle values, and DONE
 nodes whose required paths are absent.
 
 The imported graph is evidence-oriented rather than a duplicate of every
-Markdown sentence. Stable workpack IDs, declared dependencies, existing
-proof/test/checklist artifacts, and explicit boss evidence are linked;
-ambiguous prose remains in its source document instead of becoming a
-fabricated hard edge.
+Markdown sentence. Stable workpack IDs, declared dependencies, the plan's
+existing README/state/instruction/index/checklist/proof artifacts, and explicit
+boss evidence are linked; ambiguous prose remains in its source document
+instead of becoming a fabricated hard edge.
 
 The v1 CLI does not mutate graph state. That is deliberate: no agent can make
 progress look complete by editing a status field. Acquisition, execution,

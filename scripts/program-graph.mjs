@@ -281,16 +281,23 @@ function buildGraphFromConfig(root, config) {
     });
     const owner = programByPlan.get(plan.key) ?? config.goal.id;
     edges.push({ from: owner, to: planId, kind: "contains", reason: "Plan discovered under the configured plan root." });
-    if (plan.indexExists) {
-      const artifactId = `ARTIFACT/${plan.key}/workpack-index`;
-      addNode({ id: artifactId, kind: "artifact", title: `${plan.key} workpack index`, path: plan.indexPath, lifecycle: "done", metadata: { source: "WORKPACK_INDEX.md" } });
-      edges.push({ from: planId, to: artifactId, kind: "references", reason: "The plan index is the routing source for workpack rows." });
-    }
-    const expectationsPath = relativePath(root, join(plan.path, "TEST_PROOF_EXPECTATIONS.md"));
-    if (graphPathExists(root, expectationsPath)) {
-      const artifactId = `ARTIFACT/${plan.key}/test-proof-expectations`;
-      addNode({ id: artifactId, kind: "artifact", title: `${plan.key} test and proof expectations`, path: expectationsPath, lifecycle: "done", metadata: { source: "TEST_PROOF_EXPECTATIONS.md" } });
-      edges.push({ from: planId, to: artifactId, kind: "references", reason: "Proof expectations remain in the human-readable plan." });
+    const planArtifacts = [
+      { file: "WORKPACK_INDEX.md", slug: "workpack-index", title: "workpack index", reason: "The plan index is the routing source for workpack rows." },
+      { file: "README.md", slug: "readme", title: "plan README", reason: "The plan README is its human-readable entry point." },
+      { file: "PLAN_STATE.md", slug: "plan-state", title: "plan state", reason: "The plan state records its declared lifecycle and gates." },
+      { file: "AGENTS.md", slug: "agent-instructions", title: "plan agent instructions", reason: "Plan-scoped execution instructions remain authoritative." },
+      { file: "TEST_PROOF_EXPECTATIONS.md", slug: "test-proof-expectations", title: "test and proof expectations", reason: "Proof expectations remain in the human-readable plan." },
+      { file: "WORKER_CHECKLIST.md", slug: "worker-checklist", title: "worker checklist", reason: "The worker checklist records execution obligations." },
+      { file: "CHECKLIST_INDEX.md", slug: "checklist-index", title: "checklist index", reason: "The checklist index routes plan validation obligations." },
+      { file: "PROOF_INDEX.md", slug: "proof-index", title: "proof index", reason: "The proof index routes retained evidence obligations." }
+    ];
+    for (const artifact of planArtifacts) {
+      const artifactPath = relativePath(root, join(plan.path, artifact.file));
+      if (!graphPathExists(root, artifactPath)) continue;
+      const artifactId = `ARTIFACT/${plan.key}/${artifact.slug}`;
+      if (nodes.has(artifactId)) continue;
+      addNode({ id: artifactId, kind: "artifact", title: `${plan.key} ${artifact.title}`, path: artifactPath, lifecycle: "done", metadata: { source: artifact.file, planKey: plan.key } });
+      edges.push({ from: planId, to: artifactId, kind: "references", reason: artifact.reason });
     }
     for (const row of plan.rows) {
       const id = workpackNodeId(plan.key, row.shortId);
