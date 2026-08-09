@@ -3718,8 +3718,26 @@ fn coordination_closeout(args: &serde_json::Value) -> serde_json::Value {
         Ok(value) => value,
         Err(error) => return json_error(&error),
     };
+    let writer = match args.get("owner").or_else(|| args.get("writer")) {
+        None => None,
+        Some(value) => {
+            let Some(raw) = value.as_str() else {
+                return json_error("coordination_closeout owner must be a string");
+            };
+            match ClaimWriter::parse(raw.to_owned()) {
+                Ok(writer) => Some(writer),
+                Err(error) => return json_error(&error.to_string()),
+            }
+        }
+    };
+    let allow_other_node = args
+        .get("allowOtherNode")
+        .and_then(serde_json::Value::as_bool)
+        == Some(true);
     let mut filters = api::CloseoutFilters {
         lane: Some(lane.clone()),
+        writer,
+        node_id_prefix: (!allow_other_node).then(|| hub.config.node_id.clone()),
         codex_thread_id: caller.codex_thread_id.clone(),
         codex_session_id: caller.codex_session_id.clone(),
         project_id: Some(caller.project_id.clone()),

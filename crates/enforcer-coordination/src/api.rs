@@ -323,6 +323,54 @@ pub fn release(
     caller: &CallerContext,
     reason: Option<&ClaimReason>,
 ) -> Result<HubEventResponse> {
+    let active = active_claims(&read_all_streams(hub.root.as_path())?.events);
+    let writer = ClaimWriter::from(&WriterId::new(&hub.config.node_id, lane));
+    let owned: Vec<&RawClaim> = active
+        .iter()
+        .filter(|claim| {
+            matches!(
+                claim_matches_caller(claim, &writer, lane, caller),
+                CoordinationMatch::Matches
+            )
+        })
+        .collect();
+    let release_paths: Vec<ClaimPath> = paths
+        .iter()
+        .filter(|requested| {
+            let selected: Vec<&RawClaim> = owned
+                .iter()
+                .copied()
+                .filter(|claim| {
+                    claim.paths.iter().any(|owned_path| {
+                        matches!(
+                            path_overlaps(requested, owned_path),
+                            CoordinationMatch::Matches
+                        )
+                    })
+                })
+                .collect();
+            !selected.is_empty()
+                && !active.iter().any(|other| {
+                    selected
+                        .iter()
+                        .all(|claim| claim.event_id != other.event_id)
+                        && other.paths.iter().any(|owned_path| {
+                            matches!(
+                                path_overlaps(requested, owned_path),
+                                CoordinationMatch::Matches
+                            )
+                        })
+                })
+        })
+        .cloned()
+        .collect();
+    if release_paths.is_empty() {
+        return Err(CoordinationError::rejected(
+            CoordinationRejection::from_static(
+                "coordination release matched no caller-owned active claims",
+            )?,
+        ));
+    }
     // CLONE-JUSTIFICATION: append_event consumes context while the caller remains borrowed by this API.
     let context = caller
         .clone()
@@ -332,7 +380,7 @@ pub fn release(
         AppendEventArgs {
             lane,
             kind: CoordinationEventKind::Release,
-            paths: Some(paths.to_vec()),
+            paths: Some(release_paths),
             reason: reason.cloned(),
             context: Some(EventContextRefs {
                 claim: &context,
@@ -341,6 +389,26 @@ pub fn release(
             metadata: EventMetadata::default(),
         },
     )
+}
+
+fn claim_matches_caller(
+    claim: &RawClaim,
+    writer: &ClaimWriter,
+    lane: &LaneId,
+    caller: &CallerContext,
+) -> CoordinationMatch {
+    if &claim.writer == writer
+        && claim.lane.as_str() == lane.as_str()
+        && claim.context.project_id.as_ref() == Some(&caller.project_id)
+        && claim.context.worktree_root.as_ref() == Some(&caller.worktree_root)
+        && claim.context.branch.as_ref() == Some(&caller.branch)
+        && claim.context.codex_thread_id.as_ref() == caller.codex_thread_id.as_ref()
+        && claim.context.codex_session_id.as_ref() == caller.codex_session_id.as_ref()
+    {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
 }
 
 /// Resolve active claims only for exact requested paths and (when supplied)
@@ -631,8 +699,9 @@ pub fn closeout(
     let all = read_all_streams(hub.root.as_path())?;
     let active = active_claims(&all.events);
     let matching: Vec<RawClaim> = active
-        .into_iter()
+        .iter()
         .filter(|claim| matches!(matches_filters(claim, filters), ClaimFilterMatch::Matches))
+        .cloned()
         .collect();
     if matching.is_empty() {
         return Ok(Vec::new());
@@ -640,7 +709,21 @@ pub fn closeout(
     let mut by_lane: std::collections::BTreeMap<ClaimLane, Vec<ClaimPath>> =
         std::collections::BTreeMap::new();
     for claim in matching {
-        by_lane.entry(claim.lane).or_default().extend(claim.paths);
+        let safe_paths = claim
+            .paths
+            .into_iter()
+            .filter(|path| {
+                !active.iter().any(|other| {
+                    other.event_id != claim.event_id
+                        && other.paths.iter().any(|other_path| {
+                            matches!(path_overlaps(path, other_path), CoordinationMatch::Matches)
+                        })
+                })
+            })
+            .collect::<Vec<_>>();
+        if !safe_paths.is_empty() {
+            by_lane.entry(claim.lane).or_default().extend(safe_paths);
+        }
     }
     // CLONE-JUSTIFICATION: release events own their transport context after validation.
     let context = caller
