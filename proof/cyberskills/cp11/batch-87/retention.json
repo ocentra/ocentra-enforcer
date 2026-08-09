@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-87",
+  "family": "IF/threat-intelligence",
+  "baselineCommit": "74ed298eb8343a8d2ab8f653fff9a81aea658e16",
+  "scope": "Retain the final threat-intelligence actor-group and infrastructure guidance from immutable CP08 evidence; native predicates are limited to static supplied actor, group, infrastructure, relationship, source, confidence, provenance, scope, and evidence manifests; live OSINT, dark web, MISP, OpenCTI, DNS, WHOIS, hosting, enrichment, network, attribution, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "profiling-threat-actor-groups",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/profiling-threat-actor-groups/SKILL.md",
+        "sha256": "4f054fe28561a677a9d8b2b06bef2fb99f3e3c3f16a159aec536dac22fa023c5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Profiling Threat Actor Groups:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-actor group, infrastructure, relationship, source-evaluation, and reporting guidance as advisory.",
+        "notProved": [
+          "No live actor, group, infrastructure, attribution, ownership, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "tracking-threat-actor-infrastructure",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/tracking-threat-actor-infrastructure/SKILL.md",
+        "sha256": "9d5caf63ebc77163e4f0180dfe33cf29911b1b128dc8e32b196134d8e55eb430",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Tracking Threat Actor Infrastructure:L63"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-40/decomposition.json",
+        "artifactSha256": "f190303e3d272985fda9edd6d93ea43aafe7ec2aed2aeae523485f6209cab2f5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-actor group, infrastructure, relationship, source-evaluation, and reporting guidance as advisory.",
+        "notProved": [
+          "No live actor, group, infrastructure, attribution, ownership, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 2,
+    "advisoryRetained": 2,
+    "manualRetained": 2,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OSINT, dark-web, MISP, OpenCTI, DNS, WHOIS, hosting, enrichment, network, attribution, or production execution.",
+    "No source truth, freshness, actor attribution, infrastructure ownership, detection, compromise, dissemination, remediation, or security outcome is proved.",
+    "This packet covers the final two threat-intelligence skills; the family retention route is complete, but native implementation and executable proof remain separate work.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, intelligence platforms, feeds, enrichment services, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
+

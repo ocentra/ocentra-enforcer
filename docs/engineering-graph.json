@@ -121,7 +121,8 @@
     "WP/CP11/IF-threat-intelligence/B02": "validation",
     "WP/CP11/IF-threat-intelligence/B03": "validation",
     "WP/CP11/IF-threat-intelligence/B04": "validation",
-    "WP/CP11/IF-threat-intelligence/B05": "validation"
+    "WP/CP11/IF-threat-intelligence/B05": "validation",
+    "WP/CP11/IF-threat-intelligence/B06": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2868,6 +2869,37 @@
         "artifact_bytes": 17498,
         "skill_count": 10,
         "component_count": 40
+      },
+      "TEST/CP11/retention-batch-87": {
+        "run_id": "20260809-engineering-graph-cp11-batch-87-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "74ed298eb8343a8d2ab8f653fff9a81aea658e16",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-40/decomposition.json",
+          "proof/cyberskills/cp08/batch-80/decomposition.json",
+          "proof/cyberskills/cp11/batch-87/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-87 validates two unique threat-intelligence records with two retained advisory and two retained manual components",
+          "CP11 batch-87 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next closes threat-intelligence retention and advances to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live OSINT, dark-web, MISP, OpenCTI, DNS, WHOIS, hosting, enrichment, network, attribution, or production execution",
+          "source truth, freshness, actor attribution, infrastructure ownership, detection, compromise, dissemination, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "5516921a0d7c76d37a6f2173712a077fab5c19108b125c720f5b5b8d9f2f8e72",
+        "artifact_bytes": 4804,
+        "skill_count": 2,
+        "component_count": 8
       }
     }
   }
