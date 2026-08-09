@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "graph_id": "GOAL/cyber-plan",
+  "goal": {
+    "id": "GOAL/cyber-plan",
+    "title": "Truthful, mechanically executable Cybersecurity coverage",
+    "path": "docs/plans/cyberskills-parity-plan/README.md"
+  },
+  "plan": {
+    "id": "PLAN/cyberskills-parity",
+    "title": "CyberSkills parity execution plan",
+    "path": "docs/plans/cyberskills-parity-plan/README.md"
+  },
+  "workpack_index": "docs/plans/cyberskills-parity-plan/WORKPACK_INDEX.md",
+  "workpack_root": "docs/plans/cyberskills-parity-plan/workpacks",
+  "test_proof_expectations": "docs/plans/cyberskills-parity-plan/TEST_PROOF_EXPECTATIONS.md",
+  "catalog_path": "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+  "intent_matrix_path": "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
+  "proof_roots": [
+    "proof/cyberskills"
+  ],
+  "decision_roots": [
+    "docs/plans/cyberskills-parity-plan/decisions"
+  ],
+  "import": {
+    "workpacks": true,
+    "catalog": true,
+    "cp01_proofs": true,
+    "cp08_proofs": true,
+    "intent_matrix": true,
+    "cp11_proofs": true
+  },
+  "overrides": {
+    "lifecycle": {
+      "WP/CP00": "done",
+      "WP/CP01": "validation",
+      "WP/CP08": "done",
+      "WP/CP11": "validation",
+      "WP/CP11/IF-ai-security/B01": "validation",
+      "WP/CP11/IF-ai-security/B02": "validation",
+      "WP/CP11/IF-api-security/B01": "validation",
+      "WP/CP11/IF-api-security/B02": "validation",
+      "WP/CP11/IF-api-security/B03": "validation",
+      "WP/CP11/IF-blockchain-security/B01": "validation"
+    },
+    "dependencies": {},
+    "evidence": {
+      "TEST/CP00/disposition-focused-test": {
+        "run_id": "20260809081031-f71fdf6e",
+        "command": "cargo test --locked -p enforcer-rules --test cyberskills_disposition -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-rules/tests/cyberskills_disposition.rs",
+          "crates/enforcer-rules/src/boundary/cyberskills_disposition.rs",
+          "crates/enforcer-rules/dispositions/cyberskills-disposition.json"
+        ],
+        "proves": [
+          "CP00 disposition focused suite passed 8/8",
+          "v3 ledger projection and correction-chain negative fixtures passed"
+        ],
+        "does_not_prove": [
+          "native implementation beyond the six preserved linked rows",
+          "executable proof coverage",
+          "overall CyberSkills parity or live security outcomes"
+        ]
+      },
+      "TEST/CP00/plan-test": {
+        "run_id": "direct-cargo-enforcer-plan-engineering-graph-20260809",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs"
+        ],
+        "proves": [
+          "graph imports the 817-row catalog and 816-skill CP08 projection",
+          "protected sourceUnavailable remains pathless and excluded"
+        ],
+        "does_not_prove": [
+          "native implementation of routed intent packets",
+          "executable proof coverage",
+          "overall CyberSkills parity or live security outcomes"
+        ]
+      },
+      "TEST/CP00/enforcer-rules-test": {
+        "run_id": "direct-cargo-enforcer-rules-20260809",
+        "command": "cargo test --locked -p enforcer-rules",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-rules/tests/cyberskills_disposition.rs",
+          "crates/enforcer-rules/dispositions/cyberskills-disposition.json"
+        ],
+        "proves": [
+          "enforcer-rules package suite passed",
+          "CP00 ledger and catalog integration remained green"
+        ],
+        "does_not_prove": [
+          "native implementation for the 816 catalog identities",
+          "executable proof coverage",
+          "overall CyberSkills parity or live security outcomes"
+        ]
+      },
+      "TEST/CP00/diff-checks": {
+        "run_id": "direct-git-diff-check-20260809",
+        "command": "git diff --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "docs/engineering-graph.json",
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs"
+        ],
+        "proves": [
+          "tracked graph packet has no whitespace errors"
+        ],
+        "does_not_prove": [
+          "native implementation or executable proof",
+          "overall CyberSkills parity",
+          "live external-system or security outcomes"
+        ]
+      },
+      "TEST/CP01/rule-registry-relevant-rule-tests": {
+        "run_id": "direct-cargo-enforcer-lang-security-cyberskills-corpus-20260809",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_corpus -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-lang-security/tests/cyberskills_corpus.rs",
+          "crates/enforcer-rules/tests/cyberskills_registry.rs",
+          "proof/cyberskills/cp01/batch-01/reconciliation.json",
+          "proof/cyberskills/cp01/batch-02/reconciliation.json",
+          "proof/cyberskills/cp01/batch-03/reconciliation.json",
+          "proof/cyberskills/cp01/batch-04/reconciliation.json"
+        ],
+        "proves": [
+          "existing CP01 reconciliation batches retain source hashes, anchors, narrow predicates, fixtures, and notProved",
+          "the relevant CyberSkills corpus suite passed 33/33"
+        ],
+        "does_not_prove": [
+          "whole-skill parity for any mapped rule",
+          "fresh CLI/MCP/CI reachability for the existing mappings",
+          "native implementation of the remaining 816 catalog identities or live security outcomes"
+        ]
+      },
+      "TEST/CP01/disposition-gate": {
+        "run_id": "20260809081031-f71fdf6e-cp01-gate",
+        "command": "cargo test --locked -p enforcer-rules --test cyberskills_disposition -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-rules/tests/cyberskills_disposition.rs",
+          "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+          "proof/cyberskills/cp01/batch-01/reconciliation.json",
+          "proof/cyberskills/cp01/batch-04/reconciliation.json"
+        ],
+        "proves": [
+          "the disposition gate passed 8/8 while preserving the six native evidence-linked rows",
+          "CP01 mappings remain evidence-only and do not mutate the CP08-derived catalog projection"
+        ],
+        "does_not_prove": [
+          "whole-skill parity or executable proof coverage",
+          "external engine execution or live endpoint behavior",
+          "overall CyberSkills parity"
+        ]
+      },
+      "TEST/CP01/aggregate-partition-closure": {
+        "run_id": "20260809084135-994fbabe",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "crates/enforcer-rules/rules/cyberskills.json",
+          "proof/cyberskills/cp01/batch-01/reconciliation.json",
+          "proof/cyberskills/cp01/batch-05/reconciliation.json"
+        ],
+        "proves": [
+          "CP01 evidence importer validates the registry partition as 41 expected, 41 covered, 41 unique, with no missing or extra rule IDs",
+          "batch-05 contributes four explicit unproved/source-boundary records and zero accepted mappings",
+          "batch-05 artifact SHA-256 is CD7B87947D65006F150DEDB16D0C1D0CB9A4A743BA68121ABC64D0539A50CE72 and is 4973 bytes"
+        ],
+        "does_not_prove": [
+          "native or executable-proof completion",
+          "vendor access for the protected source boundary",
+          "commit, remote integration, whole-skill parity, or security outcomes"
+        ]
+      },
+      "TEST/CP08/disposition-gate": {
+        "run_id": "20260809081031-f71fdf6e-cp08-gate",
+        "command": "cargo test --locked -p enforcer-rules --test cyberskills_disposition -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-rules/tests/cyberskills_disposition.rs",
+          "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+          "proof/cyberskills/cp08/batch-01/decomposition.json",
+          "proof/cyberskills/cp08/batch-82/decomposition.json"
+        ],
+        "proves": [
+          "all 82 CP08 artifacts reconcile the 816 non-protected catalog identities",
+          "the CP08 disposition and negative-contract suite passed 8/8"
+        ],
+        "does_not_prove": [
+          "native implementation coverage beyond the six existing linked rows",
+          "executable proof coverage",
+          "live external engines, offensive execution, or overall CyberSkills parity"
+        ]
+      },
+      "TEST/CP08/derived-count-check": {
+        "run_id": "direct-cargo-enforcer-plan-engineering-graph-20260809-cp08",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "proof/cyberskills/cp08/batch-82/decomposition.json"
+        ],
+        "proves": [
+          "derived CP08 counts are 3,206 components with 758 complete and 58 partial rows",
+          "the protected sourceUnavailable identity is excluded from CP08 selection"
+        ],
+        "does_not_prove": [
+          "native or executable-proof promotion from decomposition",
+          "live external-system outcomes",
+          "overall CyberSkills parity"
+        ]
+      },
+      "TEST/CP11/graph-retention-and-packet-test": {
+        "run_id": "20260809085936-c4305fcd",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-01/decomposition.json",
+          "proof/cyberskills/cp08/batch-82/decomposition.json",
+          "proof/cyberskills/cp11/batch-01/retention.json"
+        ],
+        "proves": [
+          "CP08 advisory/manual retention is present for all 816 non-protected catalog identities",
+          "CP11 batch-01 validates 10 unique AI-security records with 10 retained advisory and 10 retained manual components",
+          "CP11 retention artifact SHA-256 is D33B01026D72DAB2B2DAEBD21C3392366EA1C804C4EFAC62CFA3D89F771B1D89 and is 12291 bytes"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "external model, MCP, provider, endpoint, telemetry, or production execution",
+          "commit, remote integration, whole-skill parity, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-02": {
+        "run_id": "20260809090357-60e26464",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-20/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp08/batch-82/decomposition.json",
+          "proof/cyberskills/cp11/batch-02/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-02 validates four unique AI-security records with four retained advisory and four retained manual components",
+          "CP11 batch-02 artifact SHA-256 is a36f030deaef7377552d9e8fc1dca1a308823b0407a4c800493751296549851d and is 6919 bytes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "external model, agent, tool, provider, endpoint, telemetry, or production execution",
+          "commit, remote integration, whole-skill parity, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-03": {
+        "run_id": "20260809091708-c61885be",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-07/decomposition.json",
+          "proof/cyberskills/cp08/batch-32/decomposition.json",
+          "proof/cyberskills/cp08/batch-38/decomposition.json",
+          "proof/cyberskills/cp08/batch-61/decomposition.json",
+          "proof/cyberskills/cp11/batch-03/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-03 validates ten unique API-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-03 artifact SHA-256 is 911cb0882d08e053f48a2a14f46d13566aa4de0ea177266bedd0043e7f628d3e and is 15675 bytes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live API, scanner, browser, endpoint, credential, session, or production execution",
+          "whole-skill parity, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-04": {
+        "run_id": "20260809092305-c6ff3fd9",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-07/decomposition.json",
+          "proof/cyberskills/cp08/batch-32/decomposition.json",
+          "proof/cyberskills/cp08/batch-72/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp11/batch-04/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-04 validates ten unique API-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-04 artifact SHA-256 is 0c3ae9e39eae04146a93a3fcfde9f0f820c2bf03c17814f167f2bd90c2833227 and is 15761 bytes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live API, scanner, browser, endpoint, credential, session, or production execution",
+          "whole-skill parity, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-05": {
+        "run_id": "20260809092557-51be1c1f",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-09/decomposition.json",
+          "proof/cyberskills/cp08/batch-38/decomposition.json",
+          "proof/cyberskills/cp08/batch-41/decomposition.json",
+          "proof/cyberskills/cp08/batch-75/decomposition.json",
+          "proof/cyberskills/cp08/batch-76/decomposition.json",
+          "proof/cyberskills/cp11/batch-05/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-05 validates eight unique API-security records with eight retained advisory and eight retained manual components",
+          "CP11 batch-05 artifact SHA-256 is c5d32d3c92d868f6189b09a23aea0f1761392f405a6c14b45d4b5d476ecdef29 and is 13173 bytes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live API, GraphQL, SOAP, OAuth, WebSocket, endpoint, browser, scanner, fuzzing, payload, credential, session, or production execution",
+          "whole-skill parity, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-06": {
+        "run_id": "20260809092913-3c21f75c",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/cyberskills/cp08/batch-52/decomposition.json",
+          "proof/cyberskills/cp08/batch-53/decomposition.json",
+          "proof/cyberskills/cp11/batch-06/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-06 validates two unique blockchain-security records with two retained advisory and two retained manual components",
+          "CP11 batch-06 artifact SHA-256 is 1629262daf9c84c9811ed454323e8babc1e0befddb7ab653a6933d3a4d7832c and is 4415 bytes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live blockchain, node, wallet, contract, compiler, test runner, scanner, transaction, key, or production execution",
+          "whole-skill parity, remediation outcomes, financial outcomes, or security outcomes"
+        ]
+      }
+    }
+  }
+}

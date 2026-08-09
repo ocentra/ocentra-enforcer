@@ -2,6 +2,29 @@
 
 This contract binds every task working in this plan.
 
+## Executable graph control plane
+
+Before selecting work, query the repo-owned Cyber Plan graph from the
+repository root:
+
+```text
+enforcer graph validate
+enforcer graph status
+enforcer graph ready
+enforcer graph inspect <stable-id>
+enforcer graph blocked
+```
+
+The graph controls dependency order and reports readiness; it does not replace
+this Markdown contract or grant authority to edit a singleton path. Do not
+start a workpack whose graph state is `BLOCKED`. Readiness is not completion:
+the graph only derives `DONE` after the workpack's explicit paths, tests,
+proof, ADR, and checklist contract is mechanically satisfied. CP08
+decomposition evidence never promotes native implementation or executable
+proof. Use the existing coordination claim/guard lifecycle for authority and
+keep all `sourceUnavailable`, external, advisory, and manual boundaries
+explicit.
+
 ## One-workpack rule
 
 Read only the plan read-order documents and the one workpack assigned by the boss. Do not edit sibling workpacks, infer product completion, or broaden the `owns` set. A repeated wave is still one workpack instance with a named batch manifest.

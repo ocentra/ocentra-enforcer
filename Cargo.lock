@@ -848,6 +848,7 @@ dependencies = [
  "enforcer-literal-scan",
  "enforcer-mcp",
  "enforcer-memory",
+ "enforcer-plan",
  "enforcer-proof",
  "enforcer-scan",
  "enforcer-ui",

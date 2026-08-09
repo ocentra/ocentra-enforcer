@@ -10,11 +10,12 @@ use enforcer_domain::core_types::ExitCode;
 use enforcer_domain::findings::ReportOutcome;
 use enforcer_domain::paths::RepoRoot;
 use enforcer_domain::scan_types::ResolvedScope;
+use enforcer_plan::graph::{CyberPlanGraph, GraphError, NodeId};
 use enforcer_scan::{engine, walk};
 
 use crate::cli::{
     AiRuleIndexArgs, ArchitectureAction, ArchitectureCheckArgs, GeneratedArtifactsArgs,
-    MutationRiskArgs, PolicyAction, RequiredTestsArgs, SbomArgs, ScopeArgs,
+    GraphAction, GraphArgs, MutationRiskArgs, PolicyAction, RequiredTestsArgs, SbomArgs, ScopeArgs,
     SingleSourceContractsArgs, VerifyArgs,
 };
 use crate::output;
@@ -193,6 +194,134 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
     } else {
         ExitCode::Violations
     }
+}
+
+/// Run one read-only Cyber Plan graph view and render its JSON contract.
+pub fn run_graph(args: &GraphArgs) -> ExitCode {
+    let root = match current_repo_root() {
+        Ok(root) => root,
+        Err(message) => {
+            output::print_internal_error(&message);
+            return ExitCode::InternalError;
+        }
+    };
+    let graph = match CyberPlanGraph::load(root.as_str()) {
+        Ok(graph) => graph,
+        Err(error) => {
+            output::print_internal_error(&format_graph_error(&error));
+            return ExitCode::InternalError;
+        }
+    };
+    match &args.action {
+        GraphAction::Status(_) => {
+            let valid = graph.validate().is_valid();
+            match graph.status_json() {
+                Ok(report) => {
+                    output::print_graph_json(&report);
+                    if valid {
+                        ExitCode::Success
+                    } else {
+                        ExitCode::Violations
+                    }
+                }
+                Err(error) => {
+                    output::print_internal_error(&format_graph_error(&error));
+                    ExitCode::InternalError
+                }
+            }
+        }
+        GraphAction::Ready(_) => match graph.ready_json() {
+            Ok(report) => {
+                output::print_graph_json(&report);
+                ExitCode::Success
+            }
+            Err(error) => {
+                output::print_internal_error(&format_graph_error(&error));
+                ExitCode::InternalError
+            }
+        },
+        GraphAction::Next(_) => match graph.next_json() {
+            Ok(report) => {
+                output::print_graph_json(&report);
+                if graph.validate().is_valid() {
+                    ExitCode::Success
+                } else {
+                    ExitCode::Violations
+                }
+            }
+            Err(error) => {
+                output::print_internal_error(&format_graph_error(&error));
+                ExitCode::InternalError
+            }
+        },
+        GraphAction::Blocked(_) => match graph.blocked_json() {
+            Ok(report) => {
+                output::print_graph_json(&report);
+                ExitCode::Success
+            }
+            Err(error) => {
+                output::print_internal_error(&format_graph_error(&error));
+                ExitCode::InternalError
+            }
+        },
+        GraphAction::Validate(_) => {
+            let valid = graph.validate().is_valid();
+            match graph.validate_json() {
+                Ok(report) => {
+                    output::print_graph_json(&report);
+                    if valid {
+                        ExitCode::Success
+                    } else {
+                        ExitCode::Violations
+                    }
+                }
+                Err(error) => {
+                    output::print_internal_error(&format_graph_error(&error));
+                    ExitCode::InternalError
+                }
+            }
+        }
+        GraphAction::Inspect(args) => match parse_graph_id(&args.id) {
+            Ok(id) => match graph.inspect_json(&id) {
+                Ok(status) => {
+                    output::print_graph_json(&status);
+                    ExitCode::Success
+                }
+                Err(error) => {
+                    output::print_usage_error(&format_graph_error(&error));
+                    ExitCode::UsageError
+                }
+            },
+            Err(error) => {
+                output::print_usage_error(&format_graph_error(&error));
+                ExitCode::UsageError
+            }
+        },
+        GraphAction::Why(args) => match parse_graph_id(&args.id) {
+            Ok(id) => match graph.why_json(&id) {
+                Ok(report) => {
+                    output::print_graph_json(&report);
+                    ExitCode::Success
+                }
+                Err(error) => {
+                    output::print_usage_error(&format_graph_error(&error));
+                    ExitCode::UsageError
+                }
+            },
+            Err(error) => {
+                output::print_usage_error(&format_graph_error(&error));
+                ExitCode::UsageError
+            }
+        },
+    }
+}
+
+fn parse_graph_id(raw: &str) -> Result<NodeId, GraphError> {
+    NodeId::new(raw.to_owned())
+}
+
+fn format_graph_error(error: &GraphError) -> String {
+    error.to_string()
 }
 
 /// `enforcer verify --mode <mode> <scope>`. `--mode` selection only

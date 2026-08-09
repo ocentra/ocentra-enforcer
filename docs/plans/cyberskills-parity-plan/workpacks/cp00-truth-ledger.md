@@ -55,13 +55,13 @@ Replace the mutually exclusive, hand-totaled disposition with a typed per-skill 
 
 ## Requirement Checklist
 
-- [ ] Read-only report compares the current 817 rows, six evidence files, 41 native records, and adapter registry.
-- [ ] Boss approves a before/after schema example before edits.
-- [ ] Migration is deterministic and reviewable; no AI-generated classification is silently accepted.
-- [ ] All 817 identities survive exactly once: 816 readable and one source-unavailable identity.
-- [ ] Existing six fingerprints and evidence paths still validate.
-- [ ] Negative fixtures cover missing source, duplicate ID, empty components, invalid kind/status/tier, malformed hash, missing `notProved`, hand-total drift, and treating `sourceUnavailable` as covered.
-- [ ] Derived summary distinguishes source-retained, decomposed, implemented, proved, advisory-retained, manual-retained, and unexplained.
+- [x] Read-only report compares the current 817 rows, six evidence files, 41 native records, and adapter registry.
+- [x] Boss approves a before/after schema example before edits.
+- [x] Migration is deterministic and reviewable; no AI-generated classification is silently accepted.
+- [x] All 817 identities survive exactly once: 816 readable and one source-unavailable identity.
+- [x] Existing six fingerprints and evidence paths still validate.
+- [x] Negative fixtures cover missing source, duplicate ID, empty components, invalid kind/status/tier, malformed hash, missing `notProved`, hand-total drift, and treating `sourceUnavailable` as covered.
+- [x] Derived summary distinguishes source-retained, decomposed, implemented, proved, advisory-retained, manual-retained, and unexplained.
 
 ## Acceptance And Proof
 

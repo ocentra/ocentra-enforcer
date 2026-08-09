@@ -57,6 +57,8 @@ pub mod agents_forest;
 mod boundary;
 mod domain;
 pub mod error;
+#[path = "boundary/cyber_graph.rs"]
+pub mod graph;
 pub mod lessons;
 pub mod orchestrator;
 pub mod scaffolder;

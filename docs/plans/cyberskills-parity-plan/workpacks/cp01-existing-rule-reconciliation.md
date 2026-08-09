@@ -22,7 +22,7 @@
 
 ## Where We Are
 
-Forty-one native rule records exist, while only six vendor mappings have the full fingerprint, predicate, fixtures, and narrowed-coverage evidence required by the retention gate.
+Forty-one native rule records exist, while only six vendor mappings have the full fingerprint, predicate, fixtures, and narrowed-coverage evidence required by the retention gate. Four registry IDs are still absent from the four existing CP01 evidence batches, so the workpack is not mechanically closed.
 
 ## Where We Want To Be
 
@@ -34,19 +34,21 @@ Only the assigned rule mapping/evidence files and CP01 batch fixtures. The worke
 
 ## Objective
 
-Determine what the already implemented rules actually prove and connect them to vendor source without inflating parity. Similar names or comments are discovery leads, not evidence.
+Determine what the already implemented rules actually prove and connect them to vendor source without inflating parity. Similar names or comments are discovery leads, not evidence. The next bounded packet must close the CP01 registry partition before any graph status can become `DONE`.
 
 ## Requirement Checklist
 
-- [ ] Registry rule ID and validator path exist.
-- [ ] Exact vendor skill path and current source SHA-256 are recorded.
-- [ ] Stable anchors identify the source statements used.
-- [ ] The Rust predicate is stated narrowly and mechanically.
-- [ ] Existing fail and pass fixtures execute the named validator.
-- [ ] Malformed/boundary behavior is recorded.
-- [ ] `notProved` names the remainder of the skill and known limitations.
-- [ ] The component ledger changes only from evidence actually present.
-- [ ] Rules with no defensible source mapping remain implementation inventory, not vendor parity.
+- [x] Registry rule ID and validator path exist.
+- [x] Exact vendor skill path and current source SHA-256 are recorded.
+- [x] Stable anchors identify the source statements used.
+- [x] The Rust predicate is stated narrowly and mechanically.
+- [x] Existing fail and pass fixtures execute the named validator.
+- [x] Malformed/boundary behavior is recorded.
+- [x] `notProved` names the remainder of the skill and known limitations.
+- [x] The component ledger changes only from evidence actually present.
+- [x] Rules with no defensible source mapping remain implementation inventory, not vendor parity.
+- [x] A bounded aggregate closure packet accounts for all 41 registry IDs, including the four IDs absent from batches 01-04, with explicit accepted/rejected/unproved disposition.
+- [ ] The CP01 proof row records the aggregate artifact, exact gate evidence, derived counts, and non-proofs; only then may the graph lifecycle move to `DONE`.
 
 ## Existing-rule grammar classification
 

@@ -38,15 +38,15 @@ Before work, commit or mail an ordered list of exactly 10 catalog IDs selected b
 
 ## Requirement Checklist
 
-- [ ] Verify canonical path, source hash, license/attribution, frontmatter, references, and scripts.
-- [ ] Identify each distinct claimed outcome or procedure.
-- [ ] Classify each component using the architecture decision matrix.
-- [ ] For native candidates, state input kind, exact deterministic predicate, likely typed/syntax/text mechanism, positive/negative boundary, and limitations.
-- [ ] For external candidates, name the actual engine capability/output needed; do not assume one adapter per skill.
-- [ ] For advisory/manual components, retain exact anchors and explain why no mechanical verdict is honest.
-- [ ] Identify third-party dependencies used by the vendor scripts and whether they are engine, fetch-only, format conversion, or incidental glue.
-- [ ] Mark uncertainty `proposed`/`blocked`; never guess.
-- [ ] Do not change implementation status without executable evidence.
+- [x] Verify canonical path, source hash, license/attribution, frontmatter, references, and scripts.
+- [x] Identify each distinct claimed outcome or procedure.
+- [x] Classify each component using the architecture decision matrix.
+- [x] For native candidates, state input kind, exact deterministic predicate, likely typed/syntax/text mechanism, positive/negative boundary, and limitations.
+- [x] For external candidates, name the actual engine capability/output needed; do not assume one adapter per skill.
+- [x] For advisory/manual components, retain exact anchors and explain why no mechanical verdict is honest.
+- [x] Identify third-party dependencies used by the vendor scripts and whether they are engine, fetch-only, format conversion, or incidental glue.
+- [x] Mark uncertainty `proposed`/`blocked`; never guess.
+- [x] Do not change implementation status without executable evidence.
 
 ## Acceptance And Proof
 

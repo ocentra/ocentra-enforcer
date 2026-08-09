@@ -28,6 +28,12 @@ Advisory and manual knowledge can be lost or mislabeled as enforcement when a wh
 
 Retain every non-mechanical component with stable source evidence, an honest purpose/reason, and a T1 retention check.
 
+## Batch-01 validation packet
+
+The graph-selected first packet is `proof/cyberskills/cp11/batch-01/retention.json`. It covers the deterministic first ten `IF/ai-security` catalog IDs, references immutable CP08 artifact paths and hashes, and records 10 retained advisory plus 10 retained manual components. The packet has no native implementation or external execution authority. Its artifact SHA-256 is `D33B01026D72DAB2B2DAEBD21C3392366EA1C804C4EFAC62CFA3D89F771B1D89` (12291 bytes).
+
+The graph retention gate also validates all 816 non-protected CP08 identities. This is validation evidence in the current worktree; CP11 is not `DONE` until the exact packet and gate evidence are reviewed on a committed tree.
+
 ## Objective
 
 Ensure knowledge that cannot honestly decide pass/fail remains discoverable and never disappears behind a false parity count.

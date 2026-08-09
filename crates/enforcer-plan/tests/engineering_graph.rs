@@ -1,0 +1,151 @@
+//! BOUNDARY-INVARIANT: integration tests exercise the graph only through its
+//! public read-only contract and never open the vendor tree.
+//! NEGATIVE-TEST: protected sourceUnavailable rows remain pathless and cannot
+//! become evidence for native implementation or executable proof.
+
+use std::error::Error;
+use std::path::PathBuf;
+
+use enforcer_plan::graph::{CyberPlanGraph, NodeId, NodeKind};
+
+fn repository_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+#[test]
+fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<(), Box<dyn Error>>
+{
+    let graph = CyberPlanGraph::load(repository_root())?;
+    let status = graph.status();
+    let cp01_batch05 = NodeId::new("PROOF/CP01/batch-05")?;
+    let cp11_batch01 = NodeId::new("PROOF/CP11/batch-01")?;
+    let cp11_batch02 = NodeId::new("PROOF/CP11/batch-02")?;
+    let cp11_batch03 = NodeId::new("PROOF/CP11/batch-03")?;
+    let cp11_batch04 = NodeId::new("PROOF/CP11/batch-04")?;
+    let cp11_batch05 = NodeId::new("PROOF/CP11/batch-05")?;
+    let cp11_batch06 = NodeId::new("PROOF/CP11/batch-06")?;
+
+    assert_eq!(status.workpacks.len(), 14 + status.intent.packet_count);
+    assert_eq!(status.catalog.total, 817);
+    assert_eq!(status.catalog.source_unavailable, 1);
+    assert_eq!(status.catalog.decomposed_complete, 758);
+    assert_eq!(status.catalog.decomposed_partial, 58);
+    assert_eq!(status.catalog.native_complete, 6);
+    assert_eq!(status.catalog.native_partial, 0);
+    assert_eq!(status.catalog.proof_complete, 0);
+    assert_eq!(status.intent.family_count, 34);
+    assert_eq!(status.intent.mapped_skill_count, 816);
+    assert_eq!(status.intent.protected_excluded, 1);
+    assert!(status.intent.native_packet_count > 0);
+    assert!(status.intent.retention_packet_count > 0);
+    let cp01_node = graph
+        .node(&cp01_batch05)
+        .ok_or("CP01 batch-05 evidence node must be imported")?;
+    assert_eq!(cp01_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp01_node.metadata.get("ruleCount").map(String::as_str),
+        Some("4")
+    );
+    let cp11_node = graph
+        .node(&cp11_batch01)
+        .ok_or("CP11 batch-01 evidence node must be imported")?;
+    assert_eq!(cp11_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_node.metadata.get("skillCount").map(String::as_str),
+        Some("10")
+    );
+    let cp11_batch02_node = graph
+        .node(&cp11_batch02)
+        .ok_or("CP11 batch-02 evidence node must be imported")?;
+    assert_eq!(cp11_batch02_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_batch02_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("4")
+    );
+    let cp11_batch03_node = graph
+        .node(&cp11_batch03)
+        .ok_or("CP11 batch-03 evidence node must be imported")?;
+    assert_eq!(cp11_batch03_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_batch03_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("10")
+    );
+    let cp11_batch04_node = graph
+        .node(&cp11_batch04)
+        .ok_or("CP11 batch-04 evidence node must be imported")?;
+    assert_eq!(cp11_batch04_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_batch04_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("10")
+    );
+    let cp11_batch05_node = graph
+        .node(&cp11_batch05)
+        .ok_or("CP11 batch-05 evidence node must be imported")?;
+    assert_eq!(cp11_batch05_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_batch05_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("8")
+    );
+    let cp11_batch06_node = graph
+        .node(&cp11_batch06)
+        .ok_or("CP11 batch-06 evidence node must be imported")?;
+    assert_eq!(cp11_batch06_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp11_batch06_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("2")
+    );
+    assert!(
+        status.validation.is_valid(),
+        "{:?}",
+        status.validation.issues
+    );
+    Ok(())
+}
+
+#[test]
+fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
+) -> Result<(), Box<dyn Error>> {
+    let graph = CyberPlanGraph::load(repository_root())?;
+    let next = graph.next_json()?;
+
+    assert_eq!(next["decision"], "selected");
+    assert_eq!(next["selected"]["id"], "WP/CP11/IF-cloud-security/B01");
+    assert_eq!(next["validation"]["valid"], true);
+    assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
+    assert_eq!(next["policy"]["decompositionPromotesProof"], false);
+    Ok(())
+}
+
+#[test]
+fn protected_catalog_row_is_explicitly_excluded() -> Result<(), Box<dyn Error>> {
+    let graph = CyberPlanGraph::load(repository_root())?;
+    let id = NodeId::new("SKILL/detecting-fileless-malware-techniques")?;
+    let node = graph.node(&id).ok_or("protected row must be represented")?;
+
+    assert_eq!(node.kind, NodeKind::Skill);
+    assert_eq!(
+        node.metadata.get("sourceAvailability").map(String::as_str),
+        Some("sourceUnavailable")
+    );
+    assert_eq!(
+        node.metadata.get("protectedBoundary").map(String::as_str),
+        Some("excluded")
+    );
+    assert!(node.path.is_none());
+    Ok(())
+}
