@@ -1317,18 +1317,19 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 }
 
 #[test]
-fn next_reports_the_dependency_frontier_without_promoting_truth() -> Result<(), Box<dyn Error>> {
+fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
+) -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
     let ul07 = graph.inspect(&NodeId::new("EXT/UL07")?)?;
     let cp06 = graph.inspect(&NodeId::new("WP/CP06")?)?;
 
-    assert_eq!(next["decision"], "blocked");
-    assert_eq!(ul03.state, DerivedState::Validation);
+    assert_eq!(next["decision"], "selected");
+    assert_eq!(ul03.state, DerivedState::Done);
     assert_eq!(ul07.state, DerivedState::Done);
     assert_eq!(cp06.state, DerivedState::Done);
-    assert!(next["selected"].is_null());
+    assert_eq!(next["selected"]["id"], "EXT/UL04");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

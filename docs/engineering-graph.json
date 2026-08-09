@@ -39,7 +39,7 @@
       "EXT/UL00": "done",
       "EXT/UL01": "done",
       "EXT/UL02": "done",
-      "EXT/UL03": "validation",
+      "EXT/UL03": "done",
       "EXT/UL07": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
@@ -3485,6 +3485,27 @@
         "does_not_prove": [
           "full cargo test --locked -p enforcer-memory --tests closure: the current shallow history run reached 67 passed and 2 failed historical QA rows (QA-159 and the aggregate QA gate reporting QA-063, QA-159, QA-166, QA-167, QA-168, QA-171, QA-172, and QA-173 as unrunnable)",
           "new parser facts, validator integration, enforcement rules, native CyberSkills implementation, executable proof, external tools, or security outcomes",
+          "overall Universal Language or CyberSkills plan completion"
+        ]
+      },
+      "TEST/UL03/full-package-qa": {
+        "run_id": "20260809-ul03-full-package-qa",
+        "command": "git fetch --unshallow --no-tags origin; cargo test --locked -p enforcer-memory --test feature_parity_harness -- --nocapture; cargo test --locked -p enforcer-memory --tests",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "9283d61ced015986b9ec523e0990d4ad3577c29c",
+        "source_paths": [
+          "proof/universal-language/ul03/full-package-qa.json",
+          "crates/enforcer-memory/tests/feature_parity_harness.rs",
+          "crates/enforcer-memory/tests/feature_parity/runners.rs"
+        ],
+        "proves": [
+          "the complete-history enforcer-memory test package passes, including the 69-test feature-parity target",
+          "the eight historical QA rows previously unavailable in a shallow checkout are executable and green with authoritative commit objects",
+          "UL03's syntax-extraction dependency state is complete for graph scheduling"
+        ],
+        "does_not_prove": [
+          "new parser facts, validator integration, enforcement rules, native CyberSkills implementation, executable proof, or security outcomes",
           "overall Universal Language or CyberSkills plan completion"
         ]
       },
