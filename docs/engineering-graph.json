@@ -92,7 +92,8 @@
       "WP/CP11/IF-penetration-testing/B01": "validation",
       "WP/CP11/IF-penetration-testing/B02": "validation",
       "WP/CP11/IF-penetration-testing/B03": "validation",
-      "WP/CP11/IF-phishing-defense/B01": "validation"
+      "WP/CP11/IF-phishing-defense/B01": "validation",
+      "WP/CP11/IF-phishing-defense/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1918,6 +1919,36 @@
           "CP11 batch-57 validates ten unique phishing-defense records with ten retained advisory and ten retained manual components",
           "CP11 batch-57 artifact SHA-256 and source evidence are validated from the immutable CP08 batch artifacts",
           "graph.next advances from phishing-defense B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live mail, URL, browser, phone, voice, QR, gateway, IdP, MFA, sandbox, AI, endpoint, network, credential, session, social-channel, delivery, or production execution",
+          "message authenticity, user susceptibility, credential capture, account compromise, detection efficacy, attribution, remediation success, safety outcome, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-58": {
+        "run_id": "20260809-engineering-graph-cp11-batch-58-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "5c831112b58e7ee44923bdfb971f49e48184d67f",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-05/decomposition.json",
+          "proof/cyberskills/cp08/batch-08/decomposition.json",
+          "proof/cyberskills/cp08/batch-35/decomposition.json",
+          "proof/cyberskills/cp08/batch-68/decomposition.json",
+          "proof/cyberskills/cp08/batch-74/decomposition.json",
+          "proof/cyberskills/cp11/batch-58/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-58 validates six unique phishing-defense records with six retained advisory and six retained manual components",
+          "CP11 batch-58 artifact SHA-256 and source evidence are validated from the immutable CP08 batch artifacts",
+          "graph.next advances from phishing-defense B02 to the next dependency-legal intent family without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
