@@ -97,7 +97,8 @@
       "WP/CP11/IF-privacy-compliance/B01": "validation",
       "WP/CP11/IF-purple-team/B01": "validation",
       "WP/CP11/IF-ransomware-defense/B01": "validation",
-      "WP/CP11/IF-ransomware-defense/B02": "validation"
+      "WP/CP11/IF-ransomware-defense/B02": "validation",
+      "WP/CP11/IF-red-teaming/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2068,6 +2069,35 @@
           "live endpoint, network, host, malware, backup, restore, tabletop, packet, production, or recovery execution",
           "ransomware prevention, detection, attribution, containment, backup integrity, restore integrity, RTO/RPO, remediation success, safety outcome, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-63": {
+        "run_id": "20260809-engineering-graph-cp11-batch-63-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "8279d5da51a0c19e59f14a2c6f9905c99d1b230e",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-26/decomposition.json",
+          "proof/cyberskills/cp08/batch-52/decomposition.json",
+          "proof/cyberskills/cp08/batch-55/decomposition.json",
+          "proof/cyberskills/cp08/batch-56/decomposition.json",
+          "proof/cyberskills/cp11/batch-63/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-63 validates ten unique red-teaming records with ten retained advisory and ten retained manual components",
+          "CP11 batch-63 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from red-teaming B01 to B02 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live credential access, C2, persistence, reconnaissance, exploit delivery, lateral movement, endpoint, network, directory, packet, or production execution",
+          "compromise, credential capture, privilege escalation, attribution, detection efficacy, containment, remediation success, safety outcome, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
         ]
       }
     }
