@@ -87,7 +87,8 @@
       "WP/CP11/IF-network-security/B04": "validation",
       "WP/CP11/IF-network-security/B05": "validation",
       "WP/CP11/IF-ot-ics-security/B01": "validation",
-      "WP/CP11/IF-ot-ics-security/B02": "validation"
+      "WP/CP11/IF-ot-ics-security/B02": "validation",
+      "WP/CP11/IF-ot-ics-security/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1767,6 +1768,36 @@
           "native implementation or executable-proof coverage",
           "live PLC, historian, SCADA, DNP3, Modbus, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, grid, facility, safety, or production execution",
           "OT asset truth, anomaly or attack detection efficacy, protocol truth, monitoring efficacy, access enforcement, safety outcome, attribution, remediation, compliance, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-53": {
+        "run_id": "20260809-engineering-graph-cp11-batch-53-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "803e556f0fd6e9ebe5598e43e0ab01ed0aa0625e",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-22/decomposition.json",
+          "proof/cyberskills/cp08/batch-34/decomposition.json",
+          "proof/cyberskills/cp08/batch-76/decomposition.json",
+          "proof/cyberskills/cp08/batch-77/decomposition.json",
+          "proof/cyberskills/cp08/batch-78/decomposition.json",
+          "proof/cyberskills/cp11/batch-53/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-53 validates nine unique OT/ICS security records with nine retained advisory and nine retained manual components",
+          "CP11 batch-53 artifact SHA-256 is 0a595cf5c73f9876b61cfb89462c9e05a2bbf0017bb7d311c7dc3a09f5ac800e and is 14558 bytes",
+          "graph.next advances from OT/ICS security B03 to penetration-testing B01 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live PLC, historian, SCADA, DNP3, Modbus, S7comm, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, scanner, firmware, grid, facility, safety, or production execution",
+          "OT asset truth, anomaly or attack detection efficacy, protocol truth, monitoring efficacy, access enforcement, vulnerability validity, remediation, compliance, safety outcome, attribution, or security outcome",
           "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
         ]
       }
