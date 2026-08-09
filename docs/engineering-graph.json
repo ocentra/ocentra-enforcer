@@ -49,7 +49,8 @@
       "WP/CP11/IF-cloud-security/B05": "validation",
       "WP/CP11/IF-cloud-security/B06": "validation",
       "WP/CP11/IF-cloud-security/B07": "validation",
-      "WP/CP11/IF-compliance-governance/B01": "validation"
+      "WP/CP11/IF-compliance-governance/B01": "validation",
+      "WP/CP11/IF-container-security/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -629,6 +630,34 @@
           "native implementation or executable-proof coverage",
           "live assessor, regulator, auditor, GRC, scanner, ticketing, cloud, host, endpoint, system, data, evidence, vendor, legal, privacy, or production execution",
           "compliance, certification, authorization, risk, maturity, control operation, audit, attestation, legal conclusion, remediation, approval, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-15": {
+        "run_id": "20260809-engineering-graph-cp11-batch-15-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "8b4fa6de59b2423e201424c6926d699ec529b7c0",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-01/decomposition.json",
+          "proof/cyberskills/cp08/batch-02/decomposition.json",
+          "proof/cyberskills/cp08/batch-03/decomposition.json",
+          "proof/cyberskills/cp08/batch-49/decomposition.json",
+          "proof/cyberskills/cp11/batch-15/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-15 validates ten unique container-security records with retained advisory and manual boundaries",
+          "CP11 batch-15 artifact SHA-256 is 1fedddf7b36658307942db7cf9d690fd30e5c83109a59d55cd9ffd0386e4e3d3 and is 17519 bytes",
+          "graph.next advances from container-security B01 to B02 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live Kubernetes, Docker, Falco, OPA/Gatekeeper, kube-bench, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution",
+          "audit completeness, RBAC reachability, privilege, benchmark, drift, escape, detection efficacy, hardening, remediation, containment, recovery, attribution, or security outcomes"
         ]
       }
     }

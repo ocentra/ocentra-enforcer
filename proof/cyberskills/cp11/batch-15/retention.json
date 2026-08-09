@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-15",
+  "family": "IF/container-security",
+  "baselineCommit": "8b4fa6de59b2423e201424c6926d699ec529b7c0",
+  "scope": "Retain advisory and manual content for the first deterministic container-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-kubernetes-audit-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-kubernetes-audit-logs/SKILL.md",
+        "sha256": "76c6fec70d8e58b4120518c6ebfa87a0a0221be77634ffb0186695a041895733",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["## Instructions:L51", "## Examples:L76"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Kubernetes audit-event parsing, privileged-operation triage, RBAC-change investigation, secret-access review, and incident-reporting guidance.",
+        "notProved": ["Guidance is not a Kubernetes API server, audit collector, SIEM, cluster, or incident-attribution authority and does not prove audit completeness, detection, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, namespace, identity, resource, event, time-window, retention, privacy, legal, and data-handling scope; analyst validation, severity, containment, remediation, and disclosure decisions remain manual.",
+        "notProved": ["No human authorization, live cluster, audit policy, retention, SIEM ingestion, incident, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-kubernetes-rbac-privilege-escalation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-kubernetes-rbac-privilege-escalation/SKILL.md",
+        "sha256": "ed8041e8d4e51577ddb6a7f382eca827fae666d0350182874b1acf7ab9af43b3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 1: Inventory RBAC Objects:L93", "### Step 3: Hunt the Escalation Primitives:L133", "### Step 6: Demonstrate an Escalation Path (Lab Only):L184"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Kubernetes RBAC inventory, dangerous-verb, wildcard, impersonation, binding, service-account, and escalation-path review guidance.",
+        "notProved": ["Guidance is not kubectl, rbac-police, a cluster, an authorization engine, or an attack-path authority and does not prove reachability, exploitability, privilege, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, namespace, principal, role, binding, resource, credential, lab, safety, legal, and data scope; owner validation and analyst decisions for severity, containment, remediation, rollback, and disclosure remain manual.",
+        "notProved": ["No live cluster, effective-permission query, lab escalation, credential use, exploit, privilege change, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "benchmarking-kubernetes-with-kube-bench",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/benchmarking-kubernetes-with-kube-bench/SKILL.md",
+        "sha256": "7acf7b4d180a60522fb2dd49491e3107f74e8db103344f9061d4618168f8c4a5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### 1. Run the default scan (auto-detect):L83", "### 6. Produce machine-readable output:L157", "### 7. Triage and remediate FAIL/WARN findings:L172"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CIS Kubernetes Benchmark target selection, versioning, machine-readable result interpretation, triage, and remediation-planning guidance.",
+        "notProved": ["Guidance is not kube-bench, CIS, a cluster, a node, or a benchmark authority and does not prove benchmark completeness, posture, remediation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, node, version, benchmark, target, maintenance, legal, safety, and data scope; operator validation, exception, remediation, rollback, and disclosure decisions remain manual.",
+        "notProved": ["No kube-bench run, cluster or node access, benchmark result, remediation, or production hardening decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-container-drift-at-runtime",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-drift-at-runtime/SKILL.md",
+        "sha256": "707a93dcb3498845ca105e7df4fef11b3274733fc8d8d3eeb8661d61e60892f5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Container Drift at Runtime:L32", "## Core Concepts:L53", "## Implementation with Falco:L71"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain container image-digest, filesystem, package, writable-root, runtime-telemetry, investigation, and drift-remediation guidance.",
+        "notProved": ["Guidance is not Falco, Defender, a runtime, kernel, container, host, telemetry stream, or detection authority and does not prove drift, coverage, or response outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact image, container, host, runtime, manifest, telemetry, tenant, privacy, legal, safety, and change scope; analyst validation, severity, containment, remediation, rollback, and disclosure remain manual.",
+        "notProved": ["No runtime telemetry, container, host, kernel, image, drift event, incident, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-container-escape-attempts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-escape-attempts/SKILL.md",
+        "sha256": "75011fdcc77be164af51780445ba67eec310e32d4af9c46a269340d7eb7ab948",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Container Escape Attempts:L35", "## Workflow:L79", "### Step 2: Custom Falco Rules for Escape Detection:L110"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain container-escape indicators, Falco-rule review, investigation, isolation, and defensive response guidance.",
+        "notProved": ["Guidance is not Falco, a runtime, kernel, host, container, or exploitability authority and does not prove an escape attempt, detection coverage, or impact."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, workload, host, namespace, capability, mount, test, safety, legal, and data scope; controlled validation, severity, containment, remediation, rollback, recovery, and disclosure decisions remain manual.",
+        "notProved": ["No live escape test, host or runtime access, alert stream, containment, remediation, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-container-escape-with-falco-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-escape-with-falco-rules/SKILL.md",
+        "sha256": "91d7e0486c0fc4ad4d172777d5c186f7a883e55b7deda59b7498cdd051d25810",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Container Escape with Falco Rules:L36", "## Container Escape Detection Rules:L98", "## Testing Rules:L320"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Falco rule design, container-escape signal selection, testing, alert routing, and defensive investigation guidance.",
+        "notProved": ["Guidance is not Falco, a driver, runtime telemetry, SIEM, or host authority and does not prove rule completeness, alert delivery, detection efficacy, or safety outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and an isolated lab, exact rule, driver, runtime, event, host, network, safety, legal, and data scope; human validation, stop conditions, containment, remediation, rollback, and disclosure decisions remain manual.",
+        "notProved": ["No Falco installation, driver, controlled event, alert, SIEM route, runtime test, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-container-runtime-threats-with-falco",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-runtime-threats-with-falco/SKILL.md",
+        "sha256": "328e742a6c12bb36de5ce05c46776af1ebf5fdb6e646122c990eb8f47595233e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Container Runtime Threats with Falco:L23", "## Workflow:L84", "### Step 7: Validate Rule Syntax and Load:L216"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Falco rule-schema, runtime-threat taxonomy, MITRE mapping, deployment, validation, and SIEM guidance.",
+        "notProved": ["Guidance is not Falco, an eBPF or kernel driver, a runtime, SIEM, or detection authority and does not prove rule coverage, alerting, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact rule, driver, runtime, workload, event, lab, SIEM, safety, legal, and data scope; human validation, purple-team approval, stop conditions, containment, remediation, and disclosure remain manual.",
+        "notProved": ["No Falco validation, driver, runtime event, purple-team exercise, SIEM forwarding, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-privilege-escalation-in-kubernetes-pods",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-privilege-escalation-in-kubernetes-pods/SKILL.md",
+        "sha256": "7bc86f50059fca053fff998b9dbbefc07a22e4583deaca4fb761dc1de3cec23d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["## Privilege Escalation Vectors in Kubernetes:L57", "### Pod Security Admission (Built-in):L73", "## Runtime Detection with Falco:L138"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Kubernetes pod-security, dangerous-capability, host-namespace, host-path, admission, audit, and runtime-investigation guidance.",
+        "notProved": ["Guidance is not Kubernetes, Falco, OPA/Gatekeeper, an admission controller, runtime, or cluster authority and does not prove privilege, admission, detection, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, namespace, pod, workload, identity, capability, host interface, policy, telemetry, safety, legal, and data scope; owner validation, severity, containment, remediation, rollback, and disclosure remain manual.",
+        "notProved": ["No live pod, admission decision, runtime event, exploit, privilege change, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "escaping-containers-to-host",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/escaping-containers-to-host/SKILL.md",
+        "sha256": "f68d22f61782a6a3bddc1fb88d82edbf42c2ca4584503a64b0b4f1b8dbda2ee9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Escaping Containers to Host:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive container isolation, capability, namespace, mount, image, runtime, host-boundary, and remediation guidance.",
+        "notProved": ["Guidance is not Docker, Kubernetes, a runtime, kernel, host, registry, or exploit authority and does not prove isolation, escape, privilege, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, workload and host ownership, exact cluster, tenant, namespace, capability, mount, test, legal, privacy, safety, and data boundaries; human validation, containment, remediation, rollback, recovery, and disclosure decisions remain manual.",
+        "notProved": ["No live container, host, kernel, namespace, capability, mount, escape test, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "hardening-docker-containers-for-production",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-containers-for-production/SKILL.md",
+        "sha256": "44b036d049933cc7c206aeb3e8261748782b4c8e7987c8e899fe3785335b4c65",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hardening Docker Containers for Production:L29", "## Core Concepts:L53", "### CIS Docker Benchmark Sections:L55"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Dockerfile, image, non-root, package, immutable-setting, secret-handling, CIS, and production hardening guidance.",
+        "notProved": ["Guidance is not Docker, a daemon, image builder, scanner, CIS authority, registry, or production enforcement and does not prove image behavior, hardening completeness, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact Dockerfile, image, base, daemon, registry, build, deployment, secret, tenant, legal, safety, and data scope; owner validation, change control, rollout, rollback, remediation, and disclosure decisions remain manual.",
+        "notProved": ["No Docker build, daemon, image, scanner, deployment, runtime, remediation, rollback, or production hardening decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Kubernetes, Docker, Falco, OPA/Gatekeeper, kube-bench, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution is proved.",
+    "No audit completeness, RBAC reachability, privilege, benchmark, drift, escape, detection efficacy, hardening, remediation, attribution, containment, recovery, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
