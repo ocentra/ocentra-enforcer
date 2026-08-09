@@ -123,7 +123,8 @@
     "WP/CP11/IF-threat-intelligence/B04": "validation",
     "WP/CP11/IF-threat-intelligence/B05": "validation",
     "WP/CP11/IF-threat-intelligence/B06": "validation",
-    "WP/CP11/IF-vulnerability-management/B01": "validation"
+    "WP/CP11/IF-vulnerability-management/B01": "validation",
+    "WP/CP11/IF-vulnerability-management/B02": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2933,7 +2934,42 @@
           "protected detecting-fileless-malware-techniques available/readable"
         ],
         "artifact_sha256": "020d2ed1d7403378cc340333cecf4bb8411bb8dd56bb9fa3c1f9be0db44e5646",
-        "artifact_bytes": 17098,
+        "artifact_bytes": 17097,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-89": {
+        "run_id": "20260809-engineering-graph-cp11-batch-89-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "8a144d7f081a4f239c803064e7278d62e7d35641",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-10/decomposition.json",
+          "proof/cyberskills/cp08/batch-33/decomposition.json",
+          "proof/cyberskills/cp08/batch-69/decomposition.json",
+          "proof/cyberskills/cp08/batch-72/decomposition.json",
+          "proof/cyberskills/cp08/batch-73/decomposition.json",
+          "proof/cyberskills/cp08/batch-74/decomposition.json",
+          "proof/cyberskills/cp11/batch-89/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-89 validates ten unique vulnerability-management records with ten retained advisory and ten retained manual components",
+          "CP11 batch-89 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from vulnerability-management B02 to its final packet without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live Rapid7, Greenbone, OpenVAS, Active Directory, Nessus, CISA KEV, ticketing, endpoint, network, cloud, credential, or production execution",
+          "vulnerability truth, exploitability, priority, remediation, SLA, delivery, approval, assessment, asset criticality, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "cfef7beaccb3faf11cd03bedd6c45db7214afbbe5383f091869936815ed2cac1",
+        "artifact_bytes": 15205,
         "skill_count": 10,
         "component_count": 40
       }
