@@ -82,7 +82,8 @@
       "WP/CP11/IF-mobile-security/B01": "validation",
       "WP/CP11/IF-mobile-security/B02": "validation",
       "WP/CP11/IF-network-security/B01": "validation",
-      "WP/CP11/IF-network-security/B02": "validation"
+      "WP/CP11/IF-network-security/B02": "validation",
+      "WP/CP11/IF-network-security/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1608,6 +1609,35 @@
         "proves": [
           "CP11 batch-47 validates ten unique network-security records with ten retained advisory and ten retained manual components",
           "CP11 batch-47 artifact SHA-256 is 608a035a8c8b213c82f078e12a296837e0cb1652983803556a94376808a461e9 and is 15945 bytes",
+          "graph.next advances from network-security B02 to B03 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live network, host, DNS, packet capture, scanner, exploit, credential, session, wireless interface, or production execution",
+          "network discovery truth, traffic truth, detection efficacy, intrusion attribution, segmentation enforcement, firewall correctness, or security outcome",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-48": {
+        "run_id": "20260809-engineering-graph-cp11-batch-48-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "ad04376c49aa4b9d9bb630bc8714f9fce601c435",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-19/decomposition.json",
+          "proof/cyberskills/cp08/batch-42/decomposition.json",
+          "proof/cyberskills/cp08/batch-46/decomposition.json",
+          "proof/cyberskills/cp08/batch-66/decomposition.json",
+          "proof/cyberskills/cp11/batch-48/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-48 validates ten unique network-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-48 artifact SHA-256 is 6ab2eb7ad486b68399078693df330e7246723677f0c19f620a3c2ab8e2244fe2 and is 15598 bytes",
           "graph.next advances from network-security B02 to B03 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
