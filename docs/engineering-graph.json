@@ -62,7 +62,8 @@
       "WP/CP11/IF-devsecops/B02": "validation",
       "WP/CP11/IF-digital-forensics/B01": "validation",
       "WP/CP11/IF-digital-forensics/B02": "validation",
-      "WP/CP11/IF-digital-forensics/B03": "validation"
+      "WP/CP11/IF-digital-forensics/B03": "validation",
+      "WP/CP11/IF-digital-forensics/B04": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -999,6 +1000,37 @@
           "CP11 batch-27 validates ten unique digital-forensics records with ten retained advisory and ten retained manual components",
           "CP11 batch-27 artifact SHA-256 is 2b5810d3eb1ef860a654fc43ad856e3b5242f787505457650da6fb86de43f632 and is 15170 bytes",
           "graph.next advances from digital-forensics B03 to the next dependency-legal packet without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live disk imaging, browser, Autopsy, Docker, email, Linux host or kernel, file system, MFT, PST, memory, device, cloud, endpoint, network, packet, database, acquisition, imaging, or production execution",
+          "credential extraction, file recovery, timeline or hash truth, chain-of-custody validity, evidentiary validity, attribution, remediation, recovery, privacy, legal, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-28": {
+        "run_id": "20260809-engineering-graph-cp11-batch-28-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "dc6ff2de481c34053bcb74bc19eccede215b1698",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-11/decomposition.json",
+          "proof/cyberskills/cp08/batch-30/decomposition.json",
+          "proof/cyberskills/cp08/batch-31/decomposition.json",
+          "proof/cyberskills/cp08/batch-39/decomposition.json",
+          "proof/cyberskills/cp08/batch-46/decomposition.json",
+          "proof/cyberskills/cp08/batch-79/decomposition.json",
+          "proof/cyberskills/cp08/batch-80/decomposition.json",
+          "proof/cyberskills/cp11/batch-28/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-28 validates ten unique digital-forensics records with ten retained advisory and ten retained manual components",
+          "CP11 batch-28 artifact SHA-256 is 8664887b19f3af4f3c231cf6788a70291b2d2b150d60749454600c51002a0c8f and is 15223 bytes",
+          "graph.next advances from digital-forensics B04 to the next dependency-legal packet without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
