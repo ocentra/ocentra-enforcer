@@ -42,6 +42,7 @@
       "EXT/UL03": "done",
       "EXT/UL04": "done",
       "EXT/UL05": "done",
+      "EXT/UL06": "done",
       "EXT/UL07": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
@@ -3568,6 +3569,38 @@
           "Any migrated validator, native CyberSkills implementation, executable proof, third-party engine execution, live behavior, or security outcome.",
           "Overall Universal Language or CyberSkills plan completion.",
           "The protected detecting-fileless-malware-techniques source, which remains excluded and untouched."
+        ]
+      },
+      "TEST/UL06/canonical-language-routing-gates": {
+        "run_id": "20260809-ul06-canonical-language-routing-gates",
+        "command": "cargo test --locked -p enforcer-syntax --test registry_contract -- --nocapture; cargo test --locked -p enforcer-scan --test canonical_language_routing -- --nocapture; cargo test --locked -p enforcer-scan --test router -- --nocapture; cargo test --locked -p enforcer-literal-scan --test integration -- --nocapture; cargo test --locked -p enforcer-mcp --test tool_surface -- --nocapture; cargo test --locked -p enforcer-mcp --test wire_roundtrip -- --nocapture; cargo test --locked -p enforcer-cli --test cli_integration -- --nocapture; cargo check --locked -p enforcer-domain -p enforcer-syntax -p enforcer-literal-scan -p enforcer-scan -p enforcer-mcp -p enforcer-cli; cargo clippy --locked -p enforcer-domain -p enforcer-syntax -p enforcer-literal-scan --all-targets -- -D warnings; cargo fmt --check; git diff --check; scoped Enforcer route, source-shape, strict scan, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "6c1168b81386b259163834c0c0f37a327d5043a9",
+        "source_paths": [
+          "proof/universal-language/ul06/current-language-routing.json",
+          "crates/enforcer-domain/src/language_types.rs",
+          "crates/enforcer-syntax/src/registry.rs",
+          "crates/enforcer-syntax/registry/languages.json",
+          "crates/enforcer-syntax/tests/registry_contract.rs",
+          "crates/enforcer-scan/tests/canonical_language_routing.rs",
+          "crates/enforcer-scan/tests/router.rs",
+          "crates/enforcer-literal-scan/tests/integration.rs",
+          "crates/enforcer-mcp/tests/tool_surface.rs",
+          "crates/enforcer-mcp/tests/wire_roundtrip.rs",
+          "crates/enforcer-cli/tests/cli_integration.rs",
+          "docs/engineering-graph.json",
+          "crates/enforcer-plan/tests/engineering_graph.rs"
+        ],
+        "proves": [
+          "UL06 preserves the canonical language identity, parser, literal crosswalk, collision, alias, filename, routing, CLI, MCP, and UI disposition contracts with 99 focused tests passing.",
+          "Package cargo check and targeted clippy pass; the broad dependent clippy observation remains an explicit unrelated enforcer-harness Trivy error rather than a claimed UL06 fix.",
+          "graph.next advances to the next dependency-legal packet without promoting a routed identity into parser/provider correctness, native CyberSkills implementation, executable proof, external execution, or security outcomes."
+        ],
+        "does_not_prove": [
+          "The protected vendor-dependent dogfood tests or the protected fileless-malware source, which remain absent, excluded, unread, and untouched.",
+          "Parser/provider/rule correctness, native CyberSkills implementation, executable proof, live external execution, or security outcomes.",
+          "Overall Universal Language or CyberSkills plan completion."
         ]
       },
       "TEST/UL07/current-harness-adapter-contract": {

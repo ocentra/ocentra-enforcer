@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL06",
+  "kind": "canonical-language-routing-gates",
+  "sourceOwner": "crates/enforcer-syntax/src/registry.rs",
+  "generator": "cargo test --locked -p enforcer-syntax --test registry_contract plus canonical routing, literal, MCP, and CLI contract tests",
+  "sourceHash": "4d4e379a0538ce14b26c9b00e3232f0c0460aef063df051e1f7f605aa726faa7",
+  "contractHash": "677341e2d1e5a19c543fa1d353abf503d8f209456ee14e67c098c7c9e7b2fe88",
+  "enforcerMetadata": "sourceOwner: crates/enforcer-syntax/src/registry.rs; generator: deterministic UL06 evidence emitter; sourceHash: 4d4e379a0538ce14b26c9b00e3232f0c0460aef063df051e1f7f605aa726faa7; reproducibilityHash: 677341e2d1e5a19c543fa1d353abf503d8f209456ee14e67c098c7c9e7b2fe88",
+  "reproducibility": {
+    "algorithm": "sha256",
+    "canonicalization": "repository bytes in listed order; hashes are independent of this artifact",
+    "inputs": [
+      "crates/enforcer-domain/src/language_types.rs",
+      "crates/enforcer-syntax/src/registry.rs",
+      "crates/enforcer-syntax/registry/languages.json",
+      "crates/enforcer-syntax/tests/registry_contract.rs",
+      "crates/enforcer-scan/tests/canonical_language_routing.rs",
+      "crates/enforcer-scan/tests/router.rs",
+      "crates/enforcer-literal-scan/tests/integration.rs",
+      "crates/enforcer-mcp/tests/tool_surface.rs",
+      "crates/enforcer-mcp/tests/wire_roundtrip.rs",
+      "crates/enforcer-cli/tests/cli_integration.rs"
+    ],
+    "sourceHashes": [
+      "8f6bf9f68d85fc68bf64b52f7b2ca04191b51f8ddd17260546d9d60d39c1694f",
+      "4d4e379a0538ce14b26c9b00e3232f0c0460aef063df051e1f7f605aa726faa7",
+      "97dff487a6e01afbab60d36452243bfd68d766ea1ae119350d44633b25c7d878",
+      "677341e2d1e5a19c543fa1d353abf503d8f209456ee14e67c098c7c9e7b2fe88",
+      "f33a25263ad78ed7742b3434d06a579aa2626ef35d0d53af776125b95facf1de",
+      "8e7792f5a53f5bbb1581e6a5d873b878c6e7e858982a0168f03f31f42002e3ec",
+      "1b066ec79b580b8800e51e067ea8d1fea2e9c3f9d9e6f395bdd07b04b2f24757",
+      "bc7ddaff2a08fb4d10eef6e6d71fe4bb2a959f5874fe1aaca66d7ee7187c774f",
+      "0c60e73a03edaf4c93e6599e9530289fcf450e0422e456059eed7d5fd89867c9",
+      "bd6d184fea2a4a6fb2c5cf2ddcc7339077547fa04e791a45203b2cc95cc988d2"
+    ]
+  },
+  "baseCommit": "6c1168b81386b259163834c0c0f37a327d5043a9",
+  "implementationCommits": [
+    "7630e520f7b1ae521988446802c8f0086bc71394",
+    "345e7f4ae84d6078eb5876dcbb00b1c669066538",
+    "10bb3c908efed45735d3da6e3ef5ec9141c973eb",
+    "bd27f1ca09f6005a030804ac1bdcdd77430dff2f",
+    "ec1b5eb680367cb2ba511c0d9f5c412f3aa4b7e5",
+    "3c9e4245b220f92b7f8933ea1c1edb5f7ed43146",
+    "1ec5b665a12d0afef53adfc0626a60b7f2027431",
+    "34f38ceaa7c672b942113075a1d65095fec49ff1",
+    "8ecde9c2c924a2089480fb87d754792756e510c7",
+    "a9298e2562cd8e8eb019d2d662e32ae298fc1bdf",
+    "eb5cc733a933720dfc49aec539e7a9ce3307ef03a"
+  ],
+  "testedCommit": "6c1168b81386b259163834c0c0f37a327d5043a9",
+  "registry": {
+    "parserIdentities": 160,
+    "parseFileIdentities": 156,
+    "noParseFileIdentities": 4,
+    "literalProjections": 68,
+    "namedLiteralProjections": 67,
+    "literalOnly": 5,
+    "fallback": 1,
+    "crosswalkCounts": {
+      "total": 68,
+      "named": 67,
+      "oneToOne": 51,
+      "aliasCollision": 3,
+      "oneToMany": 8,
+      "literalOnly": 5,
+      "fallback": 1
+    },
+    "collisionResolutions": 34,
+    "unknownPolicy": "Unknown is an explicit opt-in route and never replaces a recognized canonical identity"
+  },
+  "routing": {
+    "canonicalIdentity": "One registry projects structural, literal, scan-family, native-tool, rule-pack, CLI, MCP, and UI dispositions",
+    "collisionPolicy": "Reviewed matcher precedence and typed collision winners are required",
+    "unsupportedPolicy": "Unsupported and not-applicable are serialized typed dispositions, not implicit Other/Unknown claims",
+    "wirePolicy": "Canonical route responses and supplemental literal rows reject missing, duplicate, unknown, and mismatched dispositions",
+    "compatibility": "Existing aliases and filename-only matchers remain represented by the registry crosswalk and round-trip contracts"
+  },
+  "commands": [
+    { "command": "cargo test --locked -p enforcer-syntax --test registry_contract -- --nocapture", "exitCode": 0, "tests": { "passed": 18, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-scan --test canonical_language_routing -- --nocapture", "exitCode": 0, "tests": { "passed": 12, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-scan --test router -- --nocapture", "exitCode": 0, "tests": { "passed": 10, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-literal-scan --test integration -- --nocapture", "exitCode": 0, "tests": { "passed": 12, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-mcp --test tool_surface -- --nocapture", "exitCode": 0, "tests": { "passed": 10, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-mcp --test wire_roundtrip -- --nocapture", "exitCode": 0, "tests": { "passed": 14, "failed": 0, "ignored": 0 } },
+    { "command": "cargo test --locked -p enforcer-cli --test cli_integration -- --nocapture", "exitCode": 0, "tests": { "passed": 33, "failed": 0, "ignored": 0 } },
+    { "command": "cargo check --locked -p enforcer-domain -p enforcer-syntax -p enforcer-literal-scan -p enforcer-scan -p enforcer-mcp -p enforcer-cli", "exitCode": 0 },
+    { "command": "cargo clippy --locked -p enforcer-domain -p enforcer-syntax -p enforcer-literal-scan --all-targets -- -D warnings", "exitCode": 0 },
+    { "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture", "exitCode": 0, "tests": { "passed": 3, "failed": 0, "ignored": 0 } }
+  ],
+  "broaderPackageObservation": {
+    "command": "cargo clippy --locked -p enforcer-domain -p enforcer-syntax -p enforcer-literal-scan -p enforcer-scan -p enforcer-mcp -p enforcer-cli --all-targets -- -D warnings",
+    "status": "blocked-by-pre-existing-enforcer-harness-clippy-errors",
+    "exitCode": 1,
+    "failures": [
+      "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs:100 clippy::double_must_use",
+      "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs:149 clippy::needless_pass_by_value"
+    ],
+    "reason": "The command traverses an unchanged enforcer-harness dependency. UL06 source, tests, and package cargo check remain green; this unrelated debt is not claimed as fixed by UL06."
+  },
+  "enforcer": {
+    "route": "ok: exact three-path route",
+    "sourceShape": "0 findings: crates/enforcer-plan/tests/engineering_graph.rs",
+    "strictScan": "0 violations, 0 warnings, 0 waived",
+    "secrets": "0 violations, 0 warnings, 0 waived",
+    "fmt": "cargo fmt -p enforcer-plan -- --check exit 0",
+    "diffCheck": "git diff --check exit 0"
+  },
+  "protectedBoundary": {
+    "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+    "existsInIsolatedWorktree": false,
+    "read": false,
+    "touched": false,
+    "countedAsRoutingIdentity": false
+  },
+  "proves": [
+    "The canonical registry preserves 160 parser identities, 68 literal projection rows, the 68-row crosswalk denominator, all reviewed collision resolutions, and explicit literal-only/fallback/unsupported dispositions.",
+    "Structural, literal, scan-family, native-tool, rule-pack, CLI, MCP, and UI projections consume one canonical identity registry without using Other or Unknown to hide a recognized identity.",
+    "Collision precedence, alias and filename-only matching, typed unsupported/not-applicable values, route serialization, and negative wire cases are mechanically tested across syntax, scan, literal-scan, MCP, and CLI surfaces.",
+    "The existing UL06 implementation and focused contracts pass the package checks that are in scope, with graph evidence prepared to advance graph.next without promoting routing into parser/provider correctness, native CyberSkills implementation, executable proof, or security outcomes."
+  ],
+  "doesNotProve": [
+    "The two vendor-dependent enforcer-scan dogfood tests in this isolated worktree, because the vendor corpus is intentionally absent and the protected deletion must not be materialized or read.",
+    "Correctness of every parser/provider/tool/rule implementation merely because its identity is routed; a typed disposition is not an implementation or proof claim.",
+    "Native CyberSkills implementation, executable proof, third-party engine execution, live system behavior, or security outcomes.",
+    "Overall Universal Language or CyberSkills plan completion.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+  ]
+}
