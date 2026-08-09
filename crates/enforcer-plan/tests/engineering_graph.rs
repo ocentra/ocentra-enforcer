@@ -116,6 +116,8 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
         NodeId::new("WP/CP11/IF-web-application-security/B02")?;
     let cp11_web_application_security_batch03 =
         NodeId::new("WP/CP11/IF-web-application-security/B03")?;
+    let cp11_web_application_security_batch04 =
+        NodeId::new("WP/CP11/IF-web-application-security/B04")?;
 
     assert_eq!(status.workpacks.len(), 14 + status.intent.packet_count);
     assert_eq!(status.catalog.total, 817);
@@ -1201,6 +1203,20 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
             .map(String::as_str),
         Some("10")
     );
+    let cp11_web_application_security_batch04_node = graph
+        .node(&cp11_web_application_security_batch04)
+        .ok_or("CP11 web-application-security B04 packet must be imported")?;
+    assert_eq!(
+        cp11_web_application_security_batch04_node.kind,
+        NodeKind::Workpack
+    );
+    assert_eq!(
+        cp11_web_application_security_batch04_node
+            .metadata
+            .get("skillCount")
+            .map(String::as_str),
+        Some("10")
+    );
     assert!(
         status.validation.is_valid(),
         "{:?}",
@@ -1218,7 +1234,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     assert_eq!(next["decision"], "selected");
     assert_eq!(
         next["selected"]["id"],
-        "WP/CP11/IF-web-application-security/B04"
+        "WP/CP11/IF-web-application-security/B05"
     );
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);

@@ -128,7 +128,8 @@
     "WP/CP11/IF-vulnerability-management/B03": "validation",
     "WP/CP11/IF-web-application-security/B01": "validation",
       "WP/CP11/IF-web-application-security/B02": "validation",
-      "WP/CP11/IF-web-application-security/B03": "validation"
+      "WP/CP11/IF-web-application-security/B03": "validation",
+      "WP/CP11/IF-web-application-security/B04": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3113,6 +3114,40 @@
         ],
         "artifact_sha256": "e5b7e2908b22e700d61cc82708c849af7455e6c568a575d689ef7f24e8c1d939",
         "artifact_bytes": 16402,
+        "skill_count": 10,
+        "component_count": 40
+      },
+      "TEST/CP11/retention-batch-94": {
+        "run_id": "20260809-engineering-graph-cp11-batch-94-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "05abbff2a4bc03da1de15beebc8dab0323667bf0",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-38/decomposition.json",
+          "proof/cyberskills/cp08/batch-41/decomposition.json",
+          "proof/cyberskills/cp08/batch-50/decomposition.json",
+          "proof/cyberskills/cp08/batch-80/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp11/batch-94/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-94 validates ten unique web-application-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-94 source SHA-256, anchors, Apache-2.0 labels, and CP08 provenance are validated from immutable evidence",
+          "graph.next advances from web-application-security B03 to B04 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live applications, endpoints, browsers, servers, WAFs, caches, Burp, ZAP, fuzzers, payloads, mail, identity, credentials, sessions, or production execution",
+          "exploitability, authentication, authorization, parser behavior, data exposure, vulnerability, finding, discovery, ownership, remediation, detection, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "2c01caad8b38628a1e4cdda075059b85b0ce4a8059ad876f546fa2f6efe5e911",
+        "artifact_bytes": 16374,
         "skill_count": 10,
         "component_count": 40
       }
