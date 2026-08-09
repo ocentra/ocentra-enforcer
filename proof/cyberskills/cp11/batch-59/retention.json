@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-59",
+  "family": "IF/privacy-compliance",
+  "baselineCommit": "f21a8349b9cc3f51abb2203d96a45e042aeb78a7",
+  "scope": "Retain advisory and manual privacy-compliance content from immutable CP08 evidence; native predicates are limited to static supplied privacy scope, data-subject, processing, consent, purpose, data-flow, retention, jurisdiction, risk, owner, control, response, authorization, and evidence manifests; no live personal-data access, subject portal, identity, data store, processor, regulator, production application, or privacy authority execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-gdpr-data-subject-access-request",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gdpr-data-subject-access-request/SKILL.md",
+        "sha256": "df6727d144a9d926647a39cf2b860915f129ff43566383e77042e5715885e950",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing GDPR Data Subject Access Request (DSAR) Workflow:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive DSAR intake, identity verification, search, minimization, redaction, response, retention, and privacy guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove identity, completeness, redaction, or timely response."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, controller and processor ownership, legal/privacy review, identity and scope approval, data handling, search validation, redaction, response, exception, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human identity, search, redaction, response, exception, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-privacy-impact-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-privacy-impact-assessment/SKILL.md",
+        "sha256": "b906c778bad53bc8ca265385e195018c25686371b12f7c1d3a02aa5b0421befa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Privacy Impact Assessment:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain GDPR, CCPA/CPRA, NIST Privacy Framework, DPIA, data minimization, and privacy-risk guidance as advisory.",
+        "notProved": [
+          "No legal conclusion, risk acceptance, or control effectiveness is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require DPO or privacy-team authorization, data-owner validation, legal/privacy review, analyst interpretation, consultation, approval, and remediation decisions.",
+        "notProved": [
+          "No authorization, privacy approval, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 2,
+    "advisoryRetained": 2,
+    "manualRetained": 2,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live personal-data access, subject portal, identity, data store, processor, regulator, production application, or privacy-authority outcome.",
+    "No legal conclusion, consent truth, data-flow truth, privacy risk, compliance posture, redaction completeness, remediation success, or security outcome is proved.",
+    "This packet covers the two privacy-compliance skills as retained advisory/manual evidence only; the family is not natively implemented or executable-proof complete.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, privacy platforms, data stores, and authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
