@@ -40,6 +40,7 @@
       "EXT/UL01": "done",
       "EXT/UL02": "done",
       "EXT/UL03": "validation",
+      "EXT/UL07": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3482,6 +3483,39 @@
           "full cargo test --locked -p enforcer-memory --tests closure: the current shallow history run reached 67 passed and 2 failed historical QA rows (QA-159 and the aggregate QA gate reporting QA-063, QA-159, QA-166, QA-167, QA-168, QA-171, QA-172, and QA-173 as unrunnable)",
           "new parser facts, validator integration, enforcement rules, native CyberSkills implementation, executable proof, external tools, or security outcomes",
           "overall Universal Language or CyberSkills plan completion"
+        ]
+      },
+      "TEST/UL07/current-harness-adapter-contract": {
+        "run_id": "20260809-ul07-current-harness-adapter-contract",
+        "command": "cargo test --locked -p enforcer-domain --quiet; cargo test --locked -p enforcer-harness --test tool_adapter_contract -- --nocapture; cargo test --locked -p enforcer-harness --test cargo_pilot -- --nocapture; cargo test --locked -p enforcer-harness --quiet; cargo check --locked -p enforcer-harness --quiet; cargo fmt -p enforcer-domain -p enforcer-harness -- --check; git diff --check; scoped Enforcer route, strict scan, source-shape, and secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "ca0f33d410098da3521507091ee5053c499151e4",
+        "source_paths": [
+          "proof/universal-language/ul07/current-reconciliation.json",
+          "crates/enforcer-domain/src/harness_types.rs",
+          "crates/enforcer-harness/src/availability.rs",
+          "crates/enforcer-harness/src/execution.rs",
+          "crates/enforcer-harness/src/input_scope.rs",
+          "crates/enforcer-harness/src/parsers.rs",
+          "crates/enforcer-harness/src/adapters.rs",
+          "crates/enforcer-harness/src/adapters/cargo.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/gate.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+          "crates/enforcer-harness/src/adapters/cyberskills/seam.rs",
+          "crates/enforcer-harness/tests/tool_adapter_contract.rs",
+          "crates/enforcer-harness/tests/cargo_pilot.rs"
+        ],
+        "proves": [
+          "UL07's existing typed allowlisted adapter and bounded execution contract passes domain, focused, full-package, formatting, and scoped Enforcer gates",
+          "the full enforcer-harness package passes 158 tests and the focused contract/pilot suites pass 39/39 and 19/19",
+          "graph.next may advance past UL07 without translating adapter evidence into native CyberSkills implementation or executable proof"
+        ],
+        "does_not_prove": [
+          "native CyberSkills implementation, executable proof, third-party engine execution, live security behavior, or overall parity",
+          "downstream UL04-UL14 or CP02-CP13 completion; UL03 remains validation because its historical full-suite evidence is unresolved",
+          "protected vendor source, which remains excluded and untouched"
         ]
       }
     }
