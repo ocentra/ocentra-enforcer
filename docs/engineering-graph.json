@@ -125,7 +125,8 @@
     "WP/CP11/IF-threat-intelligence/B06": "validation",
     "WP/CP11/IF-vulnerability-management/B01": "validation",
     "WP/CP11/IF-vulnerability-management/B02": "validation",
-    "WP/CP11/IF-vulnerability-management/B03": "validation"
+    "WP/CP11/IF-vulnerability-management/B03": "validation",
+    "WP/CP11/IF-web-application-security/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3006,6 +3007,41 @@
         "artifact_bytes": 9022,
         "skill_count": 5,
         "component_count": 20
+      },
+      "TEST/CP11/retention-batch-91": {
+        "run_id": "20260809-engineering-graph-cp11-batch-91-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "4ad7b4665dffe0a204c231010aa22c484c79a961",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-09/decomposition.json",
+          "proof/cyberskills/cp08/batch-32/decomposition.json",
+          "proof/cyberskills/cp08/batch-38/decomposition.json",
+          "proof/cyberskills/cp08/batch-55/decomposition.json",
+          "proof/cyberskills/cp08/batch-61/decomposition.json",
+          "proof/cyberskills/cp08/batch-62/decomposition.json",
+          "proof/cyberskills/cp11/batch-91/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-91 validates ten unique web-application-security records with ten retained advisory and ten retained manual components",
+          "CP11 batch-91 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from web-application-security B01 to B02 without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live applications, browsers, servers, Burp, ZAP, fuzzers, payloads, credentials, sessions, identity providers, network, or production execution",
+          "exploitability, authentication, authorization, parser behavior, data exposure, vulnerability, finding, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "c7b4db5eb1243e688245fe9c5bf8862b318fba664576fbf2f2efd2bdafeb3c83",
+        "artifact_bytes": 15238,
+        "skill_count": 10,
+        "component_count": 40
       }
     }
   }
