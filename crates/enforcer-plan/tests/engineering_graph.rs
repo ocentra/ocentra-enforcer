@@ -153,6 +153,8 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
         ul00_node.metadata.get("routingOnly").map(String::as_str),
         Some("true")
     );
+    let ul00_status = graph.inspect_json(&ul00)?;
+    assert_eq!(ul00_status["state"], "done");
     let ul02_node = graph
         .node(&ul02)
         .ok_or("UL02 dependency workpack must be imported")?;
@@ -162,7 +164,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
         Some("DECISION-READY")
     );
     let ul02_why = graph.why(&ul02)?;
-    assert_eq!(ul02_why.chain, vec![ul02.clone(), ul00.clone()]);
+    assert_eq!(ul02_why.chain, vec![ul02.clone()]);
     let cp01_node = graph
         .node(&cp01_batch05)
         .ok_or("CP01 batch-05 evidence node must be imported")?;
@@ -1316,7 +1318,7 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let next = graph.next_json()?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "EXT/UL00");
+    assert_eq!(next["selected"]["id"], "EXT/UL01");
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

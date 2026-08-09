@@ -36,6 +36,7 @@
   "overrides": {
     "lifecycle": {
       "WP/CP00": "done",
+      "EXT/UL00": "done",
       "WP/CP01": "validation",
       "WP/CP08": "done",
       "WP/CP11": "validation",
@@ -3350,6 +3351,30 @@
           "UL00 or later Universal Language workpack completion",
           "semantic parser facts, validator reachability, native CyberSkills implementation, or executable proof",
           "external tools, live systems, or security outcomes"
+        ]
+      },
+      "TEST/UL00/lifecycle-acceptance": {
+        "run_id": "20260809-ul00-lifecycle-acceptance",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "66e231bb0a183a629afa9259ed58c71953e5cccb",
+        "source_paths": [
+          "docs/engineering-graph.json",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "proof/universal-language/ul00/current-reconciliation.json",
+          "crates/enforcer-rules/tests/language_capability_inventory.rs"
+        ],
+        "proves": [
+          "UL00 is explicitly marked done in the graph only after the released current-source reconciliation and focused inventory test evidence",
+          "graph.next advances deterministically to EXT/UL01 while UL02 remains separately dependency-legal and architecture-owned",
+          "the lifecycle transition does not promote native implementation, executable proof, external execution, CyberSkills parity, or security outcomes",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "UL01 or UL02 completion",
+          "native parser, validator, rule, or CyberSkills implementation",
+          "executable proof, live tools, or security outcomes"
         ]
       }
     }
