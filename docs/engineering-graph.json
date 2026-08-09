@@ -45,7 +45,8 @@
       "WP/CP11/IF-cloud-security/B01": "validation",
       "WP/CP11/IF-cloud-security/B02": "validation",
       "WP/CP11/IF-cloud-security/B03": "validation",
-      "WP/CP11/IF-cloud-security/B04": "validation"
+      "WP/CP11/IF-cloud-security/B04": "validation",
+      "WP/CP11/IF-cloud-security/B05": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -509,6 +510,36 @@
           "native implementation or executable-proof coverage",
           "live cloud provider, tenant, identity, storage, workload, enclave, function, Kubernetes, Terraform, WAF, DLP, SIEM, scanner, endpoint, network, credential, session, containment, remediation, recovery, or production execution",
           "whole-skill parity, compliance, detection, exploitation, attribution, remediation outcomes, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-11": {
+        "run_id": "20260809-engineering-graph-cp11-batch-11-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d1389390334dde4d6657480caa737392e1a2c853",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-04/decomposition.json",
+          "proof/cyberskills/cp08/batch-05/decomposition.json",
+          "proof/cyberskills/cp08/batch-09/decomposition.json",
+          "proof/cyberskills/cp08/batch-27/decomposition.json",
+          "proof/cyberskills/cp08/batch-37/decomposition.json",
+          "proof/cyberskills/cp08/batch-69/decomposition.json",
+          "proof/cyberskills/cp11/batch-11/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-11 validates ten unique cloud-security records with retained advisory and manual boundaries",
+          "CP11 batch-11 artifact SHA-256 is b5400e69e2017b777a64d7e4db52670c9fd5f1f9fd7d37f0108292c01b82080e and is 17663 bytes",
+          "graph.next advances from cloud-security B05 to B06 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live GCP, AWS, Vault, Okta, cloud provider, tenant, identity, credential, policy, firewall, network, registry, scanner, Cartography, ScoutSuite, Pacu, endpoint, session, containment, remediation, recovery, or production execution",
+          "signature, provenance, policy, compliance, configuration, posture, inventory, privilege, access, exploitation, detection, attribution, remediation outcomes, or security outcomes"
         ]
       }
     }
