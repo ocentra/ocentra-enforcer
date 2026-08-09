@@ -69,7 +69,8 @@
       "WP/CP11/IF-endpoint-security/B02": "validation",
       "WP/CP11/IF-hardware-firmware-security/B01": "validation",
       "WP/CP11/IF-identity-access-management/B01": "validation",
-      "WP/CP11/IF-identity-access-management/B02": "validation"
+      "WP/CP11/IF-identity-access-management/B02": "validation",
+      "WP/CP11/IF-identity-access-management/B03": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -1211,6 +1212,36 @@
           "CP11 batch-34 validates ten unique identity-access-management records with ten retained advisory and ten retained manual components",
           "CP11 batch-34 artifact SHA-256 is ff40652aa1fdf9bc563b4bb414bc63201ea53ecae8cf005f7666f1b1ffedf9e8 and is 17456 bytes",
           "graph.next advances from identity-access-management B02 to B03 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live identity, authentication, authorization, role, entitlement, federation, SAML, OAuth, MFA, session, directory, device, cloud, endpoint, or production execution",
+          "credential capture, privilege escalation, access, revocation, certification, least-privilege, phishing, account compromise, attribution, remediation success, privacy, legal, safety, or security outcomes",
+          "the protected detecting-fileless-malware-techniques sourceUnavailable identity is available or readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-35": {
+        "run_id": "20260809-engineering-graph-cp11-batch-35-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "d874da355d03de8754291f13eb8aec9929ac07ec",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-06/decomposition.json",
+          "proof/cyberskills/cp08/batch-28/decomposition.json",
+          "proof/cyberskills/cp08/batch-42/decomposition.json",
+          "proof/cyberskills/cp08/batch-68/decomposition.json",
+          "proof/cyberskills/cp08/batch-69/decomposition.json",
+          "proof/cyberskills/cp11/batch-35/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-35 validates ten unique identity-access-management records with ten retained advisory and ten retained manual components",
+          "CP11 batch-35 artifact SHA-256 is 5bbcf7ba4e5b8dcbc993495cdf7474b176304e1e39d2e29e6684a1a3ba805245 and is 12848 bytes",
+          "graph.next advances from identity-access-management B03 to B04 without promoting decomposition to implementation or proof",
           "the protected sourceUnavailable identity remains excluded"
         ],
         "does_not_prove": [
