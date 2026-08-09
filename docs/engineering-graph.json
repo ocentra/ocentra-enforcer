@@ -129,7 +129,8 @@
     "WP/CP11/IF-web-application-security/B01": "validation",
       "WP/CP11/IF-web-application-security/B02": "validation",
       "WP/CP11/IF-web-application-security/B03": "validation",
-      "WP/CP11/IF-web-application-security/B04": "validation"
+      "WP/CP11/IF-web-application-security/B04": "validation",
+      "WP/CP11/IF-web-application-security/B05": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -3150,6 +3151,38 @@
         "artifact_bytes": 16374,
         "skill_count": 10,
         "component_count": 40
+      },
+      "TEST/CP11/retention-batch-95": {
+        "run_id": "20260809-engineering-graph-cp11-batch-95-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "e590459b6e888dac5bac94f1fa7fe9e3cd7b5114",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-41/decomposition.json",
+          "proof/cyberskills/cp08/batch-50/decomposition.json",
+          "proof/cyberskills/cp08/batch-81/decomposition.json",
+          "proof/cyberskills/cp11/batch-95/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-95 validates six unique final web-application-security records with six retained advisory and six retained manual components",
+          "CP11 batch-95 source SHA-256, anchors, Apache-2.0 labels, and CP08 provenance are validated from immutable evidence",
+          "graph.next advances from web-application-security B04 to the next dependency-legal packet without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live applications, endpoints, browsers, servers, parsers, Burp, ZAP, fuzzers, payloads, identity, credentials, sessions, or production execution",
+          "redirect behavior, data exposure, XML or XXE injection, XSS, JWT weakness, exploitability, authentication, authorization, finding, ownership, remediation, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ],
+        "artifact_sha256": "de67b92b3228594fc065a9978dbd6a86f98700bb47665fecda21f79cfc765093",
+        "artifact_bytes": 10787,
+        "skill_count": 6,
+        "component_count": 24
       }
     }
   }
