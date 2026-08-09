@@ -55,7 +55,8 @@
       "WP/CP11/IF-container-security/B03": "validation",
       "WP/CP11/IF-container-security/B04": "validation",
       "WP/CP11/IF-cryptography/B01": "validation",
-      "WP/CP11/IF-cryptography/B02": "validation"
+      "WP/CP11/IF-cryptography/B02": "validation",
+      "WP/CP11/IF-data-protection/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -801,6 +802,31 @@
           "native implementation or executable-proof coverage",
           "live OpenSSL, HSM, KMS, TLS endpoint, certificate authority, messaging service, identity provider, hashcat, cloud, device, key store, network, or production cryptographic execution",
           "key strength, confidentiality, authenticity, integrity, signature, certificate, rotation, encryption, decryption, authentication, interoperability, migration, audit, cracking, compliance, or security outcomes"
+        ]
+      },
+      "TEST/CP11/retention-batch-21": {
+        "run_id": "20260809-engineering-graph-cp11-batch-21-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "db46b43806ace8fef9909c233aec6a9df9f8b225",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-66/decomposition.json",
+          "proof/cyberskills/cp11/batch-21/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-21 validates one unique data-protection record with retained advisory and manual boundaries",
+          "CP11 batch-21 artifact SHA-256 is bd8df8abec335e104612dcbe59f4c54d534f774723a85c49056dc9c71eb30162 and is 2678 bytes",
+          "graph.next advances from data-protection B01 to deception-technology B01 without promoting decomposition to implementation or proof",
+          "the protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live Microsoft Purview, DLP scanner, endpoint, cloud, mail, identity, storage, policy-enforcement, or production data-handling execution",
+          "classification truth, policy effectiveness, retention correctness, leakage prevention, privacy, compliance, remediation, or security outcomes"
         ]
       }
     }
