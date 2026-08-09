@@ -108,7 +108,8 @@
     "WP/CP11/IF-soc-operations/B04": "validation",
     "WP/CP11/IF-soc-operations/B05": "validation",
     "WP/CP11/IF-soc-operations/B06": "validation",
-    "WP/CP11/IF-soc-operations/B07": "validation"
+    "WP/CP11/IF-soc-operations/B07": "validation",
+    "WP/CP11/IF-supply-chain-security/B01": "validation"
     },
     "dependencies": {},
     "evidence": {
@@ -2420,6 +2421,34 @@
           "native implementation or executable-proof coverage",
           "live endpoint, cloud, host, device, packet, SIEM, SOAR, scanner, external-service, or production execution",
           "monitoring truth, hunting result, alert efficacy, triage, attribution, containment, remediation success, safety outcome, or security outcome",
+          "protected detecting-fileless-malware-techniques available/readable"
+        ]
+      },
+      "TEST/CP11/retention-batch-74": {
+        "run_id": "20260809-engineering-graph-cp11-batch-74-focused",
+        "command": "cargo test --locked -p enforcer-plan --test engineering_graph -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "b607fb5373471a4266e2d4ce0676014a3d9c2a28",
+        "source_paths": [
+          "crates/enforcer-plan/src/boundary/cyber_graph.rs",
+          "crates/enforcer-plan/tests/engineering_graph.rs",
+          "docs/engineering-graph.json",
+          "proof/cyberskills/cp08/batch-14/decomposition.json",
+          "proof/cyberskills/cp08/batch-36/decomposition.json",
+          "proof/cyberskills/cp08/batch-70/decomposition.json",
+          "proof/cyberskills/cp11/batch-74/retention.json"
+        ],
+        "proves": [
+          "CP11 batch-74 validates eight unique supply-chain-security records with eight retained advisory and eight retained manual components",
+          "CP11 batch-74 artifact SHA-256 and source evidence are validated from immutable CP08 batch artifacts",
+          "graph.next advances from supply-chain-security B01 to the next dependency-legal family without promoting decomposition to implementation or proof",
+          "protected sourceUnavailable identity remains excluded"
+        ],
+        "does_not_prove": [
+          "native implementation or executable-proof coverage",
+          "live registry, package, dependency, scanner, CI runner, signing authority, key, artifact store, deployment, or production execution",
+          "malicious-package, typosquatting, vulnerability, secret, signature, provenance, CI, artifact, release, remediation, rollback, disclosure, or security outcome",
           "protected detecting-fileless-malware-techniques available/readable"
         ]
       }
