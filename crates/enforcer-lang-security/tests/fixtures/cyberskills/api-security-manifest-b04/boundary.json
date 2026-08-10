@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b04-boundary",
+  "owner": "api-security-owner",
+  "scope": "written authorization and supplied GraphQL evidence only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "approval/graphql-assessment" },
+    { "kind": "stop-condition", "reference": "stop-before-query-submission" }
+  ],
+  "records": [
+    {
+      "kind": "graphql-depth-limit-assessment",
+      "skillId": "performing-graphql-depth-limit-attack",
+      "routeRef": "route/graphql",
+      "schemaRef": "artifact/graphql/schema.graphql",
+      "queryRef": "fixture/graphql/query-shape.json",
+      "depthRef": "fixture/graphql/depth-budget.json",
+      "aliasRef": "fixture/graphql/alias-budget.json",
+      "complexityRef": "fixture/graphql/complexity-budget.json",
+      "batchRef": "fixture/graphql/batch-budget.json",
+      "responseRef": "artifact/graphql/response-shape.json",
+      "observationRef": "artifact/graphql/observation.json",
+      "authorizationRef": "approval/graphql-assessment",
+      "scopeRef": "scope/non-executing-fixture-review",
+      "stopCondition": "stop-before-query-submission",
+      "reviewRef": "review/api-b04-graphql",
+      "evidenceRef": "evidence/api-b04-graphql"
+    }
+  ]
+}
