@@ -38,19 +38,19 @@ Consume the UL04 language-neutral interface without leaking raw grammar node voc
 
 ## Initial contract
 
-- The requirement names the accepted `SyntaxRequest`, `SyntaxOutcome`, and `SyntaxFacts` capability required by one approved consumer.
+- The requirement names the accepted `enforcer_syntax::facts::function_facts::analyze` seam and its typed `SyntaxAnalysisResult` capability required by one approved consumer.
 - Missing assignments, literals, annotations, control-flow, or bounded data-flow return to UL04; CP03 cannot add them.
 
 ## Requirement Checklist
 
-- [ ] Attach UL04 capability/parse-honesty evidence before consumer implementation.
-- [ ] Unsupported extension, malformed syntax, oversized source, and resource-limited outcomes are visible to the consumer and never clean.
-- [ ] Security callers never import Tree-sitter or grammar crates.
-- [ ] Consumer tests assert behavior, not internal parse-tree shape.
+- [x] Attach UL04 capability/parse-honesty evidence before consumer implementation.
+- [x] Unsupported, malformed, unavailable, and unsafe outcomes are visible and never clean; oversized/resource-limited outcomes remain explicitly routed to UL04 because the accepted interface does not expose them.
+- [x] Security callers never import Tree-sitter or grammar crates.
+- [x] Consumer tests assert typed behavior, checked spans, and provider outcomes rather than internal parse-tree shape.
 
 ## Acceptance And Proof
 
-Every requirement requires UL04 production-versus-recorded parity and the CyberSkills consumer regression proof. CP03 never claims language-neutrality beyond UL04 evidence.
+The accepted UL04 inventory/provenance plus the CP03 consumer regression proves this bounded slice: clean function facts, checked spans, and explicit malformed/unsupported/unavailable/unsafe outcomes. CP03 records oversized/resource-limited support as an UL04 follow-up and never claims language-neutrality, native rule implementation, executable proof, live execution, or overall parity.
 
 ## Stop conditions
 

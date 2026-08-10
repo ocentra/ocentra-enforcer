@@ -7,7 +7,7 @@ Status is routing state only. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and co
 | READY-AUDIT | CP00 | [Truth ledger](./workpacks/cp00-truth-ledger.md) | Luna audit + boss decision | none | one audit/schema report | `cyberskills-ledger-integrator` only: disposition ledger, gate, plan truth |
 | VALIDATION | CP01 | [Existing rule reconciliation](./workpacks/cp01-existing-rule-reconciliation.md) | Luna-safe | CP00 | at most 10 rules; aggregate closure packet required | mappings/evidence only; no parity promotion |
 | DONE | CP02 | [Shared syntax consumer adoption](./workpacks/cp02-syntax-module-extraction.md) | Sol/architect | UL02, UL03 | one consumer contract | CyberSkills syntax demand/adoption only |
-| BLOCKED | CP03 | [CyberSkills fact demand contract](./workpacks/cp03-syntax-facts-contract.md) | Sol/architect | CP02, UL04 | one approved requirement slice | consumer requirements, never syntax facts |
+| DONE | CP03 | [CyberSkills fact demand contract](./workpacks/cp03-syntax-facts-contract.md) | Sol/architect | CP02, UL04 | one approved requirement slice | consumer requirements, never syntax facts |
 | BLOCKED | CP04 | [Existing rule syntax pilot](./workpacks/cp04-existing-rule-syntax-pilot.md) | Luna with boss review | CP01, CP03 | exactly 1 rule | one rule + fixtures |
 | BLOCKED | CP05 | [Native rule factory](./workpacks/cp05-native-rule-factory.md) | Sol then Luna consumer | CP00, CP03, CP04 | one scaffold | repeatable native packet gate |
 | BLOCKED | CP06 | [Security engine consumer contract](./workpacks/cp06-external-engine-module.md) | Sol/consumer architect | CP00, UL07 | one security requirement slice | security demand + conformance fixtures; never generic runner/registry/schema |

@@ -49,6 +49,7 @@
       "EXT/UL10": "done",
       "EXT/UL13": "done",
       "WP/CP02": "done",
+      "WP/CP03": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -309,6 +310,100 @@
         "does_not_prove": [
           "native implementation, executable proof, live external-system behavior, or overall parity",
           "dependency-inclusive workspace Clippy; the unrelated existing enforcer-lang-ts question-mark lint remains outside this packet"
+        ]
+      },
+      "TEST/CP03/consumer-contract-tests": {
+        "run_id": "cp03-syntax-facts-consumer-20260810",
+        "command": "cargo test --locked -p enforcer-scan --test cyberskills_syntax_facts_adoption -- --nocapture; cargo test --locked -p enforcer-scan --lib --quiet; cargo check --locked -p enforcer-scan; cargo clippy --locked -p enforcer-scan --tests --no-deps -- -D warnings; cargo fmt -p enforcer-scan -- --check; git diff --check; scoped Enforcer route/strict/source-shape/secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c2925f7d2e543ee2e5d28597a684e0dabcfef3a5",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs",
+          "proof/cyberskills/cp03/syntax-facts-consumer.json"
+        ],
+        "artifact_sha256": "CE6B47AC3996332FF7A22B44D1D5A8284D0B67BE0D8EB515AB6158F05ADC1966",
+        "artifact_bytes": 5523,
+        "test_count": 3,
+        "scan_library_tests": 169,
+        "enforcer_findings": 0,
+        "proves": [
+          "one CyberSkills consumer crosses the accepted UL04 typed function-fact interface",
+          "clean facts include checked byte and line spans plus explicit provider provenance",
+          "malformed, unsupported, unavailable, and unsafe inputs cannot silently become clean fact sets",
+          "the bounded consumer and scan-library tests, check, Clippy, format, diff, and exact Enforcer gates passed"
+        ],
+        "does_not_prove": [
+          "oversized or resource-limited outcome support; the accepted UL04 interface does not expose those outcomes",
+          "new parser facts, grammar ownership, all-language coverage, native CyberSkills implementation, or executable proof",
+          "live external execution, security outcomes, or overall Universal Language/CyberSkills plan completion",
+          "protected vendor source, which remains excluded and untouched"
+        ]
+      },
+      "TEST/CP03/ul04-parse-honesty": {
+        "run_id": "ul04-accepted-dependency-20260809",
+        "command": "accepted EXT/UL04 inventory/provenance evidence revalidated by CP03 consumer",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c2925f7d2e543ee2e5d28597a684e0dabcfef3a5",
+        "source_paths": [
+          "proof/universal-language/ul04/inventory.json",
+          "proof/universal-language/ul04/provenance.json",
+          "proof/cyberskills/cp03/syntax-facts-consumer.json"
+        ],
+        "dependency_hashes": {
+          "proof/universal-language/ul04/inventory.json": "60A83802A9FC740254DB22BE72FB63535C1C6D9AD933E1E6714922E9910E04D4",
+          "proof/universal-language/ul04/provenance.json": "DEF98B8B09A59749040410EECF600E6FE950A49BABD49C7878561D8CD003D139"
+        },
+        "proves": [
+          "the consumer relies on the accepted UL04 typed fact and parse-honesty boundary",
+          "invalid, unsupported, unavailable, and unsafe provider outcomes remain visible"
+        ],
+        "does_not_prove": [
+          "oversized or resource-limited outcomes not exposed by UL04",
+          "all-language parser parity or new UL04 capability implementation"
+        ]
+      },
+      "TEST/CP03/parser-parity": {
+        "run_id": "ul04-fact-contract-20260810",
+        "command": "cargo test --locked -p enforcer-syntax --test fact_contract -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "passed": 5,
+        "failed": 0,
+        "commit": "c2925f7d2e543ee2e5d28597a684e0dabcfef3a5",
+        "source_paths": [
+          "crates/enforcer-syntax/tests/fact_contract.rs",
+          "proof/universal-language/ul04/inventory.json",
+          "proof/universal-language/ul04/provenance.json",
+          "proof/cyberskills/cp03/syntax-facts-consumer.json"
+        ],
+        "proves": [
+          "the accepted UL04 fact contract passes its five selected positive and negative cases",
+          "clean, malformed, unsupported, unavailable, and unsafe outcomes remain distinct at the shared boundary"
+        ],
+        "does_not_prove": [
+          "oversized or resource-limited outcomes not exposed by UL04",
+          "all-language coverage, native rule implementation, executable proof, or live security outcomes"
+        ]
+      },
+      "TEST/CP03/mutation-risk": {
+        "run_id": "cp03-exact-guard-20260810",
+        "command": "scoped Enforcer route/strict/source-shape/secrets; coordination guard operation=commit for the exact two CP03 paths",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "c2925f7d2e543ee2e5d28597a684e0dabcfef3a5",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs",
+          "proof/cyberskills/cp03/syntax-facts-consumer.json"
+        ],
+        "proves": [
+          "the exact CP03 packet has zero scoped Enforcer findings and no coordination conflict",
+          "only the claimed consumer test and proof artifact are in the CP03 packet"
+        ],
+        "does_not_prove": [
+          "mutation safety for unrelated workspace paths",
+          "native implementation, executable proof, live external execution, or overall parity"
         ]
       },
       "TEST/CP01/rule-registry-relevant-rule-tests": {
