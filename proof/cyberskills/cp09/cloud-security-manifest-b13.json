@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-cloud-security-B13",
+  "workpack": "WP/CP09/IF-cloud-security/B13",
+  "baseCommit": "38c9663e8fe90dbc609abb27503dfb5372a4ab74",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": { "implementation": false, "proof": false, "overallParity": false },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput and Finding boundary",
+    "CP00/CP08 provenance and four-way disposition evidence"
+  ],
+  "externalBlocked": [
+    "AWS IAM, Lambda, accounts, roles, policies, credentials, and live authorization authorities",
+    "Microsoft Defender for Cloud, Azure tenants, subscriptions, workspaces, APIs, and alerts",
+    "container registries, image scanners, artifact stores, signatures, and deployment authorities",
+    "Kubernetes clusters, pods, RBAC, admission, network policy, nodes, and runtime authorities",
+    "serverless providers, functions, triggers, packages, roles, execution, and production authorities"
+  ],
+  "advisoryManual": [
+    "defensive IAM, workload, registry, Kubernetes, Azure, and serverless guidance remains advisory",
+    "written authorization, scope, account/subscription/cluster ownership, legal/privacy/safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure remain manual"
+  ],
+  "proves": [
+    "the final six graph-selected cloud-security intents have deterministic static supplied-manifest predicates",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary"
+  ],
+  "doesNotProve": [
+    "live AWS, Azure, Defender, IAM, Lambda, registry, Kubernetes, serverless, account, tenant, subscription, cluster, endpoint, network, credential, or production truth",
+    "permission correctness, execution behavior, image vulnerability truth, admission enforcement, alert validity, remediation effectiveness, security outcomes, or overall CyberSkills parity",
+    "native implementation or executable proof beyond these bounded static predicates"
+  ],
+  "skills": [
+    {
+      "catalogId": "securing-aws-iam-permissions",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-aws-iam-permissions/SKILL.md", "sha256": "b7313a722e17b556e56767a46f28f07aae48d83bd2ce9aa694a6877d020f6bc9", "anchors": ["### Step 3: Scope Policies to Specific Resources and Conditions:L127"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed account, principal, policy, action, resource, condition, permission-boundary, owner, and evidence manifests without AWS IAM, credentials, or live authorization authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-aws-lambda-execution-roles",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-aws-lambda-execution-roles/SKILL.md", "sha256": "164425391564bbe694e627af1eb4d79286e54bad6f56a6ae846692f9288decd1", "anchors": ["### Step 3: Create Least-Privilege Execution Policies:L113"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed function, execution-role, policy, trust, runtime, package, permission, owner, and evidence manifests without Lambda, IAM, credentials, deployment, or execution authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-azure-with-microsoft-defender",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-azure-with-microsoft-defender/SKILL.md", "sha256": "369d38943684d6b81915abcc039aef4bbe41f3bb0cec730c93960da0f13483e4", "anchors": ["# Securing Azure with Microsoft Defender:L42"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed tenant, subscription, Defender control, workspace, alert, policy, resource, owner, and evidence manifests without Microsoft Defender, Azure APIs, or live tenant authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-container-registry-images",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-container-registry-images/SKILL.md", "sha256": "e2f12498f74be474e54c5f6ec60470c025a6fef72e05e11326849595ec8090b7", "anchors": ["# Securing Container Registry Images:L35", "## Workflow:L55", "### Step 1: Scan Images for Vulnerabilities with Trivy:L57"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed registry, repository, image, digest, tag, scan, provenance, owner, and evidence manifests without Trivy, registries, artifact stores, signatures, or deployment authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-kubernetes-on-cloud",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-kubernetes-on-cloud/SKILL.md", "sha256": "5e12a4c654a22950abcec72fe92b73d9dac8f8ce8ef84114f01e7ec4e6666ee1", "anchors": ["# Securing Kubernetes on Cloud:L35", "## Workflow:L54", "### Step 1: Enforce Pod Security Standards:L56"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed cluster, namespace, pod, RBAC, network-policy, image, admission, owner, and evidence manifests without Kubernetes, nodes, admission controllers, networks, or runtime authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-serverless-functions",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-serverless-functions/SKILL.md", "sha256": "3e2dcca6e33c4c34c9eccef272eb0bbb72aefc039d8b32302524fd7cb07edd71", "anchors": ["# Securing Serverless Functions:L34"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed provider, function, runtime, trigger, role, configuration, package, owner, and evidence manifests without serverless providers, execution, deployment, packages, or production authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b13.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b13_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b13.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b13/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b13/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b13/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b13/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records complete four-kind source dispositions without promoting component status",
+    "cp08SourceComponentCount": 24,
+    "packetDispositionFieldCount": 24
+  }
+}

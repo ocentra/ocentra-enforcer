@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b13-boundary",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "manual", "reference": "manual:analyst-validation" }
+  ],
+  "records": [
+    {
+      "kind": "aws-iam-permissions",
+      "skillId": "securing-aws-iam-permissions",
+      "refs": ["account:declared", "principal:declared", "policy:review", "action:declared", "resource:declared", "condition:declared", "boundary:declared", "owner:iam-security", "evidence:boundary"]
+    },
+    {
+      "kind": "aws-lambda-execution-role",
+      "skillId": "securing-aws-lambda-execution-roles",
+      "refs": ["function:declared", "role:declared", "policy:review", "trust:declared", "runtime:declared", "package:declared", "permission:review", "owner:serverless-security", "evidence:boundary"]
+    },
+    {
+      "kind": "azure-defender-control",
+      "skillId": "securing-azure-with-microsoft-defender",
+      "refs": ["tenant:declared", "subscription:declared", "defender:declared", "workspace:declared", "alert:unknown", "policy:declared", "resource:declared", "owner:cloud-security", "evidence:boundary"]
+    },
+    {
+      "kind": "container-registry-image",
+      "skillId": "securing-container-registry-images",
+      "refs": ["registry:declared", "repository:declared", "image:declared", "digest:unknown", "tag:declared", "scan:manual", "provenance:declared", "owner:container-security", "evidence:boundary"]
+    },
+    {
+      "kind": "kubernetes-cloud-hardening",
+      "skillId": "securing-kubernetes-on-cloud",
+      "refs": ["cluster:declared", "namespace:declared", "pod:declared", "rbac:review", "network-policy:declared", "image:declared", "admission:manual", "owner:cluster-security", "evidence:boundary"]
+    },
+    {
+      "kind": "serverless-function-hardening",
+      "skillId": "securing-serverless-functions",
+      "refs": ["provider:declared", "function:declared", "runtime:declared", "trigger:declared", "role:declared", "config:review", "package:declared", "owner:serverless-security", "evidence:boundary"]
+    }
+  ]
+}
