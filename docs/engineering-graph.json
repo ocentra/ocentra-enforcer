@@ -65,6 +65,7 @@
       "WP/CP09/IF-api-security/B03": "validation",
       "WP/CP09/IF-api-security/B04": "validation",
       "WP/CP09/IF-api-security/B05": "validation",
+      "WP/CP09/IF-api-security/B06": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -411,6 +412,38 @@
           "live endpoint discovery, request/response traffic, GraphQL introspection, SOAP/WSDL fetching, browser, gateway, cloud, Burp/ZAP/Postman, scanner, fuzzer, payload, credential, token, session, exploit, cross-tenant, or authorization-bypass execution",
           "schema extraction, JWT signature bypass, XXE, XPath injection, SOAPAction spoofing, authentication weakness, BOLA, GraphQL resource exhaustion, vulnerability, finding validity, attribution, remediation, safety, or security outcomes",
           "the auxiliary literal-risk check, which reported preserved API identifiers, fixture, provenance, path, and hash literals as observed findings (6 errors and 368 warnings); no waiver or obfuscation was used",
+          "CP08 decomposition promotion into implementation, executable proof, overall parity, graph DONE closure, or completion of the remaining workpacks"
+        ]
+      },
+      "TEST/WP/CP09/IF-api-security/B06/gate": {
+        "run_id": "20260810051241-1d2eba2b",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b06 -- --nocapture (Enforcer harness); cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b05 -- --nocapture; cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b04 -- --nocapture; cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b03 -- --nocapture; cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b02 -- --nocapture; cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest -- --nocapture; cargo test --locked -p enforcer-lang-security --test cyberskills_ai_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules -- --nocapture; exact-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "4b8ae862901af61485e041894e7bc0d952b394f9",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b06.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/boundary.json",
+          "proof/cyberskills/cp09/api-security-manifest-b06.json"
+        ],
+        "proves": [
+          "CP09 API-security B06 commit 4b8ae862901af61485e041894e7bc0d952b394f9 is pushed from exact parent 20f3c26dd773b624cb05fb29edeff17178263dc8 with canonical rust-build base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused API-security B06 manifest suite passed 3/3 through Enforcer harness run 20260810051241-1d2eba2b, with B05 3/3, B04 3/3, B03 3/3, B02 3/3, B01 4/4, and AI-security regression 8/8",
+          "enforcer-lang-security check and full package tests passed, including the full enforcer-rules package and CP00/CP08 regression suites after restoring tracked read-only evidence files in the sparse worktree",
+          "the exact seven-file Enforcer route/strict scan, Rust source-shape check, and secrets check returned zero findings; cargo fmt and git diff --check passed",
+          "the evidence artifact contains three unique API-security catalog rows, is 7,624 bytes with SHA-256 5bd7056a2305def5cee31600ab68fb699c780a63dabcb92be48fd350df7a3136, and its three vendor hashes, first-H1 anchors, Apache-2.0 labels, and availability match the exact source tree",
+          "the packet extends the existing static API manifest validator with supplied-input-only mass-assignment, OAuth2-flow, and WebSocket API predicates while retaining blocked external, advisory, manual, and notProved boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the CP09 API-security B06 branch",
+          "full native implementation or executable proof of any three source skill intents",
+          "live endpoint discovery, request/response traffic, browser, GraphQL/SOAP, WebSocket upgrade, OAuth token exchange, Burp/ZAP/RESTler/42Crunch/Apigee, scanner, fuzzer, payload, credential, session, exploit, or authorization-bypass execution",
+          "mass-assignment safety, OAuth2 authorization or PKCE correctness, WebSocket origin or message security, vulnerability, finding validity, attribution, remediation, safety, or security outcomes",
+          "the auxiliary literal-risk check, which reported preserved API identifiers, fixture, provenance, path, and hash literals as observed findings (8 errors and 414 warnings); no waiver or obfuscation was used",
           "CP08 decomposition promotion into implementation, executable proof, overall parity, graph DONE closure, or completion of the remaining workpacks"
         ]
       },
