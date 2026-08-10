@@ -322,7 +322,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 
 fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error>> {
     for batch in [
-        "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09",
+        "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10",
     ] {
         let id = NodeId::new(&format!("WP/CP09/IF-cloud-security/{batch}"))?;
         assert_eq!(

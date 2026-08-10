@@ -76,6 +76,7 @@
       "WP/CP09/IF-cloud-security/B07": "validation",
       "WP/CP09/IF-cloud-security/B08": "validation",
       "WP/CP09/IF-cloud-security/B09": "validation",
+      "WP/CP09/IF-cloud-security/B10": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -805,6 +806,42 @@
           "live GCP, Vault, cloud provider, tenant, API, identity, attestation, organization-policy, firewall, secret, network, workload, remediation, or production authority",
           "binary authorization validity, organization-policy inheritance, firewall effectiveness, secret-management state, zero-trust access, finding validity, attribution, remediation effectiveness, or security outcomes",
           "the auxiliary literal-risk check, which reported preserved protocol, fixture, provenance, path, and hash literals as observed findings (7 errors and 44 warnings); no waiver or obfuscation was used",
+          "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
+        ]
+      },
+      "TEST/WP/CP09/IF-cloud-security/B10/gate": {
+        "run_id": "20260810125143-6a50d3a4",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_cloud_security_manifest_b10 -- --nocapture (Enforcer harness); cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules -- --test-threads=1; exact ten-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "dbe7a70cc668e2b85a28923c12c92c571dec5380",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/cloud_security_b10_manifest_wire.rs",
+          "crates/enforcer-lang-security/src/boundary/mod.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b10.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mod.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b10.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/boundary.json",
+          "proof/cyberskills/cp09/cloud-security-manifest-b10.json"
+        ],
+        "proves": [
+          "CP09 cloud-security B10 commit dbe7a70cc668e2b85a28923c12c92c571dec5380 is pushed from exact parent d6be1ff1be6eae3d5b977c86a9f6e2ea58897a86 with canonical rust-build base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused cloud-security B10 manifest suite passed 4/4 through Enforcer dogfood run 20260810125143-6a50d3a4",
+          "enforcer-lang-security check and full package tests passed, and the full enforcer-rules package passed including CP00/CP08 regression suites",
+          "the exact ten-file Enforcer route and strict scan, Rust source-shape, and secrets checks returned zero findings; cargo fmt and git diff --check passed",
+          "the evidence artifact contains five unique cloud-security catalog rows and 20 CP08 source components represented by 20 packet disposition fields, is 8,472 bytes with SHA-256 e2cf00b9731f2785afcf9735011d697ca0d6ef8b53f2d862b1f6fb5f9b604910, and its five vendor hashes, anchors, Apache-2.0 labels, and availability match exact source evidence with zero overlap against B01-B09",
+          "the protected detecting-fileless-malware-techniques source remains absent and excluded",
+          "the packet validates only supplied static cloud manifest record shapes and retains blocked external, advisory, manual, and notProved boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the CP09 cloud-security B10 branch",
+          "full native implementation or executable proof of the five source skill intents beyond these bounded manifest predicates",
+          "live Okta, ScoutSuite, Pacu, Cartography, CloudTrail, cloud provider, tenant, account, API, identity, IAM, graph, audit-log, scanner, endpoint, network, remediation, or production authority",
+          "identity truth, account enumeration, privilege path validity, asset inventory truth, CloudTrail timeline truth, finding validity, attribution, remediation effectiveness, or security outcomes",
+          "the auxiliary literal-risk check, which reported preserved protocol, fixture, provenance, path, and hash literals as observed findings (7 errors and 47 warnings); no waiver or obfuscation was used",
           "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
         ]
       },
