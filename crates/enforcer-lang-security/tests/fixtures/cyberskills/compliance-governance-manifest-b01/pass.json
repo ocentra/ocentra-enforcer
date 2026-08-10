@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-compliance-governance-b01-pass",
+  "owner": "fixture-owner",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "source", "reference": "source:cmmc" },
+    { "kind": "source", "reference": "source:risk" },
+    { "kind": "source", "reference": "source:rmf" },
+    { "kind": "source", "reference": "source:gdpr" },
+    { "kind": "source", "reference": "source:hipaa" },
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "cmmc-controls",
+      "skillId": "achieving-cmmc-level-2-compliance",
+      "refs": ["framework:cmmc", "evidence:ssp"],
+      "controls": [
+        { "id": "3.1.1", "family": "3.1", "status": "met", "weight": 5 },
+        { "id": "3.5.3", "family": "3.5", "status": "partial", "weight": 5, "partialDeduction": 3 },
+        { "id": "3.8.9", "family": "3.8", "status": "not_met", "weight": 1 }
+      ],
+      "score": 106
+    },
+    {
+      "kind": "nist-800-30-risk",
+      "skillId": "conducting-cyber-risk-assessment-with-nist-800-30",
+      "refs": ["framework:nist-800-30", "evidence:risk-register"],
+      "riskItems": [
+        {
+          "id": "R-01",
+          "threatEvent": "credential phishing",
+          "asset": "customer portal",
+          "likelihood": "High",
+          "impact": "Very High",
+          "riskLevel": "Very High"
+        },
+        {
+          "id": "R-02",
+          "threatEvent": "service outage",
+          "asset": "reporting service",
+          "likelihood": "Low",
+          "impact": "Moderate",
+          "riskLevel": "Low"
+        }
+      ]
+    },
+    {
+      "kind": "nist-rmf-authorization",
+      "skillId": "executing-nist-rmf-authorization-to-operate",
+      "refs": ["framework:nist-rmf", "evidence:authorization-package"],
+      "informationTypes": [
+        { "name": "customer profile", "confidentiality": "Moderate", "integrity": "Moderate", "availability": "Low" },
+        { "name": "authentication data", "confidentiality": "High", "integrity": "High", "availability": "Moderate" }
+      ],
+      "categorization": "High"
+    },
+    {
+      "kind": "gdpr-data-protection",
+      "skillId": "implementing-gdpr-data-protection-controls",
+      "refs": ["framework:gdpr", "evidence:ropa"],
+      "processingActivities": [
+        {
+          "activityId": "PA-01",
+          "purpose": "account administration",
+          "lawfulBasis": "contract",
+          "dataCategories": ["contact"],
+          "dataSubjects": ["customers"],
+          "recipients": ["support"],
+          "retentionPeriod": "24 months",
+          "securityMeasures": ["encryption", "access-review"],
+          "internationalTransfers": ["scc:2021"],
+          "dpiaRequired": false
+        }
+      ],
+      "dataSubjectRequests": [
+        {
+          "id": "DSR-01",
+          "requestType": "access",
+          "receivedDate": "2026-01-01",
+          "deadline": "2026-01-31",
+          "status": "completed",
+          "identityVerified": true,
+          "daysElapsed": 12
+        }
+      ],
+      "breachRecords": [
+        {
+          "id": "BR-01",
+          "detectedAt": "2026-01-02T10:00:00Z",
+          "severity": "high",
+          "subjectsAffected": 2,
+          "authorityNotified": true,
+          "subjectsNotified": true,
+          "notificationHours": 48
+        }
+      ]
+    },
+    {
+      "kind": "hipaa-safeguards",
+      "skillId": "implementing-hipaa-security-rule-safeguards",
+      "refs": ["framework:hipaa", "evidence:safeguard-inventory"],
+      "safeguards": [
+        {
+          "id": "164.308(a)(1)(ii)(A)",
+          "section": "308",
+          "name": "Risk Analysis",
+          "requirement": "required",
+          "status": "gap"
+        },
+        {
+          "id": "164.312(a)(2)(iv)",
+          "section": "312",
+          "name": "Encryption and Decryption",
+          "requirement": "addressable",
+          "status": "partial",
+          "alternativeDocumented": true
+        }
+      ]
+    }
+  ]
+}

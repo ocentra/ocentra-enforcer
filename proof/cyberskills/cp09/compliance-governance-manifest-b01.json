@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-compliance-governance-B01",
+  "workpack": "WP/CP09/IF-compliance-governance/B01",
+  "baseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": { "implementation": false, "proof": false, "overallParity": false },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput, RuleId, Severity, and Finding boundary",
+    "enforcer-plan CP05 typed predicate/evidence packet factory",
+    "CP00/CP08 provenance and four-way disposition evidence"
+  ],
+  "externalBlocked": [
+    "CMMC C3PAO, DoD SPRS, assessors, regulators, GRC, SSP repositories, and live control authorities",
+    "NIST risk sources, threat intelligence, scanners, CMDB, business owners, GRC, ticketing, and live assets",
+    "NIST RMF authorizing officials, assessors, federal systems, OSCAL authorities, GRC, and live evidence sources",
+    "GDPR controllers, processors, DPOs, regulators, legal counsel, identity stores, personal-data systems, and ticketing",
+    "HIPAA covered entities, business associates, EHRs, OCR, auditors, healthcare systems, identity systems, and production ePHI authorities"
+  ],
+  "advisoryManual": [
+    "defensive framework mapping, risk methodology, authorization preparation, privacy, safeguard, evidence, and remediation guidance remains advisory",
+    "written authorization, organizational ownership, legal/privacy/regulatory scope, data handling, assessor or regulator review, analyst validation, risk acceptance, exception, remediation, recovery, and disclosure decisions remain manual"
+  ],
+  "proves": [
+    "the five graph-selected compliance-governance intents have deterministic predicates over supplied typed offline manifests",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary",
+    "the static predicates reproduce the vendored arithmetic and relationship boundaries for CMMC scoring, NIST risk matrices, RMF high-water categorization, GDPR registers/requests/breach timing, and HIPAA required/addressable safeguards"
+  ],
+  "doesNotProve": [
+    "live compliance, certification, authorization-to-operate, risk truth, regulatory interpretation, assessor or auditor findings, privacy or healthcare compliance, or production control effectiveness",
+    "live assets, threats, vulnerabilities, business impact, personal data, ePHI, identity, evidence validity, remediation success, notification delivery, risk acceptance, or security outcomes",
+    "external framework authority results, legal advice, C3PAO/OCR/DPO/authorizing-official decisions, executable proof, or overall CyberSkills parity"
+  ],
+  "skills": [
+    {
+      "catalogId": "achieving-cmmc-level-2-compliance",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/achieving-cmmc-level-2-compliance/SKILL.md", "sha256": "f5124addbf044b13ff6332872087d93062bfbbdd5283aac96bd76d4c9ddd7a67", "anchors": ["# Achieving CMMC Level 2 Compliance:L46"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied CMMC practice, control, family, status, weight, partial-deduction, asset, evidence, owner, assessment, POA&M, and exception manifests without C3PAO, SPRS, DoD, GRC, or live control authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "conducting-cyber-risk-assessment-with-nist-800-30",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cyber-risk-assessment-with-nist-800-30/SKILL.md", "sha256": "2cf6a3a884c4fba73fafd45afad1d5fdd7e34ec6eef25039948ed26fd605c756", "anchors": ["# Conducting a Cyber Risk Assessment with NIST SP 800-30:L44"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied asset, threat-event, vulnerability, likelihood, impact, matrix-derived risk, assumption, owner, treatment, uncertainty, provenance, and evidence manifests without live assets, scanners, threat intelligence, GRC, or business authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "executing-nist-rmf-authorization-to-operate",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/executing-nist-rmf-authorization-to-operate/SKILL.md", "sha256": "48c8e110fd95a5cbf653f50eefe75b1f1f2cdfc40b70ba842dbe035b6519a732", "anchors": ["# Executing the NIST RMF to an Authorization to Operate (ATO):L46"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied RMF system, information-type, CIA impact, high-water categorization, control, assessment, authorization package, POA&M, owner, decision, and evidence manifests without federal systems or authorizing authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-gdpr-data-protection-controls",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gdpr-data-protection-controls/SKILL.md", "sha256": "0c74694af7cd5c322ca00c43857741e7116e50947011063adcc2387a930b0a9f", "anchors": ["# Implementing GDPR Data Protection Controls:L39"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied processing activity, purpose, lawful basis, data category, recipient, retention, transfer, security measure, DSR, breach, DPIA, owner, and evidence manifests without personal-data systems, processors, DPOs, regulators, or live privacy authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-hipaa-security-rule-safeguards",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-hipaa-security-rule-safeguards/SKILL.md", "sha256": "eec382e0dabb7b2f970982ea65259db1ce9964e14d964ed8e31ce93c5c58b8df", "anchors": ["# Implementing HIPAA Security Rule Safeguards:L49"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied ePHI safeguard, administrative, physical, technical, requirement, status, alternative, risk, owner, incident, and evidence manifests without EHRs, covered entities, business associates, OCR, auditors, or production ePHI authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/compliance_governance_b01.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/compliance_governance_b01_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_compliance_governance_manifest_b01.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b01/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b01/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b01/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b01/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records the four-kind disposition without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}

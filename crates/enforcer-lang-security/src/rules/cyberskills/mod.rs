@@ -18,6 +18,7 @@ pub mod cloud_aws;
 pub mod cloud_azure;
 pub mod cloud_gcp;
 pub mod cmd_injection;
+pub mod compliance_governance_b01;
 pub mod dependency_confusion;
 pub mod docker_daemon;
 pub mod dockerfile_hardening;

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-compliance-governance-b01-boundary",
+  "owner": "written-scope-owner",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [{ "kind": "authorization", "reference": "evidence:written-scope" }],
+  "records": [
+    {
+      "kind": "cmmc-controls",
+      "skillId": "achieving-cmmc-level-2-compliance",
+      "refs": ["framework:cmmc"],
+      "controls": [{ "id": "3.1.1", "family": "3.1", "status": "met", "weight": 5 }],
+      "score": 110
+    },
+    {
+      "kind": "nist-800-30-risk",
+      "skillId": "conducting-cyber-risk-assessment-with-nist-800-30",
+      "refs": ["framework:nist-800-30"],
+      "riskItems": [{ "id": "R-01", "threatEvent": "reviewed event", "asset": "reviewed asset", "likelihood": "Low", "impact": "Low", "riskLevel": "Low" }]
+    },
+    {
+      "kind": "nist-rmf-authorization",
+      "skillId": "executing-nist-rmf-authorization-to-operate",
+      "refs": ["framework:nist-rmf"],
+      "informationTypes": [{ "name": "reviewed data", "confidentiality": "Low", "integrity": "Low", "availability": "Low" }],
+      "categorization": "Low"
+    },
+    {
+      "kind": "gdpr-data-protection",
+      "skillId": "implementing-gdpr-data-protection-controls",
+      "refs": ["framework:gdpr"],
+      "processingActivities": [{ "activityId": "PA-01", "purpose": "documented purpose", "lawfulBasis": "contract", "dataCategories": ["contact"], "dataSubjects": ["customers"], "recipients": ["support"], "retentionPeriod": "12 months", "securityMeasures": ["encryption"], "internationalTransfers": ["scc:2021"], "dpiaRequired": false }],
+      "dataSubjectRequests": [{ "id": "DSR-01", "requestType": "access", "receivedDate": "2026-01-01", "deadline": "2026-01-31", "status": "completed", "identityVerified": true, "daysElapsed": 3 }],
+      "breachRecords": [{ "id": "BR-01", "detectedAt": "2026-01-01T00:00:00Z", "severity": "low", "subjectsAffected": 0, "authorityNotified": false, "subjectsNotified": false }]
+    },
+    {
+      "kind": "hipaa-safeguards",
+      "skillId": "implementing-hipaa-security-rule-safeguards",
+      "refs": ["framework:hipaa"],
+      "safeguards": [{ "id": "164.308(a)(1)", "section": "308", "name": "Risk Analysis", "requirement": "required", "status": "implemented" }]
+    }
+  ]
+}
