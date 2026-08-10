@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b05-malformed",
+  "owner": "api-security-owner",
+  "scope": "supplied static API evidence only",
+  "evidence": [
+    { "kind": "manifest", "reference": "evidence/api-b05" }
+  ],
+  "records": [
+    {
+      "kind": "object-authorization-case",
+      "skillId": "testing-api-for-broken-object-level-authorization",
+      "routeRef": "artifact/api/object-route-catalog.json"

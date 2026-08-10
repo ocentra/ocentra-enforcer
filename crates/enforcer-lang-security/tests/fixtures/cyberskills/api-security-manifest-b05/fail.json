@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b05-fail",
+  "owner": "api-security-owner",
+  "scope": "supplied static API evidence only",
+  "evidence": [
+    { "kind": "manifest", "reference": "evidence/api-b05" }
+  ],
+  "records": [
+    {
+      "kind": "graphql-introspection-assessment",
+      "skillId": "performing-graphql-introspection-attack",
+      "routeRef": "artifact/graphql/route-catalog.json",
+      "schemaRef": "artifact/graphql/schema.graphql",
+      "visibilityRef": "fixture/graphql/schema-visibility.json",
+      "queryPolicyRef": "fixture/graphql/query-policy.json",
+      "fieldPolicyRef": "fixture/graphql/field-authorization.json",
+      "authorizationRef": "approval/graphql-introspection",
+      "scopeRef": "scope/non-executing-fixture-review",
+      "stopCondition": "stop-before-endpoint-or-query-submission",
+      "reviewRef": "review/api-b05-graphql-introspection",
+      "evidenceRef": "evidence/api-b05-graphql-introspection"
+    }
+  ]
+}

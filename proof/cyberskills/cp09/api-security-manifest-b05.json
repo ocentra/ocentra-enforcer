@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-api-security/B05",
+  "workpack": "CP09",
+  "baseCommit": "9dadcaceba11a812c88b084685520d438d70a22c",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "api-security-manifest",
+    "ruleId": "CYBER-API-MANIFEST.1",
+    "predicate": "Validate supplied typed GraphQL introspection, JWT algorithm, SOAP/WSDL, API-authentication, and object-authorization fields without sending traffic, crafting tokens, submitting XML or GraphQL, or invoking external tooling.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded API-security record-shape predicates; the packet does not discover endpoints, submit GraphQL or SOAP requests, craft JWTs, execute authentication or cross-tenant tests, or claim security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "performing-graphql-introspection-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-graphql-introspection-attack/SKILL.md",
+        "sha256": "10e754e49e8e8919090bcab8d8aad3c10b047c04234cc55e87194d69e6dca51b",
+        "anchor": { "line": 34, "text": "# Performing GraphQL Introspection Attack" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied GraphQL route, schema, introspection policy, schema-visibility, query-policy, field-authorization, scope, review, stop-condition, and evidence fields without submitting introspection queries.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "performing-jwt-none-algorithm-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-jwt-none-algorithm-attack/SKILL.md",
+        "sha256": "82ea491f3bbeb401f3c488c17a74284abae6d3e4a916f079f106594295a61f46",
+        "anchor": { "line": 32, "text": "# Performing JWT None Algorithm Attack" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied API route, token shape, JWT header and algorithm policy, signature requirement, key policy, claims policy, verification contract, scope, review, stop-condition, and evidence fields without crafting or submitting tokens.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "performing-soap-web-service-security-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-soap-web-service-security-testing/SKILL.md",
+        "sha256": "b3b1dccbb68a506274a50105070f2a93c73ba559498f7f2ed44c52c3e59a8add",
+        "anchor": { "line": 33, "text": "# Performing SOAP Web Service Security Testing" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied SOAP route, WSDL, operation, XML-parser, XXE, XPath, SOAPAction, WS-Security, scope, review, stop-condition, and evidence fields without fetching WSDLs or submitting XML payloads.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-api-authentication-weaknesses",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-authentication-weaknesses/SKILL.md",
+        "sha256": "465c92942f5c7f7e7b50e022ee598d5e52ce31c1d8bc3c6d281ae1519fa54d54",
+        "anchor": { "line": 36, "text": "# Testing API Authentication Weaknesses" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied API routes, authentication schemes, token-validation, identity, credential-handling, session, coverage, rotation, revocation, leak-monitoring, scope, review, stop-condition, and evidence fields without login, credential, or session execution.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-api-for-broken-object-level-authorization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-for-broken-object-level-authorization/SKILL.md",
+        "sha256": "17e4baa94874d2da37fbea73aaa17a7a92908c32ed1ac75af19df4a995964a73",
+        "anchor": { "line": 37, "text": "# Testing API for Broken Object Level Authorization" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied API route, schema, object identifiers, tenant boundary, identity, role, authorization matrix, identifier-variation, request, response, scope, review, stop-condition, and evidence fields without cross-tenant requests or data access.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/api_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+    "tests": [
+      "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b05.rs"
+    ],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b05/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b05/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b05/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b05/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing API-security Validator and supplied JSON wire boundary from B01",
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing cyberskills registry and exact-file Enforcer dogfood gates",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "GraphiQL, GraphQL Voyager, Clairvoyance, Burp Suite, InQL, Postman, Newman, OWASP ZAP, SoapUI, ReadyAPI, lxml, requests, PyJWT, jwt_tool, mitmproxy, curl, production APIs, gateways, proxies, identity providers, and external deployment",
+    "live endpoint discovery, schema extraction, introspection, token crafting, XML parsing against targets, request sending, authentication or session testing, cross-tenant access, credentials, and external execution",
+    "live GraphQL resource-exhaustion, JWT signature-bypass, XXE, XPath injection, SOAPAction, authentication, BOLA, vulnerability, finding-validity, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive GraphQL, JWT, SOAP, authentication, and object-authorization assessment guidance",
+    "written authorization, API/data ownership, legal/privacy/ethics/safety review, target and network scope, data handling, and stop conditions",
+    "analyst validation, severity, exception approval, remediation, rollback, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust API-security validator deterministically accepts five additional static record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet extends the existing CYBER-API-MANIFEST.1 Validator seam without adding a second registry rule or external runtime dependency.",
+    "The packet validates only supplied static JSON and retains external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No live endpoint discovery, traffic capture, DNS enumeration, API inventory truth, request, response, gateway, cloud, scanner, fuzzer, RESTler, Postman, Newman, GraphiQL, SOAP client, ZAP, proxy, credential, session, exploit, or production authority.",
+    "No rate-limit bypass, API fuzzing, schema extraction, JWT signature bypass, XXE, XPath injection, SOAPAction spoofing, authentication weakness, BOLA, GraphQL denial-of-service, vulnerability, finding validity, attribution, remediation, safety, or security outcome.",
+    "No live token validation, credential capture, session revocation, resource creation/deletion, query submission, XML payload generation, cross-tenant access, or external tool correctness.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

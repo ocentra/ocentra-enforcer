@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b05-boundary",
+  "owner": "api-security-owner",
+  "scope": "written authorization and supplied authorization evidence only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "approval/api-bola-assessment" },
+    { "kind": "stop-condition", "reference": "stop-before-cross-tenant-request-or-data-access" }
+  ],
+  "records": [
+    {
+      "kind": "object-authorization-case",
+      "skillId": "testing-api-for-broken-object-level-authorization",
+      "routeRef": "artifact/api/object-route-catalog.json",
+      "schemaRef": "artifact/api/object-schema.json",
+      "objectRef": "fixture/api/object-identifier-types.json",
+      "tenantRef": "fixture/api/tenant-boundary.json",
+      "identityRef": "fixture/api/test-identity-reference.json",
+      "roleRef": "fixture/api/role-matrix.json",
+      "matrixRef": "fixture/api/object-authorization-matrix.json",
+      "variantRef": "fixture/api/object-id-variation-plan.json",
+      "requestRef": "fixture/api/request-shapes.json",
+      "responseRef": "fixture/api/response-expectations.json",
+      "authorizationRef": "approval/api-bola-assessment",
+      "scopeRef": "scope/non-executing-object-authorization-review",
+      "stopCondition": "stop-before-cross-tenant-request-or-data-access",
+      "reviewRef": "review/api-b05-bola",
+      "evidenceRef": "evidence/api-b05-bola"
+    }
+  ]
+}
