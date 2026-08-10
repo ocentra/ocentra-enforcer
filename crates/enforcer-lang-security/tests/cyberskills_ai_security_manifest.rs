@@ -81,7 +81,7 @@ fn ai_security_manifest_pass_fixture_covers_the_five_selected_skills(
 #[test]
 fn ai_security_manifest_is_registered_once() -> Result<(), Box<dyn std::error::Error>> {
     let rows = registry::build_all()?;
-    assert_eq!(rows.len(), 41);
+    assert_eq!(rows.len(), 42);
     assert_eq!(
         rows.iter()
             .filter(|row| row.rule_id().as_str() == "CYBER-AI-MANIFEST.1")

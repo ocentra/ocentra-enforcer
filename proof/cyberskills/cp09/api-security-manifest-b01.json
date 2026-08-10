@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-api-security/B01",
+  "workpack": "CP09",
+  "baseCommit": "2e5ce656e8d35f18e63cd163ce56e900beef2395",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "api-security-manifest",
+    "ruleId": "CYBER-API-MANIFEST.1",
+    "predicate": "Validate supplied typed API route, request, response, schema, identity, authorization, parser, scope, and evidence fields without calling endpoints or executing payloads.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded API-security record-shape predicates; the packet does not discover endpoints, send requests, execute payloads, or claim vulnerability or security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-api-enumeration-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-api-enumeration-attacks/SKILL.md",
+        "sha256": "c67242765d6c2e7bb6d2b3cede23fe071140fc65ad6b7e9d33cfb7c1fa258fa9",
+        "anchor": { "line": 32, "text": "# Detecting API Enumeration Attacks" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate static typed API inventory, route, identity, rate, request, response, authorization, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "detecting-broken-object-property-level-authorization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-broken-object-property-level-authorization/SKILL.md",
+        "sha256": "e559b5673d5550cb39996b7947cf59dffe979dc73c8a670c65fffbb6a77421e2",
+        "anchor": { "line": 30, "text": "# Detecting Broken Object Property Level Authorization" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate static typed schema, property, subject, role, route, response, authorization, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "detecting-shadow-api-endpoints",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-shadow-api-endpoints/SKILL.md",
+        "sha256": "a9186ea267277d6cce368ff485ff0c610360099a7962c7281b596d245d22a40e",
+        "anchor": { "line": 31, "text": "# Detecting Shadow API Endpoints" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate static typed route, version, owner, schema, documentation, observation, and evidence inventory fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "exploiting-api-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-api-injection-vulnerabilities/SKILL.md",
+        "sha256": "71375285ab29f90c5eb49fa5dafbad97118229ce0a69af6c7c3aeb880462f636",
+        "anchor": { "line": 37, "text": "# Exploiting API Injection Vulnerabilities" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed API route, request, response, parser, parameter, schema, authorization, scope, stop-condition, review, and evidence fields without calling endpoints or executing payloads.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "exploiting-broken-function-level-authorization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-broken-function-level-authorization/SKILL.md",
+        "sha256": "6fc7545d0b78d2864a9ce9318f8bb1bc0f35a78a4ae349121f7773c6feec9596",
+        "anchor": { "line": 36, "text": "# Exploiting Broken Function Level Authorization" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed route, function, subject, role, identity, authorization, scope, stop-condition, review, and evidence fields without sending unauthorized requests.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/api_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+    "registry": "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+    "test": "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest.rs",
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing private serde wire-boundary pattern and closed RecordRule table",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing cyberskills registry and exact-file Enforcer dogfood gates",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "live API endpoints, servers, browsers, gateways, identity/session authorities, production traffic, and cloud services",
+    "Burp Suite, ZAP, Nikto, RESTler, Postman, 42Crunch, fuzzers, scanners, payload runners, credentials, and sessions",
+    "API discovery, traffic capture, endpoint enumeration, exploit delivery, injection execution, and authorization bypass attempts"
+  ],
+  "advisoryManual": [
+    "defensive API design, schema validation, authorization review, rate-control, inventory, and testing guidance",
+    "written authorization, API/data ownership, legal/privacy/ethics/safety review, scope, and data handling",
+    "analyst validation, severity, containment, remediation, rollback, disclosure, stop-condition, and human approval decisions"
+  ],
+  "proves": [
+    "The new Rust API-security validator deterministically accepts five static record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The new validator is registered exactly once under CYBER-API-MANIFEST.1 and reuses the existing Validator/Finding/registry seams.",
+    "The packet validates only supplied static JSON and retains external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No live endpoint discovery, request, response, traffic, scanner, fuzzer, Burp/ZAP/RESTler/Postman/42Crunch execution, or production authority.",
+    "No API enumeration, BOLA/BOPLA, shadow endpoint, injection, authorization bypass, vulnerability, finding validity, or security outcome.",
+    "No exploit delivery, credential capture, attribution, remediation success, or safety outcome.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

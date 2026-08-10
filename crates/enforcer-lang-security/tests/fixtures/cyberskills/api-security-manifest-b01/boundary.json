@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b01-boundary",
+  "owner": "security-engineering",
+  "scope": "static-authorization-plan-only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "authorization-record-boundary" }
+  ],
+  "records": [
+    {
+      "kind": "api-injection-safety-case",
+      "skillId": "exploiting-api-injection-vulnerabilities",
+      "routeRef": "route:/api/v1/search",
+      "requestRef": "supplied-request-boundary",
+      "schemaRef": "supplied-schema-boundary",
+      "parameterRef": "parameter:query",
+      "parserRef": "parser-contract-boundary",
+      "authorizationRef": "authorization-record-boundary",
+      "scopeRef": "offline-fixture-scope",
+      "stopCondition": "no-live-endpoint-or-payload-execution",
+      "reviewRef": "manual-safety-review-boundary",
+      "evidenceRef": "written-authorization"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b01-pass",
+  "owner": "security-engineering",
+  "scope": "offline-supplied-api-evidence",
+  "evidence": [
+    { "kind": "api-inventory", "reference": "inventory-snapshot-001" },
+    { "kind": "route-contract", "reference": "route-contract-001" },
+    { "kind": "authorization-review", "reference": "authorization-review-001" },
+    { "kind": "parser-review", "reference": "parser-review-001" },
+    { "kind": "written-authorization", "reference": "authorization-record-001" }
+  ],
+  "records": [
+    {
+      "kind": "api-enumeration-observation",
+      "skillId": "detecting-api-enumeration-attacks",
+      "subjectRef": "supplied-subject-001",
+      "routeRef": "route:/api/v1/accounts/{accountId}",
+      "requestRef": "supplied-request-001",
+      "responseRef": "supplied-response-001",
+      "authorizationRef": "authorization-review-001",
+      "ratePolicyRef": "rate-policy-001",
+      "observationRef": "offline-observation-001",
+      "evidenceRef": "api-inventory"
+    },
+    {
+      "kind": "property-authorization-case",
+      "skillId": "detecting-broken-object-property-level-authorization",
+      "subjectRef": "supplied-subject-002",
+      "routeRef": "route:/api/v1/users/{userId}",
+      "schemaRef": "openapi-schema-002",
+      "propertyRef": "property:billingAddress",
+      "identityRef": "identity-role-user",
+      "roleRef": "role:standard-user",
+      "responseRef": "supplied-response-002",
+      "authorizationRef": "authorization-review-001",
+      "evidenceRef": "route-contract"
+    },
+    {
+      "kind": "shadow-api-inventory",
+      "skillId": "detecting-shadow-api-endpoints",
+      "routeRef": "route:/api/v1/legacy/reports",
+      "versionRef": "version:v1",
+      "ownerRef": "owner:payments-team",
+      "schemaRef": "openapi-schema-003",
+      "documentationRef": "documentation-inventory-003",
+      "observationRef": "offline-inventory-observation-003",
+      "evidenceRef": "api-inventory"
+    },
+    {
+      "kind": "api-injection-safety-case",
+      "skillId": "exploiting-api-injection-vulnerabilities",
+      "routeRef": "route:/api/v1/search",
+      "requestRef": "supplied-request-004",
+      "schemaRef": "openapi-schema-004",
+      "parameterRef": "parameter:query",
+      "parserRef": "parser-contract-004",
+      "authorizationRef": "authorization-record-001",
+      "scopeRef": "offline-fixture-scope",
+      "stopCondition": "stop-before-endpoint-or-payload-execution",
+      "reviewRef": "manual-safety-review-004",
+      "evidenceRef": "parser-review"
+    },
+    {
+      "kind": "function-authorization-plan",
+      "skillId": "exploiting-broken-function-level-authorization",
+      "subjectRef": "supplied-subject-005",
+      "routeRef": "route:/api/v1/admin/reports",
+      "functionRef": "function:export-report",
+      "identityRef": "identity-role-user",
+      "roleRef": "role:standard-user",
+      "authorizationRef": "authorization-record-001",
+      "scopeRef": "offline-fixture-scope",
+      "stopCondition": "stop-before-unauthorized-request",
+      "reviewRef": "manual-safety-review-005",
+      "evidenceRef": "authorization-review"
+    }
+  ]
+}

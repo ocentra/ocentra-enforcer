@@ -14,6 +14,7 @@
 //! is introduced anywhere in this module.
 
 pub mod ai_security_manifest;
+pub mod api_security_manifest;
 pub mod auth_jwt;
 pub mod cloud_aws;
 pub mod cloud_azure;
