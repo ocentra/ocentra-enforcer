@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b06-boundary",
+  "owner": "api-security-owner",
+  "scope": "written authorization and supplied OAuth evidence only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "approval/oauth2-assessment" },
+    { "kind": "stop-condition", "reference": "stop-before-redirect-or-token-exchange" }
+  ],
+  "records": [
+    {
+      "kind": "oauth2-flow-security-assessment",
+      "skillId": "testing-oauth2-implementation-flaws",
+      "flowRef": "artifact/oauth2/flow-catalog.json",
+      "clientRef": "artifact/oauth2/client-registration.json",
+      "authorizationEndpointRef": "artifact/oauth2/authorization-endpoint.json",
+      "redirectRef": "fixture/oauth2/redirect-uri-policy.json",
+      "scopePolicyRef": "fixture/oauth2/scope-policy.json",
+      "stateRef": "fixture/oauth2/state-csrf-policy.json",
+      "pkceRef": "fixture/oauth2/pkce-policy.json",
+      "issuerRef": "fixture/oidc/issuer-policy.json",
+      "tokenPolicyRef": "fixture/oauth2/token-storage-lifecycle.json",
+      "authorizationRef": "approval/oauth2-assessment",
+      "scopeRef": "scope/non-executing-oauth-review",
+      "stopCondition": "stop-before-redirect-or-token-exchange",
+      "reviewRef": "review/api-b06-oauth2",
+      "evidenceRef": "evidence/api-b06-oauth2"
+    }
+  ]
+}

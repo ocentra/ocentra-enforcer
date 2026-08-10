@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b06-pass",
+  "owner": "api-security-owner",
+  "scope": "supplied static API evidence only",
+  "evidence": [
+    { "kind": "authorization", "reference": "approval/api-b06" },
+    { "kind": "manifest", "reference": "evidence/api-b06" }
+  ],
+  "records": [
+    {
+      "kind": "mass-assignment-control-assessment",
+      "skillId": "testing-api-for-mass-assignment-vulnerability",
+      "routeRef": "artifact/api/write-route-catalog.json",
+      "schemaRef": "artifact/api/write-schema.json",
+      "requestRef": "fixture/api/request-body-shapes.json",
+      "inputRef": "fixture/api/client-input-catalog.json",
+      "fieldAllowlistRef": "fixture/api/field-allowlist.json",
+      "bindableRef": "fixture/api/binding-policy.json",
+      "ownershipRef": "fixture/api/field-ownership.json",
+      "roleRef": "fixture/api/role-field-matrix.json",
+      "authorizationRef": "approval/api-mass-assignment",
+      "scopeRef": "scope/non-executing-input-review",
+      "stopCondition": "stop-before-parameter-injection-or-write-request",
+      "reviewRef": "review/api-b06-mass-assignment",
+      "evidenceRef": "evidence/api-b06-mass-assignment"
+    },
+    {
+      "kind": "oauth2-flow-security-assessment",
+      "skillId": "testing-oauth2-implementation-flaws",
+      "flowRef": "artifact/oauth2/flow-catalog.json",
+      "clientRef": "artifact/oauth2/client-registration.json",
+      "authorizationEndpointRef": "artifact/oauth2/authorization-endpoint.json",
+      "redirectRef": "fixture/oauth2/redirect-uri-policy.json",
+      "scopePolicyRef": "fixture/oauth2/scope-policy.json",
+      "stateRef": "fixture/oauth2/state-csrf-policy.json",
+      "pkceRef": "fixture/oauth2/pkce-policy.json",
+      "issuerRef": "fixture/oidc/issuer-policy.json",
+      "tokenPolicyRef": "fixture/oauth2/token-storage-lifecycle.json",
+      "authorizationRef": "approval/oauth2-assessment",
+      "scopeRef": "scope/non-executing-oauth-review",
+      "stopCondition": "stop-before-redirect-or-token-exchange",
+      "reviewRef": "review/api-b06-oauth2",
+      "evidenceRef": "evidence/api-b06-oauth2"
+    },
+    {
+      "kind": "websocket-api-security-assessment",
+      "skillId": "testing-websocket-api-security",
+      "routeRef": "artifact/websocket/route-catalog.json",
+      "originRef": "fixture/websocket/origin-policy.json",
+      "handshakeRef": "fixture/websocket/handshake-contract.json",
+      "subprotocolRef": "fixture/websocket/subprotocol-policy.json",
+      "messageRef": "fixture/websocket/message-schema.json",
+      "sessionRef": "fixture/websocket/session-policy.json",
+      "channelRef": "fixture/websocket/channel-authorization.json",
+      "frameRef": "fixture/websocket/frame-size-policy.json",
+      "authPolicyRef": "fixture/websocket/authentication-policy.json",
+      "authorizationRef": "approval/websocket-assessment",
+      "scopeRef": "scope/non-executing-websocket-review",
+      "stopCondition": "stop-before-upgrade-or-message-send",
+      "reviewRef": "review/api-b06-websocket",
+      "evidenceRef": "evidence/api-b06-websocket"
+    }
+  ]
+}

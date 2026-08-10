@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b06-malformed",
+  "owner": "api-security-owner",
+  "scope": "supplied static API evidence only",
+  "evidence": [
+    { "kind": "manifest", "reference": "evidence/api-b06" }
+  ],
+  "records": [
+    {
+      "kind": "websocket-api-security-assessment",
+      "skillId": "testing-websocket-api-security",
+      "routeRef": "artifact/websocket/route-catalog.json"

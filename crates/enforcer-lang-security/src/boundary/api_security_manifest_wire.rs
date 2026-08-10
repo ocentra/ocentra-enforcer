@@ -38,6 +38,9 @@ const JWT_NONE_SKILL: &str = "performing-jwt-none-algorithm-attack";
 const SOAP_SECURITY_SKILL: &str = "performing-soap-web-service-security-testing";
 const API_AUTHENTICATION_SKILL: &str = "testing-api-authentication-weaknesses";
 const BOLA_SKILL: &str = "testing-api-for-broken-object-level-authorization";
+const MASS_ASSIGNMENT_SKILL: &str = "testing-api-for-mass-assignment-vulnerability";
+const OAUTH_SKILL: &str = "testing-oauth2-implementation-flaws";
+const WEBSOCKET_SKILL: &str = "testing-websocket-api-security";
 
 // BRAND-INVARIANT: private wire fields are decoded only through serde and
 // accepted by `is_valid` after the schema and field predicates below pass.
@@ -178,6 +181,25 @@ struct RecordWire {
     tenant_ref: Option<String>,
     matrix_ref: Option<String>,
     variant_ref: Option<String>,
+    field_allowlist_ref: Option<String>,
+    bindable_ref: Option<String>,
+    input_ref: Option<String>,
+    ownership_ref: Option<String>,
+    flow_ref: Option<String>,
+    redirect_ref: Option<String>,
+    scope_policy_ref: Option<String>,
+    state_ref: Option<String>,
+    pkce_ref: Option<String>,
+    issuer_ref: Option<String>,
+    token_policy_ref: Option<String>,
+    authorization_endpoint_ref: Option<String>,
+    origin_ref: Option<String>,
+    handshake_ref: Option<String>,
+    subprotocol_ref: Option<String>,
+    message_ref: Option<String>,
+    session_ref: Option<String>,
+    channel_ref: Option<String>,
+    frame_ref: Option<String>,
 }
 
 struct RecordRule {
@@ -632,6 +654,68 @@ static RECORD_RULES: &[RecordRule] = &[
             "variantRef",
             "requestRef",
             "responseRef",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "mass-assignment-control-assessment",
+        skill: MASS_ASSIGNMENT_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "schemaRef",
+            "requestRef",
+            "inputRef",
+            "fieldAllowlistRef",
+            "bindableRef",
+            "ownershipRef",
+            "roleRef",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "oauth2-flow-security-assessment",
+        skill: OAUTH_SKILL,
+        required: &[
+            "skillId",
+            "flowRef",
+            "clientRef",
+            "authorizationEndpointRef",
+            "redirectRef",
+            "scopePolicyRef",
+            "stateRef",
+            "pkceRef",
+            "issuerRef",
+            "tokenPolicyRef",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "websocket-api-security-assessment",
+        skill: WEBSOCKET_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "originRef",
+            "handshakeRef",
+            "subprotocolRef",
+            "messageRef",
+            "sessionRef",
+            "channelRef",
+            "frameRef",
+            "authPolicyRef",
             "authorizationRef",
             "scopeRef",
             "stopCondition",

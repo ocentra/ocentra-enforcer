@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-api-security/B06",
+  "workpack": "CP09",
+  "baseCommit": "20f3c26dd773b624cb05fb29edeff17178263dc8",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "api-security-manifest",
+    "ruleId": "CYBER-API-MANIFEST.1",
+    "predicate": "Validate supplied typed mass-assignment, OAuth2, and WebSocket API-security fields without sending traffic, crafting tokens, opening upgrades, or invoking external tooling.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "three bounded API-security record-shape predicates; the packet does not inject parameters, exchange OAuth tokens, open WebSocket connections, or claim security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "testing-api-for-mass-assignment-vulnerability",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-for-mass-assignment-vulnerability/SKILL.md",
+        "sha256": "1368714ad95c0895e2db7509329954ee91e2b1227ff5229b81bfd5491ac807e2",
+        "anchor": { "line": 36, "text": "# Testing API for Mass Assignment Vulnerability" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied writable API routes, schemas, request bodies, client inputs, field allowlists, binding policy, ownership, roles, authorization, scope, review, stop-condition, and evidence fields without injecting parameters or sending writes.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-oauth2-implementation-flaws",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-oauth2-implementation-flaws/SKILL.md",
+        "sha256": "16282697f2e1cc8f333add3d30ce3ce0c33d4c0e8e66074ce4f583cc210d3278",
+        "anchor": { "line": 36, "text": "# Testing OAuth2 Implementation Flaws" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied OAuth2/OIDC flow, client, authorization endpoint, redirect URI, scope, state, PKCE, issuer, token lifecycle, authorization, scope, review, stop-condition, and evidence fields without redirects or token exchange.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-websocket-api-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-websocket-api-security/SKILL.md",
+        "sha256": "cba115f065e0d6b9170909e97ccb3b216da6b5605377b40d1fba667641724aaf",
+        "anchor": { "line": 37, "text": "# Testing WebSocket API Security" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied WebSocket route, origin, handshake, subprotocol, message, session, channel, frame, authentication, authorization, scope, review, stop-condition, and evidence fields without upgrades or message sends.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/api_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+    "tests": [
+      "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b06.rs"
+    ],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b06/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing API-security Validator and supplied JSON wire boundary from B01",
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing cyberskills registry and exact-file Enforcer dogfood gates",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "Burp Suite, OWASP ZAP, requests, oauthlib, browser developer tools, websockets, wscat, Postman, proxies, identity providers, token endpoints, and production APIs",
+    "live endpoint discovery, parameter injection, write requests, OAuth redirects, authorization-code or token exchange, WebSocket upgrades, message sends, credentials, sessions, and external execution",
+    "live mass-assignment, OAuth redirect/PKCE/state, CSWSH, WebSocket injection/flooding, authentication, authorization, vulnerability, finding-validity, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive mass-assignment, OAuth2/OIDC, and WebSocket API-security assessment guidance",
+    "written authorization, API/data ownership, legal/privacy/ethics/safety review, target and network scope, data handling, and stop conditions",
+    "analyst validation, severity, exception approval, remediation, rollback, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust API-security validator deterministically accepts three final static API-security record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all three source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet extends the existing CYBER-API-MANIFEST.1 Validator seam without adding a second registry rule or external runtime dependency.",
+    "The packet validates only supplied static JSON and retains external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No live endpoint discovery, traffic capture, API write, OAuth redirect, token exchange, WebSocket upgrade, browser, gateway, cloud, Burp/ZAP, proxy, scanner, fuzzer, payload, credential, session, exploit, or production authority.",
+    "No mass-assignment vulnerability, OAuth redirect/PKCE/state flaw, CSWSH, WebSocket injection, flooding, authentication weakness, authorization bypass, finding validity, attribution, remediation, safety, or security outcome.",
+    "No live parameter binding, object mutation, resource creation/deletion, token validation, credential capture, session revocation, channel access, message submission, or external tool correctness.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

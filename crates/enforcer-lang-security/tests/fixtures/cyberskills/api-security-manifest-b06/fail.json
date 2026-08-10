@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b06-fail",
+  "owner": "api-security-owner",
+  "scope": "supplied static API evidence only",
+  "evidence": [
+    { "kind": "manifest", "reference": "evidence/api-b06" }
+  ],
+  "records": [
+    {
+      "kind": "mass-assignment-control-assessment",
+      "skillId": "testing-api-for-mass-assignment-vulnerability",
+      "routeRef": "artifact/api/write-route-catalog.json",
+      "schemaRef": "artifact/api/write-schema.json",
+      "requestRef": "fixture/api/request-body-shapes.json",
+      "inputRef": "fixture/api/client-input-catalog.json",
+      "bindableRef": "fixture/api/binding-policy.json",
+      "ownershipRef": "fixture/api/field-ownership.json",
+      "roleRef": "fixture/api/role-field-matrix.json",
+      "authorizationRef": "approval/api-mass-assignment",
+      "scopeRef": "scope/non-executing-input-review",
+      "stopCondition": "stop-before-parameter-injection-or-write-request",
+      "reviewRef": "review/api-b06-mass-assignment",
+      "evidenceRef": "evidence/api-b06-mass-assignment"
+    }
+  ]
+}
