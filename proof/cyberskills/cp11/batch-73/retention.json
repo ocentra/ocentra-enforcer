@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-73",
+  "family": "IF/soc-operations",
+  "baselineCommit": "2c682dc885531ff1a7170940d893b1b9356a6ae4",
+  "scope": "Retain the final SOC monitoring, threat-hunting, alert, triage, evidence, and response guidance from immutable CP08 evidence; native predicates are limited to static supplied route, log, event, alert, case, owner, severity, evidence, notification, escalation, metric, and response manifests; no live endpoint, cloud, host, device, packet, SIEM, SOAR, scanner, external service, or production execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-threat-hunting-with-elastic-siem",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-hunting-with-elastic-siem/SKILL.md",
+        "sha256": "5d51cae4eca2dee33f994822bff621fa03fc614e8bbcac09e06af554e313c39f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Threat Hunting with Elastic SIEM:L50"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-79/decomposition.json",
+        "artifactSha256": "dbc9422fc04edceb306c4f80fee5be0380cd830f1a2be95a1d8acec471c1e0ae"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, threat-hunting, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, hunting truth, detection efficacy, analyst conclusion, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-user-behavior-analytics",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-user-behavior-analytics/SKILL.md",
+        "sha256": "442b96b1a1ceb1c3cce3b1a0bb91db1d8894874c852370ac6a0d22738102e848",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing User Behavior Analytics:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-79/decomposition.json",
+        "artifactSha256": "dbc9422fc04edceb306c4f80fee5be0380cd830f1a2be95a1d8acec471c1e0ae"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, behavior-analysis, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, behavior baseline, detection efficacy, analyst conclusion, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "triaging-security-alerts-in-splunk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-alerts-in-splunk/SKILL.md",
+        "sha256": "87d8021a9b90404cb288afd102aced77af6c16e3eb3c5f5420e95a14182b7aba",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Triaging Security Alerts in Splunk:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, alert triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live alert truth, triage efficacy, analyst conclusion, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, cloud, host, device, packet, SIEM, SOAR, scanner, external service, or production execution.",
+    "No monitoring truth, hunting result, alert efficacy, triage decision, attribution, containment, remediation success, safety outcome, or security outcome is proved.",
+    "This packet covers the final three SOC-operations skills as retained advisory/manual evidence only; SOC-operations retention is complete after this packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, SIEM, SOAR, scanners, endpoints, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

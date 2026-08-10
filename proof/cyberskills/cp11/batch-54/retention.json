@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-54",
+  "family": "IF/penetration-testing",
+  "baselineCommit": "438ed8aa08099deb34a11fc807dae44bc1544f69",
+  "scope": "Retain advisory and manual content for the first penetration-testing packet from immutable CP08 evidence; native predicates are limited to static supplied authorization, scope, route, asset, API, mobile, network, wireless, identity, social-engineering, phishing, finding, severity, evidence, owner, and remediation manifests; no live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, social channel, wireless interface, production infrastructure, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "conducting-api-security-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-api-security-testing/SKILL.md",
+        "sha256": "d7c01bde62507b200c57a34b0d4ba04a520b1a6c0cd02ac2ac1b08fe2852c3ef",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Conducting API Security Testing:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-07/decomposition.json",
+        "artifactSha256": "a5cab68ca08b996d5fd5b84a666a4155f56bb8d53f0f2e5d96f218c21f4deb0f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive API assessment, route, schema, authorization, rate, evidence, and remediation guidance.",
+        "notProved": ["Guidance is not live endpoint discovery, authentication, exploitability, finding validity, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, API owner and data scope, legal/privacy/safety review, test limits, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No live API call, payload, auth bypass, data exposure, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-external-reconnaissance-with-osint",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-external-reconnaissance-with-osint/SKILL.md",
+        "sha256": "eca75ef71dd3c297a57497125d069b60e6fd55f09f6512b710dc3fb07cf5b8b3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting External Reconnaissance with OSINT:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized external reconnaissance, source evaluation, privacy, uncertainty, and defensive exposure-review guidance.",
+        "notProved": ["Guidance is not live OSINT collection, source truth, freshness, attribution, infrastructure ownership, or finding outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, target and source scope, legal/privacy/ethics review, terms and data handling, analyst validation, uncertainty, dissemination, escalation, and disclosure decisions.",
+        "notProved": ["No live web, DNS, WHOIS, dark-web, hosting, network, or third-party collection is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-internal-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-internal-network-penetration-test/SKILL.md",
+        "sha256": "b8ee89434c59f0d2f3fb2a24e25b59e85d3e124a54c880a725debfc1a9864cf7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Internal Network Penetration Test:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain internal network assessment, segmentation, discovery, evidence, risk, and defensive remediation guidance.",
+        "notProved": ["Guidance is not network access, enumeration, exploitability, credential validity, finding truth, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned network and asset scope, legal/privacy/safety review, rate and stop conditions, analyst validation, severity, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live host, packet, credential, session, exploit, lateral movement, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-mobile-app-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-mobile-app-penetration-test/SKILL.md",
+        "sha256": "88e772bdee5f51ab9dfef446d64f8c9930838e4623d84cebd91b7795ee4bfef8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Conducting Mobile App Penetration Test:L44"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application assessment, API, storage, identity, privacy, evidence, and defensive remediation guidance.",
+        "notProved": ["Guidance is not mobile runtime behavior, exploitability, credential/session validity, data exposure, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, app/device/data ownership, legal/privacy review, test scope, safety limits, analyst validation, severity, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live device, app, endpoint, API, session, exploit, store, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-network-penetration-test/SKILL.md",
+        "sha256": "b7521af5038b93cfab7f85ac9be3cd9952092cede1872d8e7a46e364f06be333",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Network Penetration Test:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network test planning, segmentation, evidence, risk, scope, and defensive remediation guidance.",
+        "notProved": ["Guidance is not live discovery, packet capture, exploitability, access, finding validity, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned network scope, legal/privacy/safety review, test limits, stop conditions, analyst validation, severity, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live network, host, scanner, payload, credential, session, exploit, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-social-engineering-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-social-engineering-penetration-test/SKILL.md",
+        "sha256": "3b122b2912ca174fb6640f980fd8db2aaeab876616d3ab8e1816c19f05ff7764",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Social Engineering Penetration Test:L71"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-35/decomposition.json",
+        "artifactSha256": "7b486c870b0ec91ad04d98fd960589cd1667967ae841768adfcdfc22562c2b4f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ethical social-engineering assessment, training, privacy, consent, reporting, and defensive awareness guidance.",
+        "notProved": ["Guidance is not delivery, response, susceptibility, credential capture, compromise, detection efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, named owner and cohort scope, legal/privacy/ethics review, safety and stop conditions, notification rules, data handling, analyst validation, containment, and disclosure decisions.",
+        "notProved": ["No live social channel, message, credential, user interaction, session compromise, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-wireless-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-wireless-network-penetration-test/SKILL.md",
+        "sha256": "513cb626e6ea37735afe62223e2e34953ed327de70a6b379538585c233e07e79",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Wireless Network Penetration Test:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain wireless assessment, encryption, access, monitoring, safe-lab, privacy, and defensive hardening guidance.",
+        "notProved": ["Guidance is not radio access, packet capture, password validity, device state, exploitability, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned wireless and lab scope, legal/privacy/safety review, radio limits, stop conditions, analyst validation, data handling, rollback, and disclosure decisions.",
+        "notProved": ["No live radio, access point, endpoint, credential, packet, session, exploit, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "executing-active-directory-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-active-directory-attack-simulation/SKILL.md",
+        "sha256": "560a1faa4841d7956d9be4a72ef121a69d56b90e893ffd18e273bdb1e1626d08",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Active Directory Attack Simulation:L41"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-60/decomposition.json",
+        "artifactSha256": "1228d05c312f7e3be21d1254ac4e1b44407974f9c7db3ea990b1ca999304563f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized AD attack-simulation planning, identity risk, detection, reporting, and defensive hardening guidance.",
+        "notProved": ["Guidance is not directory state, credential validity, exploit delivery, privilege change, lateral movement, detection efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, directory and tenant ownership, legal/privacy review, lab scope, safety and stop conditions, analyst validation, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live directory, credential, session, endpoint, exploit, lateral movement, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "executing-phishing-simulation-campaign",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-phishing-simulation-campaign/SKILL.md",
+        "sha256": "b0c885c88def8221a226619ef4a52d02d9500e95865cb8fc9aa6cd62652ca6c8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Phishing Simulation Campaign:L67"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-35/decomposition.json",
+        "artifactSha256": "7b486c870b0ec91ad04d98fd960589cd1667967ae841768adfcdfc22562c2b4f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain phishing-awareness, training, reporting, privacy, legal, safety, and defensive response guidance.",
+        "notProved": ["Guidance is not mail delivery, credential capture, session compromise, user susceptibility, detection efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, named cohort and owner, legal/privacy/ethics review, mail and IdP scope, safety and stop conditions, notification, data handling, analyst validation, containment, and disclosure decisions.",
+        "notProved": ["No live mail, link, credential, IdP, MFA, session, endpoint, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "executing-red-team-exercise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-red-team-exercise/SKILL.md",
+        "sha256": "e93637b79f2b71594475eb8cb3cc41b6e49bcf9af216da77aa5133935efa57e6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing Red Team Exercise:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-61/decomposition.json",
+        "artifactSha256": "0b81a35a21873e3ffdee8ab17e3f396619da3034cc4cec52651212fae88cb451"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain red-team exercise planning, objectives, scope, rules of engagement, reporting, lessons, and defensive improvement guidance.",
+        "notProved": ["Guidance is not live attack execution, exploitability, compromise, attribution, detection efficacy, remediation, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner and asset scope, legal/privacy/safety review, rules of engagement, stop conditions, safety observer, analyst validation, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live red-team action, exploit, credential, endpoint, network, cloud, production, or exercise result is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, social channel, wireless interface, or production action is proved.",
+    "No exploitability, credential capture, compromise, attribution, detection efficacy, remediation success, safety outcome, or security outcome is proved.",
+    "This packet contains the first 10 penetration-testing skills; the remaining 13 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

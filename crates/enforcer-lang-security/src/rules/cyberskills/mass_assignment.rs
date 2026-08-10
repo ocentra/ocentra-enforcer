@@ -52,6 +52,9 @@ use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
+use enforcer_domain::syntax_types::{CapabilitySet, FactCapability, FunctionFact, ParseOutcome};
+use enforcer_validator::analysis::{AnalysisOutcome, PreparedAnalysis};
+use enforcer_validator::validator::{AnalysisSkip, ValidationDispatch};
 use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
@@ -136,6 +139,7 @@ pub struct MassAssignmentValidator {
 }
 
 impl MassAssignmentValidator {
+    /// Construct the mass-assignment validator with its closed sink patterns.
     pub fn new() -> Result<Self, DecodeError> {
         let mut patterns = Vec::with_capacity(MASS_ASSIGN_PATTERNS_SRC.len());
         for entry in MASS_ASSIGN_PATTERNS_SRC {
@@ -166,25 +170,48 @@ impl MassAssignmentValidator {
             setattr_call,
         })
     }
-}
 
-impl Validator for MassAssignmentValidator {
-    fn rule_id(&self) -> &RuleId {
-        &self.rule_id
-    }
-
-    fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+    fn validate_lines(
+        &self,
+        input: ValidationInput<'_>,
+        function_facts: Option<&[FunctionFact]>,
+    ) -> Vec<Finding> {
+        let source = input.source.as_str();
+        let request_loop_offsets: Vec<usize> = self
+            .request_items_loop
+            .find_iter(source)
+            .map(|matched| matched.start())
+            .collect();
         let mut findings = Vec::new();
-        // Whole-file context: a setattr() call is only the mass-assignment
-        // sink when paired with a for-loop statement that destructures a
-        // whole-request accessor's .items() somewhere in the same scanned
-        // unit (mirrors the `proto_pollution`/`weak_crypto` same-source
-        // correlated-context idiom).
-        let has_request_items_loop = self.request_items_loop.is_match(input.source.as_str());
+        let mut byte_cursor = 0usize;
 
-        for (index, line) in input.source.as_str().lines().enumerate() {
+        for (index, raw_line) in source.split_inclusive('\n').enumerate() {
+            let line = raw_line
+                .strip_suffix('\n')
+                .unwrap_or(raw_line)
+                .strip_suffix('\r')
+                .unwrap_or_else(|| raw_line.strip_suffix('\n').unwrap_or(raw_line));
+            let line_start = byte_cursor;
+            let line_end = line_start.saturating_add(line.len());
+            byte_cursor = byte_cursor.saturating_add(raw_line.len());
+
+            let active_function = function_facts.and_then(|facts| {
+                facts.iter().find(|fact| {
+                    let range = fact.span().byte_range();
+                    range.start() <= line_start && line_end <= range.end()
+                })
+            });
+            if function_facts.is_some() && active_function.is_none() {
+                continue;
+            }
+            let has_request_items_loop = request_loop_offsets.iter().any(|offset| {
+                active_function.is_none_or(|fact| {
+                    let range = fact.span().byte_range();
+                    range.start() <= *offset && *offset <= range.end()
+                })
+            });
+
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);
-
             let mut matched_labels: Vec<&str> = Vec::new();
             for pattern in &self.patterns {
                 if pattern.regex().is_match(line)
@@ -229,6 +256,48 @@ impl Validator for MassAssignmentValidator {
         }
         findings
     }
+}
+
+impl Validator for MassAssignmentValidator {
+    fn required_capabilities(&self) -> CapabilitySet {
+        CapabilitySet::function_facts()
+    }
+
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+
+    fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        self.validate_lines(input, None)
+    }
+
+    fn validate_with_analysis(
+        &self,
+        input: ValidationInput<'_>,
+        analysis: Option<&PreparedAnalysis>,
+    ) -> ValidationDispatch {
+        let Some(analysis) = analysis else {
+            return ValidationDispatch::Skipped(AnalysisSkip::NotPrepared);
+        };
+        let Some(function_facts) = clean_function_facts(analysis) else {
+            return ValidationDispatch::Skipped(AnalysisSkip::RequirementUnavailable);
+        };
+        ValidationDispatch::Ran(self.validate_lines(input, Some(function_facts)))
+    }
+}
+
+fn clean_function_facts(analysis: &PreparedAnalysis) -> Option<&[FunctionFact]> {
+    let AnalysisOutcome::FactBacked(result) = analysis.outcome() else {
+        return None;
+    };
+    if !matches!(result.outcome(), ParseOutcome::ParsedClean)
+        || !result
+            .capabilities()
+            .contains(FactCapability::FunctionFacts)
+    {
+        return None;
+    }
+    Some(result.function_facts())
 }
 
 #[cfg(test)]

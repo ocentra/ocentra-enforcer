@@ -16,9 +16,12 @@ repository facts
   -> typed Findings
 
 targets/artifacts
-  -> external-engine module (allowlisted process + typed evidence)
-  -> adapter gates
-  -> typed Findings
+  -> Rust-owned offline artifact/native-simulation predicates
+  -> typed Findings and explicit notProved
+
+external/reference repositories and tools
+  -> parity/reference fixtures only
+  -> never a user installation or product completion dependency
 ```
 
 Universal owns grammar ownership transfer (UL02), shared syntax extraction (UL03), and parse-honesty/fact contracts (UL04). CyberSkills is a consumer: it records required facts and consumes accepted interfaces. It does not extract parsers, own grammars, or modify `enforcer-syntax`.
@@ -66,9 +69,12 @@ pub enum SyntaxOutcome {
 
 Regex is not forbidden. It is forbidden to use regex as structural proof when comments, strings, nesting, aliases, or call arguments can change the verdict.
 
-## Shared external-engine and tool-adapter contract
+## Shared external/reference boundary
 
-Universal UL07 deepens the existing `enforcer-harness` adapter contract through the sole `tool-adapter-integrator`. CyberSkills consumes the landed contract and owns only security-specific requirements, engine adapters, selection, and component mapping. CP06 does not create or modify the generic runner, registry, or normalized output schema.
+The existing `enforcer-harness` adapter contract remains available for recorded parity evidence and explicitly unavailable outcomes. It is not the product implementation path. CyberSkills owns the intent requirement, the Rust-native predicate/offline model, and the boundary that prevents an external tool result from becoming native coverage. CP06/CP07 are reference/parity workpacks, not a requirement that a customer install or pay for a third-party engine.
+
+Universal UL07 deepens the shared adapter, recorded-evidence, and unavailable-outcome contract; it does not turn an external engine into native CyberSkills coverage.
+CP06 does not create or modify the generic runner; it consumes the Universal UL07 contract.
 
 ```rust
 pub fn run(request: EngineRequest, adapter: &dyn EngineAdapter)
@@ -79,7 +85,18 @@ The interface includes a typed engine ID, allowlisted executable/version constra
 
 Outcomes are distinct: `Ran`, `SkippedUnavailable`, `RejectedPolicy`, `TimedOut`, `Errored`, and `InvalidOutput`. Only `Ran` can satisfy an engine-required component. Optional absence may narrow coverage but cannot become a pass.
 
-There is one adapter per real engine or stable output protocol, not per skill. Many skills may reference the same engine component.
+There is one adapter per real engine or stable output protocol, not per skill. Many skills may reference the same reference component, but an adapter result never becomes native coverage.
+
+## Intent-family and packet layer
+
+The 816 available catalog identities are classified once into 34 canonical intent families in `CYBERSKILLS_INTENT_MATRIX.json`. The graph creates stable family nodes and derives disjoint component packets:
+
+- CP09 owns native static/offline packets, at most five skills.
+- CP12 owns native repository-graph packets, one predicate at a time.
+- CP11 owns advisory/manual retention packets, at most ten skills.
+- The blocked external-engine component remains visible in each skill's truth but has no product implementation packet.
+
+Each packet carries source-hash/anchor requirements, reuse references, exact component ownership, and `notProved`. Packet selection is derived by the graph; Markdown routing labels never create readiness.
 
 ## CyberSkill coverage model
 

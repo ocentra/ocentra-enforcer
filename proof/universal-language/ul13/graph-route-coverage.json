@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL13",
+  "kind": "graph-route-coverage",
+  "baseCommit": "28d905795043fe6a283a876e89f8d1edb12d715b",
+  "provider": "enforcer-memory::CodeGraphRouteCoverageProvider",
+  "predicate": "enforcer-validator::semantic::evaluate_route_coverage",
+  "scope": "one bounded read-only route-coverage predicate over existing CodeGraph impact facts",
+  "commands": [
+    {
+      "command": "cargo test --locked -p enforcer-validator --test semantic_predicate -- --nocapture",
+      "exitCode": 0,
+      "tests": { "passed": 4, "failed": 0 }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-memory --test semantic_provider -- --nocapture",
+      "exitCode": 0,
+      "tests": { "passed": 1, "failed": 0 }
+    }
+  ],
+  "evidenceStates": [
+    "complete",
+    "partial",
+    "stale",
+    "cyclic",
+    "unavailable"
+  ],
+  "proves": [
+    "A typed read-only provider contract carries the requested repository path, expected source commit, graph digest, schema version, edge counts, route-impact counts, and test-coverage signal.",
+    "The existing CodeGraph impact traversal maps an empty graph to complete evidence with zero route impact and rejects a source-commit mismatch as stale.",
+    "The route-coverage predicate passes only for complete route impact with test coverage, fails for complete route impact without coverage, and returns no-claim for absent, partial, stale, cyclic, or unavailable evidence."
+  ],
+  "doesNotProve": [
+    "Graph completeness, security correctness, vulnerability absence, or production route behavior.",
+    "Persistence, SQLite, arbitrary process execution, external semantic tools, parser completeness, or live analysis.",
+    "Native CyberSkills implementation, executable CyberSkills proof, CP08 promotion, or overall plan completion.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+  ],
+  "protectedBoundary": {
+    "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+    "existsInIsolatedWorktree": false,
+    "read": false,
+    "touched": false,
+    "counted": false
+  }
+}

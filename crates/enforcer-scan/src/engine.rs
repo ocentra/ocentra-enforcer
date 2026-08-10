@@ -58,6 +58,7 @@ pub struct FamilyValidators {
     rust: Vec<Box<dyn Validator>>,
     typescript: Vec<Box<dyn Validator>>,
     python: Vec<Box<dyn Validator>>,
+    dart: Vec<Box<dyn Validator>>,
     common: Vec<Box<dyn Validator>>,
     security: Vec<Box<dyn Validator>>,
     cyberskills: Vec<Box<dyn Validator>>,
@@ -72,6 +73,7 @@ impl std::fmt::Debug for FamilyValidators {
             .field("rust", &self.rust.len())
             .field("typescript", &self.typescript.len())
             .field("python", &self.python.len())
+            .field("dart", &self.dart.len())
             .field("common", &self.common.len())
             .field("security", &self.security.len())
             .field("cyberskills", &self.cyberskills.len())
@@ -110,6 +112,9 @@ impl FamilyValidators {
             }
             LanguageFamily::Python => {
                 out.extend(self.python.iter().map(std::convert::AsRef::as_ref));
+            }
+            LanguageFamily::Dart => {
+                out.extend(self.dart.iter().map(std::convert::AsRef::as_ref));
             }
             LanguageFamily::Terraform => {
                 out.extend(self.iac.iter().map(std::convert::AsRef::as_ref));
@@ -193,6 +198,8 @@ pub fn build_family_validators(
 
     let python: Vec<Box<dyn Validator>> = enforcer_lang_py::all_validators()?;
 
+    let dart: Vec<Box<dyn Validator>> = enforcer_lang_dart::all_validators()?;
+
     let common: Vec<Box<dyn Validator>> = enforcer_lang_common::registry::all(
         enforcer_lang_common::port_platform::DeclaredScope::Undeclared,
     );
@@ -222,6 +229,7 @@ pub fn build_family_validators(
         rust,
         typescript,
         python,
+        dart,
         common,
         security,
         cyberskills,
@@ -352,10 +360,16 @@ pub fn run_with_analysis_provider(
                     source: source.as_source(),
                     scope: scope.kind,
                 };
-                if let ValidationDispatch::Ran(findings) =
-                    validator.validate_with_analysis(input, analyses.get(file))
-                {
-                    per_file.extend(findings);
+                match validator.validate_with_analysis(input, analyses.get(file)) {
+                    ValidationDispatch::Ran(findings) => per_file.extend(findings),
+                    ValidationDispatch::Skipped(_) => {
+                        // The default provider is deliberately legacy text-only. A
+                        // validator that can use facts must still retain its legacy
+                        // `validate` behavior when those facts are unavailable;
+                        // otherwise an unsupported analysis provider would silently
+                        // turn a required rule into zero findings.
+                        per_file.extend(validator.validate(input));
+                    }
                 }
             }
             per_file
@@ -1416,6 +1430,17 @@ mod tests {
             2,
             "the Rust baseline registry is complete"
         );
+        assert!(
+            !validators.dart.is_empty(),
+            "the Dart validator registry must be wired into the scan engine"
+        );
+        assert!(
+            validators
+                .dart
+                .iter()
+                .any(|validator| validator.rule_id().as_str() == "DART-BANG-1.1"),
+            "the Dart scan family must expose its real validator rules"
+        );
         for expected in [
             "CYBER-FILELESS-MALWARE.1",
             "CYBER-FILELESS-TELEMETRY.1",
@@ -1429,6 +1454,30 @@ mod tests {
                 "production scan registry is missing {expected}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn dart_scan_executes_registered_validator_on_dart_source(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "lib/main.dart",
+            "class OrderPage { void load(Map<String, String> params) { final id = int.parse(params['id']!); print(id); } }",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let validators = build_family_validators()?;
+        let report = run(&resolved, &files, &validators);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.rule_id.as_str() == "DART-BANG-1.1"),
+            "Dart source must reach the registered Dart validator family"
+        );
         Ok(())
     }
 

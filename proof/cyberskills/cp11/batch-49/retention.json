@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-49",
+  "family": "IF/network-security",
+  "baselineCommit": "5935fc592a83e8761807cd84dc9a040657211fcd",
+  "scope": "Retain advisory and manual content for the deterministic fourth network-security packet from immutable CP08 evidence; native predicates are limited to static supplied route, protocol, DNS, flow, segmentation, wireless, control, and evidence manifests; no live network, host, DNS, packet capture, scanner, exploit, credential, session, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-arp-spoofing-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-arp-spoofing-attack-simulation/SKILL.md",
+        "sha256": "f77edca33a04dfd4679e5447c24284f9f965c93a22b889dcefdf3c863a70ec1d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing ARP Spoofing Attack Simulation:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ARP, network-segmentation, traffic-analysis, safe-simulation, monitoring, and defensive network guidance.",
+        "notProved": ["Guidance is not live ARP state, spoofing success, packet capture, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned lab/network scope, legal/privacy/safety review, stop conditions, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live host, switch, packet, credential, session, exploit, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-bandwidth-throttling-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-bandwidth-throttling-attack-simulation/SKILL.md",
+        "sha256": "877ac39c47c22ce76b848885d93565431b69c1b59518f83564fc41dab7f7c774",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Bandwidth Throttling Attack Simulation:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain bandwidth, capacity, throttling, resilience, traffic-analysis, monitoring, and safe-assessment guidance.",
+        "notProved": ["Guidance is not live traffic, throttling behavior, availability, denial, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, isolated scope, owner approval, legal/privacy/safety review, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live network, host, packet, credential, session, exploit, or production degradation is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-dns-enumeration-and-zone-transfer",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dns-enumeration-and-zone-transfer/SKILL.md",
+        "sha256": "98dda8abdf10a40c2aca1446e6d487fb6dbf6983050fc126f07a7d97adf3bd83",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing DNS Enumeration and Zone Transfer:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain DNS architecture, zone-transfer review, resolver policy, authorization, monitoring, and defensive network guidance.",
+        "notProved": ["Guidance is not live DNS enumeration, zone state, resolver truth, disclosure, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, domain and DNS ownership, legal/privacy review, safe scope, stop conditions, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live resolver, DNS server, network, credential, session, exploit, or production query is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-network-traffic-analysis-with-tshark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-traffic-analysis-with-tshark/SKILL.md",
+        "sha256": "f248728c09be03520eb8de74e2c36f0adb000b537068effca3b77c2af0a002ca",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Network Traffic Analysis with TShark:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain packet and flow analysis, protocol review, filtering, evidence handling, monitoring, and defensive investigation guidance.",
+        "notProved": ["Guidance is not live TShark, packet capture, session truth, attribution, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, capture scope, legal/privacy review, evidence handling, retention approval, analyst validation, and disclosure decisions.",
+        "notProved": ["No live interface, packet stream, endpoint, credential, session, exploit, or production investigation is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-network-traffic-analysis-with-zeek",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-traffic-analysis-with-zeek/SKILL.md",
+        "sha256": "3c4556782d7539b7447e698eb574f0becb5f0a7e95de694985d0b11c68e6ca41",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Network Traffic Analysis with Zeek:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Zeek protocol analysis, flow summaries, telemetry review, event handling, monitoring, and defensive network guidance.",
+        "notProved": ["Guidance is not live Zeek, packet capture, event truth, detection efficacy, attribution, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network and capture ownership, legal/privacy review, data handling, stop conditions, analyst validation, and disclosure decisions.",
+        "notProved": ["No live sensor, interface, packet stream, endpoint, credential, session, or production monitoring is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-packet-injection-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-packet-injection-attack/SKILL.md",
+        "sha256": "5c953fc86f45df313de02d82be3800c94b5d0cc2661dfd6006e3b48f1ea22858",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Packet Injection Attack:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain packet-security, protocol, lab-simulation, safety, monitoring, and defensive testing guidance.",
+        "notProved": ["Guidance is not live packet injection, exploit delivery, protocol impact, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, isolated lab scope, asset ownership, legal/privacy/safety review, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live interface, host, packet, credential, session, exploit, or production network action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ssl-stripping-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-stripping-attack/SKILL.md",
+        "sha256": "a7c0156052fa400fdd7ac8eb3f60752e969386126e0a4165d79b47066fe7c8c1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SSL Stripping Attack:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain TLS downgrade, transport security, certificate, proxy, monitoring, and defensive web-security guidance.",
+        "notProved": ["Guidance is not live SSL stripping, browser behavior, traffic interception, credential exposure, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned lab scope, legal/privacy/safety review, data handling, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live browser, endpoint, proxy, session, credential, exploit, or production interception is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ssl-tls-inspection-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-inspection-configuration/SKILL.md",
+        "sha256": "88cc5e0dcea22231f010c2f513a8f338a054ea5c32f06a8c0f7f5dfbf911ebf8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SSL/TLS Inspection Configuration:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain TLS inspection, certificate, proxy, privacy, policy, exception, monitoring, and defensive network guidance.",
+        "notProved": ["Guidance is not live TLS inspection, certificate state, traffic visibility, privacy compliance, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, certificate and network ownership, legal/privacy review, exception approval, change control, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live proxy, browser, endpoint, session, credential, packet, or production inspection is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ssl-tls-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-security-assessment/SKILL.md",
+        "sha256": "fcb8643d06d506e2c7709a314ebdcced08e3c5b8b5d6a2da04ed734d091dbb48",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SSL/TLS Security Assessment:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain TLS configuration, certificate, cipher, protocol, assessment, remediation, and defensive transport-security guidance.",
+        "notProved": ["Guidance is not live endpoint behavior, certificate validity, vulnerability finding, remediation success, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint ownership, legal/privacy/safety review, assessment scope, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live endpoint, scanner, browser, credential, session, exploit, or production assessment is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-vlan-hopping-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-vlan-hopping-attack/SKILL.md",
+        "sha256": "90cb042dd40efeb2b046204e42937d2ec0580561cf4e2edb0436078697a7cc55",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing VLAN Hopping Attack:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain VLAN, trunk, segmentation, switch policy, monitoring, safe-simulation, and defensive network-hardening guidance.",
+        "notProved": ["Guidance is not live VLAN state, hopping success, switch behavior, segmentation enforcement, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned lab/network scope, legal/privacy/safety review, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live switch, trunk, host, packet, credential, session, exploit, or production network action is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live network, host, DNS, packet capture, scanner, exploit, credential, session, wireless interface, or production action is proved.",
+    "No ARP, bandwidth, DNS, packet, flow, Zeek/TShark, TLS, VLAN, detection, enforcement, attribution, or security outcome is proved.",
+    "This packet contains the fourth 10 network-security skills; the remaining 3 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

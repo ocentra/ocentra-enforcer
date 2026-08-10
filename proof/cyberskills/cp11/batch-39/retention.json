@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-39",
+  "family": "IF/incident-response",
+  "baselineCommit": "1ec2ee39482d26eda0ffd48c327d147e9fad1a87",
+  "scope": "Retain advisory and manual content for the deterministic final incident-response packet from immutable CP08 evidence; no native implementation, live detection, investigation, containment, eradication, recovery, forensic, endpoint, network, cloud, SIEM, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-insider-threat-investigation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-insider-threat-investigation/SKILL.md",
+        "sha256": "23d928ccba2330c0d0231e6312a80a7e572c735594f6f009a7f0e5bfc736e885",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Insider Threat Investigation:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-75/decomposition.json",
+        "artifactSha256": "0a091e58e4a53b0699707defe2d203fbe6fae3a8de821f5e3a12a124fe4468c1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain insider-threat investigation, behavioral review, evidence, and response guidance.",
+        "notProved": ["Guidance is not insider attribution, intent, compromise, or investigation truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authority, legal/privacy scope, employment and safety review, evidence handling, and escalation decisions.",
+        "notProved": ["No live user, endpoint, account, evidence collection, attribution, or response outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ransomware-response",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ransomware-response/SKILL.md",
+        "sha256": "ff78cb21bfdad3e925b261bba1ee522b40e81579590c6708394f639083ae6c32",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Ransomware Response:L62"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ransomware triage, containment, eradication, recovery, communications, and resilience guidance.",
+        "notProved": ["Guidance is not ransomware detection, containment, recovery, integrity, or RTO/RPO truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident authority, legal/privacy scope, safety, backup-owner approval, restoration, and disclosure decisions.",
+        "notProved": ["No live endpoint, network, backup, encryption, containment, restoration, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-ransomware-recovery-procedures",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-ransomware-recovery-procedures/SKILL.md",
+        "sha256": "7ec755a155e6d0f8c2a3c8e26d89dc7fe2a8c0f16f4f247dcd91ab3c2b6b9a14",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing Ransomware Recovery Procedures:L53"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain recovery-test planning, backup validation, restoration sequencing, and resilience guidance.",
+        "notProved": ["Guidance is not backup integrity, restore success, RTO/RPO, or ransomware recovery truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, isolated test scope, data-owner approval, safety, rollback, and validation decisions.",
+        "notProved": ["No live backup, restore, production system, data integrity, or recovery outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "triaging-security-incident",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-incident/SKILL.md",
+        "sha256": "701971c8c12b206abc6820cf476722c1ddf05d392d1d3b7390661756e67f969d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Triaging Security Incidents:L40"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain security-incident intake, triage, severity discussion, escalation, and response guidance.",
+        "notProved": ["Guidance is not incident detection, severity truth, compromise, attribution, or triage outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident-owner authorization, legal/privacy scope, analyst validation, stop conditions, and escalation decisions.",
+        "notProved": ["No live telemetry, finding, severity assignment, containment, remediation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "triaging-security-incident-with-ir-playbook",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-incident-with-ir-playbook/SKILL.md",
+        "sha256": "2fbe719850b0a97e243c7567c220bf267cb71fa9a206d8aa046d660e9ce74f67",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Triaging Security Incidents with IR Playbooks:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain playbook-based incident triage, decision sequencing, escalation, and response guidance.",
+        "notProved": ["Guidance is not playbook execution, incident truth, containment, recovery, or outcome evidence."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, legal/privacy review, incident-owner decisions, and containment/remediation approval.",
+        "notProved": ["No live incident, endpoint, network, playbook action, remediation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "validating-backup-integrity-for-recovery",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/validating-backup-integrity-for-recovery/SKILL.md",
+        "sha256": "c645ab3792d36845d82d329338e4b4ac99b192be8a8f3c6aa9c0dba02c7fb84d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Validating Backup Integrity for Recovery:L52"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain backup-integrity review, recovery validation, provenance, and resilience guidance.",
+        "notProved": ["Guidance is not backup integrity, malware-free status, restore success, or recovery truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require backup-owner authorization, isolated validation scope, chain of custody, safety, rollback, and recovery decisions.",
+        "notProved": ["No live backup, data, restore, integrity, RTO/RPO, or production recovery outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live detection, investigation, attribution, triage, containment, eradication, recovery, acquisition, endpoint, network, cloud, SIEM, or production execution is proved.",
+    "No incident severity, compromise, IOC validity, timeline truth, legal conclusion, privacy conclusion, remediation success, RTO/RPO, or security outcome is proved.",
+    "This packet contains the final six incident-response family skills; no incident-response family skills remain after this packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

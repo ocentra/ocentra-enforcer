@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-22",
+  "family": "IF/deception-technology",
+  "baselineCommit": "a18b7c51111c89bdfffe645d48e6688029eaa6a2",
+  "scope": "Retain advisory and manual content for the deterministic deception-technology packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "deploying-active-directory-honeytokens",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-active-directory-honeytokens/SKILL.md",
+        "sha256": "0118316a153360c6538902d5e535a87279a30a5b26028ccbd1d0afc100f18316",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deploying Active Directory Honeytokens:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-10/decomposition.json",
+        "artifactSha256": "3c4af801bddea54495639e64296bb98bc9495cd5b328475c52666ce5ce7592a2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "deploying-cloud-deception-with-decoy-resources",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-cloud-deception-with-decoy-resources/SKILL.md",
+        "sha256": "38a696a5b3686fe575bbcd0de8cefe5f4272f65c2d0a422fcaffed91d566ef55",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deploying Cloud Deception with Decoy Resources:L44"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "deploying-honeytokens-and-canarytokens",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-honeytokens-and-canarytokens/SKILL.md",
+        "sha256": "89e9c972c4c5c61b7ceba5f17fc708acb47403a789967ee72a5ff0084f7a2661",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deploying Honeytokens and Canarytokens:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "designing-adversary-engagement-with-mitre-engage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/designing-adversary-engagement-with-mitre-engage/SKILL.md",
+        "sha256": "6f9230b7a8d4c29657d053af7453080e8dd47dca39458e0f22741e999ccdd41c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Designing Adversary Engagement with MITRE Engage:L43"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-deception-based-detection-with-canarytoken",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-deception-based-detection-with-canarytoken/SKILL.md",
+        "sha256": "d4e8024f7df952a72b122f1b8c1d114cd1c92fcd4ac948bd97977e3c5cdf539a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Deception-Based Detection with Canarytoken:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-67/decomposition.json",
+        "artifactSha256": "55d386f99df11bc9a31bbceaee9c326d17760ea2d740036f10e03a553544e930"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-network-deception-with-honeypots",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-deception-with-honeypots/SKILL.md",
+        "sha256": "39d1d4ad661e8464034f247487cf2cc3a768fb84fea298b9a3db80201d7c7776",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Network Deception with Honeypots:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain deception, honeytoken, decoy, telemetry, engagement, and response-planning guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, ownership, scope, safety, privacy, legal, notification, validation, stop-condition, containment, and remediation decisions.",
+        "notProved": [
+          "No live deception operation or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Active Directory, cloud, host, device, network, honeypot, honeytoken, Canarytoken, deception platform, telemetry, engagement, endpoint, SIEM, or production execution is proved.",
+    "No lure delivery, credential capture, actor attribution, detection efficacy, containment, remediation, privacy, safety, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

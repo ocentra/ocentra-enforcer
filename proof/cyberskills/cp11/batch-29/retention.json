@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-29",
+  "family": "IF/digital-forensics",
+  "baselineCommit": "56094439ef9b7fa0996550c75ff469e997627ccd",
+  "scope": "Retain advisory and manual content for the deterministic digital-forensics packet from immutable CP08 evidence; no native implementation, live acquisition, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "triaging-windows-with-kape",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/triaging-windows-with-kape/SKILL.md",
+        "sha256": "06d140e46dea6fb654a25ec0c5d04e2b6891659aebe72dfced8d12180b7c1a7d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Triaging Windows with KAPE:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-11/decomposition.json",
+        "artifactSha256": "f1c267048d428ced544b01b54b6b3cf0e3d0e20af06b5901a0c88cf050aec63e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 1,
+    "advisoryRetained": 1,
+    "manualRetained": 1,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live disk imaging, browser, Autopsy, Docker, email, Linux host, kernel, file system, MFT, PST, memory, device, cloud, endpoint, network, packet, database, acquisition, imaging, or production execution is proved.",
+    "No credential extraction, file recovery, timeline truth, hash validity, chain-of-custody validity, evidentiary validity, attribution, remediation, recovery, privacy, legal, or security outcome is proved.",
+    "All 41 digital-forensics skills are now represented across the CP11 retention packets; this packet contains only the final one-record tail.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

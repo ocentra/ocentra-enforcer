@@ -64,7 +64,6 @@ struct LanguageCapabilityManifest {
 }
 
 const MANIFEST: &str = include_str!("../capabilities/language-capabilities.json");
-const INVENTORY: &str = include_str!("../../../proof/universal-language/ul00/inventory.json");
 const ALLOWED_PROVIDERS: [&str; 9] = [
     "enforcer-lang-cfml",
     "enforcer-lang-common",
@@ -79,6 +78,17 @@ const ALLOWED_PROVIDERS: [&str; 9] = [
 
 fn workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+}
+
+fn ul00_evidence_text(file_name: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let path = workspace_root()?
+        .join("..")
+        .join("..")
+        .join("proof")
+        .join("universal-language")
+        .join("ul00")
+        .join(file_name);
+    Ok(fs::read_to_string(path)?)
 }
 
 fn source_language_set() -> BTreeSet<String> {
@@ -343,7 +353,8 @@ fn manifest_parses_and_meets_source_language_shape() -> Result<(), Box<dyn std::
 #[test]
 fn inventory_preserves_all_parser_identities_and_denominators(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let inventory: Value = serde_json::from_str(INVENTORY)?;
+    let inventory_text = ul00_evidence_text("inventory.json")?;
+    let inventory: Value = serde_json::from_str(&inventory_text)?;
     assert_eq!(
         inventory["sourceSha"],
         "e19076353d8cfc945b138311de9d4738021ec05d"
@@ -383,7 +394,7 @@ fn inventory_preserves_all_parser_identities_and_denominators(
         51
     );
     assert!(
-        !INVENTORY.contains("\"state\": \"supported\""),
+        !inventory_text.contains("\"state\": \"supported\""),
         "UL00 inventory must reject a bare supported state"
     );
     Ok(())
@@ -512,5 +523,58 @@ fn manifest_rejects_unreachable_provider_ids() -> Result<(), Box<dyn std::error:
         error.contains("unsupported provider"),
         "unexpected provider rejection: {error}"
     );
+    Ok(())
+}
+
+#[test]
+fn current_reconciliation_tracks_post_ul03_syntax_authority(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let reconciliation_text = ul00_evidence_text("current-reconciliation.json")?;
+    let reconciliation: Value = serde_json::from_str(&reconciliation_text)?;
+    assert_eq!(
+        reconciliation["schemaVersion"],
+        "ul00.current-reconciliation.v1"
+    );
+    assert_eq!(reconciliation["authority"]["ownerCrate"], "enforcer-syntax");
+    assert_eq!(
+        reconciliation["authority"]["parserPath"],
+        "crates/enforcer-syntax/src/parsers/mod.rs"
+    );
+    assert_eq!(
+        reconciliation["denominators"]["parserVariants"]["count"],
+        160
+    );
+    assert_eq!(
+        reconciliation["denominators"]["structuralLanguages"]["count"],
+        156
+    );
+    assert_eq!(
+        reconciliation["denominators"]["explicitNoneDispatch"]["count"],
+        4
+    );
+    assert_eq!(
+        reconciliation["denominators"]["grammarCargoDeclarations"]["count"],
+        146
+    );
+    assert_eq!(
+        reconciliation["denominators"]["grammarBindings"]["count"],
+        145
+    );
+    assert_eq!(
+        reconciliation["denominators"]["vendoredGrammarFiles"]["count"],
+        473
+    );
+    assert_eq!(
+        reconciliation["denominators"]["vendorGrammarTopLevelDirs"]["count"],
+        51
+    );
+    assert_eq!(reconciliation["denominators"]["langSpecRows"]["count"], 155);
+    assert_eq!(
+        reconciliation["historicalSnapshot"]["sourceSha"],
+        "e19076353d8cfc945b138311de9d4738021ec05d"
+    );
+    assert_eq!(reconciliation["drift"]["countsPreserved"], true);
+    assert_eq!(reconciliation["testEvidence"]["status"], "passed");
+    assert_eq!(reconciliation["testEvidence"]["exitCode"], 0);
     Ok(())
 }

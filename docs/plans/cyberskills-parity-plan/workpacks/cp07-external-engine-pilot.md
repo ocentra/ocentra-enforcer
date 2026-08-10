@@ -12,11 +12,11 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `crates/enforcer-harness/src/adapters/cyberskills/<approved-engine>/**`, `crates/enforcer-harness/tests/fixtures/cyberskills_adapters/<approved-engine>/**`, `proof/cyberskills/cp07/**`
+- owns: `crates/enforcer-harness/src/adapters/cyberskills/mod.rs` (one explicit module wiring line), `crates/enforcer-harness/src/adapters/cyberskills/<approved-engine>/**`, `crates/enforcer-harness/tests/cyberskills_<approved-engine>.rs`, `crates/enforcer-harness/tests/fixtures/cyberskills_adapters/<approved-engine>/**`, `proof/cyberskills/cp07/**`
 - deps: `CP06`
 - tier: `P4 T2`
 
-> Owner class: Luna may implement fixtures/mapping under boss review; Sol approves engine policy.
+> Owner class: Luna may implement fixtures/mapping under boss review; Sol approves engine policy. External engines are reference-only adapter evidence; the product does not require users to install or purchase them, and native Rust predicates remain the product path.
 > Batch limit: exactly one engine and one output protocol.
 > Depends on: CP06.
 
@@ -38,14 +38,14 @@ The boss records candidate comparison: corpus demand, license, install reproduci
 
 ## Requirement Checklist
 
-- [ ] Engine ID, pinned version/range, executable discovery, output schema, and license are recorded.
-- [ ] Target and arguments are typed and allowlisted.
-- [ ] A recorded adapter test runs without the engine.
-- [ ] An optional live test runs only when the exact engine is available and reports honest skip otherwise.
-- [ ] Recorded and live normalization agree on the same captured artifact.
-- [ ] Unavailable, non-zero exit, timeout, malformed output, unknown severity, and findings-above/below-threshold paths are proved.
-- [ ] Provenance distinguishes recorded from live evidence.
-- [ ] Only narrowed engine-output gating is claimed; the engine's entire methodology is not reimplemented or certified.
+- [x] Engine ID, pinned version/range, executable discovery, output schema, and license are recorded.
+- [x] Target and arguments are typed and allowlisted.
+- [x] A recorded adapter test runs without the engine.
+- [x] An optional live test runs only when the exact engine is available and reports honest skip otherwise.
+- [x] Recorded and live normalization agree on the same captured artifact.
+- [x] Unavailable, non-zero exit, timeout, malformed output, unknown severity, and findings-above/below-threshold paths are proved.
+- [x] Provenance distinguishes recorded from live evidence.
+- [x] Only narrowed engine-output gating is claimed; the engine's entire methodology is not reimplemented or certified.
 
 ## Acceptance And Proof
 

@@ -1,0 +1,79 @@
+{
+  "schema": "cp10.trivy.mapping.v1",
+  "workpack": "WP/CP10",
+  "batch": "batch-01",
+  "baseCommit": "9ca376850",
+  "engine": {
+    "id": "trivy",
+    "version": "0.68.2",
+    "outputFormat": "Trivy config JSON SchemaVersion 2",
+    "command": [
+      "trivy",
+      "config",
+      "--format",
+      "json",
+      "--skip-check-update",
+      "--exit-code",
+      "0",
+      "--quiet",
+      "."
+    ]
+  },
+  "mappingPolicy": "Map only a component whose reviewed Trivy config output is actually observed; do not infer image, registry, database, CI, or security outcomes from the IaC finding.",
+  "mappings": [
+    {
+      "catalogId": "scanning-iac-and-images-with-trivy",
+      "componentId": "scanning-iac-and-images-with-trivy::external-engine",
+      "componentKind": "external-engine",
+      "coverage": "recorded",
+      "facet": "IaC configuration finding normalization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-iac-and-images-with-trivy/SKILL.md",
+        "sha256": "687f1f393c389bb196f6870c62afbef4f2b98321432079107597d9414f5f94a6",
+        "anchor": "# Scanning IaC and Images with Trivy:L23",
+        "license": "Apache-2.0"
+      },
+      "cp08Artifact": {
+        "path": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "sha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f",
+        "anchor": "# CP08 batch-36 decomposition:L1"
+      },
+      "output": {
+        "format": "Trivy config JSON SchemaVersion 2",
+        "target": "tests/fixtures/enforcer/iac",
+        "findingIds": ["AVD-AWS-0086"],
+        "severity": "HIGH",
+        "nativeConsumer": "existing SeverityThresholdGate over normalized AdapterOutcome"
+      },
+      "notProved": [
+        "No image scan, registry state, vulnerability-database freshness, secret validity, license truth, CI runner, cloud, deployment, or security outcome is proved.",
+        "The CP08 native-predicate proposal remains unimplemented; this mapping is recorded external evidence only."
+      ]
+    }
+  ],
+  "recordedEvidence": {
+    "pilotProof": "proof/cyberskills/cp07/current-reconciliation.json",
+    "fixtures": [
+      "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/recorded.json",
+      "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/clean.json",
+      "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/malformed.json",
+      "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/unknown-severity.json"
+    ],
+    "negativeStates": [
+      "missing executable is Skipped ran=0",
+      "non-zero, timeout, and output overflow are Errored",
+      "malformed output is rejected",
+      "unknown severity fails closed to native Error"
+    ]
+  },
+  "proves": [
+    "One CP08 external-engine component is mapped to the pinned Trivy config JSON protocol.",
+    "The observed finding is normalized through the existing Rust adapter seam and consumed by the existing native severity gate.",
+    "The mapping is bounded to one skill and one output protocol, with recorded evidence and deterministic validation."
+  ],
+  "doesNotProve": [
+    "Native implementation, executable proof, or overall parity for the skill.",
+    "Trivy correctness, database freshness, image or registry scanning, CI enforcement, cloud behavior, remediation, attribution, or security outcomes.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded and untouched."
+  ]
+}

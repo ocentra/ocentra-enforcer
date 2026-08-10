@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-84",
+  "family": "IF/threat-intelligence",
+  "baselineCommit": "38e0d3dbd86fd0ae8c2ea232edeb13619df91ca8",
+  "scope": "Retain the third threat-intelligence, platform, OSINT, campaign, reporting, APT, Diamond Model, STIX, and TAXII guidance from immutable CP08 evidence; native predicates are limited to static supplied IOC, source, citation, actor, relationship, feed, enrichment, confidence, provenance, scope, sharing, report, model, STIX, TAXII, and evidence manifests; live OSINT, MISP, threat-intelligence platforms, DNS, WHOIS, certificate logs, hosting, enrichment, AI/LLM, network, dark web, STIX/TAXII services, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "building-threat-intelligence-platform",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-intelligence-platform/SKILL.md",
+        "sha256": "dce96a0092c5e49a6557eedfdb77c0c26be6b74a2bc63eb593fedae113566186",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Threat Intelligence Platform:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json",
+        "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "collecting-open-source-intelligence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/collecting-open-source-intelligence/SKILL.md",
+        "sha256": "37b8996f6e0745e07d2006eb600de0e83a31e8e2b9f8e4b1026178762b23a264",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Collecting Open-Source Intelligence:L38"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-16/decomposition.json",
+        "artifactSha256": "252c4f4bb825f5f938866d83697f49c4afb9258cf1c13a1a0575307d922934e9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "collecting-threat-intelligence-with-misp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/collecting-threat-intelligence-with-misp/SKILL.md",
+        "sha256": "7513612da762773df38e109411a9a925e311956eece2c09e3588adbf31f39615",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Collecting Threat Intelligence with MISP:L32"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-16/decomposition.json",
+        "artifactSha256": "252c4f4bb825f5f938866d83697f49c4afb9258cf1c13a1a0575307d922934e9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "correlating-threat-campaigns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/correlating-threat-campaigns/SKILL.md",
+        "sha256": "7d7a0ec11e9a4a0659657808879f51ee6d2c4b32e2379d42032c054165531b38",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Correlating Threat Campaigns:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "evaluating-threat-intelligence-platforms",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/evaluating-threat-intelligence-platforms/SKILL.md",
+        "sha256": "8ef52bd114eef21eddfd15f11c616bb025b5da5bd8983a948027bc1bf28d9da9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Evaluating Threat Intelligence Platforms:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-60/decomposition.json",
+        "artifactSha256": "1228d05c312f7e3be21d1254ac4e1b44407974f9c7db3ea990b1ca999304563f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "generating-threat-intelligence-reports",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/generating-threat-intelligence-reports/SKILL.md",
+        "sha256": "b671898958252a362f90f91c52fe24c5ade4a7d5978efa5d01fdc4c4f53d92e5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Generating Threat Intelligence Reports:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-63/decomposition.json",
+        "artifactSha256": "5ce06ea9a9b510afb1e60f9b01aa909959333ca55328befe8eac4b854cc5925e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-advanced-persistent-threats",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-advanced-persistent-threats/SKILL.md",
+        "sha256": "987cec591755d0e0ea2cc3b56c319c6adbcb2177a55dcd65ab0df99866f29287",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting Advanced Persistent Threats:L44"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-63/decomposition.json",
+        "artifactSha256": "5ce06ea9a9b510afb1e60f9b01aa909959333ca55328befe8eac4b854cc5925e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-diamond-model-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-diamond-model-analysis/SKILL.md",
+        "sha256": "b373bb800cd81a83461cad510b552179e05c011ea9d9dba83f2379ca2ee4dfa8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Diamond Model Analysis:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-67/decomposition.json",
+        "artifactSha256": "55d386f99df11bc9a31bbceaee9c326d17760ea2d740036f10e03a553544e930"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-security-information-sharing-with-stix2",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-security-information-sharing-with-stix2/SKILL.md",
+        "sha256": "ed0e1cb5dcfd6a727bd8c0dd8f1db488209ce0141737c143f148f0cc3d5fd0f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Security Information Sharing with STIX 2.1:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-stix-taxii-feed-integration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-stix-taxii-feed-integration/SKILL.md",
+        "sha256": "a3eb20addffa3f701d75f59d68dfc02b75ff7db09391a416ec748fd6b4cba85e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing STIX/TAXII Feed Integration:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-intelligence, source evaluation, IOC, platform, campaign, reporting, modeling, sharing, and dissemination guidance as advisory.",
+        "notProved": [
+          "No live source, platform, feed, actor, campaign, report, STIX, TAXII, or intelligence result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, uncertainty, attribution, dissemination, disclosure, escalation, containment, and remediation decisions.",
+        "notProved": [
+          "No human authorization, source validation, confidence, attribution, dissemination, escalation, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OSINT, MISP, threat-intelligence platform, DNS, WHOIS, certificate, hosting, enrichment, feed, network, dark-web, STIX, TAXII, or production execution.",
+    "No source truth, freshness, IOC validity, indicator enrichment, actor attribution, infrastructure ownership, campaign conclusion, report accuracy, detection, compromise, dissemination, remediation, or security outcome is proved.",
+    "This packet covers the third ten threat-intelligence skills; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, intelligence platforms, feeds, enrichment services, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -25,8 +25,8 @@ use super::scope::narrow;
 /// Map a [`DetectedLanguage`] to the [`RulePack`]s it routes to (excluding
 /// the universal [`RulePack::LiteralScanFloor`], which [`build_route_plan`]
 /// attaches once, unconditionally, whenever any language is detected).
-/// [`DetectedLanguage::Dart`], [`DetectedLanguage::Go`],
-/// [`DetectedLanguage::Cfml`], and [`DetectedLanguage::Other`] have no
+/// [`DetectedLanguage::Go`], [`DetectedLanguage::Cfml`], and
+/// [`DetectedLanguage::Other`] have no
 /// dedicated `enforcer-lang-*` pack landed yet — they route to zero rule
 /// packs (still get the floor + their native tool where f03 has one).
 fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
@@ -34,10 +34,10 @@ fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
         DetectedLanguage::Rust => LanguageFamily::Rust,
         DetectedLanguage::TypeScript => LanguageFamily::TypeScript,
         DetectedLanguage::Python => LanguageFamily::Python,
-        DetectedLanguage::Dart
-        | DetectedLanguage::Go
-        | DetectedLanguage::Cfml
-        | DetectedLanguage::Other => LanguageFamily::Unknown,
+        DetectedLanguage::Dart => LanguageFamily::Dart,
+        DetectedLanguage::Go | DetectedLanguage::Cfml | DetectedLanguage::Other => {
+            LanguageFamily::Unknown
+        }
     };
     rule_packs_for_scan_family(family).to_vec()
 }
@@ -53,6 +53,7 @@ pub(crate) const fn rule_packs_for_scan_family(family: LanguageFamily) -> &'stat
         LanguageFamily::Rust => &[RulePack::Rust, RulePack::Security],
         LanguageFamily::TypeScript => &[RulePack::TypeScript, RulePack::Security],
         LanguageFamily::Python => &[RulePack::Python, RulePack::Security],
+        LanguageFamily::Dart => &[RulePack::Dart, RulePack::Security],
         LanguageFamily::Terraform | LanguageFamily::YamlOrConfig | LanguageFamily::Unknown => &[],
     }
 }

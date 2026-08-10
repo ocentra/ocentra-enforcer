@@ -12,7 +12,7 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `crates/enforcer-plan/src/cyberskills_packet.rs`, `crates/enforcer-plan/tests/cyberskills_packet.rs`, `crates/enforcer-plan/tests/fixtures/cyberskills_packet/**`
+- owns: `crates/enforcer-plan/src/lib.rs` (minimal module wiring), `crates/enforcer-plan/src/cyberskills_packet.rs`, `crates/enforcer-plan/tests/cyberskills_packet.rs`, `crates/enforcer-plan/tests/fixtures/cyberskills_packet/**`
 - deps: `cp00`, `cp03`, `cp04`
 - tier: `P2 T1`
 
@@ -50,16 +50,18 @@ Make a native CyberSkills packet mechanically incomplete unless all source, impl
 
 ## Requirement Checklist
 
-- [ ] Factory refuses an unapproved component or missing source hash.
-- [ ] It never writes vendor files.
-- [ ] It never invents predicate, severity, citations, or expected outcomes.
-- [ ] Parity test fails when registry, validator, doc/evidence, or either fixture side is missing.
-- [ ] Generated output routes through Enforcer before use.
-- [ ] Demonstration uses one already proved pilot, not a new behavior claim.
+- [x] Factory refuses an unapproved component or missing source hash.
+- [x] It never writes vendor files.
+- [x] It never invents predicate, severity, citations, or expected outcomes.
+- [x] The packet contract rejects missing source, protected source, duplicate fixtures, and incomplete evidence paths.
+- [x] The generated skeleton is held by the exact Enforcer route/strict/source-shape/secrets gates before use.
+- [x] Demonstration uses one already proved pilot, not a new behavior claim.
 
 ## Acceptance And Proof
 
-The factory contract, generated demonstration, rule registry, validator harness, and plan structure must all pass. Generated code is held to the same clippy/fmt and Enforcer rules as hand-written code.
+The factory contract, generated demonstration, typed boundary, and plan structure pass at implementation commit `84745c7c8`. The exact factory suite is 4/4; package check, library tests, parity-plan tests, full enforcer-plan tests, fmt, diff, source-shape, secrets, and strict Enforcer gates pass. Dependency-inclusive Clippy remains an existing graph.rs issue outside this packet; no waiver or unrelated edit is part of CP05.
+
+The packet proves clerical completeness and supplied-input preservation only. It does not generate security meaning, write vendor files, implement the demonstrated rule, prove live execution, or promote native/executable-proof/overall parity.
 
 ## Parallel Ownership Notes
 

@@ -25,5 +25,11 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # fixture-parity contract for security rule families.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: The CP04 pilot test constructs the accepted
+# function-facts provider result and crosses the public syntax seam without
+# importing a parser tree into the security implementation.
+enforcer-syntax = { path = "../enforcer-syntax", version = "0.1.0" }
+
 [lints]
 workspace = true

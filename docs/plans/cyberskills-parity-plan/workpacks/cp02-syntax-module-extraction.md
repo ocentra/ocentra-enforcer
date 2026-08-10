@@ -50,15 +50,15 @@ Before editing, attach accepted UL02/UL03 evidence and enumerate each CyberSkill
 
 ## Requirement Checklist
 
-- [ ] Attach accepted UL02 ownership and UL03 extraction proof to the packet.
-- [ ] CyberSkills consumes the shared interface directly with no grammar/runtime duplication.
-- [ ] Security consumers have no raw Tree-sitter, parser, persistence, retrieval, or UI dependency.
-- [ ] Missing facts are recorded as requirements for UL04, never implemented locally.
-- [ ] `cargo tree` proves the consumer did not introduce a second grammar/runtime owner.
+- [x] Attach accepted UL02 ownership and UL03 extraction proof to the packet.
+- [x] CyberSkills consumes the shared interface directly with no grammar/runtime duplication.
+- [x] Security consumers have no raw Tree-sitter, parser, persistence, retrieval, or UI dependency.
+- [x] Missing facts are recorded as requirements for UL04, never implemented locally.
+- [x] `cargo tree` proves the consumer did not introduce a second grammar/runtime owner.
 
 ## Acceptance And Proof
 
-Run consumer adoption tests and affected security-crate checks. Final proof includes UL02/UL03 dependency evidence, dependency-policy, clippy/fmt where Rust changed, and a diff scan.
+Run consumer adoption tests and affected security-crate checks. Final proof includes UL02/UL03 dependency evidence, dependency-policy, clippy/fmt where Rust changed, and a diff scan. The accepted packet is recorded in `proof/cyberskills/cp02/shared-syntax-adoption.json` and exercises `crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs`; it proves consumer adoption only and does not promote native CyberSkills implementation, executable proof, live execution, or overall parity.
 
 ## Stop conditions
 

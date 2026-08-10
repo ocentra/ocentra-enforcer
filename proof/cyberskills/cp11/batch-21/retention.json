@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-21",
+  "family": "IF/data-protection",
+  "baselineCommit": "db46b43806ace8fef9909c233aec6a9df9f8b225",
+  "scope": "Retain advisory and manual content for the deterministic data-protection packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-data-loss-prevention-with-microsoft-purview",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-data-loss-prevention-with-microsoft-purview/SKILL.md",
+        "sha256": "b14aa04749163048acf27cc0e330f2173be7412fe77ec51c0b2c9aab42dd8512",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Data Loss Prevention with Microsoft Purview:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain data classification, handling, minimization, retention, and loss-prevention control guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain privacy, legal, ownership, classification, exception, incident, and remediation decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 1,
+    "advisoryRetained": 1,
+    "manualRetained": 1,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Microsoft Purview, DLP scanner, endpoint, cloud, mail, identity, storage, policy-enforcement, or production data-handling execution is proved.",
+    "No classification truth, policy effectiveness, retention correctness, leakage prevention, privacy, compliance, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

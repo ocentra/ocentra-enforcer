@@ -154,6 +154,9 @@ pub enum CanonicalScanFamily {
     /// Python validator-dispatch family.
     #[serde(rename = "python")]
     Python,
+    /// Dart validator-dispatch family.
+    #[serde(rename = "dart")]
+    Dart,
     /// Terraform validator-dispatch family.
     #[serde(rename = "terraform")]
     Terraform,
@@ -647,6 +650,11 @@ fn scan_family_to_wire(disposition: ScanFamilyDisposition) -> CanonicalScanFamil
         ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Python) => {
             CanonicalScanFamilyDisposition::Mapped {
                 family: CanonicalScanFamily::Python,
+            }
+        }
+        ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Dart) => {
+            CanonicalScanFamilyDisposition::Mapped {
+                family: CanonicalScanFamily::Dart,
             }
         }
         ScanFamilyDisposition::Mapped(enforcer_domain::scan_types::LanguageFamily::Terraform) => {

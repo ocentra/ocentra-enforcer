@@ -158,6 +158,156 @@ function planNodeId(planKey) {
   return `PLAN/${planKey}`;
 }
 
+function readJson(root, path, label) {
+  const absolute = resolve(root, path);
+  if (!existsSync(absolute)) throw new Error(`${label} does not exist: ${path}`);
+  try {
+    return JSON.parse(readFileSync(absolute, "utf8"));
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON at ${path}: ${String(error?.message ?? error)}`);
+  }
+}
+
+function validateIntentMatrix(matrix, matrixPath) {
+  if (matrix?.schemaVersion !== 1) throw new Error(`intent matrix ${matrixPath} must use schemaVersion 1`);
+  if (matrix?.matrixKind !== "cyberskills-intent-driven-execution") {
+    throw new Error(`intent matrix ${matrixPath} has an unsupported matrixKind`);
+  }
+  const families = matrix.families;
+  if (!Array.isArray(families) || families.length === 0) throw new Error(`intent matrix ${matrixPath} has no families`);
+  const assigned = new Set();
+  const protectedIds = new Set(matrix.generatedFrom?.protectedExcluded ?? []);
+  for (const family of families) {
+    const familyId = String(family?.familyId ?? "").trim();
+    if (!familyId) throw new Error(`intent matrix ${matrixPath} contains a family without familyId`);
+    const skillIds = family.skillIds;
+    if (!Array.isArray(skillIds) || skillIds.length === 0) throw new Error(`intent family ${familyId} has no skillIds`);
+    if (Number(family.skillCount) !== skillIds.length) throw new Error(`intent family ${familyId} skillCount disagrees with skillIds`);
+    const nativeLimit = Number(family.nativeBatchLimit);
+    const retentionLimit = Number(family.retentionBatchLimit);
+    if (!Number.isInteger(nativeLimit) || nativeLimit < 1) throw new Error(`intent family ${familyId} has an invalid nativeBatchLimit`);
+    if (!Number.isInteger(retentionLimit) || retentionLimit < 1) throw new Error(`intent family ${familyId} has an invalid retentionBatchLimit`);
+    if (!String(family.nativeRoute ?? "").trim() || !String(family.retentionRoute ?? "").trim()) {
+      throw new Error(`intent family ${familyId} is missing a packet route`);
+    }
+    for (const skillId of skillIds) {
+      const id = String(skillId).trim();
+      if (!id) throw new Error(`intent family ${familyId} contains an empty skill id`);
+      if (protectedIds.has(id)) throw new Error(`protected skill ${id} appears in intent matrix ${matrixPath}`);
+      if (!assigned.add(id)) throw new Error(`intent matrix assigns ${id} to more than one family`);
+    }
+  }
+  const expected = Number(matrix.generatedFrom?.availableSkillCount);
+  if (Number.isInteger(expected) && assigned.size !== expected) {
+    throw new Error(`intent matrix assigned ${assigned.size} skills but declares ${expected} available skills`);
+  }
+  return { families, assigned };
+}
+
+function normalizedIntentDependency(planKey, dependency) {
+  const raw = String(dependency ?? "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("WP/")) {
+    const suffix = raw.slice(3);
+    if (suffix.startsWith(`${planKey}/`)) return raw;
+    if (/^[A-Za-z][A-Za-z0-9-]*\d{1,3}(?:\/.*)?$/.test(suffix)) return workpackNodeId(planKey, suffix);
+    return raw;
+  }
+  return workpackNodeId(planKey, raw);
+}
+
+function intentLifecycleOverrides(root, statusPath) {
+  if (!statusPath) return {};
+  const status = readJson(root, statusPath, "intent lifecycle source");
+  return status?.overrides?.lifecycle ?? {};
+}
+
+function addIntentPacket({ root, plan, matrixPath, family, familyKey, route, limit, dependencies, ownedKind, chunk, packetNumber, lifecycleOverrides, lifecycleSource, nodes, addNode, edges, matrix }) {
+  const packetId = `WP/${route}/IF-${familyKey}/B${String(packetNumber).padStart(2, "0")}`;
+  const lifecycle = lifecycleOverrides[packetId] ?? "planned";
+  if (!VALID_LIFECYCLE.has(lifecycle)) throw new Error(`intent packet ${packetId} has invalid lifecycle ${lifecycle}`);
+  const componentKinds = ownedKind === "advisory-manual" ? ["advisory", "manual"] : [ownedKind];
+  addNode({
+    id: packetId,
+    kind: "workpack",
+    title: `${family.familyId} ${ownedKind} packet ${packetNumber}`,
+    path: matrixPath,
+    lifecycle,
+    metadata: {
+      planKey: plan.key,
+      workpackClass: "intent-packet",
+      selectable: true,
+      intentMatrixPath: matrixPath,
+      lifecycleSource: lifecycleSource ?? null,
+      familyId: family.familyId,
+      intent: family.intent,
+      route,
+      ownedKind,
+      componentKinds,
+      batchLimit: limit,
+      packetNumber,
+      skillCount: chunk.length,
+      skillIds: chunk,
+      sourceLicense: matrix.generatedFrom?.sourceLicense ?? null,
+      implementationCoverage: "none",
+      executableProofCoverage: "none",
+      externalEngine: "blocked",
+      advisoryManual: "retained",
+      notProved: matrix.componentPolicy?.requiredNotProved ?? [],
+      completionContract: { requiredPaths: [matrixPath], requiredNodes: [] }
+    }
+  });
+  edges.push({ from: planNodeId(plan.key), to: packetId, kind: "contains", reason: "Intent packet derived from the canonical CyberSkills intent matrix." });
+  for (const dependency of dependencies) {
+    const normalized = normalizedIntentDependency(plan.key, dependency);
+    if (normalized) edges.push({ from: packetId, to: normalized, kind: "depends-on", reason: `Intent dependency declared by ${matrixPath}.` });
+  }
+  if (route === "CP12") edges.push({ from: packetId, to: workpackNodeId(plan.key, "CP12"), kind: "depends-on", reason: "Repository-graph packets require the CP12 workpack boundary." });
+}
+
+function deriveIntentPackets(root, config, plans, nodes, edges, addNode) {
+  for (const spec of config.intentMatrices ?? []) {
+    const plan = plans.find((candidate) => candidate.key === spec.planKey);
+    if (!plan) throw new Error(`intent matrix ${spec.path} references unknown plan ${spec.planKey}`);
+    const matrixPath = relativePath(root, spec.path);
+    const matrix = readJson(root, matrixPath, "intent matrix");
+    const { families } = validateIntentMatrix(matrix, matrixPath);
+    const lifecycleOverrides = intentLifecycleOverrides(root, spec.lifecycleSource);
+    for (const shortId of spec.containerWorkpacks ?? []) {
+      const container = nodes.get(workpackNodeId(plan.key, shortId));
+      if (!container) throw new Error(`intent matrix container workpack is missing: ${workpackNodeId(plan.key, shortId)}`);
+      container.metadata = { ...(container.metadata ?? {}), intentContainer: true, selectable: false, intentMatrixPath: matrixPath };
+    }
+    const qualifiedRepositoryGraph = new Set(matrix.routeQualification?.repositoryGraphSkillIds ?? []);
+    for (const family of families) {
+      const familyKey = String(family.familyId).replace(/^IF\//, "");
+      const skillIds = [...family.skillIds].map(String).sort((left, right) => left.localeCompare(right));
+      const nativeDependencies = family.dependencies ?? ["WP/CP05", "WP/CP08"];
+      const retentionDependencies = ["WP/CP08"];
+      const nativeRoute = String(family.nativeRoute ?? "CP09");
+      if (nativeRoute === "CP12") {
+        const graphSkills = skillIds.filter((skillId) => qualifiedRepositoryGraph.has(skillId));
+        const staticSkills = skillIds.filter((skillId) => !qualifiedRepositoryGraph.has(skillId));
+        if (staticSkills.length > 0) {
+          for (let offset = 0; offset < staticSkills.length; offset += 5) {
+            addIntentPacket({ root, plan, matrixPath, family, familyKey, route: "CP09", limit: 5, dependencies: ["WP/CP05", "WP/CP08"], ownedKind: "native-predicate", chunk: staticSkills.slice(offset, offset + 5), packetNumber: Math.floor(offset / 5) + 1, lifecycleOverrides, lifecycleSource: spec.lifecycleSource, nodes, addNode, edges, matrix });
+          }
+        }
+        for (let offset = 0; offset < graphSkills.length; offset += Number(family.nativeBatchLimit)) {
+          addIntentPacket({ root, plan, matrixPath, family, familyKey, route: "CP12", limit: Number(family.nativeBatchLimit), dependencies: nativeDependencies, ownedKind: "native-predicate", chunk: graphSkills.slice(offset, offset + Number(family.nativeBatchLimit)), packetNumber: Math.floor(offset / Number(family.nativeBatchLimit)) + 1, lifecycleOverrides, lifecycleSource: spec.lifecycleSource, nodes, addNode, edges, matrix });
+        }
+      } else {
+        for (let offset = 0; offset < skillIds.length; offset += Number(family.nativeBatchLimit)) {
+          addIntentPacket({ root, plan, matrixPath, family, familyKey, route: nativeRoute, limit: Number(family.nativeBatchLimit), dependencies: nativeDependencies, ownedKind: "native-predicate", chunk: skillIds.slice(offset, offset + Number(family.nativeBatchLimit)), packetNumber: Math.floor(offset / Number(family.nativeBatchLimit)) + 1, lifecycleOverrides, lifecycleSource: spec.lifecycleSource, nodes, addNode, edges, matrix });
+        }
+      }
+      for (let offset = 0; offset < skillIds.length; offset += Number(family.retentionBatchLimit)) {
+        addIntentPacket({ root, plan, matrixPath, family, familyKey, route: String(family.retentionRoute ?? "CP11"), limit: Number(family.retentionBatchLimit), dependencies: retentionDependencies, ownedKind: "advisory-manual", chunk: skillIds.slice(offset, offset + Number(family.retentionBatchLimit)), packetNumber: Math.floor(offset / Number(family.retentionBatchLimit)) + 1, lifecycleOverrides, lifecycleSource: spec.lifecycleSource, nodes, addNode, edges, matrix });
+      }
+    }
+  }
+}
+
 function allKnownShortIds(plans) {
   const map = new Map();
   for (const plan of plans) {
@@ -331,6 +481,8 @@ function buildGraphFromConfig(root, config) {
       }
     }
   }
+
+  deriveIntentPackets(root, config, plans, nodes, edges, addNode);
 
   for (const extra of config.extraNodes ?? []) {
     if (nodes.has(extra.id)) throw new Error(`duplicate graph node id: ${extra.id}`);
@@ -522,10 +674,16 @@ function graphStatus(graph) {
 function listReady(graph, scope = {}) {
   return [...graph.nodes.values()]
     .filter((node) => node.kind === "workpack")
+    .filter((node) => node.metadata?.selectable !== false)
     .filter((node) => !scope.plan || node.metadata?.planKey === scope.plan || node.id === scope.plan)
     .filter((node) => deriveState(graph, node) === "ready")
     .map((node) => serializeNode(graph, node))
     .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function selectNext(graph, scope = {}) {
+  const ready = listReady(graph, scope);
+  return ready.find((node) => node.metadata?.workpackClass === "intent-packet") ?? ready[0] ?? null;
 }
 
 function listBlocked(graph, scope = {}) {
@@ -563,7 +721,7 @@ function parseArgs(argv) {
   return { root, plan, command: argv[index] ?? "status", id: argv[index + 1] ?? null };
 }
 
-export { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, nodeById, validateGraph };
+export { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, nodeById, selectNext, validateGraph };
 
 /** Execute the read-only graph CLI and return a process-style exit code. */
 export function main(argv = process.argv.slice(2)) {
@@ -608,7 +766,7 @@ export function main(argv = process.argv.slice(2)) {
         print({ id: node.id, state: deriveState(graph, node), reasons: reasonsFor(graph, node) });
         return 0;
       }
-      case "next": print({ ready: listReady(graph, args), blocked: listBlocked(graph, args) }); return 0;
+      case "next": print({ selected: selectNext(graph, args), ready: listReady(graph, args), blocked: listBlocked(graph, args) }); return 0;
       default: throw new Error(`unknown graph command: ${args.command}`);
     }
   } catch (error) {

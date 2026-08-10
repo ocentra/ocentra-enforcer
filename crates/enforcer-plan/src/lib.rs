@@ -55,8 +55,11 @@
 
 pub mod agents_forest;
 mod boundary;
+pub mod cyberskills_packet;
 mod domain;
 pub mod error;
+#[path = "boundary/cyber_graph.rs"]
+pub mod graph;
 pub mod lessons;
 pub mod orchestrator;
 pub mod scaffolder;

@@ -46,6 +46,7 @@ pub mod rules_types;
 pub mod run_record;
 pub mod scan_types;
 pub mod security_types;
+pub mod semantic_types;
 pub mod severity;
 pub mod syntax_types;
 pub mod telemetry_types;

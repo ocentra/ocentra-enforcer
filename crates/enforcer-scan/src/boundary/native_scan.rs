@@ -32,6 +32,7 @@ pub enum NativeScanLanguage {
     Rust,
     TypeScript,
     Python,
+    Dart,
     Terraform,
     YamlOrConfig,
 }
@@ -44,6 +45,7 @@ impl NativeScanLanguage {
                 | (Self::Rust, LanguageFamily::Rust)
                 | (Self::TypeScript, LanguageFamily::TypeScript)
                 | (Self::Python, LanguageFamily::Python)
+                | (Self::Dart, LanguageFamily::Dart)
                 | (Self::Terraform, LanguageFamily::Terraform)
                 | (Self::YamlOrConfig, LanguageFamily::YamlOrConfig)
         )

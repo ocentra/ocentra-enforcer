@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-61",
+  "family": "IF/ransomware-defense",
+  "baselineCommit": "018a782e11540257c00e0b6900cf870275c19a5d",
+  "scope": "Retain advisory and manual ransomware-defense content from immutable CP08 evidence; native predicates are limited to static supplied prevention, detection, file-process-network telemetry, backup, restore, containment, recovery, tabletop, authorization, owner, stop-condition, and evidence manifests; no live endpoint, network, host, backup, restore, honeypot, canary, production, or recovery execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-ransomware-payment-wallets",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-ransomware-payment-wallets/SKILL.md",
+        "sha256": "388222d5370951409b7b577770382f919ecf2d5755f0eb5ef97cb1fc35ec28d4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Ransomware Payment Wallets:L59"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain payment-wallet, cryptocurrency, threat-intelligence, evidence, uncertainty, and defensive incident guidance.",
+        "notProved": ["No wallet ownership, transaction attribution, payment decision, or financial outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, privacy and financial review, analyst validation, evidence handling, escalation, disclosure, and remediation decisions.",
+        "notProved": ["No human attribution, legal, payment, disclosure, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "building-ransomware-playbook-with-cisa-framework",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-ransomware-playbook-with-cisa-framework/SKILL.md",
+        "sha256": "420f82c2a8fc0d000a586268005338e9a1c324777960590d5990a711df5ddaa7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Ransomware Playbook with CISA Framework:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ransomware prevention, response, containment, communications, recovery, and CISA-aligned playbook guidance.",
+        "notProved": ["Guidance is not a live playbook execution and does not prove readiness, containment, or recovery."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident-owner authorization, legal and safety review, scope, stop conditions, notification, containment, restoration, validation, and disclosure decisions.",
+        "notProved": ["No human incident, legal, containment, restore, or recovery decision is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-decoy-files-for-ransomware-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-decoy-files-for-ransomware-detection/SKILL.md",
+        "sha256": "ab4c9d15a796f277d98ce071fe20654a0b266bb129695f80f13f5acb4c92e65a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Decoy Files for Ransomware Detection:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain decoy-file planning, alert review, safety, privacy, evidence, and defensive detection guidance.",
+        "notProved": ["No decoy deployment, alert fidelity, detection efficacy, or endpoint outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, endpoint and data scope, legal/privacy review, change window, stop conditions, analyst validation, containment, and remediation decisions.",
+        "notProved": ["No human deployment, authorization, alert, containment, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-ransomware-canary-files",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-ransomware-canary-files/SKILL.md",
+        "sha256": "0414076cd5a298e6781956f92ed5a2fd8214d48a72af2ef9c51500826a82e24c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Ransomware Canary Files:L53"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain canary-file planning, signal review, operational safety, evidence, and defensive ransomware guidance.",
+        "notProved": ["No canary deployment, signal truth, alerting, detection efficacy, or recovery outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written owner authorization, endpoint scope, legal/privacy and safety review, stop conditions, analyst validation, containment, restoration, and disclosure decisions.",
+        "notProved": ["No human deployment, safety, alert, containment, restoration, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-ransomware-encryption-behavior",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ransomware-encryption-behavior/SKILL.md",
+        "sha256": "de9419e6d9c13537264e6c6309b35019fc050f6bae3c646c3ffb3e4282bdf77d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Ransomware Encryption Behavior:L59"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain encryption-behavior review, telemetry interpretation, alert triage, evidence, containment, and defensive response guidance.",
+        "notProved": ["No live encryption observation, detection efficacy, attribution, or containment result is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint and telemetry scope, legal/safety review, stop conditions, analyst validation, containment, restore, and remediation decisions.",
+        "notProved": ["No human detection, containment, restore, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-ransomware-precursors-in-network",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ransomware-precursors-in-network/SKILL.md",
+        "sha256": "29925505b82958f5d2b7feac8b6a481c263a93e1ccdbf421019c4d26fe5b8711",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Ransomware Precursors in Network Traffic:L59"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network precursor review, supplied telemetry interpretation, incident triage, evidence, containment, and defensive response guidance.",
+        "notProved": ["No live packet, network, precursor, detection efficacy, attribution, or containment outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network and data scope, legal/privacy/safety review, stop conditions, analyst validation, containment, restoration, and remediation decisions.",
+        "notProved": ["No human network, detection, containment, restore, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-anti-ransomware-group-policy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-anti-ransomware-group-policy/SKILL.md",
+        "sha256": "823b804ab37a27ade604cb02a088961e1898486e52877e0ebc539bf1289866f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Anti-Ransomware Group Policy:L59"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain anti-ransomware policy, hardening, change management, exception, evidence, and defensive control guidance.",
+        "notProved": ["No group-policy state, enforcement, endpoint protection, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, directory scope, legal/privacy and change review, maintenance window, validation, rollback, exception, and remediation decisions.",
+        "notProved": ["No human policy approval, rollout, rollback, exception, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-honeypot-for-ransomware-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-honeypot-for-ransomware-detection/SKILL.md",
+        "sha256": "973c6548106286c0f7a0ee3cf8aebc8b4dbc31417fe096fa6770803bac647e84",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Honeypot for Ransomware Detection:L70"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain honeypot planning, monitoring, alert review, evidence, safety, and defensive ransomware guidance.",
+        "notProved": ["No honeypot deployment, live monitoring, detection efficacy, or endpoint outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, host and data scope, legal/privacy/safety review, stop conditions, analyst validation, containment, restoration, and disclosure decisions.",
+        "notProved": ["No human deployment, monitoring, containment, restore, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-immutable-backup-with-restic",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-immutable-backup-with-restic/SKILL.md",
+        "sha256": "08fa644b6cae0ca3aee4343a21dc160c269e34eb1b728cb0cd4e5642b0e2e4d1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Immutable Backup with Restic:L45"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-67/decomposition.json",
+        "artifactSha256": "55d386f99df11bc9a31bbceaee9c326d17760ea2d740036f10e03a553544e930"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain immutable-backup, key custody, retention, restore validation, evidence, and defensive recovery guidance.",
+        "notProved": ["No backup immutability, key custody, restore integrity, RTO/RPO, or recovery outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, backup scope, key-custody and legal review, data handling, restore approval, validation, rollback, and recovery decisions.",
+        "notProved": ["No human backup, restore, key-custody, rollback, or recovery decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-ransomware-backup-strategy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ransomware-backup-strategy/SKILL.md",
+        "sha256": "a7ba6707eba166dbf60ee5a89d58f437c836209cd4a47bfed654a05d7f2e0766",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Ransomware Backup Strategy:L68"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain backup strategy, recovery planning, retention, isolation, evidence, and ransomware resilience guidance.",
+        "notProved": ["No backup coverage, isolation, restore readiness, RTO/RPO, or recovery outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require business-owner authorization, system and data scope, legal/privacy review, restore validation, exception, rollback, containment, and recovery decisions.",
+        "notProved": ["No human backup, exception, restore, containment, rollback, or recovery decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, network, host, backup, restore, honeypot, canary, packet, production, or recovery execution.",
+    "No ransomware prevention, detection, encryption, attribution, containment, backup integrity, restore integrity, RTO/RPO, remediation success, safety outcome, or security outcome is proved.",
+    "This packet covers the first ten ransomware-defense skills as retained advisory/manual evidence only; the family remains incomplete until its final three records are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, endpoint/network/backup systems, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "SchemaVersion": 2,
+  "Results": [
+    {
+      "Target": "IAC-1.1.fail.tf",
+      "Misconfigurations": [
+        {
+          "ID": "AVD-AWS-0086",
+          "Title": "S3 Access block should block public ACL",
+          "Message": "No public access block so not blocking public acls",
+          "Severity": "HIGH",
+          "CauseMetadata": {"StartLine": 1}
+        }
+      ]
+    }
+  ]
+}
