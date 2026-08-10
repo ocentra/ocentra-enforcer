@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-security-b09-fail",
+  "owner": "owner:cyber-security-team",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "gcp-binary-authorization",
+      "skillId": "implementing-gcp-binary-authorization",
+      "projectRef": "project:prod",
+      "locationRef": "location:global",
+      "attestorRef": "attestor:release",
+      "imageRef": "image:service-a-v1",
+      "policyRef": "policy:binary-baseline",
+      "signatureRef": "signature:declared",
+      "ownerRef": "owner:platform-security",
+      "evidenceRef": "evidence:binary-manifest"
+    },
+    {
+      "kind": "gcp-organization-policy-constraints",
+      "skillId": "implementing-gcp-organization-policy-constraints",
+      "organizationRef": "organization:acme",
+      "folderRef": "folder:production",
+      "projectRef": "project:prod",
+      "constraintRef": "constraint:allowed-regions",
+      "policyRef": "policy:organization-baseline",
+      "conditionRef": "condition:declared",
+      "exceptionRef": "exception:none",
+      "ownerRef": "owner:cloud-governance",
+      "evidenceRef": "evidence:org-policy-manifest"
+    },
+    {
+      "kind": "gcp-vpc-firewall-rules",
+      "skillId": "implementing-gcp-vpc-firewall-rules",
+      "projectRef": "project:prod",
+      "networkRef": "network:production",
+      "subnetRef": "subnet:private",
+      "ruleRef": "rule:restricted-ingress",
+      "directionRef": "direction:ingress",
+      "targetRef": "target:service-a",
+      "actionRef": "action:deny-by-default",
+      "ownerRef": "owner:network-security",
+      "evidenceRef": "evidence:firewall-manifest"
+    },
+    {
+      "kind": "vault-secrets-management",
+      "skillId": "implementing-secrets-management-with-vault",
+      "namespaceRef": "namespace:security",
+      "mountRef": "mount:kv",
+      "secretRef": "secret:service-a",
+      "policyRef": "policy:least-privilege",
+      "roleRef": "role:service-a",
+      "keyRef": "key:encryption",
+      "leaseRef": "lease:declared",
+      "ownerRef": "owner:secrets-team",
+      "evidenceRef": "evidence:vault-manifest"
+    },
+    {
+      "kind": "zero-trust-cloud",
+      "skillId": "implementing-zero-trust-in-cloud",
+      "tenantRef": "tenant:acme",
+      "identityRef": "identity:workload-a",
+      "deviceRef": "device:posture-declared",
+      "policyRef": "policy:zero-trust",
+      "segmentRef": "segment:private-service",
+      "accessRef": "access:conditional",
+      "sessionRef": "session:declared",
+      "ownerRef": "owner:identity-security",
+      "evidenceRef": "evidence:zero-trust-manifest"
+    }
+  ]
+}

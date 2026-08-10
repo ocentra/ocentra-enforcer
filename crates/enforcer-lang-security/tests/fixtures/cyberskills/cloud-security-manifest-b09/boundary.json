@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-security-b09-boundary",
+  "owner": "owner:cyber-security-team",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "owner", "reference": "owner:human-review" }
+  ],
+  "records": [
+    {
+      "kind": "gcp-binary-authorization",
+      "skillId": "implementing-gcp-binary-authorization",
+      "projectRef": "project:declared",
+      "locationRef": "location:declared",
+      "attestorRef": "attestor:declared",
+      "imageRef": "image:declared",
+      "policyRef": "policy:declared",
+      "signatureRef": "signature:declared",
+      "enforcementRef": "enforcement:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "gcp-organization-policy-constraints",
+      "skillId": "implementing-gcp-organization-policy-constraints",
+      "organizationRef": "organization:declared",
+      "folderRef": "folder:declared",
+      "projectRef": "project:declared",
+      "constraintRef": "constraint:declared",
+      "policyRef": "policy:declared",
+      "conditionRef": "condition:declared",
+      "exceptionRef": "exception:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "gcp-vpc-firewall-rules",
+      "skillId": "implementing-gcp-vpc-firewall-rules",
+      "projectRef": "project:declared",
+      "networkRef": "network:declared",
+      "subnetRef": "subnet:declared",
+      "ruleRef": "rule:declared",
+      "directionRef": "direction:declared",
+      "targetRef": "target:declared",
+      "actionRef": "action:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "vault-secrets-management",
+      "skillId": "implementing-secrets-management-with-vault",
+      "namespaceRef": "namespace:declared",
+      "mountRef": "mount:declared",
+      "secretRef": "secret:declared",
+      "policyRef": "policy:declared",
+      "roleRef": "role:declared",
+      "keyRef": "key:declared",
+      "leaseRef": "lease:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "zero-trust-cloud",
+      "skillId": "implementing-zero-trust-in-cloud",
+      "tenantRef": "tenant:declared",
+      "identityRef": "identity:declared",
+      "deviceRef": "device:declared",
+      "policyRef": "policy:declared",
+      "segmentRef": "segment:declared",
+      "accessRef": "access:declared",
+      "sessionRef": "session:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    }
+  ]
+}
