@@ -57,6 +57,7 @@
       "WP/CP10": "done",
       "WP/CP01": "done",
       "WP/CP08": "done",
+      "WP/CP09/IF-ai-security/B01": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -159,6 +160,30 @@
     },
     "dependencies": {},
     "evidence": {
+      "TEST/WP/CP09/IF-ai-security/B01/gate": {
+        "run_id": "20260810025728-f0381907",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_ai_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules; exact-file Enforcer scan/source-shape/secrets; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "f373906cecdfd094067fc0718db6dc8aa0053450",
+        "source_paths": [
+          "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
+          "docs/engineering-graph.json"
+        ],
+        "proves": [
+          "CP09 AI-security B01 branch commit was pushed from exact base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused AI-security manifest test passed 4/4 through the Enforcer harness",
+          "enforcer-lang-security check and full package tests passed, including the 33-test CyberSkills corpus",
+          "the full enforcer-rules package passed, including the 8 CP00 disposition tests and 82-artifact CP08 recomputation",
+          "the packet implements only a static supplied-JSON manifest predicate and retains external/advisory/manual boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of f373906cecdfd094067fc0718db6dc8aa0053450",
+          "native implementation of all five source skills beyond this narrow manifest predicate",
+          "external model, MCP, provider, endpoint, live execution, or security outcomes",
+          "overall CyberSkills parity or graph DONE closure"
+        ]
+      },
       "TEST/CP00/disposition-focused-test": {
         "run_id": "20260809081031-f71fdf6e",
         "command": "cargo test --locked -p enforcer-rules --test cyberskills_disposition -- --nocapture",
