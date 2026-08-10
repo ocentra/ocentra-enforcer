@@ -331,6 +331,13 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
             "{batch}"
         );
     }
+    assert!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-cloud-security/B14")?)?
+            .state
+            == DerivedState::Paused,
+        "the approved six-row B13 packet keeps the derived B14 remainder paused"
+    );
     Ok(())
 }
 
