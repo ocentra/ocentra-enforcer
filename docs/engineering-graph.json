@@ -59,6 +59,7 @@
       "WP/CP08": "done",
       "WP/CP09/IF-ai-security/B01": "validation",
       "WP/CP09/IF-ai-security/B02": "validation",
+      "WP/CP09/IF-ai-security/B03": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -209,6 +210,38 @@
           "external model, provider, MCP, endpoint, red-team, guardrail, telemetry, or live execution",
           "security outcomes, detection efficacy, attribution, remediation success, or overall CyberSkills parity",
           "graph DONE closure or completion of the remaining CP09 packets"
+        ]
+      },
+      "TEST/WP/CP09/IF-ai-security/B03/gate": {
+        "run_id": "20260810033344-46003214",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_ai_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules; exact-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "2e5ce656e8d35f18e63cd163ce56e900beef2395",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/ai_security_manifest_wire.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_ai_security_manifest.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/boundary.json",
+          "proof/cyberskills/cp09/ai-security-manifest-b03.json"
+        ],
+        "proves": [
+          "CP09 AI-security B03 commit 2e5ce656e is pushed on the B02 stack from canonical base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused AI-security manifest suite passed 8/8 through the Enforcer harness, covering all four remaining AI-security intents and prior B01/B02 regressions",
+          "enforcer-lang-security check and full package tests passed, including the 33-test CyberSkills corpus",
+          "the full enforcer-rules package passed, including the CP00 disposition suite and CP08 evidence recomputation",
+          "the exact seven-file Enforcer scan, Rust source-shape check, and secrets check returned zero findings; the B03 artifact is 7,935 bytes with SHA-256 ce862496b655253f280f6b84b5ec309574ce73194235431ac93d195aef5620aa and four unique source-provenance rows",
+          "the packet implements only static supplied-JSON predicates, with Garak native-absent and external/advisory/manual boundaries retained"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the stacked B01/B02/B03 branches",
+          "full native implementation or executable proof of any source skill intent",
+          "external model, provider, PyRIT, Garak, endpoint, red-team, telemetry, or live execution",
+          "security outcomes, detection efficacy, attribution, remediation success, or overall CyberSkills parity",
+          "the auxiliary literal-risk check, which reported only preserved fixture/path/hash literals as observed false positives (11 errors and 179 warnings); no waiver or obfuscation was used",
+          "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
         ]
       },
       "TEST/CP00/disposition-focused-test": {
