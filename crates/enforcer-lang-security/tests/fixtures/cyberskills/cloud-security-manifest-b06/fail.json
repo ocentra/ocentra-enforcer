@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b06-fail",
+  "owner": "owner:cp09-cloud-b06",
+  "scope": "scope:offline-cloud-manifest",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-authorization" }
+  ],
+  "records": [
+    {
+      "kind": "live-cloud-enumeration",
+      "skillId": "enumerating-cloud-with-cloudfox",
+      "tenantRef": "tenant:example",
+      "scopeRef": "scope:declared-assets",
+      "inventoryRef": "inventory:offline-snapshot",
+      "queryRef": "query:planned-only",
+      "authorizationRef": "authorization:written",
+      "privacyRef": "privacy:data-boundary",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:asset-plan"
+    }
+  ]
+}

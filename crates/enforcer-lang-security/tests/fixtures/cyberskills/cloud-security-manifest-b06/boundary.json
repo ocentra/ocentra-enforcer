@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b06-boundary",
+  "owner": "owner:written-authorization",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "safety", "reference": "evidence:stop-before-live-action" }
+  ],
+  "records": [
+    {
+      "kind": "oauth-application-consent",
+      "skillId": "detecting-suspicious-oauth-application-consent",
+      "tenantRef": "tenant:declared",
+      "appRef": "app:declared",
+      "clientRef": "client:declared",
+      "publisherRef": "publisher:declared",
+      "scopesRef": "scopes:declared",
+      "consentRef": "consent:declared",
+      "userRef": "user:declared",
+      "policyRef": "policy:declared",
+      "evidenceRef": "evidence:oauth"
+    },
+    {
+      "kind": "cloud-attack-emulation",
+      "skillId": "emulating-cloud-attacks-with-stratus-red-team",
+      "tenantRef": "tenant:declared",
+      "scenarioRef": "scenario:declared",
+      "authorizationRef": "authorization:declared",
+      "targetRef": "target:fixture",
+      "phaseRef": "phase:preflight",
+      "controlRef": "control:manual",
+      "stopRef": "stop:required",
+      "ownerRef": "owner:declared",
+      "evidenceRef": "evidence:emulation"
+    },
+    {
+      "kind": "cloud-asset-enumeration",
+      "skillId": "enumerating-cloud-with-cloudfox",
+      "tenantRef": "tenant:declared",
+      "accountRef": "account:declared",
+      "scopeRef": "scope:declared",
+      "inventoryRef": "inventory:supplied",
+      "queryRef": "query:offline",
+      "authorizationRef": "authorization:declared",
+      "privacyRef": "privacy:declared",
+      "ownerRef": "owner:declared",
+      "evidenceRef": "evidence:inventory"
+    },
+    {
+      "kind": "aws-exploitation-assessment",
+      "skillId": "exploiting-aws-with-pacu",
+      "tenantRef": "tenant:declared",
+      "accountRef": "account:declared",
+      "scenarioRef": "scenario:assessment",
+      "authorizationRef": "authorization:declared",
+      "boundaryRef": "boundary:offline",
+      "stopRef": "stop:required",
+      "safetyRef": "safety:declared",
+      "ownerRef": "owner:declared",
+      "evidenceRef": "evidence:assessment"
+    },
+    {
+      "kind": "aws-config-compliance",
+      "skillId": "implementing-aws-config-rules-for-compliance",
+      "accountRef": "account:declared",
+      "configRuleRef": "config-rule:declared",
+      "complianceRef": "compliance:declared",
+      "scopeRef": "scope:declared",
+      "ownerRef": "owner:declared",
+      "evidenceRef": "evidence:config",
+      "exceptionRef": "exception:review",
+      "reviewRef": "review:manual",
+      "regionRef": "region:declared"
+    }
+  ]
+}

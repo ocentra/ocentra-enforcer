@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b06",
+  "owner": "owner:cp09-cloud-b06",
+  "scope": "scope:offline-cloud-manifest",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-authorization" },
+    { "kind": "scope", "reference": "evidence:tenant-boundary" },
+    { "kind": "review", "reference": "evidence:analyst-review" },
+    { "kind": "safety", "reference": "evidence:stop-conditions" },
+    { "kind": "provenance", "reference": "evidence:supplied-bundle" }
+  ],
+  "records": [
+    {
+      "kind": "oauth-application-consent",
+      "skillId": "detecting-suspicious-oauth-application-consent",
+      "tenantRef": "tenant:example",
+      "appRef": "app:registered-client",
+      "clientRef": "client:offline-review",
+      "publisherRef": "publisher:supplied-record",
+      "scopesRef": "scopes:declared",
+      "consentRef": "consent:recorded",
+      "userRef": "user:owner-approved",
+      "policyRef": "policy:oauth-review",
+      "evidenceRef": "evidence:oauth-consent"
+    },
+    {
+      "kind": "cloud-attack-emulation",
+      "skillId": "emulating-cloud-attacks-with-stratus-red-team",
+      "tenantRef": "tenant:example",
+      "scenarioRef": "scenario:offline-emulation-plan",
+      "authorizationRef": "authorization:written",
+      "targetRef": "target:supplied-fixture",
+      "phaseRef": "phase:preflight",
+      "controlRef": "control:stop-before-execution",
+      "stopRef": "stop:manual-approval",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:emulation-plan"
+    },
+    {
+      "kind": "cloud-asset-enumeration",
+      "skillId": "enumerating-cloud-with-cloudfox",
+      "tenantRef": "tenant:example",
+      "accountRef": "account:supplied",
+      "scopeRef": "scope:declared-assets",
+      "inventoryRef": "inventory:offline-snapshot",
+      "queryRef": "query:planned-only",
+      "authorizationRef": "authorization:written",
+      "privacyRef": "privacy:data-boundary",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:asset-plan"
+    },
+    {
+      "kind": "aws-exploitation-assessment",
+      "skillId": "exploiting-aws-with-pacu",
+      "tenantRef": "tenant:example",
+      "accountRef": "account:supplied",
+      "scenarioRef": "scenario:offline-assessment",
+      "authorizationRef": "authorization:written",
+      "boundaryRef": "boundary:no-live-cloud",
+      "stopRef": "stop:manual-approval",
+      "safetyRef": "safety:non-operational",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:assessment-plan"
+    },
+    {
+      "kind": "aws-config-compliance",
+      "skillId": "implementing-aws-config-rules-for-compliance",
+      "accountRef": "account:supplied",
+      "configRuleRef": "config-rule:declared",
+      "complianceRef": "compliance:control-mapping",
+      "scopeRef": "scope:declared-resources",
+      "ownerRef": "owner:control-owner",
+      "evidenceRef": "evidence:control-manifest",
+      "exceptionRef": "exception:review-required",
+      "reviewRef": "review:manual",
+      "regionRef": "region:declared"
+    }
+  ]
+}
