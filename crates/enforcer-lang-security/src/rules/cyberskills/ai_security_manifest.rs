@@ -1,10 +1,10 @@
-//! `CYBER-AI-MANIFEST.1` — CP09 B01's reusable offline AI-security capability.
+//! `CYBER-AI-MANIFEST.1` — CP09's reusable offline AI-security capability.
 //!
 //! The validator delegates JSON decoding to the crate boundary and performs
 //! only deterministic supplied-manifest validation. It does not invoke a
 //! model, connect to an MCP server, send prompts, run a red-team engine, or
-//! claim a security outcome. The five selected vendor skills map to one
-//! capability rather than five duplicated validators.
+//! claim a security outcome. The B01 and B02 packet shapes share one
+//! capability rather than creating duplicated validators.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;

@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-ai-security/B02",
+  "workpack": "CP09",
+  "baseCommit": "f373906cecdfd094067fc0718db6dc8aa0053450",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "ai-security-manifest",
+    "ruleId": "CYBER-AI-MANIFEST.1",
+    "predicate": "Validate supplied typed JSON records for model-integrity evidence, indirect-content handling, inference-audit signals, guardrail policy evaluation, and an authorized static AI-evaluation plan.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded record-shape predicates; the packet does not execute model analysis, content extraction, guardrail runtimes, telemetry, or adversarial orchestration"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-data-and-model-poisoning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-data-and-model-poisoning/SKILL.md",
+        "sha256": "a04672e7f8bfd88a1d543a24467b5b50d7c962ccad97332ef4d948a8efeaaea9",
+        "anchor": { "line": 24, "text": "# Detecting Data and Model Poisoning" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed model or dataset provenance, integrity reference, classification, owner context, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "detecting-indirect-prompt-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-indirect-prompt-injection/SKILL.md",
+        "sha256": "5d3ff2354f45e2c1012c6af8105c6588b501bfd05c564d9027ea853bfad2c5bf",
+        "anchor": { "line": 23, "text": "# Detecting Indirect Prompt Injection" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed supplied-content source, trust boundary, classification, sanitization reference, response reference, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "detecting-model-extraction-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-model-extraction-attacks/SKILL.md",
+        "sha256": "80653a5d209c5d298cec1584ee3056c189b066d5d5f7bbdad977aa78ba3af18c",
+        "anchor": { "line": 23, "text": "# Detecting Model Extraction Attacks" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed supplied inference-audit source, principal/model/query identity, classification, action, telemetry reference, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "implementing-llm-guardrails-for-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-llm-guardrails-for-security/SKILL.md",
+        "sha256": "1cf02a88ea563459705e0f6a48a019ca5ae65711b3b736985b9004083d97a209",
+        "anchor": { "line": 55, "text": "# Implementing LLM Guardrails for Security" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed guardrail policy, input and output classes, action, escalation, audit, and supplied-evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "orchestrating-llm-attacks-with-pyrit",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/orchestrating-llm-attacks-with-pyrit/SKILL.md",
+        "sha256": "16212f596b6dba35c0f54d003db50509a64923c83db8474ec53b84d1104cb04c",
+        "anchor": { "line": 24, "text": "# Orchestrating LLM Attacks with PyRIT" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed written-authorization, scope, stop-condition, human-review, scenario, and supplied-evidence fields for an offline evaluation plan only",
+      "cp08Disposition": { "native": "absent", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Note": "CP08 decomposition has no native component for this skill; this packet's static authorization-plan predicate is additive evidence and does not promote CP08 decomposition."
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/ai_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/ai_security_manifest_wire.rs",
+    "registry": "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+    "test": "crates/enforcer-lang-security/tests/cyberskills_ai_security_manifest.rs",
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b02/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b02/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b02/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b02/boundary.json", "class": "authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; its missing native component for PyRIT is explicitly preserved"
+  },
+  "reuse": [
+    "the existing CYBER-AI-MANIFEST.1 Validator and registry row",
+    "the existing private serde wire boundary and closed RecordRule table",
+    "enforcer-validator::Validator and ValidationInput",
+    "enforcer-domain::Finding and built-in RuleId",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "IBM ART, Cleanlab, model training/evaluation runtimes, safe-load tooling, and model hubs",
+    "LLM Guard, Prompt Guard, Hugging Face models, OCR/Tesseract, content extractors, and live retrieval surfaces",
+    "model gateways, inference telemetry, ART extraction/inversion attacks, and target model endpoints",
+    "NeMo Guardrails, Guardrails AI, provider models, prompt execution, and production middleware",
+    "PyRIT, attacker/scorer models, model providers, MCP tools, network endpoints, and production agent sessions"
+  ],
+  "advisoryManual": [
+    "written authorization, target ownership, scope, consent, privacy, and safety review",
+    "data/model provenance, integrity triage, quarantine, retraining, and remediation decisions",
+    "sanitization, classification, threshold, monitoring, severity, escalation, and analyst interpretation",
+    "guardrail policy ownership, exceptions, human review, disclosure, and rollback decisions",
+    "offline evaluation stop conditions and manual authorization; no live adversarial action"
+  ],
+  "proves": [
+    "The existing Rust AI-security validator deterministically accepts the five B02 record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The PyRIT intent is represented only by a static authorization and stop-condition plan predicate; no offensive orchestrator is executed.",
+    "The existing registry row and Enforcer validator boundary are reused without adding an external engine or a duplicate rule id.",
+    "CP08 native/external/advisory/manual truth remains explicit, including the absent native component for the PyRIT source row."
+  ],
+  "doesNotProve": [
+    "No live model, provider, endpoint, browser, MCP server, retrieval source, OCR pipeline, or external engine execution.",
+    "No poisoning detection, indirect-injection detection efficacy, model-extraction finding, guardrail effectiveness, or attack success.",
+    "No exploit delivery, prompt execution, credential capture, tool invocation, model inversion, membership inference, attribution, or security outcome.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

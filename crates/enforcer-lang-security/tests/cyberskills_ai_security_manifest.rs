@@ -1,4 +1,4 @@
-//! BOUNDARY-INVARIANT: CP09 B01 validates supplied JSON only; no live AI or
+//! BOUNDARY-INVARIANT: CP09 AI-security packets validate supplied JSON only; no live AI or
 //! external-engine execution is part of this proof.
 
 use std::collections::BTreeSet;
@@ -88,5 +88,46 @@ fn ai_security_manifest_is_registered_once() -> Result<(), Box<dyn std::error::E
             .count(),
         1
     );
+    Ok(())
+}
+
+#[test]
+fn ai_security_manifest_b02_pass_covers_five_remaining_intents(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string(
+        manifest_dir().join("tests/fixtures/cyberskills/ai-security-manifest-b02/pass.json"),
+    )?;
+    let document: serde_json::Value = serde_json::from_str(&source)?;
+    let ids: BTreeSet<&str> = document["records"]
+        .as_array()
+        .ok_or("B02 pass fixture records must be an array")?
+        .iter()
+        .filter_map(|record| record["skillId"].as_str())
+        .collect();
+    assert_eq!(ids.len(), 5);
+    assert_eq!(
+        ids,
+        BTreeSet::from([
+            "detecting-data-and-model-poisoning",
+            "detecting-indirect-prompt-injection",
+            "detecting-model-extraction-attacks",
+            "implementing-llm-guardrails-for-security",
+            "orchestrating-llm-attacks-with-pyrit",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn ai_security_manifest_b02_negative_classes_are_rejected() -> Result<(), Box<dyn std::error::Error>>
+{
+    let failures = fixture("tests/fixtures/cyberskills/ai-security-manifest-b02/fail.json")?;
+    let malformed = fixture("tests/fixtures/cyberskills/ai-security-manifest-b02/malformed.json")?;
+    assert_eq!(failures.len(), 1);
+    assert_eq!(malformed.len(), 1);
+    assert!(failures
+        .iter()
+        .chain(malformed.iter())
+        .all(|finding| finding.rule_id.as_str() == "CYBER-AI-MANIFEST.1"));
     Ok(())
 }

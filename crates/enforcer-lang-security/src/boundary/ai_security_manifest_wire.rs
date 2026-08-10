@@ -1,4 +1,4 @@
-//! Typed wire deserialization boundary for the CP09 B01 AI-security manifest.
+//! Typed wire deserialization boundary for the CP09 AI-security manifest packets.
 //!
 //! BOUNDARY-INVARIANT: only this module decodes untrusted JSON into private
 //! wire shapes. The rule layer receives a boolean validation result and never
@@ -15,6 +15,11 @@ const MCP_SKILL: &str = "auditing-mcp-servers-for-tool-poisoning";
 const RED_TEAM_SKILL: &str = "continuous-llm-red-teaming-with-promptfoo";
 const GUARDRAIL_SKILL: &str = "defending-llms-with-guardrails";
 const PROMPT_INJECTION_SKILL: &str = "detecting-ai-model-prompt-injection-attacks";
+const POISONING_SKILL: &str = "detecting-data-and-model-poisoning";
+const INDIRECT_INJECTION_SKILL: &str = "detecting-indirect-prompt-injection";
+const EXTRACTION_SKILL: &str = "detecting-model-extraction-attacks";
+const SECURITY_GUARDRAIL_SKILL: &str = "implementing-llm-guardrails-for-security";
+const PYRIT_SKILL: &str = "orchestrating-llm-attacks-with-pyrit";
 
 // BRAND-INVARIANT: private wire fields are decoded only through serde and
 // accepted by `is_valid` after the schema and field predicates below pass.
@@ -72,6 +77,15 @@ struct RecordWire {
     trust_boundary: Option<String>,
     classification: Option<String>,
     response_ref: Option<String>,
+    provenance_ref: Option<String>,
+    integrity_ref: Option<String>,
+    sanitization_ref: Option<String>,
+    telemetry_ref: Option<String>,
+    output_class: Option<String>,
+    authorization_ref: Option<String>,
+    scope_ref: Option<String>,
+    stop_condition: Option<String>,
+    review_ref: Option<String>,
 }
 
 struct RecordRule {
@@ -146,6 +160,77 @@ static RECORD_RULES: &[RecordRule] = &[
             "trustBoundary",
             "classification",
             "responseRef",
+        ],
+    },
+    RecordRule {
+        kind: "model-integrity-evidence",
+        skill: POISONING_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "modelId",
+            "source",
+            "classification",
+            "provenanceRef",
+            "integrityRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "indirect-content-observation",
+        skill: INDIRECT_INJECTION_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "source",
+            "trustBoundary",
+            "classification",
+            "sanitizationRef",
+            "responseRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "inference-audit-event",
+        skill: EXTRACTION_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "modelId",
+            "queryId",
+            "source",
+            "classification",
+            "action",
+            "telemetryRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "guardrail-evaluation",
+        skill: SECURITY_GUARDRAIL_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "policyId",
+            "inputClass",
+            "outputClass",
+            "action",
+            "escalation",
+            "auditRef",
+        ],
+    },
+    RecordRule {
+        kind: "authorized-ai-evaluation-plan",
+        skill: PYRIT_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "scenarioId",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
         ],
     },
 ];

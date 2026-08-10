@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b02-boundary",
+  "owner": "security-engineering",
+  "scope": "owned-fixture-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "written-authorization-and-stop-conditions" }
+  ],
+  "records": [
+    {
+      "kind": "authorized-ai-evaluation-plan",
+      "skillId": "orchestrating-llm-attacks-with-pyrit",
+      "subjectId": "boundary-plan-01",
+      "scenarioId": "no-live-execution-01",
+      "authorizationRef": "written-authorization-01",
+      "scopeRef": "supplied-fixtures-only",
+      "stopCondition": "no-model-provider-no-tool-call-no-network",
+      "reviewRef": "manual-analyst-review-01",
+      "evidenceRef": "boundary-evidence-01"
+    }
+  ]
+}

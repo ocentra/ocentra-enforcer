@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b02-invalid",
+  "owner": "security-engineering",
+  "scope": "supplied-fixture",
+  "evidence": [
+    { "kind": "fixture", "reference": "ai-security-b02/fail" }
+  ],
+  "records": [
+    {
+      "kind": "model-integrity-evidence",
+      "skillId": "detecting-data-and-model-poisoning",
+      "subjectId": "model-integrity-01",
+      "modelId": "model-01",
+      "source": "supplied-model-manifest",
+      "classification": "integrity-review-required",
+      "provenanceRef": "provenance-01",
+      "evidenceRef": "evidence-01"
+    }
+  ]
+}

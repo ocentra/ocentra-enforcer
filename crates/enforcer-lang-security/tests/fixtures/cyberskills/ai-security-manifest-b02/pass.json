@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b02",
+  "owner": "security-engineering",
+  "scope": "supplied-fixture",
+  "evidence": [
+    { "kind": "fixture", "reference": "ai-security-b02/pass" }
+  ],
+  "records": [
+    {
+      "kind": "model-integrity-evidence",
+      "skillId": "detecting-data-and-model-poisoning",
+      "subjectId": "model-integrity-01",
+      "modelId": "model-01",
+      "source": "supplied-model-manifest",
+      "classification": "integrity-review-required",
+      "provenanceRef": "provenance-01",
+      "integrityRef": "sha256-and-safe-format-01",
+      "evidenceRef": "evidence-01"
+    },
+    {
+      "kind": "indirect-content-observation",
+      "skillId": "detecting-indirect-prompt-injection",
+      "subjectId": "retrieved-content-01",
+      "source": "supplied-content-envelope",
+      "trustBoundary": "external-content-to-agent",
+      "classification": "requires-sanitization-review",
+      "sanitizationRef": "normalization-profile-01",
+      "responseRef": "response-01",
+      "evidenceRef": "evidence-02"
+    },
+    {
+      "kind": "inference-audit-event",
+      "skillId": "detecting-model-extraction-attacks",
+      "subjectId": "inference-principal-01",
+      "modelId": "model-01",
+      "queryId": "query-01",
+      "source": "supplied-inference-audit",
+      "classification": "extraction-signal-review",
+      "action": "rate-and-output-review",
+      "telemetryRef": "telemetry-01",
+      "evidenceRef": "evidence-03"
+    },
+    {
+      "kind": "guardrail-evaluation",
+      "skillId": "implementing-llm-guardrails-for-security",
+      "subjectId": "guardrail-policy-01",
+      "policyId": "policy-01",
+      "inputClass": "untrusted-prompt",
+      "outputClass": "generated-response",
+      "action": "record-and-review",
+      "escalation": "manual-review",
+      "auditRef": "audit-01"
+    },
+    {
+      "kind": "authorized-ai-evaluation-plan",
+      "skillId": "orchestrating-llm-attacks-with-pyrit",
+      "subjectId": "authorized-evaluation-01",
+      "scenarioId": "offline-safety-plan-01",
+      "authorizationRef": "written-authorization-01",
+      "scopeRef": "owned-fixture-only",
+      "stopCondition": "stop-before-live-model-or-tool-call",
+      "reviewRef": "human-review-01",
+      "evidenceRef": "evidence-04"
+    }
+  ]
+}
