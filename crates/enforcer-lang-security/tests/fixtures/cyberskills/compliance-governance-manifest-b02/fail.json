@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "b02-fail",
+  "owner": "owner:security-assurance",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [{"kind": "authorization", "reference": "evidence:written-scope"}],
+  "records": [
+    {
+      "kind": "vendor-risk",
+      "skillId": "managing-third-party-vendor-risk",
+      "refs": ["source:vendor-risk"],
+      "vendorProfiles": [
+        {"vendorId": "vendor-bad", "dataSensitivity": "regulated", "access": "system", "criticality": "high", "regulatedScope": true, "integration": "deep", "concentration": false, "riskScore": 1, "tier": "Low", "evidence": []}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "b02-boundary",
+  "owner": "owner:security-assurance",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    {"kind": "authorization", "reference": "evidence:written-scope"},
+    {"kind": "source", "reference": "artifact:offline-b02"}
+  ],
+  "records": [
+    {
+      "kind": "iso-27001",
+      "skillId": "implementing-iso-27001-information-security-management",
+      "refs": ["source:iso-27001"],
+      "controls": [{"id": "A.5.1", "family": "organizational", "status": "implemented", "requirement": "required", "evidenceReference": "evidence:iso-control", "justification": null}],
+      "documents": [{"id": "isms-scope", "title": "ISMS Scope", "status": "present", "lastReviewed": null}],
+      "risks": [{"id": "risk-iso-001", "level": "moderate", "treatment": "mitigate", "owner": "owner:risk"}]
+    },
+    {
+      "kind": "pci-dss",
+      "skillId": "implementing-pci-dss-compliance-controls",
+      "refs": ["source:pci-dss"],
+      "controls": [{"id": "4.2.1", "family": "cryptography", "status": "implemented", "requirement": "required", "evidenceReference": "evidence:tls-policy", "justification": null}],
+      "evidenceItems": [{"id": "pci-evidence-001", "controlId": "4.2.1", "status": "collected", "periodStart": "2026-01-01", "periodEnd": "2026-01-31", "reference": "evidence:tls-policy"}]
+    },
+    {
+      "kind": "vendor-risk",
+      "skillId": "managing-third-party-vendor-risk",
+      "refs": ["source:vendor-risk"],
+      "vendorProfiles": [{"vendorId": "vendor-boundary", "dataSensitivity": "regulated", "access": "system", "criticality": "high", "regulatedScope": true, "integration": "deep", "concentration": false, "riskScore": 16, "tier": "Critical", "evidence": ["evidence:sig-core"]}]
+    },
+    {
+      "kind": "nist-csf",
+      "skillId": "performing-nist-csf-maturity-assessment",
+      "refs": ["source:nist-csf"],
+      "maturityItems": [{"category": "ID.GV", "score": 2, "target": 3, "evidenceReference": null}]
+    },
+    {
+      "kind": "soc2-type2",
+      "skillId": "performing-soc2-type2-audit-preparation",
+      "refs": ["source:soc2"],
+      "controls": [{"id": "CC6.1", "family": "access", "status": "implemented", "requirement": "required", "evidenceReference": "evidence:mfa-review", "justification": null}],
+      "evidenceItems": [{"id": "soc2-evidence-001", "controlId": "CC6.1", "status": "collected", "periodStart": "2025-01-01", "periodEnd": "2025-12-31", "reference": "evidence:mfa-review"}],
+      "readiness": [{"id": "readiness-control-matrix", "area": "controls", "status": true, "owner": "owner:control"}]
+    }
+  ]
+}

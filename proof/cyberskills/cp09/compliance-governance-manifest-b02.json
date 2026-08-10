@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-compliance-governance-B02",
+  "workpack": "WP/CP09/IF-compliance-governance/B02",
+  "baseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": { "implementation": false, "proof": false, "overallParity": false },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput, RuleId, Severity, and Finding boundary",
+    "enforcer-plan CP05 typed predicate/evidence packet factory",
+    "CP00/CP08 provenance and four-way disposition evidence",
+    "shared offline control, evidence, reference, and static-scope predicates"
+  ],
+  "externalBlocked": [
+    "ISO certification bodies, auditors, GRC systems, management systems, control owners, and live ISMS authorities",
+    "PCI payment systems, QSA/ASV assessors, card brands, processors, scanners, and live cardholder-data environments",
+    "vendor portals, attestations, questionnaires, procurement systems, legal systems, and production third-party authorities",
+    "NIST CSF assessors, GRC, CMDB, business owners, regulators, ticketing, and live organizational evidence",
+    "SOC 2 CPA firms, AWS/Azure/GCP, Okta, GitHub, Jira, cloud APIs, identity systems, HR systems, and audit authorities"
+  ],
+  "advisoryManual": [
+    "defensive framework mapping, control design, evidence hygiene, risk treatment, maturity, audit preparation, and remediation guidance remains advisory",
+    "written authorization, organizational and vendor ownership, legal/privacy/regulatory scope, data handling, assessor or auditor review, analyst validation, risk acceptance, exception, remediation, recovery, and disclosure decisions remain manual"
+  ],
+  "proves": [
+    "the five graph-selected compliance-governance B02 intents have deterministic predicates over supplied typed offline manifests",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary",
+    "the static predicates reproduce the vendored deterministic boundaries for ISO control/document/risk completeness, PCI control/evidence relationships, vendor-risk tier scoring, NIST CSF maturity gaps, and SOC 2 control/evidence/readiness manifests",
+    "the B02 fixture set covers positive, negative, malformed, written-authorization, and JSON round-trip behavior without live I/O"
+  ],
+  "doesNotProve": [
+    "live compliance, certification, audit opinion, authorization, risk truth, regulatory interpretation, vendor assurance, maturity conclusion, or production control effectiveness",
+    "live assets, payment systems, cardholder data, vendor claims, cloud accounts, identity, endpoints, evidence validity, remediation success, audit delivery, risk acceptance, or security outcomes",
+    "external framework authority results, legal advice, assessor/auditor decisions, executable proof, or overall CyberSkills parity"
+  ],
+  "skills": [
+    {
+      "catalogId": "implementing-iso-27001-information-security-management",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-iso-27001-information-security-management/SKILL.md", "sha256": "7bc15b6db6b0940bd609d825836436ce521b5722f1fa15307c8a9845a5e2a38d", "anchors": ["# Implementing ISO 27001 Information Security Management:L29"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied ISMS scope, Annex A control status, evidence, required documentation, risk treatment, owner, review, and Statement of Applicability manifests without auditors, certification bodies, GRC, or live ISMS authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-pci-dss-compliance-controls",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pci-dss-compliance-controls/SKILL.md", "sha256": "d80071cc15d5a603bb98a3d53b714259ad62389a78bb6687d168e133929851cf", "anchors": ["# Implementing PCI DSS Compliance Controls:L28"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied PCI requirement, encryption, access, logging, segmentation, testing, owner, status, exception, and evidence manifests without payment systems, assessors, scanners, or live cardholder-data authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "managing-third-party-vendor-risk",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/managing-third-party-vendor-risk/SKILL.md", "sha256": "6a0cd12c697e162c9b85128710058cdc2310e13cf387c947ea196af07bcdc0ba", "anchors": ["# Managing Third-Party Vendor Risk:L47"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed vendor profile factors, deterministic inherent-risk score, tier, evidence references, owner, scope, and exception fields without vendor portals, attestations, procurement, legal, or production supplier authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-nist-csf-maturity-assessment",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-nist-csf-maturity-assessment/SKILL.md", "sha256": "04fbd28f19716816f02ce52ab1f8ac067dc029f2821eab73e1407e347372fc23", "anchors": ["# Performing NIST CSF Maturity Assessment:L31"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied NIST CSF function/category, current score, target score, gap, owner, provenance, and evidence fields without assessors, GRC, CMDB, business owners, regulators, or live organizational posture.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-soc2-type2-audit-preparation",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-soc2-type2-audit-preparation/SKILL.md", "sha256": "8d94fe1449f575b41c7d0ffe8784555a897640a0b1203179d748209a9526fa64", "anchors": ["# Performing SOC 2 Type II Audit Preparation:L37"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate typed supplied Trust Services Criteria control, period, owner, evidence, test, exception, readiness, provenance, and approval fields without cloud, identity, ticketing, HR, CPA, or audit authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/compliance_governance_b02.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/compliance_governance_b02_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_compliance_governance_manifest_b02.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records the four-kind disposition without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}
