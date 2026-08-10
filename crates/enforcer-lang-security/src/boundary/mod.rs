@@ -11,6 +11,7 @@ pub(crate) mod cloud_security_b04_manifest_wire;
 pub(crate) mod cloud_security_b05_manifest_wire;
 pub(crate) mod cloud_security_b06_manifest_wire;
 pub(crate) mod cloud_security_b07_manifest_wire;
+pub(crate) mod cloud_security_b08_manifest_wire;
 pub(crate) mod cloud_security_manifest_wire;
 pub(crate) mod dependency_manifest;
 pub(crate) mod dockerfile;

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-security-b08-boundary",
+  "owner": "owner:cyber-security-team",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "owner", "reference": "owner:human-review" }
+  ],
+  "records": [
+    {
+      "kind": "cloud-dlp-data-protection",
+      "skillId": "implementing-cloud-dlp-for-data-protection",
+      "tenantRef": "tenant:offline",
+      "accountRef": "account:offline",
+      "resourceRef": "resource:manifest",
+      "dataBoundaryRef": "boundary:declared",
+      "classificationRef": "classification:declared",
+      "policyRef": "policy:declared",
+      "retentionRef": "retention:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "cloud-security-posture-management",
+      "skillId": "implementing-cloud-security-posture-management",
+      "accountRef": "account:offline",
+      "scopeRef": "scope:declared",
+      "assetRef": "asset:declared",
+      "postureRef": "posture:declared",
+      "controlRef": "control:declared",
+      "findingRef": "finding:declared",
+      "severityRef": "severity:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "cloudtrail-log-analysis",
+      "skillId": "implementing-cloud-trail-log-analysis",
+      "accountRef": "account:offline",
+      "regionRef": "region:declared",
+      "trailRef": "trail:declared",
+      "logRef": "log:declared",
+      "eventRef": "event:declared",
+      "queryRef": "query:declared",
+      "timeRangeRef": "time:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "cloud-waf-rules",
+      "skillId": "implementing-cloud-waf-rules",
+      "accountRef": "account:offline",
+      "gatewayRef": "gateway:declared",
+      "webAclRef": "webacl:declared",
+      "ruleRef": "rule:declared",
+      "matchRef": "match:declared",
+      "actionRef": "action:declared",
+      "scopeRef": "scope:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    },
+    {
+      "kind": "cloud-workload-protection",
+      "skillId": "implementing-cloud-workload-protection",
+      "accountRef": "account:offline",
+      "workloadRef": "workload:declared",
+      "imageRef": "image:declared",
+      "runtimeRef": "runtime:declared",
+      "policyRef": "policy:declared",
+      "findingRef": "finding:declared",
+      "severityRef": "severity:declared",
+      "ownerRef": "owner:human",
+      "evidenceRef": "evidence:supplied"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-security-b08-fail",
+  "owner": "owner:cyber-security-team",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "cloud-dlp-data-protection",
+      "skillId": "implementing-cloud-dlp-for-data-protection",
+      "tenantRef": "tenant:acme",
+      "accountRef": "account:prod",
+      "resourceRef": "resource:dataset-catalog",
+      "classificationRef": "classification:confidential",
+      "policyRef": "policy:dlp-baseline",
+      "retentionRef": "retention:seven-years",
+      "ownerRef": "owner:data-governance",
+      "evidenceRef": "evidence:dlp-manifest"
+    },
+    {
+      "kind": "cloud-security-posture-management",
+      "skillId": "implementing-cloud-security-posture-management",
+      "accountRef": "account:prod",
+      "scopeRef": "scope:cloud-inventory",
+      "assetRef": "asset:account-resources",
+      "postureRef": "posture:baseline-v1",
+      "controlRef": "control:cis-cloud",
+      "findingRef": "finding:posture-record-1",
+      "severityRef": "severity:medium",
+      "ownerRef": "owner:cloud-security",
+      "evidenceRef": "evidence:cspm-manifest"
+    },
+    {
+      "kind": "cloudtrail-log-analysis",
+      "skillId": "implementing-cloud-trail-log-analysis",
+      "accountRef": "account:prod",
+      "regionRef": "region:ca-central-1",
+      "trailRef": "trail:organization-audit",
+      "logRef": "log:object-store",
+      "eventRef": "event:management-api",
+      "queryRef": "query:offline-review",
+      "timeRangeRef": "time:2026-08-10",
+      "ownerRef": "owner:soc",
+      "evidenceRef": "evidence:cloudtrail-manifest"
+    },
+    {
+      "kind": "cloud-waf-rules",
+      "skillId": "implementing-cloud-waf-rules",
+      "accountRef": "account:prod",
+      "gatewayRef": "gateway:public-api",
+      "webAclRef": "webacl:baseline",
+      "ruleRef": "rule:managed-baseline",
+      "matchRef": "match:request-signals",
+      "actionRef": "action:record-and-review",
+      "scopeRef": "scope:api-boundary",
+      "ownerRef": "owner:application-security",
+      "evidenceRef": "evidence:waf-manifest"
+    },
+    {
+      "kind": "cloud-workload-protection",
+      "skillId": "implementing-cloud-workload-protection",
+      "accountRef": "account:prod",
+      "workloadRef": "workload:service-a",
+      "imageRef": "image:service-a-v1",
+      "runtimeRef": "runtime:container",
+      "policyRef": "policy:workload-baseline",
+      "findingRef": "finding:workload-record-1",
+      "severityRef": "severity:low",
+      "ownerRef": "owner:platform-security",
+      "evidenceRef": "evidence:workload-manifest"
+    }
+  ]
+}

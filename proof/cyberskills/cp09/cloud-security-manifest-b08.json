@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-cloud-security/B08",
+  "workpack": "CP09",
+  "baseCommit": "92853290fdd1dd61a783c76397bda5ec1cbbef95",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "cloud-control-and-telemetry-manifest",
+    "ruleId": "CYBER-CLOUD-MANIFEST.8",
+    "predicate": "Validate supplied typed DLP, posture, CloudTrail, WAF, and workload references without contacting providers, accounts, endpoints, runtimes, or production infrastructure.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded offline cloud control and telemetry record-shape predicates; the packet does not prove live classification, posture, log truth, WAF enforcement, workload protection, or security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this capability's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing serde/serde_json dependency and private typed wire-boundary pattern",
+    "the existing B01-B07 cloud manifest predicate structure and CP00/CP08 evidence harness"
+  ],
+  "externalBlocked": [
+    "AWS Macie, CSPM platforms, CloudTrail, WAF services, workload-protection agents, AWS, Azure, cloud APIs, accounts, tenants, credentials, logs, scanners, runtimes, networks, and production authorities",
+    "live classification, posture evaluation, log collection, WAF enforcement, workload telemetry, provider consoles, findings, policy change, and remediation execution",
+    "live data access, credential use, endpoint access, detection truth, provider ownership, attribution, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive data-governance, posture-management, audit-log, WAF, and workload-protection guidance",
+    "written authorization and exact account, tenant, resource, data, provider, legal, privacy, safety, and scope boundaries",
+    "analyst validation, uncertainty, severity, exception approval, stop conditions, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust B08 cloud-security validator deterministically accepts five supplied offline record shapes and rejects unknown or malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet preserves the complete CP08 four-component disposition for all five selected source skills without promoting it to native parity or live proof.",
+    "The packet validates only supplied static JSON and retains blocked external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No provider, account, tenant, credential, endpoint, scanner, runtime, network, log collection, WAF, workload agent, or production authority.",
+    "No data classification, posture truth, CloudTrail timeline truth, WAF enforcement, workload detection, remediation effectiveness, attribution, or security outcome.",
+    "No complete native implementation of the five full vendor skill intents; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ],
+  "skills": [
+    {
+      "catalogId": "implementing-cloud-dlp-for-data-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-dlp-for-data-protection/SKILL.md",
+        "sha256": "5de9f41001266e13e2440e356617d1cc0b776d657f1b55dc9ccf52a520bf4b12",
+        "anchors": ["# Implementing Cloud DLP for Data Protection:L42"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed tenant, account, resource, data-boundary, classification, policy, retention, owner, and evidence manifests without cloud data access or classification authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-cloud-security-posture-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-security-posture-management/SKILL.md",
+        "sha256": "4959a58f74b1a02a7ef763573be9177658f78dca3b9fe510297cf8b150f55ddd",
+        "anchors": ["# Implementing Cloud Security Posture Management:L33"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, scope, asset, posture, control, finding, severity, owner, and evidence manifests without CSPM, cloud, scanner, or finding authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-cloud-trail-log-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-trail-log-analysis/SKILL.md",
+        "sha256": "43543d05b74ee1ff17a540da09067209716c3579c65cbc2fbdf993b73f6e1609",
+        "anchors": ["# Implementing CloudTrail Log Analysis:L34"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, region, trail, log, event, query, time-range, owner, and evidence manifests without CloudTrail, log collection, query execution, or timeline authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-cloud-waf-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-waf-rules/SKILL.md",
+        "sha256": "9fd17ac88c2097d6ee8a2a5981f6fe1a1bb586d8a4cc14fd7605491611196e0a",
+        "anchors": ["# Implementing Cloud WAF Rules:L35"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, gateway, WebACL, rule, match, action, scope, owner, and evidence manifests without WAF, endpoint, request, payload, or enforcement authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "implementing-cloud-workload-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-workload-protection/SKILL.md",
+        "sha256": "2e38f1d70a3aba4ed7cf9e3820d7927fedb58760507492dbaa4f852afd32f107",
+        "anchors": ["# Implementing Cloud Workload Protection:L34"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, workload, image, runtime, policy, finding, severity, owner, and evidence manifests without workload agents, runtime telemetry, endpoint, scanner, or remediation authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b08.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b08_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b08.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b08/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b08/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b08/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b08/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records complete four-kind source dispositions without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}

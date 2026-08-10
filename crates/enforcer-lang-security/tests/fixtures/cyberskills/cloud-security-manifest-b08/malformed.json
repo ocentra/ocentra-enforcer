@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-security-b08-malformed",
+  "owner": "owner:cyber-security-team",
+  "scope": "scope:offline-authorized-static-only",
+  "unexpected": true,
+  "evidence": [],
+  "records": []
+}
