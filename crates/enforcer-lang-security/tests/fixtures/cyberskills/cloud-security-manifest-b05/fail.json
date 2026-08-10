@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b05-fail",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-evidence",
+  "evidence": [{"kind": "manifest", "reference": "bundle:cloud-b05-fail"}],
+  "records": [
+    {"kind": "unknown-cloud-event", "skillId": "detecting-oauth-token-theft"}
+  ]
+}

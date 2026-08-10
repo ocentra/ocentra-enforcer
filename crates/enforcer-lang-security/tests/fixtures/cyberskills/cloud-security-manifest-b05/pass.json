@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b05-pass",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-evidence",
+  "evidence": [
+    {"kind": "authorization", "reference": "written-authorization:review-only"},
+    {"kind": "manifest", "reference": "bundle:cloud-b05-pass"},
+    {"kind": "analyst", "reference": "analyst:reviewer"},
+    {"kind": "provenance", "reference": "provenance:fixture-b05-pass"}
+  ],
+  "records": [
+    {"kind": "azure-storage-misconfiguration", "skillId": "detecting-misconfigured-azure-storage", "tenantRef": "tenant:example", "storageAccountRef": "storage:example", "accessRef": "access:review", "networkRef": "network:declared", "encryptionRef": "encryption:declared", "loggingRef": "logging:declared", "policyRef": "policy:storage", "ownerRef": "owner:storage", "evidenceRef": "evidence:storage"},
+    {"kind": "oauth-token-anomaly", "skillId": "detecting-oauth-token-theft", "issuerRef": "issuer:example", "audienceRef": "audience:declared", "clientRef": "client:review", "sourceRef": "source:event-fixture", "eventRef": "event:oauth", "replayRef": "replay:review", "expiryRef": "expiry:review", "ownerRef": "owner:identity", "evidenceRef": "evidence:oauth"},
+    {"kind": "s3-exfiltration-event", "skillId": "detecting-s3-data-exfiltration-attempts", "accountRef": "account:example", "bucketRef": "bucket:declared", "principalRef": "principal:review", "sourceRef": "source:cloudtrail-fixture", "volumeRef": "volume:threshold", "crossAccountRef": "cross-account:review", "regionRef": "region:declared", "eventRef": "event:s3", "evidenceRef": "evidence:s3"},
+    {"kind": "serverless-function-injection", "skillId": "detecting-serverless-function-injection", "functionRef": "function:declared", "dependencyRef": "dependency:review", "inputRef": "input:fixture", "routeRef": "route:declared", "identityRef": "identity:review", "configurationRef": "configuration:function", "logRef": "log:fixture", "scopeRef": "scope:function", "evidenceRef": "evidence:serverless"},
+    {"kind": "shadow-it-cloud-usage", "skillId": "detecting-shadow-it-cloud-usage", "tenantRef": "tenant:example", "serviceRef": "service:declared", "accountRef": "account:review", "ownerRef": "owner:service", "dataBoundaryRef": "data-boundary:declared", "policyRef": "policy:cloud-usage", "usageRef": "usage:fixture", "findingRef": "finding:review", "evidenceRef": "evidence:shadow-it"}
+  ]
+}
