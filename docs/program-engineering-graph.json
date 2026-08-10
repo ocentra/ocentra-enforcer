@@ -51,6 +51,15 @@
       "authority": "Enforcer self-host plan and its workpack proof rows"
     }
   ],
+  "intentMatrices": [
+    {
+      "programId": "PROGRAM/cyberskills",
+      "planKey": "cyberskills-parity-plan",
+      "path": "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
+      "lifecycleSource": "docs/engineering-graph.json",
+      "containerWorkpacks": ["CP09", "CP11", "CP12"]
+    }
+  ],
   "crossEdges": [
     {
       "from": "WP/cyberskills-parity-plan/CP08",

@@ -18,8 +18,12 @@ workpack indexes, proof artifacts, AGENTS rules, or frozen authorities.
 imports every directory under `docs/plans`, parses each existing
 `WORKPACK_INDEX.md`, and reports plans without an index instead of inventing
 workpacks. CyberSkills is a first-class program node and its manager-owned
-subgraph is referenced as subordinate input at `docs/engineering-graph.json`;
-this control plane does not reimplement Cyber's graph. The Universal
+subgraph is referenced as subordinate input at `docs/engineering-graph.json`.
+For CyberSkills, the control plane also derives a read-only packet projection
+from the canonical `CYBERSKILLS_INTENT_MATRIX.json`; it does not copy vendor
+content, CP08 component objects, or implementation status into the graph. The
+subgraph remains the lifecycle-evidence source for already recorded packets.
+The Universal
 Language and Rust/MJS programs are represented alongside it, as is the
 Enforcer self-host plan.
 
@@ -55,13 +59,21 @@ exact dependency or missing-path reason. `validate` rejects duplicate or
 missing IDs, unsafe/missing paths, cycles, invalid lifecycle values, and DONE
 nodes whose required paths are absent.
 
+`next --plan cyberskills-parity-plan` includes a `selected` packet. For the
+current matrix it selects the lexicographically first dependency-legal native
+packet, `WP/CP09/IF-ai-security/B01`, containing at most the family batch limit
+of skills. Each derived packet records its family, skill IDs, route, owned
+component kind, dependencies, lifecycle evidence source, and explicit
+non-proofs. Native packets are static/supplied-input work only; external
+engines remain blocked and advisory/manual obligations remain retained.
+
 The imported graph is evidence-oriented rather than a duplicate of every
 Markdown sentence. Stable workpack IDs, declared dependencies, the plan's
 existing README/state/instruction/index/checklist/proof artifacts, and explicit
 boss evidence are linked; ambiguous prose remains in its source document
 instead of becoming a fabricated hard edge.
 
-The v1 CLI does not mutate graph state. That is deliberate: no agent can make
+The CLI does not mutate graph state. That is deliberate: no agent can make
 progress look complete by editing a status field. Acquisition, execution,
 proof, and completion transitions remain governed by coordination, the
 workpack, tests, and the boss acceptance gate.
