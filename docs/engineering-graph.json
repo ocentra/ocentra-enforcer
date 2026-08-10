@@ -48,6 +48,7 @@
       "EXT/UL09": "done",
       "EXT/UL10": "done",
       "EXT/UL13": "done",
+      "WP/CP02": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -233,6 +234,81 @@
           "native implementation or executable proof",
           "overall CyberSkills parity",
           "live external-system or security outcomes"
+        ]
+      },
+      "TEST/CP02/shared-syntax-adoption": {
+        "run_id": "cp02-shared-syntax-adoption-20260810",
+        "command": "cargo test --locked -p enforcer-scan --test cyberskills_syntax_adoption -- --nocapture; cargo check --locked -p enforcer-scan; cargo test --locked -p enforcer-lang-security --lib; cargo test --locked -p enforcer-lang-security --test cyberskills_corpus -- --nocapture; cargo test --locked -p enforcer-scan --lib; cargo fmt -p enforcer-scan -- --check; git diff --check; scoped Enforcer route/strict/source-shape/secrets/dependency-policy",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "6cac003e85b311561228bc2dcee8cc0579bcf273",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs",
+          "proof/cyberskills/cp02/shared-syntax-adoption.json"
+        ],
+        "proves": [
+          "CP02 consumes the accepted UL03 enforcer-syntax interface through the existing enforcer-scan consumer seam",
+          "the security validator family remains assembled through the existing scan engine without a duplicate grammar/runtime owner",
+          "the bounded scan and security crate gates are green: adoption 2/2, security library 69/69, corpus 33/33, scan library 169/169",
+          "the protected fileless-malware vendor path remains absent and untouched"
+        ],
+        "does_not_prove": [
+          "new syntax facts or parse-honesty semantics; route those to EXT/UL04",
+          "native implementation of additional CyberSkills intents, executable proof, external-engine correctness, live execution, or security outcomes",
+          "broad enforcer-scan vendor dogfood while the protected source is unavailable",
+          "overall Universal Language or CyberSkills plan completion"
+        ]
+      },
+      "TEST/CP02/consumer-adoption-test": {
+        "run_id": "cp02-consumer-adoption-test-20260810",
+        "command": "cargo test --locked -p enforcer-scan --test cyberskills_syntax_adoption -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "6cac003e85b311561228bc2dcee8cc0579bcf273",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs",
+          "proof/cyberskills/cp02/shared-syntax-adoption.json"
+        ],
+        "proves": [
+          "the approved CyberSkills consumer adoption test passed 2/2"
+        ],
+        "does_not_prove": [
+          "new syntax facts, native implementation, executable proof, live execution, or security outcomes"
+        ]
+      },
+      "TEST/CP02/dependency-policy": {
+        "run_id": "cp02-dependency-policy-20260810",
+        "command": "cargo tree --locked -p enforcer-scan --depth 1; scoped Enforcer dependency-policy",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "6cac003e85b311561228bc2dcee8cc0579bcf273",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs",
+          "proof/cyberskills/cp02/shared-syntax-adoption.json"
+        ],
+        "proves": [
+          "the existing scan consumer owns the shared syntax seam without a second parser/runtime dependency"
+        ],
+        "does_not_prove": [
+          "new parser facts, native CyberSkills implementation, executable proof, or overall parity"
+        ]
+      },
+      "TEST/CP02/clippy-fmt": {
+        "run_id": "cp02-clippy-fmt-20260810",
+        "command": "cargo clippy --locked -p enforcer-scan --tests --no-deps -- -D warnings; cargo fmt -p enforcer-scan -- --check; git diff --check; cargo check --locked -p enforcer-scan; scoped Enforcer strict/source-shape/secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "6cac003e85b311561228bc2dcee8cc0579bcf273",
+        "source_paths": [
+          "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs",
+          "proof/cyberskills/cp02/shared-syntax-adoption.json"
+        ],
+        "proves": [
+          "the bounded CP02 Rust change passed check, formatting, diff, and scoped Enforcer gates"
+        ],
+        "does_not_prove": [
+          "native implementation, executable proof, live external-system behavior, or overall parity",
+          "dependency-inclusive workspace Clippy; the unrelated existing enforcer-lang-ts question-mark lint remains outside this packet"
         ]
       },
       "TEST/CP01/rule-registry-relevant-rule-tests": {
