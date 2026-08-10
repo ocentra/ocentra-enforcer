@@ -1041,6 +1041,7 @@ name = "enforcer-lang-security"
 version = "0.1.0"
 dependencies = [
  "enforcer-domain",
+ "enforcer-syntax",
  "enforcer-validator",
  "regex",
  "serde",
