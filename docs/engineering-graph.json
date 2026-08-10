@@ -61,6 +61,7 @@
       "WP/CP09/IF-ai-security/B02": "validation",
       "WP/CP09/IF-ai-security/B03": "validation",
       "WP/CP09/IF-api-security/B01": "validation",
+      "WP/CP09/IF-api-security/B02": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -279,6 +280,38 @@
           "live endpoint discovery, traffic, browser, cloud, identity/session, Burp/ZAP/RESTler/Postman/42Crunch, scanner, fuzzer, payload, credential, exploit, or authorization-bypass execution",
           "API enumeration, BOLA/BOPLA, shadow endpoint, injection, vulnerability, finding validity, attribution, remediation, safety, or security outcomes",
           "the auxiliary literal-risk check, which reported preserved fixture/provenance/path/hash literals as observed findings (16 errors and 154 warnings); no waiver or obfuscation was used",
+          "CP08 decomposition promotion into implementation, executable proof, overall parity, graph DONE closure, or completion of the remaining workpacks"
+        ]
+      },
+      "TEST/WP/CP09/IF-api-security/B02/gate": {
+        "run_id": "20260810041103-eacfef1f",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest_b02 -- --nocapture (Enforcer harness); cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules; exact-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "fc81e835adf2800c9cbf35b207ec4a04c7e7f863",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b02.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b02/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b02/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b02/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b02/boundary.json",
+          "proof/cyberskills/cp09/api-security-manifest-b02.json"
+        ],
+        "proves": [
+          "CP09 API-security B02 commit fc81e835a is pushed as a stack on B01 commit 0cba4c1b2, with canonical rust-build base 7d832c048 retained",
+          "the focused API-security B02 manifest suite passed 3/3 through Enforcer harness run 20260810041103-eacfef1f and the B01 regression suite passed 4/4",
+          "enforcer-lang-security check and full package tests passed, including the full enforcer-rules package, CP00 disposition suite, and CP08 evidence recomputation",
+          "the exact seven-file Enforcer route/strict scan, Rust source-shape check, and secrets check returned zero findings",
+          "the evidence artifact contains five unique API-security catalog rows, is 8,963 bytes with SHA-256 cdd013cbbf66c6be8584771f7fbfb13cb8f7dbea356f690d546aaa7755728620, and its five vendor hashes, first-H1 anchors, Apache-2.0 labels, and availability match the exact source tree",
+          "the packet extends the existing static API manifest validator with supplied-input-only predicates and retains blocked external, advisory, manual, and notProved boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the CP09 API-security B02 branch",
+          "full native implementation or executable proof of any five source skill intents",
+          "live endpoint discovery, request/response traffic, browser, gateway, cloud, Redis, database, key-store, Burp/Postman/jwt_tool, scanner, fuzzer, payload, credential, exploit, or authorization-bypass execution",
+          "excessive-data-exposure, JWT algorithm-confusion, rate-limit, gateway-control, API-key, vulnerability, finding validity, attribution, remediation, safety, or security outcomes",
+          "the auxiliary literal-risk check, which reported preserved fixture/path/hash literals as observed findings (5 errors and 144 warnings); no waiver or obfuscation was used",
           "CP08 decomposition promotion into implementation, executable proof, overall parity, graph DONE closure, or completion of the remaining workpacks"
         ]
       },
