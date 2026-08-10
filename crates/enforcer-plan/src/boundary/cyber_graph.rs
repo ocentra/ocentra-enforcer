@@ -1574,6 +1574,12 @@ impl CyberPlanGraph {
             node.metadata
                 .insert("proofRowState".to_owned(), row.state.clone());
         }
+        if contents.contains("<approved-predicate>") {
+            node.metadata.insert(
+                "entryApproval".to_owned(),
+                "requires a concrete approved predicate".to_owned(),
+            );
+        }
         self.add_node(node)?;
         self.add_edge(GraphEdge {
             from: self.manifest.plan.id.clone(),
@@ -1825,6 +1831,13 @@ impl CyberPlanGraph {
                 self.add_edge(GraphEdge {
                     from: packet_id.clone(),
                     to: NodeId::new(dependency.clone())?,
+                    kind: EdgeKind::DependsOn,
+                });
+            }
+            if route == "CP12" {
+                self.add_edge(GraphEdge {
+                    from: packet_id.clone(),
+                    to: NodeId::new("WP/CP12")?,
                     kind: EdgeKind::DependsOn,
                 });
             }
@@ -2337,7 +2350,12 @@ impl CyberPlanGraph {
                 if blocked {
                     DerivedState::Blocked
                 } else if node.kind == NodeKind::Workpack {
-                    DerivedState::Ready
+                    if let Some(entry_approval) = node.metadata.get("entryApproval") {
+                        reasons.push(format!("entry contract unresolved: {entry_approval}"));
+                        DerivedState::Blocked
+                    } else {
+                        DerivedState::Ready
+                    }
                 } else {
                     DerivedState::Planned
                 }

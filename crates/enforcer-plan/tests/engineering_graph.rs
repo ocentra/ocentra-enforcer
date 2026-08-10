@@ -1317,7 +1317,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 }
 
 #[test]
-fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
+fn next_blocks_an_unapproved_cp12_entry_contract_without_promoting_truth(
 ) -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
@@ -1333,8 +1333,11 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     let cp06 = graph.inspect(&NodeId::new("WP/CP06")?)?;
     let cp02 = graph.inspect(&NodeId::new("WP/CP02")?)?;
     let cp03 = graph.inspect(&NodeId::new("WP/CP03")?)?;
+    let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
+    let cp12_packet = graph.inspect(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)?;
 
-    assert_eq!(next["decision"], "selected");
+    assert_eq!(next["decision"], "blocked");
+    assert!(next["selected"].is_null());
     assert_eq!(ul03.state, DerivedState::Done);
     assert_eq!(ul04.state, DerivedState::Done);
     assert_eq!(ul05.state, DerivedState::Done);
@@ -1347,7 +1350,16 @@ fn next_selects_the_first_dependency_legal_packet_without_promoting_truth(
     assert_eq!(cp06.state, DerivedState::Done);
     assert_eq!(cp02.state, DerivedState::Done);
     assert_eq!(cp03.state, DerivedState::Done);
-    assert_eq!(next["selected"]["id"], "WP/CP12");
+    assert_eq!(cp12.state, DerivedState::Blocked);
+    assert!(cp12
+        .reasons
+        .iter()
+        .any(|reason| reason.contains("concrete approved predicate")));
+    assert_eq!(cp12_packet.state, DerivedState::Blocked);
+    assert!(cp12_packet
+        .reasons
+        .iter()
+        .any(|reason| reason.contains("WP/CP12")));
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
