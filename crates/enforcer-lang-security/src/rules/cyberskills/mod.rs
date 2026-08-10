@@ -13,6 +13,7 @@
 //! they are deferred to the optional `h12` adapter pack. No CLI subprocess
 //! is introduced anywhere in this module.
 
+pub mod ai_security_manifest;
 pub mod auth_jwt;
 pub mod cloud_aws;
 pub mod cloud_azure;

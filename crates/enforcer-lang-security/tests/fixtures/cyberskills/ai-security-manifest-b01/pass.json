@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b01",
+  "owner": "security-engineering",
+  "scope": "supplied-fixture",
+  "evidence": [
+    { "kind": "fixture", "reference": "ai-security-b01/pass" }
+  ],
+  "records": [
+    {
+      "kind": "vector-evaluation",
+      "skillId": "assessing-vector-and-embedding-weaknesses",
+      "subjectId": "vector-evaluation-01",
+      "modelId": "embedding-model-01",
+      "embeddingDimension": 1536,
+      "indexId": "tenant-index-01",
+      "queryId": "query-01",
+      "documentId": "document-01",
+      "tenantId": "tenant-a",
+      "policyId": "deny-cross-tenant"
+    },
+    {
+      "kind": "mcp-tool-definition",
+      "skillId": "auditing-mcp-servers-for-tool-poisoning",
+      "subjectId": "mcp-definition-01",
+      "serverId": "server-01",
+      "toolName": "read_record",
+      "schemaRef": "schema-01",
+      "promptRef": "prompt-01",
+      "instructionRef": "instruction-01",
+      "permissionSet": "read-only",
+      "transport": "recorded-fixture"
+    },
+    {
+      "kind": "red-team-scenario",
+      "skillId": "continuous-llm-red-teaming-with-promptfoo",
+      "subjectId": "scenario-01",
+      "scenarioId": "promptfoo-scenario-01",
+      "promptId": "prompt-01",
+      "expectedOutcome": "manual-review-required",
+      "evidenceRef": "evidence-01"
+    },
+    {
+      "kind": "guardrail-policy",
+      "skillId": "defending-llms-with-guardrails",
+      "subjectId": "guardrail-01",
+      "policyId": "guardrail-policy-01",
+      "inputClass": "untrusted-prompt",
+      "action": "record-and-review",
+      "escalation": "manual-review",
+      "auditRef": "audit-01"
+    },
+    {
+      "kind": "prompt-event",
+      "skillId": "detecting-ai-model-prompt-injection-attacks",
+      "subjectId": "prompt-event-01",
+      "source": "supplied-test-input",
+      "trustBoundary": "external-to-agent",
+      "classification": "requires-review",
+      "responseRef": "response-01"
+    }
+  ]
+}

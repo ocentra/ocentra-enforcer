@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "x",
+  "owner": "x",
+  "scope": "x",
+  "evidence": [{ "kind": "x", "reference": "x" }],
+  "records": [
+    {
+      "kind": "vector-evaluation",
+      "skillId": "assessing-vector-and-embedding-weaknesses",
+      "subjectId": "x",
+      "modelId": "x",
+      "embeddingDimension": 1,
+      "indexId": "x",
+      "queryId": "x",
+      "documentId": "x",
+      "tenantId": "x",
+      "policyId": "x"
+    }
+  ]
+}

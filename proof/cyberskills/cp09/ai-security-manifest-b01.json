@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-ai-security/B01",
+  "workpack": "CP09",
+  "baseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "ai-security-manifest",
+    "ruleId": "CYBER-AI-MANIFEST.1",
+    "predicate": "Validate a supplied typed JSON manifest's schema, ownership, scope, evidence, and one of five selected AI-security record shapes.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "the narrowed manifest-completeness predicate only; not the full intent of any selected skill"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "assessing-vector-and-embedding-weaknesses",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/assessing-vector-and-embedding-weaknesses/SKILL.md",
+        "sha256": "6f6ec3f2c6210c68b469e414ff69d412b234d1a7b8739473aac7aebf8a8d7d58",
+        "anchor": { "line": 23, "text": "# Assessing Vector and Embedding Weaknesses" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed model, embedding dimension, index, query, document, tenant, policy, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "auditing-mcp-servers-for-tool-poisoning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-mcp-servers-for-tool-poisoning/SKILL.md",
+        "sha256": "efcf2f5d77647dd44db2f9b181d5447107d5ee7cb94bfbedc5d04bb70596b579",
+        "anchor": { "line": 23, "text": "# Auditing MCP Servers for Tool Poisoning" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed MCP server, tool, schema, prompt, instruction, permission, transport, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "continuous-llm-red-teaming-with-promptfoo",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/continuous-llm-red-teaming-with-promptfoo/SKILL.md",
+        "sha256": "b342d31300cb040767e942d759b490026fdc6cbde2ac78258bd76b4c36aca4a4",
+        "anchor": { "line": 23, "text": "# Continuous LLM Red Teaming with Promptfoo" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed red-team scenario, prompt identifier, declared expected outcome, and evidence reference fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "defending-llms-with-guardrails",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/defending-llms-with-guardrails/SKILL.md",
+        "sha256": "b602611857e4fe41b0e447c82c6394c29ab111b85584ace24277e9bcea61e914",
+        "anchor": { "line": 23, "text": "# Defending LLMs with Guardrails" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed guardrail policy, input class, action, escalation, audit, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "detecting-ai-model-prompt-injection-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ai-model-prompt-injection-attacks/SKILL.md",
+        "sha256": "404dc1296acaeecd9f89f79bafe6d99425894030b60ceec542d56cf948350970",
+        "anchor": { "line": 56, "text": "# Detecting AI Model Prompt Injection Attacks" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed prompt source, trust boundary, classification, response reference, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/ai_security_manifest.rs",
+    "registry": "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+    "test": "crates/enforcer-lang-security/tests/cyberskills_ai_security_manifest.rs",
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b01/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b01/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b01/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b01/boundary.json", "class": "boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition is retained evidence only and does not promote implementation or executable proof"
+  },
+  "reuse": [
+    "enforcer-validator::Validator and ValidationInput",
+    "enforcer-domain::Finding and built-in RuleId",
+    "serde JSON deserialization already used by the security rule crate",
+    "CYBER-MCP-POISON.1 remains the separate static text heuristic for MCP tool-description content"
+  ],
+  "externalBlocked": [
+    "Promptfoo, Garak, PyRIT, Guardrails runtimes, model providers, MCP servers, network endpoints, and production agent sessions"
+  ],
+  "advisoryManual": [
+    "written authorization and scope",
+    "privacy, safety, data handling, and analyst review",
+    "severity, escalation, containment, remediation, and disclosure decisions"
+  ],
+  "proves": [
+    "The Rust registry exposes one reusable CYBER-AI-MANIFEST.1 validator.",
+    "The validator deterministically accepts the typed positive and minimum-boundary manifests and rejects the negative and malformed manifests.",
+    "The five selected catalog identities, source hashes, heading anchors, Apache-2.0 labels, and narrowed native predicate mapping are recorded.",
+    "The packet preserves blocked external engines and advisory/manual requirements."
+  ],
+  "doesNotProve": [
+    "No live model, endpoint, MCP server, browser, cloud service, or external engine execution.",
+    "No exploit delivery, prompt execution, credential capture, model extraction, tool-poisoning outcome, detection efficacy, attribution, remediation success, or safety outcome.",
+    "No complete native implementation or executable proof of any full vendor skill intent.",
+    "No promotion of CP08 decomposition into implementation, proof, overall parity, or program completion."
+  ]
+}

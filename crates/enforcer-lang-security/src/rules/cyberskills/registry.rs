@@ -10,6 +10,7 @@ use enforcer_domain::boundary::decode_error::DecodeError;
 
 type RegistryRow = crate::rules::registry::RegistryRow;
 
+use super::ai_security_manifest::AiSecurityManifestValidator;
 use super::auth_jwt::JwtSecurityValidator;
 use super::cloud_aws::AwsResourceHardeningValidator;
 use super::cloud_azure::{
@@ -57,6 +58,7 @@ use super::websocket_security::WebSocketSecurityValidator;
 /// dropping a malformed entry.
 pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
     Ok(vec![
+        RegistryRow::from_validator(Box::new(AiSecurityManifestValidator::new()?)),
         RegistryRow::from_validator(Box::new(S3EncryptionRequiredValidator::new()?)),
         RegistryRow::from_validator(Box::new(IamNoWildcardActionValidator::new()?)),
         RegistryRow::from_validator(Box::new(SgNoPublicSshIngressValidator::new()?)),
@@ -107,9 +109,10 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 40);
+        assert_eq!(rows.len(), 41);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id().as_str()).collect();
         for expected in [
+            "CYBER-AI-MANIFEST.1",
             "CYBER-IAC-S3-SSE.1",
             "CYBER-IAC-IAM-WILDCARD.1",
             "CYBER-IAC-SG-SSH.1",

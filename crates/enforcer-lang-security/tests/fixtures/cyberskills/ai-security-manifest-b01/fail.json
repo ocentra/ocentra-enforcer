@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "bundleId": "",
+  "owner": "",
+  "scope": "",
+  "evidence": [],
+  "records": [
+    {
+      "kind": "vector-evaluation",
+      "skillId": "wrong-skill",
+      "subjectId": "",
+      "modelId": "",
+      "embeddingDimension": 0,
+      "indexId": "",
+      "queryId": "",
+      "documentId": "",
+      "tenantId": "",
+      "policyId": ""
+    }
+  ]
+}
