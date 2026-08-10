@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b02-pass",
+  "owner": "security-engineering",
+  "scope": "offline-supplied-api-control-evidence",
+  "evidence": [
+    { "kind": "response-schema-review", "reference": "response-review-001" },
+    { "kind": "jwt-policy-review", "reference": "jwt-review-001" },
+    { "kind": "rate-control-review", "reference": "rate-review-001" },
+    { "kind": "gateway-config-review", "reference": "gateway-review-001" },
+    { "kind": "key-lifecycle-review", "reference": "key-review-001" }
+  ],
+  "records": [
+    {
+      "kind": "excessive-data-exposure-case",
+      "skillId": "exploiting-excessive-data-exposure-in-api",
+      "routeRef": "route:/api/v1/accounts/{accountId}",
+      "responseRef": "supplied-response-006",
+      "schemaRef": "openapi-response-schema-006",
+      "fieldRef": "field:internalRiskScore",
+      "sensitivityRef": "sensitivity:financial-and-identity",
+      "comparisonRef": "documented-vs-supplied-response-006",
+      "authorizationRef": "written-authorization-006",
+      "scopeRef": "offline-fixture-scope",
+      "reviewRef": "manual-response-review-006",
+      "evidenceRef": "response-review-001"
+    },
+    {
+      "kind": "jwt-algorithm-confusion-case",
+      "skillId": "exploiting-jwt-algorithm-confusion-attack",
+      "routeRef": "route:/api/v1/session",
+      "tokenRef": "supplied-jwt-token-007",
+      "headerRef": "jwt-header-algorithm-007",
+      "algorithmRef": "algorithm-policy-rs256-only",
+      "keyRef": "supplied-public-key-007",
+      "verificationRef": "offline-verification-policy-007",
+      "authorizationRef": "written-authorization-007",
+      "scopeRef": "offline-fixture-scope",
+      "stopCondition": "stop-before-token-forgery-or-endpoint-use",
+      "reviewRef": "manual-jwt-safety-review-007",
+      "evidenceRef": "jwt-review-001"
+    },
+    {
+      "kind": "rate-limit-control-plan",
+      "skillId": "implementing-api-abuse-detection-with-rate-limiting",
+      "clientRef": "client:authenticated-service",
+      "policyRef": "rate-policy-token-bucket-008",
+      "algorithmRef": "algorithm:token-bucket",
+      "capacityRef": "capacity:100",
+      "windowRef": "window:60-seconds",
+      "thresholdRef": "threshold:review-at-80-percent",
+      "telemetryRef": "supplied-rate-telemetry-008",
+      "scopeRef": "offline-control-plan-scope",
+      "stopCondition": "stop-before-live-throttling-or-blocking",
+      "reviewRef": "manual-rate-control-review-008",
+      "evidenceRef": "rate-review-001"
+    },
+    {
+      "kind": "api-gateway-control-plan",
+      "skillId": "implementing-api-gateway-security-controls",
+      "gatewayRef": "gateway:staged-api-gateway-009",
+      "authPolicyRef": "auth-policy:jwt-authorizer-009",
+      "ratePolicyRef": "rate-policy:gateway-quota-009",
+      "schemaRef": "openapi-schema-009",
+      "tlsPolicyRef": "tls-policy:client-certificate-009",
+      "wafPolicyRef": "waf-policy:staged-rule-set-009",
+      "backendRef": "backend:service-inventory-009",
+      "scopeRef": "offline-control-plan-scope",
+      "reviewRef": "manual-gateway-safety-review-009",
+      "evidenceRef": "gateway-review-001"
+    },
+    {
+      "kind": "api-key-control-plan",
+      "skillId": "implementing-api-key-security-controls",
+      "keyPolicyRef": "key-policy:server-to-server-010",
+      "generationRef": "generation:cryptographic-random-010",
+      "storageRef": "storage:hashed-at-rest-010",
+      "hashingRef": "hashing:approved-password-hash-010",
+      "scopeRef": "offline-control-plan-scope",
+      "ratePolicyRef": "rate-policy:per-key-010",
+      "rotationRef": "rotation:zero-downtime-010",
+      "revocationRef": "revocation:manual-and-expiry-010",
+      "leakMonitoringRef": "leak-monitoring:supplied-repository-snapshot-010",
+      "reviewRef": "manual-key-lifecycle-review-010",
+      "evidenceRef": "key-review-001"
+    }
+  ]
+}

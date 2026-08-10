@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b02-boundary",
+  "owner": "security-engineering",
+  "scope": "static-written-authorization-only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "authorization-boundary-011" }
+  ],
+  "records": [
+    {
+      "kind": "jwt-algorithm-confusion-case",
+      "skillId": "exploiting-jwt-algorithm-confusion-attack",
+      "routeRef": "route:/api/v1/session",
+      "tokenRef": "supplied-token-boundary",
+      "headerRef": "supplied-header-boundary",
+      "algorithmRef": "algorithm-policy-boundary",
+      "keyRef": "supplied-public-key-boundary",
+      "verificationRef": "offline-verification-boundary",
+      "authorizationRef": "authorization-boundary-011",
+      "scopeRef": "offline-fixture-scope",
+      "stopCondition": "stop-before-live-token-or-endpoint-use",
+      "reviewRef": "manual-safety-review-boundary",
+      "evidenceRef": "written-authorization"
+    }
+  ]
+}

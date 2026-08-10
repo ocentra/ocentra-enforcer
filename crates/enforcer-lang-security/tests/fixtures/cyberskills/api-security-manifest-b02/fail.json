@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b02-fail",
+  "owner": "security-engineering",
+  "scope": "offline-supplied-api-evidence",
+  "evidence": [
+    { "kind": "response-schema-review", "reference": "response-review-fail" }
+  ],
+  "records": [
+    {
+      "kind": "excessive-data-exposure-case",
+      "skillId": "exploiting-excessive-data-exposure-in-api",
+      "routeRef": "route:/api/v1/accounts/{accountId}",
+      "responseRef": "supplied-response-fail",
+      "schemaRef": "openapi-response-schema-fail",
+      "fieldRef": "field:privateValue",
+      "comparisonRef": "documented-vs-supplied-response-fail",
+      "authorizationRef": "written-authorization-fail",
+      "scopeRef": "offline-fixture-scope",
+      "reviewRef": "manual-response-review-fail",
+      "evidenceRef": "response-review-fail"
+    }
+  ]
+}

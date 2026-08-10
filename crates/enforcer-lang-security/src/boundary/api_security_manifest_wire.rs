@@ -4,7 +4,9 @@
 //! it never calls an endpoint, browser, scanner, fuzzer, identity provider, or
 //! production API.
 // NEGATIVE-TEST: crates/enforcer-lang-security/tests/cyberskills_api_security_manifest.rs
+// NEGATIVE-TEST: crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b02.rs
 // ROUNDTRIP-TEST: crates/enforcer-lang-security/tests/cyberskills_api_security_manifest.rs
+// ROUNDTRIP-TEST: crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b02.rs
 
 use std::collections::BTreeSet;
 
@@ -16,6 +18,11 @@ const BOPLA_SKILL: &str = "detecting-broken-object-property-level-authorization"
 const SHADOW_SKILL: &str = "detecting-shadow-api-endpoints";
 const INJECTION_SKILL: &str = "exploiting-api-injection-vulnerabilities";
 const BFLA_SKILL: &str = "exploiting-broken-function-level-authorization";
+const EXPOSURE_SKILL: &str = "exploiting-excessive-data-exposure-in-api";
+const JWT_CONFUSION_SKILL: &str = "exploiting-jwt-algorithm-confusion-attack";
+const RATE_LIMIT_SKILL: &str = "implementing-api-abuse-detection-with-rate-limiting";
+const GATEWAY_SKILL: &str = "implementing-api-gateway-security-controls";
+const API_KEY_SKILL: &str = "implementing-api-key-security-controls";
 
 // BRAND-INVARIANT: private wire fields are decoded only through serde and
 // accepted by `is_valid` after the schema and field predicates below pass.
@@ -66,6 +73,32 @@ struct RecordWire {
     stop_condition: Option<String>,
     review_ref: Option<String>,
     evidence_ref: Option<String>,
+    field_ref: Option<String>,
+    sensitivity_ref: Option<String>,
+    comparison_ref: Option<String>,
+    token_ref: Option<String>,
+    header_ref: Option<String>,
+    algorithm_ref: Option<String>,
+    key_ref: Option<String>,
+    verification_ref: Option<String>,
+    client_ref: Option<String>,
+    policy_ref: Option<String>,
+    capacity_ref: Option<String>,
+    window_ref: Option<String>,
+    threshold_ref: Option<String>,
+    telemetry_ref: Option<String>,
+    gateway_ref: Option<String>,
+    auth_policy_ref: Option<String>,
+    tls_policy_ref: Option<String>,
+    waf_policy_ref: Option<String>,
+    backend_ref: Option<String>,
+    key_policy_ref: Option<String>,
+    generation_ref: Option<String>,
+    storage_ref: Option<String>,
+    hashing_ref: Option<String>,
+    rotation_ref: Option<String>,
+    revocation_ref: Option<String>,
+    leak_monitoring_ref: Option<String>,
 }
 
 struct RecordRule {
@@ -150,6 +183,94 @@ static RECORD_RULES: &[RecordRule] = &[
             "authorizationRef",
             "scopeRef",
             "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "excessive-data-exposure-case",
+        skill: EXPOSURE_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "responseRef",
+            "schemaRef",
+            "fieldRef",
+            "sensitivityRef",
+            "comparisonRef",
+            "authorizationRef",
+            "scopeRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "jwt-algorithm-confusion-case",
+        skill: JWT_CONFUSION_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "tokenRef",
+            "headerRef",
+            "algorithmRef",
+            "keyRef",
+            "verificationRef",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "rate-limit-control-plan",
+        skill: RATE_LIMIT_SKILL,
+        required: &[
+            "skillId",
+            "clientRef",
+            "policyRef",
+            "algorithmRef",
+            "capacityRef",
+            "windowRef",
+            "thresholdRef",
+            "telemetryRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-gateway-control-plan",
+        skill: GATEWAY_SKILL,
+        required: &[
+            "skillId",
+            "gatewayRef",
+            "authPolicyRef",
+            "ratePolicyRef",
+            "schemaRef",
+            "tlsPolicyRef",
+            "wafPolicyRef",
+            "backendRef",
+            "scopeRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-key-control-plan",
+        skill: API_KEY_SKILL,
+        required: &[
+            "skillId",
+            "keyPolicyRef",
+            "generationRef",
+            "storageRef",
+            "hashingRef",
+            "scopeRef",
+            "ratePolicyRef",
+            "rotationRef",
+            "revocationRef",
+            "leakMonitoringRef",
             "reviewRef",
             "evidenceRef",
         ],
