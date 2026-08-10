@@ -1317,7 +1317,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 }
 
 #[test]
-fn next_selects_cp05_after_cp04_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
+fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
@@ -1338,7 +1338,7 @@ fn next_selects_cp05_after_cp04_closure_without_promoting_truth() -> Result<(), 
     let cp09_cloud_packet = graph.inspect(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "WP/CP05");
+    assert_eq!(next["selected"]["id"], "WP/CP09");
     assert_eq!(ul03.state, DerivedState::Done);
     assert_eq!(ul04.state, DerivedState::Done);
     assert_eq!(ul05.state, DerivedState::Done);
@@ -1352,13 +1352,13 @@ fn next_selects_cp05_after_cp04_closure_without_promoting_truth() -> Result<(), 
     assert_eq!(cp02.state, DerivedState::Done);
     assert_eq!(cp03.state, DerivedState::Done);
     assert_eq!(cp04.state, DerivedState::Done);
-    assert_eq!(cp05.state, DerivedState::Ready);
+    assert_eq!(cp05.state, DerivedState::Done);
     assert_eq!(cp12.state, DerivedState::Blocked);
     assert!(cp12
         .reasons
         .iter()
         .any(|reason| reason.contains("concrete approved predicate")));
-    assert_eq!(cp09_cloud_packet.state, DerivedState::Blocked);
+    assert_eq!(cp09_cloud_packet.state, DerivedState::Ready);
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
         .ok_or("CP09 cloud-security B01 node must be imported")?;
@@ -1366,10 +1366,6 @@ fn next_selects_cp05_after_cp04_closure_without_promoting_truth() -> Result<(), 
         cp09_cloud_node.metadata.get("route").map(String::as_str),
         Some("CP09")
     );
-    assert!(cp09_cloud_packet
-        .reasons
-        .iter()
-        .any(|reason| reason.contains("WP/CP05")));
     assert!(graph
         .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
         .is_none());

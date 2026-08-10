@@ -9,7 +9,7 @@ Status is routing state only. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and co
 | DONE | CP02 | [Shared syntax consumer adoption](./workpacks/cp02-syntax-module-extraction.md) | Sol/architect | UL02, UL03 | one consumer contract | CyberSkills syntax demand/adoption only |
 | DONE | CP03 | [CyberSkills fact demand contract](./workpacks/cp03-syntax-facts-contract.md) | Sol/architect | CP02, UL04 | one approved requirement slice | consumer requirements, never syntax facts |
 | DONE | CP04 | [Existing rule syntax pilot](./workpacks/cp04-existing-rule-syntax-pilot.md) | Luna with boss review | CP01, CP03 | exactly 1 rule | one rule + fixtures |
-| BLOCKED | CP05 | [Native rule factory](./workpacks/cp05-native-rule-factory.md) | Sol then Luna consumer | CP00, CP03, CP04 | one scaffold | repeatable native packet gate |
+| DONE | CP05 | [Native rule factory](./workpacks/cp05-native-rule-factory.md) | Sol then Luna consumer | CP00, CP03, CP04 | one scaffold | repeatable native packet gate |
 | BLOCKED | CP06 | [Security engine consumer contract](./workpacks/cp06-external-engine-module.md) | Sol/consumer architect | CP00, UL07 | one security requirement slice | security demand + conformance fixtures; never generic runner/registry/schema |
 | BLOCKED | CP07 | [External engine pilot](./workpacks/cp07-external-engine-pilot.md) | Luna with boss review | CP06 | exactly 1 engine | recorded + live adapter |
 | DONE | CP08 | [Corpus decomposition waves](./workpacks/cp08-corpus-decomposition-waves.md) | Luna-safe | CP00, CP01 | 10 skills | ledger components only |

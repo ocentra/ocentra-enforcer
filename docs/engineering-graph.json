@@ -51,6 +51,7 @@
       "WP/CP02": "done",
       "WP/CP03": "done",
       "WP/CP04": "done",
+      "WP/CP05": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -405,6 +406,96 @@
         "does_not_prove": [
           "mutation safety for unrelated workspace paths",
           "native implementation, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP05/factory-contract": {
+        "run_id": "cp05-factory-contract-20260810",
+        "command": "cargo test --locked -p enforcer-plan --test cyberskills_packet -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "84745c7c8bfcd32de968c1730b5ea0e45e32565c",
+        "source_paths": [
+          "crates/enforcer-plan/src/lib.rs",
+          "crates/enforcer-plan/src/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/approved_mass_assignment.json",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/missing_source_sha256.json"
+        ],
+        "artifact_sha256": "33051FCA09F26B9F541F4B8EE8703DFAEA4256A386BF7558BDC1DA7775EA9889",
+        "artifact_bytes": 1275,
+        "test_count": 4,
+        "enforcer_findings": 0,
+        "proves": [
+          "the typed packet factory accepts an approved mass-assignment component only when source, predicate, non-proof, fixture, and owned output links are present",
+          "the factory emits a deterministic non-writing skeleton from supplied evidence and preserves the approved source hash, anchors, license, predicate, and notProved text",
+          "missing source hash, unapproved component, protected source, duplicate fixtures, and incomplete packet fields fail closed"
+        ],
+        "does_not_prove": [
+          "generated production rule behavior, live endpoint or external-engine execution, executable security proof, or security outcomes",
+          "native implementation of the remaining catalog, whole-skill closure, or overall CyberSkills parity"
+        ]
+      },
+      "TEST/CP05/package-gates": {
+        "run_id": "cp05-package-gates-20260810",
+        "command": "cargo check --locked -p enforcer-plan; cargo test --locked -p enforcer-plan --lib; cargo test --locked -p enforcer-plan --test cyberskills_parity_plan -- --nocapture; cargo test --locked -p enforcer-plan; cargo fmt -p enforcer-plan -- --check; git diff --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "84745c7c8bfcd32de968c1730b5ea0e45e32565c",
+        "source_paths": [
+          "crates/enforcer-plan/src/lib.rs",
+          "crates/enforcer-plan/src/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/cyberskills_parity_plan.rs"
+        ],
+        "proves": [
+          "the enforcer-plan package check, library tests 16/16, parity-plan tests 3/3, full package tests, formatting, and diff checks passed"
+        ],
+        "does_not_prove": [
+          "dependency-inclusive package Clippy: the command remains blocked by pre-existing unclaimed cyber_graph.rs lint findings outside CP05",
+          "native implementation, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP05/enforcer-scan": {
+        "run_id": "cp05-enforcer-scan-20260810",
+        "command": "exact-file Enforcer route/strict scan/source-shape/secrets over the five implementation paths",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "84745c7c8bfcd32de968c1730b5ea0e45e32565c",
+        "source_paths": [
+          "crates/enforcer-plan/src/lib.rs",
+          "crates/enforcer-plan/src/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/approved_mass_assignment.json",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/missing_source_sha256.json"
+        ],
+        "enforcer_findings": 0,
+        "source_shape_findings": 0,
+        "secret_findings": 0,
+        "proves": [
+          "the exact five-path CP05 packet has zero strict Enforcer findings, source-shape findings, and secret findings"
+        ],
+        "does_not_prove": [
+          "unclaimed baseline files, native implementation beyond the packet factory, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP05/commit-guard": {
+        "run_id": "cp05-commit-guard-20260810",
+        "command": "coordination guard operation=commit/push for the exact five implementation paths; strict pre-commit; git diff --cached --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "84745c7c8bfcd32de968c1730b5ea0e45e32565c",
+        "source_paths": [
+          "crates/enforcer-plan/src/lib.rs",
+          "crates/enforcer-plan/src/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/cyberskills_packet.rs",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/approved_mass_assignment.json",
+          "crates/enforcer-plan/tests/fixtures/cyberskills_packet/missing_source_sha256.json"
+        ],
+        "proves": [
+          "the exact five-path CP05 implementation had no coordination blockers or merge risks, passed the strict pre-commit hook, and was pushed at 84745c7c8"
+        ],
+        "does_not_prove": [
+          "ownership or mutation safety for unrelated dirty paths, native/executable-proof completion, live execution, or overall parity"
         ]
       },
       "TEST/CP04/focused-syntax-pilot": {

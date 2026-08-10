@@ -4,7 +4,7 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 
 ## Current phase
 
-`GRAPH-FIRST INTENT AUDIT ACTIVE; CP04 SYNTAX PILOT VERIFIED; IMPLEMENTATION PACKETS REMAIN DEPENDENCY-GATED`
+`GRAPH-FIRST INTENT AUDIT ACTIVE; CP04 SYNTAX PILOT AND CP05 PACKET FACTORY VERIFIED; IMPLEMENTATION PACKETS REMAIN DEPENDENCY-GATED`
 
 ## Proven foundations
 
@@ -27,6 +27,7 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 - Full parity, merge readiness, Rust cutover, and legacy retirement remain unproved.
 - The six formally linked native mappings are narrowed predicates, not whole-skill closure; executable proof remains zero. The 816 intent packets are routed but not implemented.
 - CP04 now has one verified syntax-backed rule pilot; the default scanner/provider migration and family-wide rule rollout remain unproved.
+- CP05 now has one verified typed native-packet factory and mass-assignment skeleton; it removes clerical drift but does not generate security meaning or implement the rule.
 
 ## Ready frontier
 
@@ -39,7 +40,7 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 | CP11 | VALIDATION: graph verifies all 816 retained advisory/manual components and CP11 batch-01 covers 10 AI-security records | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
 | CP02 | BLOCKED by Universal UL02/UL03 | Sol/architect-only consumer adoption |
 | CP06 | BLOCKED pending UL07 and named `tool-adapter-integrator` | shared singleton |
-| CP05 | READY after CP04; `graph next` is the selection authority | factory scaffold only; no generated security meaning |
+| CP05 | DONE: typed packet factory committed at `84745c7c8`; exact factory, package, plan, and Enforcer evidence recorded in `TEST_PROOF_EXPECTATIONS.md` | clerical packet completeness only; no generated security meaning, native rule implementation, executable proof, or overall parity |
 | All others | BLOCKED by dependencies | See index |
 
 Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. `graph next` is the only selection surface.
@@ -50,4 +51,4 @@ The unresolved local deletion of `detecting-fileless-malware-techniques/SKILL.md
 
 ## Resume route
 
-Read inbox and the Luna task report, verify live git/worktree state, then assign exactly one READY workpack. The current Cyber frontier is CP05 after the verified CP04 pilot. Never resume from a checkbox alone.
+Read inbox and the Luna task report, verify live git/worktree state, then assign exactly one READY workpack. The current Cyber frontier is the next graph-selected packet after CP05. Never resume from a checkbox alone.
