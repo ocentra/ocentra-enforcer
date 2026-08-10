@@ -58,6 +58,7 @@
       "WP/CP01": "done",
       "WP/CP08": "done",
       "WP/CP09/IF-ai-security/B01": "validation",
+      "WP/CP09/IF-ai-security/B02": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -182,6 +183,32 @@
           "native implementation of all five source skills beyond this narrow manifest predicate",
           "external model, MCP, provider, endpoint, live execution, or security outcomes",
           "overall CyberSkills parity or graph DONE closure"
+        ]
+      },
+      "TEST/WP/CP09/IF-ai-security/B02/gate": {
+        "run_id": "20260810031913-6f1a40a1",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_ai_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules; exact-file Enforcer scan/source-shape/secrets; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "fe5ae3c4e163f92343e216c5cd76f42270da42c5",
+        "source_paths": [
+          "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
+          "docs/engineering-graph.json"
+        ],
+        "proves": [
+          "CP09 AI-security B02 branch commit fe5ae3c4e is pushed as a stack on B01 commit f373906ce, with canonical rust-build base 7d832c048 retained",
+          "the focused AI-security manifest suite passed 6/6, including B01 regression coverage and five B02 intent records",
+          "enforcer-lang-security check and full package tests passed, including the 33-test CyberSkills corpus",
+          "the full enforcer-rules package passed, including the CP00 disposition suite and CP08 evidence recomputation",
+          "the exact 11-file Enforcer scan, Rust source-shape check, and secrets check returned zero findings",
+          "the packet implements only static supplied-JSON predicates and preserves the PyRIT native-absent, external-blocked, advisory, and manual boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the stacked B01/B02 branches",
+          "full native implementation or executable proof of any source skill intent",
+          "external model, provider, MCP, endpoint, red-team, guardrail, telemetry, or live execution",
+          "security outcomes, detection efficacy, attribution, remediation success, or overall CyberSkills parity",
+          "graph DONE closure or completion of the remaining CP09 packets"
         ]
       },
       "TEST/CP00/disposition-focused-test": {
