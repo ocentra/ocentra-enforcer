@@ -1,9 +1,10 @@
-//! BOUNDARY-INVARIANT: integration tests exercise the graph only through its
+//! BOUNDARY-INVARIANT: integration tests exercise the graph only through the graph's
 //! public read-only contract and never open the vendor tree.
 //! NEGATIVE-TEST: protected sourceUnavailable rows remain pathless and cannot
 //! become evidence for native implementation or executable proof.
 
 use std::error::Error;
+use std::io::{Error as IoError, ErrorKind};
 use std::path::PathBuf;
 
 use enforcer_plan::graph::{CyberPlanGraph, DerivedState, NodeId, NodeKind};
@@ -12,119 +13,261 @@ fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+const IMPORTED_CATALOG_NODES: &[(&str, NodeKind, &str)] = &[
+    ("PROOF/CP11/batch-01", NodeKind::Proof, "10"),
+    ("PROOF/CP11/batch-02", NodeKind::Proof, "4"),
+    ("PROOF/CP11/batch-03", NodeKind::Proof, "10"),
+    ("PROOF/CP11/batch-04", NodeKind::Proof, "10"),
+    ("PROOF/CP11/batch-05", NodeKind::Proof, "8"),
+    ("PROOF/CP11/batch-06", NodeKind::Proof, "2"),
+    ("WP/CP11/IF-cloud-security/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cloud-security/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cloud-security/B04", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cloud-security/B05", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cloud-security/B06", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cloud-security/B07", NodeKind::Workpack, "6"),
+    (
+        "WP/CP11/IF-compliance-governance/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-container-security/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-container-security/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-container-security/B03",
+        NodeKind::Workpack,
+        "10",
+    ),
+    ("WP/CP11/IF-container-security/B04", NodeKind::Workpack, "3"),
+    ("WP/CP11/IF-cryptography/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-cryptography/B02", NodeKind::Workpack, "6"),
+    ("WP/CP11/IF-data-protection/B01", NodeKind::Workpack, "1"),
+    (
+        "WP/CP11/IF-deception-technology/B01",
+        NodeKind::Workpack,
+        "6",
+    ),
+    ("WP/CP11/IF-devsecops/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-devsecops/B02", NodeKind::Workpack, "8"),
+    ("WP/CP11/IF-digital-forensics/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-digital-forensics/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-digital-forensics/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-digital-forensics/B04", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-digital-forensics/B05", NodeKind::Workpack, "1"),
+    ("WP/CP11/IF-endpoint-security/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-endpoint-security/B02", NodeKind::Workpack, "7"),
+    (
+        "WP/CP11/IF-hardware-firmware-security/B01",
+        NodeKind::Workpack,
+        "6",
+    ),
+    (
+        "WP/CP11/IF-identity-access-management/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-identity-access-management/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-identity-access-management/B03",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-identity-access-management/B04",
+        NodeKind::Workpack,
+        "10",
+    ),
+    ("WP/CP11/IF-incident-response/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-incident-response/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-incident-response/B03", NodeKind::Workpack, "6"),
+    ("WP/CP11/IF-malware-analysis/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-malware-analysis/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-malware-analysis/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-malware-analysis/B04", NodeKind::Workpack, "8"),
+    ("WP/CP11/IF-mobile-security/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-mobile-security/B02", NodeKind::Workpack, "3"),
+    ("WP/CP11/IF-network-security/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-network-security/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-network-security/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-network-security/B04", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-network-security/B05", NodeKind::Workpack, "3"),
+    ("WP/CP11/IF-ot-ics-security/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-ot-ics-security/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-ot-ics-security/B03", NodeKind::Workpack, "9"),
+    (
+        "WP/CP11/IF-penetration-testing/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-penetration-testing/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-penetration-testing/B03",
+        NodeKind::Workpack,
+        "3",
+    ),
+    ("WP/CP11/IF-phishing-defense/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-phishing-defense/B02", NodeKind::Workpack, "6"),
+    ("WP/CP11/IF-privacy-compliance/B01", NodeKind::Workpack, "2"),
+    ("WP/CP11/IF-purple-team/B01", NodeKind::Workpack, "1"),
+    (
+        "WP/CP11/IF-ransomware-defense/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    ("WP/CP11/IF-ransomware-defense/B02", NodeKind::Workpack, "3"),
+    ("WP/CP11/IF-red-teaming/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-red-teaming/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-red-teaming/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-red-teaming/B04", NodeKind::Workpack, "5"),
+    ("WP/CP11/IF-soc-operations/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B04", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B05", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B06", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-soc-operations/B07", NodeKind::Workpack, "3"),
+    (
+        "WP/CP11/IF-supply-chain-security/B01",
+        NodeKind::Workpack,
+        "8",
+    ),
+    ("WP/CP11/IF-threat-detection/B01", NodeKind::Workpack, "7"),
+    ("WP/CP11/IF-threat-hunting/B01", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-threat-hunting/B02", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-threat-hunting/B03", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-threat-hunting/B04", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-threat-hunting/B05", NodeKind::Workpack, "10"),
+    ("WP/CP11/IF-threat-hunting/B06", NodeKind::Workpack, "8"),
+    (
+        "WP/CP11/IF-threat-intelligence/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-threat-intelligence/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-threat-intelligence/B03",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-threat-intelligence/B04",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-threat-intelligence/B05",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-threat-intelligence/B06",
+        NodeKind::Workpack,
+        "2",
+    ),
+    (
+        "WP/CP11/IF-vulnerability-management/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-vulnerability-management/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-vulnerability-management/B03",
+        NodeKind::Workpack,
+        "5",
+    ),
+    (
+        "WP/CP11/IF-web-application-security/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-web-application-security/B02",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-web-application-security/B03",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-web-application-security/B04",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-web-application-security/B05",
+        NodeKind::Workpack,
+        "6",
+    ),
+    ("WP/CP11/IF-wireless-security/B01", NodeKind::Workpack, "2"),
+    (
+        "WP/CP11/IF-zero-trust-architecture/B01",
+        NodeKind::Workpack,
+        "10",
+    ),
+    (
+        "WP/CP11/IF-zero-trust-architecture/B02",
+        NodeKind::Workpack,
+        "8",
+    ),
+];
+
+fn assert_imported_catalog_nodes(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error>> {
+    let cp01 = NodeId::new("PROOF/CP01/batch-05")?;
+    let cp01_node = graph
+        .node(&cp01)
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP01 batch-05"))?;
+    assert_eq!(cp01_node.kind, NodeKind::Proof);
+    assert_eq!(
+        cp01_node.metadata.get("ruleCount").map(String::as_str),
+        Some("4")
+    );
+
+    for &(id, kind, skill_count) in IMPORTED_CATALOG_NODES {
+        let node_id = NodeId::new(id)?;
+        let node = graph
+            .node(&node_id)
+            .ok_or_else(|| IoError::new(ErrorKind::NotFound, id))?;
+        assert_eq!(node.kind, kind, "unexpected kind for {id}");
+        assert_eq!(
+            node.metadata.get("skillCount").map(String::as_str),
+            Some(skill_count),
+            "unexpected skill count for {id}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<(), Box<dyn Error>>
 {
     let graph = CyberPlanGraph::load(repository_root())?;
     let status = graph.status();
-    let cp01_batch05 = NodeId::new("PROOF/CP01/batch-05")?;
-    let cp11_batch01 = NodeId::new("PROOF/CP11/batch-01")?;
-    let cp11_batch02 = NodeId::new("PROOF/CP11/batch-02")?;
-    let cp11_batch03 = NodeId::new("PROOF/CP11/batch-03")?;
-    let cp11_batch04 = NodeId::new("PROOF/CP11/batch-04")?;
-    let cp11_batch05 = NodeId::new("PROOF/CP11/batch-05")?;
-    let cp11_batch06 = NodeId::new("PROOF/CP11/batch-06")?;
-    let cp11_cloud_batch02 = NodeId::new("WP/CP11/IF-cloud-security/B02")?;
-    let cp11_cloud_batch03 = NodeId::new("WP/CP11/IF-cloud-security/B03")?;
-    let cp11_cloud_batch04 = NodeId::new("WP/CP11/IF-cloud-security/B04")?;
-    let cp11_cloud_batch05 = NodeId::new("WP/CP11/IF-cloud-security/B05")?;
-    let cp11_cloud_batch06 = NodeId::new("WP/CP11/IF-cloud-security/B06")?;
-    let cp11_cloud_batch07 = NodeId::new("WP/CP11/IF-cloud-security/B07")?;
-    let cp11_compliance_batch01 = NodeId::new("WP/CP11/IF-compliance-governance/B01")?;
-    let cp11_container_batch01 = NodeId::new("WP/CP11/IF-container-security/B01")?;
-    let cp11_container_batch02 = NodeId::new("WP/CP11/IF-container-security/B02")?;
-    let cp11_container_batch03 = NodeId::new("WP/CP11/IF-container-security/B03")?;
-    let cp11_container_batch04 = NodeId::new("WP/CP11/IF-container-security/B04")?;
-    let cp11_crypto_batch01 = NodeId::new("WP/CP11/IF-cryptography/B01")?;
-    let cp11_crypto_batch02 = NodeId::new("WP/CP11/IF-cryptography/B02")?;
-    let cp11_data_protection_batch01 = NodeId::new("WP/CP11/IF-data-protection/B01")?;
-    let cp11_deception_batch01 = NodeId::new("WP/CP11/IF-deception-technology/B01")?;
-    let cp11_devsecops_batch01 = NodeId::new("WP/CP11/IF-devsecops/B01")?;
-    let cp11_devsecops_batch02 = NodeId::new("WP/CP11/IF-devsecops/B02")?;
-    let cp11_digital_forensics_batch01 = NodeId::new("WP/CP11/IF-digital-forensics/B01")?;
-    let cp11_digital_forensics_batch02 = NodeId::new("WP/CP11/IF-digital-forensics/B02")?;
-    let cp11_digital_forensics_batch03 = NodeId::new("WP/CP11/IF-digital-forensics/B03")?;
-    let cp11_digital_forensics_batch04 = NodeId::new("WP/CP11/IF-digital-forensics/B04")?;
-    let cp11_digital_forensics_batch05 = NodeId::new("WP/CP11/IF-digital-forensics/B05")?;
-    let cp11_endpoint_security_batch01 = NodeId::new("WP/CP11/IF-endpoint-security/B01")?;
-    let cp11_endpoint_security_batch02 = NodeId::new("WP/CP11/IF-endpoint-security/B02")?;
-    let cp11_hardware_firmware_batch01 = NodeId::new("WP/CP11/IF-hardware-firmware-security/B01")?;
-    let cp11_identity_access_batch01 = NodeId::new("WP/CP11/IF-identity-access-management/B01")?;
-    let cp11_identity_access_batch02 = NodeId::new("WP/CP11/IF-identity-access-management/B02")?;
-    let cp11_identity_access_batch03 = NodeId::new("WP/CP11/IF-identity-access-management/B03")?;
-    let cp11_identity_access_batch04 = NodeId::new("WP/CP11/IF-identity-access-management/B04")?;
-    let cp11_incident_response_batch01 = NodeId::new("WP/CP11/IF-incident-response/B01")?;
-    let cp11_incident_response_batch02 = NodeId::new("WP/CP11/IF-incident-response/B02")?;
-    let cp11_incident_response_batch03 = NodeId::new("WP/CP11/IF-incident-response/B03")?;
-    let cp11_malware_analysis_batch01 = NodeId::new("WP/CP11/IF-malware-analysis/B01")?;
-    let cp11_malware_analysis_batch02 = NodeId::new("WP/CP11/IF-malware-analysis/B02")?;
-    let cp11_malware_analysis_batch03 = NodeId::new("WP/CP11/IF-malware-analysis/B03")?;
-    let cp11_malware_analysis_batch04 = NodeId::new("WP/CP11/IF-malware-analysis/B04")?;
-    let cp11_mobile_security_batch01 = NodeId::new("WP/CP11/IF-mobile-security/B01")?;
-    let cp11_mobile_security_batch02 = NodeId::new("WP/CP11/IF-mobile-security/B02")?;
-    let cp11_network_security_batch01 = NodeId::new("WP/CP11/IF-network-security/B01")?;
-    let cp11_network_security_batch02 = NodeId::new("WP/CP11/IF-network-security/B02")?;
-    let cp11_network_security_batch03 = NodeId::new("WP/CP11/IF-network-security/B03")?;
-    let cp11_network_security_batch04 = NodeId::new("WP/CP11/IF-network-security/B04")?;
-    let cp11_network_security_batch05 = NodeId::new("WP/CP11/IF-network-security/B05")?;
-    let cp11_ot_ics_security_batch01 = NodeId::new("WP/CP11/IF-ot-ics-security/B01")?;
-    let cp11_ot_ics_security_batch02 = NodeId::new("WP/CP11/IF-ot-ics-security/B02")?;
-    let cp11_ot_ics_security_batch03 = NodeId::new("WP/CP11/IF-ot-ics-security/B03")?;
-    let cp11_penetration_testing_batch01 = NodeId::new("WP/CP11/IF-penetration-testing/B01")?;
-    let cp11_penetration_testing_batch02 = NodeId::new("WP/CP11/IF-penetration-testing/B02")?;
-    let cp11_penetration_testing_batch03 = NodeId::new("WP/CP11/IF-penetration-testing/B03")?;
-    let cp11_phishing_defense_batch01 = NodeId::new("WP/CP11/IF-phishing-defense/B01")?;
-    let cp11_phishing_defense_batch02 = NodeId::new("WP/CP11/IF-phishing-defense/B02")?;
-    let cp11_privacy_compliance_batch01 = NodeId::new("WP/CP11/IF-privacy-compliance/B01")?;
-    let cp11_purple_team_batch01 = NodeId::new("WP/CP11/IF-purple-team/B01")?;
-    let cp11_ransomware_defense_batch01 = NodeId::new("WP/CP11/IF-ransomware-defense/B01")?;
-    let cp11_ransomware_defense_batch02 = NodeId::new("WP/CP11/IF-ransomware-defense/B02")?;
-    let cp11_red_teaming_batch01 = NodeId::new("WP/CP11/IF-red-teaming/B01")?;
-    let cp11_red_teaming_batch02 = NodeId::new("WP/CP11/IF-red-teaming/B02")?;
-    let cp11_red_teaming_batch03 = NodeId::new("WP/CP11/IF-red-teaming/B03")?;
-    let cp11_red_teaming_batch04 = NodeId::new("WP/CP11/IF-red-teaming/B04")?;
-    let cp11_soc_operations_batch01 = NodeId::new("WP/CP11/IF-soc-operations/B01")?;
-    let cp11_soc_operations_batch02 = NodeId::new("WP/CP11/IF-soc-operations/B02")?;
-    let cp11_soc_operations_batch03 = NodeId::new("WP/CP11/IF-soc-operations/B03")?;
-    let cp11_soc_operations_batch04 = NodeId::new("WP/CP11/IF-soc-operations/B04")?;
-    let cp11_soc_operations_batch05 = NodeId::new("WP/CP11/IF-soc-operations/B05")?;
-    let cp11_soc_operations_batch06 = NodeId::new("WP/CP11/IF-soc-operations/B06")?;
-    let cp11_soc_operations_batch07 = NodeId::new("WP/CP11/IF-soc-operations/B07")?;
-    let cp11_supply_chain_batch01 = NodeId::new("WP/CP11/IF-supply-chain-security/B01")?;
-    let cp11_threat_detection_batch01 = NodeId::new("WP/CP11/IF-threat-detection/B01")?;
-    let cp11_threat_hunting_batch01 = NodeId::new("WP/CP11/IF-threat-hunting/B01")?;
-    let cp11_threat_hunting_batch02 = NodeId::new("WP/CP11/IF-threat-hunting/B02")?;
-    let cp11_threat_hunting_batch03 = NodeId::new("WP/CP11/IF-threat-hunting/B03")?;
-    let cp11_threat_hunting_batch04 = NodeId::new("WP/CP11/IF-threat-hunting/B04")?;
-    let cp11_threat_hunting_batch05 = NodeId::new("WP/CP11/IF-threat-hunting/B05")?;
-    let cp11_threat_hunting_batch06 = NodeId::new("WP/CP11/IF-threat-hunting/B06")?;
-    let cp11_threat_intelligence_batch01 = NodeId::new("WP/CP11/IF-threat-intelligence/B01")?;
-    let cp11_threat_intelligence_batch02 = NodeId::new("WP/CP11/IF-threat-intelligence/B02")?;
-    let cp11_threat_intelligence_batch03 = NodeId::new("WP/CP11/IF-threat-intelligence/B03")?;
-    let cp11_threat_intelligence_batch04 = NodeId::new("WP/CP11/IF-threat-intelligence/B04")?;
-    let cp11_threat_intelligence_batch05 = NodeId::new("WP/CP11/IF-threat-intelligence/B05")?;
-    let cp11_threat_intelligence_batch06 = NodeId::new("WP/CP11/IF-threat-intelligence/B06")?;
-    let cp11_vulnerability_management_batch01 =
-        NodeId::new("WP/CP11/IF-vulnerability-management/B01")?;
-    let cp11_vulnerability_management_batch02 =
-        NodeId::new("WP/CP11/IF-vulnerability-management/B02")?;
-    let cp11_vulnerability_management_batch03 =
-        NodeId::new("WP/CP11/IF-vulnerability-management/B03")?;
-    let cp11_web_application_security_batch01 =
-        NodeId::new("WP/CP11/IF-web-application-security/B01")?;
-    let cp11_web_application_security_batch02 =
-        NodeId::new("WP/CP11/IF-web-application-security/B02")?;
-    let cp11_web_application_security_batch03 =
-        NodeId::new("WP/CP11/IF-web-application-security/B03")?;
-    let cp11_web_application_security_batch04 =
-        NodeId::new("WP/CP11/IF-web-application-security/B04")?;
-    let cp11_web_application_security_batch05 =
-        NodeId::new("WP/CP11/IF-web-application-security/B05")?;
-    let cp11_wireless_security_batch01 = NodeId::new("WP/CP11/IF-wireless-security/B01")?;
-    let cp11_zero_trust_architecture_batch01 =
-        NodeId::new("WP/CP11/IF-zero-trust-architecture/B01")?;
-    let cp11_zero_trust_architecture_batch02 =
-        NodeId::new("WP/CP11/IF-zero-trust-architecture/B02")?;
 
     assert_eq!(status.workpacks.len(), 29 + status.intent.packet_count);
     assert_eq!(status.catalog.total, 817);
@@ -139,12 +282,13 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
     assert_eq!(status.intent.protected_excluded, 1);
     assert!(status.intent.native_packet_count > 0);
     assert!(status.intent.retention_packet_count > 0);
+
     let ul00 = NodeId::new("EXT/UL00")?;
     let ul01 = NodeId::new("EXT/UL01")?;
     let ul02 = NodeId::new("EXT/UL02")?;
     let ul00_node = graph
         .node(&ul00)
-        .ok_or("UL00 dependency workpack must be imported")?;
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "UL00"))?;
     assert_eq!(ul00_node.kind, NodeKind::Workpack);
     assert_eq!(
         ul00_node.metadata.get("routingStatus").map(String::as_str),
@@ -154,1160 +298,20 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
         ul00_node.metadata.get("routingOnly").map(String::as_str),
         Some("true")
     );
-    let ul00_status = graph.inspect_json(&ul00)?;
-    assert_eq!(ul00_status["state"], "done");
-    let ul01_status = graph.inspect_json(&ul01)?;
-    assert_eq!(ul01_status["state"], "done");
-    let ul02_status = graph.inspect_json(&ul02)?;
-    assert_eq!(ul02_status["state"], "done");
+    assert_eq!(graph.inspect_json(&ul00)?["state"], "done");
+    assert_eq!(graph.inspect_json(&ul01)?["state"], "done");
+    assert_eq!(graph.inspect_json(&ul02)?["state"], "done");
     let ul02_node = graph
         .node(&ul02)
-        .ok_or("UL02 dependency workpack must be imported")?;
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "UL02"))?;
     assert_eq!(ul02_node.kind, NodeKind::Workpack);
     assert_eq!(
         ul02_node.metadata.get("routingStatus").map(String::as_str),
         Some("DECISION-READY")
     );
-    let ul02_why = graph.why(&ul02)?;
-    assert_eq!(ul02_why.chain, vec![ul02.clone()]);
-    let cp01_node = graph
-        .node(&cp01_batch05)
-        .ok_or("CP01 batch-05 evidence node must be imported")?;
-    assert_eq!(cp01_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp01_node.metadata.get("ruleCount").map(String::as_str),
-        Some("4")
-    );
-    let cp11_node = graph
-        .node(&cp11_batch01)
-        .ok_or("CP11 batch-01 evidence node must be imported")?;
-    assert_eq!(cp11_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_node.metadata.get("skillCount").map(String::as_str),
-        Some("10")
-    );
-    let cp11_batch02_node = graph
-        .node(&cp11_batch02)
-        .ok_or("CP11 batch-02 evidence node must be imported")?;
-    assert_eq!(cp11_batch02_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("4")
-    );
-    let cp11_batch03_node = graph
-        .node(&cp11_batch03)
-        .ok_or("CP11 batch-03 evidence node must be imported")?;
-    assert_eq!(cp11_batch03_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_batch04_node = graph
-        .node(&cp11_batch04)
-        .ok_or("CP11 batch-04 evidence node must be imported")?;
-    assert_eq!(cp11_batch04_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_batch05_node = graph
-        .node(&cp11_batch05)
-        .ok_or("CP11 batch-05 evidence node must be imported")?;
-    assert_eq!(cp11_batch05_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
-    let cp11_batch06_node = graph
-        .node(&cp11_batch06)
-        .ok_or("CP11 batch-06 evidence node must be imported")?;
-    assert_eq!(cp11_batch06_node.kind, NodeKind::Proof);
-    assert_eq!(
-        cp11_batch06_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("2")
-    );
-    let cp11_cloud_batch02_node = graph
-        .node(&cp11_cloud_batch02)
-        .ok_or("CP11 cloud-security B02 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_cloud_batch03_node = graph
-        .node(&cp11_cloud_batch03)
-        .ok_or("CP11 cloud-security B03 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_cloud_batch04_node = graph
-        .node(&cp11_cloud_batch04)
-        .ok_or("CP11 cloud-security B04 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_cloud_batch05_node = graph
-        .node(&cp11_cloud_batch05)
-        .ok_or("CP11 cloud-security B05 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch05_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_cloud_batch06_node = graph
-        .node(&cp11_cloud_batch06)
-        .ok_or("CP11 cloud-security B06 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch06_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch06_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_cloud_batch07_node = graph
-        .node(&cp11_cloud_batch07)
-        .ok_or("CP11 cloud-security B07 packet must be imported")?;
-    assert_eq!(cp11_cloud_batch07_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_cloud_batch07_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_compliance_batch01_node = graph
-        .node(&cp11_compliance_batch01)
-        .ok_or("CP11 compliance-governance B01 packet must be imported")?;
-    assert_eq!(cp11_compliance_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_compliance_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_container_batch01_node = graph
-        .node(&cp11_container_batch01)
-        .ok_or("CP11 container-security B01 packet must be imported")?;
-    assert_eq!(cp11_container_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_container_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_container_batch02_node = graph
-        .node(&cp11_container_batch02)
-        .ok_or("CP11 container-security B02 packet must be imported")?;
-    assert_eq!(cp11_container_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_container_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_container_batch03_node = graph
-        .node(&cp11_container_batch03)
-        .ok_or("CP11 container-security B03 packet must be imported")?;
-    assert_eq!(cp11_container_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_container_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_container_batch04_node = graph
-        .node(&cp11_container_batch04)
-        .ok_or("CP11 container-security B04 packet must be imported")?;
-    assert_eq!(cp11_container_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_container_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_crypto_batch01_node = graph
-        .node(&cp11_crypto_batch01)
-        .ok_or("CP11 cryptography B01 packet must be imported")?;
-    assert_eq!(cp11_crypto_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_crypto_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_crypto_batch02_node = graph
-        .node(&cp11_crypto_batch02)
-        .ok_or("CP11 cryptography B02 packet must be imported")?;
-    assert_eq!(cp11_crypto_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_crypto_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_data_protection_batch01_node = graph
-        .node(&cp11_data_protection_batch01)
-        .ok_or("CP11 data-protection B01 packet must be imported")?;
-    assert_eq!(cp11_data_protection_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_data_protection_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("1")
-    );
-    let cp11_deception_batch01_node = graph
-        .node(&cp11_deception_batch01)
-        .ok_or("CP11 deception-technology B01 packet must be imported")?;
-    assert_eq!(cp11_deception_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_deception_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_devsecops_batch01_node = graph
-        .node(&cp11_devsecops_batch01)
-        .ok_or("CP11 DevSecOps B01 packet must be imported")?;
-    assert_eq!(cp11_devsecops_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_devsecops_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_devsecops_batch02_node = graph
-        .node(&cp11_devsecops_batch02)
-        .ok_or("CP11 DevSecOps B02 packet must be imported")?;
-    assert_eq!(cp11_devsecops_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_devsecops_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
-    let cp11_digital_forensics_batch01_node = graph
-        .node(&cp11_digital_forensics_batch01)
-        .ok_or("CP11 digital-forensics B01 packet must be imported")?;
-    assert_eq!(cp11_digital_forensics_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_digital_forensics_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_digital_forensics_batch02_node = graph
-        .node(&cp11_digital_forensics_batch02)
-        .ok_or("CP11 digital-forensics B02 packet must be imported")?;
-    assert_eq!(cp11_digital_forensics_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_digital_forensics_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_digital_forensics_batch03_node = graph
-        .node(&cp11_digital_forensics_batch03)
-        .ok_or("CP11 digital-forensics B03 packet must be imported")?;
-    assert_eq!(cp11_digital_forensics_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_digital_forensics_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_digital_forensics_batch04_node = graph
-        .node(&cp11_digital_forensics_batch04)
-        .ok_or("CP11 digital-forensics B04 packet must be imported")?;
-    assert_eq!(cp11_digital_forensics_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_digital_forensics_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_digital_forensics_batch05_node = graph
-        .node(&cp11_digital_forensics_batch05)
-        .ok_or("CP11 digital-forensics B05 packet must be imported")?;
-    assert_eq!(cp11_digital_forensics_batch05_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_digital_forensics_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("1")
-    );
-    let cp11_endpoint_security_batch01_node = graph
-        .node(&cp11_endpoint_security_batch01)
-        .ok_or("CP11 endpoint-security B01 packet must be imported")?;
-    assert_eq!(cp11_endpoint_security_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_endpoint_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_endpoint_security_batch02_node = graph
-        .node(&cp11_endpoint_security_batch02)
-        .ok_or("CP11 endpoint-security B02 packet must be imported")?;
-    assert_eq!(cp11_endpoint_security_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_endpoint_security_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("7")
-    );
-    let cp11_hardware_firmware_batch01_node = graph
-        .node(&cp11_hardware_firmware_batch01)
-        .ok_or("CP11 hardware-firmware-security B01 packet must be imported")?;
-    assert_eq!(cp11_hardware_firmware_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_hardware_firmware_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_identity_access_batch01_node = graph
-        .node(&cp11_identity_access_batch01)
-        .ok_or("CP11 identity-access-management B01 packet must be imported")?;
-    assert_eq!(cp11_identity_access_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_identity_access_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_identity_access_batch02_node = graph
-        .node(&cp11_identity_access_batch02)
-        .ok_or("CP11 identity-access-management B02 packet must be imported")?;
-    assert_eq!(cp11_identity_access_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_identity_access_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_identity_access_batch03_node = graph
-        .node(&cp11_identity_access_batch03)
-        .ok_or("CP11 identity-access-management B03 packet must be imported")?;
-    assert_eq!(cp11_identity_access_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_identity_access_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_identity_access_batch04_node = graph
-        .node(&cp11_identity_access_batch04)
-        .ok_or("CP11 identity-access-management B04 packet must be imported")?;
-    assert_eq!(cp11_identity_access_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_identity_access_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_incident_response_batch01_node = graph
-        .node(&cp11_incident_response_batch01)
-        .ok_or("CP11 incident-response B01 packet must be imported")?;
-    assert_eq!(cp11_incident_response_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_incident_response_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_incident_response_batch02_node = graph
-        .node(&cp11_incident_response_batch02)
-        .ok_or("CP11 incident-response B02 packet must be imported")?;
-    assert_eq!(cp11_incident_response_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_incident_response_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_incident_response_batch03_node = graph
-        .node(&cp11_incident_response_batch03)
-        .ok_or("CP11 incident-response B03 packet must be imported")?;
-    assert_eq!(cp11_incident_response_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_incident_response_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_malware_analysis_batch01_node = graph
-        .node(&cp11_malware_analysis_batch01)
-        .ok_or("CP11 malware-analysis B01 packet must be imported")?;
-    assert_eq!(cp11_malware_analysis_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_malware_analysis_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_malware_analysis_batch02_node = graph
-        .node(&cp11_malware_analysis_batch02)
-        .ok_or("CP11 malware-analysis B02 packet must be imported")?;
-    assert_eq!(cp11_malware_analysis_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_malware_analysis_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_malware_analysis_batch03_node = graph
-        .node(&cp11_malware_analysis_batch03)
-        .ok_or("CP11 malware-analysis B03 packet must be imported")?;
-    assert_eq!(cp11_malware_analysis_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_malware_analysis_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_malware_analysis_batch04_node = graph
-        .node(&cp11_malware_analysis_batch04)
-        .ok_or("CP11 malware-analysis B04 packet must be imported")?;
-    assert_eq!(cp11_malware_analysis_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_malware_analysis_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
-    let cp11_mobile_security_batch01_node = graph
-        .node(&cp11_mobile_security_batch01)
-        .ok_or("CP11 mobile-security B01 packet must be imported")?;
-    assert_eq!(cp11_mobile_security_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_mobile_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_mobile_security_batch02_node = graph
-        .node(&cp11_mobile_security_batch02)
-        .ok_or("CP11 mobile-security B02 packet must be imported")?;
-    assert_eq!(cp11_mobile_security_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_mobile_security_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_network_security_batch01_node = graph
-        .node(&cp11_network_security_batch01)
-        .ok_or("CP11 network-security B01 packet must be imported")?;
-    assert_eq!(cp11_network_security_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_network_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_network_security_batch02_node = graph
-        .node(&cp11_network_security_batch02)
-        .ok_or("CP11 network-security B02 packet must be imported")?;
-    assert_eq!(cp11_network_security_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_network_security_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_network_security_batch03_node = graph
-        .node(&cp11_network_security_batch03)
-        .ok_or("CP11 network-security B03 packet must be imported")?;
-    assert_eq!(cp11_network_security_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_network_security_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_network_security_batch04_node = graph
-        .node(&cp11_network_security_batch04)
-        .ok_or("CP11 network-security B04 packet must be imported")?;
-    assert_eq!(cp11_network_security_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_network_security_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_network_security_batch05_node = graph
-        .node(&cp11_network_security_batch05)
-        .ok_or("CP11 network-security B05 packet must be imported")?;
-    assert_eq!(cp11_network_security_batch05_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_network_security_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_ot_ics_security_batch01_node = graph
-        .node(&cp11_ot_ics_security_batch01)
-        .ok_or("CP11 OT/ICS security B01 packet must be imported")?;
-    assert_eq!(cp11_ot_ics_security_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_ot_ics_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_ot_ics_security_batch02_node = graph
-        .node(&cp11_ot_ics_security_batch02)
-        .ok_or("CP11 OT/ICS security B02 packet must be imported")?;
-    assert_eq!(cp11_ot_ics_security_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_ot_ics_security_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_ot_ics_security_batch03_node = graph
-        .node(&cp11_ot_ics_security_batch03)
-        .ok_or("CP11 OT/ICS security B03 packet must be imported")?;
-    assert_eq!(cp11_ot_ics_security_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_ot_ics_security_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("9")
-    );
-    let cp11_penetration_testing_batch01_node = graph
-        .node(&cp11_penetration_testing_batch01)
-        .ok_or("CP11 penetration-testing B01 packet must be imported")?;
-    assert_eq!(
-        cp11_penetration_testing_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_penetration_testing_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_penetration_testing_batch02_node = graph
-        .node(&cp11_penetration_testing_batch02)
-        .ok_or("CP11 penetration-testing B02 packet must be imported")?;
-    assert_eq!(
-        cp11_penetration_testing_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_penetration_testing_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_penetration_testing_batch03_node = graph
-        .node(&cp11_penetration_testing_batch03)
-        .ok_or("CP11 penetration-testing B03 packet must be imported")?;
-    assert_eq!(
-        cp11_penetration_testing_batch03_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_penetration_testing_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_phishing_defense_batch01_node = graph
-        .node(&cp11_phishing_defense_batch01)
-        .ok_or("CP11 phishing-defense B01 packet must be imported")?;
-    assert_eq!(cp11_phishing_defense_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_phishing_defense_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_phishing_defense_batch02_node = graph
-        .node(&cp11_phishing_defense_batch02)
-        .ok_or("CP11 phishing-defense B02 packet must be imported")?;
-    assert_eq!(cp11_phishing_defense_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_phishing_defense_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_privacy_compliance_batch01_node = graph
-        .node(&cp11_privacy_compliance_batch01)
-        .ok_or("CP11 privacy-compliance B01 packet must be imported")?;
-    assert_eq!(
-        cp11_privacy_compliance_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_privacy_compliance_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("2")
-    );
-    let cp11_purple_team_batch01_node = graph
-        .node(&cp11_purple_team_batch01)
-        .ok_or("CP11 purple-team B01 packet must be imported")?;
-    assert_eq!(cp11_purple_team_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_purple_team_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("1")
-    );
-    let cp11_ransomware_defense_batch01_node = graph
-        .node(&cp11_ransomware_defense_batch01)
-        .ok_or("CP11 ransomware-defense B01 packet must be imported")?;
-    assert_eq!(
-        cp11_ransomware_defense_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_ransomware_defense_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_ransomware_defense_batch02_node = graph
-        .node(&cp11_ransomware_defense_batch02)
-        .ok_or("CP11 ransomware-defense B02 packet must be imported")?;
-    assert_eq!(
-        cp11_ransomware_defense_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_ransomware_defense_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_red_teaming_batch01_node = graph
-        .node(&cp11_red_teaming_batch01)
-        .ok_or("CP11 red-teaming B01 packet must be imported")?;
-    assert_eq!(cp11_red_teaming_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_red_teaming_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_red_teaming_batch02_node = graph
-        .node(&cp11_red_teaming_batch02)
-        .ok_or("CP11 red-teaming B02 packet must be imported")?;
-    assert_eq!(cp11_red_teaming_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_red_teaming_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_red_teaming_batch03_node = graph
-        .node(&cp11_red_teaming_batch03)
-        .ok_or("CP11 red-teaming B03 packet must be imported")?;
-    assert_eq!(cp11_red_teaming_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_red_teaming_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_red_teaming_batch04_node = graph
-        .node(&cp11_red_teaming_batch04)
-        .ok_or("CP11 red-teaming B04 packet must be imported")?;
-    assert_eq!(cp11_red_teaming_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_red_teaming_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("5")
-    );
-    let cp11_soc_operations_batch01_node = graph
-        .node(&cp11_soc_operations_batch01)
-        .ok_or("CP11 SOC-operations B01 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch02_node = graph
-        .node(&cp11_soc_operations_batch02)
-        .ok_or("CP11 SOC-operations B02 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch03_node = graph
-        .node(&cp11_soc_operations_batch03)
-        .ok_or("CP11 SOC-operations B03 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch04_node = graph
-        .node(&cp11_soc_operations_batch04)
-        .ok_or("CP11 SOC-operations B04 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch05_node = graph
-        .node(&cp11_soc_operations_batch05)
-        .ok_or("CP11 SOC-operations B05 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch05_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch06_node = graph
-        .node(&cp11_soc_operations_batch06)
-        .ok_or("CP11 SOC-operations B06 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch06_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch06_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_soc_operations_batch07_node = graph
-        .node(&cp11_soc_operations_batch07)
-        .ok_or("CP11 SOC-operations B07 packet must be imported")?;
-    assert_eq!(cp11_soc_operations_batch07_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_soc_operations_batch07_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("3")
-    );
-    let cp11_supply_chain_batch01_node = graph
-        .node(&cp11_supply_chain_batch01)
-        .ok_or("CP11 supply-chain-security B01 packet must be imported")?;
-    assert_eq!(cp11_supply_chain_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_supply_chain_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
-    let cp11_threat_detection_batch01_node = graph
-        .node(&cp11_threat_detection_batch01)
-        .ok_or("CP11 threat-detection B01 packet must be imported")?;
-    assert_eq!(cp11_threat_detection_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_detection_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("7")
-    );
-    let cp11_threat_hunting_batch01_node = graph
-        .node(&cp11_threat_hunting_batch01)
-        .ok_or("CP11 threat-hunting B01 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_hunting_batch02_node = graph
-        .node(&cp11_threat_hunting_batch02)
-        .ok_or("CP11 threat-hunting B02 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch02_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_hunting_batch03_node = graph
-        .node(&cp11_threat_hunting_batch03)
-        .ok_or("CP11 threat-hunting B03 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch03_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_hunting_batch04_node = graph
-        .node(&cp11_threat_hunting_batch04)
-        .ok_or("CP11 threat-hunting B04 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch04_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_hunting_batch05_node = graph
-        .node(&cp11_threat_hunting_batch05)
-        .ok_or("CP11 threat-hunting B05 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch05_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_hunting_batch06_node = graph
-        .node(&cp11_threat_hunting_batch06)
-        .ok_or("CP11 threat-hunting B06 packet must be imported")?;
-    assert_eq!(cp11_threat_hunting_batch06_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_threat_hunting_batch06_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
-    let cp11_threat_intelligence_batch01_node = graph
-        .node(&cp11_threat_intelligence_batch01)
-        .ok_or("CP11 threat-intelligence B01 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_intelligence_batch02_node = graph
-        .node(&cp11_threat_intelligence_batch02)
-        .ok_or("CP11 threat-intelligence B02 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_intelligence_batch03_node = graph
-        .node(&cp11_threat_intelligence_batch03)
-        .ok_or("CP11 threat-intelligence B03 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch03_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_intelligence_batch04_node = graph
-        .node(&cp11_threat_intelligence_batch04)
-        .ok_or("CP11 threat-intelligence B04 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch04_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_intelligence_batch05_node = graph
-        .node(&cp11_threat_intelligence_batch05)
-        .ok_or("CP11 threat-intelligence B05 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch05_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_threat_intelligence_batch06_node = graph
-        .node(&cp11_threat_intelligence_batch06)
-        .ok_or("CP11 threat-intelligence B06 packet must be imported")?;
-    assert_eq!(
-        cp11_threat_intelligence_batch06_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_threat_intelligence_batch06_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("2")
-    );
-    let cp11_vulnerability_management_batch01_node = graph
-        .node(&cp11_vulnerability_management_batch01)
-        .ok_or("CP11 vulnerability-management B01 packet must be imported")?;
-    assert_eq!(
-        cp11_vulnerability_management_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_vulnerability_management_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_vulnerability_management_batch02_node = graph
-        .node(&cp11_vulnerability_management_batch02)
-        .ok_or("CP11 vulnerability-management B02 packet must be imported")?;
-    assert_eq!(
-        cp11_vulnerability_management_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_vulnerability_management_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_vulnerability_management_batch03_node = graph
-        .node(&cp11_vulnerability_management_batch03)
-        .ok_or("CP11 vulnerability-management B03 packet must be imported")?;
-    assert_eq!(
-        cp11_vulnerability_management_batch03_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_vulnerability_management_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("5")
-    );
-    let cp11_web_application_security_batch01_node = graph
-        .node(&cp11_web_application_security_batch01)
-        .ok_or("CP11 web-application-security B01 packet must be imported")?;
-    assert_eq!(
-        cp11_web_application_security_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_web_application_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_web_application_security_batch02_node = graph
-        .node(&cp11_web_application_security_batch02)
-        .ok_or("CP11 web-application-security B02 packet must be imported")?;
-    assert_eq!(
-        cp11_web_application_security_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_web_application_security_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_web_application_security_batch03_node = graph
-        .node(&cp11_web_application_security_batch03)
-        .ok_or("CP11 web-application-security B03 packet must be imported")?;
-    assert_eq!(
-        cp11_web_application_security_batch03_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_web_application_security_batch03_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_web_application_security_batch04_node = graph
-        .node(&cp11_web_application_security_batch04)
-        .ok_or("CP11 web-application-security B04 packet must be imported")?;
-    assert_eq!(
-        cp11_web_application_security_batch04_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_web_application_security_batch04_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_web_application_security_batch05_node = graph
-        .node(&cp11_web_application_security_batch05)
-        .ok_or("CP11 web-application-security B05 packet must be imported")?;
-    assert_eq!(
-        cp11_web_application_security_batch05_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_web_application_security_batch05_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("6")
-    );
-    let cp11_wireless_security_batch01_node = graph
-        .node(&cp11_wireless_security_batch01)
-        .ok_or("CP11 wireless-security B01 packet must be imported")?;
-    assert_eq!(cp11_wireless_security_batch01_node.kind, NodeKind::Workpack);
-    assert_eq!(
-        cp11_wireless_security_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("2")
-    );
-    let cp11_zero_trust_architecture_batch01_node = graph
-        .node(&cp11_zero_trust_architecture_batch01)
-        .ok_or("CP11 zero-trust-architecture B01 packet must be imported")?;
-    assert_eq!(
-        cp11_zero_trust_architecture_batch01_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_zero_trust_architecture_batch01_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("10")
-    );
-    let cp11_zero_trust_architecture_batch02_node = graph
-        .node(&cp11_zero_trust_architecture_batch02)
-        .ok_or("CP11 zero-trust-architecture B02 packet must be imported")?;
-    assert_eq!(
-        cp11_zero_trust_architecture_batch02_node.kind,
-        NodeKind::Workpack
-    );
-    assert_eq!(
-        cp11_zero_trust_architecture_batch02_node
-            .metadata
-            .get("skillCount")
-            .map(String::as_str),
-        Some("8")
-    );
+    assert_eq!(graph.why(&ul02)?.chain, vec![ul02.clone()]);
+
+    assert_imported_catalog_nodes(&graph)?;
     assert!(
         status.validation.is_valid(),
         "{:?}",
@@ -1320,55 +324,51 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
-    let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
-    let ul04 = graph.inspect(&NodeId::new("EXT/UL04")?)?;
-    let ul05 = graph.inspect(&NodeId::new("EXT/UL05")?)?;
-    let ul06 = graph.inspect(&NodeId::new("EXT/UL06")?)?;
-    let ul07 = graph.inspect(&NodeId::new("EXT/UL07")?)?;
-    let ul08 = graph.inspect(&NodeId::new("EXT/UL08")?)?;
-    let ul09 = graph.inspect(&NodeId::new("EXT/UL09")?)?;
-    let ul10 = graph.inspect(&NodeId::new("EXT/UL10")?)?;
-    let ul13 = graph.inspect(&NodeId::new("EXT/UL13")?)?;
-    let cp06 = graph.inspect(&NodeId::new("WP/CP06")?)?;
-    let cp02 = graph.inspect(&NodeId::new("WP/CP02")?)?;
-    let cp03 = graph.inspect(&NodeId::new("WP/CP03")?)?;
-    let cp04 = graph.inspect(&NodeId::new("WP/CP04")?)?;
-    let cp05 = graph.inspect(&NodeId::new("WP/CP05")?)?;
+    for id in [
+        "EXT/UL03", "EXT/UL04", "EXT/UL05", "EXT/UL06", "EXT/UL07", "EXT/UL08", "EXT/UL09",
+        "EXT/UL10", "EXT/UL13",
+    ] {
+        assert_eq!(
+            graph.inspect(&NodeId::new(id)?)?.state,
+            DerivedState::Done,
+            "{id} must be closed"
+        );
+    }
+    for id in ["WP/CP06", "WP/CP02", "WP/CP03", "WP/CP04", "WP/CP05"] {
+        assert_eq!(
+            graph.inspect(&NodeId::new(id)?)?.state,
+            DerivedState::Done,
+            "{id} must be closed"
+        );
+    }
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
-    let cp09_cloud_packet = graph.inspect(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)?;
+    assert_eq!(cp12.state, DerivedState::Blocked);
+    assert!(
+        cp12.reasons
+            .iter()
+            .any(|reason| reason.contains("concrete approved predicate"))
+    );
 
     assert_eq!(next["decision"], "selected");
     assert_eq!(next["selected"]["id"], "WP/CP09");
-    assert_eq!(ul03.state, DerivedState::Done);
-    assert_eq!(ul04.state, DerivedState::Done);
-    assert_eq!(ul05.state, DerivedState::Done);
-    assert_eq!(ul06.state, DerivedState::Done);
-    assert_eq!(ul07.state, DerivedState::Done);
-    assert_eq!(ul08.state, DerivedState::Done);
-    assert_eq!(ul09.state, DerivedState::Done);
-    assert_eq!(ul10.state, DerivedState::Done);
-    assert_eq!(ul13.state, DerivedState::Done);
-    assert_eq!(cp06.state, DerivedState::Done);
-    assert_eq!(cp02.state, DerivedState::Done);
-    assert_eq!(cp03.state, DerivedState::Done);
-    assert_eq!(cp04.state, DerivedState::Done);
-    assert_eq!(cp05.state, DerivedState::Done);
-    assert_eq!(cp12.state, DerivedState::Blocked);
-    assert!(cp12
-        .reasons
-        .iter()
-        .any(|reason| reason.contains("concrete approved predicate")));
-    assert_eq!(cp09_cloud_packet.state, DerivedState::Ready);
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)?
+            .state,
+        DerivedState::Validation
+    );
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
-        .ok_or("CP09 cloud-security B01 node must be imported")?;
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP09 cloud-security B01"))?;
     assert_eq!(
         cp09_cloud_node.metadata.get("route").map(String::as_str),
         Some("CP09")
     );
-    assert!(graph
-        .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
-        .is_none());
+    assert!(
+        graph
+            .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
+            .is_none()
+    );
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
@@ -1379,7 +379,9 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
 fn protected_catalog_row_is_explicitly_excluded() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let id = NodeId::new("SKILL/detecting-fileless-malware-techniques")?;
-    let node = graph.node(&id).ok_or("protected row must be represented")?;
+    let node = graph
+        .node(&id)
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "protected row"))?;
 
     assert_eq!(node.kind, NodeKind::Skill);
     assert_eq!(
