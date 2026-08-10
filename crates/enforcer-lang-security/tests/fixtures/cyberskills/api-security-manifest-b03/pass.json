@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b03-pass",
+  "owner": "security-engineering",
+  "scope": "offline-supplied-api-control-evidence",
+  "evidence": [
+    { "kind": "rate-control-review", "reference": "rate-review-012" },
+    { "kind": "schema-contract-review", "reference": "schema-review-013" },
+    { "kind": "posture-review", "reference": "posture-review-014" },
+    { "kind": "contract-audit-review", "reference": "contract-review-015" },
+    { "kind": "threat-protection-review", "reference": "threat-review-016" }
+  ],
+  "records": [
+    {
+      "kind": "api-rate-limiting-throttling-plan",
+      "skillId": "implementing-api-rate-limiting-and-throttling",
+      "routeRef": "route:/api/v2/public",
+      "policyRef": "rate-policy:tiered-sliding-window-012",
+      "algorithmRef": "algorithm:sliding-window",
+      "clientRef": "client:authenticated-and-ip-key",
+      "capacityRef": "capacity:60-per-minute",
+      "windowRef": "window:60-seconds",
+      "backendRef": "backend:supplied-distributed-counter",
+      "responseRef": "response:429-retry-after-policy",
+      "telemetryRef": "telemetry:supplied-rate-limit-events",
+      "scopeRef": "offline-control-plan-scope",
+      "stopCondition": "stop-before-live-throttling-or-load-testing",
+      "reviewRef": "manual-rate-control-review-012",
+      "evidenceRef": "rate-review-012"
+    },
+    {
+      "kind": "api-schema-validation-security-case",
+      "skillId": "implementing-api-schema-validation-security",
+      "routeRef": "route:/api/v2/accounts/{accountId}",
+      "schemaRef": "schema:openapi-and-json-schema-013",
+      "requestRef": "request:typed-body-contract-013",
+      "responseRef": "response:typed-output-contract-013",
+      "parserRef": "parser:offline-schema-parser-013",
+      "parameterRef": "parameter:allowlisted-properties-013",
+      "authorizationRef": "written-authorization-013",
+      "scopeRef": "offline-control-plan-scope",
+      "reviewRef": "manual-schema-security-review-013",
+      "evidenceRef": "schema-review-013"
+    },
+    {
+      "kind": "api-security-posture-review",
+      "skillId": "implementing-api-security-posture-management",
+      "inventoryRef": "inventory:supplied-api-catalog-014",
+      "findingRef": "finding:supplied-control-gap-014",
+      "scoreRef": "score:documented-risk-model-014",
+      "exceptionRef": "exception:owner-approved-scope-014",
+      "remediationRef": "remediation:proposed-control-change-014",
+      "ownerRef": "owner:api-security-team-014",
+      "scopeRef": "offline-posture-review-scope",
+      "reviewRef": "manual-posture-review-014",
+      "evidenceRef": "posture-review-014"
+    },
+    {
+      "kind": "api-42crunch-contract-audit",
+      "skillId": "implementing-api-security-testing-with-42crunch",
+      "definitionRef": "definition:supplied-openapi-document-015",
+      "schemaRef": "schema:offline-api-contract-015",
+      "auditRef": "audit:static-contract-checks-015",
+      "scoreRef": "score:supplied-audit-threshold-015",
+      "findingRef": "finding:supplied-contract-observation-015",
+      "reportRef": "report:offline-audit-record-015",
+      "scopeRef": "offline-contract-audit-scope",
+      "reviewRef": "manual-contract-audit-review-015",
+      "evidenceRef": "contract-review-015"
+    },
+    {
+      "kind": "apigee-threat-protection-plan",
+      "skillId": "implementing-api-threat-protection-with-apigee",
+      "gatewayRef": "gateway:supplied-apigee-policy-bundle-016",
+      "jsonPolicyRef": "policy:json-threat-limits-016",
+      "xmlPolicyRef": "policy:xml-threat-limits-016",
+      "regexPolicyRef": "policy:regex-input-patterns-016",
+      "spikeArrestRef": "policy:spike-arrest-016",
+      "oauthPolicyRef": "policy:oauth-verification-016",
+      "apiKeyPolicyRef": "policy:api-key-verification-016",
+      "scopeRef": "offline-threat-protection-scope",
+      "reviewRef": "manual-threat-protection-review-016",
+      "evidenceRef": "threat-review-016"
+    }
+  ]
+}

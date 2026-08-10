@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b03-fail",
+  "owner": "security-engineering",
+  "scope": "offline-supplied-api-control-evidence",
+  "evidence": [
+    { "kind": "schema-contract-review", "reference": "schema-review-fail" }
+  ],
+  "records": [
+    {
+      "kind": "api-schema-validation-security-case",
+      "skillId": "implementing-api-schema-validation-security",
+      "routeRef": "route:/api/v2/accounts/{accountId}",
+      "schemaRef": "schema:offline-contract-fail",
+      "requestRef": "request:typed-body-contract-fail",
+      "responseRef": "response:typed-output-contract-fail",
+      "parserRef": "",
+      "parameterRef": "parameter:allowlisted-properties-fail",
+      "authorizationRef": "written-authorization-fail",
+      "scopeRef": "offline-control-plan-scope",
+      "reviewRef": "manual-schema-security-review-fail",
+      "evidenceRef": "schema-review-fail"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-api-security/B03",
+  "workpack": "CP09",
+  "baseCommit": "fc81e835adf2800c9cbf35b207ec4a04c7e7f863",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "api-security-manifest",
+    "ruleId": "CYBER-API-MANIFEST.1",
+    "predicate": "Validate supplied typed rate-control, schema-validation, API-posture, contract-audit, and gateway threat-protection fields without calling endpoints, deploying gateways, or executing controls.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded API-security record-shape predicates; the packet does not discover endpoints, send traffic, execute 42Crunch or Apigee, enforce throttling, score posture, or claim security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-api-rate-limiting-and-throttling",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-api-rate-limiting-and-throttling/SKILL.md",
+        "sha256": "65d0e38512beed2c8f6ada2a1f77b72e9059a4dd21a4e31acb17a0208f1208c6",
+        "anchor": { "line": 36, "text": "# Implementing API Rate Limiting and Throttling" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate static route, policy, algorithm, client-key, capacity, window, backend, response, telemetry, authorization, scope, review, stop-condition, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "implementing-api-schema-validation-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-api-schema-validation-security/SKILL.md",
+        "sha256": "83a215f9ef493d0acf0e24aa93eec0f643e6511d0b6ec7099e61afbab2a7e2de",
+        "anchor": { "line": 33, "text": "# Implementing API Schema Validation Security" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied route, OpenAPI/JSON-schema, request, response, parser, parameter, authorization, scope, review, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "implementing-api-security-posture-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-api-security-posture-management/SKILL.md",
+        "sha256": "7e8aec1ac66ed3fc79a535599b7cd567906c97dd317433446344d941e4496fbb",
+        "anchor": { "line": 30, "text": "# Implementing API Security Posture Management" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied API inventory, finding, score, exception, remediation, owner, scope, review, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "implementing-api-security-testing-with-42crunch",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-api-security-testing-with-42crunch/SKILL.md",
+        "sha256": "410042b981a5a75559b5c9b5003105e1a16bc71d4f8e57c549cca8f25c95adfd",
+        "anchor": { "line": 31, "text": "# Implementing API Security Testing with 42Crunch" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied API definition, schema, audit, score, finding, report, scope, review, and evidence fields without running a conformance scanner.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "implementing-api-threat-protection-with-apigee",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-api-threat-protection-with-apigee/SKILL.md",
+        "sha256": "f0f783cef54c154767e62bcf62904a716612786e9c6f3fcbd11406bea131c93d",
+        "anchor": { "line": 34, "text": "# Implementing API Threat Protection with Apigee" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied gateway, JSON/XML/regex threat-policy, spike-arrest, OAuth, API-key, scope, review, stop-condition, and evidence fields.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/api_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+    "tests": [
+      "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest.rs",
+      "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b02.rs",
+      "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest_b03.rs"
+    ],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b03/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b03/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b03/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b03/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing API-security Validator and supplied JSON wire boundary from B01",
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing cyberskills registry and exact-file Enforcer dogfood gates",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "live API endpoints, gateways, cloud services, Redis, databases, key stores, production traffic, scanners, and deployment systems",
+    "42Crunch, Apigee, Google Cloud, gcloud, OpenAPI conformance runners, load-testing tools, Redis clients, gateway plugins, WAFs, fuzzers, and payload runners",
+    "endpoint discovery, request sending, live rate enforcement, contract scanning, posture scoring, policy deployment, token validation, credential or key lifecycle, and security outcome evaluation"
+  ],
+  "advisoryManual": [
+    "defensive rate-control, schema-validation, API-posture, contract-audit, and threat-protection guidance",
+    "written authorization, API/data ownership, legal/privacy/ethics/safety review, scope, data handling, and stop conditions",
+    "analyst validation, severity, exception approval, remediation, rollback, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust API-security validator deterministically accepts five additional static record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet extends the existing CYBER-API-MANIFEST.1 Validator seam without adding a second registry rule or external runtime dependency.",
+    "The packet validates only supplied static JSON and retains external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No live endpoint discovery, request, response, traffic, gateway, cloud, Redis, database, key-store, scanner, conformance, fuzzer, 42Crunch, Apigee, gcloud, or production authority.",
+    "No rate-limit correctness, schema vulnerability absence, posture truth, audit score truth, threat detection, exploitability, finding validity, attribution, remediation success, or security outcome.",
+    "No live throttling/blocking, policy deployment, contract scanning, posture scoring, token validation, credential capture, key generation, key storage, or key revocation.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

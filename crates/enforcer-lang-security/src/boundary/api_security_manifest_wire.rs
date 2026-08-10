@@ -23,6 +23,11 @@ const JWT_CONFUSION_SKILL: &str = "exploiting-jwt-algorithm-confusion-attack";
 const RATE_LIMIT_SKILL: &str = "implementing-api-abuse-detection-with-rate-limiting";
 const GATEWAY_SKILL: &str = "implementing-api-gateway-security-controls";
 const API_KEY_SKILL: &str = "implementing-api-key-security-controls";
+const THROTTLING_SKILL: &str = "implementing-api-rate-limiting-and-throttling";
+const SCHEMA_VALIDATION_SKILL: &str = "implementing-api-schema-validation-security";
+const POSTURE_SKILL: &str = "implementing-api-security-posture-management";
+const CRUNCH_SKILL: &str = "implementing-api-security-testing-with-42crunch";
+const APIGEE_SKILL: &str = "implementing-api-threat-protection-with-apigee";
 
 // BRAND-INVARIANT: private wire fields are decoded only through serde and
 // accepted by `is_valid` after the schema and field predicates below pass.
@@ -99,6 +104,20 @@ struct RecordWire {
     rotation_ref: Option<String>,
     revocation_ref: Option<String>,
     leak_monitoring_ref: Option<String>,
+    inventory_ref: Option<String>,
+    finding_ref: Option<String>,
+    score_ref: Option<String>,
+    exception_ref: Option<String>,
+    remediation_ref: Option<String>,
+    definition_ref: Option<String>,
+    audit_ref: Option<String>,
+    report_ref: Option<String>,
+    json_policy_ref: Option<String>,
+    xml_policy_ref: Option<String>,
+    regex_policy_ref: Option<String>,
+    spike_arrest_ref: Option<String>,
+    oauth_policy_ref: Option<String>,
+    api_key_policy_ref: Option<String>,
 }
 
 struct RecordRule {
@@ -271,6 +290,92 @@ static RECORD_RULES: &[RecordRule] = &[
             "rotationRef",
             "revocationRef",
             "leakMonitoringRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-rate-limiting-throttling-plan",
+        skill: THROTTLING_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "policyRef",
+            "algorithmRef",
+            "clientRef",
+            "capacityRef",
+            "windowRef",
+            "backendRef",
+            "responseRef",
+            "telemetryRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-schema-validation-security-case",
+        skill: SCHEMA_VALIDATION_SKILL,
+        required: &[
+            "skillId",
+            "routeRef",
+            "schemaRef",
+            "requestRef",
+            "responseRef",
+            "parserRef",
+            "parameterRef",
+            "authorizationRef",
+            "scopeRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-security-posture-review",
+        skill: POSTURE_SKILL,
+        required: &[
+            "skillId",
+            "inventoryRef",
+            "findingRef",
+            "scoreRef",
+            "exceptionRef",
+            "remediationRef",
+            "ownerRef",
+            "scopeRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "api-42crunch-contract-audit",
+        skill: CRUNCH_SKILL,
+        required: &[
+            "skillId",
+            "definitionRef",
+            "schemaRef",
+            "auditRef",
+            "scoreRef",
+            "findingRef",
+            "reportRef",
+            "scopeRef",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "apigee-threat-protection-plan",
+        skill: APIGEE_SKILL,
+        required: &[
+            "skillId",
+            "gatewayRef",
+            "jsonPolicyRef",
+            "xmlPolicyRef",
+            "regexPolicyRef",
+            "spikeArrestRef",
+            "oauthPolicyRef",
+            "apiKeyPolicyRef",
+            "scopeRef",
             "reviewRef",
             "evidenceRef",
         ],

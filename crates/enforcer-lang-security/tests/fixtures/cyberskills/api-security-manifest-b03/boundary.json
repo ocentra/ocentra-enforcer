@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-api-security-b03-boundary",
+  "owner": "security-engineering",
+  "scope": "static-written-authorization-only",
+  "evidence": [
+    { "kind": "written-authorization", "reference": "authorization-boundary-017" }
+  ],
+  "records": [
+    {
+      "kind": "apigee-threat-protection-plan",
+      "skillId": "implementing-api-threat-protection-with-apigee",
+      "gatewayRef": "gateway:supplied-policy-boundary",
+      "jsonPolicyRef": "policy:json-boundary",
+      "xmlPolicyRef": "policy:xml-boundary",
+      "regexPolicyRef": "policy:regex-boundary",
+      "spikeArrestRef": "policy:spike-arrest-boundary",
+      "oauthPolicyRef": "policy:oauth-boundary",
+      "apiKeyPolicyRef": "policy:api-key-boundary",
+      "scopeRef": "offline-fixture-scope",
+      "reviewRef": "manual-safety-review-boundary",
+      "evidenceRef": "written-authorization",
+      "stopCondition": "stop-before-live-apigee-deployment-or-traffic"
+    }
+  ]
+}
