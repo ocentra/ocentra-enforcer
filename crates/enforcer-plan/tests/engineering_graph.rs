@@ -373,6 +373,13 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
     assert_eq!(next["decision"], "selected");
     assert_eq!(next["selected"]["id"], "WP/CP09");
     assert_cp09_cloud_batches(&graph)?;
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B01")?)?
+            .state,
+        DerivedState::Validation,
+        "the pushed B01 packet remains validation-only until canonical integration"
+    );
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
         .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP09 cloud-security B01"))?;
