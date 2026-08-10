@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-blockchain-security/B01",
+  "workpack": "CP09",
+  "baseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "blockchain-security-manifest",
+    "ruleId": "CYBER-BLOCKCHAIN-MANIFEST.1",
+    "predicate": "Validate supplied typed smart-contract and Foundry audit references without parsing or executing contracts, invoking analyzers, connecting to a chain, or broadcasting deployment actions.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "two bounded offline blockchain-security record-shape predicates; the packet does not prove contract safety, vulnerability absence, chain state, or deployment readiness"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-ethereum-smart-contract-vulnerabilities/SKILL.md",
+        "sha256": "40c2f5b831e16f33ad86377e9c1a99d165519c798714ebcd2e1981785844aa9c",
+        "anchor": {"line": 29, "text": "# Analyzing Ethereum Smart Contract Vulnerabilities"},
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied contract source, bytecode, ABI, chain, address, provenance, finding, owner, scope, and evidence references without running Slither, Mythril, a compiler, a node, a wallet, or a transaction.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-foundry-smart-contract-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-foundry-smart-contract-security/SKILL.md",
+        "sha256": "1d631c528d15c299be4e6446b31e0901484c2a89bbdcb95fd545e5e438db8259",
+        "anchor": {"line": 37, "text": "# Auditing Foundry Smart Contract Security"},
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied Foundry project, source, test, invariant, dependency, chain, owner, scope, provenance, key-hygiene, deployment-control, finding, and evidence references without forge, fuzzing, invariant execution, deployment, or key use.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/blockchain_security.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/blockchain_security_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_blockchain_security_manifest_b01.rs"],
+    "fixtures": [
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/blockchain-security-manifest-b01/pass.json", "class": "positive"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/blockchain-security-manifest-b01/fail.json", "class": "negative"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/blockchain-security-manifest-b01/malformed.json", "class": "malformed"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/blockchain-security-manifest-b01/boundary.json", "class": "written-authorization-boundary"}
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing serde/serde_json dependency and private boundary-module pattern",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "Slither, Mythril, Aderyn, Foundry forge/cast/anvil, solc, solc-select, fuzzers, symbolic executors, and gitleaks",
+    "EVM chains, Ethereum nodes, RPC providers, blockchain explorers, wallets, private keys, deployments, broadcasts, testnets, mainnet, and production assets",
+    "live contract compilation, bytecode execution, transactions, exploit delivery, vulnerability findings, asset impact, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive smart-contract access-control, reentrancy, arithmetic, oracle, upgrade, dependency, invariant, evidence, and remediation guidance",
+    "written authorization and exact contract, repository, chain, asset, wallet, key, data, legal, privacy, safety, and test scope",
+    "analyst validation, severity, exception approval, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust blockchain-security validator deterministically accepts two supplied offline record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records both source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet validates only supplied static JSON and retains blocked external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No live chain, node, RPC, wallet, key, contract, compiler, Slither, Mythril, Aderyn, Foundry, fuzz, invariant, symbolic, transaction, deployment, or production authority.",
+    "No contract vulnerability, exploitability, reentrancy, arithmetic safety, access-control correctness, oracle integrity, asset protection, finding validity, remediation effectiveness, or security outcome.",
+    "No complete native implementation of either full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

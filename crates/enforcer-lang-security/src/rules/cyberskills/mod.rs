@@ -14,6 +14,7 @@
 //! is introduced anywhere in this module.
 
 pub mod auth_jwt;
+pub mod blockchain_security;
 pub mod cloud_aws;
 pub mod cloud_azure;
 pub mod cloud_gcp;

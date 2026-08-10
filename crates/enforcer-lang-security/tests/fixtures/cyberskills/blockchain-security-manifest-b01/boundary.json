@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:written-review-boundary",
+  "owner": "owner:contract-owner",
+  "scope": "scope:authorized-offline-analysis",
+  "evidence": [
+    {"kind": "authorization", "reference": "approval:written-scope"},
+    {"kind": "custody", "reference": "control:key-handling"}
+  ],
+  "records": [
+    {
+      "kind": "ethereum-contract-audit",
+      "skillId": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "contractRef": "artifact:contract",
+      "sourceRef": "artifact:source",
+      "bytecodeRef": "artifact:bytecode",
+      "abiRef": "artifact:abi",
+      "chainRef": "declared:test-target",
+      "addressRef": "declared:address",
+      "provenanceRef": "evidence:provenance",
+      "findingRef": "report:analyst-review",
+      "evidenceRef": "evidence:review"
+    },
+    {
+      "kind": "foundry-project-audit",
+      "skillId": "auditing-foundry-smart-contract-security",
+      "contractRef": "artifact:project",
+      "sourceRef": "artifact:source",
+      "testRef": "artifact:test",
+      "invariantRef": "artifact:invariant",
+      "dependencyRef": "artifact:lockfile",
+      "chainRef": "declared:test-target",
+      "ownerRef": "owner:validated",
+      "scopeRef": "scope:authorized",
+      "provenanceRef": "evidence:provenance",
+      "findingRef": "report:analyst-review",
+      "evidenceRef": "evidence:review",
+      "keyHygieneRef": "control:key-custody",
+      "deploymentRef": "control:no-broadcast"
+    }
+  ]
+}

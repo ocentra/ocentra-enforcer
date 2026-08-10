@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:invalid-review",
+  "owner": "owner:team",
+  "scope": "scope:offline",
+  "evidence": [
+    {"kind": "artifact", "reference": "artifact:contract"}
+  ],
+  "records": [
+    {
+      "kind": "ethereum-contract-audit",
+      "skillId": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "contractRef": "artifact:contract",
+      "sourceRef": "artifact:source",
+      "bytecodeRef": "artifact:bytecode",
+      "abiRef": "",
+      "chainRef": "declared:chain",
+      "addressRef": "declared:address",
+      "provenanceRef": "evidence:provenance",
+      "findingRef": "report:findings",
+      "evidenceRef": "evidence:review"
+    },
+    {
+      "kind": "foundry-project-audit",
+      "skillId": "auditing-foundry-smart-contract-security",
+      "contractRef": "artifact:project",
+      "sourceRef": "artifact:source",
+      "testRef": "artifact:test",
+      "invariantRef": "artifact:invariant",
+      "dependencyRef": "artifact:lockfile",
+      "chainRef": "declared:chain",
+      "ownerRef": "owner:team",
+      "scopeRef": "scope:offline",
+      "provenanceRef": "evidence:provenance",
+      "findingRef": "report:findings",
+      "evidenceRef": "evidence:review"
+    }
+  ]
+}

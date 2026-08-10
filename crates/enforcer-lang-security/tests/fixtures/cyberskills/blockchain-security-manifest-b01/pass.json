@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:blockchain-review-001",
+  "owner": "owner:security-team",
+  "scope": "scope:offline-predeployment-review",
+  "evidence": [
+    {"kind": "artifact", "reference": "artifact:contract-package"},
+    {"kind": "report", "reference": "report:review-001"}
+  ],
+  "records": [
+    {
+      "kind": "ethereum-contract-audit",
+      "skillId": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "contractRef": "artifact:contract-source",
+      "sourceRef": "artifact:solidity-source",
+      "bytecodeRef": "artifact:runtime-bytecode",
+      "abiRef": "artifact:contract-abi",
+      "chainRef": "declared:ethereum-target",
+      "addressRef": "declared:contract-address",
+      "provenanceRef": "evidence:source-provenance",
+      "findingRef": "report:slither-mythril-review",
+      "evidenceRef": "evidence:contract-review"
+    },
+    {
+      "kind": "foundry-project-audit",
+      "skillId": "auditing-foundry-smart-contract-security",
+      "contractRef": "artifact:foundry-project",
+      "sourceRef": "artifact:foundry-source",
+      "testRef": "artifact:foundry-tests",
+      "invariantRef": "artifact:invariant-suite",
+      "dependencyRef": "artifact:dependency-lock",
+      "chainRef": "declared:evm-target",
+      "ownerRef": "owner:protocol-team",
+      "scopeRef": "scope:predeployment",
+      "provenanceRef": "evidence:project-provenance",
+      "findingRef": "report:foundry-review",
+      "evidenceRef": "evidence:foundry-review",
+      "keyHygieneRef": "control:encrypted-keystore",
+      "deploymentRef": "control:nonbroadcast-review"
+    }
+  ]
+}
