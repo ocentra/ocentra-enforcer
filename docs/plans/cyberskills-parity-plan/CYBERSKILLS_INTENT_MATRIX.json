@@ -66,6 +66,13 @@
     "retentionPacketId": "WP/CP11/IF-{family}/B##",
     "selection": "graph.next chooses only derived-ready packets after all hard dependencies are done"
   },
+  "routeQualification": {
+    "defaultNativeRoute": "CP09",
+    "repositoryGraphSkillIds": [],
+    "repositoryGraphRequirement": "Only an explicitly listed catalog ID with CP08 evidence of a repository-level predicate, a failing file-local fixture, and an approved UL13 graph relation may route to CP12. All other native predicates, including mixed families, route to CP09 typed/static packets.",
+    "qualifiedRepositoryGraphCount": 0,
+    "candidateRepositoryGraphCount": 7
+  },
   "reuse": {
     "typedParsing": [
       "crates/enforcer-domain/src",

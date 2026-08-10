@@ -1334,7 +1334,7 @@ fn next_blocks_an_unapproved_cp12_entry_contract_without_promoting_truth(
     let cp02 = graph.inspect(&NodeId::new("WP/CP02")?)?;
     let cp03 = graph.inspect(&NodeId::new("WP/CP03")?)?;
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
-    let cp12_packet = graph.inspect(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)?;
+    let cp09_cloud_packet = graph.inspect(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)?;
 
     assert_eq!(next["decision"], "blocked");
     assert!(next["selected"].is_null());
@@ -1355,11 +1355,21 @@ fn next_blocks_an_unapproved_cp12_entry_contract_without_promoting_truth(
         .reasons
         .iter()
         .any(|reason| reason.contains("concrete approved predicate")));
-    assert_eq!(cp12_packet.state, DerivedState::Blocked);
-    assert!(cp12_packet
+    assert_eq!(cp09_cloud_packet.state, DerivedState::Blocked);
+    let cp09_cloud_node = graph
+        .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
+        .ok_or("CP09 cloud-security B01 node must be imported")?;
+    assert_eq!(
+        cp09_cloud_node.metadata.get("route").map(String::as_str),
+        Some("CP09")
+    );
+    assert!(cp09_cloud_packet
         .reasons
         .iter()
-        .any(|reason| reason.contains("WP/CP12")));
+        .any(|reason| reason.contains("WP/CP05")));
+    assert!(graph
+        .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
+        .is_none());
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);

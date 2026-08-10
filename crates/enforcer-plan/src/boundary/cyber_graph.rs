@@ -1662,10 +1662,24 @@ impl CyberPlanGraph {
             .ok_or_else(|| {
                 GraphError::InvalidValue("intent matrix families are missing".to_owned())
             })?;
+        let repository_graph_skill_ids = repository_graph_skill_ids(&matrix)?;
         let mut assigned = BTreeSet::new();
         let mut owned_components = BTreeSet::new();
         for family in families {
-            self.import_intent_family(family, &path, &mut assigned, &mut owned_components)?;
+            self.import_intent_family(
+                family,
+                &path,
+                &repository_graph_skill_ids,
+                &mut assigned,
+                &mut owned_components,
+            )?;
+        }
+        for skill_id in &repository_graph_skill_ids {
+            if !assigned.contains(skill_id) {
+                return Err(GraphError::InvalidValue(format!(
+                    "repository graph qualification references unknown or unassigned skill `{skill_id}`"
+                )));
+            }
         }
         self.validate_intent_partition(&assigned)?;
         Ok(())
@@ -1675,6 +1689,7 @@ impl CyberPlanGraph {
         &mut self,
         family: &Value,
         matrix_path: &GraphPath,
+        repository_graph_skill_ids: &BTreeSet<String>,
         assigned: &mut BTreeSet<String>,
         owned_components: &mut BTreeSet<String>,
     ) -> Result<(), GraphError> {
@@ -1716,17 +1731,50 @@ impl CyberPlanGraph {
             string_field(family, &["nativeRoute"]).unwrap_or_else(|| "CP09".to_owned());
         let native_limit = usize_field(family, &["nativeBatchLimit"]).unwrap_or(5);
         let native_dependencies = string_array(family, &["dependencies"]);
-        self.derive_intent_packets(
-            &family_node,
-            &family_id,
-            matrix_path,
-            &skill_ids,
-            &native_route,
-            native_limit,
-            &native_dependencies,
-            "native-predicate",
-            owned_components,
-        )?;
+        if native_route == "CP12" {
+            let (graph_skills, static_skills): (Vec<_>, Vec<_>) = skill_ids
+                .iter()
+                .cloned()
+                .partition(|skill_id| repository_graph_skill_ids.contains(skill_id));
+            if !static_skills.is_empty() {
+                self.derive_intent_packets(
+                    &family_node,
+                    &family_id,
+                    matrix_path,
+                    &static_skills,
+                    "CP09",
+                    5,
+                    &["WP/CP05".to_owned(), "WP/CP08".to_owned()],
+                    "native-predicate",
+                    owned_components,
+                )?;
+            }
+            if !graph_skills.is_empty() {
+                self.derive_intent_packets(
+                    &family_node,
+                    &family_id,
+                    matrix_path,
+                    &graph_skills,
+                    "CP12",
+                    native_limit,
+                    &native_dependencies,
+                    "native-predicate",
+                    owned_components,
+                )?;
+            }
+        } else {
+            self.derive_intent_packets(
+                &family_node,
+                &family_id,
+                matrix_path,
+                &skill_ids,
+                &native_route,
+                native_limit,
+                &native_dependencies,
+                "native-predicate",
+                owned_components,
+            )?;
+        }
         self.derive_intent_packets(
             &family_node,
             &family_id,
@@ -2918,6 +2966,36 @@ fn validate_intent_matrix_header(matrix: &Value) -> Result<(), GraphError> {
         ));
     }
     Ok(())
+}
+
+fn repository_graph_skill_ids(matrix: &Value) -> Result<BTreeSet<String>, GraphError> {
+    let qualification = matrix.get("routeQualification").ok_or_else(|| {
+        GraphError::InvalidValue("intent matrix route qualification is missing".to_owned())
+    })?;
+    if string_field(qualification, &["defaultNativeRoute"]).as_deref() != Some("CP09") {
+        return Err(GraphError::InvalidValue(
+            "intent matrix route qualification must default native predicates to CP09".to_owned(),
+        ));
+    }
+    let values = array_field(qualification, &["repositoryGraphSkillIds"]).ok_or_else(|| {
+        GraphError::InvalidValue(
+            "intent matrix repository graph qualification must list skill IDs".to_owned(),
+        )
+    })?;
+    let mut ids = BTreeSet::new();
+    for value in values {
+        let skill_id = value.as_str().ok_or_else(|| {
+            GraphError::InvalidValue(
+                "intent matrix repository graph qualification contains a non-string ID".to_owned(),
+            )
+        })?;
+        if skill_id.is_empty() || skill_id == PROTECTED_SKILL || !ids.insert(skill_id.to_owned()) {
+            return Err(GraphError::InvalidValue(format!(
+                "intent matrix repository graph qualification contains invalid or duplicate skill `{skill_id}`"
+            )));
+        }
+    }
+    Ok(ids)
 }
 
 fn coverage_field(value: &Value, path: &[&str]) -> CoverageLevel {
