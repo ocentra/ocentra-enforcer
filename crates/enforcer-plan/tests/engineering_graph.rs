@@ -322,7 +322,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 
 fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error>> {
     for batch in [
-        "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10", "B11", "B12", "B13",
+        "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10", "B11", "B12",
     ] {
         let id = NodeId::new(&format!("WP/CP09/IF-cloud-security/{batch}"))?;
         assert_eq!(
@@ -331,13 +331,9 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
             "{batch}"
         );
     }
-    assert!(
-        graph
-            .inspect(&NodeId::new("WP/CP09/IF-cloud-security/B14")?)?
-            .state
-            == DerivedState::Paused,
-        "the approved six-row B13 packet keeps the derived B14 remainder paused"
-    );
+    assert!(graph
+        .node(&NodeId::new("WP/CP09/IF-cloud-security/B13")?)
+        .is_none());
     Ok(())
 }
 
@@ -364,11 +360,10 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
     }
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
     assert_eq!(cp12.state, DerivedState::Blocked);
-    assert!(
-        cp12.reasons
-            .iter()
-            .any(|reason| reason.contains("concrete approved predicate"))
-    );
+    assert!(cp12
+        .reasons
+        .iter()
+        .any(|reason| reason.contains("concrete approved predicate")));
 
     assert_eq!(next["decision"], "selected");
     assert_eq!(next["selected"]["id"], "WP/CP09");
@@ -394,11 +389,9 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
         cp09_cloud_node.metadata.get("route").map(String::as_str),
         Some("CP09")
     );
-    assert!(
-        graph
-            .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
-            .is_none()
-    );
+    assert!(graph
+        .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
+        .is_none());
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
@@ -423,5 +416,35 @@ fn protected_catalog_row_is_explicitly_excluded() -> Result<(), Box<dyn Error>> 
         Some("excluded")
     );
     assert!(node.path.is_none());
+    Ok(())
+}
+
+#[test]
+fn native_packets_exclude_cp08_external_only_skills() -> Result<(), Box<dyn Error>> {
+    let graph = CyberPlanGraph::load(repository_root())?;
+    let packet = graph
+        .node(&NodeId::new("WP/CP09/IF-container-security/B01")?)
+        .ok_or_else(|| IoError::new(ErrorKind::NotFound, "container-security native packet"))?;
+
+    assert_eq!(
+        packet.metadata.get("skillIds").map(String::as_str),
+        Some(concat!(
+            "analyzing-kubernetes-audit-logs,auditing-kubernetes-rbac-privilege-escalation,",
+            "detecting-container-drift-at-runtime,detecting-container-escape-attempts,",
+            "detecting-privilege-escalation-in-kubernetes-pods"
+        ))
+    );
+    assert_eq!(
+        packet.metadata.get("skillCount").map(String::as_str),
+        Some("5")
+    );
+    assert_eq!(
+        packet.metadata.get("ownedKind").map(String::as_str),
+        Some("native-predicate")
+    );
+    assert!(!packet
+        .metadata
+        .get("skillIds")
+        .is_some_and(|ids| ids.contains("benchmarking-kubernetes-with-kube-bench")));
     Ok(())
 }
