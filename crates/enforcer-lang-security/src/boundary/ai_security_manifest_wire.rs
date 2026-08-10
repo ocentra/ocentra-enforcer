@@ -20,6 +20,10 @@ const INDIRECT_INJECTION_SKILL: &str = "detecting-indirect-prompt-injection";
 const EXTRACTION_SKILL: &str = "detecting-model-extraction-attacks";
 const SECURITY_GUARDRAIL_SKILL: &str = "implementing-llm-guardrails-for-security";
 const PYRIT_SKILL: &str = "orchestrating-llm-attacks-with-pyrit";
+const GARAK_SKILL: &str = "red-teaming-llms-with-garak";
+const AGENT_TOOL_SKILL: &str = "securing-agentic-ai-tool-invocation";
+const SYSTEM_PROMPT_SKILL: &str = "testing-for-system-prompt-leakage";
+const RAG_INJECTION_SKILL: &str = "testing-prompt-injection-in-rag-pipelines";
 
 // BRAND-INVARIANT: private wire fields are decoded only through serde and
 // accepted by `is_valid` after the schema and field predicates below pass.
@@ -86,6 +90,8 @@ struct RecordWire {
     scope_ref: Option<String>,
     stop_condition: Option<String>,
     review_ref: Option<String>,
+    disclosure_ref: Option<String>,
+    retrieval_ref: Option<String>,
 }
 
 struct RecordRule {
@@ -230,6 +236,68 @@ static RECORD_RULES: &[RecordRule] = &[
             "scopeRef",
             "stopCondition",
             "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "authorized-red-team-plan",
+        skill: GARAK_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "scenarioId",
+            "authorizationRef",
+            "scopeRef",
+            "stopCondition",
+            "reviewRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "agent-tool-policy",
+        skill: AGENT_TOOL_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "serverId",
+            "toolName",
+            "schemaRef",
+            "permissionSet",
+            "authorizationRef",
+            "scopeRef",
+            "action",
+            "auditRef",
+        ],
+    },
+    RecordRule {
+        kind: "prompt-confidentiality-case",
+        skill: SYSTEM_PROMPT_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "modelId",
+            "promptRef",
+            "instructionRef",
+            "classification",
+            "disclosureRef",
+            "responseRef",
+            "evidenceRef",
+        ],
+    },
+    RecordRule {
+        kind: "rag-injection-observation",
+        skill: RAG_INJECTION_SKILL,
+        required: &[
+            "skillId",
+            "subjectId",
+            "indexId",
+            "documentId",
+            "promptRef",
+            "source",
+            "trustBoundary",
+            "classification",
+            "retrievalRef",
+            "responseRef",
             "evidenceRef",
         ],
     },

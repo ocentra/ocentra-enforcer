@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b03-invalid",
+  "owner": "security-engineering",
+  "scope": "supplied-fixture",
+  "evidence": [
+    { "kind": "fixture", "reference": "ai-security-b03/fail" }
+  ],
+  "records": [
+    {
+      "kind": "agent-tool-policy",
+      "skillId": "securing-agentic-ai-tool-invocation",
+      "subjectId": "agent-tool-01",
+      "serverId": "owned-agent-01",
+      "toolName": "read_record",
+      "schemaRef": "tool-schema-01",
+      "permissionSet": "read-only",
+      "authorizationRef": "owner-approval-01",
+      "action": "require-review",
+      "auditRef": "audit-01"
+    }
+  ]
+}

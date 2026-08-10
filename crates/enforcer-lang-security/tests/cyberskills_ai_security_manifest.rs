@@ -131,3 +131,43 @@ fn ai_security_manifest_b02_negative_classes_are_rejected() -> Result<(), Box<dy
         .all(|finding| finding.rule_id.as_str() == "CYBER-AI-MANIFEST.1"));
     Ok(())
 }
+
+#[test]
+fn ai_security_manifest_b03_pass_covers_four_remaining_intents(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string(
+        manifest_dir().join("tests/fixtures/cyberskills/ai-security-manifest-b03/pass.json"),
+    )?;
+    let document: serde_json::Value = serde_json::from_str(&source)?;
+    let ids: BTreeSet<&str> = document["records"]
+        .as_array()
+        .ok_or("B03 pass fixture records must be an array")?
+        .iter()
+        .filter_map(|record| record["skillId"].as_str())
+        .collect();
+    assert_eq!(ids.len(), 4);
+    assert_eq!(
+        ids,
+        BTreeSet::from([
+            "red-teaming-llms-with-garak",
+            "securing-agentic-ai-tool-invocation",
+            "testing-for-system-prompt-leakage",
+            "testing-prompt-injection-in-rag-pipelines",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn ai_security_manifest_b03_negative_classes_are_rejected() -> Result<(), Box<dyn std::error::Error>>
+{
+    let failures = fixture("tests/fixtures/cyberskills/ai-security-manifest-b03/fail.json")?;
+    let malformed = fixture("tests/fixtures/cyberskills/ai-security-manifest-b03/malformed.json")?;
+    assert_eq!(failures.len(), 1);
+    assert_eq!(malformed.len(), 1);
+    assert!(failures
+        .iter()
+        .chain(malformed.iter())
+        .all(|finding| finding.rule_id.as_str() == "CYBER-AI-MANIFEST.1"));
+    Ok(())
+}

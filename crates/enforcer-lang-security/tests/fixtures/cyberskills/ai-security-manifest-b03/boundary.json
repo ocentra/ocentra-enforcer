@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b03-boundary",
+  "owner": "security-engineering",
+  "scope": "owned-fixture-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "signed-scope-and-stop-conditions" }
+  ],
+  "records": [
+    {
+      "kind": "authorized-red-team-plan",
+      "skillId": "red-teaming-llms-with-garak",
+      "subjectId": "boundary-plan-01",
+      "scenarioId": "no-live-probing-01",
+      "authorizationRef": "written-authorization-01",
+      "scopeRef": "supplied-fixtures-only",
+      "stopCondition": "no-provider-no-network-no-model-call",
+      "reviewRef": "manual-analyst-review-01",
+      "evidenceRef": "boundary-evidence-01"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "offline-ai-security-b03",
+  "owner": "security-engineering",
+  "scope": "supplied-fixture",
+  "evidence": [
+    { "kind": "fixture", "reference": "ai-security-b03/pass" }
+  ],
+  "records": [
+    {
+      "kind": "authorized-red-team-plan",
+      "skillId": "red-teaming-llms-with-garak",
+      "subjectId": "authorized-model-01",
+      "scenarioId": "offline-probe-plan-01",
+      "authorizationRef": "written-authorization-01",
+      "scopeRef": "owned-fixture-only",
+      "stopCondition": "stop-before-live-model-or-endpoint",
+      "reviewRef": "human-review-01",
+      "evidenceRef": "evidence-01"
+    },
+    {
+      "kind": "agent-tool-policy",
+      "skillId": "securing-agentic-ai-tool-invocation",
+      "subjectId": "agent-tool-01",
+      "serverId": "owned-agent-01",
+      "toolName": "read_record",
+      "schemaRef": "tool-schema-01",
+      "permissionSet": "read-only",
+      "authorizationRef": "owner-approval-01",
+      "scopeRef": "tenant-a-fixture",
+      "action": "require-review",
+      "auditRef": "audit-01"
+    },
+    {
+      "kind": "prompt-confidentiality-case",
+      "skillId": "testing-for-system-prompt-leakage",
+      "subjectId": "prompt-policy-01",
+      "modelId": "owned-model-01",
+      "promptRef": "supplied-prompt-policy",
+      "instructionRef": "instruction-hierarchy-01",
+      "classification": "confidential-review",
+      "disclosureRef": "no-secret-disclosure-01",
+      "responseRef": "manual-response-review-01",
+      "evidenceRef": "evidence-02"
+    },
+    {
+      "kind": "rag-injection-observation",
+      "skillId": "testing-prompt-injection-in-rag-pipelines",
+      "subjectId": "rag-surface-01",
+      "indexId": "owned-index-01",
+      "documentId": "document-01",
+      "promptRef": "supplied-rag-prompt-01",
+      "source": "supplied-document-envelope",
+      "trustBoundary": "retrieved-content-to-agent",
+      "classification": "requires-isolation-review",
+      "retrievalRef": "retrieval-record-01",
+      "responseRef": "manual-response-review-02",
+      "evidenceRef": "evidence-03"
+    }
+  ]
+}

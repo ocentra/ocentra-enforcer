@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-ai-security/B03",
+  "workpack": "CP09",
+  "baseCommit": "fe5ae3c4e163f92343e216c5cd76f42270da42c5",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "ai-security-manifest",
+    "ruleId": "CYBER-AI-MANIFEST.1",
+    "predicate": "Validate supplied typed JSON records for authorized AI red-team plans, agent tool policies, prompt confidentiality cases, and RAG prompt-injection observations.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "four bounded record-shape predicates; the packet does not run probes, invoke tools, call models, retrieve documents, or claim leakage or injection outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this predicate's positive, negative, malformed, and authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "red-teaming-llms-with-garak",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/red-teaming-llms-with-garak/SKILL.md",
+        "sha256": "f0e3aec650e4b5ce2356ee4ce35533df7ef195d19226859f285eb22fa3f81145",
+        "anchor": { "line": 24, "text": "# Red-Teaming LLMs with garak" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed written-authorization, scope, stop-condition, human-review, scenario, and supplied-evidence fields for an offline red-team plan only",
+      "cp08Disposition": { "native": "absent", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Note": "CP08 decomposition has no native component for this skill; this packet's static authorization-plan predicate is additive evidence and does not promote CP08 decomposition."
+    },
+    {
+      "catalogId": "securing-agentic-ai-tool-invocation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-agentic-ai-tool-invocation/SKILL.md",
+        "sha256": "92989526f69a2ce9bab565c322686a3126750a183580db70857149daa66b5bc0",
+        "anchor": { "line": 23, "text": "# Securing Agentic AI Tool Invocation" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed tool identity, schema, permission set, authorization scope, action, audit, and supplied-evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-for-system-prompt-leakage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-system-prompt-leakage/SKILL.md",
+        "sha256": "3755ca9c9d01c6c58b4631f1a9db75696f8ca33a366d47b98b90d2bc17fb6167",
+        "anchor": { "line": 23, "text": "# Testing for System Prompt Leakage" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed supplied model, prompt-policy, instruction, disclosure classification, response review, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    },
+    {
+      "catalogId": "testing-prompt-injection-in-rag-pipelines",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-prompt-injection-in-rag-pipelines/SKILL.md",
+        "sha256": "ab5d167bbb09c1827c5ef011ce0d78f199f4c166b95796d24b6adb8782248f7b",
+        "anchor": { "line": 23, "text": "# Testing Prompt Injection in RAG Pipelines" },
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "typed supplied prompt, corpus/index, retrieval, source trust, document, classification, response, and evidence fields",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/ai_security_manifest.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/ai_security_manifest_wire.rs",
+    "registry": "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+    "test": "crates/enforcer-lang-security/tests/cyberskills_ai_security_manifest.rs",
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai-security-manifest-b03/boundary.json", "class": "authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; absent native components for Garak are explicit"
+  },
+  "reuse": [
+    "the existing CYBER-AI-MANIFEST.1 Validator and registry row",
+    "the existing private serde wire boundary and closed RecordRule table",
+    "enforcer-validator::Validator and ValidationInput",
+    "enforcer-domain::Finding and built-in RuleId",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "Garak, Promptfoo, PyRIT, attacker/scorer models, model providers, API keys, REST endpoints, and token-consuming probes",
+    "NeMo Guardrails, policy runtimes, cloud SDKs, credentials, agent sessions, and production tool invocation",
+    "model providers, chat sessions, browsers, plugins, live prompt extraction, and production inference",
+    "Garak/PyRIT/Promptfoo RAG probes, retrievers, vector indexes, agents, credentials, and production inference"
+  ],
+  "advisoryManual": [
+    "written authorization, target ownership, scope, consent, privacy, token-cost awareness, and safety review",
+    "tool inventory, least privilege, deny-by-default policy, human approval, identity, audit, and rollback decisions",
+    "prompt confidentiality, instruction hierarchy, secret handling, analyst validation, disclosure, and remediation",
+    "RAG source trust, retrieval isolation, data handling, stop conditions, severity, containment, and disclosure"
+  ],
+  "proves": [
+    "The existing Rust AI-security validator deterministically accepts the four B03 record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all four source hashes, heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "Garak is represented only by a static authorization and stop-condition plan predicate; no probe or model call is executed.",
+    "The existing registry row and Enforcer validator boundary are reused without adding an external engine or a duplicate rule id.",
+    "CP08 native/external/advisory/manual truth remains explicit, including the absent native component for the Garak source row."
+  ],
+  "doesNotProve": [
+    "No live model, provider, endpoint, browser, MCP server, retriever, vector index, tool, or external engine execution.",
+    "No jailbreak success, prompt leakage, indirect injection, retrieval poisoning, tool abuse, or security finding validity.",
+    "No exploit delivery, credential capture, prompt execution, attribution, remediation success, or security outcome.",
+    "No complete native implementation of any full vendor skill intent; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}
