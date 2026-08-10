@@ -32,7 +32,7 @@ Updated: 2026-08-02. This file is a routing board, not evidence.
 | Workpack | State | Authority |
 |---|---|---|
 | CP00 | DONE in graph from explicit gate evidence; ledger/schema evidence only | graph-derived status; no native/executable-proof/overall-parity promotion |
-| CP01 | VALIDATION: batch-05 and the graph partition gate cover all 41 registry IDs, but the packet remains uncommitted | commit/remote review must confirm the exact artifact before DONE; no whole-skill/native/executable-proof/overall-parity promotion |
+| CP01 | DONE: batch-05 and the graph partition gate cover all 41 registry IDs; refreshed gates are recorded at commit `0eb5ccb6a` | existing-rule reconciliation only; no whole-skill/native/executable-proof/overall-parity promotion |
 | CP08 | DONE from 82 accepted decomposition artifacts and derived-count/disposition gates | catalog decomposition only; no native/executable-proof/overall-parity promotion |
 | CP11 | VALIDATION: graph verifies all 816 retained advisory/manual components and CP11 batch-01 covers 10 AI-security records | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
 | CP02 | BLOCKED by Universal UL02/UL03 | Sol/architect-only consumer adoption |

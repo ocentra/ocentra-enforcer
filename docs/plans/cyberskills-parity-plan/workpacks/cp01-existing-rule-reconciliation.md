@@ -48,7 +48,7 @@ Determine what the already implemented rules actually prove and connect them to 
 - [x] The component ledger changes only from evidence actually present.
 - [x] Rules with no defensible source mapping remain implementation inventory, not vendor parity.
 - [x] A bounded aggregate closure packet accounts for all 41 registry IDs, including the four IDs absent from batches 01-04, with explicit accepted/rejected/unproved disposition.
-- [ ] The CP01 proof row records the aggregate artifact, exact gate evidence, derived counts, and non-proofs; only then may the graph lifecycle move to `DONE`.
+- [x] The CP01 proof row records the aggregate artifact, exact gate evidence, derived counts, and non-proofs; only then may the graph lifecycle move to `DONE`.
 
 ## Existing-rule grammar classification
 
