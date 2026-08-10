@@ -59,13 +59,19 @@ exact dependency or missing-path reason. `validate` rejects duplicate or
 missing IDs, unsafe/missing paths, cycles, invalid lifecycle values, and DONE
 nodes whose required paths are absent.
 
-`next --plan cyberskills-parity-plan` includes a `selected` packet. For the
-current matrix it selects the lexicographically first dependency-legal native
-packet, `WP/CP09/IF-ai-security/B01`, containing at most the family batch limit
-of skills. Each derived packet records its family, skill IDs, route, owned
-component kind, dependencies, lifecycle evidence source, and explicit
-non-proofs. Native packets are static/supplied-input work only; external
-engines remain blocked and advisory/manual obligations remain retained.
+`next --plan cyberskills-parity-plan` includes a `selected` packet only when
+the authoritative routing statuses and dependency edges permit one. In the
+current committed matrix it returns `decision: "blocked"` with
+`selected: null`: CP06, CP07, CP09, CP10, CP12, and CP13 are authoritatively
+blocked, while CP11 remains in validation. The intent rows such as
+`WP/CP09/IF-ai-security/B01` are therefore visible in the graph but remain
+blocked by CP09; their decomposition or evidence cannot promote them to
+implementation or proof. Once an explicit authority transition makes a
+packet dependency-legal, `next` selects the lexicographically first eligible
+packet, whose family, skill IDs, route, owned component kind, dependencies,
+lifecycle evidence source, and explicit non-proofs are included in the
+result. Native packets are static/supplied-input work only; external engines
+remain blocked and advisory/manual obligations remain retained.
 
 The imported graph is evidence-oriented rather than a duplicate of every
 Markdown sentence. Stable workpack IDs, declared dependencies, the plan's
