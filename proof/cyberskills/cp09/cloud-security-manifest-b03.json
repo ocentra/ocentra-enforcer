@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-cloud-security/B03",
+  "workpack": "CP09",
+  "baseCommit": "f13a3b4b53ad1ccdcc25e74c3463e6722013fe9f",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "cloud-security-telemetry-risk-manifest",
+    "ruleId": "CYBER-CLOUD-MANIFEST.3",
+    "predicate": "Validate supplied typed CloudTrail anomaly, secret-review, GuardDuty finding, IAM escalation-analysis, and Azure lateral-movement references without connecting to a provider, log service, repository, credential, endpoint, scanner, network, tenant, or production environment.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded offline cloud telemetry, secret-review, finding-workflow, escalation-analysis, and movement record-shape predicates; the packet does not prove live telemetry, secret presence, effective permissions, movement, exploitability, or cloud security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this capability's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-aws-cloudtrail-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-cloudtrail-anomalies/SKILL.md", "sha256": "363865b0494e93aa43154a1d613f1a8311df283207c19a901631a410e47b47f2", "anchors": ["# Detecting AWS CloudTrail Anomalies:L57"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed CloudTrail event, actor, resource, action, anomaly, account, owner, provenance, and evidence fields without querying CloudTrail or evaluating live anomaly truth.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-aws-credential-exposure-with-trufflehog",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-credential-exposure-with-trufflehog/SKILL.md", "sha256": "d6555caec5051b4553032c3e7f548afb96562163f775eab0b1876829f098e28e", "anchors": ["# Detecting AWS Credential Exposure with TruffleHog:L58"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed repository, artifact, secret-reference, source, scan-request, scope, owner, severity, and evidence fields without scanning or exposing credentials.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-aws-guardduty-findings-automation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-guardduty-findings-automation/SKILL.md", "sha256": "e29b85e458225b44b1692e965a016d28a323f4c8ff6b15b5a8807ff719c45890", "anchors": ["# Detecting AWS GuardDuty Findings Automation:L33"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed account, finding, event, rule, severity, scope, workflow, owner, and evidence fields without querying GuardDuty or executing response automation.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-aws-iam-privilege-escalation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-iam-privilege-escalation/SKILL.md", "sha256": "e29258c1b879099f67a013fcc385c46e4923359e8aff19b79c998c0d671951d9", "anchors": ["## Expected Output:L61"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed account, principal, policy, dangerous action, trust, bounded analysis graph, scope, owner, and evidence fields without using IAM simulation or evaluating effective escalation paths.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-azure-lateral-movement",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-azure-lateral-movement/SKILL.md", "sha256": "5c63cabc3852a064799de6e662b70e93d46fbbcdb22bc6de611922d5c3745436", "anchors": ["# Detecting Azure Lateral Movement:L33"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed Azure tenant, identity, host, event, route, relationship, risk, owner, and evidence fields without enumerating resources or evaluating lateral movement.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b03.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b03_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b03.rs"],
+    "fixtures": [
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b03/pass.json", "class": "positive"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b03/fail.json", "class": "negative"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b03/malformed.json", "class": "malformed"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b03/boundary.json", "class": "written-authorization-boundary"}
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing serde/serde_json dependency and private typed wire-boundary pattern",
+    "the existing B01/B02 cloud manifest predicate structure and CP00/CP08 evidence harness"
+  ],
+  "externalBlocked": [
+    "AWS, CloudTrail, GuardDuty, IAM, Azure, Entra ID, Activity Logs, Defender, repositories, secret scanners, credentials, endpoints, networks, SIEMs, tenants, and production authorities",
+    "TruffleHog, Pacu, PMapper, IAM simulation, GuardDuty automation, CloudTrail, Azure activity services, CSPM, scanners, threat intelligence, SIEM, EDR, and cloud consoles",
+    "live telemetry, secret scanning, credential validity, effective permissions, escalation paths, lateral movement, compromise, attribution, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive CloudTrail, secret-handling, GuardDuty, IAM, Azure identity, monitoring, hardening, and incident-response guidance",
+    "written authorization and exact account, repository, tenant, asset, data, provider, legal, privacy, safety, and scope boundaries",
+    "analyst validation, uncertainty, severity, exception approval, stop conditions, revocation, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust B03 cloud-security validator deterministically accepts five supplied offline record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet validates only supplied static JSON and retains blocked external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No provider, log service, repository, credential, endpoint, scanner, network, tenant, or production authority.",
+    "No CloudTrail anomaly truth, secret presence or exposure, GuardDuty finding truth, effective IAM permissions, escalation path, Azure lateral movement, detection efficacy, remediation effectiveness, attribution, or security outcome.",
+    "No complete native implementation of the five full vendor skill intents; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

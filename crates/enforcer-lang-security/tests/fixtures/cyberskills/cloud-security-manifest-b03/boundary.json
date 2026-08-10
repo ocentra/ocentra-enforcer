@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cloud-security-b03-boundary",
+  "owner": "owner:security-platform",
+  "scope": "scope:offline-evidence",
+  "evidence": [
+    {"kind": "authorization", "reference": "written-authorization:review-only"},
+    {"kind": "evidence", "reference": "offline-evidence:synthetic-bundle"}
+  ],
+  "records": [
+    {"kind": "aws-cloudtrail-anomaly", "skillId": "detecting-aws-cloudtrail-anomalies", "accountRef": "account:synthetic", "eventRef": "event:offline", "actorRef": "actor:synthetic", "resourceRef": "resource:manifest", "actionRef": "action:review", "anomalyRef": "anomaly:modeled", "ownerRef": "owner:human", "provenanceRef": "provenance:offline", "evidenceRef": "evidence:static"},
+    {"kind": "aws-secret-exposure-review", "skillId": "detecting-aws-credential-exposure-with-trufflehog", "repositoryRef": "repository:synthetic", "artifactRef": "artifact:reference", "secretRef": "secret:reference-only", "sourceRef": "source:offline", "scanRequestRef": "scan-request:review", "scopeRef": "scope:offline", "ownerRef": "owner:human", "severityRef": "severity:review", "evidenceRef": "evidence:static"},
+    {"kind": "aws-guardduty-finding-automation", "skillId": "detecting-aws-guardduty-findings-automation", "accountRef": "account:synthetic", "findingRef": "finding:reference", "eventRef": "event:offline", "ruleRef": "rule:static", "severityRef": "severity:review", "scopeRef": "scope:offline", "workflowRef": "workflow:manual", "ownerRef": "owner:human", "evidenceRef": "evidence:static"},
+    {"kind": "aws-iam-escalation-analysis", "skillId": "detecting-aws-iam-privilege-escalation", "accountRef": "account:synthetic", "principalRef": "principal:bounded", "policyRef": "policy:reference", "actionRef": "action:review", "trustRef": "trust:modeled", "graphRef": "graph:static", "scopeRef": "scope:offline", "ownerRef": "owner:human", "evidenceRef": "evidence:static"},
+    {"kind": "azure-lateral-movement", "skillId": "detecting-azure-lateral-movement", "tenantRef": "tenant:synthetic", "identityRef": "identity:bounded", "hostRef": "host:synthetic", "eventRef": "event:offline", "routeRef": "route:modeled", "relationshipRef": "relationship:static", "riskRef": "risk:review", "ownerRef": "owner:human", "evidenceRef": "evidence:static"}
+  ]
+}

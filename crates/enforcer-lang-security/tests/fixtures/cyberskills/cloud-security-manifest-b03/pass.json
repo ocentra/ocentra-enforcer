@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cloud-security-b03-pass",
+  "owner": "owner:security-platform",
+  "scope": "scope:offline-manifest-review",
+  "evidence": [
+    {"kind": "manifest", "reference": "bundle:cloud-security-b03-pass"},
+    {"kind": "provenance", "reference": "source:fixture-b03"}
+  ],
+  "records": [
+    {"kind": "aws-cloudtrail-anomaly", "skillId": "detecting-aws-cloudtrail-anomalies", "accountRef": "account:fixture-account", "eventRef": "event:offline-login", "actorRef": "actor:bounded-service", "resourceRef": "resource:fixture-bucket", "actionRef": "action:read", "anomalyRef": "anomaly:rare-region", "ownerRef": "owner:cloud-reviewer", "provenanceRef": "provenance:cloudtrail-snapshot", "evidenceRef": "evidence:cloudtrail-event"},
+    {"kind": "aws-secret-exposure-review", "skillId": "detecting-aws-credential-exposure-with-trufflehog", "repositoryRef": "repository:fixture-repo", "artifactRef": "artifact:fixture-commit", "secretRef": "secret:reference-only", "sourceRef": "source:commit-reference", "scanRequestRef": "scan-request:offline-review", "scopeRef": "scope:approved-repo", "ownerRef": "owner:secret-reviewer", "severityRef": "severity:triage", "evidenceRef": "evidence:secret-manifest"},
+    {"kind": "aws-guardduty-finding-automation", "skillId": "detecting-aws-guardduty-findings-automation", "accountRef": "account:fixture-account", "findingRef": "finding:synthetic", "eventRef": "event:synthetic", "ruleRef": "rule:reviewed", "severityRef": "severity:medium", "scopeRef": "scope:offline-account", "workflowRef": "workflow:manual-review", "ownerRef": "owner:cloud-reviewer", "evidenceRef": "evidence:finding-manifest"},
+    {"kind": "aws-iam-escalation-analysis", "skillId": "detecting-aws-iam-privilege-escalation", "accountRef": "account:fixture-account", "principalRef": "principal:bounded", "policyRef": "policy:scoped", "actionRef": "action:pass-role", "trustRef": "trust:bounded", "graphRef": "graph:static-policy", "scopeRef": "scope:approved-account", "ownerRef": "owner:iam-reviewer", "evidenceRef": "evidence:iam-analysis"},
+    {"kind": "azure-lateral-movement", "skillId": "detecting-azure-lateral-movement", "tenantRef": "tenant:fixture-tenant", "identityRef": "identity:bounded", "hostRef": "host:synthetic", "eventRef": "event:offline-signin", "routeRef": "route:modeled", "relationshipRef": "relationship:static", "riskRef": "risk:review", "ownerRef": "owner:azure-reviewer", "evidenceRef": "evidence:movement-manifest"}
+  ]
+}
