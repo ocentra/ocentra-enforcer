@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-cloud-security/B01",
+  "workpack": "CP09",
+  "baseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "cloud-security-manifest",
+    "ruleId": "CYBER-CLOUD-MANIFEST.1",
+    "predicate": "Validate supplied typed cloud storage, Office 365 audit, AWS S3, Azure directory, and CIS benchmark references without connecting to a cloud provider, tenant, API, scanner, SIEM, endpoint, or production environment.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded offline cloud-security record-shape predicates; the packet does not prove effective provider configuration, tenant activity, benchmark compliance, or cloud security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this capability's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-cloud-storage-access-patterns",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cloud-storage-access-patterns/SKILL.md", "sha256": "ce5eb7439bfcceab20129e96af4286fa7854009e046deef930eacd3163b99432", "anchor": {"line": 42, "text": "# Analyzing Cloud Storage Access Patterns"}, "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed cloud bucket, object, identity, access, timestamp, region, policy, owner, provenance, and evidence references without reading cloud storage or provider state.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "analyzing-office365-audit-logs-for-compromise",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-office365-audit-logs-for-compromise/SKILL.md", "sha256": "9e9561397e5e34f45771fe3570536163fca1a07c64e299643dc1578717438bb4", "anchor": {"line": 31, "text": "# Analyzing Office 365 Audit Logs for Compromise"}, "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed Office 365 audit event, identity, mailbox, application, timestamp, IP, action, source, confidence, owner, and evidence references without connecting to a tenant or audit service.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-aws-s3-bucket-permissions",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-aws-s3-bucket-permissions/SKILL.md", "sha256": "c0e9a74bfe4c50dece597dfef22e6392a775413863d37e4c29e428c7ccecc1f4", "anchor": {"line": 56, "text": "### Step 1: Enumerate All S3 Buckets and Account-Level Block Public Access"}, "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed S3 bucket, policy, public-access, encryption, versioning, region, owner, provenance, and evidence references without calling AWS or access-analysis tools.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-azure-active-directory-configuration",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-azure-active-directory-configuration/SKILL.md", "sha256": "b114b06ba5bcdc4c9ef65c1b406e57469dfa80e277f2c4e5409eea1e85297e1f", "anchor": {"line": 34, "text": "# Auditing Azure Active Directory Configuration"}, "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed tenant, role, application, Conditional Access, guest, credential, owner, provenance, and evidence references without using Microsoft Graph, Azure APIs, or a live tenant.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-cloud-with-cis-benchmarks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-cloud-with-cis-benchmarks/SKILL.md", "sha256": "c1ec47a63c60a1edfd95cd67aad9cdd84d8bdff01e9201389916bd0819611b03", "anchor": {"line": 38, "text": "# Auditing Cloud with CIS Benchmarks"}, "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed CIS control, resource, configuration, benchmark, scope, owner, exception, provenance, and evidence references without executing CIS checks or querying cloud state.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b01.rs"],
+    "fixtures": [
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b01/pass.json", "class": "positive"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b01/fail.json", "class": "negative"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b01/malformed.json", "class": "malformed"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b01/boundary.json", "class": "written-authorization-boundary"}
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing serde/serde_json dependency and private boundary-module pattern",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "AWS, Azure, Microsoft 365, GCP, cloud provider APIs, tenants, identity providers, storage, CloudTrail, GuardDuty, Macie, Security Hub, Defender, SIEM, endpoints, scanners, CSPM, CIS execution, and production authorities",
+    "Prowler, IAM Access Analyzer, ScoutSuite, AzureAD tooling, Microsoft Graph, CloudFox, Pacu, PMapper, Athena, Falco, Cartography, WAF, DLP, workload, and zero-trust engines",
+    "live cloud discovery, enumeration, audit-log truth, effective permissions, benchmark compliance, compromise, attribution, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive cloud storage, audit-log review, IAM, Conditional Access, benchmark, privacy, monitoring, and remediation guidance",
+    "written authorization and exact tenant, account, storage, data, provider, region, legal, privacy, safety, and scope boundaries",
+    "analyst validation, uncertainty, severity, exception approval, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust cloud-security validator deterministically accepts five supplied offline record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet validates only supplied static JSON and retains blocked external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No cloud provider, tenant, API, storage object, identity, audit log, CloudTrail, GuardDuty, Macie, Security Hub, Defender, CIS scanner, SIEM, endpoint, network, or production authority.",
+    "No effective IAM or Conditional Access state, account compromise, data exposure, benchmark compliance, finding validity, attribution, detection efficacy, remediation effectiveness, or security outcome.",
+    "No complete native implementation of the five full vendor skill intents; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

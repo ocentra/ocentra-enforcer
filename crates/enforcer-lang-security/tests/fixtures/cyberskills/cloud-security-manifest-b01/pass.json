@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-review-001",
+  "owner": "owner:security-team",
+  "scope": "scope:offline-cloud-control-review",
+  "evidence": [
+    {"kind": "artifact", "reference": "artifact:cloud-manifest"},
+    {"kind": "report", "reference": "report:cloud-review-001"}
+  ],
+  "records": [
+    {
+      "kind": "cloud-storage-access-patterns",
+      "skillId": "analyzing-cloud-storage-access-patterns",
+      "assetRef": "asset:cloud-storage",
+      "identityRef": "identity:declared-principal",
+      "accessRef": "observation:declared-access",
+      "timestampRef": "time:review-window",
+      "regionRef": "region:declared",
+      "policyRef": "policy:storage-policy",
+      "ownerRef": "owner:storage-team",
+      "provenanceRef": "evidence:storage-provenance",
+      "evidenceRef": "evidence:storage-review"
+    },
+    {
+      "kind": "office365-audit-log-review",
+      "skillId": "analyzing-office365-audit-logs-for-compromise",
+      "tenantRef": "tenant:declared",
+      "eventRef": "event:office-audit",
+      "identityRef": "identity:declared-user",
+      "sourceRef": "source:provided-log",
+      "timestampRef": "time:review-window",
+      "scopeRef": "scope:mail-audit",
+      "ownerRef": "owner:tenant-team",
+      "provenanceRef": "evidence:office-provenance",
+      "evidenceRef": "evidence:office-review"
+    },
+    {
+      "kind": "aws-s3-permission-audit",
+      "skillId": "auditing-aws-s3-bucket-permissions",
+      "bucketRef": "asset:s3-bucket",
+      "policyRef": "policy:s3-bucket",
+      "publicAccessRef": "control:block-public-access",
+      "encryptionRef": "control:server-side-encryption",
+      "versioningRef": "control:versioning",
+      "regionRef": "region:declared",
+      "ownerRef": "owner:storage-team",
+      "provenanceRef": "evidence:s3-provenance",
+      "evidenceRef": "evidence:s3-review"
+    },
+    {
+      "kind": "azure-directory-configuration-audit",
+      "skillId": "auditing-azure-active-directory-configuration",
+      "tenantRef": "tenant:declared",
+      "roleRef": "identity:role-snapshot",
+      "applicationRef": "identity:application-snapshot",
+      "conditionalAccessRef": "policy:conditional-access",
+      "guestRef": "control:guest-review",
+      "credentialRef": "control:credential-age",
+      "ownerRef": "owner:identity-team",
+      "provenanceRef": "evidence:directory-provenance",
+      "evidenceRef": "evidence:directory-review"
+    },
+    {
+      "kind": "cis-cloud-benchmark-review",
+      "skillId": "auditing-cloud-with-cis-benchmarks",
+      "controlRef": "control:cis-control-set",
+      "resourceRef": "asset:cloud-resource-set",
+      "configRef": "config:provided-snapshot",
+      "benchmarkRef": "benchmark:declared-version",
+      "scopeRef": "scope:offline-benchmark",
+      "ownerRef": "owner:assurance-team",
+      "provenanceRef": "evidence:benchmark-provenance",
+      "exceptionRef": "exception:declared-review",
+      "evidenceRef": "evidence:benchmark-review"
+    }
+  ]
+}
