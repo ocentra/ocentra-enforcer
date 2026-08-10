@@ -60,6 +60,7 @@
       "WP/CP09/IF-ai-security/B01": "validation",
       "WP/CP09/IF-ai-security/B02": "validation",
       "WP/CP09/IF-ai-security/B03": "validation",
+      "WP/CP09/IF-api-security/B01": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -242,6 +243,43 @@
           "security outcomes, detection efficacy, attribution, remediation success, or overall CyberSkills parity",
           "the auxiliary literal-risk check, which reported only preserved fixture/path/hash literals as observed false positives (11 errors and 179 warnings); no waiver or obfuscation was used",
           "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
+        ]
+      },
+      "TEST/WP/CP09/IF-api-security/B01/gate": {
+        "run_id": "20260810035658-279d2e84",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_api_security_manifest -- --nocapture (Enforcer harness); cargo test --locked -p enforcer-lang-security --test cyberskills_ai_security_manifest -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security -- --nocapture; cargo test --locked -p enforcer-rules; exact-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; git diff --check; cargo fmt -p enforcer-lang-security -- --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "0cba4c1b2ff974e9dc806ffc0ebbfbfe92fb275c",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/api_security_manifest_wire.rs",
+          "crates/enforcer-lang-security/src/boundary/mod.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/api_security_manifest.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mod.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_api_security_manifest.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_ai_security_manifest.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/api-security-manifest-b01/boundary.json",
+          "proof/cyberskills/cp09/api-security-manifest-b01.json"
+        ],
+        "proves": [
+          "CP09 API-security B01 commit 0cba4c1b2f5f7c934c831ff4bbcec8a7b1968880 is pushed from exact parent 2e5ce656e8d35f18e63cd163ce56e900beef2395 with canonical rust-build base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused API-security manifest test passed 4/4 through the Enforcer harness run 20260810035658-279d2e84",
+          "the AI-security regression suite passed 8/8, enforcer-lang-security package tests passed, and the full enforcer-rules package passed including CP00 disposition and CP08 evidence recomputation",
+          "the exact twelve-file Enforcer route/strict scan, Rust source-shape check, and secrets check returned zero findings; cargo check, cargo fmt, and git diff --check passed",
+          "the evidence artifact contains five unique API-security catalog rows, is 8,452 bytes with SHA-256 da5ca641f91118940a8a45fce1b72f314f76e3b33f09c1cbd985f8ab68027eee, and its five vendor hashes, first-H1 anchors, Apache-2.0 labels, and availability match the exact source tree",
+          "the packet validates only supplied static API route/request/response/schema/authorization evidence and retains blocked external, advisory, manual, and notProved boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the CP09 API-security B01 branch",
+          "full native implementation or executable proof of any five source skill intents",
+          "live endpoint discovery, traffic, browser, cloud, identity/session, Burp/ZAP/RESTler/Postman/42Crunch, scanner, fuzzer, payload, credential, exploit, or authorization-bypass execution",
+          "API enumeration, BOLA/BOPLA, shadow endpoint, injection, vulnerability, finding validity, attribution, remediation, safety, or security outcomes",
+          "the auxiliary literal-risk check, which reported preserved fixture/provenance/path/hash literals as observed findings (16 errors and 154 warnings); no waiver or obfuscation was used",
+          "CP08 decomposition promotion into implementation, executable proof, overall parity, graph DONE closure, or completion of the remaining workpacks"
         ]
       },
       "TEST/CP00/disposition-focused-test": {
