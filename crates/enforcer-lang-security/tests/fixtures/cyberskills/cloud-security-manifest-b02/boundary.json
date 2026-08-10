@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cloud-security-b02-boundary",
+  "owner": "owner:security-platform",
+  "scope": "scope:offline-evidence",
+  "evidence": [
+    {"kind": "authorization", "reference": "written-authorization:review-only"},
+    {"kind": "evidence", "reference": "offline-evidence:synthetic-bundle"}
+  ],
+  "records": [
+    {"kind": "gcp-iam-permission-audit", "skillId": "auditing-gcp-iam-permissions", "projectRef": "project:synthetic", "principalRef": "principal:bounded", "bindingRef": "binding:scoped", "roleRef": "role:review", "keyRef": "key:reference", "scopeRef": "scope:offline", "ownerRef": "owner:human", "provenanceRef": "provenance:offline", "evidenceRef": "evidence:static"},
+    {"kind": "kubernetes-rbac-audit", "skillId": "auditing-kubernetes-cluster-rbac", "clusterRef": "cluster:synthetic", "namespaceRef": "namespace:bounded", "roleRef": "role:review", "bindingRef": "binding:scoped", "subjectRef": "subject:synthetic", "verbRef": "verb:read", "resourceRef": "resource:manifest", "ownerRef": "owner:human", "evidenceRef": "evidence:static"},
+    {"kind": "terraform-security-audit", "skillId": "auditing-terraform-infrastructure-for-security", "workspaceRef": "workspace:synthetic", "moduleRef": "module:review", "providerRef": "provider:declared", "stateRef": "state:reference", "policyRef": "policy:baseline", "secretRef": "secret:reference", "ownerRef": "owner:human", "provenanceRef": "provenance:offline", "evidenceRef": "evidence:static"},
+    {"kind": "cloud-siem-build", "skillId": "building-cloud-siem-with-sentinel", "workspaceRef": "workspace:synthetic", "connectorRef": "connector:declared", "queryRef": "query:review", "ruleRef": "rule:static", "retentionRef": "retention:declared", "scopeRef": "scope:offline", "ownerRef": "owner:human", "provenanceRef": "provenance:offline", "evidenceRef": "evidence:static"},
+    {"kind": "cloud-penetration-assessment", "skillId": "conducting-cloud-penetration-testing", "assetRef": "asset:synthetic", "scopeRef": "scope:offline", "testCaseRef": "test-case:review", "authorizationRef": "authorization:written", "stopConditionRef": "stop-condition:offline", "reportRef": "report:review", "ownerRef": "owner:human", "provenanceRef": "provenance:offline", "evidenceRef": "evidence:static"}
+  ]
+}

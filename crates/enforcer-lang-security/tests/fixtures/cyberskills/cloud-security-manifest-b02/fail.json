@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cloud-security-b02-fail",
+  "owner": "owner:security-platform",
+  "scope": "scope:offline-manifest-review",
+  "evidence": [{"kind": "manifest", "reference": "bundle:cloud-security-b02-fail"}],
+  "records": [
+    {"kind": "gcp-iam-permission-audit", "skillId": "auditing-gcp-iam-permissions", "projectRef": "project:fixture-gcp", "principalRef": "principal:bounded-service", "bindingRef": "binding:least-privilege", "roleRef": "role:scoped-reader", "scopeRef": "scope:approved-project", "ownerRef": "owner:gcp-reviewer", "provenanceRef": "provenance:gcp-snapshot", "evidenceRef": "evidence:gcp-policy"},
+    {"kind": "kubernetes-rbac-audit", "skillId": "auditing-kubernetes-cluster-rbac", "clusterRef": "cluster:fixture-cluster", "namespaceRef": "namespace:bounded", "roleRef": "role:scoped-reader", "bindingRef": "binding:least-privilege", "subjectRef": "subject:service-account", "verbRef": "verb:get", "resourceRef": "resource:configmap", "ownerRef": "owner:k8s-reviewer", "evidenceRef": "evidence:k8s-rbac"},
+    {"kind": "terraform-security-audit", "skillId": "auditing-terraform-infrastructure-for-security", "workspaceRef": "workspace:fixture-iac", "moduleRef": "module:network", "providerRef": "provider:declared", "stateRef": "state:manifest-only", "policyRef": "policy:baseline", "secretRef": "secret:reference-only", "ownerRef": "owner:iac-reviewer", "provenanceRef": "provenance:iac-bundle", "evidenceRef": "evidence:iac-controls"},
+    {"kind": "cloud-siem-build", "skillId": "building-cloud-siem-with-sentinel", "workspaceRef": "workspace:fixture-siem", "connectorRef": "connector:declared", "queryRef": "query:bounded", "ruleRef": "rule:reviewed", "retentionRef": "retention:declared", "scopeRef": "scope:offline-tenant-model", "ownerRef": "owner:siem-reviewer", "provenanceRef": "provenance:siem-design", "evidenceRef": "evidence:siem-manifest"},
+    {"kind": "cloud-penetration-assessment", "skillId": "conducting-cloud-penetration-testing", "assetRef": "asset:synthetic-cloud", "scopeRef": "scope:offline-simulation", "testCaseRef": "test-case:static-review", "authorizationRef": "authorization:written", "stopConditionRef": "stop-condition:offline-only", "reportRef": "report:bounded", "ownerRef": "owner:assessment-reviewer", "provenanceRef": "provenance:assessment-plan", "evidenceRef": "evidence:assessment-manifest"}
+  ]
+}

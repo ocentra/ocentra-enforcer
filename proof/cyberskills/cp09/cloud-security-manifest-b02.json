@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-cloud-security/B02",
+  "workpack": "CP09",
+  "baseCommit": "38a0ea6339fafa0d9c66017bf0e7325a03719991",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "cloud-security-control-manifest",
+    "ruleId": "CYBER-CLOUD-MANIFEST.2",
+    "predicate": "Validate supplied typed GCP IAM, Kubernetes RBAC, Terraform, cloud SIEM, and authorized cloud-assessment references without connecting to a provider, cluster, state backend, tenant, scanner, network, credential, endpoint, or production environment.",
+    "inputBoundary": "static supplied JSON only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five bounded offline cloud-control and assessment record-shape predicates; the packet does not prove effective provider configuration, cluster state, IaC posture, telemetry, exploitability, or cloud security outcomes"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this capability's positive, negative, malformed, and written-authorization-boundary fixture classes only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "auditing-gcp-iam-permissions",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-gcp-iam-permissions/SKILL.md", "sha256": "5200c83cb8d96bb1e8dc7b36faf28f554665ed241d38731c4c64c6eaceccff28", "anchors": ["# Auditing GCP IAM Permissions:L33"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed GCP project, principal, binding, role, key, scope, owner, provenance, and evidence references without querying GCP or evaluating effective IAM.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-kubernetes-cluster-rbac",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-kubernetes-cluster-rbac/SKILL.md", "sha256": "d2d4c917cfb94732c14ca4b648ce23889d735c2ae087c81bc243f37210bc95de", "anchors": ["## Workflow:L77", "### Step 1: Enumerate ClusterRoles and Roles with Dangerous Permissions:L79", "### Step 4: Run KubiScan for Risky Permissions Detection:L196"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed Kubernetes cluster, namespace, role, binding, subject, verb, resource, owner, and evidence references without using the Kubernetes API, KubiScan, or a live cluster.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-terraform-infrastructure-for-security",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md", "sha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a", "anchors": ["# Auditing Terraform Infrastructure for Security:L34"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed Terraform workspace, module, provider, state, policy, secret-reference, owner, provenance, and evidence references without running Terraform, providers, state backends, scanners, or deployment systems.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "building-cloud-siem-with-sentinel",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-cloud-siem-with-sentinel/SKILL.md", "sha256": "fd885f16306cf25fe58a86825f39e9489984cb49fd690d8dfca55fe58a79dffe", "anchors": ["# Building Cloud SIEM with Sentinel:L42"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed SIEM workspace, connector, query, rule, retention, scope, owner, provenance, and evidence references without connecting to Sentinel, cloud logs, endpoints, or a production tenant.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "conducting-cloud-penetration-testing",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cloud-penetration-testing/SKILL.md", "sha256": "4bc7f2b556d71f6f1fd69dd0a0073bf70ddc9a6f33934278baa1dacafb482f56", "anchors": ["# Conducting Cloud Penetration Testing:L48"], "license": "Apache-2.0", "availability": "available"},
+      "nativePredicate": "Validate supplied typed synthetic asset, scope, test-case, written-authorization, stop-condition, report, owner, provenance, and evidence references without enumerating, authenticating to, scanning, or exploiting cloud resources.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b02.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b02_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b02.rs"],
+    "fixtures": [
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b02/pass.json", "class": "positive"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b02/fail.json", "class": "negative"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b02/malformed.json", "class": "malformed"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b02/boundary.json", "class": "written-authorization-boundary"}
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing serde/serde_json dependency and private typed wire-boundary pattern",
+    "the existing B01 cloud manifest predicate structure and CP00/CP08 evidence harness"
+  ],
+  "externalBlocked": [
+    "GCP, Kubernetes, Terraform, Sentinel, cloud provider APIs, clusters, state backends, tenants, credentials, networks, scanners, SIEMs, endpoints, and production authorities",
+    "Policy Analyzer, IAM Recommender, Cloud Asset Inventory, KubiScan, rbac-tool, Kubeaudit, Terraform CLI/providers, Sentinel connectors, cloud logs, CSPM, Pacu, cloud consoles, and penetration-testing tools",
+    "live discovery, enumeration, effective permissions, cluster state, IaC plan, telemetry, exploit delivery, exploitability, compromise, attribution, remediation, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive IAM, RBAC, IaC, SIEM, cloud-assessment, privacy, monitoring, segmentation, and remediation guidance",
+    "written authorization and exact project, cluster, workspace, tenant, asset, data, provider, legal, privacy, safety, and scope boundaries",
+    "analyst validation, uncertainty, severity, exception approval, stop conditions, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust B02 cloud-security validator deterministically accepts five supplied offline record shapes and rejects missing-field and malformed fixtures.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, and intent-specific static predicates.",
+    "The packet validates only supplied static JSON and retains blocked external, advisory, manual, and notProved boundaries."
+  ],
+  "doesNotProve": [
+    "No provider, cluster, state backend, tenant, IAM/RBAC effective state, Terraform plan, SIEM telemetry, scanner, network, credential, endpoint, or production authority.",
+    "No effective permissions, cluster posture, IaC security, alert fidelity, penetration result, exploitability, finding validity, attribution, detection efficacy, remediation effectiveness, or security outcome.",
+    "No complete native implementation of the five full vendor skill intents; this is a bounded supplied-manifest predicate packet.",
+    "No promotion of CP08 decomposition into implementation, executable proof, overall parity, or program completion."
+  ]
+}

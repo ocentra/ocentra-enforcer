@@ -5,6 +5,7 @@
 //! Malformed-input rejection has negative coverage beside each fallible decoder.
 
 pub(crate) mod cloud_azure;
+pub(crate) mod cloud_security_b02_manifest_wire;
 pub(crate) mod cloud_security_manifest_wire;
 pub(crate) mod dependency_manifest;
 pub(crate) mod dockerfile;
