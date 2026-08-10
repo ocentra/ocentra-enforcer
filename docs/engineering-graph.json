@@ -82,6 +82,7 @@
       "WP/CP09/IF-cloud-security/B13": "validation",
       "WP/CP09/IF-cloud-security/B14": "paused",
       "WP/CP09/IF-compliance-governance/B01": "validation",
+      "WP/CP09/IF-compliance-governance/B02": "validation",
       "WP/CP11": "validation",
       "WP/CP11/IF-ai-security/B01": "validation",
       "WP/CP11/IF-ai-security/B02": "validation",
@@ -991,6 +992,42 @@
           "live CMMC, NIST, RMF, GDPR, HIPAA, assessor, regulator, tenant, identity, endpoint, or production authority",
           "certification, authorization, risk truth, regulatory compliance, remediation effectiveness, security outcomes, or overall CyberSkills parity",
           "the auxiliary literal-risk check, which reported preserved protocol, fixture, provenance, path, and hash literals as observed findings (12 errors and 102 warnings); no waiver or obfuscation was used",
+          "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
+        ]
+      },
+      "TEST/WP/CP09/IF-compliance-governance/B02/gate": {
+        "run_id": "direct-cargo-cp09-compliance-governance-b02-20260810",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_compliance_governance_manifest_b02 -- --nocapture; cargo check --locked -p enforcer-lang-security; cargo test --locked -p enforcer-lang-security; cargo test --locked -p enforcer-rules --quiet; exact ten-file Enforcer route/strict scan/source-shape/secrets; literal-risk observed separately; scoped rustfmt --edition 2024 --check --config skip_children=true; git diff --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "9c1f4521a01bbc68c3f60623df1dc82e5a688d5c",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/boundary/compliance_governance_b02_manifest_wire.rs",
+          "crates/enforcer-lang-security/src/boundary/mod.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/compliance_governance_b02.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mod.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_compliance_governance_manifest_b02.rs",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/pass.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/fail.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/malformed.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/compliance-governance-manifest-b02/boundary.json",
+          "proof/cyberskills/cp09/compliance-governance-manifest-b02.json"
+        ],
+        "proves": [
+          "CP09 compliance-governance B02 commit 9c1f4521a01bbc68c3f60623df1dc82e5a688d5c is pushed from exact parent 7d832c0487093487d8573b55142cbea541dbab33 with canonical rust-build base 7d832c0487093487d8573b55142cbea541dbab33",
+          "the focused compliance-governance B02 manifest suite passed 5/5, including static-boundary, five-skill, malformed, rejection, and round-trip coverage",
+          "enforcer-lang-security check and full package tests passed, and the full enforcer-rules package passed with exit code 0",
+          "the exact ten-file Enforcer route, strict scan, Rust source-shape, and secrets checks returned zero findings; scoped rustfmt and git diff --check passed",
+          "the evidence artifact contains five unique compliance-governance catalog rows and 20 CP08 source components represented by 20 packet disposition fields, is 8,972 bytes with SHA-256 06ed435683d58969ae721cf3650a7322576b0052318093d912eb5ae6e12292aa, and its five vendor hashes, anchors, Apache-2.0 labels, and availability match exact source evidence with zero overlap",
+          "the protected detecting-fileless-malware-techniques source remains absent and excluded",
+          "the packet implements only supplied static manifest predicates and retains blocked external, advisory, manual, and notProved boundaries"
+        ],
+        "does_not_prove": [
+          "canonical rust-build integration or merge of the CP09 compliance-governance B02 branch",
+          "full native implementation or executable proof of the five source skill intents beyond these bounded manifest predicates",
+          "live CMMC, ISO 27001, PCI DSS, NIST CSF, SOC 2, assessor, auditor, regulator, tenant, identity, endpoint, or production authority",
+          "certification, authorization, risk truth, regulatory compliance, maturity, audit, attestation, legal conclusion, remediation effectiveness, security outcomes, or overall CyberSkills parity",
+          "the auxiliary literal-risk check, which reported preserved protocol, fixture, provenance, path, and hash literals as observed findings (12 errors and 123 warnings); no waiver or obfuscation was used",
           "graph DONE closure or completion of the remaining CP09 and graph-selected workpacks"
         ]
       },

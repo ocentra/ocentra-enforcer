@@ -380,6 +380,13 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
         DerivedState::Validation,
         "the pushed B01 packet remains validation-only until canonical integration"
     );
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B02")?)?
+            .state,
+        DerivedState::Validation,
+        "the pushed B02 packet remains validation-only until canonical integration"
+    );
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
         .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP09 cloud-security B01"))?;
