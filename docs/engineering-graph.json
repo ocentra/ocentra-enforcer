@@ -50,6 +50,7 @@
       "EXT/UL13": "done",
       "WP/CP02": "done",
       "WP/CP03": "done",
+      "WP/CP04": "done",
       "WP/CP06": "done",
       "WP/CP07": "done",
       "WP/CP10": "done",
@@ -404,6 +405,95 @@
         "does_not_prove": [
           "mutation safety for unrelated workspace paths",
           "native implementation, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP04/focused-syntax-pilot": {
+        "run_id": "cp04-focused-syntax-pilot-20260810",
+        "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_mass_assignment -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "683ba8c7022aa577dfe56b51edc4c413a5104b85",
+        "source_paths": [
+          "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_mass_assignment.rs",
+          "proof/cyberskills/cp04/mass-assignment-syntax-pilot.json",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+          "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py"
+        ],
+        "artifact_sha256": "91233EEEB0D09ADFD409BE8BBF9CB000BD958828ACEB7B1D9D9A3457E75DA8F6",
+        "artifact_bytes": 5150,
+        "test_count": 3,
+        "enforcer_findings": 0,
+        "proves": [
+          "the approved CYBER-MASS-ASSIGN.1 pilot consumes checked function-fact spans",
+          "the differential fixture set fixes the demonstrated top-level prose false positive and preserves real Python and JavaScript sinks",
+          "malformed provider output is explicit and does not silently become clean"
+        ],
+        "does_not_prove": [
+          "default scanner provider migration or family-wide syntax migration",
+          "multiline, alias, argument/string classification beyond the named fixtures",
+          "native implementation of the remaining catalog, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP04/lang-security-gates": {
+        "run_id": "cp04-lang-security-gates-20260810",
+        "command": "cargo check --locked -p enforcer-lang-security; cargo clippy --locked -p enforcer-lang-security --tests --no-deps -- -D warnings; cargo test --locked -p enforcer-lang-security --lib; cargo test --locked -p enforcer-lang-security --test cyberskills_corpus -- --nocapture; cargo fmt -p enforcer-lang-security -- --check; git diff --check; scoped Enforcer route/strict/source-shape/secrets",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "683ba8c7022aa577dfe56b51edc4c413a5104b85",
+        "source_paths": [
+          "Cargo.lock",
+          "crates/enforcer-lang-security/Cargo.toml",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_mass_assignment.rs",
+          "proof/cyberskills/cp04/mass-assignment-syntax-pilot.json"
+        ],
+        "proves": [
+          "the changed security crate passed check, bounded Clippy, 69/69 library tests, 33/33 CyberSkills corpus tests, format, diff, and exact scoped Enforcer gates"
+        ],
+        "does_not_prove": [
+          "dependency-inclusive workspace Clippy, default provider migration, native/executable-proof coverage, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP04/enforcer-scan-dogfood": {
+        "run_id": "cp04-enforcer-scan-dogfood-20260810",
+        "command": "cargo test --locked -p enforcer-scan --lib; cargo test --locked -p enforcer-scan --test cyberskills_syntax_facts_adoption -- --nocapture",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "683ba8c7022aa577dfe56b51edc4c413a5104b85",
+        "source_paths": [
+          "crates/enforcer-scan/src/lib.rs",
+          "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+          "proof/cyberskills/cp04/mass-assignment-syntax-pilot.json"
+        ],
+        "scan_library_tests": 169,
+        "test_count": 3,
+        "proves": [
+          "the consuming enforcer-scan library and fact-backed adoption test accept the CP04 syntax seam"
+        ],
+        "does_not_prove": [
+          "default scanner/provider routing, all rule families, native implementation, executable proof, live external execution, or overall parity"
+        ]
+      },
+      "TEST/CP04/commit-guard": {
+        "run_id": "cp04-commit-guard-20260810",
+        "command": "coordination guard operation=commit/push for the exact five implementation paths; normal strict pre-commit; git diff --cached --check",
+        "status": "passed",
+        "exit_code": 0,
+        "commit": "683ba8c7022aa577dfe56b51edc4c413a5104b85",
+        "source_paths": [
+          "Cargo.lock",
+          "crates/enforcer-lang-security/Cargo.toml",
+          "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+          "crates/enforcer-lang-security/tests/cyberskills_mass_assignment.rs",
+          "proof/cyberskills/cp04/mass-assignment-syntax-pilot.json"
+        ],
+        "proves": [
+          "the exact five-path CP04 implementation packet had no coordination conflicts or merge risks and passed the normal strict pre-commit hook"
+        ],
+        "does_not_prove": [
+          "ownership or mutation safety for unrelated dirty paths, native/executable-proof completion, live execution, or overall parity"
         ]
       },
       "TEST/CP01/rule-registry-relevant-rule-tests": {

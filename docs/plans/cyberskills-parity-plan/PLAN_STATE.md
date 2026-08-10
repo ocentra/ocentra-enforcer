@@ -1,10 +1,10 @@
 # Plan State
 
-Updated: 2026-08-02. This file is a routing board, not evidence.
+Updated: 2026-08-09. This file is a routing board, not evidence.
 
 ## Current phase
 
-`GRAPH-FIRST INTENT AUDIT ACTIVE; IMPLEMENTATION PACKETS ARE DEPENDENCY-GATED`
+`GRAPH-FIRST INTENT AUDIT ACTIVE; CP04 SYNTAX PILOT VERIFIED; IMPLEMENTATION PACKETS REMAIN DEPENDENCY-GATED`
 
 ## Proven foundations
 
@@ -26,6 +26,7 @@ Updated: 2026-08-02. This file is a routing board, not evidence.
 - The current adapter code has no live runner, engine registry, provenance, resource policy, or per-engine evidence.
 - Full parity, merge readiness, Rust cutover, and legacy retirement remain unproved.
 - The six formally linked native mappings are narrowed predicates, not whole-skill closure; executable proof remains zero. The 816 intent packets are routed but not implemented.
+- CP04 now has one verified syntax-backed rule pilot; the default scanner/provider migration and family-wide rule rollout remain unproved.
 
 ## Ready frontier
 
@@ -33,10 +34,12 @@ Updated: 2026-08-02. This file is a routing board, not evidence.
 |---|---|---|
 | CP00 | DONE in graph from explicit gate evidence; ledger/schema evidence only | graph-derived status; no native/executable-proof/overall-parity promotion |
 | CP01 | DONE: batch-05 and the graph partition gate cover all 41 registry IDs; refreshed gates are recorded at commit `0eb5ccb6a` | existing-rule reconciliation only; no whole-skill/native/executable-proof/overall-parity promotion |
+| CP04 | DONE: `CYBER-MASS-ASSIGN.1` syntax pilot committed at `683ba8c70`; focused and consuming scan gates passed | one rule's function-fact pilot only; no family migration/native parity/executable-proof/overall-parity promotion |
 | CP08 | DONE from 82 accepted decomposition artifacts and derived-count/disposition gates | catalog decomposition only; no native/executable-proof/overall-parity promotion |
 | CP11 | VALIDATION: graph verifies all 816 retained advisory/manual components and CP11 batch-01 covers 10 AI-security records | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
 | CP02 | BLOCKED by Universal UL02/UL03 | Sol/architect-only consumer adoption |
 | CP06 | BLOCKED pending UL07 and named `tool-adapter-integrator` | shared singleton |
+| CP05 | READY after CP04; `graph next` is the selection authority | factory scaffold only; no generated security meaning |
 | All others | BLOCKED by dependencies | See index |
 
 Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. `graph next` is the only selection surface.
@@ -47,4 +50,4 @@ The unresolved local deletion of `detecting-fileless-malware-techniques/SKILL.md
 
 ## Resume route
 
-Read inbox and the Luna task report, verify live git/worktree state, then assign exactly one READY workpack. The only current Luna bundle is CP00 read-only catalog/source-identity audit. Never resume from a checkbox alone.
+Read inbox and the Luna task report, verify live git/worktree state, then assign exactly one READY workpack. The current Cyber frontier is CP05 after the verified CP04 pilot. Never resume from a checkbox alone.

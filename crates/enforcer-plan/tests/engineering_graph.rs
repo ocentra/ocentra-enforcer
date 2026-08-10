@@ -1317,7 +1317,7 @@ fn imports_cyber_plan_workpacks_catalog_and_reconciliation_evidence() -> Result<
 }
 
 #[test]
-fn next_selects_cp04_after_cp01_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
+fn next_selects_cp05_after_cp04_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     let ul03 = graph.inspect(&NodeId::new("EXT/UL03")?)?;
@@ -1333,11 +1333,12 @@ fn next_selects_cp04_after_cp01_closure_without_promoting_truth() -> Result<(), 
     let cp02 = graph.inspect(&NodeId::new("WP/CP02")?)?;
     let cp03 = graph.inspect(&NodeId::new("WP/CP03")?)?;
     let cp04 = graph.inspect(&NodeId::new("WP/CP04")?)?;
+    let cp05 = graph.inspect(&NodeId::new("WP/CP05")?)?;
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
     let cp09_cloud_packet = graph.inspect(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)?;
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "WP/CP04");
+    assert_eq!(next["selected"]["id"], "WP/CP05");
     assert_eq!(ul03.state, DerivedState::Done);
     assert_eq!(ul04.state, DerivedState::Done);
     assert_eq!(ul05.state, DerivedState::Done);
@@ -1350,7 +1351,8 @@ fn next_selects_cp04_after_cp01_closure_without_promoting_truth() -> Result<(), 
     assert_eq!(cp06.state, DerivedState::Done);
     assert_eq!(cp02.state, DerivedState::Done);
     assert_eq!(cp03.state, DerivedState::Done);
-    assert_eq!(cp04.state, DerivedState::Ready);
+    assert_eq!(cp04.state, DerivedState::Done);
+    assert_eq!(cp05.state, DerivedState::Ready);
     assert_eq!(cp12.state, DerivedState::Blocked);
     assert!(cp12
         .reasons
