@@ -363,6 +363,12 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
             .state,
         DerivedState::Validation
     );
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-cloud-security/B03")?)?
+            .state,
+        DerivedState::Validation
+    );
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
         .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP09 cloud-security B01"))?;
