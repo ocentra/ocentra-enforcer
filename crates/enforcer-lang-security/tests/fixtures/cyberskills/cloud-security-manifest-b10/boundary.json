@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b10-boundary",
+  "owner": "owner:authorized-assessment",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "stop-condition", "reference": "condition:stop-before-live-provider" },
+    { "kind": "data-handling", "reference": "policy:supplied-manifest-only" }
+  ],
+  "records": [
+    {
+      "kind": "okta-cloud-identity",
+      "skillId": "managing-cloud-identity-with-okta",
+      "tenantRef": "tenant:offline-fixture",
+      "identityRef": "identity:declared-user",
+      "groupRef": "group:declared-group",
+      "roleRef": "role:declared-role",
+      "policyRef": "policy:declared-policy",
+      "factorRef": "factor:declared-factor",
+      "enrollmentRef": "enrollment:declared-enrollment",
+      "ownerRef": "owner:authorized-owner",
+      "evidenceRef": "evidence:offline-identity"
+    },
+    {
+      "kind": "aws-account-enumeration",
+      "skillId": "performing-aws-account-enumeration-with-scout-suite",
+      "accountRef": "account:declared-account",
+      "organizationRef": "organization:declared-organization",
+      "regionRef": "region:declared-region",
+      "scopeRef": "scope:declared-scope",
+      "resourceRef": "resource:declared-resource",
+      "permissionRef": "permission:declared-permission",
+      "snapshotRef": "snapshot:declared-snapshot",
+      "ownerRef": "owner:authorized-owner",
+      "evidenceRef": "evidence:offline-account"
+    },
+    {
+      "kind": "aws-privilege-escalation-assessment",
+      "skillId": "performing-aws-privilege-escalation-assessment",
+      "accountRef": "account:declared-account",
+      "principalRef": "principal:declared-principal",
+      "roleRef": "role:declared-role",
+      "policyRef": "policy:declared-policy",
+      "permissionRef": "permission:declared-permission",
+      "pathRef": "path:declared-path",
+      "findingRef": "finding:declared-finding",
+      "ownerRef": "owner:authorized-owner",
+      "evidenceRef": "evidence:offline-privilege"
+    },
+    {
+      "kind": "cloud-asset-inventory",
+      "skillId": "performing-cloud-asset-inventory-with-cartography",
+      "tenantRef": "tenant:declared-tenant",
+      "accountRef": "account:declared-account",
+      "resourceRef": "resource:declared-resource",
+      "relationshipRef": "relationship:declared-relationship",
+      "graphRef": "graph:declared-graph",
+      "serviceRef": "service:declared-service",
+      "regionRef": "region:declared-region",
+      "ownerRef": "owner:authorized-owner",
+      "evidenceRef": "evidence:offline-assets"
+    },
+    {
+      "kind": "cloudtrail-forensics",
+      "skillId": "performing-cloud-forensics-with-aws-cloudtrail",
+      "accountRef": "account:declared-account",
+      "trailRef": "trail:declared-trail",
+      "eventRef": "event:declared-event",
+      "actorRef": "actor:declared-actor",
+      "timestampRef": "timestamp:declared-time",
+      "regionRef": "region:declared-region",
+      "resourceRef": "resource:declared-resource",
+      "ownerRef": "owner:authorized-owner",
+      "evidenceRef": "evidence:offline-events"
+    }
+  ]
+}

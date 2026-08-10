@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-cloud-security-B10",
+  "workpack": "WP/CP09/IF-cloud-security/B10",
+  "baseCommit": "d6be1ff1be6eae3d5b977c86a9f6e2ea58897a86",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": {
+    "implementation": false,
+    "proof": false,
+    "overallParity": false
+  },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput and Finding boundary",
+    "CP00/CP08 provenance and four-way disposition evidence"
+  ],
+  "externalBlocked": [
+    "Okta, IdP, MFA, directory, and live identity authorities",
+    "ScoutSuite, AWS APIs, IAM, Organizations, and account discovery authorities",
+    "Pacu, IAM policy evaluators, credentials, sessions, and live privilege authorities",
+    "Cartography, Neo4j, cloud APIs, graph discovery, and asset inventory authorities",
+    "CloudTrail, AWS logs, SIEM, endpoint, network, and live forensic authorities"
+  ],
+  "advisoryManual": [
+    "defensive identity, enumeration, assessment, inventory, and forensic guidance remains advisory",
+    "written authorization, scope, tenant/account ownership, legal/privacy/safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure remain manual"
+  ],
+  "proves": [
+    "five graph-selected cloud-security intents have deterministic static supplied-manifest predicates",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary"
+  ],
+  "doesNotProve": [
+    "live identity, account enumeration, privilege escalation, asset discovery, CloudTrail retrieval, or forensic truth",
+    "provider/API/ScoutSuite/Pacu/Cartography/Okta/CloudTrail authority, credentials, sessions, or production access",
+    "native implementation or executable proof beyond these bounded static predicates",
+    "finding validity, authorization, attribution, remediation effectiveness, security outcomes, or overall CyberSkills parity"
+  ],
+  "skills": [
+    {
+      "catalogId": "managing-cloud-identity-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-cloud-identity-with-okta/SKILL.md",
+        "sha256": "ea963e663085c72f1beff1f4957384702e27b98d8a597beedafb7193856a10df",
+        "anchors": ["# Managing Cloud Identity with Okta:L64"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed tenant, identity, group, role, policy, factor, enrollment, owner, and evidence manifests without Okta, IdP, MFA, session, or directory authority.",
+      "cp08Disposition": {
+        "native": "proposed",
+        "external": "blocked",
+        "advisory": "retained",
+        "manual": "retained"
+      },
+      "cp08Evidence": {
+        "componentCount": 4,
+        "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"],
+        "missingKinds": []
+      }
+    },
+    {
+      "catalogId": "performing-aws-account-enumeration-with-scout-suite",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-aws-account-enumeration-with-scout-suite/SKILL.md",
+        "sha256": "4390ced60253502f3e2dc820330d4a44085e1f095aa365dfc14ccdfc4e297742",
+        "anchors": ["# Performing AWS Account Enumeration with ScoutSuite:L32"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, organization, region, scope, resource, permission, snapshot, owner, and evidence manifests without ScoutSuite, AWS APIs, credentials, or account enumeration.",
+      "cp08Disposition": {
+        "native": "proposed",
+        "external": "blocked",
+        "advisory": "retained",
+        "manual": "retained"
+      },
+      "cp08Evidence": {
+        "componentCount": 4,
+        "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"],
+        "missingKinds": []
+      }
+    },
+    {
+      "catalogId": "performing-aws-privilege-escalation-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-aws-privilege-escalation-assessment/SKILL.md",
+        "sha256": "f581ca35043f71d3a96e7767254173d0230a017f611d6d33f355c9ec5fe9ff93",
+        "anchors": ["### Step 2: Scan for Privilege Escalation Paths with Pacu:L84"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, principal, role, policy, permission, path, finding, owner, and evidence manifests without Pacu, IAM evaluation, credentials, sessions, or live privilege testing.",
+      "cp08Disposition": {
+        "native": "proposed",
+        "external": "blocked",
+        "advisory": "retained",
+        "manual": "retained"
+      },
+      "cp08Evidence": {
+        "componentCount": 4,
+        "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"],
+        "missingKinds": []
+      }
+    },
+    {
+      "catalogId": "performing-cloud-asset-inventory-with-cartography",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-asset-inventory-with-cartography/SKILL.md",
+        "sha256": "5499f9e12d4edfb090fd8a8dd9c78c476653a643f386a46d3f34265dac3df4d0",
+        "anchors": ["# Performing Cloud Asset Inventory with Cartography:L32"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed tenant, account, resource, relationship, graph, service, region, owner, and evidence manifests without Cartography, Neo4j, cloud APIs, or live asset discovery.",
+      "cp08Disposition": {
+        "native": "proposed",
+        "external": "blocked",
+        "advisory": "retained",
+        "manual": "retained"
+      },
+      "cp08Evidence": {
+        "componentCount": 4,
+        "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"],
+        "missingKinds": []
+      }
+    },
+    {
+      "catalogId": "performing-cloud-forensics-with-aws-cloudtrail",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-forensics-with-aws-cloudtrail/SKILL.md",
+        "sha256": "9b1a067c9d5573148fbb2a49c431040dd9fcc8315350478b7aa384f2c419b130",
+        "anchors": ["# Performing Cloud Forensics with AWS CloudTrail:L33"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Validate supplied typed account, trail, event, actor, timestamp, region, resource, owner, and evidence manifests without CloudTrail retrieval, SIEM, endpoint, network, or live forensic authority.",
+      "cp08Disposition": {
+        "native": "proposed",
+        "external": "blocked",
+        "advisory": "retained",
+        "manual": "retained"
+      },
+      "cp08Evidence": {
+        "componentCount": 4,
+        "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"],
+        "missingKinds": []
+      }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b10.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b10_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b10.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b10/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records complete four-kind source dispositions without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}

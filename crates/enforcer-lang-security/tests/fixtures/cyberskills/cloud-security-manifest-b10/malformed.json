@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b10-malformed",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "okta-cloud-identity",
+      "skillId": "managing-cloud-identity-with-okta",
+      "tenantRef": "tenant:okta-fixture"
+    }

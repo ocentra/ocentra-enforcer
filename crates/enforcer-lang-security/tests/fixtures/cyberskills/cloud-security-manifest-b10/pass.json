@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b10-pass",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "owner", "reference": "owner:security-engineering" }
+  ],
+  "records": [
+    {
+      "kind": "okta-cloud-identity",
+      "skillId": "managing-cloud-identity-with-okta",
+      "tenantRef": "tenant:okta-fixture",
+      "identityRef": "identity:security-admin",
+      "groupRef": "group:security-engineering",
+      "roleRef": "role:identity-admin",
+      "policyRef": "policy:phishing-resistant-auth",
+      "factorRef": "factor:webauthn",
+      "enrollmentRef": "enrollment:fixture",
+      "ownerRef": "owner:security-engineering",
+      "evidenceRef": "evidence:identity-manifest"
+    },
+    {
+      "kind": "aws-account-enumeration",
+      "skillId": "performing-aws-account-enumeration-with-scout-suite",
+      "accountRef": "account:fixture",
+      "organizationRef": "organization:fixture",
+      "regionRef": "region:ca-central-1",
+      "scopeRef": "scope:authorized-inventory",
+      "resourceRef": "resource:account-summary",
+      "permissionRef": "permission:read-only-inventory",
+      "snapshotRef": "snapshot:account-inventory",
+      "ownerRef": "owner:cloud-platform",
+      "evidenceRef": "evidence:account-manifest"
+    },
+    {
+      "kind": "aws-privilege-escalation-assessment",
+      "skillId": "performing-aws-privilege-escalation-assessment",
+      "accountRef": "account:fixture",
+      "principalRef": "principal:review-role",
+      "roleRef": "role:review-role",
+      "policyRef": "policy:review-policy",
+      "permissionRef": "permission:bounded-actions",
+      "pathRef": "path:declared-privilege-path",
+      "findingRef": "finding:fixture-assessment",
+      "ownerRef": "owner:cloud-platform",
+      "evidenceRef": "evidence:privilege-manifest"
+    },
+    {
+      "kind": "cloud-asset-inventory",
+      "skillId": "performing-cloud-asset-inventory-with-cartography",
+      "tenantRef": "tenant:cloud-fixture",
+      "accountRef": "account:fixture",
+      "resourceRef": "resource:asset-01",
+      "relationshipRef": "relationship:asset-owner",
+      "graphRef": "graph:asset-fixture",
+      "serviceRef": "service:compute",
+      "regionRef": "region:ca-central-1",
+      "ownerRef": "owner:cloud-platform",
+      "evidenceRef": "evidence:asset-manifest"
+    },
+    {
+      "kind": "cloudtrail-forensics",
+      "skillId": "performing-cloud-forensics-with-aws-cloudtrail",
+      "accountRef": "account:fixture",
+      "trailRef": "trail:fixture",
+      "eventRef": "event:api-call-fixture",
+      "actorRef": "actor:fixture",
+      "timestampRef": "timestamp:2026-08-10T12:00:00Z",
+      "regionRef": "region:ca-central-1",
+      "resourceRef": "resource:fixture",
+      "ownerRef": "owner:incident-response",
+      "evidenceRef": "evidence:cloudtrail-manifest"
+    }
+  ]
+}
