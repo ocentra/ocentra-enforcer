@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b12-fail",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "gcp-bucketbrute-assessment",
+      "skillId": "performing-gcp-penetration-testing-with-gcpbucketbrute",
+      "refs": ["project:fixture", "bucket:fixture"]
+    }
+  ]
+}

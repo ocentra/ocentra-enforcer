@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b12-boundary",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "manual", "reference": "manual:analyst-validation" }
+  ],
+  "records": [
+    {
+      "kind": "gcp-bucketbrute-assessment",
+      "skillId": "performing-gcp-penetration-testing-with-gcpbucketbrute",
+      "refs": ["project:declared", "bucket:declared", "scope:authorized", "authorization:manual", "service:declared", "identity:declared", "permission:declared", "owner:assessment-team", "evidence:boundary"]
+    },
+    {
+      "kind": "gcp-forseti-security-assessment",
+      "skillId": "performing-gcp-security-assessment-with-forseti",
+      "refs": ["project:declared", "organization:declared", "policy:declared", "inventory:declared", "benchmark:declared", "finding:unknown", "severity:unknown", "owner:cloud-security", "evidence:boundary"]
+    },
+    {
+      "kind": "serverless-function-security-review",
+      "skillId": "performing-serverless-function-security-review",
+      "refs": ["provider:declared", "function:declared", "runtime:declared", "trigger:declared", "role:declared", "package:declared", "config:review-only", "owner:serverless-security", "evidence:boundary"]
+    },
+    {
+      "kind": "s3-remediation-plan",
+      "skillId": "remediating-s3-bucket-misconfiguration",
+      "refs": ["bucket:declared", "region:declared", "policy:review", "public-access:unknown", "encryption:unknown", "versioning:unknown", "plan:manual", "owner:storage-security", "evidence:boundary"]
+    },
+    {
+      "kind": "aws-waf-gateway-security",
+      "skillId": "securing-api-gateway-with-aws-waf",
+      "refs": ["gateway:declared", "route:declared", "web-acl:declared", "rule:declared", "request:declared", "response:declared", "origin:declared", "owner:api-security", "evidence:boundary"]
+    }
+  ]
+}

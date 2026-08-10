@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b12-pass",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "owner", "reference": "owner:security-engineering" }
+  ],
+  "records": [
+    {
+      "kind": "gcp-bucketbrute-assessment",
+      "skillId": "performing-gcp-penetration-testing-with-gcpbucketbrute",
+      "refs": ["project:fixture", "bucket:declared", "scope:written-authorization", "authorization:lab-only", "service:declared", "identity:declared", "permission:review-only", "owner:assessment-team", "evidence:gcp-bucketbrute"]
+    },
+    {
+      "kind": "gcp-forseti-security-assessment",
+      "skillId": "performing-gcp-security-assessment-with-forseti",
+      "refs": ["project:fixture", "organization:declared", "policy:declared", "inventory:fixture", "benchmark:declared", "finding:unresolved", "severity:unknown", "owner:cloud-security", "evidence:forseti"]
+    },
+    {
+      "kind": "serverless-function-security-review",
+      "skillId": "performing-serverless-function-security-review",
+      "refs": ["provider:declared", "function:fixture", "runtime:declared", "trigger:declared", "role:declared", "package:fixture", "config:review-only", "owner:serverless-security", "evidence:serverless"]
+    },
+    {
+      "kind": "s3-remediation-plan",
+      "skillId": "remediating-s3-bucket-misconfiguration",
+      "refs": ["bucket:fixture", "region:declared", "policy:review", "public-access:declared", "encryption:declared", "versioning:declared", "plan:manual-review", "owner:storage-security", "evidence:s3-plan"]
+    },
+    {
+      "kind": "aws-waf-gateway-security",
+      "skillId": "securing-api-gateway-with-aws-waf",
+      "refs": ["gateway:fixture", "route:declared", "web-acl:declared", "rule:declared", "request:fixture", "response:fixture", "origin:declared", "owner:api-security", "evidence:aws-waf"]
+    }
+  ]
+}

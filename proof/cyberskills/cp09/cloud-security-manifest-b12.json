@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-cloud-security-B12",
+  "workpack": "WP/CP09/IF-cloud-security/B12",
+  "baseCommit": "5546481605e9a43cd8591e4f6399c8f3ab2472ea",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": { "implementation": false, "proof": false, "overallParity": false },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput and Finding boundary",
+    "CP00/CP08 provenance and four-way disposition evidence"
+  ],
+  "externalBlocked": [
+    "GCPBucketBrute, GCP APIs, buckets, projects, credentials, discovery, and live assessment authorities",
+    "Forseti, GCP organization state, inventories, benchmarks, APIs, and live assessment authorities",
+    "serverless runtimes, cloud providers, functions, triggers, packages, roles, and execution authorities",
+    "S3 APIs, buckets, policies, encryption, public access, and live remediation authorities",
+    "API Gateway, AWS WAF, requests, origins, rule engines, traffic, and production enforcement authorities"
+  ],
+  "advisoryManual": [
+    "defensive cloud assessment, serverless review, storage remediation, and WAF guidance remains advisory",
+    "written authorization, scope, account/project ownership, legal/privacy/safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure remain manual"
+  ],
+  "proves": [
+    "five graph-selected cloud-security intents have deterministic static supplied-manifest predicates",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary"
+  ],
+  "doesNotProve": [
+    "live GCP, Forseti, serverless, S3, AWS WAF, account, project, bucket, function, gateway, endpoint, network, credential, or production truth",
+    "enumeration, exploitability, assessment findings, runtime behavior, remediation effectiveness, WAF enforcement, security outcomes, or overall CyberSkills parity",
+    "native implementation or executable proof beyond these bounded static predicates"
+  ],
+  "skills": [
+    {
+      "catalogId": "performing-gcp-penetration-testing-with-gcpbucketbrute",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-gcp-penetration-testing-with-gcpbucketbrute/SKILL.md", "sha256": "eae165b945bec4d2060e70a4adae24347a56b254e30f0177ece0c849452e7302", "anchors": ["# Performing GCP Penetration Testing with GCPBucketBrute:L39"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed project, bucket, scope, authorization, service, identity, permission, owner, and evidence manifests without GCPBucketBrute, GCP APIs, credentials, discovery, or live assessment.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-gcp-security-assessment-with-forseti",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-gcp-security-assessment-with-forseti/SKILL.md", "sha256": "414468feeab2af7a7a73336311658225ed50919217822cfe386f9dc88636ad68", "anchors": ["# Performing GCP Security Assessment with Forseti:L43"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed project, organization, policy, inventory, benchmark, finding, severity, owner, and evidence manifests without Forseti, GCP APIs, inventories, or live assessment.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-serverless-function-security-review",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-serverless-function-security-review/SKILL.md", "sha256": "70b331ce7f8e63e3d868938a31707bbcd156fc2b5a8d6166fa244dc316e01ff5", "anchors": ["# Performing Serverless Function Security Review:L34"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed provider, function, runtime, trigger, role, package, configuration, owner, and evidence manifests without invoking serverless runtimes, cloud APIs, packages, or execution authorities.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "remediating-s3-bucket-misconfiguration",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/remediating-s3-bucket-misconfiguration/SKILL.md", "sha256": "746c501fe8345a7c8c7838c38b71c69063b07d95578acbce40ff586e267e61ca", "anchors": ["# Remediating S3 Bucket Misconfiguration:L34"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed bucket, region, policy, public-access, encryption, versioning, remediation-plan, owner, and evidence manifests without S3 APIs or live remediation authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "securing-api-gateway-with-aws-waf",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/securing-api-gateway-with-aws-waf/SKILL.md", "sha256": "ea9a6357d74a3a95ab9b82737f887e2fc4a51f74bcd29bd9bf8032c3312f8a37", "anchors": ["# Securing API Gateway with AWS WAF:L35"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed gateway, route, web-ACL, rule, request, response, origin, owner, and evidence manifests without API Gateway, AWS WAF, traffic, or production enforcement authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b12.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b12_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b12.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b12/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b12/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b12/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b12/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records complete four-kind source dispositions without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}
