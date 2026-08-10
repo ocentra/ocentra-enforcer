@@ -20,6 +20,7 @@ pub mod cloud_gcp;
 pub mod cloud_security;
 pub mod cloud_security_b02;
 pub mod cloud_security_b03;
+pub mod cloud_security_b04;
 pub mod cmd_injection;
 pub mod dependency_confusion;
 pub mod docker_daemon;

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-b04-boundary",
+  "owner": "owner:security",
+  "scope": "scope:offline-evidence",
+  "evidence": [
+    {"kind": "authorization", "reference": "written-authorization:review-only"},
+    {"kind": "manual-review", "reference": "human-approval:security-owner"},
+    {"kind": "provenance", "reference": "provenance:boundary-b04"}
+  ],
+  "records": [
+    {
+      "kind": "azure-service-principal-abuse",
+      "skillId": "detecting-azure-service-principal-abuse",
+      "tenantRef": "tenant:example",
+      "principalRef": "principal:sp-001",
+      "identityRef": "identity:analyst",
+      "credentialRef": "credential:review-reference",
+      "roleRef": "role:app-owner",
+      "consentRef": "consent:recorded",
+      "eventRef": "event:sp-change-001",
+      "ownerRef": "owner:security",
+      "evidenceRef": "evidence:sp-001"
+    },
+    {
+      "kind": "azure-storage-misconfiguration",
+      "skillId": "detecting-azure-storage-account-misconfigurations",
+      "tenantRef": "tenant:example",
+      "storageAccountRef": "storage:account-001",
+      "accessRef": "access:private",
+      "networkRef": "network:restricted",
+      "encryptionRef": "encryption:enabled",
+      "policyRef": "policy:storage-baseline",
+      "exceptionRef": "exception:none",
+      "ownerRef": "owner:security",
+      "evidenceRef": "evidence:storage-001"
+    },
+    {
+      "kind": "cloud-guardduty-threat",
+      "skillId": "detecting-cloud-threats-with-guardduty",
+      "accountRef": "account:example",
+      "findingRef": "finding:guardduty-001",
+      "threatRef": "threat:supplied-review",
+      "resourceRef": "resource:workload-001",
+      "severityRef": "severity:review",
+      "ownerRef": "owner:security",
+      "evidenceRef": "evidence:guardduty-001",
+      "provenanceRef": "provenance:guardduty-001",
+      "eventRef": "event:guardduty-001"
+    },
+    {
+      "kind": "cloud-credential-compromise",
+      "skillId": "detecting-compromised-cloud-credentials",
+      "accountRef": "account:example",
+      "credentialRef": "credential:review-reference",
+      "identityRef": "identity:analyst",
+      "sessionRef": "session:offline-reference",
+      "eventRef": "event:credential-review-001",
+      "riskRef": "risk:supplied-review",
+      "ownerRef": "owner:security",
+      "severityRef": "severity:review",
+      "evidenceRef": "evidence:credential-001"
+    },
+    {
+      "kind": "cloud-cryptomining",
+      "skillId": "detecting-cryptomining-in-cloud",
+      "accountRef": "account:example",
+      "workloadRef": "workload:review-reference",
+      "resourceRef": "resource:compute-001",
+      "identityRef": "identity:analyst",
+      "usageRef": "usage:supplied-review",
+      "costRef": "cost:supplied-review",
+      "findingRef": "finding:cryptomining-001",
+      "ownerRef": "owner:security",
+      "evidenceRef": "evidence:cryptomining-001"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cloud-b04-fail",
+  "owner": "owner:security",
+  "scope": "scope:offline-evidence",
+  "evidence": [{"kind": "provenance", "reference": "provenance:fixture-b04"}],
+  "records": [{"kind": "unknown-cloud-record", "skillId": "skill:unknown"}]
+}
