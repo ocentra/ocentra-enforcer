@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b07-boundary",
+  "owner": "owner:written-authorization",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "safety", "reference": "evidence:stop-before-live-action" },
+    { "kind": "privacy", "reference": "evidence:data-boundary" }
+  ],
+  "records": [
+    {
+      "kind": "aws-macie-data-classification",
+      "skillId": "implementing-aws-macie-for-data-classification",
+      "tenantRef": "tenant:declared",
+      "accountRef": "account:declared",
+      "resourceRef": "resource:fixture",
+      "classificationRef": "classification:planned",
+      "dataBoundaryRef": "data-boundary:no-live-data",
+      "policyRef": "policy:manual",
+      "retentionRef": "retention:declared",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:macie"
+    },
+    {
+      "kind": "aws-nitro-enclave-security",
+      "skillId": "implementing-aws-nitro-enclave-security",
+      "accountRef": "account:declared",
+      "enclaveRef": "enclave:fixture",
+      "attestationRef": "attestation:planned",
+      "keyRef": "key:no-secret-material",
+      "policyRef": "policy:manual",
+      "authorizationRef": "authorization:written",
+      "ownerRef": "owner:analyst",
+      "scopeRef": "scope:offline",
+      "evidenceRef": "evidence:nitro"
+    },
+    {
+      "kind": "aws-security-hub",
+      "skillId": "implementing-aws-security-hub",
+      "accountRef": "account:declared",
+      "regionRef": "region:declared",
+      "workspaceRef": "workspace:fixture",
+      "findingRef": "finding:supplied",
+      "severityRef": "severity:analyst",
+      "statusRef": "status:unverified",
+      "ownerRef": "owner:analyst",
+      "controlRef": "control:declared",
+      "evidenceRef": "evidence:hub"
+    },
+    {
+      "kind": "aws-security-hub-compliance",
+      "skillId": "implementing-aws-security-hub-compliance",
+      "accountRef": "account:declared",
+      "regionRef": "region:declared",
+      "controlRef": "control:declared",
+      "standardRef": "standard:declared",
+      "complianceRef": "compliance:unverified",
+      "scopeRef": "scope:offline",
+      "exceptionRef": "exception:manual",
+      "reviewRef": "review:required",
+      "evidenceRef": "evidence:compliance"
+    },
+    {
+      "kind": "azure-defender-for-cloud",
+      "skillId": "implementing-azure-defender-for-cloud",
+      "tenantRef": "tenant:declared",
+      "subscriptionRef": "subscription:fixture",
+      "workspaceRef": "workspace:offline",
+      "defenderRef": "defender:reference",
+      "alertRef": "alert:supplied",
+      "scopeRef": "scope:offline",
+      "policyRef": "policy:manual",
+      "ownerRef": "owner:analyst",
+      "evidenceRef": "evidence:defender"
+    }
+  ]
+}

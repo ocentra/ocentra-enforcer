@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bundle:cp09-cloud-b07-fail",
+  "owner": "owner:cp09-cloud-b07",
+  "scope": "scope:offline-cloud-control-manifest",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-authorization" }
+  ],
+  "records": [
+    {
+      "kind": "live-cloud-control-evaluation",
+      "skillId": "implementing-aws-security-hub",
+      "accountRef": "account:declared",
+      "regionRef": "region:declared",
+      "workspaceRef": "workspace:supplied",
+      "findingRef": "finding:offline-record",
+      "severityRef": "severity:declared",
+      "statusRef": "status:declared",
+      "ownerRef": "owner:soc",
+      "controlRef": "control:declared",
+      "evidenceRef": "evidence:security-hub"
+    }
+  ]
+}
