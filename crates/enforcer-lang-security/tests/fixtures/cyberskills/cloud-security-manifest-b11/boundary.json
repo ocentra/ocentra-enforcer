@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b11-boundary",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "manual", "reference": "manual:analyst-validation" }
+  ],
+  "records": [
+    {
+      "kind": "ztna-network-admission",
+      "skillId": "implementing-zero-trust-network-access",
+      "deviceRef": "device:fixture",
+      "postureRef": "posture:unknown-isolated",
+      "networkRef": "network:declared",
+      "admissionRef": "admission:review-only",
+      "samlRef": "saml:declared",
+      "mtlsRef": "mtls:declared",
+      "dnsPolicyRef": "dns-policy:declared",
+      "saasRef": "saas:declared",
+      "sessionRef": "session:declared",
+      "ownerRef": "owner:identity-platform",
+      "configRef": "config:review",
+      "evidenceRef": "evidence:ztna-boundary"
+    },
+    {
+      "kind": "cloud-log-forensics-athena",
+      "skillId": "performing-cloud-log-forensics-with-athena",
+      "accountRef": "account:declared",
+      "logGroupRef": "log-group:declared",
+      "queryRef": "query:review",
+      "timeWindowRef": "time-window:declared",
+      "eventRef": "event:declared",
+      "actorRef": "actor:declared",
+      "resourceRef": "resource:declared",
+      "ownerRef": "owner:incident-response",
+      "evidenceRef": "evidence:athena-boundary"
+    },
+    {
+      "kind": "cloud-native-forensics-falco",
+      "skillId": "performing-cloud-native-forensics-with-falco",
+      "clusterRef": "cluster:declared",
+      "nodeRef": "node:declared",
+      "workloadRef": "workload:declared",
+      "ruleRef": "rule:declared",
+      "eventRef": "event:declared",
+      "processRef": "process:declared",
+      "containerRef": "container:declared",
+      "severityRef": "severity:unknown",
+      "ownerRef": "owner:container-security",
+      "evidenceRef": "evidence:falco-boundary"
+    },
+    {
+      "kind": "cloud-native-threat-hunting",
+      "skillId": "performing-cloud-native-threat-hunting-with-aws-detective",
+      "accountRef": "account:declared",
+      "graphRef": "graph:declared",
+      "investigationRef": "investigation:review",
+      "entityRef": "entity:declared",
+      "relationshipRef": "relationship:declared",
+      "timelineRef": "timeline:declared",
+      "hypothesisRef": "hypothesis:unresolved",
+      "ownerRef": "owner:threat-hunting",
+      "evidenceRef": "evidence:detective-boundary"
+    },
+    {
+      "kind": "cloud-penetration-testing-pacu",
+      "skillId": "performing-cloud-penetration-testing-with-pacu",
+      "accountRef": "account:authorized-lab",
+      "scopeRef": "scope:written-authorization",
+      "authorizationRef": "authorization:lab-only",
+      "serviceRef": "service:declared",
+      "identityRef": "identity:declared",
+      "permissionRef": "permission:declared",
+      "pathRef": "path:review-only",
+      "ownerRef": "owner:assessment-team",
+      "evidenceRef": "evidence:pacu-boundary"
+    }
+  ]
+}

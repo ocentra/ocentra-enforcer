@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "packetId": "CP09-IF-cloud-security-B11",
+  "workpack": "WP/CP09/IF-cloud-security/B11",
+  "baseCommit": "dbe7a70cc668e2b85a28923c12c92c571dec5380",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "validation",
+  "promotion": { "implementation": false, "proof": false, "overallParity": false },
+  "capability": "native-predicate",
+  "reuse": [
+    "enforcer-lang-security typed serde manifest-wire boundary",
+    "enforcer-domain ValidationInput and Finding boundary",
+    "CP00/CP08 provenance and four-way disposition evidence"
+  ],
+  "externalBlocked": [
+    "ZTNA devices, NAC, IdP, SAML, mTLS, DNS, SaaS, sessions, and production admission authorities",
+    "AWS Athena, CloudTrail, accounts, logs, SIEM, endpoints, and live forensic authorities",
+    "Falco, Kubernetes, nodes, containers, runtime events, and cluster authorities",
+    "AWS Detective, cloud APIs, graphs, sessions, and live threat-hunting authorities",
+    "Pacu, cloud accounts, credentials, permissions, exploit delivery, and live assessment authorities"
+  ],
+  "advisoryManual": [
+    "defensive zero-trust, forensic, hunting, and authorized-assessment guidance remains advisory",
+    "written authorization, scope, tenant/account/cluster ownership, legal/privacy/safety review, data handling, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure remain manual"
+  ],
+  "proves": [
+    "five graph-selected cloud-security intents have deterministic static supplied-manifest predicates",
+    "the packet preserves the CP08 native-predicate proposed, external-engine blocked, advisory retained, and manual retained disposition boundary"
+  ],
+  "doesNotProve": [
+    "live ZTNA, provider, Athena, CloudTrail, Falco, Detective, Pacu, cluster, account, endpoint, network, credential, session, or production truth",
+    "admission enforcement, timeline truth, runtime event truth, threat attribution, exploitability, finding validity, remediation effectiveness, security outcomes, or overall CyberSkills parity",
+    "native implementation or executable proof beyond these bounded static predicates"
+  ],
+  "skills": [
+    {
+      "catalogId": "implementing-zero-trust-network-access",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-network-access/SKILL.md", "sha256": "88fa1ff266f284a444cc065656c697518b2d51921e7bac5833255c4d56d02290", "anchors": ["# Implementing Zero Trust Network Access:L33"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed device, posture, admission, SAML, mTLS, DNS-policy, SaaS-access, session, ownership, configuration, and evidence manifests without live ZTNA or identity authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-cloud-log-forensics-with-athena",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-log-forensics-with-athena/SKILL.md", "sha256": "43cca16e93718cea7746e794c280d85f6aacc7a6fdeb3b73c8fc2a0b575283f4", "anchors": ["# Performing Cloud Log Forensics with AWS Athena:L37"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed account, log-group, query, time-window, event, actor, resource, owner, and evidence manifests without Athena, CloudTrail, SIEM, endpoint, or live log authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-cloud-native-forensics-with-falco",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-native-forensics-with-falco/SKILL.md", "sha256": "e6c17735287b76f12cdcc209d208addfdd721e10f79379141829a14d42f95c39", "anchors": ["# Performing Cloud Native Forensics with Falco:L35", "## Instructions:L52", "## Examples:L80"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed cluster, node, workload, rule, event, process, container, severity, owner, and evidence manifests without Falco, runtime events, Kubernetes, or live cluster authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-cloud-native-threat-hunting-with-aws-detective",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-native-threat-hunting-with-aws-detective/SKILL.md", "sha256": "19798b1f9fa857c193d4ffeca0de9e4a08ccbb8c79159692fc6be2a0cd3d5845", "anchors": ["# Performing Cloud-Native Threat Hunting with AWS Detective:L34"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed account, graph, investigation, entity, relationship, timeline, hypothesis, owner, and evidence manifests without Detective, cloud APIs, graphs, sessions, or live hunting authority.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    },
+    {
+      "catalogId": "performing-cloud-penetration-testing-with-pacu",
+      "source": { "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-penetration-testing-with-pacu/SKILL.md", "sha256": "03ae0ee0c5c52aac22a6f152c2fc52c09370fc27a26afbff0ffb5a8f9815c77e", "anchors": ["# Performing Cloud Penetration Testing with Pacu:L34"], "license": "Apache-2.0", "availability": "available" },
+      "nativePredicate": "Validate supplied typed account, scope, authorization, service, identity, permission, path, owner, and evidence manifests without Pacu, credentials, exploit delivery, or live cloud assessment.",
+      "cp08Disposition": { "native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained" },
+      "cp08Evidence": { "componentCount": 4, "presentKinds": ["native-predicate", "external-engine", "advisory", "manual"], "missingKinds": [] }
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/cloud_security_b11.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/cloud_security_b11_manifest_wire.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_cloud_security_manifest_b11.rs"],
+    "fixtures": [
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b11/pass.json", "class": "positive" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b11/fail.json", "class": "negative" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b11/malformed.json", "class": "malformed" },
+      { "path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud-security-manifest-b11/boundary.json", "class": "written-authorization-boundary" }
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet records complete four-kind source dispositions without promoting component status",
+    "cp08SourceComponentCount": 20,
+    "packetDispositionFieldCount": 20
+  }
+}

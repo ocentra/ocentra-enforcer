@@ -27,6 +27,7 @@ pub mod cloud_security_b07;
 pub mod cloud_security_b08;
 pub mod cloud_security_b09;
 pub mod cloud_security_b10;
+pub mod cloud_security_b11;
 pub mod cmd_injection;
 pub mod dependency_confusion;
 pub mod docker_daemon;
