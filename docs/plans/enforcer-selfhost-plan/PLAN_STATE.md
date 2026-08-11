@@ -31,18 +31,31 @@ Out of scope: reusing the legacy `.mjs`/Node runtime (dropped); business logic i
 
 ## What is present
 
-- **Workpacks authored: 111.** Track A **Rust re-cast** — crate-build swarm (`arc-01`–`arc-25`, 25, incl. the vendored `arc-25` `enforcer-events`) + Rust domain/self-enforcement packs (`a01`–`a10`, 10) = 35 (supersedes the old 60-pack Track A = the `a01`–`a10` domain packs + the removed 50-pack `.mjs -> TS` conversion swarm; see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)); Track C install/enforce (`c01`–`c11`, 11, incl. `c10` CI integration + `c11` onboarding skill); Track D ADBP borrows + mechanized families (`d01`–`d15` plus the ten new `d16`–`d18`, `d21`–`d23`, `d25`–`d28`, 25); Track E new languages + universal scanning (`e01`, `e-pack-dart`, `e-pack-cfml`, `e-pack-frontend-react`, `e-pack-python`, plus the OPTIONAL opt-in `e-pack-crypto-blockchain`, 6) — three of these BUILD new lang crates (`enforcer-lang-dart`/`-cfml`/`-crypto`) with no separate arc pack; Track B planning skill, now the Rust `enforcer-plan` crate (`b01`–`b06`, 6, incl. `b06` AGENTS.md decision-forest); Track F scan-surface/onboarding/agent-shaping (`f01`–`f05`, 5); Track G UI layer on the vendored hub dashboard/server (`g01`–`g08`, 8, incl. `g08` rules-&-skills explorer); Track H money-critical & security-testing mandate (`h01`–`h08` plus the two cyber-skills mechanization packs `h11`/`h12`, 10) — the generic mechanization of the ingested [refs/security-testing-source.md](./refs/security-testing-source.md) spec, extended by `h11`/`h12` which mechanize the vendored `anthropic-cybersecurity-skills` corpus into native Rust rules + optional out-of-dogfood adapters; cross-cutting (`x01` neutral rename, `x02` docs refresh, `x03` rename migration, `x04` main-branch-protection CI, `z01` dogfood-proof-gate, 5).
+- **Workpacks authored: 118.** Track A **Rust re-cast** — crate-build swarm (`arc-01`–`arc-25`, 25, incl. the vendored `arc-25` `enforcer-events`) + Rust domain/self-enforcement packs (`a01`–`a10`, 10) = 35 (supersedes the old 60-pack Track A = the `a01`–`a10` domain packs + the removed 50-pack `.mjs -> TS` conversion swarm; see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)); Track C install/enforce (`c01`–`c11`, 11, incl. `c10` CI integration + `c11` onboarding skill); Track D ADBP borrows + mechanized families (`d01`–`d15` plus the ten new `d16`–`d18`, `d21`–`d23`, `d25`–`d28`, 25); Track E new languages + universal scanning (`e01`, `e-pack-dart`, `e-pack-cfml`, `e-pack-frontend-react`, `e-pack-python`, plus the OPTIONAL opt-in `e-pack-crypto-blockchain`, 6) — three of these BUILD new lang crates (`enforcer-lang-dart`/`-cfml`/`-crypto`) with no separate arc pack; Track B planning skill, now the Rust `enforcer-plan` crate (`b01`–`b06`, 6, incl. `b06` AGENTS.md decision-forest); Track F scan-surface/onboarding/agent-shaping (`f01`–`f05`, 5); Track G UI layer on the vendored hub dashboard/server (`g01`–`g09`, 9, incl. `g08` rules-&-skills explorer and g09 memory/KG/RAG explorer); Track H money-critical & security-testing mandate (`h01`–`h08` plus the two cyber-skills mechanization packs `h11`/`h12`, 10) — the generic mechanization of the ingested [refs/security-testing-source.md](./refs/security-testing-source.md) spec, extended by `h11`/`h12` which mechanize the vendored `anthropic-cybersecurity-skills` corpus into native Rust rules + optional out-of-dogfood adapters; cross-cutting (`x01` neutral rename, `x02` docs refresh, `x03` rename migration, `x04` main-branch-protection CI, `z01` dogfood-proof-gate, 5).
 - Each workpack carries an agent-capsule, `owns:`/`deps:`/`tier:` frontmatter, Where-We-Are / Where-We-Want-To-Be, a Requirement Checklist, an Acceptance And Proof block, and Parallel Ownership Notes.
 - The index/contract set (this file, README, AGENTS, NEXT_ACTIONS, WORKPACK_INDEX, PLAN_EXECUTION_BLUEPRINT, TEST_PROOF_EXPECTATIONS, PLAN_HEALTH) exists.
 
-## What is NOT present yet (open gaps)
+## Current open gaps (live snapshot)
 
-- **No workpack is DONE.** All product-code, tests, and validators described are specifications, not yet implemented. Status across the board is `NOT STARTED`.
-- There is no Cargo workspace yet: no `crates/`, no workspace-root `Cargo.toml`, no `rust-toolchain.toml`. The repo is still `.mjs` + the standalone Rust `rust-rules` tool; `enforcer:self` runs only `check source-shape` and does not hard-fail on real findings.
-- No `ocentra plan new`, no `PLAN-*` validator, no `/plan` skill.
-- No harness-neutral install core; `src/codex-install.mjs` still hardcodes the Codex adapter and there is no PreToolUse deny-hook.
-- No mechanized ADBP borrows (no ratchet, deferred-work gate, telemetry schema, context brake, fix loop, doc-rule parity oracle, rule-new scaffolder).
-- **Root keystones not yet built:** `a01` (`a01-cargo-workspace-and-toolchain.md` — the Cargo/clippy/rustfmt/deny/audit + `rust-toolchain.toml` gate, deps none) owns the workspace root and blocks all of Track A; it precedes `arc-01` (`enforcer-core`, the first member crate every other crate depends on) then `arc-02` (`enforcer-domain`, the schema keystone every crate is typed against) — roots: **a01 -> arc-01 -> arc-02**. `d01` (rule mechanization engine) is the keystone for most of Track D; `c01` (install core) blocks Track C adapters. Nothing downstream is claimable until its root lands. Per [EXECUTION_MODEL.md](./EXECUTION_MODEL.md), the whole build runs in a separate `../enforcer-rust` worktree + `rust-engine` branch, orchestrated by a Fable-5 orchestrator that fans out disjoint-`owns:` workpacks to Sonnet/Haiku/Opus workers via the coordination hub; the `.mjs` MCP stays live until the `z01` dogfood gate is green.
+This orientation page is not the completion ledger. The graph commit and the
+`WORKPACK_INDEX.md`/`TEST_PROOF_EXPECTATIONS.md` rows are the live status
+surfaces; proof artifacts and exact candidate branches decide whether a row can
+move. At the graph snapshot dated 2026-08-11, this plan contains 118 rows: 8
+are `DONE` and 110 remain `TODO`.
+
+- `d15` is `DONE` with its documentation-only cross-link proof.
+- `a01` remains `TODO`/proof `PENDING`: the Rust workspace/toolchain gates are
+  present, but the package runtime cutover is explicitly deferred behind the
+  later arc dependencies.
+- `g01` remains `TODO`/proof `PENDING`: the exact-current retained proof records
+  browser click-through as unavailable and desktop/Tauri smoke as not run. The
+  older graph artifact is not accepted as `GREEN`.
+- The Cargo workspace, toolchain, install crates, and native UI skeleton are
+  present in this checkout; their presence is not a claim that the remaining
+  workpacks or terminal dogfood gate are complete.
+- Remaining product, plan, install, UI, language, and security gaps are
+  represented by the `TODO` rows and dependency edges in the index/graph. The
+  Rust `.mjs` authority remains live until the terminal proof gate is green.
 
 ## Workpack summary (by track)
 
