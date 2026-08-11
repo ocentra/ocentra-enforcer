@@ -13,7 +13,7 @@ This is the boss-owned projection for the four-program Enforcer system. Managers
 
 ## Graph reconciliation snapshot
 
-The validated graph at `fcc90b0ae` is the dependency/readiness control plane for this dashboard. It currently imports 118 self-host workpacks and reports 4 ready, 140 blocked, 15 active, 39 done, and 1 planned node. The ready frontier is exactly `CP08`, `UL00`, `a01`, and `g01`; manager-owned Cyber/Universal rows are not acted on by the boss lane.
+The validated graph at `807bad778` is the dependency/readiness control plane for this dashboard. It currently imports 118 self-host workpacks and reports 4 ready, 140 blocked, 15 active, 39 done, and 1 planned node. The ready frontier is exactly `CP08`, `UL00`, `a01`, and `g01`; manager-owned Cyber/Universal rows are not acted on by the boss lane.
 
 ## Cross-program dependency board
 
