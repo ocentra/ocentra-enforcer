@@ -83,6 +83,50 @@ test("missing dependency references are actionable", () => {
   assert.ok(result.issues.some((issue) => issue.code === "missing-edge-target"));
 });
 
+test("ALL tracks expands A-H workpacks without unlocking on later cross-cutting tracks", () => {
+  const { root, config } = fixture(["a01", "b01", "c01", "x01", "z01"], {
+    a01: { status: "DONE" },
+    b01: { status: "DONE" },
+    z01: { depends: "ALL tracks (A, B, C, D, E, F, G, H)" }
+  });
+  const graph = buildGraphFromConfig(root, config);
+  const dependencies = graph.edges
+    .filter((edge) => edge.from === "WP/fixture-plan/z01" && edge.kind === "depends-on")
+    .map((edge) => edge.to)
+    .sort();
+
+  assert.deepEqual(dependencies, [
+    "WP/fixture-plan/a01",
+    "WP/fixture-plan/b01",
+    "WP/fixture-plan/c01"
+  ]);
+  assert.equal(deriveState(graph, graph.nodes.get("WP/fixture-plan/z01")), "blocked");
+});
+
+test("ALL tracks excludes explicitly opt-in workpacks from the default terminal frontier", () => {
+  const { root, config } = fixture(["a01", "e-pack-crypto-blockchain", "z01"], {
+    a01: { status: "DONE" },
+    z01: { depends: "ALL tracks (A, B, C, D, E, F, G, H)" }
+  });
+  writeFileSync(join(root, "docs", "plans", "fixture-plan", "WORKPACK_INDEX.md"), [
+    "# Workpack Index",
+    "",
+    "| Status | ID | Workpack | Depends on |",
+    "|---|---|---|---|",
+    "| DONE | a01 | [a01](workpacks/a01.md) | none |",
+    "| TODO | e-pack-crypto-blockchain | [e-pack-crypto-blockchain Crypto Pack](workpacks/e-pack-crypto-blockchain.md) **(OPTIONAL / opt-in — OFF by default)** | a01 |",
+    "| TODO | z01 | [z01](workpacks/z01.md) | ALL tracks (A, B, C, D, E, F, G, H) |"
+  ].join("\n"));
+  const graph = buildGraphFromConfig(root, config);
+  const dependencies = graph.edges
+    .filter((edge) => edge.from === "WP/fixture-plan/z01" && edge.kind === "depends-on")
+    .map((edge) => edge.to)
+    .sort();
+
+  assert.deepEqual(dependencies, ["WP/fixture-plan/a01"]);
+  assert.equal(deriveState(graph, graph.nodes.get("WP/fixture-plan/z01")), "ready");
+});
+
 test("configured lifecycle overrides and control-plane nodes are explicit", () => {
   const { root, config } = fixture(["CP00", "CP01"], { CP01: { depends: "CP00" } });
   config.lifecycleOverrides = {
