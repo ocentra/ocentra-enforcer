@@ -7,7 +7,7 @@
   "status": "PENDING",
   "evidenceStatus": "partial-exact-current",
   "authority": {
-    "candidateSha": "7d832c0487093487d8573b55142cbea541dbab33",
+    "candidateSha": "5f6c84eddd286b3dc83f613f0c8d12c14454778c",
     "branch": "codex/g01-ui-serve-20260811",
     "worktree": "E:\\g01",
     "worktreeStatusBeforeEvidence": "clean",
