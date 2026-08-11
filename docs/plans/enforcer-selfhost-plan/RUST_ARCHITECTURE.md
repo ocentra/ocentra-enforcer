@@ -93,7 +93,7 @@ backend + TS/web frontend) is the OPTIONAL human cockpit — not required (CLI/a
 - **Harness-agnostic:** identical whether driven from Claude Code / Claude Desktop / Codex / Cursor / CLI —
   the harness just consumes the enforcer as an MCP layer + reads the config; no violation of any harness; a
   helper for all. Track G packs: g01 Tauri shell, g02 report, g03 actions, g04 run-dispatch, g05 config/
-  customization, g06 live lane-hub panel, g07 ui-security, g08 rules-&-skills explorer.
+  customization, g06 live lane-hub panel, g07 ui-security, g08 rules-&-skills explorer, g09 read-only memory/KG/RAG explorer.
 
 ## Borrows from OcentraParent (all-Rust reference — adopt the discipline, not the runtime)
 Studied OcentraParent (a ~31-crate all-Rust monorepo that consumes the enforcer). Verdict: borrow the

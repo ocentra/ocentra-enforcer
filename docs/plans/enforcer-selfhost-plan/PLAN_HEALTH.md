@@ -41,7 +41,7 @@ This is the plan's own dogfood: the doctrine says enforcement must be mechanical
 
 ## Current health snapshot (2026-07-04)
 
-Plan size: **111 workpacks total** (A 35 [arc-01..arc-25 crate swarm + a01..a10] + C 11 + D 25 + E 6 + B 6 + F 5 + G 8 + H 10 + cross-cutting/X 5), across a **28-crate** Cargo workspace (25 arc crates + 3 Track-E-built lang crates). See [WORKPACK_INDEX](./WORKPACK_INDEX.md) totals and [RUST_ARCHITECTURE](./RUST_ARCHITECTURE.md) crate map.
+Plan size: **118 workpacks total** (A 35 [arc-01..arc-25 crate swarm + a01..a10] + C 11 + D 25 + E 6 + B 6 + F 5 + G 9 + H 10 + cross-cutting/X 8 + P 3), across a **29-crate** Cargo workspace (25 arc crates + 3 Track-E-built lang crates + 1 x06-built memory crate). See [WORKPACK_INDEX](./WORKPACK_INDEX.md) totals and [RUST_ARCHITECTURE](./RUST_ARCHITECTURE.md) crate map.
 
 | Invariant class | State | Note |
 |---|---|---|

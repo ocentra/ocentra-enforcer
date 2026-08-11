@@ -116,7 +116,8 @@ pre-commit) are EMITTED by Rust installer modules — the pack owns the Rust emi
 ### Track G — UI → `enforcer-ui` (arc-24), all modules
 - g01 → `src/serve.rs` (Tauri shell + served HTML fallback); g02 → `src/report/`; g03 → `src/actions/`;
   g04 → `src/run_dispatch/` (deps `arc-16`); g05 → `src/settings/` (config control-plane); g06 → `src/hub/`
-  (live lane/claim/lease/mail panel); g07 → `src/security/`; g08 → `src/explorer/` (rules-&-skills explorer).
+  (live lane/claim/lease/mail panel); g07 → `src/security/`; g08 → `src/explorer/` (rules-&-skills explorer);
+  g09 → `src/memory_explorer/` (read-only memory/KG/RAG explorer over x06).
   Frontend is TS/web under `crates/enforcer-ui/frontend/`; types DERIVED from `enforcer-domain` via `ts_rs`
   (the g-track ui pack that owns type-gen adds the export bin + fail-closed drift test).
 

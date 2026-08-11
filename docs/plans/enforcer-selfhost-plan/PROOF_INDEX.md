@@ -67,7 +67,7 @@ Counts are primary-tier assignments; several workpacks carry a secondary row (no
 ### P3 - Live MCP-tool
 - **Track A**: a02 (fingerprint-over-built-artifacts against live `mcp_status`/freshness).
 - **Track F**: f01 (secondary — MCP `enforcer_scan` tool schema live-invoked).
-- **Track G**: g02 (scan report UI), g06 (hub coordination dashboard — live materialized ledger state), g08 (rules-&-skills explorer).
+- **Track G**: g02 (scan report UI), g06 (hub coordination dashboard — live materialized ledger state), g08 (rules-&-skills explorer), g09 (read-only memory/KG/RAG explorer).
 - **Track H**: h03 (threat-test-invariant mapping, secondary row).
 
 ### P4 - Self-enforce green
