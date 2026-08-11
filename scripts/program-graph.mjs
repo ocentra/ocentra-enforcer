@@ -193,10 +193,21 @@ function expandRanges(text, knownIds) {
   return result;
 }
 
-function dependencyReferences(rawDepends, plan, knownIds) {
+function dependencyReferences(rawDepends, plan, knownIds, currentShortId = null) {
   const raw = String(rawDepends ?? "").trim();
   if (!raw || /^none$/i.test(raw)) return [];
   const found = new Set(expandRanges(raw, knownIds));
+  if (/\bALL\s+tracks?\b/i.test(raw)) {
+    const allTrackIds = new Set(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    for (const row of plan.rows) {
+      const shortId = String(row.shortId ?? "");
+      const normalized = shortId.toLowerCase();
+      const track = normalized.startsWith("arc-") ? "a" : normalized[0];
+      if (allTrackIds.has(track) && normalized !== String(currentShortId ?? "").toLowerCase()) {
+        found.add(shortId);
+      }
+    }
+  }
   const sorted = [...knownIds].sort((left, right) => right.length - left.length);
   for (const known of sorted) {
     const escaped = known.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -320,7 +331,7 @@ function buildGraphFromConfig(root, config) {
         }
       });
       edges.push({ from: planId, to: id, kind: "contains", reason: "Workpack imported from the plan's index." });
-      const dependencies = dependencyReferences(row.rawDepends, plan, knownIds);
+      const dependencies = dependencyReferences(row.rawDepends, plan, knownIds, row.shortId);
       for (const dependency of dependencies) {
         const resolvedDependency = resolveShortDependency(plan, dependency, knownMap);
         if (resolvedDependency && !resolvedDependency.ambiguous) {
