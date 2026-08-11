@@ -219,7 +219,8 @@ pub enum LifecycleState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DerivedState {
-    /// All hard dependencies are done and the workpack may start.
+    /// All dependencies are satisfied and the workpack may start, including
+    /// an explicit READY entry-routing gate where the graph contract allows it.
     Ready,
     /// A dependency, contract, or graph integrity issue prevents progress.
     Blocked,

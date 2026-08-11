@@ -270,6 +270,24 @@ fn authority_constraint(node: &GraphNode) -> Option<(DerivedState, &'static str)
         .flatten()
 }
 
+pub(super) fn is_ready_entry_gate(graph: &CyberPlanGraph, id: &NodeId) -> bool {
+    graph.nodes.get(id).is_some_and(|node| {
+        node.kind == NodeKind::Workpack
+            && node.metadata.get("routingStatus").map(String::as_str) == Some("READY")
+            && node.metadata.get("workpackClass").map(String::as_str) != Some("intent-packet")
+            && node.metadata.get("proofRowState").map(String::as_str) == Some("PENDING")
+            && graph.edges.iter().any(|edge| {
+                edge.kind == EdgeKind::DependsOn
+                    && edge.to == *id
+                    && graph.nodes.get(&edge.from).is_some_and(|packet| {
+                        packet.kind == NodeKind::Workpack
+                            && packet.metadata.get("workpackClass").map(String::as_str)
+                                == Some("intent-packet")
+                    })
+            })
+    })
+}
+
 fn dependencies_blocked(
     graph: &CyberPlanGraph,
     id: &NodeId,
@@ -281,7 +299,10 @@ fn dependencies_blocked(
         .into_iter()
         .find_map(|dependency| {
             let dependency_state = state_for(graph, &dependency, visiting, reasons);
-            (dependency_state != DerivedState::Done).then(|| {
+            let satisfied = dependency_state == DerivedState::Done
+                || (dependency_state == DerivedState::Ready
+                    && is_ready_entry_gate(graph, &dependency));
+            (!satisfied).then(|| {
                 reasons.push(format!("dependency `{dependency}` is {dependency_state:?}"));
                 true
             })

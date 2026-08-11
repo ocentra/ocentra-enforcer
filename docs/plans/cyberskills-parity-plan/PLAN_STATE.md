@@ -44,7 +44,7 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 | CP05 | DONE: typed packet factory committed at `84745c7c8`; exact factory, package, plan, and Enforcer evidence recorded in `TEST_PROOF_EXPECTATIONS.md` | clerical packet completeness only; no generated security meaning, native rule implementation, executable proof, or overall parity |
 | All others | BLOCKED by dependencies | See index |
 
-Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. CP09 `READY` is an entry-routing state only: its proof row remains `PENDING`, so selecting the root does not claim implementation or proof. `graph next` is the only selection surface.
+Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. CP09 `READY` is an entry-routing state only: its proof row remains `PENDING`, and the graph may satisfy dependent CP09 routing edges through that gate without marking the root `DONE` or claiming implementation/proof. `graph next` omits the non-executable gate and selects the first legal intent packet.
 
 ## Protected residue
 

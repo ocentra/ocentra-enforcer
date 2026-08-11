@@ -58,7 +58,7 @@ Total: 816 available skills, 34 canonical intent families (from 46 raw subdomain
 1. CP00 establishes typed source and coverage truth.
 2. CP08 supplies immutable component decomposition.
 3. CP05/CP03 establish the native predicate and repository-fact contracts.
-4. `graph next` selects only a packet whose hard dependencies are derived `done`.
+4. `graph next` selects only a packet whose dependencies are satisfied by derived `done` states or an explicit READY entry-routing gate.
 5. Each packet is claimed exactly, implemented in Rust or explicitly retained, dogfooded through Enforcer, and evidenced before the next selection.
 6. CP13 closes only when all packet/component contracts are independently green; no blended percentage or decomposition-only completion is accepted.
 

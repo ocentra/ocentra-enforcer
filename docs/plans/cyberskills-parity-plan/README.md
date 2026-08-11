@@ -26,7 +26,7 @@ The complete execution inventory is [CYBERSKILLS_INTENT_MATRIX.json](./CYBERSKIL
 
 The product decision is Rust-native. External repositories, Python implementations, and third-party tools are reference/parity material used to understand intent and test expected behavior; they are not user-facing installation requirements and do not become native coverage. A packet must either implement a bounded deterministic predicate/parser/safe offline model in Rust, or retain the capability as explicit advisory/manual truth with a precise `notProved`. Live endpoint, cloud, host, device, packet-capture, external-service, exploit, attribution, and production outcomes remain non-proofs unless a separate Rust-owned evidence contract actually proves them.
 
-The graph derives native packets (CP09, at most five skills; CP12, one cross-file predicate) and advisory/manual packets (CP11, at most ten skills). `graph next` may select only a packet whose hard dependencies are derived `done`; a CP08 decomposition row never promotes implementation or executable proof.
+The graph derives native packets (CP09, at most five skills; CP12, one cross-file predicate) and advisory/manual packets (CP11, at most ten skills). `graph next` may select only a packet whose dependencies are satisfied by derived `done` states or an explicit READY entry-routing gate; the gate is routing-only and a CP08 decomposition row never promotes implementation or executable proof.
 
 ## Confirmed Baseline
 

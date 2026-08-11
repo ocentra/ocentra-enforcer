@@ -40,4 +40,6 @@ Status is routing state only. `READY` authorizes entry routing; it never means i
 
 External-engine components remain explicitly blocked/reference-only under the Rust-native product decision. The graph validates family membership, packet cardinality, component ownership, source availability, and protected exclusion before exposing a packet through `graph next`.
 
+CP09 intent packets additionally require the CP09 root's explicit `READY` entry-routing gate. That gate satisfies routing dependencies only; it is not lifecycle `DONE` and cannot promote native implementation, executable proof, or overall parity.
+
 Read-only audits with disjoint manifests may run in parallel. Ledger writers serialize through `cyberskills-ledger-integrator`; shared adapter writers serialize through `tool-adapter-integrator`; all other workers submit immutable packets. Only the boss changes this index. A worker reports evidence; it does not promote its own row.

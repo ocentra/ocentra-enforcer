@@ -3,8 +3,9 @@
 //! NEGATIVE-TEST: absent workpacks, unresolved dependencies, and malformed
 //! checklist/proof rows remain incomplete rather than being invented.
 use super::text::{
-    checklist_counts, checklist_nodes, completion_contract, dependency_target, dependency_tokens,
-    external_dependency, first_heading, parse_index_row, relative_path, workpack_key, ProofRow,
+    ProofRow, checklist_counts, checklist_nodes, completion_contract, dependency_target,
+    dependency_tokens, external_dependency, first_heading, parse_index_row, relative_path,
+    workpack_key,
 };
 use super::{
     CompletionContract, CyberPlanGraph, EdgeKind, GraphEdge, GraphError, GraphNode, NodeId,

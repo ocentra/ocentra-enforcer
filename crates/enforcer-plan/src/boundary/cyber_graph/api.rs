@@ -4,13 +4,19 @@
 //! remain rejected by the graph integration suite.
 use super::manifest::GraphManifest;
 use super::manifest_wire;
+use super::state::is_ready_entry_gate;
 use super::{
-    BlockedReport, CyberPlanGraph, DerivedState, GraphError, LifecycleState, NodeId, NodeKind,
-    NodeStatus, StatusReport, ValidationReport, WhyReport, GRAPH_MANIFEST_PATH,
+    BlockedReport, CyberPlanGraph, DerivedState, GRAPH_MANIFEST_PATH, GraphError, LifecycleState,
+    NodeId, NodeKind, NodeStatus, StatusReport, ValidationReport, WhyReport,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
+
+struct ImportStep {
+    enabled: bool,
+    run: fn(&mut CyberPlanGraph) -> Result<(), GraphError>,
+}
 
 impl CyberPlanGraph {
     /// Load the Cyber Plan graph from the checked-in manifest and sources.
@@ -23,27 +29,40 @@ impl CyberPlanGraph {
         manifest.validate()?;
         let mut graph = Self::new_for_root(root, manifest);
         graph.import_seeds()?;
-        if graph.manifest.import.dependency_workpacks {
-            graph.import_dependency_workpacks()?;
-        }
-        if graph.manifest.import.workpacks {
-            graph.import_workpacks()?;
-        }
-        if graph.manifest.import.cp01_proofs {
-            graph.import_cp01_proofs()?;
-        }
-        if graph.manifest.import.cp08_proofs {
-            graph.import_cp08_proofs()?;
-        }
-        if graph.manifest.import.cp11_proofs {
-            graph.import_cp11_proofs()?;
-        }
-        if graph.manifest.import.catalog {
-            graph.import_catalog()?;
-        }
-        if graph.manifest.import.intent_matrix {
-            graph.import_intent_matrix()?;
-        }
+        let importers = [
+            ImportStep {
+                enabled: graph.manifest.import.dependency_workpacks,
+                run: Self::import_dependency_workpacks,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.workpacks,
+                run: Self::import_workpacks,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.cp01_proofs,
+                run: Self::import_cp01_proofs,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.cp08_proofs,
+                run: Self::import_cp08_proofs,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.cp11_proofs,
+                run: Self::import_cp11_proofs,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.catalog,
+                run: Self::import_catalog,
+            },
+            ImportStep {
+                enabled: graph.manifest.import.intent_matrix,
+                run: Self::import_intent_matrix,
+            },
+        ];
+        importers
+            .into_iter()
+            .filter(|step| step.enabled)
+            .try_for_each(|step| (step.run)(&mut graph))?;
         graph.apply_overrides()?;
         Ok(graph)
     }
@@ -87,11 +106,14 @@ impl CyberPlanGraph {
         }
     }
 
-    /// Return workpacks whose hard dependencies are satisfied.
+    /// Return executable workpacks whose dependencies are satisfied.
+    ///
+    /// A READY entry-routing gate is intentionally omitted: it authorizes
+    /// dependent intent packets but is not itself an implementation packet.
     pub fn ready(&self) -> Vec<NodeStatus> {
         self.nodes
             .values()
-            .filter(|node| node.kind == NodeKind::Workpack)
+            .filter(|node| node.kind == NodeKind::Workpack && !is_ready_entry_gate(self, &node.id))
             .map(|node| self.node_status(node))
             .filter(|status| status.state == DerivedState::Ready)
             .collect()
@@ -139,6 +161,12 @@ impl CyberPlanGraph {
             .get(id)
             .ok_or_else(|| GraphError::MissingNode(id.to_string()))?;
         if target == LifecycleState::Done {
+            if let Some(issue) = super::validation::authority_lifecycle_issue(node) {
+                return Err(GraphError::InvalidValue(format!(
+                    "cannot mark `{id}` done: {}",
+                    issue.message
+                )));
+            }
             let status = self.node_status(node);
             if !status.reasons.is_empty() || status.state == DerivedState::Blocked {
                 return Err(GraphError::InvalidValue(format!(

@@ -7,7 +7,7 @@ use std::error::Error;
 use std::io::{Error as IoError, ErrorKind};
 use std::path::PathBuf;
 
-use enforcer_plan::graph::{CyberPlanGraph, DerivedState, NodeId, NodeKind};
+use enforcer_plan::graph::{CyberPlanGraph, DerivedState, LifecycleState, NodeId, NodeKind};
 
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -325,7 +325,11 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
         "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09", "B10", "B11", "B12",
     ] {
         let id = NodeId::new(format!("WP/CP09/IF-cloud-security/{batch}"))?;
-        assert_eq!(graph.inspect(&id)?.state, DerivedState::Blocked, "{batch}");
+        assert_eq!(
+            graph.inspect(&id)?.state,
+            DerivedState::Validation,
+            "{batch} remains validation-gated until its packet contract is satisfied"
+        );
     }
     assert!(
         graph
@@ -336,7 +340,8 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
 }
 
 #[test]
-fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), Box<dyn Error>> {
+fn next_selects_first_cp09_packet_after_ready_gate_without_promoting_truth()
+-> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     for id in [
@@ -365,38 +370,13 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
     );
 
     assert_eq!(next["decision"], "selected");
-    assert_eq!(next["selected"]["id"], "WP/CP09");
+    assert_eq!(
+        next["selected"]["id"], "WP/CP09/IF-container-security/B01",
+        "the READY root is a routing gate; the first executable packet is selected"
+    );
     assert_eq!(next["selected"]["state"], "ready");
     assert_cp09_cloud_batches(&graph)?;
-    let cp09 = graph.inspect(&NodeId::new("WP/CP09")?)?;
-    assert_eq!(cp09.state, DerivedState::Ready);
-    assert!(
-        cp09.reasons
-            .iter()
-            .all(|reason| !reason.contains("proof row is pending"))
-    );
-    assert_eq!(
-        graph
-            .node(&NodeId::new("WP/CP09")?)
-            .and_then(|node| node.metadata.get("proofRowState"))
-            .map(String::as_str),
-        Some("PENDING"),
-        "routing readiness must not rewrite the pending proof row"
-    );
-    assert_eq!(
-        graph
-            .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B01")?)?
-            .state,
-        DerivedState::Blocked,
-        "the B01 packet must inherit the authoritative CP09 block"
-    );
-    assert_eq!(
-        graph
-            .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B02")?)?
-            .state,
-        DerivedState::Blocked,
-        "the B02 packet must inherit the authoritative CP09 block"
-    );
+    assert_cp09_ready_entry_gate(&graph)?;
     let cp09_cloud_node = graph
         .node(&NodeId::new("WP/CP09/IF-cloud-security/B01")?)
         .ok_or_else(|| IoError::new(ErrorKind::NotFound, "CP09 cloud-security B01"))?;
@@ -412,6 +392,50 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
+    Ok(())
+}
+
+fn assert_cp09_ready_entry_gate(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error>> {
+    let cp09 = graph.inspect(&NodeId::new("WP/CP09")?)?;
+    assert_eq!(cp09.state, DerivedState::Ready);
+    let cp09_id = NodeId::new("WP/CP09")?;
+    assert!(
+        graph.ready().iter().all(|status| status.id != cp09_id),
+        "the non-executable READY gate must not be returned as a runnable packet"
+    );
+    assert!(
+        cp09.reasons
+            .iter()
+            .all(|reason| !reason.contains("proof row is pending"))
+    );
+    assert_eq!(
+        graph
+            .node(&NodeId::new("WP/CP09")?)
+            .and_then(|node| node.metadata.get("proofRowState"))
+            .map(String::as_str),
+        Some("PENDING"),
+        "routing readiness must not rewrite the pending proof row"
+    );
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-container-security/B01")?)?
+            .state,
+        DerivedState::Ready,
+        "the first intent packet must be released by the explicit CP09 READY gate"
+    );
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B01")?)?
+            .state,
+        DerivedState::Validation,
+        "the CP09 gate releases the packet to its own validation contract"
+    );
+    let why = graph.why(&NodeId::new("WP/CP09/IF-container-security/B01")?)?;
+    assert!(
+        why.blockers.is_empty(),
+        "the selected packet must have no unresolved dependency blockers: {:?}",
+        why.blockers
+    );
     Ok(())
 }
 
@@ -449,12 +473,7 @@ fn cp11_retention_artifacts_supply_derived_packet_gates() -> Result<(), Box<dyn 
 #[test]
 fn authoritative_routing_status_blocks_unready_workpacks() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
-    for id in [
-        "WP/CP06",
-        "WP/CP07",
-        "WP/CP10",
-        "WP/CP09/IF-container-security/B01",
-    ] {
+    for id in ["WP/CP06", "WP/CP07", "WP/CP10"] {
         assert_eq!(
             graph.inspect(&NodeId::new(id)?)?.state,
             DerivedState::Blocked,
@@ -465,6 +484,20 @@ fn authoritative_routing_status_blocks_unready_workpacks() -> Result<(), Box<dyn
         graph.inspect(&NodeId::new("WP/CP09")?)?.state,
         DerivedState::Ready,
         "READY routing activates entry without promoting proof"
+    );
+    assert_eq!(
+        graph
+            .inspect(&NodeId::new("WP/CP09/IF-container-security/B01")?)?
+            .state,
+        DerivedState::Ready,
+        "the CP09 READY gate releases intent packets without marking the root DONE"
+    );
+    let mut graph = CyberPlanGraph::load(repository_root())?;
+    assert!(
+        graph
+            .transition(&NodeId::new("WP/CP09")?, LifecycleState::Done)
+            .is_err(),
+        "a READY routing root with pending proof cannot be promoted to DONE"
     );
     assert_eq!(
         graph.inspect(&NodeId::new("WP/CP00")?)?.state,

@@ -3,8 +3,9 @@
 //! NEGATIVE-TEST: cycles and unresolved dependencies remain visible in the
 //! explanation chain instead of being collapsed into readiness.
 use super::json::count_coverage;
+use super::state::is_ready_entry_gate;
 use super::{
-    CatalogSummary, CyberPlanGraph, EdgeKind, IntentSummary, LifecycleState, NodeId, NodeKind,
+    CatalogSummary, CyberPlanGraph, DerivedState, EdgeKind, IntentSummary, NodeId, NodeKind,
 };
 use std::collections::BTreeSet;
 
@@ -107,10 +108,12 @@ impl CyberPlanGraph {
         self.dependencies(id)
             .into_iter()
             .filter(|dependency| {
-                self.nodes
-                    .get(dependency)
-                    .map(|node| node.lifecycle != LifecycleState::Done)
-                    .unwrap_or(true)
+                let state = self
+                    .inspect(dependency)
+                    .map(|status| status.state)
+                    .unwrap_or(DerivedState::Blocked);
+                state != DerivedState::Done
+                    && (state != DerivedState::Ready || !is_ready_entry_gate(self, dependency))
             })
             .for_each(|dependency| self.explain(&dependency, chain, blockers, visiting));
         visiting.remove(id);

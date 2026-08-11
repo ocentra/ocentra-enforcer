@@ -224,7 +224,8 @@ impl CyberPlanGraph {
             "candidates": candidate_wire,
             "excluded": excluded,
             "policy": {
-                "requires": "derived ready state and all DependsOn nodes done",
+                "requires": "derived ready state and satisfied DependsOn nodes",
+                "dependencySatisfaction": "DONE or an explicit READY entry-routing gate",
                 "order": "stable graph ID",
                 "mutation": "none",
                 "decompositionPromotesImplementation": false,

@@ -64,7 +64,7 @@
     "algorithm": "sort skillIds by family then catalogId; chunk native by family nativeBatchLimit and retention by 10",
     "nativePacketId": "WP/{nativeRoute}/IF-{family}/B##",
     "retentionPacketId": "WP/CP11/IF-{family}/B##",
-    "selection": "graph.next chooses only derived-ready packets after all hard dependencies are done"
+    "selection": "graph.next chooses only derived-ready packets after all hard dependencies are done or an explicit READY entry-routing gate satisfies the route; READY never promotes implementation or proof"
   },
   "routeQualification": {
     "defaultNativeRoute": "CP09",

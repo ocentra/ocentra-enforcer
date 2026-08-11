@@ -64,7 +64,7 @@ impl CyberPlanGraph {
     }
 }
 
-fn authority_lifecycle_issue(node: &GraphNode) -> Option<GraphIssue> {
+pub(super) fn authority_lifecycle_issue(node: &GraphNode) -> Option<GraphIssue> {
     let routing_status = node.metadata.get("routingStatus").map(String::as_str);
     let routing_conflict = matches!(
         routing_status,
