@@ -1,19 +1,25 @@
 # Program Status Dashboard
 
-This is the boss-owned projection for the three-program migration. Managers report evidence; only the boss changes this dashboard after independently checking the named artifact or run. A green label here never substitutes for the owning workpack's proof.
+This is the boss-owned projection for the four-program Enforcer system. Managers report evidence; only the boss changes this dashboard after independently checking the named artifact or run. A green label here never substitutes for the owning workpack's proof.
 
 ## Current program state
 
 | Program | Visible manager | Current legal bundle | State | Terminal dependency |
 |---|---|---|---|---|
-| CyberSkills parity | `019fc636-24d5-7200-9827-c6af2c5c4bf3` | CP08 batch-30 decomposition | ACTIVE; 290 unique source identities accepted through batch-29 | every catalog identity accounted for; every available component has honest disposition and proof |
-| Universal language enforcement | `019fc4c6-b2fc-7201-ab87-8a47e5c0a188` | UL06 P1A1 canonical detection metadata | ACTIVE; P0 accepted and P1A1 is isolated | required profile capability rows proved; UL14 exact-SHA closure |
-| Rust/MJS parity and retirement | `019fc4c6-b2fb-78b3-985d-d5c235130a6e` | RM02-RM07 bounded read-only behavioral oracles | ACTIVE; RM01 accepted complete-unproved at 837 unique rows, with no parity promotion | native local/MCP/CI/install cutover observed; RM14 delete-not-merge retirement |
+| CyberSkills parity | `019fc636-24d5-7200-9827-c6af2c5c4bf3` | Cyber-owned graph audit; then approved CP08 decomposition and native dogfood | ACTIVE; CP08 is graph-ready and remains manager-owned | every catalog identity accounted for; every available component has honest disposition and proof |
+| Universal language enforcement | `019fc4c6-b2fc-7201-ab87-8a47e5c0a188` | UL00 capability truth audit before any build or cleanup | ACTIVE; manager hold at UL00 | required profile capability rows proved; UL14 exact-SHA closure |
+| Rust/MJS parity and retirement | `019fc4c6-b2fb-78b3-985d-d5c235130a6e` | RM02-RM07 bounded oracles; RM08 remains blocked | ACTIVE; RM01 accepted complete-unproved at 837 unique rows, with no parity promotion | native local/MCP/CI/install cutover observed; RM14 delete-not-merge retirement |
+| Enforcer self-hosting and native Rust delivery | primary boss / graph control plane | graph frontier a01 and g01; d15 retained as DONE | ACTIVE; a01 and g01 are ready but proof remains pending | z01 terminal exact-SHA dogfood gate and Rust runtime cutover |
+
+## Graph reconciliation snapshot
+
+The validated graph at `fcc90b0ae` is the dependency/readiness control plane for this dashboard. It currently imports 118 self-host workpacks and reports 4 ready, 140 blocked, 15 active, 39 done, and 1 planned node. The ready frontier is exactly `CP08`, `UL00`, `a01`, and `g01`; manager-owned Cyber/Universal rows are not acted on by the boss lane.
 
 ## Cross-program dependency board
 
 | Foundation | Owner | Consumers | Acceptance condition |
 |---|---|---|---|
+| Executable graph control plane | primary boss | all programs | `program-graph.mjs validate` passes; next/blocked edges and Markdown/proof surfaces remain reconciled |
 | Product doctrine | primary boss | all programs | committed north star and mechanical plan tests |
 | Grammar ownership and shared syntax | Universal UL02/UL03 integrators | Universal, CyberSkills, graph/memory | accepted ownership record plus one parity-preserving migrated slice |
 | Facts and parse honesty | Universal UL04/UL05 integrators | native rules, CyberSkills, graph | unsupported/malformed/unavailable cannot become clean; validators consume typed analysis |
