@@ -5,10 +5,10 @@
 use super::json::{
     array_field, packet_issue, partition_issue, string_array, string_field, valid_cp11_skill,
 };
-use super::text::{ProofRow, parse_proof_row, relative_path};
+use super::text::{parse_proof_row, relative_path, ProofRow};
 use super::{
-    CYBERSKILLS_REGISTRY_PATH, CompletionContract, CyberPlanGraph, EdgeKind, GraphEdge, GraphError,
-    GraphIssue, GraphNode, IssueLevel, NodeId, NodeKind, PROTECTED_SKILL,
+    CompletionContract, CyberPlanGraph, EdgeKind, GraphEdge, GraphError, GraphIssue, GraphNode,
+    IssueLevel, NodeId, NodeKind, CYBERSKILLS_REGISTRY_PATH, PROTECTED_SKILL,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};

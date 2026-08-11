@@ -3,8 +3,8 @@
 //! NEGATIVE-TEST: missing, wrong-typed, unsafe, and invalid-hash fields are
 //! rejected or surfaced as conservative graph findings.
 use super::{
-    CoverageLevel, GraphEdge, GraphError, GraphIssue, IssueLevel, NodeId, PROTECTED_SKILL,
-    is_safe_relative_path,
+    is_safe_relative_path, CoverageLevel, GraphEdge, GraphError, GraphIssue, IssueLevel, NodeId,
+    PROTECTED_SKILL,
 };
 use serde_json::Value;
 use std::collections::BTreeSet;

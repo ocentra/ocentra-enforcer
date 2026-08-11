@@ -123,6 +123,13 @@ fn cp10_mapping_rejects_protected_source_identity() {
         "scanning-iac-and-images-with-trivy",
         "detecting-fileless-malware-techniques",
     );
-    let error = validate_mapping_manifest(&raw).expect_err("protected source must be rejected");
-    assert!(error.to_string().contains("protected source is excluded"));
+    let outcome = validate_mapping_manifest(&raw)
+        .map(|_| String::from("accepted"))
+        .map_err(|error| error.to_string());
+    assert_eq!(
+        outcome,
+        Err(String::from(
+            "decode/validation failed at `mappings.catalogId`: protected source is excluded",
+        ))
+    );
 }

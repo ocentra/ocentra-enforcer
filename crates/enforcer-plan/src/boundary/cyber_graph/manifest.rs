@@ -2,7 +2,7 @@
 //! configuration boundary and never grants authority to external systems.
 //! NEGATIVE-TEST: unsupported schema, unsafe paths, and invalid overrides are
 //! rejected before graph import begins.
-use super::{GraphError, GraphPath, LifecycleState, NodeId, SCHEMA_VERSION, is_safe_relative_path};
+use super::{is_safe_relative_path, GraphError, GraphPath, LifecycleState, NodeId, SCHEMA_VERSION};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The checked-in graph manifest's seed node.

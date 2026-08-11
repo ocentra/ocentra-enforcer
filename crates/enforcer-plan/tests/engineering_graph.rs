@@ -331,17 +331,15 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
             "{batch} remains validation-gated until its packet contract is satisfied"
         );
     }
-    assert!(
-        graph
-            .node(&NodeId::new("WP/CP09/IF-cloud-security/B13")?)
-            .is_none()
-    );
+    assert!(graph
+        .node(&NodeId::new("WP/CP09/IF-cloud-security/B13")?)
+        .is_none());
     Ok(())
 }
 
 #[test]
-fn next_selects_first_cp09_packet_after_ready_gate_without_promoting_truth()
--> Result<(), Box<dyn Error>> {
+fn next_selects_first_cp09_packet_after_ready_gate_without_promoting_truth(
+) -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     let next = graph.next_json()?;
     for id in [
@@ -363,11 +361,10 @@ fn next_selects_first_cp09_packet_after_ready_gate_without_promoting_truth()
     }
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
     assert_eq!(cp12.state, DerivedState::Blocked);
-    assert!(
-        cp12.reasons
-            .iter()
-            .any(|reason| reason.contains("authoritative routing status"))
-    );
+    assert!(cp12
+        .reasons
+        .iter()
+        .any(|reason| reason.contains("authoritative routing status")));
 
     assert_eq!(next["decision"], "selected");
     assert_eq!(
@@ -384,11 +381,9 @@ fn next_selects_first_cp09_packet_after_ready_gate_without_promoting_truth()
         cp09_cloud_node.metadata.get("route").map(String::as_str),
         Some("CP09")
     );
-    assert!(
-        graph
-            .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
-            .is_none()
-    );
+    assert!(graph
+        .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
+        .is_none());
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
@@ -403,11 +398,10 @@ fn assert_cp09_ready_entry_gate(graph: &CyberPlanGraph) -> Result<(), Box<dyn Er
         graph.ready().iter().all(|status| status.id != cp09_id),
         "the non-executable READY gate must not be returned as a runnable packet"
     );
-    assert!(
-        cp09.reasons
-            .iter()
-            .all(|reason| !reason.contains("proof row is pending"))
-    );
+    assert!(cp09
+        .reasons
+        .iter()
+        .all(|reason| !reason.contains("proof row is pending")));
     assert_eq!(
         graph
             .node(&NodeId::new("WP/CP09")?)
@@ -550,11 +544,9 @@ fn native_packets_exclude_cp08_external_only_skills() -> Result<(), Box<dyn Erro
         packet.metadata.get("ownedKind").map(String::as_str),
         Some("native-predicate")
     );
-    assert!(
-        !packet
-            .metadata
-            .get("skillIds")
-            .is_some_and(|ids| ids.contains("benchmarking-kubernetes-with-kube-bench"))
-    );
+    assert!(!packet
+        .metadata
+        .get("skillIds")
+        .is_some_and(|ids| ids.contains("benchmarking-kubernetes-with-kube-bench")));
     Ok(())
 }
