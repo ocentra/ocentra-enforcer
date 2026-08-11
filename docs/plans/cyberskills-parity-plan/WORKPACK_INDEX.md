@@ -4,7 +4,7 @@ Status is routing state only. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and co
 
 | Status | ID | Workpack | Owner class | Depends on | Batch limit | Primary owns |
 |---|---|---|---|---|---:|---|
-| READY-AUDIT | CP00 | [Truth ledger](./workpacks/cp00-truth-ledger.md) | Luna audit + boss decision | none | one audit/schema report | `cyberskills-ledger-integrator` only: disposition ledger, gate, plan truth |
+| DONE | CP00 | [Truth ledger](./workpacks/cp00-truth-ledger.md) | Luna audit + boss decision | none | one audit/schema report | `cyberskills-ledger-integrator` only: disposition ledger, gate, plan truth |
 | DONE | CP01 | [Existing rule reconciliation](./workpacks/cp01-existing-rule-reconciliation.md) | Luna-safe | CP00 | at most 10 rules; aggregate closure packet required | mappings/evidence only; no parity promotion |
 | DONE | CP02 | [Shared syntax consumer adoption](./workpacks/cp02-syntax-module-extraction.md) | Sol/architect | UL02, UL03 | one consumer contract | CyberSkills syntax demand/adoption only |
 | DONE | CP03 | [CyberSkills fact demand contract](./workpacks/cp03-syntax-facts-contract.md) | Sol/architect | CP02, UL04 | one approved requirement slice | consumer requirements, never syntax facts |

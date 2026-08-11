@@ -412,7 +412,7 @@ fn authoritative_routing_status_blocks_pending_workpacks() -> Result<(), Box<dyn
     }
     assert_eq!(
         graph.inspect(&NodeId::new("WP/CP00")?)?.state,
-        DerivedState::Validation
+        DerivedState::Done
     );
     Ok(())
 }
