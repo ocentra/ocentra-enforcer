@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "packetId": "WP/CP09/IF-container-security/B01",
+  "workpack": "CP09",
+  "baseCommit": "ef0d0b9775def568b4f457cce50228a7ac5d3a13",
+  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "status": "packet-evidence-only",
+  "promotion": "none",
+  "capability": {
+    "id": "container-security-manifest",
+    "ruleId": "CYBER-K8S-CONTAINER.1",
+    "predicate": "Validate supplied typed Kubernetes audit, RBAC-adjacent, pod-security, container-drift, image-digest, executable, package, filesystem, mount, capability, and evidence fields without connecting to a cluster, runtime, registry, host, or production authority.",
+    "inputBoundary": "static supplied JSON and JSONL audit evidence only",
+    "implementationCoverage": {
+      "level": "partial",
+      "scope": "five graph-selected intent predicates exercised over bounded supplied evidence; existing native RBAC and pod validators are reused, while audit classification, drift comparison, and escape-risk snapshot predicates are implemented here"
+    },
+    "executableProofCoverage": {
+      "level": "complete",
+      "scope": "this packet's positive, negative, malformed, written-authorization-boundary, and adjacent-validator-reuse fixtures only"
+    }
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-kubernetes-audit-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-kubernetes-audit-logs/SKILL.md",
+        "sha256": "76c6fec70d8e58b4120518c6ebfa87a0a0221be77634ffb0186695a041895733",
+        "anchors": ["## Instructions:L51", "## Examples:L76"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Classify supplied normalized or JSONL Kubernetes audit events for pod exec/attach, secret reads, and RBAC mutations with deterministic event-indexed findings.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "auditing-kubernetes-rbac-privilege-escalation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-kubernetes-rbac-privilege-escalation/SKILL.md",
+        "sha256": "ed8041e8d4e51577ddb6a7f382eca827fae666d0350182874b1acf7ab9af43b3",
+        "anchors": ["### Step 1: Inventory RBAC Objects:L93", "### Step 3: Hunt the Escalation Primitives:L133", "### Step 6: Demonstrate an Escalation Path (Lab Only):L184"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Reuse the existing typed offline Kubernetes RBAC validator for supplied Role, ClusterRole, RoleBinding, and ClusterRoleBinding predicates; no kubectl, live authorization, or escalation-path execution.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-container-drift-at-runtime",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-drift-at-runtime/SKILL.md",
+        "sha256": "707a93dcb3498845ca105e7df4fef11b3274733fc8d8d3eeb8661d61e60892f5",
+        "anchors": ["# Detecting Container Drift at Runtime:L32", "## Core Concepts:L53", "## Implementation with Falco:L71"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Compare supplied approved and observed container snapshots for image-digest, executable, package, and filesystem differences without runtime observation or image-store access.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-container-escape-attempts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-container-escape-attempts/SKILL.md",
+        "sha256": "75011fdcc77be164af51780445ba67eec310e32d4af9c46a269340d7eb7ab948",
+        "anchors": ["# Detecting Container Escape Attempts:L35", "## Workflow:L79", "### Step 2: Custom Falco Rules for Escape Detection:L110"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Classify supplied pod snapshots containing privileged mode, host namespaces, host paths, dangerous capabilities, or explicit privilege escalation configuration as static escape-risk facts.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    },
+    {
+      "catalogId": "detecting-privilege-escalation-in-kubernetes-pods",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-privilege-escalation-in-kubernetes-pods/SKILL.md",
+        "sha256": "7bc86f50059fca053fff998b9dbbefc07a22e4583deaca4fb761dc1de3cec23d",
+        "anchors": ["## Privilege Escalation Vectors in Kubernetes:L57", "### Pod Security Admission (Built-in):L73", "## Runtime Detection with Falco:L138"],
+        "license": "Apache-2.0",
+        "availability": "available"
+      },
+      "nativePredicate": "Reuse the existing typed offline Kubernetes pod-security validator for privileged containers, host namespaces, root execution, privilege escalation, filesystem, capability, and host-port predicates.",
+      "cp08Disposition": {"native": "proposed", "external": "blocked", "advisory": "retained", "manual": "retained"}
+    }
+  ],
+  "evidence": {
+    "validator": "crates/enforcer-lang-security/src/rules/cyberskills/k8s_container_security.rs",
+    "wireBoundary": "crates/enforcer-lang-security/src/boundary/k8s_container_security_manifest.rs",
+    "tests": ["crates/enforcer-lang-security/tests/cyberskills_k8s_container_security_manifest.rs"],
+    "fixtures": [
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s-container-security-b01/pass.json", "class": "positive"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s-container-security-b01/fail.json", "class": "negative"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s-container-security-b01/malformed.json", "class": "malformed"},
+      {"path": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s-container-security-b01/boundary.json", "class": "written-authorization-boundary"}
+    ],
+    "sourceRole": "vendor source fingerprints, Apache-2.0 labels, and heading anchors are provenance evidence",
+    "cp08Role": "CP08 decomposition remains immutable evidence only; this packet does not promote component status"
+  },
+  "reuse": [
+    "the existing enforcer-validator Validator and ValidationInput seam",
+    "the existing enforcer-domain Finding, RuleId, RelPath, and ScanScope types",
+    "the existing typed Kubernetes RBAC boundary and K8sRbacValidator",
+    "the existing typed Kubernetes pod boundary and K8sPodSecurityValidator",
+    "the existing serde/serde_json dependency and private boundary-module pattern",
+    "the existing CP00/CP08 evidence harness and graph packet lifecycle"
+  ],
+  "externalBlocked": [
+    "Kubernetes API, kubectl, admission controllers, cluster state, RBAC authorization, kubelet, container runtime, host process, syscall stream, Falco, eBPF, EDR, SIEM, registry, image store, package database, and production infrastructure",
+    "live audit-log truth, runtime drift detection, escape execution or occurrence, effective permissions, attribution, containment, remediation, rollback, recovery, or security outcomes"
+  ],
+  "advisoryManual": [
+    "defensive Kubernetes hardening, audit review, RBAC, pod-security, drift, escape-risk, and incident-response guidance",
+    "written authorization and exact cluster, namespace, workload, image, host, data, legal, privacy, safety, and scope boundaries",
+    "analyst validation, uncertainty, severity, exception approval, containment, remediation, rollback, recovery, disclosure, and human owner decisions"
+  ],
+  "proves": [
+    "The Rust packet deterministically parses supplied versioned JSON plus JSONL audit evidence and reports the bounded audit, drift, and escape-risk predicates.",
+    "The packet reuses the existing offline Kubernetes RBAC and pod-security validators for their already-covered adjacent predicates.",
+    "The packet records all five source hashes, exact heading anchors, Apache-2.0 labels, availability, native predicates, blocked external authorities, retained advisory/manual obligations, and explicit non-proofs.",
+    "Positive, negative, malformed, written-authorization-boundary, and adjacent-validator-reuse fixtures execute through the Validator interface."
+  ],
+  "doesNotProve": [
+    "No live Kubernetes cluster, API, kubectl authorization result, admission decision, kubelet, container runtime, host, syscall, Falco, eBPF, EDR, SIEM, registry, image store, package database, or production authority.",
+    "No actual container drift detection at runtime, escape occurrence, exploitability, compromise, effective RBAC state, attribution, incident determination, remediation effectiveness, or security outcome.",
+    "No complete native implementation of the five full vendor skill intents; this is a bounded supplied-evidence predicate packet.",
+    "No promotion of CP08 decomposition into implementation truth, executable proof outside these fixtures, overall parity, graph completion, or program completion."
+  ]
+}
