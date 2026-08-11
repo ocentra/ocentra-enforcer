@@ -8,6 +8,7 @@
   "evidenceStatus": "partial-exact-current",
   "authority": {
     "candidateSha": "5f6c84eddd286b3dc83f613f0c8d12c14454778c",
+    "metadataCommit": "00c45e40d50849a8cc9eddc76e520f331dd1691f",
     "branch": "codex/g01-ui-serve-20260811",
     "worktree": "E:\\g01",
     "worktreeStatusBeforeEvidence": "clean",
