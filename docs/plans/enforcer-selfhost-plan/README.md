@@ -61,7 +61,7 @@ Then do the work, produce the named proof, update that workpack's row. Stop.
 
 ## Do not default-read
 
-- Any workpack other than the one assigned to you (there are 111; reading siblings wastes context and risks cross-scope edits).
+- Any workpack other than the one assigned to you (there are 118; reading siblings wastes context and risks cross-scope edits).
 - [`README_FULL_ORIGINAL.md`](./README_FULL_ORIGINAL.md) — long-form narrative; open only for background, never as a task list.
 - [`PLAN_HEALTH.md`](./PLAN_HEALTH.md) — for the hub / auditor, not for a workpack executor.
 - [`PLAN_EXECUTION_BLUEPRINT.md`](./PLAN_EXECUTION_BLUEPRINT.md) — for whoever is sequencing/orchestrating, not for a single-pack executor (your capsule already tells you your deps).

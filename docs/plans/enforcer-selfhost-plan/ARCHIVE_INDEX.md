@@ -17,7 +17,7 @@ Sources: [DOC_INDEX](./DOC_INDEX.md), [ROUTE_INDEX](./ROUTE_INDEX.md).
 
 ## Current archive contents
 
-**Empty.** This plan is newly authored; no doc has been superseded yet. The live surface is the nine root docs listed in [DOC_INDEX.md](./DOC_INDEX.md) (including the governing [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)) plus the 111 workpacks under `workpacks/`.
+**Empty.** This plan is newly authored; no doc has been superseded yet. The live surface is the nine root docs listed in [DOC_INDEX.md](./DOC_INDEX.md) (including the governing [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)) plus the 118 workpacks under `workpacks/`.
 
 > Note (Track A Rust re-cast): the 50-pack `.mjs -> TypeScript` conversion swarm was **removed, not archived** — it was specification-only (no code, no proof rows GREEN, no dependents DONE) and is superseded by the `arc-01`..`arc-25` Rust crate-build swarm per [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md). No `archive/` entry is created because nothing was ever built against it; the successor packs (`arc-*`) carry the same scope in Rust. Track G's former coordination deps have already re-homed to the `arc-16` `enforcer-coordination` crate: `g04`/`g06` now dep `arc-16` and own `crates/enforcer-ui/…` Rust paths (the Rust re-frame is DONE, not deferred).
 

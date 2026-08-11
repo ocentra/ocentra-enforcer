@@ -32,7 +32,7 @@ That is the whole loop: **PLAN_STATE -> BLUEPRINT -> WORKPACK_INDEX -> one workp
 | Your question | Go to |
 |---------------|-------|
 | What is the plan's scope and where do I resume? | [PLAN_STATE.md](./PLAN_STATE.md) |
-| What language/architecture is the enforcer? (Rust workspace, 28-crate map, one binary = MCP + CLI first-class) | [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md) |
+| What language/architecture is the enforcer? (Rust workspace, 29-crate map, one binary = MCP + CLI first-class) | [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md) |
 | How is the build EXECUTED? (bootstrap-safe worktree+branch, keep .mjs live until Rust green then swap, orchestrator+worker swarm) | [EXECUTION_MODEL.md](./EXECUTION_MODEL.md) |
 | Why/how was the plan re-cast from TS/.mjs to Rust? (the reframe rationale + mapping) | [refs/RUST_REFRAME_SPEC.md](./refs/RUST_REFRAME_SPEC.md) |
 | What order do tracks/workpacks run in? How is parallelism organized? | [PLAN_EXECUTION_BLUEPRINT.md](./PLAN_EXECUTION_BLUEPRINT.md) |
@@ -60,7 +60,7 @@ That is the whole loop: **PLAN_STATE -> BLUEPRINT -> WORKPACK_INDEX -> one workp
 
 These are large or scoped; opening them speculatively burns context and violates the stop rules:
 
-- **Any file under [workpacks/](./workpacks/)** — 111 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
+- **Any file under [workpacks/](./workpacks/)** — 118 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
 - **The full arc crate-build swarm** (`workpacks/arc-01..25`) — 25 dependency-ordered Cargo-crate packs (Track A is Rust; see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)). Read only the one you claim.
 - **[TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) proof-row tables (section 4)** — long. Read only your workpack's row + the P0-P5 definitions + the decision tree; skip the other tracks' rows.
 - **[ARCHIVE_INDEX.md](./ARCHIVE_INDEX.md) contents** — historical only; never needed to execute current work.

@@ -132,7 +132,7 @@ Status starts `PENDING`; the closing agent flips it to `GREEN` only when the nam
 
 ### Track A - crate-build swarm (arc-01 .. arc-25)
 
-All P1 unit, T-tier N/A (mechanical Cargo-workspace crate build). Uniform proof: `cargo test -p enforcer-<crate>` green over the crate; `cargo clippy` and `cargo fmt --check` clean; the crate compiles and its detection/parity tests pass before the row goes GREEN. The 25 arc packs stand up 25 of the 28 workspace crates; the remaining 3 lang crates (`enforcer-lang-dart`/`-cfml`/`-crypto`) are BUILT by the Track E `e-pack-*` packs and prove `cargo test -p` in their own Track E rows.
+All P1 unit, T-tier N/A (mechanical Cargo-workspace crate build). Uniform proof: `cargo test -p enforcer-<crate>` green over the crate; `cargo clippy` and `cargo fmt --check` clean; the crate compiles and its detection/parity tests pass before the row goes GREEN. The 25 arc packs stand up 25 of the 29 workspace crates; the remaining 3 lang crates (`enforcer-lang-dart`/`-cfml`/`-crypto`) are BUILT by the Track E `e-pack-*` packs and the x06-built `enforcer-memory` crate is covered by the x06 row; each proves `cargo test -p` in its own Track E/x06 row.
 
 | Workpack | Proof tier | Named test / oracle | Artifact path | Seeded-violation case | Status |
 |----------|-----------|---------------------|---------------|-----------------------|--------|
