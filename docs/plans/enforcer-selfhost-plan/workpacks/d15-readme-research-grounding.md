@@ -12,7 +12,7 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `docs/research-grounding.md, README.md#research-grounding`
+- owns: `docs/research-grounding.md, README.md#research-grounding, docs/plans/enforcer-selfhost-plan/workpacks/d15-readme-research-grounding.md, docs/plans/enforcer-selfhost-plan/NEXT_ACTIONS.md`
 - deps: `none`
 - tier: `P0 contract/schema`
 
