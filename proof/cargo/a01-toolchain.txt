@@ -39,6 +39,11 @@ Current independent gates (2026-08-11)
   `37EE21C4FE9CBCF02C83495DDD625F6DAC1312BEEC44B2318EF61FB9A7153C57`.
 - `cargo test -p enforcer-rules --locked`: exit 0; 38 unit tests and all
   registry/fixture/version-drift integration groups passed.
+- `node --test tests/cargo-workspace-members.test.mjs`: exit 0; 6 tests,
+  including the seeded product-manifest case with `[lints] workspace = true`
+  removed; that case fails closed. The same validation is now part of
+  `node scripts/check-cargo-workspace-members.mjs`, which exits 0 against all
+  30 current product packages and reports `0 vendor packages`.
 - `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`:
   exit 0 after the full native check. Existing ts-rs attribute notes did not
   change the exit class.
@@ -57,9 +62,12 @@ Historical deviation and acceptance gaps
 - Raw `cargo fmt --all --check` still exits with Windows OS error 206 while
   traversing vendored tree-sitter sources. The checked-in CI gate now uses the
   bounded package helper above; all 30 package-scoped formatter checks pass.
-- The named `[lints] workspace = true` negative fixture/test required by the
-  a01 acceptance row is absent at this SHA. A disposable minimal fixture was
-  not treated as a substitute; this clause remains UNMEASURED.
+- The package-level `[lints] workspace = true` schema gate is now measured by
+  the workspace-member boundary fixture/test above. The historical named
+  `enforcer-lang-rust` deny-wall fixture paths remain absent because the
+  consumer-repo T1 validator implementation is owned by downstream rule/
+  language packs, not this a01 root-manifest gate; no status promotion is
+  authorized until the remaining package cutover is complete.
 - package.json still carries the live legacy Node/MJS bins/runtime. Its
   removal is explicitly deferred until the arc-21/arc-22/a10 cutover; this is
   not silently counted as a01 completion.
