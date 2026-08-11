@@ -105,6 +105,11 @@ function parseWorkpackTable(text, indexPath, policies) {
       rows.push({
         shortId,
         title: workpackCell.replace(/\[|\]/g, "").replace(/\([^)]*\)/, "").trim() || shortId,
+        // The default frontier must not inherit dependencies from a workpack
+        // that the plan explicitly marks as opt-in. Keep this metadata on the
+        // imported row so dependency expansion can honor the plan's default
+        // versus opt-in boundary without hard-coding a workpack id.
+        optional: /\bOPTIONAL\b|\bOPT[- ]IN\b/i.test(workpackCell),
         path: workpackPath,
         declaredStatus: status,
         lifecycle: declaredLifecycle(status, policies),
@@ -203,7 +208,7 @@ function dependencyReferences(rawDepends, plan, knownIds, currentShortId = null)
       const shortId = String(row.shortId ?? "");
       const normalized = shortId.toLowerCase();
       const track = normalized.startsWith("arc-") ? "a" : normalized[0];
-      if (allTrackIds.has(track) && normalized !== String(currentShortId ?? "").toLowerCase()) {
+      if (allTrackIds.has(track) && !row.optional && normalized !== String(currentShortId ?? "").toLowerCase()) {
         found.add(shortId);
       }
     }
