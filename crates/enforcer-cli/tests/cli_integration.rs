@@ -366,9 +366,13 @@ fn native_secrets_policy_still_rejects_product_source_with_configured_exclusions
         "vendor/example/SKILL.md",
         "tests/fixtures/native-policy-secret-fixture.ts",
     ] {
-        assert!(!stdout
-            .lines()
-            .any(|line| line.split_whitespace().any(|field| field == excluded_path)));
+        assert!(!stdout.lines().any(|line| {
+            line.split_whitespace().any(|field| {
+                field
+                    .strip_prefix(excluded_path)
+                    .is_some_and(|suffix| suffix.starts_with(':'))
+            })
+        }));
     }
     Ok(())
 }
@@ -802,7 +806,6 @@ fn doctor_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::p
     command
 }
 
-#[cfg(feature = "full")]
 fn expected_config_root(_home: &std::path::Path, _app_data: &std::path::Path) -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -815,7 +818,6 @@ fn expected_config_root(_home: &std::path::Path, _app_data: &std::path::Path) ->
 }
 
 #[test]
-#[cfg(feature = "full")]
 fn install_registers_every_native_harness_and_is_idempotent(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fixture = tempfile::tempdir()?;
@@ -869,12 +871,12 @@ fn install_registers_every_native_harness_and_is_idempotent(
     let gemini: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&json_paths[1])?)?;
     assert_eq!(
-        gemini["mcpServers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        gemini["mcpServers"][enforcer_domain::mcp_types::SERVER_NAME]["command"],
         serde_json::json!(binary.display().to_string())
     );
     let zed: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&json_paths[7])?)?;
     assert_eq!(
-        zed["context_servers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        zed["context_servers"][enforcer_domain::mcp_types::SERVER_NAME]["command"],
         serde_json::json!(binary.display().to_string())
     );
     let codex_before = std::fs::read(&codex_config)?;
