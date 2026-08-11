@@ -115,22 +115,45 @@ impl CyberPlanGraph {
         };
         let root = self.root.join(proof_root.as_str()).join("cp11");
         let paths = sorted_evidence_paths(&root, "retention.json")?;
+        let mut family_packet_numbers = BTreeMap::<String, usize>::new();
         paths.iter().try_for_each(|path| {
-            self.import_one_cp11_proof(path)?;
+            let evidence: Value = serde_json::from_str(&fs::read_to_string(path)?)?;
+            let family = string_field(&evidence, &["family"]).ok_or_else(|| {
+                GraphError::InvalidValue(format!(
+                    "CP11 retention artifact `{}` has no family",
+                    path.display()
+                ))
+            })?;
+            let packet_number = family_packet_numbers
+                .entry(family)
+                .and_modify(|number| *number += 1)
+                .or_insert(1);
+            self.import_one_cp11_proof(path, *packet_number)?;
             self.validate_cp11_packet(path)
         })
     }
 
-    fn import_one_cp11_proof(&mut self, path: &Path) -> Result<(), GraphError> {
+    fn import_one_cp11_proof(
+        &mut self,
+        path: &Path,
+        packet_number: usize,
+    ) -> Result<(), GraphError> {
         let evidence: Value = serde_json::from_str(&fs::read_to_string(path)?)?;
         let batch = string_field(&evidence, &["batch"]).unwrap_or_else(|| "unknown".to_owned());
+        let family = string_field(&evidence, &["family"]).ok_or_else(|| {
+            GraphError::InvalidValue(format!(
+                "CP11 retention artifact `{}` has no family",
+                path.display()
+            ))
+        })?;
+        let family_id = family.replace('/', "-");
         let id = NodeId::new(format!("PROOF/CP11/{batch}"))?;
         let relative = relative_path(&self.root, path)?;
         let mut node = GraphNode::new(
             id.clone(),
             NodeKind::Proof,
             format!("CP11 retention evidence {batch}"),
-            Some(relative),
+            Some(relative.clone()),
             CompletionContract::default(),
         );
         array_field(&evidence, &["skills"])
@@ -144,6 +167,20 @@ impl CyberPlanGraph {
         self.add_edge(GraphEdge {
             from: NodeId::new("WP/CP11")?,
             to: id,
+            kind: EdgeKind::Produces,
+        });
+        let gate_id = NodeId::new(format!("TEST/WP/CP11/{family_id}/B{packet_number:02}/gate"))?;
+        let gate_node = GraphNode::new(
+            gate_id.clone(),
+            NodeKind::Test,
+            format!("CP11 retention gate {family_id} B{packet_number:02}"),
+            Some(relative),
+            CompletionContract::default(),
+        );
+        self.add_node(gate_node)?;
+        self.add_edge(GraphEdge {
+            from: NodeId::new("WP/CP11")?,
+            to: gate_id,
             kind: EdgeKind::Produces,
         });
         Ok(())

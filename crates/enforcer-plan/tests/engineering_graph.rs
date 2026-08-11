@@ -395,6 +395,37 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
 }
 
 #[test]
+fn cp11_retention_artifacts_supply_derived_packet_gates() -> Result<(), Box<dyn Error>> {
+    let graph = CyberPlanGraph::load(repository_root())?;
+    for (family, batch, artifact) in [
+        (
+            "IF-ai-security",
+            "B01",
+            "proof/cyberskills/cp11/batch-01/retention.json",
+        ),
+        (
+            "IF-api-security",
+            "B01",
+            "proof/cyberskills/cp11/batch-03/retention.json",
+        ),
+        (
+            "IF-zero-trust-architecture",
+            "B02",
+            "proof/cyberskills/cp11/batch-98/retention.json",
+        ),
+    ] {
+        let id = NodeId::new(format!("TEST/WP/CP11/{family}/{batch}/gate"))?;
+        let node = graph
+            .node(&id)
+            .ok_or_else(|| IoError::new(ErrorKind::NotFound, id.to_string()))?;
+        assert_eq!(node.kind, NodeKind::Test);
+        assert_eq!(node.path.as_ref().map(|path| path.as_str()), Some(artifact));
+    }
+    assert!(graph.validate().is_valid());
+    Ok(())
+}
+
+#[test]
 fn authoritative_routing_status_blocks_pending_workpacks() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     for id in [

@@ -37,7 +37,7 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 | CP01 | DONE: batch-05 and the graph partition gate cover all 41 registry IDs; refreshed gates are recorded at commit `0eb5ccb6a` | existing-rule reconciliation only; no whole-skill/native/executable-proof/overall-parity promotion |
 | CP04 | DONE: `CYBER-MASS-ASSIGN.1` syntax pilot committed at `683ba8c70`; focused and consuming scan gates passed | one rule's function-fact pilot only; no family migration/native parity/executable-proof/overall-parity promotion |
 | CP08 | DONE from 82 accepted decomposition artifacts and derived-count/disposition gates | catalog decomposition only; no native/executable-proof/overall-parity promotion |
-| CP11 | VALIDATION: graph verifies all 816 retained advisory/manual components and CP11 batch-01 covers 10 AI-security records | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
+| CP11 | DONE: graph verifies 98 retained packets covering all 816 non-protected identities; the refreshed graph suite passed 6/6 and CP11 gate nodes resolve to immutable retention artifacts | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
 | CP02 | BLOCKED by Universal UL02/UL03 | Sol/architect-only consumer adoption |
 | CP06 | BLOCKED pending UL07 and named `tool-adapter-integrator` | shared singleton |
 | CP05 | DONE: typed packet factory committed at `84745c7c8`; exact factory, package, plan, and Enforcer evidence recorded in `TEST_PROOF_EXPECTATIONS.md` | clerical packet completeness only; no generated security meaning, native rule implementation, executable proof, or overall parity |
