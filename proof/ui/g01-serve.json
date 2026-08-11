@@ -111,6 +111,17 @@
       "assertion": "No enforcer-coordination, enforcer-mcp, enforcer-ui, or enforcer-memory package appears in the lite dependency tree."
     }
   ],
+  "currentValidation": {
+    "candidateSha": "cdda88a8ee109182e56ddb5e79e16ea893786f77",
+    "command": "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split --locked -- --nocapture",
+    "exitCode": 0,
+    "stdoutSha256": "4B77D56BEBB2379D658F801D98384B6E867C816389678EE380D75FB1D5F8B497",
+    "stderrSha256": "3AC171B438CFA1470E4A3CC490F548B6E932E2C41D4858090E23386CAC4CEE0B",
+    "stdoutBytes": 636,
+    "stderrBytes": 10612,
+    "tests": 1,
+    "result": "QA-187 cyclic-dependency experience row is fully wired and passes the exact current gate"
+  },
   "seededViolationCases": [
     {
       "case": "serve-remote-no-token",
@@ -153,9 +164,24 @@
   "sourcePaths": {
     "serveModule": "crates/enforcer-ui/src/boundary/serve.rs",
     "moduleRegistration": "crates/enforcer-ui/src/lib.rs",
+    "uiManifest": "crates/enforcer-ui/Cargo.toml",
     "cli": ["crates/enforcer-cli/src/cli.rs", "crates/enforcer-cli/src/main.rs"],
     "mcp": ["crates/enforcer-mcp/src/registry.rs", "crates/enforcer-mcp/src/router.rs"],
     "liteGateRepair": "crates/enforcer-cli/tests/cli_integration.rs"
+  },
+  "dependencyCycleExperience": {
+    "incident": {
+      "crateManifest": "crates/enforcer-ui/Cargo.toml",
+      "resolution": "removed an unused enforcer-mcp dependency",
+      "failure": "it created a Cargo cyclic-dependency error",
+      "trigger": "once enforcer-mcp needed to depend on enforcer-ui for the ui tool",
+      "followUp": "added thiserror"
+    },
+    "prevention": {
+      "crateSource": "crates/enforcer-ui/src/lib.rs",
+      "direction": "doc comment describing the dependency direction",
+      "moduleList": "no module-list change"
+    }
   },
   "honestGapNotes": [
     "The previous proof JSON was stale: it reported 24/53/49 tests, clean warning-free clippy, and GREEN without exact-SHA command evidence. This artifact replaces those claims with current hashes and counts.",
