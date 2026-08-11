@@ -21,8 +21,8 @@ pub(super) struct IndexRow {
     pub(super) owns: String,
 }
 pub(crate) fn relative_path(root: &Path, path: &Path) -> Result<GraphPath, GraphError> {
-    let relative = path.strip_prefix(root).map_err(|_| {
-        GraphError::InvalidValue("evidence path escaped repository root".to_owned())
+    let relative = path.strip_prefix(root).map_err(|error| {
+        GraphError::InvalidValue(format!("evidence path escaped repository root: {error}"))
     })?;
     GraphPath::new(relative.to_string_lossy().into_owned())
 }

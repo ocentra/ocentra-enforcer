@@ -67,7 +67,7 @@ impl CyberPlanGraph {
         dependencies
             .into_iter()
             .try_for_each(|(from, dependencies)| {
-                apply_dependency_override(self, from, dependencies)
+                apply_dependency_override(self, &from, dependencies)
             })
     }
 
@@ -119,37 +119,35 @@ impl CyberPlanGraph {
 }
 
 fn evidence_requirements(graph: &CyberPlanGraph, id: &NodeId) -> Vec<String> {
-    graph
+    if graph
         .nodes
         .get(id)
         .and_then(|evidence| evidence.path.as_ref())
         .is_some_and(|path| graph.root.join(path.as_str()).is_file())
-        .then_some(Vec::new())
-        .unwrap_or_else(|| {
-            let Some(record) = graph.manifest.overrides.evidence.get(id) else {
-                return vec![format!(
-                    "required evidence `{id}` has no readable artifact or recorded gate"
-                )];
-            };
-            record
-                .source_paths
-                .iter()
-                .filter(|source_path| !graph.root.join(source_path.as_str()).is_file())
-                .map(|source_path| {
-                    format!("recorded evidence `{id}` source `{source_path}` is absent")
-                })
-                .collect()
-        })
+    {
+        return Vec::new();
+    }
+    let Some(record) = graph.manifest.overrides.evidence.get(id) else {
+        return vec![format!(
+            "required evidence `{id}` has no readable artifact or recorded gate"
+        )];
+    };
+    record
+        .source_paths
+        .iter()
+        .filter(|source_path| !graph.root.join(source_path.as_str()).is_file())
+        .map(|source_path| format!("recorded evidence `{id}` source `{source_path}` is absent"))
+        .collect()
 }
 
 fn apply_dependency_override(
     graph: &mut CyberPlanGraph,
-    from: NodeId,
+    from: &NodeId,
     dependencies: Vec<NodeId>,
 ) -> Result<(), GraphError> {
     graph
         .edges
-        .retain(|edge| !(edge.from == from && edge.kind == EdgeKind::DependsOn));
+        .retain(|edge| !(edge.from == *from && edge.kind == EdgeKind::DependsOn));
     dependencies.into_iter().try_for_each(|target| {
         graph.add_edge(GraphEdge {
             from: from.clone(),
@@ -229,19 +227,15 @@ fn dependencies_blocked(
     visiting: &mut BTreeSet<NodeId>,
     reasons: &mut Vec<String>,
 ) -> bool {
-    graph
-        .dependencies(id)
-        .into_iter()
-        .map(|dependency| {
-            let dependency_state = state_for(graph, &dependency, visiting, reasons);
-            (dependency_state != DerivedState::Done)
-                .then(|| {
-                    reasons.push(format!("dependency `{dependency}` is {dependency_state:?}"));
-                    true
-                })
-                .unwrap_or(false)
-        })
-        .any(|blocked| blocked)
+    graph.dependencies(id).into_iter().any(|dependency| {
+        let dependency_state = state_for(graph, &dependency, visiting, reasons);
+        if dependency_state != DerivedState::Done {
+            reasons.push(format!("dependency `{dependency}` is {dependency_state:?}"));
+            true
+        } else {
+            false
+        }
+    })
 }
 
 fn planned_state(

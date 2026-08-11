@@ -522,19 +522,22 @@ mod tests {
     use super::{GraphError, GraphPath, NodeId};
 
     #[test]
-    fn identifiers_and_paths_reject_escape_values() {
-        assert!(matches!(NodeId::try_new("WP/cp00"), Ok(_)));
+    fn identifiers_and_paths_reject_escape_values() -> Result<(), GraphError> {
+        let node = NodeId::new("WP/cp00")?;
+        assert_eq!(node.as_str(), "WP/cp00");
         assert!(matches!(
             NodeId::try_new("../escape"),
             Err(GraphError::InvalidValue(_))
         ));
-        assert!(matches!(
-            GraphPath::try_new("docs/plans/cyberskills-parity-plan/README.md"),
-            Ok(_)
-        ));
+        let path = GraphPath::new("docs/plans/cyberskills-parity-plan/README.md")?;
+        assert_eq!(
+            path.as_str(),
+            "docs/plans/cyberskills-parity-plan/README.md"
+        );
         assert!(matches!(
             GraphPath::try_new("../vendor/file"),
             Err(GraphError::InvalidValue(_))
         ));
+        Ok(())
     }
 }

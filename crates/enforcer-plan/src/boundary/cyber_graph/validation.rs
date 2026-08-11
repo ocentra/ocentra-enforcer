@@ -20,7 +20,7 @@ impl CyberPlanGraph {
         let mut visited = BTreeSet::new();
         for node in self.nodes.keys() {
             if let Some(cycle) = find_cycle(self, node, &mut visiting, &mut visited) {
-                findings.push(cycle_issue(node, cycle));
+                findings.push(cycle_issue(node, &cycle));
             }
         }
         findings
@@ -95,7 +95,7 @@ fn endpoint_findings(edge: &GraphEdge, nodes: &BTreeMap<NodeId, GraphNode>) -> V
     findings
 }
 
-fn cycle_issue(node: &NodeId, cycle: Vec<NodeId>) -> GraphIssue {
+fn cycle_issue(node: &NodeId, cycle: &[NodeId]) -> GraphIssue {
     GraphIssue {
         level: IssueLevel::Error,
         code: "GRAPH-CYCLE".to_owned(),

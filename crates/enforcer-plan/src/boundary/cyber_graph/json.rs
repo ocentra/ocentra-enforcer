@@ -110,15 +110,14 @@ pub(crate) fn coverage_field(value: &Value, path: &[&str]) -> CoverageLevel {
 }
 
 pub(crate) fn coverage_name(level: CoverageLevel) -> String {
-    let value = if level == CoverageLevel::Complete {
+    if level == CoverageLevel::Complete {
         "complete"
     } else if level == CoverageLevel::Partial {
         "partial"
     } else {
         "none"
     }
-    .to_owned();
-    value
+    .to_owned()
 }
 
 pub(crate) fn array_field<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Vec<Value>> {

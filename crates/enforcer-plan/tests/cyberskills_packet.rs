@@ -80,7 +80,10 @@ fn approved_mass_assignment_emits_the_clerical_skeleton() -> TestResult {
 fn unapproved_component_is_rejected() -> TestResult {
     let mut draft = approved_draft()?;
     draft.approval = ComponentApproval::Unapproved;
-    let error = PacketFactory::build(draft).expect_err("unapproved draft must fail closed");
+    let error = match PacketFactory::build(draft) {
+        Ok(_) => return Err("unapproved draft unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
     assert_eq!(error.path, "approval");
     Ok(())
 }
@@ -92,13 +95,18 @@ fn missing_source_hash_fixture_is_rejected_at_the_typed_boundary() -> TestResult
     ))?;
     assert!(fixture["sourceSha256"].is_string());
     assert_eq!(fixture["sourceSha256"].as_str(), Some(""));
-    let error =
-        SourceSha256::try_from(String::new()).expect_err("empty source hash must fail closed");
+    let error = match SourceSha256::try_from(String::new()) {
+        Ok(_) => return Err("empty source hash unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
     assert_eq!(error.path, "sourceSha256");
 
     let mut draft = approved_draft()?;
     draft.source = None;
-    let error = PacketFactory::build(draft).expect_err("missing source must fail closed");
+    let error = match PacketFactory::build(draft) {
+        Ok(_) => return Err("missing source unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
     assert_eq!(error.path, "source");
     Ok(())
 }
@@ -108,16 +116,21 @@ fn protected_source_and_duplicate_fixtures_are_rejected() -> TestResult {
     let protected = SourcePath::try_from(
         "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md"
             .to_owned(),
-    )
-    .expect_err("protected source must remain outside the factory");
+    );
+    let protected = match protected {
+        Ok(_) => return Err("protected source unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
     assert_eq!(protected.path, "sourcePath");
 
     let fixture = FixturePath::try_from(
         "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py"
             .to_owned(),
     )?;
-    let duplicate =
-        FixtureSet::new(fixture.clone(), fixture).expect_err("fixture roles must differ");
+    let duplicate = match FixtureSet::new(fixture.clone(), fixture) {
+        Ok(_) => return Err("duplicate fixture roles unexpectedly succeeded".into()),
+        Err(error) => error,
+    };
     assert_eq!(duplicate.path, "fixtures");
     Ok(())
 }

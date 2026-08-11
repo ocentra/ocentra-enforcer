@@ -154,7 +154,9 @@ impl CyberPlanGraph {
                 )));
             }
         }
-        self.nodes.get_mut(id).map(|node| node.lifecycle = target);
+        if let Some(node) = self.nodes.get_mut(id) {
+            node.lifecycle = target;
+        }
         Ok(())
     }
 }
