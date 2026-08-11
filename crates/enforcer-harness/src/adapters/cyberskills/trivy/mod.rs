@@ -92,11 +92,10 @@ pub fn run(repo_root: RepoRoot, target_directory: &str) -> Result<AdapterOutcome
         tags: vec![],
     };
     let execution = execute_unrecorded_bounded(&request)?;
-    Ok(outcome_from_execution(execution))
+    Ok(outcome_from_execution(&execution))
 }
 
 /// Return the exact command template used by the optional live pilot.
-#[must_use]
 pub fn reviewed_command() -> std::result::Result<Vec<HarnessCommandArgument>, DecodeError> {
     let mut command = Vec::with_capacity(9);
     command.push(HarnessCommandArgument::try_new(executable_name())?);
@@ -146,7 +145,7 @@ fn validate_target_directory(target: &str) -> Result<()> {
 }
 
 fn outcome_from_execution(
-    execution: enforcer_domain::harness_types::HarnessBoundedExecution,
+    execution: &enforcer_domain::harness_types::HarnessBoundedExecution,
 ) -> AdapterOutcome {
     match execution.termination() {
         HarnessExecutionTermination::MissingExecutable => AdapterOutcome::Skipped { ran: 0 },
@@ -255,7 +254,7 @@ mod tests {
             false,
         );
         assert_eq!(
-            outcome_from_execution(execution),
+            outcome_from_execution(&execution),
             AdapterOutcome::Skipped { ran: 0 }
         );
     }
@@ -275,7 +274,7 @@ mod tests {
                 false,
             );
             assert!(matches!(
-                outcome_from_execution(execution),
+                outcome_from_execution(&execution),
                 AdapterOutcome::Errored { .. }
             ));
         }
@@ -291,7 +290,7 @@ mod tests {
             true,
         );
         assert!(matches!(
-            outcome_from_execution(execution),
+            outcome_from_execution(&execution),
             AdapterOutcome::Errored { .. }
         ));
     }

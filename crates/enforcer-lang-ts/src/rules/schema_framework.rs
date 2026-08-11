@@ -172,9 +172,7 @@ fn contains_unquoted_code_marker(
     let mut escaped = false;
     let mut index = 0;
     while index < bytes.len() {
-        let Some(&byte) = bytes.get(index) else {
-            return None;
-        };
+        let &byte = bytes.get(index)?;
         if let Some(delimiter) = quote {
             if escaped {
                 escaped = false;
