@@ -327,9 +327,11 @@ fn assert_cp09_cloud_batches(graph: &CyberPlanGraph) -> Result<(), Box<dyn Error
         let id = NodeId::new(format!("WP/CP09/IF-cloud-security/{batch}"))?;
         assert_eq!(graph.inspect(&id)?.state, DerivedState::Blocked, "{batch}");
     }
-    assert!(graph
-        .node(&NodeId::new("WP/CP09/IF-cloud-security/B13")?)
-        .is_none());
+    assert!(
+        graph
+            .node(&NodeId::new("WP/CP09/IF-cloud-security/B13")?)
+            .is_none()
+    );
     Ok(())
 }
 
@@ -356,14 +358,31 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
     }
     let cp12 = graph.inspect(&NodeId::new("WP/CP12")?)?;
     assert_eq!(cp12.state, DerivedState::Blocked);
-    assert!(cp12
-        .reasons
-        .iter()
-        .any(|reason| reason.contains("authoritative routing status")));
+    assert!(
+        cp12.reasons
+            .iter()
+            .any(|reason| reason.contains("authoritative routing status"))
+    );
 
-    assert_eq!(next["decision"], "blocked");
-    assert!(next["selected"].is_null());
+    assert_eq!(next["decision"], "selected");
+    assert_eq!(next["selected"]["id"], "WP/CP09");
+    assert_eq!(next["selected"]["state"], "ready");
     assert_cp09_cloud_batches(&graph)?;
+    let cp09 = graph.inspect(&NodeId::new("WP/CP09")?)?;
+    assert_eq!(cp09.state, DerivedState::Ready);
+    assert!(
+        cp09.reasons
+            .iter()
+            .all(|reason| !reason.contains("proof row is pending"))
+    );
+    assert_eq!(
+        graph
+            .node(&NodeId::new("WP/CP09")?)
+            .and_then(|node| node.metadata.get("proofRowState"))
+            .map(String::as_str),
+        Some("PENDING"),
+        "routing readiness must not rewrite the pending proof row"
+    );
     assert_eq!(
         graph
             .inspect(&NodeId::new("WP/CP09/IF-compliance-governance/B01")?)?
@@ -385,9 +404,11 @@ fn next_selects_cp09_after_cp05_closure_without_promoting_truth() -> Result<(), 
         cp09_cloud_node.metadata.get("route").map(String::as_str),
         Some("CP09")
     );
-    assert!(graph
-        .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
-        .is_none());
+    assert!(
+        graph
+            .node(&NodeId::new("WP/CP12/IF-cloud-security/B01")?)
+            .is_none()
+    );
     assert_eq!(next["validation"]["valid"], true);
     assert_eq!(next["policy"]["decompositionPromotesImplementation"], false);
     assert_eq!(next["policy"]["decompositionPromotesProof"], false);
@@ -426,12 +447,11 @@ fn cp11_retention_artifacts_supply_derived_packet_gates() -> Result<(), Box<dyn 
 }
 
 #[test]
-fn authoritative_routing_status_blocks_pending_workpacks() -> Result<(), Box<dyn Error>> {
+fn authoritative_routing_status_blocks_unready_workpacks() -> Result<(), Box<dyn Error>> {
     let graph = CyberPlanGraph::load(repository_root())?;
     for id in [
         "WP/CP06",
         "WP/CP07",
-        "WP/CP09",
         "WP/CP10",
         "WP/CP09/IF-container-security/B01",
     ] {
@@ -441,6 +461,11 @@ fn authoritative_routing_status_blocks_pending_workpacks() -> Result<(), Box<dyn
             "{id} must remain blocked by the authoritative plan status"
         );
     }
+    assert_eq!(
+        graph.inspect(&NodeId::new("WP/CP09")?)?.state,
+        DerivedState::Ready,
+        "READY routing activates entry without promoting proof"
+    );
     assert_eq!(
         graph.inspect(&NodeId::new("WP/CP00")?)?.state,
         DerivedState::Done
@@ -492,9 +517,11 @@ fn native_packets_exclude_cp08_external_only_skills() -> Result<(), Box<dyn Erro
         packet.metadata.get("ownedKind").map(String::as_str),
         Some("native-predicate")
     );
-    assert!(!packet
-        .metadata
-        .get("skillIds")
-        .is_some_and(|ids| ids.contains("benchmarking-kubernetes-with-kube-bench")));
+    assert!(
+        !packet
+            .metadata
+            .get("skillIds")
+            .is_some_and(|ids| ids.contains("benchmarking-kubernetes-with-kube-bench"))
+    );
     Ok(())
 }

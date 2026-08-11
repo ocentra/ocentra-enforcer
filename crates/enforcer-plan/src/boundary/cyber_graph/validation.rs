@@ -68,7 +68,7 @@ fn authority_lifecycle_issue(node: &GraphNode) -> Option<GraphIssue> {
     let routing_status = node.metadata.get("routingStatus").map(String::as_str);
     let routing_conflict = matches!(
         routing_status,
-        Some("BLOCKED" | "PENDING" | "READY-AUDIT" | "VALIDATION")
+        Some("BLOCKED" | "PENDING" | "READY" | "READY-AUDIT" | "VALIDATION")
     )
     .then(|| format!("lifecycle done contradicts routing status `{routing_status:?}`"));
     let proof_conflict = (node.metadata.get("proofRowState").map(String::as_str)

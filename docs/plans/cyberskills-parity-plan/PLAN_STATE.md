@@ -38,12 +38,13 @@ Updated: 2026-08-09. This file is a routing board, not evidence.
 | CP04 | DONE: `CYBER-MASS-ASSIGN.1` syntax pilot committed at `683ba8c70`; focused and consuming scan gates passed | one rule's function-fact pilot only; no family migration/native parity/executable-proof/overall-parity promotion |
 | CP08 | DONE from 82 accepted decomposition artifacts and derived-count/disposition gates | catalog decomposition only; no native/executable-proof/overall-parity promotion |
 | CP11 | DONE: graph verifies 98 retained packets covering all 816 non-protected identities; the refreshed graph suite passed 6/6 and CP11 gate nodes resolve to immutable retention artifacts | retention evidence only; no native/executable-proof/live execution/overall-parity promotion |
+| CP09 | READY for bounded entry routing; authoritative proof row remains `PENDING` and native implementation/executable proof remain unchanged | routing authorization only; no implementation, proof, live model/provider/MCP outcome, or overall-parity promotion |
 | CP02 | BLOCKED by Universal UL02/UL03 | Sol/architect-only consumer adoption |
 | CP06 | BLOCKED pending UL07 and named `tool-adapter-integrator` | shared singleton |
 | CP05 | DONE: typed packet factory committed at `84745c7c8`; exact factory, package, plan, and Enforcer evidence recorded in `TEST_PROOF_EXPECTATIONS.md` | clerical packet completeness only; no generated security meaning, native rule implementation, executable proof, or overall parity |
 | All others | BLOCKED by dependencies | See index |
 
-Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. `graph next` is the only selection surface.
+Intent-family native packets are blocked behind CP05/CP08 (or CP03/CP08 for CP12 packets); retention packets are blocked behind CP08. CP09 `READY` is an entry-routing state only: its proof row remains `PENDING`, so selecting the root does not claim implementation or proof. `graph next` is the only selection surface.
 
 ## Protected residue
 

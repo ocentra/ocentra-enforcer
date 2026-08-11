@@ -1,6 +1,6 @@
 # Workpack Index
 
-Status is routing state only. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and committed artifacts.
+Status is routing state only. `READY` authorizes entry routing; it never means implementation or proof is complete. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and committed artifacts.
 
 | Status | ID | Workpack | Owner class | Depends on | Batch limit | Primary owns |
 |---|---|---|---|---|---:|---|
@@ -13,7 +13,7 @@ Status is routing state only. Proof lives in `TEST_PROOF_EXPECTATIONS.md` and co
 | BLOCKED | CP06 | [Security engine consumer contract](./workpacks/cp06-external-engine-module.md) | Sol/consumer architect | CP00, UL07 | one security requirement slice | security demand + conformance fixtures; never generic runner/registry/schema |
 | BLOCKED | CP07 | [External engine pilot](./workpacks/cp07-external-engine-pilot.md) | Luna with boss review | CP06 | exactly 1 engine | recorded + live adapter |
 | DONE | CP08 | [Corpus decomposition waves](./workpacks/cp08-corpus-decomposition-waves.md) | Luna-safe | CP00, CP01 | 10 skills | ledger components only |
-| BLOCKED | CP09 | [Native capability waves](./workpacks/cp09-native-capability-waves.md) | Luna-safe for simple predicates | CP05, CP08 | 1 capability, <=5 skills | rules + evidence |
+| READY | CP09 | [Native capability waves](./workpacks/cp09-native-capability-waves.md) | Luna-safe for simple predicates | CP05, CP08 | 1 capability, <=5 skills | rules + evidence |
 | BLOCKED | CP10 | [External engine mapping waves](./workpacks/cp10-external-engine-mapping-waves.md) | Luna-safe after engine exists | CP07, CP08 | 1 engine, <=10 skills | mappings + fixtures |
 | DONE | CP11 | [Advisory/manual retention](./workpacks/cp11-advisory-manual-retention.md) | Luna-safe | CP08 | 10 skills | retained references + reasons; no native/external promotion |
 | BLOCKED | CP12 | [Cross-file graph rules](./workpacks/cp12-cross-file-graph-rules.md) | Sol/architect | CP03, CP08, UL13 | exactly 1 predicate | repository-scoped rule |

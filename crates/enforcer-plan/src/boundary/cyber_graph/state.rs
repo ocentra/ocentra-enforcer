@@ -108,36 +108,43 @@ impl CyberPlanGraph {
                 .chain(node.completion.required_adrs.iter())
                 .flat_map(|id| evidence_requirements(self, id)),
         );
-        if node.completion.checklist_complete < node.completion.checklist_total {
-            missing.push(format!(
-                "checklist is {}/{} complete",
-                node.completion.checklist_complete, node.completion.checklist_total
-            ));
-        }
+        (node.completion.checklist_complete < node.completion.checklist_total)
+            .then(|| {
+                format!(
+                    "checklist is {}/{} complete",
+                    node.completion.checklist_complete, node.completion.checklist_total
+                )
+            })
+            .into_iter()
+            .for_each(|message| missing.push(message));
         ContractResult { missing }
     }
 }
 
 fn evidence_requirements(graph: &CyberPlanGraph, id: &NodeId) -> Vec<String> {
-    if graph
+    graph
         .nodes
         .get(id)
         .and_then(|evidence| evidence.path.as_ref())
-        .is_some_and(|path| graph.root.join(path.as_str()).is_file())
-    {
-        return Vec::new();
-    }
-    let Some(record) = graph.manifest.overrides.evidence.get(id) else {
-        return vec![format!(
-            "required evidence `{id}` has no readable artifact or recorded gate"
-        )];
-    };
-    record
-        .source_paths
-        .iter()
-        .filter(|source_path| !graph.root.join(source_path.as_str()).is_file())
-        .map(|source_path| format!("recorded evidence `{id}` source `{source_path}` is absent"))
-        .collect()
+        .filter(|path| graph.root.join(path.as_str()).is_file())
+        .map(|_| Vec::new())
+        .or_else(|| {
+            graph.manifest.overrides.evidence.get(id).map(|record| {
+                record
+                    .source_paths
+                    .iter()
+                    .filter(|source_path| !graph.root.join(source_path.as_str()).is_file())
+                    .map(|source_path| {
+                        format!("recorded evidence `{id}` source `{source_path}` is absent")
+                    })
+                    .collect()
+            })
+        })
+        .unwrap_or_else(|| {
+            vec![format!(
+                "required evidence `{id}` has no readable artifact or recorded gate"
+            )]
+        })
 }
 
 fn apply_dependency_override(
@@ -172,53 +179,95 @@ fn state_for(
         reasons.push(format!("dependency cycle reaches `{id}`"));
         return DerivedState::Blocked;
     }
-    let state = if let Some((authority_state, reason)) = authority_constraint(node) {
-        reasons.push(reason.to_owned());
-        authority_state
-    } else if (node.kind == NodeKind::Workpack
-        && node.metadata.get("workpackClass").map(String::as_str) == Some("intent-packet"))
-        && dependencies_blocked(graph, id, visiting, reasons)
-    {
-        DerivedState::Blocked
-    } else if node.lifecycle == LifecycleState::Done {
-        let contract = graph.contract_result(node);
-        if contract.is_complete() {
-            DerivedState::Done
-        } else {
-            reasons.extend(contract.missing);
-            DerivedState::Blocked
-        }
-    } else if node.lifecycle == LifecycleState::Planned {
-        planned_state(graph, id, node, visiting, reasons)
-    } else {
-        stored_state(node.lifecycle)
-    };
+    let state = authority_constraint(node)
+        .map(|(authority_state, reason)| {
+            reasons.push(reason.to_owned());
+            authority_state
+        })
+        .or_else(|| {
+            matches!(
+                (
+                    node.kind,
+                    node.metadata.get("workpackClass").map(String::as_str)
+                ),
+                (NodeKind::Workpack, Some("intent-packet"))
+            )
+            .then(|| {
+                dependencies_blocked(graph, id, visiting, reasons).then_some(DerivedState::Blocked)
+            })
+            .flatten()
+        })
+        .or_else(|| {
+            (node.lifecycle == LifecycleState::Done)
+                .then(|| {
+                    let contract = graph.contract_result(node);
+                    contract
+                        .is_complete()
+                        .then_some(DerivedState::Done)
+                        .or_else(|| {
+                            reasons.extend(contract.missing);
+                            Some(DerivedState::Blocked)
+                        })
+                })
+                .flatten()
+        })
+        .or_else(|| {
+            (node.lifecycle == LifecycleState::Planned)
+                .then(|| planned_state(graph, id, node, visiting, reasons))
+        })
+        .unwrap_or_else(|| stored_state(node.lifecycle));
     visiting.remove(id);
     state
 }
 
 fn authority_constraint(node: &GraphNode) -> Option<(DerivedState, &'static str)> {
-    if !node.id.as_str().starts_with("WP/") {
-        return None;
-    }
-    let routing_status = node.metadata.get("routingStatus").map(String::as_str);
-    let routing_constraint = match routing_status {
-        Some("BLOCKED" | "PENDING") => Some((
-            DerivedState::Blocked,
-            "authoritative routing status is blocked or pending",
-        )),
-        Some("READY-AUDIT" | "VALIDATION") => Some((
-            DerivedState::Validation,
-            "authoritative routing status requires validation",
-        )),
-        _ => None,
-    };
-    routing_constraint.or_else(|| {
-        (node.metadata.get("proofRowState").map(String::as_str) == Some("PENDING")).then_some((
-            DerivedState::Validation,
-            "authoritative proof row is pending",
-        ))
-    })
+    node.id
+        .as_str()
+        .starts_with("WP/")
+        .then(|| {
+            let routing_status = node.metadata.get("routingStatus").map(String::as_str);
+            let routing_constraint = routing_status.and_then(|status| {
+                [
+                    (
+                        "BLOCKED",
+                        DerivedState::Blocked,
+                        "authoritative routing status is blocked or pending",
+                    ),
+                    (
+                        "PENDING",
+                        DerivedState::Blocked,
+                        "authoritative routing status is blocked or pending",
+                    ),
+                    (
+                        "READY-AUDIT",
+                        DerivedState::Validation,
+                        "authoritative routing status requires validation",
+                    ),
+                    (
+                        "VALIDATION",
+                        DerivedState::Validation,
+                        "authoritative routing status requires validation",
+                    ),
+                ]
+                .into_iter()
+                .find_map(|(candidate, state, reason)| {
+                    (candidate == status).then_some((state, reason))
+                })
+            });
+            let proof_allowed = routing_status != Some("READY");
+            routing_constraint.or_else(|| {
+                proof_allowed
+                    .then(|| {
+                        (node.metadata.get("proofRowState").map(String::as_str) == Some("PENDING"))
+                            .then_some((
+                                DerivedState::Validation,
+                                "authoritative proof row is pending",
+                            ))
+                    })
+                    .flatten()
+            })
+        })
+        .flatten()
 }
 
 fn dependencies_blocked(
@@ -227,15 +276,17 @@ fn dependencies_blocked(
     visiting: &mut BTreeSet<NodeId>,
     reasons: &mut Vec<String>,
 ) -> bool {
-    graph.dependencies(id).into_iter().any(|dependency| {
-        let dependency_state = state_for(graph, &dependency, visiting, reasons);
-        if dependency_state != DerivedState::Done {
-            reasons.push(format!("dependency `{dependency}` is {dependency_state:?}"));
-            true
-        } else {
-            false
-        }
-    })
+    graph
+        .dependencies(id)
+        .into_iter()
+        .find_map(|dependency| {
+            let dependency_state = state_for(graph, &dependency, visiting, reasons);
+            (dependency_state != DerivedState::Done).then(|| {
+                reasons.push(format!("dependency `{dependency}` is {dependency_state:?}"));
+                true
+            })
+        })
+        .is_some()
 }
 
 fn planned_state(
@@ -245,20 +296,20 @@ fn planned_state(
     visiting: &mut BTreeSet<NodeId>,
     reasons: &mut Vec<String>,
 ) -> DerivedState {
-    let blocked = dependencies_blocked(graph, id, visiting, reasons);
-    if blocked {
-        DerivedState::Blocked
-    } else if node.kind == NodeKind::Workpack {
-        node.metadata
-            .get("entryApproval")
-            .map(|entry_approval| {
-                reasons.push(format!("entry contract unresolved: {entry_approval}"));
-                DerivedState::Blocked
+    dependencies_blocked(graph, id, visiting, reasons)
+        .then_some(DerivedState::Blocked)
+        .or_else(|| {
+            (node.kind == NodeKind::Workpack).then(|| {
+                node.metadata
+                    .get("entryApproval")
+                    .map(|entry_approval| {
+                        reasons.push(format!("entry contract unresolved: {entry_approval}"));
+                        DerivedState::Blocked
+                    })
+                    .unwrap_or(DerivedState::Ready)
             })
-            .unwrap_or(DerivedState::Ready)
-    } else {
-        DerivedState::Planned
-    }
+        })
+        .unwrap_or(DerivedState::Planned)
 }
 
 fn stored_state(lifecycle: LifecycleState) -> DerivedState {
