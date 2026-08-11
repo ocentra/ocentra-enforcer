@@ -1,0 +1,59 @@
+a01 Cargo workspace and toolchain proof packet
+===============================================
+
+PROOF STATUS: PARTIAL / PENDING (NOT GREEN)
+The exact-SHA clean gates and two seeded negative gates below are retained.
+The a01 row remains PENDING because the CI-shaped global `cargo fmt --all
+--check` invocation exits with Windows os error 206 while traversing the
+vendored tree-sitter package, and the documented missing-[lints] deny-wall
+fixture/schema assertion is not present in this source tree. No status or
+WORKPACK_INDEX promotion is authorized by this packet.
+
+Exact source and environment
+----------------------------
+- Candidate/source SHA: 7d832c0487093487d8573b55142cbea541dbab33
+- Worktree used for clean gates: E:\a01audit (detached at the exact SHA)
+- Cargo home: E:\a01cargo
+- Target dir: E:\a01target
+- Temp/TMP: E:\a01tmp
+- CARGO_BUILD_JOBS=1; CARGO_INCREMENTAL=0
+- cargo: 1.95.0 (f2d3ce0bd 2026-03-21)
+- rustc: 1.95.0 (59807616 2026-04-14)
+- cargo-deny: 0.20.2
+- cargo-audit: 0.22.1
+- Cargo.lock SHA-256: 2392597A8E34EBC87B57DF4BCB4B0250A5CA4220B72DECB423C5255C401DB640
+- Cargo.toml SHA-256: FDB357D2E9595D537B1756ED9FDD88ECF4BED44CCA0C4D7D301D9B4475BBA686
+- rust-toolchain.toml SHA-256: 12DC5D64DBD96C1B07BE2943241D52D9F6127A79BA47A820455BA7B873FC896A
+- deny.toml SHA-256: E86DC1DCFBF66A5FBAF18F3271FCE7F1EB418B9C3A0882915D2F6E9791CBE44D
+- .github/workflows/ci.yml SHA-256: C7F0858FCE0950D4F538F8325D939F7CE07D0FA1F2EC33FC4234F84ED77ED503
+- `cargo metadata --locked --no-deps --format-version 1`: exit 0; 30 packages / 30 workspace members; output SHA-256 81A17B1F5D8F64A95D3438042B31016A1CBFFB310269DD640FC1D52259F3C146 (452,644 bytes; E:\a01tmp\metadata.json).
+
+Clean exact-SHA gates
+---------------------
+- `cargo deny check`: exit 0; advisories, bans, licenses, and sources all ok. Raw log SHA-256 E413AF586607619E7D6945628470BF331824AC29B275A4E1E453C643A3F8A7FA (E:\a01tmp\deny.log).
+- `cargo audit`: exit 0; 1,207 advisories loaded, 574 dependencies scanned, no vulnerabilities. Raw log SHA-256 F5B47EA0A8869C186346DD05B7CD228671643AE00F6DC771864F222808BD041D (E:\a01tmp\audit.log).
+- `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`: exit 0. Raw log SHA-256 DB17545B4E4FA25E605DBE2930B5A7425B0E554CA6F4A43B10E253A0B9C1C94B (E:\a01tmp\clippy.log). Existing ts-rs serde-attribute notes were emitted but did not change the exit class.
+- `GITHUB_HEAD_REF=rust-build cargo test --workspace --locked`: exit 0, including the full workspace, QA-170 branch-context rows, and doc-tests. Raw log SHA-256 B123640C7B77FFFD2368BA1DAE263C5884B1437460032D92518ECA32B892FE52 (E:\a01tmp\test-branch-context.log).
+- `cargo build --workspace --locked`: exit 0. Raw log SHA-256 3C81B21E357008DE10913CA7149C55AB3B6F7B05FF46A53203AA392F2E566306 (E:\a01tmp\build.log).
+
+Formatting gate and bounded Windows deviation
+----------------------------------------------
+- `cargo fmt --all --check`: exit 1 with `The filename or extension is too long. (os error 206)` after rustfmt entered the vendored `crates/enforcer-syntax/vendor/tree-sitter-magma/bindings/rust` files. Verbose log SHA-256 0745361EA15957419577266CA32E6BFB818DC8E5A9D7322CB7EC94A7F6C30C30 (E:\a01tmp\fmt-verbose.log).
+- Repeating the same global invocation through a temporary `X:` drive mapping produced the same os-206 exit (log SHA-256 6385861DD65EE89C5413B780C03EA922F1A3E7E6982E7981AD0B55994DC33247; E:\a01tmp\fmt-short-drive.log).
+- Package-scoped checks `cargo fmt --package <member> --check` were exit 0 for all 30 metadata members. The package logs are the `fmt-*.log` files under E:\a01tmp; no package-scoped formatter failure was observed. This does not substitute for the failed CI-shaped `--all` command.
+
+Seeded negative fixtures (disposable, never committed)
+-------------------------------------------------------
+- Formatting fixture: E:\a01negfmt, exact-SHA checkout with one intentionally spaced function declaration in `crates/enforcer-core/src/lib.rs` (fixture file SHA-256 41269C2DA74C7D28A12DBFBB9713E4A831AD1ADBDAE2E5B29ADC7C592654F3D2). `cargo fmt --package enforcer-core --check` exited 1 and printed the expected one-line diff.
+- Clippy/deny-wall fixture: E:\a01negclippy, exact-SHA checkout with `Err::<(), ()>(()).unwrap()` in a public function in `crates/enforcer-core/src/lib.rs` (fixture file SHA-256 A03314545CB171DDD48F27505FEB3A8F0772C07EA5934EF0768D0F5F5DAAC5E4). `cargo clippy -p enforcer-core --lib --locked -- -D warnings` exited 101 with both `clippy::unnecessary_literal_unwrap` and workspace `clippy::unwrap_used` errors.
+- Missing-lints schema negative: the TEST_PROOF_EXPECTATIONS row requires dropping `[lints] workspace = true` and seeing the deny-wall test fail. The named `crates/enforcer-lang-rust/fixtures/deny-wall/fail_missing_lints.rs` and `pass_opts_in.rs` files are absent at this exact SHA (the registry JSON references them), and no dedicated deny-wall schema test is present. A minimal disposable `E:\a01negdeny` Cargo fixture without `[lints] workspace = true` was checked with the built `enforcer.exe check --all` and returned exit 0/no findings, so this acceptance clause is explicitly UNMEASURED rather than inferred.
+
+Branch-context correction
+-------------------------
+- The first detached `cargo test --workspace --locked` run exited 101 only because QA-170 could not identify a source branch in a detached worktree. The two targeted QA-170 reruns passed with `GITHUB_HEAD_REF=rust-build`, followed by the authoritative full workspace rerun above (exit 0). This is retained as provenance, not suppressed as a flaky test.
+
+Scope and custody
+-----------------
+- No product source, root manifest, CI, plan, graph, or WORKPACK_INDEX file was edited in the clean audit worktree. The audit worktree had pre-existing unrelated modifications (`proof/plan/b02-selfhost.txt`, `proof/plan/b05-skill.txt`, and a protected vendor deletion); they were not staged or altered by this packet.
+- All build targets, Cargo home, temp files, and negative fixtures are on E:. They are disposable and must be removed only after this proof packet is committed/pushed and no owned cargo/rustc process remains.
+- This packet proves exact-SHA gate observations and explicit gaps only. It does not prove a01 GREEN, downstream workpack readiness, PR #6 mergeability, main cutover, or self-host plan completion.
