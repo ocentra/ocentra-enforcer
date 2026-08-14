@@ -12,42 +12,50 @@ use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurity
 use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+const FIXTURE_DIRECTORY: &[&str] = &[
+    "tests",
+    "fixtures",
+    "cyberskills",
+    "k8s-container-security-b01",
+];
+
 fn fixture(name: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/cyberskills/k8s-container-security-b01")
+    let path = FIXTURE_DIRECTORY
+        .iter()
+        .fold(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")),
+            |path, segment| path.join(segment),
+        )
         .join(name);
     Ok(std::fs::read_to_string(path)?)
 }
 
+fn fixture_path(name: &str) -> Result<RelPath, Box<dyn std::error::Error>> {
+    Ok([FIXTURE_DIRECTORY[3], name].join("/").parse()?)
+}
+
 fn validate_container(
     source: &str,
-    path: &str,
+    path: RelPath,
 ) -> Result<Vec<enforcer_domain::findings::Finding>, Box<dyn std::error::Error>> {
     let validator = K8sContainerSecurityValidator::new()?;
-    let file: RelPath = path.parse()?;
     Ok(validator.validate(ValidationInput {
         source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
-        file: &file,
+        file: &path,
         scope: ScanScope::Files,
     }))
 }
 
 #[test]
 fn hardened_supplied_container_evidence_is_accepted() -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(
-        &fixture("pass.json")?,
-        "k8s-container-security-b01/pass.json",
-    )?;
+    let findings = validate_container(&fixture("pass.json")?, fixture_path("pass.json")?)?;
     assert!(findings.is_empty(), "unexpected findings: {findings:?}");
     Ok(())
 }
 
 #[test]
 fn static_audit_drift_and_escape_facts_are_reported() -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(
-        &fixture("fail.json")?,
-        "k8s-container-security-b01/fail.json",
-    )?;
+    let findings = validate_container(&fixture("fail.json")?, fixture_path("fail.json")?)?;
     assert_eq!(findings.len(), 4, "unexpected findings: {findings:?}");
     assert!(findings
         .iter()
@@ -66,10 +74,8 @@ fn static_audit_drift_and_escape_facts_are_reported() -> Result<(), Box<dyn std:
 #[test]
 fn malformed_envelope_is_rejected_without_external_fallback(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(
-        &fixture("malformed.json")?,
-        "k8s-container-security-b01/malformed.json",
-    )?;
+    let findings =
+        validate_container(&fixture("malformed.json")?, fixture_path("malformed.json")?)?;
     assert_eq!(findings.len(), 1);
     assert!(findings[0].detail.as_str().contains("could not be decoded"));
     Ok(())
@@ -78,10 +84,7 @@ fn malformed_envelope_is_rejected_without_external_fallback(
 #[test]
 fn authorization_boundary_fixture_has_no_live_authority_effect(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(
-        &fixture("boundary.json")?,
-        "k8s-container-security-b01/boundary.json",
-    )?;
+    let findings = validate_container(&fixture("boundary.json")?, fixture_path("boundary.json")?)?;
     assert!(findings.is_empty(), "unexpected findings: {findings:?}");
     Ok(())
 }
@@ -90,7 +93,7 @@ fn authorization_boundary_fixture_has_no_live_authority_effect(
 fn existing_rbac_and_pod_validators_are_reused_for_adjacent_intents(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let rbac_source = "kind: Role\nrules:\n- verbs: [get]\n  resources: [configmaps]\n";
-    let rbac_file: RelPath = "k8s-container-security-b01/rbac.yaml".parse()?;
+    let rbac_file = fixture_path("rbac.yaml")?;
     let rbac_findings = K8sRbacValidator::new()?.validate(ValidationInput {
         source: enforcer_domain::boundary::validation::ValidationSource::from_text(rbac_source),
         file: &rbac_file,
@@ -119,7 +122,7 @@ spec:
       capabilities:
         drop: ["ALL"]
 "#;
-    let pod_file: RelPath = "k8s-container-security-b01/pod.yaml".parse()?;
+    let pod_file = fixture_path("pod.yaml")?;
     let pod_findings = K8sPodSecurityValidator::new()?.validate(ValidationInput {
         source: enforcer_domain::boundary::validation::ValidationSource::from_text(pod_source),
         file: &pod_file,

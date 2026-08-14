@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "packetId": "WP/CP09/IF-container-security/B01",
   "workpack": "CP09",
-  "baseCommit": "ef0d0b9775def568b4f457cce50228a7ac5d3a13",
-  "canonicalBaseCommit": "7d832c0487093487d8573b55142cbea541dbab33",
+  "baseCommit": "3fed67a45b1f41ea8455d87d1ec730fa11f26895",
+  "canonicalBaseCommit": "3fed67a45b1f41ea8455d87d1ec730fa11f26895",
   "status": "packet-evidence-only",
   "promotion": "none",
   "capability": {
