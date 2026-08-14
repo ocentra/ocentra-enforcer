@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL08",
+  "kind": "fact-backed-rule-pilot",
+  "baseCommit": "91f4bdd87b31d5c926f606f29c9899126c31ce84",
+  "claimEvent": "evt_d47eeff3b8ad45ee92b2c5430cf6f9ed",
+  "language": "rust",
+  "rule": {
+    "id": "T1-RUSTERR.1",
+    "title": "d17 rust-error-handling",
+    "implementation": "crates/enforcer-lang-rust/src/rules/error_handling.rs",
+    "record": {
+      "kind": "compiled-built-in",
+      "path": "crates/enforcer-domain/src/ids.rs",
+      "anchor": "BuiltInRustRule::ErrorHandling.id() -> T1-RUSTERR.1",
+      "standaloneJsonRecord": false
+    }
+  },
+  "factContract": {
+    "requiredCapability": "functionFacts",
+    "existingProvider": "enforcer-syntax::facts::function_facts::analyze",
+    "existingDispatch": "enforcer-validator::validator::Validator::validate_with_analysis",
+    "nativePredicate": "A finding inside a Rust function is emitted only when its source line is covered by an existing normalized FunctionFact span; file-scope findings retain legacy behavior.",
+    "unavailablePolicy": "Missing analysis or a non-fact-backed outcome returns ValidationDispatch::Skipped with an explicit reason.",
+    "newSharedContracts": false,
+    "newParserOrFact": false,
+    "newExternalTool": false
+  },
+  "sourceHashes": [
+    { "path": "crates/enforcer-lang-rust/src/rules/error_handling.rs", "sha256": "ab44bc1ce88a734d902b92e9a89ef50a35a42e8b795b8ed58082c9c81b868653", "bytes": 14287 },
+    { "path": "crates/enforcer-scan/tests/fact_backed_error_handling.rs", "sha256": "91c33e30cf328c39143fb24e6b77cd7a513a6d8e5c131747507cede2ea479595", "bytes": 6994 },
+    { "path": "crates/enforcer-domain/src/ids.rs", "sha256": "293342a7f9536f7cab3a8cb324dd229acfc332598a567d1215388a0f6cf1201d", "bytes": 43945 },
+    { "path": "crates/enforcer-syntax/src/facts/function_facts.rs", "sha256": "f6fda2f3710e6e2b551f9f463bcfae6db54f8dcb67e4f592bd42a79da71fd248", "bytes": 8635 },
+    { "path": "crates/enforcer-validator/src/validator.rs", "sha256": "a0b81a2658e4e81e0dbaedfa438bf461ed4cb943b2056ea2710a10cb0be93096", "bytes": 4012 },
+    { "path": "crates/enforcer-validator/src/analysis.rs", "sha256": "7129e278e32c8fa681eabf9adf1cd19a53da32362725750b400120a9c992683b", "bytes": 4779 },
+    { "path": "crates/enforcer-scan/src/engine.rs", "sha256": "67c9899683213d0068379de6bbc6a889b61a6947daf4555eba616e475521e8b7", "bytes": 61542 }
+  ],
+  "commands": [
+    { "command": "cargo fmt -p enforcer-lang-rust -p enforcer-scan", "exitCode": 0 },
+    { "command": "cargo test --locked -p enforcer-scan --test fact_backed_error_handling -- --nocapture", "exitCode": 0, "tests": { "passed": 3, "failed": 0 } },
+    { "command": "cargo test --locked -p enforcer-lang-rust -- --nocapture", "exitCode": 0, "tests": { "unit": 54, "layerDomain": 2, "failed": 0 } },
+    { "command": "cargo check --locked -p enforcer-lang-rust -p enforcer-scan", "exitCode": 0 },
+    { "command": "cargo clippy --locked -p enforcer-lang-rust -p enforcer-scan --all-targets -- -D warnings", "exitCode": 0 },
+    { "command": "git diff --check", "exitCode": 0 }
+  ],
+  "observedBuildWarnings": [
+    "Existing ts-rs warnings report serde attributes that ts-rs cannot parse; all focused test/check/clippy commands exited 0."
+  ],
+  "enforcer": {
+    "status": "passed",
+    "scope": [
+      "crates/enforcer-lang-rust/src/rules/error_handling.rs",
+      "crates/enforcer-scan/tests/fact_backed_error_handling.rs",
+      "proof/universal-language/ul08/current-fact-backed-rule-pilot.json"
+    ],
+    "route": { "profile": "strict", "scope": "files", "fileCount": 3, "exitCode": 0 },
+    "sourceShape": { "scope": "files", "fileCount": 2, "findings": 0, "violations": 0, "warnings": 0, "exitCode": 0 },
+    "strictScan": { "scope": "files", "fileCount": 3, "findings": 0, "violations": 0, "warnings": 0, "exitCode": 0 },
+    "secrets": { "scope": "files", "fileCount": 3, "findings": 0, "violations": 0, "warnings": 0, "exitCode": 0 },
+    "diffCheck": { "command": "git diff --check", "exitCode": 0 }
+  },
+  "protectedBoundary": {
+    "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+    "existsInIsolatedWorktree": false,
+    "read": false,
+    "touched": false,
+    "counted": false
+  },
+  "proves": [
+    "The existing Rust error-handling validator declares the functionFacts capability and consumes the existing Validator analysis dispatch seam.",
+    "The same fail/pass, comment, string, alias, and malformed-source cases produce equal legacy and fact-backed findings, preserving T1-RUSTERR.1 identity, error severity, source file, source line, and deterministic ordering.",
+    "The scan engine's run_with_analysis_provider path executes the fact-backed validator and preserves ordered findings.",
+    "Missing or legacy analysis is explicitly skipped rather than represented as a fact-backed clean result.",
+    "No parser, grammar, fact type, shared validator contract, framework, external engine, or third-party authority was added."
+  ],
+  "doesNotProve": [
+    "The default scan entry point is not rewired from LegacyAnalysisProvider; default scans therefore skip this fact-required rule until an existing provider is selected by a later bounded packet.",
+    "Other Rust rules, other languages, or the complete CyberSkills intent matrix are fact-backed.",
+    "Native implementation or executable proof for any vendor CyberSkill, external-engine execution, live system behavior, or security outcome.",
+    "Overall Universal Language or CyberSkills plan completion.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+  ]
+}

@@ -28,19 +28,25 @@ Advisory and manual knowledge can be lost or mislabeled as enforcement when a wh
 
 Retain every non-mechanical component with stable source evidence, an honest purpose/reason, and a T1 retention check.
 
+## Batch-01 validation packet
+
+The graph-selected first packet is `proof/cyberskills/cp11/batch-01/retention.json`. It covers the deterministic first ten `IF/ai-security` catalog IDs, references immutable CP08 artifact paths and hashes, and records 10 retained advisory plus 10 retained manual components. The packet has no native implementation or external execution authority. Its artifact SHA-256 is `D33B01026D72DAB2B2DAEBD21C3392366EA1C804C4EFAC62CFA3D89F771B1D89` (12291 bytes).
+
+The graph retention gate validates all 816 non-protected CP08 identities across 98 CP11 packets. The importer maps each packet's derived gate ID to its immutable retention artifact without copying component objects. The refreshed graph suite passed 6/6, and batch-01 remains SHA-256 `D33B01026D72DAB2B2DAEBD21C3392366EA1C804C4EFAC62CFA3D89F771B1D89` (12291 bytes). This closes CP11 retention evidence only; it does not promote native implementation, executable proof, live execution, or overall parity.
+
 ## Objective
 
 Ensure knowledge that cannot honestly decide pass/fail remains discoverable and never disappears behind a false parity count.
 
 ## Requirement Checklist
 
-- [ ] Every advisory/manual component retains canonical source path, hash, and section anchors.
-- [ ] `advisory` explains what a user or AI learns and why it is not enforcement.
-- [ ] `manual` states actor, prerequisites, procedure, expected evidence, and why judgment/environment prevents deterministic enforcement.
-- [ ] A mechanical retention gate fails if the component or source anchor disappears.
-- [ ] No T1/T2-looking predicate is buried as advisory merely to avoid implementation.
-- [ ] No advisory/manual item is described as passed, clean, compliant, or enforced.
-- [ ] If a third-party engine could mechanize part of it, split that part into an external component.
+- [x] Every advisory/manual component retains canonical source path, hash, and section anchors.
+- [x] `advisory` explains what a user or AI learns and why it is not enforcement.
+- [x] `manual` states actor, prerequisites, procedure, expected evidence, and why judgment/environment prevents deterministic enforcement.
+- [x] A mechanical retention gate fails if the component or source anchor disappears.
+- [x] No T1/T2-looking predicate is buried as advisory merely to avoid implementation.
+- [x] No advisory/manual item is described as passed, clean, compliant, or enforced.
+- [x] If a third-party engine could mechanize part of it, split that part into an external component.
 
 ## Acceptance And Proof
 

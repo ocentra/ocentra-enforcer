@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-92",
+  "family": "IF/web-application-security",
+  "baselineCommit": "2a9813b618ae947dac4580634ca3fc6761e3cb71",
+  "scope": "Retain the second web-application-security packet covering SSRF, injection, WebSocket, DevSecOps scanning, runtime protection, ModSecurity logging, and clickjacking guidance from immutable CP08 evidence; native predicates are limited to static supplied route, request, response, parser, schema, header, origin, token, policy, allowlist, scanner-profile, log, and evidence manifests; live applications, endpoints, servers, browsers, Burp, ZAP, fuzzers, payload execution, credentials, sessions, WAFs, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "exploiting-server-side-request-forgery",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-server-side-request-forgery/SKILL.md",
+        "sha256": "1121a34f7daff9e2eb82ea53f528a5b4a2b84b7f05cf29f6d2a3009312e3d966",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Server-Side Request Forgery:L30"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-38/decomposition.json", "artifactSha256": "e5c5ea73c3170a806934370c4947734c295524cfe9e24fcf0ec5384bff9a61d5"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive request validation, network-boundary, origin, evidence, and remediation guidance as advisory.", "notProved": ["No live SSRF, endpoint access, metadata exposure, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, endpoint and owner scope, legal/safety/privacy review, payload boundaries, analyst validation, stop conditions, and remediation decisions.", "notProved": ["No human SSRF test, network access, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "exploiting-sql-injection-with-sqlmap",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-sql-injection-with-sqlmap/SKILL.md",
+        "sha256": "f28f3bd0e2a0394cd51613186175cbe0aa6bfab0ac3df00fbcd90a1c28144243",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting SQL Injection with sqlmap:L30"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-62/decomposition.json", "artifactSha256": "57b725c6fb1aa6777e36474888053a306bc60e4654cd111a0b26dc5ed5c2aa16"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive query validation, parameterization, evidence, scope, and remediation guidance as advisory.", "notProved": ["No live SQL injection, query execution, data access, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application and data ownership, legal/safety/privacy review, payload boundaries, analyst validation, and remediation decisions.", "notProved": ["No human SQL test, data exposure, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "exploiting-template-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-template-injection-vulnerabilities/SKILL.md",
+        "sha256": "0ac2c69f239f602de658cf9bccb431207685397d29f80ea437eb6e7407f9b98f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Template Injection Vulnerabilities:L31"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-38/decomposition.json", "artifactSha256": "e5c5ea73c3170a806934370c4947734c295524cfe9e24fcf0ec5384bff9a61d5"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive template parsing, output encoding, evidence, and remediation guidance as advisory.", "notProved": ["No live template execution, code execution, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application and code ownership, legal/safety review, payload boundaries, analyst validation, and remediation decisions.", "notProved": ["No human payload test, execution, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "exploiting-type-juggling-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-type-juggling-vulnerabilities/SKILL.md",
+        "sha256": "e2a5f701c3b3a40b481c4642e2e7e7705834440f0655e2ee48e14fe6e502b016",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Type Juggling Vulnerabilities:L32"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-62/decomposition.json", "artifactSha256": "57b725c6fb1aa6777e36474888053a306bc60e4654cd111a0b26dc5ed5c2aa16"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive type validation, parser, comparison, evidence, and remediation guidance as advisory.", "notProved": ["No live type-juggling behavior, authentication bypass, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application scope, legal/safety/privacy review, test data handling, analyst validation, and remediation decisions.", "notProved": ["No human test, access finding, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "exploiting-websocket-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-websocket-vulnerabilities/SKILL.md",
+        "sha256": "b2504661bb4ff59fcea800c426293b02a3ec129de9d4e16ae75d443614ecd948",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting WebSocket Vulnerabilities:L31"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-38/decomposition.json", "artifactSha256": "e5c5ea73c3170a806934370c4947734c295524cfe9e24fcf0ec5384bff9a61d5"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive WebSocket origin, message, session, authorization, evidence, and remediation guidance as advisory.", "notProved": ["No live WebSocket session, message, authorization bypass, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application and owner scope, legal/safety/privacy review, session and data boundaries, analyst validation, and remediation decisions.", "notProved": ["No human session test, message finding, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "implementing-devsecops-security-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-devsecops-security-scanning/SKILL.md",
+        "sha256": "33dff9b664e4e1dfbbeca11f9966dd3f67a83174d04b680577011ef1d48e20ec",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing DevSecOps Security Scanning:L40"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json", "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive DevSecOps scanning, pipeline, evidence, finding review, and remediation guidance as advisory.", "notProved": ["No live pipeline, scanner, finding, coverage, remediation, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, repository and pipeline ownership, legal/privacy review, release scope, analyst validation, and remediation decisions.", "notProved": ["No human pipeline approval, scan, finding, release, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "implementing-runtime-application-self-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-runtime-application-self-protection/SKILL.md",
+        "sha256": "54161a1a0f868a2535f344c0b46be7260c66034cb16673ed95d224a97800701b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Runtime Application Self-Protection:L36"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json", "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive runtime policy, input validation, telemetry, evidence, and application-hardening guidance as advisory.", "notProved": ["No runtime protection, detection, blocking, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application ownership, deployment scope, legal/safety review, stop conditions, analyst validation, and remediation decisions.", "notProved": ["No human runtime policy, blocking, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "implementing-web-application-logging-with-modsecurity",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-web-application-logging-with-modsecurity/SKILL.md",
+        "sha256": "db2b1a83aa5a3944c48863cc84194c574900d32ee165fc78a8d7ec5b82b1bfe9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Web Application Logging with ModSecurity:L43"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json", "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive web logging, event schema, evidence retention, triage, and remediation guidance as advisory.", "notProved": ["No live ModSecurity, log stream, detection, event completeness, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application and data scope, privacy/legal review, retention and disclosure decisions, analyst validation, and remediation ownership.", "notProved": ["No human logging policy, event truth, disclosure, remediation, or security outcome is proved."]}
+    },
+    {
+      "catalogId": "performing-blind-ssrf-exploitation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-blind-ssrf-exploitation/SKILL.md",
+        "sha256": "463a1d04e54a8b18a34f951085f87777d2e2aa9729012ba9f8b79e19232bb1f6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Blind SSRF Exploitation:L32"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json", "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive SSRF scope, callback evidence, origin validation, and remediation guidance as advisory.", "notProved": ["No live callback, network request, endpoint access, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, target and callback ownership, legal/safety/privacy review, payload boundaries, analyst validation, stop conditions, and remediation decisions.", "notProved": ["No human SSRF test, callback, network access, containment, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "performing-clickjacking-attack-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-clickjacking-attack-test/SKILL.md",
+        "sha256": "19f23db7c0b5d240e2b34f5e7f917db68847c7582073cf81fd967035215c8667",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Clickjacking Attack Test:L36"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json", "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive framing, origin, header, UI, evidence, and remediation guidance as advisory.", "notProved": ["No live browser, frame, clickjacking, header behavior, exploitability, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, application and owner scope, legal/safety/privacy review, browser and data boundaries, analyst validation, and remediation decisions.", "notProved": ["No human browser test, UI finding, containment, remediation, or disclosure decision is proved."]}
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, application, browser, server, Burp, ZAP, fuzzer, payload, credential, session, WAF, log stream, network, or production execution is proved.",
+    "No exploitability, authentication, authorization, parser behavior, data exposure, vulnerability, finding, remediation, detection, or security outcome is proved.",
+    "This packet covers the second ten web-application-security skills; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, platforms, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

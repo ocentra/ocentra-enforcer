@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-53",
+  "family": "IF/ot-ics-security",
+  "baselineCommit": "803e556f0fd6e9ebe5598e43e0ab01ed0aa0625e",
+  "scope": "Retain advisory and manual content for the final OT/ICS security packet from immutable CP08 evidence; native predicates are limited to static supplied network, vulnerability, PLC firmware, power-grid, S7comm, SCADA/HMI, historian, remote-access, asset, safety, ownership, scope, and evidence manifests; no live PLC, historian, SCADA, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, scanner, firmware, grid, facility, safety, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-ot-network-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ot-network-security-assessment/SKILL.md",
+        "sha256": "ab05b3c8cdc7be0b2499fe30f996bde34ae268bf5560dfe60b1f8bf45f235e8f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Performing OT Network Security Assessment:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT network assessment, segmentation, protocol, safety, monitoring, and defensive review guidance.",
+        "notProved": ["Guidance is not live network assessment, topology, traffic, vulnerability, safety, or security truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network and asset ownership, legal/privacy/safety review, scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No live OT network, scanner, protocol, controller, packet, or production assessment action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ot-vulnerability-assessment-with-claroty",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ot-vulnerability-assessment-with-claroty/SKILL.md",
+        "sha256": "9f8b7aa791b0fdf1312c9d754c23ee7c4d80154376cec168207bc71ca8954aea",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing OT Vulnerability Assessment with Claroty:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-76/decomposition.json",
+        "artifactSha256": "fef0536670b4a4fb7b402f0766da2135a15a34d31cc26315aca4a35b66769b39"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Claroty-oriented OT vulnerability, asset, prioritization, remediation, safety, and defensive assessment guidance.",
+        "notProved": ["Guidance is not Claroty finding truth, vulnerability validity, exploitability, remediation, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, facility and asset ownership, legal/data/safety review, scanner scope, stop conditions, analyst validation, exception, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No live Claroty, scanner, endpoint, PLC, network, finding, or production remediation action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ot-vulnerability-scanning-safely",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ot-vulnerability-scanning-safely/SKILL.md",
+        "sha256": "46782c0cfc7b8f190c2e4318b70c66781c50e59a3b9ea861c3de05989c7c350c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing OT Vulnerability Scanning Safely:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-76/decomposition.json",
+        "artifactSha256": "fef0536670b4a4fb7b402f0766da2135a15a34d31cc26315aca4a35b66769b39"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain safe OT vulnerability scanning, scheduling, allowlisting, maintenance, vendor, and defensive risk guidance.",
+        "notProved": ["Guidance is not scanner execution, vulnerability truth, exploitability, availability, safety, or remediation success."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned lab or facility scope, asset and process ownership, legal/privacy/safety review, rate and stop conditions, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live scan, target, endpoint, protocol, controller, availability, safety, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-plc-firmware-security-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-plc-firmware-security-analysis/SKILL.md",
+        "sha256": "f5eb45d2da16ec948ef370cc87efd0481180582c10d3c5f27e56ed9825909cdc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing PLC Firmware Security Analysis:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain PLC firmware, supply-chain, version, integrity, safety, review, and defensive analysis guidance.",
+        "notProved": ["Guidance is not firmware extraction, decompilation, vulnerability truth, device integrity, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, firmware and device ownership, legal/data/safety review, chain of custody, analyst validation, change approval, rollback, and disclosure decisions.",
+        "notProved": ["No live PLC, firmware image, device, reverse-engineering, safety, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-power-grid-cybersecurity-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-power-grid-cybersecurity-assessment/SKILL.md",
+        "sha256": "e70aa6c49fe609d12ae640a011cd0056c5fcf033750079e6e5a7493ad1fe8068",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Power Grid Cybersecurity Assessment:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain power-grid asset, control, NERC, resilience, safety, incident, recovery, and defensive assessment guidance.",
+        "notProved": ["Guidance is not grid state, control truth, compliance, resilience, safety, assessment coverage, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written utility authorization, asset and process ownership, legal/regulatory/safety review, operational approval, stop conditions, analyst validation, containment, recovery, and disclosure decisions.",
+        "notProved": ["No live grid, utility, controller, safety, incident, recovery, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-s7comm-protocol-security-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-s7comm-protocol-security-analysis/SKILL.md",
+        "sha256": "da35181587236bdfca1c2bfe77377eb66677285b06d67e0384b34571fad5d551",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing S7comm Protocol Security Analysis:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain S7comm protocol, PLC, safety, segmentation, monitoring, and defensive analysis guidance.",
+        "notProved": ["Guidance is not protocol traffic, PLC behavior, packet capture, anomaly truth, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, protocol and device ownership, legal/privacy/safety review, lab scope, stop conditions, analyst validation, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live S7comm, PLC, packet, controller, network, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-scada-hmi-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-scada-hmi-security-assessment/SKILL.md",
+        "sha256": "261181967779a22ef11347bf30bd59b8a6a80cd8e3bb5df83a8f1125ea176222",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SCADA HMI Security Assessment:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain SCADA/HMI assessment, access, configuration, safety, monitoring, incident, and defensive review guidance.",
+        "notProved": ["Guidance is not HMI state, SCADA access, configuration truth, vulnerability, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, plant and HMI ownership, legal/privacy/safety review, scope, change approval, stop conditions, analyst validation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No live SCADA, HMI, controller, credential, session, network, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-historian-server-in-ot-environment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-historian-server-in-ot-environment/SKILL.md",
+        "sha256": "acdd142a09a280e09f165c71056a063605f83456d66d3c10ef5b524238300176",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Historian Server in OT Environment:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain historian hardening, access, segmentation, backup, logging, incident, and defensive OT guidance.",
+        "notProved": ["Guidance is not historian state, access enforcement, log truth, backup integrity, availability, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, historian and plant ownership, legal/privacy/safety review, maintenance approval, data handling, stop conditions, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live historian, credential, endpoint, log, backup, controller, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-remote-access-to-ot-environment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-remote-access-to-ot-environment/SKILL.md",
+        "sha256": "fe76777077eb991c5911ccf99b27cd426e373e4f95058b7833825bacb0b52084",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Remote Access to OT Environment:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT remote-access, VPN, jump-host, MFA, least-privilege, monitoring, safety, and defensive governance guidance.",
+        "notProved": ["Guidance is not remote session truth, access enforcement, authentication, endpoint state, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, remote-access and asset ownership, legal/privacy/safety review, least privilege, enrollment/revocation, session approval, stop conditions, rollback, and disclosure decisions.",
+        "notProved": ["No live VPN, jump host, IAM, credential, session, controller, network, or production access is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 9,
+    "advisoryRetained": 9,
+    "manualRetained": 9,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live PLC, historian, SCADA, DNP3, Modbus, S7comm, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, scanner, firmware, grid, facility, safety, or production action is proved.",
+    "No OT asset truth, anomaly detection, attack detection, protocol truth, monitoring efficacy, access enforcement, vulnerability validity, remediation, compliance, safety outcome, attribution, or security outcome is proved.",
+    "This packet contains the final 9 OT/ICS security skills; advisory/manual retention for this family is complete after this packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

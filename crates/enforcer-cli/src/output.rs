@@ -115,6 +115,14 @@ pub fn print_config_error(message: &str) {
     emit_stderr(&format!("enforcer: config error: {message}"));
 }
 
+/// Render a Cyber Plan graph view through the single CLI output boundary.
+pub fn print_graph_json<T: serde::Serialize>(value: &T) {
+    let rendered = serde_json::to_string_pretty(value).unwrap_or_else(|error| {
+        format!("{{\"ok\":false,\"error\":\"cannot serialize graph view: {error}\"}}")
+    });
+    emit_stdout(&rendered);
+}
+
 /// Emit the Claude Code `PreToolUse` permission-decision envelope. The hook
 /// command uses this JSON as the authoritative allow/deny signal; a denial
 /// also exits with the canonical violations code so hosts that ignore the

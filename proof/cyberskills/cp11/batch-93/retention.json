@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-93",
+  "family": "IF/web-application-security",
+  "baselineCommit": "b7b2da663b3ec87fabcaa552af487b3f3979c0e7",
+  "scope": "Retain the third web-application-security packet covering CSP, CSRF, directory traversal, fuzzing, GraphQL, HTTP parameter pollution, second-order SQL injection, security headers, subdomain enumeration, and supply-chain simulation guidance from immutable CP08 evidence; native predicates are limited to static supplied route, request, response, parser, schema, header, origin, token, policy, allowlist, domain, package, scanner-profile, and evidence manifests; live applications, endpoints, servers, browsers, Burp, ZAP, fuzzers, payload execution, databases, DNS, registries, credentials, sessions, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-content-security-policy-bypass",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-content-security-policy-bypass/SKILL.md",
+        "sha256": "58ae4138467e45d47d16a978efbc62092e9a8486109f9f95a977ffbb15653a2d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Content Security Policy Bypass:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CSP design review, browser-policy hardening, authorized testing, and defensive remediation guidance as advisory.",
+        "notProved": [
+          "No CSP behavior, bypass, script execution, finding validity, control effectiveness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application ownership, legal/safety/data review, bounded scope, analyst validation, stop conditions, and remediation decisions.",
+        "notProved": [
+          "No authorization, live test, browser result, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-csrf-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-csrf-attack-simulation/SKILL.md",
+        "sha256": "b4e7130b8614fe1fad4fc044b9422b997900b9fb34aac909bfb9b320865a7ad2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing CSRF Attack Simulation:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive CSRF testing, token, origin, cookie, and request-validation guidance as advisory.",
+        "notProved": [
+          "No live session, request forgery, token bypass, payload delivery, exploitability, finding, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, live request, session result, or remediation decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-directory-traversal-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-directory-traversal-testing/SKILL.md",
+        "sha256": "c4c7de462403535b21c246b2194adf2f9a6c40131586dc73ede212a3f718e70f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Directory Traversal Testing:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive path-validation, authorization, normalization, and traversal-testing guidance as advisory.",
+        "notProved": [
+          "No filesystem access, path traversal, payload execution, exploitability, data exposure, finding, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, filesystem access, live test, or remediation decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-fuzzing-with-aflplusplus",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-fuzzing-with-aflplusplus/SKILL.md",
+        "sha256": "216c588dabe7f2e0531d5f09932fd4e9162079d4381ca8f3fc0ec6c6330087b6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Fuzzing with AFL++:L42"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-75/decomposition.json",
+        "artifactSha256": "0a091e58e4a53b0699707defe2d203fbe6fae3a8de821f5e3a12a124fe4468c1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain fuzz-plan design, secure parser review, crash triage, safety, and defensive remediation guidance as advisory.",
+        "notProved": [
+          "No fuzz execution, crash, coverage, finding validity, exploitability, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, target ownership, isolated scope, legal/safety review, resource limits, stop conditions, analyst validation, and disclosure decisions.",
+        "notProved": [
+          "No authorization, live fuzzing, process execution, crash triage, or compromise is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-graphql-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-graphql-security-assessment/SKILL.md",
+        "sha256": "44700dec87401270795d075676f15b5e6438704d7944cd5345a1d435efd827a2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing GraphQL Security Assessment:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive GraphQL schema, authorization, complexity, introspection, and testing guidance as advisory.",
+        "notProved": [
+          "No live schema, query, endpoint, authentication bypass, denial, exploitability, finding, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, GraphQL query, endpoint behavior, or remediation decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-http-parameter-pollution-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-http-parameter-pollution-attack/SKILL.md",
+        "sha256": "70cd901ee9d7b34073769dd09dcc9a2c685b01a25510ae4a22c8c7bf12342178",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing HTTP Parameter Pollution Attack:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-75/decomposition.json",
+        "artifactSha256": "0a091e58e4a53b0699707defe2d203fbe6fae3a8de821f5e3a12a124fe4468c1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain request parsing, duplicate-parameter handling, API hardening, authorized testing, and remediation guidance as advisory.",
+        "notProved": [
+          "No parser behavior, parameter pollution, request result, bypass, data exposure, vulnerability, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.",
+        "notProved": [
+          "No authorization, live attack, parser result, or remediation decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-second-order-sql-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-second-order-sql-injection/SKILL.md",
+        "sha256": "df0f1672fe205bd3d6353f199907d1545291d729be5ef48746e29d0887672b2b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Second-Order SQL Injection:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain parameterization, input validation, query review, secure testing, logging, and defensive remediation guidance as advisory.",
+        "notProved": [
+          "No stored payload, SQL injection, query execution, data exposure, finding validity, exploitability, or remediation effectiveness is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application/database ownership, legal/data handling review, bounded test scope, stop conditions, analyst validation, and remediation decisions.",
+        "notProved": [
+          "No authorization, live exploit, database access, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-security-headers-audit",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-security-headers-audit/SKILL.md",
+        "sha256": "7467c71ba1d46bb53d41bdc3d46965705550c2d2c2a35d3a94d27c2169f560e8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Security Headers Audit:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive security-header, browser-policy, TLS-policy, and remediation guidance as advisory.",
+        "notProved": [
+          "No live response, browser behavior, endpoint reachability, vulnerability, finding, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, header capture, deployed-control validation, or remediation decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-subdomain-enumeration-with-subfinder",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-subdomain-enumeration-with-subfinder/SKILL.md",
+        "sha256": "527927896d91d4e1b06fb37d5f478ffeaf92d6fbaa0b9c0d899c884f4e761f5e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Subdomain Enumeration with Subfinder:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive subdomain inventory, source evaluation, scope, authorization, evidence, validation, exposure review, and remediation guidance as advisory.",
+        "notProved": [
+          "No live collection, DNS resolution, subdomain completeness, ownership, freshness, exposure, finding, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, domain ownership, legal/privacy/ethics review, source terms, data boundaries, collection stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human collection, ownership, validation, finding, containment, remediation, rollback, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-supply-chain-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-supply-chain-attack-simulation/SKILL.md",
+        "sha256": "9bf9841d3d6b352fe7f6bcd7a8231171d724756f4b1ec462ae4e8a6b341fa2bf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Supply Chain Attack Simulation:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-79/decomposition.json",
+        "artifactSha256": "dbc9422fc04edceb306c4f80fee5be0380cd830f1a2be95a1d8acec471c1e0ae"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain dependency pinning, hash verification, registry governance, SBOM, advisory review, and defensive release guidance as advisory.",
+        "notProved": [
+          "No package behavior, typosquatting, dependency confusion, vulnerability, finding validity, package safety, or supply-chain outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, package and repository ownership, release approval, legal/license review, severity validation, rollback, disclosure, and remediation decisions.",
+        "notProved": [
+          "No authorization, live simulation, package publication or installation, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live application, endpoint, browser, server, Burp, ZAP, fuzzer, payload, database, DNS, registry, credential, session, or production execution is proved.",
+    "No exploitability, authentication, authorization, parser behavior, data exposure, vulnerability, finding, remediation, detection, discovery, ownership, or security outcome is proved.",
+    "This packet covers the third web-application-security skill set; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, browsers, platforms, registries, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

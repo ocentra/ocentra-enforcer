@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-40",
+  "family": "IF/malware-analysis",
+  "baselineCommit": "860d34bdde680ca83e8c09a05a444b8fca260ff5",
+  "scope": "Retain advisory and manual content for the deterministic malware-analysis packet from immutable CP08 evidence; no native implementation, live sample execution, detonation, reverse engineering, attribution, endpoint, network, sandbox, scanner, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-android-malware-with-apktool",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-android-malware-with-apktool/SKILL.md",
+        "sha256": "08b14e41b31752a46cfa302638330b10ed4e1b569fbeed307a1d7f9c0e67704f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Android Malware with Apktool:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-bootkit-and-rootkit-samples",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-bootkit-and-rootkit-samples/SKILL.md",
+        "sha256": "79c75c6ce8988089ebb22d7a02adca9f3529dbd1e997d0b96cfc231deabcc265",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Bootkit and Rootkit Samples:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-cobalt-strike-beacon-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cobalt-strike-beacon-configuration/SKILL.md",
+        "sha256": "ce44cb3f75aa06b92fde37828ac5bf361a30c871ebf9a2fd01101af38f128e7b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Cobalt Strike Beacon Configuration:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json",
+        "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-cobaltstrike-malleable-c2-profiles",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cobaltstrike-malleable-c2-profiles/SKILL.md",
+        "sha256": "2438c6e267f75442abae2e6ae719d312f2358e689ddf905daaf4b5dfed43dcb1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing CobaltStrike Malleable C2 Profiles:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json",
+        "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-command-and-control-communication",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-command-and-control-communication/SKILL.md",
+        "sha256": "2ca93af31f3cb0633cf8b5d0da45d0c25058944c0796434af503bbf6cd307046",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Command-and-Control Communication:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json",
+        "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-golang-malware-with-ghidra",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-golang-malware-with-ghidra/SKILL.md",
+        "sha256": "7db3cf8446956b030f6e520fdde1164e9b59bae7bc7ef8369d337e58fb3d6452",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Golang Malware with Ghidra:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-heap-spray-exploitation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-heap-spray-exploitation/SKILL.md",
+        "sha256": "93825dc2e7d0ba8cc87356cc2edf5d7837b23d41cbec273dcb2d1c870602f4bd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Heap Spray Exploitation:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-52/decomposition.json",
+        "artifactSha256": "f4fb49c294289ade67b5327106ff1aa303c23264b4d4fb8b89c95060ca92d0f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-linux-elf-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-linux-elf-malware/SKILL.md",
+        "sha256": "1cf2977ee44a870e38a560c9b661d9177815e21d3d9ac80b423662a5af6ea26b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Linux ELF Malware:L57"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-macro-malware-in-office-documents",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-macro-malware-in-office-documents/SKILL.md",
+        "sha256": "f63202e005d9b10280c6a8517a073322945a70454a617ff6ef37bcb48506e51a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Macro Malware in Office Documents:L42"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-malicious-pdf-with-peepdf",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-malicious-pdf-with-peepdf/SKILL.md",
+        "sha256": "6c1134f57aa7db3fb344c8b1b26162e729296c50017d1ea5f55d93eb7d4756ce",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Malicious PDF with peepdf:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-analysis, sample-review, triage, and incident-investigation guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, safety controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live malware execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution is proved.",
+    "No sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome is proved.",
+    "This packet contains malware-analysis skills 1 through 10; the remaining 28 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

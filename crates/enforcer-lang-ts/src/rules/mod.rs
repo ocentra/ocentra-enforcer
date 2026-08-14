@@ -8,6 +8,7 @@ pub mod generic_scanner;
 pub mod import_boundaries;
 pub mod layered_frontend;
 pub mod registry;
+pub(crate) mod schema_framework;
 pub mod source_scan;
 pub mod spec;
 pub mod test_scan;

@@ -33,6 +33,8 @@ enforcer-lang-rust = { path = "../enforcer-lang-rust", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Language-family validators are dispatched through this central scan engine.
 enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }
 enforcer-lang-py = { path = "../enforcer-lang-py", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Existing Dart validators are dispatched by the central scan engine.
+enforcer-lang-dart = { path = "../enforcer-lang-dart", version = "0.1.0" }
 enforcer-lang-security = { path = "../enforcer-lang-security", version = "0.1.0" }
 enforcer-lang-iac = { path = "../enforcer-lang-iac", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Kubernetes and literal-risk validators participate in routed scan reports.

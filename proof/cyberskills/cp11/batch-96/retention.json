@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-96",
+  "family": "IF/wireless-security",
+  "baselineCommit": "986677293b240aa11fc3baa473d174d3aedc9fd5",
+  "scope": "Retain the wireless-security packet for Bluetooth Low Energy attack indicators and Bluetooth security assessment guidance from immutable CP08 evidence; native predicates are limited to static supplied wireless configuration, device, service, protocol, pairing, encryption, key, access, segmentation, observation, owner, scope, and evidence manifests; Bluetooth adapters, radios, devices, scanners, packet capture, pairing, probing, injection, live wireless networks, credentials, sessions, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-bluetooth-low-energy-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-bluetooth-low-energy-attacks/SKILL.md",
+        "sha256": "c0a68882c562c82189383216e49efbc267bc7e59ed06eb15da8d0bf4dae9183b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Bluetooth Low Energy Attacks:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-57/decomposition.json",
+        "artifactSha256": "41d69500ba11446d0a0d72192c2bd3ddc15c4267cc4f5feb362d5ab08c4e00ed"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Bluetooth Low Energy pairing, service, encryption, device-hardening, monitoring, and incident-review guidance as advisory.",
+        "notProved": ["No live radio observation, BLE attack, packet, device compromise, detection efficacy, finding validity, or remediation effectiveness is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and network ownership, legal and safety review, privacy and data handling controls, bounded radio scope, stop conditions, analyst validation, containment, and remediation decisions.",
+        "notProved": ["No authorization, live wireless test, device access, packet capture, containment, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-bluetooth-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-bluetooth-security-assessment/SKILL.md",
+        "sha256": "f704774e9827ed5eb832149c72902f6181a26b5d405fc00deca644ab79fe4f76",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Bluetooth Security Assessment:L25"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Bluetooth architecture, pairing, authentication, encryption, service exposure, segmentation, assessment planning, and remediation guidance as advisory.",
+        "notProved": ["No live Bluetooth assessment, radio behavior, pairing result, service exposure, vulnerability, finding validity, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, device and owner approval, legal and safety review, privacy and data boundaries, radio stop conditions, analyst validation, severity, containment, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human wireless assessment, device access, pairing attempt, packet capture, finding, containment, remediation, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 2,
+    "advisoryRetained": 2,
+    "manualRetained": 2,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Bluetooth adapter, radio, device, scanner, packet capture, pairing, probe, injection, credential, session, wireless network, or production execution is proved.",
+    "No attack detection, assessment result, device compromise, service exposure, vulnerability, attribution, finding, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, Bluetooth tools, radios, scanners, packet analyzers, devices, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

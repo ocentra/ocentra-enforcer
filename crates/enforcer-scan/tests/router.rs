@@ -95,6 +95,39 @@ fn mixed_repo_routes_rust_and_ts_packs_and_native_tools() -> Result<(), Box<dyn 
 }
 
 #[test]
+fn dart_repo_routes_dart_pack_and_native_tool() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::write(
+        temp.path().join("main.dart"),
+        "class OrderPage { void load(Map<String, String> params) { final id = int.parse(params['id']!); print(id); } }",
+    )?;
+    let paths = walked_paths(temp.path())?;
+    let tie = tie_for(temp.path())?;
+    let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
+
+    assert_eq!(plan.languages, vec![DetectedLanguage::Dart]);
+    assert_eq!(
+        plan.rule_packs,
+        vec![
+            RulePack::Dart,
+            RulePack::Security,
+            RulePack::LiteralScanFloor,
+            RulePack::SecurityAudit,
+        ],
+        "a Dart repository must route the Dart pack plus cross-cutting packs"
+    );
+    assert_eq!(
+        plan.native_tools
+            .iter()
+            .map(|route| route.tool)
+            .collect::<Vec<_>>(),
+        vec![WireNativeTool::Dart],
+        "a Dart repository must expose the typed Dart native-tool route"
+    );
+    Ok(())
+}
+
+#[test]
 fn rust_only_repo_routes_rust_only_never_leaks_other_packs(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("rust_only");

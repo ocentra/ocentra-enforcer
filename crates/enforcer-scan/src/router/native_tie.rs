@@ -55,6 +55,7 @@ pub(crate) const fn native_tool_for_scan_family(family: LanguageFamily) -> Optio
         LanguageFamily::Rust => Some(NativeTool::Cargo),
         LanguageFamily::TypeScript => Some(NativeTool::Tsc),
         LanguageFamily::Python => Some(NativeTool::Ruff),
+        LanguageFamily::Dart => Some(NativeTool::Dart),
         LanguageFamily::Terraform | LanguageFamily::YamlOrConfig | LanguageFamily::Unknown => None,
     }
 }
@@ -128,6 +129,10 @@ mod tests {
         assert_eq!(
             native_tool_for_scan_family(LanguageFamily::Python),
             Some(enforcer_domain::config_types::NativeTool::Ruff)
+        );
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::Dart),
+            Some(enforcer_domain::config_types::NativeTool::Dart)
         );
         assert_eq!(native_tool_for_scan_family(LanguageFamily::Terraform), None);
         assert_eq!(

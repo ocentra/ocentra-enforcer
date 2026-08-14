@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-43",
+  "family": "IF/malware-analysis",
+  "baselineCommit": "53b6fc86f1099982172fadb8b4a4417924c490e2",
+  "scope": "Retain advisory and manual content for the deterministic final malware-analysis packet from immutable CP08 evidence; no native implementation, live sample execution, detonation, reverse engineering, attribution, endpoint, network, sandbox, scanner, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-memory-forensics-with-volatility3-plugins",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-memory-forensics-with-volatility3-plugins/SKILL.md",
+        "sha256": "4df1dfc0a60516f320d8a1c103b7472eb0614d0271fdded76f5b9ad531ce512d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Memory Forensics with Volatility3 Plugins:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-31/decomposition.json",
+        "artifactSha256": "5e9ca87a968fea1833a060b4be25b16c3bb08999719fc7a8f8863f415dd30138"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-static-malware-analysis-with-pe-studio",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-static-malware-analysis-with-pe-studio/SKILL.md",
+        "sha256": "35815f8a271d449b3710d4cb7fd45be90556cc8dff95ae71810fd3b7fbc5736e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Static Malware Analysis with PEStudio:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-yara-rule-development-for-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-yara-rule-development-for-detection/SKILL.md",
+        "sha256": "28e86ed2a26835c7e6b9bd292af165f8a691d90a2f73b414fd62f3894570eaff",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing YARA Rule Development for Detection:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "reverse-engineering-android-malware-with-jadx",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-android-malware-with-jadx/SKILL.md",
+        "sha256": "91eb61b48b0823b5935867953974c23e1b02628e040162b39199e0fc9b10f845",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering Android Malware with JADX:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "reverse-engineering-dotnet-malware-with-dnspy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-dotnet-malware-with-dnspy/SKILL.md",
+        "sha256": "fa959431c9480a13eb59120a69473a29500f2982ace844c820c572c512e18bfd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering .NET Malware with dnSpy:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "reverse-engineering-malware-with-ghidra",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-malware-with-ghidra/SKILL.md",
+        "sha256": "485453831a5c52ec9e0e2ea0a43807b357c8afcdddfee90e6cb093f35a88e7c0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering Malware with Ghidra:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "reverse-engineering-ransomware-encryption-routine",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-ransomware-encryption-routine/SKILL.md",
+        "sha256": "a6f48f1d93975b060ef554355aa8ec1721734a6c9203f465257852d65468eb29",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering Ransomware Encryption Routine:L56"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "reverse-engineering-rust-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-rust-malware/SKILL.md",
+        "sha256": "4cadacc54b66c2876aa9e180de3a076b2ead85931bc26115011cb414bd31c12f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering Rust Malware:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain memory, static, YARA, reverse-engineering, and malware-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 8,
+    "advisoryRetained": 8,
+    "manualRetained": 8,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live malware execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution is proved.",
+    "No sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome is proved.",
+    "This final packet contains the remaining 8 malware-analysis skills; no family skills remain after this packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

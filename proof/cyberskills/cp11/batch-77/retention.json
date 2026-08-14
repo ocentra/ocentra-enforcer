@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-77",
+  "family": "IF/threat-hunting",
+  "baselineCommit": "832db3957f6bcd3aebcadfcbc039c28de5f2b984",
+  "scope": "Retain threat-hunting hypotheses, telemetry queries, relationships, pivots, evidence, and analyst decision guidance from immutable CP08 evidence; native predicates are limited to static supplied hypothesis, query, event, relationship, pivot, host, process, identity, network, evidence, owner, severity, and response manifests; live endpoints, hosts, processes, credentials, directories, packets, SIEM, EDR, cloud, network, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-lateral-movement-with-splunk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-lateral-movement-with-splunk/SKILL.md",
+        "sha256": "f5312013f759de17a26347374c4f354c8c5b6a3d5c0484d12b6af480fc4bf23b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Lateral Movement with Splunk:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive lateral-movement, event-correlation, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live Splunk, host, identity, network, lateral-movement finding, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, telemetry and asset ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, lateral-movement conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-malicious-scheduled-tasks-with-sysmon",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-malicious-scheduled-tasks-with-sysmon/SKILL.md",
+        "sha256": "63bb860944375ad8aa6e384551a3c902f121e1016b429596c15fe650d9b8eded",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Malicious Scheduled Tasks with Sysmon:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive scheduled-task, process, Sysmon, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live Sysmon, task scheduler, process, endpoint, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, scheduled-task conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-mimikatz-execution-patterns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-mimikatz-execution-patterns/SKILL.md",
+        "sha256": "4cc7f7f4b2619da62af68bdbcdfdc4ca3f8a47f2133612008ca4ea07f0d357bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Mimikatz Execution Patterns:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive credential-access, process, command, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live Mimikatz, credential, process, endpoint, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, credential and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, credential-access conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-ntlm-relay-with-event-correlation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ntlm-relay-with-event-correlation/SKILL.md",
+        "sha256": "573b549d495c9a29df12d5f6fa410e9de3f22d0d0945a64da7b630bb5f6e3ef2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting NTLM Relay with Event Correlation:L55"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive NTLM, identity, authentication, event-correlation, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live authentication, directory, relay, credential, telemetry, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, identity and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, relay conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-pass-the-hash-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-pass-the-hash-attacks/SKILL.md",
+        "sha256": "7e020a6ca0586f7b7bdce2129dd0a2a25e2c636932116d77c9e7b0ffb78901a9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Pass The Hash Attacks:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive credential, identity, authentication, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live credential, identity, authentication, endpoint, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, identity and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, credential-access conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-privilege-escalation-attempts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-privilege-escalation-attempts/SKILL.md",
+        "sha256": "20664925ab7779a7fda9f4baecc81370ff4fb7973f3d342600488149bf01b7c9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Privilege Escalation Attempts:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive privilege, identity, process, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live privilege, identity, process, endpoint, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, privilege conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-process-hollowing-technique",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-process-hollowing-technique/SKILL.md",
+        "sha256": "06ad010e6beb91fc4e425cb874fa9fbc2fa10d1f02d00eddb8c9e456628240d8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Process Hollowing Technique:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive process, memory, module, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live process, memory, endpoint, execution, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, process conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-service-account-abuse",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-service-account-abuse/SKILL.md",
+        "sha256": "e490a35b043ec6bcfc0bb83aba5a5c2163bf93f4dceed66ba2d9f21e4c63f7f4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Service Account Abuse:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-60/decomposition.json",
+        "artifactSha256": "1228d05c312f7e3be21d1254ac4e1b44407974f9c7db3ea990b1ca999304563f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive service-account, identity, credential, authentication, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live service account, identity, credential, directory, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, identity and directory ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, account-abuse conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-suspicious-powershell-execution",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-suspicious-powershell-execution/SKILL.md",
+        "sha256": "3e347008866ea569c7d1cc0cd4899b99285b2ea3a281954f22552908e73d5b74",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Suspicious Powershell Execution:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-60/decomposition.json",
+        "artifactSha256": "1228d05c312f7e3be21d1254ac4e1b44407974f9c7db3ea990b1ca999304563f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive PowerShell, script, process, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live PowerShell, script, process, endpoint, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, script conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-t1003-credential-dumping-with-edr",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-t1003-credential-dumping-with-edr/SKILL.md",
+        "sha256": "d8c4fae21c6e105aeac14cc9bc84a24414560e0d9c4930014f22678a7de03a63",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting T1003 Credential Dumping with EDR:L65"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive credential-dumping, EDR, endpoint, telemetry, threat-hunting, detection, triage, and response guidance.",
+        "notProved": ["No live EDR, endpoint, credential, process, detection efficacy, attribution, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, endpoint and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, credential-access conclusion, severity, containment, remediation, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, process, credential, directory, cloud, packet, network, SIEM, EDR, or production execution.",
+    "No lateral movement, credential access, privilege escalation, process execution, detection efficacy, hunting result, attribution, containment, remediation, or security outcome is proved.",
+    "This packet covers the second ten threat-hunting skills as retained advisory/manual evidence only; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, SIEM, EDR, directories, endpoints, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -30,17 +30,31 @@ Map up to 10 narrowed components to one existing engine/output protocol with rec
 
 ## Objective
 
-Map several vendor components to one existing engine adapter and gate without building skill-specific wrapper scripts.
+Map one or more vendor components to one existing engine adapter and gate without building skill-specific wrapper scripts. A packet may remain intentionally narrow when the reviewed output protocol cannot honestly cover the rest of a skill.
 
 ## Requirement Checklist
 
-- [ ] Every component genuinely requires the named engine capability.
-- [ ] The engine output field/taxonomy supporting the gate is recorded.
-- [ ] Skill-specific interpretation is expressed as Rust policy over normalized output when necessary, not as arbitrary wrapper code.
-- [ ] Recorded fixtures cover findings present/absent, severity boundary, malformed output, unavailable engine, and tool error.
-- [ ] Mapping records engine/version/output constraints, source anchors, coverage, and `notProved`.
-- [ ] Fetch-only SDK components send fetched JSON to a native predicate; they do not duplicate policy in the adapter.
-- [ ] A single engine run may satisfy multiple mapped components, with deduplicated findings and retained provenance.
+- [x] Every mapped component genuinely requires the named engine capability.
+- [x] The engine output field/taxonomy supporting the gate is recorded.
+- [x] Skill-specific interpretation is expressed as Rust policy over normalized output when necessary, not as arbitrary wrapper code.
+- [x] Recorded fixtures cover findings present/absent, severity boundary, malformed output, unavailable engine, and tool error.
+- [x] Mapping records engine/version/output constraints, source anchors, coverage, and `notProved`.
+- [x] Fetch-only SDK components send fetched JSON to a native predicate; they do not duplicate policy in the adapter.
+- [x] A single engine run can satisfy multiple mapped components when their output contract is identical; this packet maps one component and does not invent additional coverage.
+
+## CP10 Batch-01 Bounded Result
+
+The first mapping packet intentionally maps only the IaC facet of
+`scanning-iac-and-images-with-trivy::external-engine` to the existing Trivy
+0.68.2 `config --format json` protocol. The typed validator and evidence are in
+`crates/enforcer-harness/src/adapters/cyberskills/trivy/mapping.rs` and
+`proof/cyberskills/cp10/batch-01/mapping.json`. Existing recorded fixtures prove
+present, clean, malformed, unknown-severity, missing-executable, non-zero,
+timeout, and output-limit behavior through the shared adapter seam.
+
+The packet does not map the skill's image facet, registries, vulnerability
+database, CI, cloud, deployment, or security outcomes. Those remain explicit
+`notProved` boundaries until a separate reviewed output contract exists.
 
 ## Acceptance And Proof
 

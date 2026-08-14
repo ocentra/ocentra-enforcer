@@ -106,6 +106,7 @@ fn dispatch(command: &Command) -> ExitCode {
             );
             ExitCode::InternalError
         }
+        Command::Graph(args) => commands::run_graph(args),
         Command::Proof => {
             output::print_internal_error(
                 "proof subcommand is routed to arc-17; not wired in this skeleton",

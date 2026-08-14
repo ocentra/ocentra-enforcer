@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-58",
+  "family": "IF/phishing-defense",
+  "baselineCommit": "5c831112b58e7ee44923bdfb971f49e48184d67f",
+  "scope": "Retain advisory and manual content for the final phishing-defense packet from immutable CP08 evidence; native predicates are limited to static supplied campaign, message, cohort, training, authorization, domain-policy, gateway, indicator, reporting, incident, response, ownership, and evidence manifests; no live mail, URL, browser, phone, voice, QR, gateway, IdP, MFA, sandbox, AI, endpoint, network, credential, session, social channel, delivery, production infrastructure, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-google-workspace-phishing-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-google-workspace-phishing-protection/SKILL.md",
+        "sha256": "501c5a20a156f3ccbc0c84fda5028d04524b39cec1af97874caeb0dcd13f8649",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Google Workspace Phishing Protection:L63"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Google Workspace phishing controls, reporting, user awareness, evidence, privacy, and defensive response guidance.",
+        "notProved": ["Guidance is not Workspace configuration truth, mail delivery, detection efficacy, user susceptibility, account compromise, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and domain ownership, legal/privacy review, change scope, data handling, analyst validation, notification, rollback, containment, and disclosure decisions.",
+        "notProved": ["No Google Workspace, mail, user, IdP, policy, notification, containment, rollback, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-mimecast-targeted-attack-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mimecast-targeted-attack-protection/SKILL.md",
+        "sha256": "4658640f7cfb669a53ba777ce53fad0151946bf298c1d5f7acf56287a13da827",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Mimecast Targeted Attack Protection:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain targeted-attack protection, mail-policy, URL and attachment review, quarantine, evidence, and defensive remediation guidance.",
+        "notProved": ["Guidance is not Mimecast behavior, sandbox accuracy, message delivery, detection efficacy, quarantine truth, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, mail and tenant ownership, legal/privacy/safety review, sample and data boundaries, analyst validation, quarantine, notification, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No Mimecast, mail, URL, attachment, sandbox, mailbox, quarantine, notification, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-proofpoint-email-security-gateway",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-proofpoint-email-security-gateway/SKILL.md",
+        "sha256": "93582618c4a00aeb4fc78df72dd83907174a18a5037482ff28adc30d2c859a8d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Proofpoint Email Security Gateway:L64"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-08/decomposition.json",
+        "artifactSha256": "3711f536dc9c5f71586f5c3fcf5d6cf572cb5b4d1b1e9112de2ea82f7a6a1bb3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain email gateway policy, URL and attachment review, reporting, quarantine, evidence, privacy, and defensive response guidance.",
+        "notProved": ["Guidance is not gateway accuracy, message authenticity, mail delivery, detection efficacy, credential capture, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, mail and tenant ownership, legal/privacy/safety review, policy scope, analyst validation, quarantine, notification, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No Proofpoint, gateway, message, mailbox, link, attachment, quarantine, notification, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-adversary-in-the-middle-phishing-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-adversary-in-the-middle-phishing-detection/SKILL.md",
+        "sha256": "1b950af25b34d3518c386dfe3c9a1c3dc49fb372a8cc78a164adf4e7ea354738",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Adversary-in-the-Middle Phishing Detection:L62"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-35/decomposition.json",
+        "artifactSha256": "7b486c870b0ec91ad04d98fd960589cd1667967ae841768adfcdfc22562c2b4f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain adversary-in-the-middle indicators, session and identity risk review, awareness, evidence, and defensive remediation guidance.",
+        "notProved": ["Guidance is not proxy behavior, session compromise, MFA bypass, credential capture, detection efficacy, attribution, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, identity and tenant ownership, legal/privacy/ethics review, lab scope, stop conditions, analyst validation, notification, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No proxy, browser, IdP, MFA, credential, session, user, notification, containment, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-dmarc-policy-enforcement-rollout",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dmarc-policy-enforcement-rollout/SKILL.md",
+        "sha256": "8bcc6ea84bf478243bef6207a398b99bd951e9fb59c1eafb6a4afc7435408e8a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing DMARC Policy Enforcement Rollout:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain DMARC rollout, domain authentication, reporting, change management, evidence, and defensive mail-governance guidance.",
+        "notProved": ["Guidance is not DNS truth, policy enforcement, mail flow, signature validity, spoofing resistance, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, domain ownership, legal/privacy review, change and maintenance-window scope, analyst validation, rollback, notification, and disclosure decisions.",
+        "notProved": ["No DNS provider, mail flow, policy change, sender, receiver, rollout, enforcement, rollback, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-phishing-simulation-with-gophish",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-phishing-simulation-with-gophish/SKILL.md",
+        "sha256": "51a6d64ff527a9784fb050b93e958f9bcf87fa1e587c3a0efd12b48f65feef1f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Phishing Simulation with GoPhish:L61"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-35/decomposition.json",
+        "artifactSha256": "7b486c870b0ec91ad04d98fd960589cd1667967ae841768adfcdfc22562c2b4f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ethical phishing simulation planning, awareness, reporting, privacy, safety, evidence, and defensive response guidance.",
+        "notProved": ["Guidance is not delivery, credential capture, session compromise, user susceptibility, detection efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require explicit written authorization, named owner and cohort, legal/privacy/ethics review, mail and IdP scope, safety and stop conditions, notification, data handling, analyst validation, containment, and disclosure decisions.",
+        "notProved": ["No GoPhish, mail, link, credential, IdP, MFA, session, endpoint, user interaction, notification, or production action is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live mail, URL, browser, phone, voice, QR, gateway, IdP, MFA, sandbox, AI, endpoint, network, credential, session, social-channel, delivery, or production action is proved.",
+    "No message authenticity, user susceptibility, credential capture, account compromise, detection efficacy, attribution, remediation success, safety outcome, or security outcome is proved.",
+    "This packet contains the final 6 phishing-defense skills; the family is catalog-covered but not natively implemented or executable-proof complete.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -179,15 +179,60 @@ impl DoctrineRequirement {
 }
 
 /// The result of resolving one requirement and one detected framework family.
+///
+/// The state is intentionally opaque: callers can inspect the verdict, but
+/// only the profile resolver can create one. This prevents rule code from
+/// manufacturing an accepted or disabled outcome without selected profile
+/// data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc = "Visible profile verdict; disabled requirements never become clean passes."]
-pub enum DoctrineVerdict {
-    /// The selected family satisfies the active requirement in this profile.
+pub struct DoctrineVerdict {
+    state: DoctrineVerdictState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DoctrineVerdictState {
     Accepted,
-    /// The selected family is not accepted by the active profile.
     Rejected,
-    /// The profile explicitly disabled the requirement with an explanation.
     RequirementDisabled,
+}
+
+impl DoctrineVerdict {
+    const fn accepted() -> Self {
+        Self {
+            state: DoctrineVerdictState::Accepted,
+        }
+    }
+
+    const fn rejected() -> Self {
+        Self {
+            state: DoctrineVerdictState::Rejected,
+        }
+    }
+
+    const fn requirement_disabled() -> Self {
+        Self {
+            state: DoctrineVerdictState::RequirementDisabled,
+        }
+    }
+
+    /// Return whether the selected family satisfied the active requirement.
+    #[must_use]
+    pub const fn is_accepted(self) -> bool {
+        matches!(self.state, DoctrineVerdictState::Accepted)
+    }
+
+    /// Return whether the selected family was rejected by the profile.
+    #[must_use]
+    pub const fn is_rejected(self) -> bool {
+        matches!(self.state, DoctrineVerdictState::Rejected)
+    }
+
+    /// Return whether the profile explicitly disabled the requirement.
+    #[must_use]
+    pub const fn is_requirement_disabled(self) -> bool {
+        matches!(self.state, DoctrineVerdictState::RequirementDisabled)
+    }
 }
 
 /// One explicit family toggle inside a requirement policy.
@@ -293,11 +338,11 @@ impl DoctrineRequirementPolicy {
     #[must_use]
     pub fn resolve(&self, family: DoctrineFrameworkFamily) -> DoctrineVerdict {
         if matches!(self.enabled, RuleEnabled::Disabled) {
-            return DoctrineVerdict::RequirementDisabled;
+            return DoctrineVerdict::requirement_disabled();
         }
         match self.families.get(&family) {
-            Some(policy) if policy.is_enabled() => DoctrineVerdict::Accepted,
-            _ => DoctrineVerdict::Rejected,
+            Some(policy) if policy.is_enabled() => DoctrineVerdict::accepted(),
+            _ => DoctrineVerdict::rejected(),
         }
     }
 }
@@ -614,11 +659,11 @@ impl DoctrineProfile {
         family: DoctrineFrameworkFamily,
     ) -> DoctrineVerdict {
         if language != self.language || !family.is_valid_for(language) {
-            return DoctrineVerdict::Rejected;
+            return DoctrineVerdict::rejected();
         }
         self.requirements
             .get(&requirement)
-            .map_or(DoctrineVerdict::Rejected, |policy| policy.resolve(family))
+            .map_or(DoctrineVerdict::rejected(), |policy| policy.resolve(family))
     }
 
     /// Look up a rule toggle without inventing an implicit default.

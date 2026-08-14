@@ -848,6 +848,7 @@ dependencies = [
  "enforcer-literal-scan",
  "enforcer-mcp",
  "enforcer-memory",
+ "enforcer-plan",
  "enforcer-proof",
  "enforcer-scan",
  "enforcer-ui",
@@ -1040,6 +1041,7 @@ name = "enforcer-lang-security"
 version = "0.1.0"
 dependencies = [
  "enforcer-domain",
+ "enforcer-syntax",
  "enforcer-validator",
  "regex",
  "serde",
@@ -1193,6 +1195,7 @@ dependencies = [
  "enforcer-domain",
  "enforcer-events",
  "enforcer-lang-common",
+ "enforcer-lang-dart",
  "enforcer-lang-iac",
  "enforcer-lang-k8s",
  "enforcer-lang-py",

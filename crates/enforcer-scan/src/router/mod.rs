@@ -39,6 +39,7 @@ pub fn classify(path: &RelPath) -> LanguageFamily {
         "rs" => LanguageFamily::Rust,
         "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => LanguageFamily::TypeScript,
         "py" => LanguageFamily::Python,
+        "dart" => LanguageFamily::Dart,
         "tf" => LanguageFamily::Terraform,
         "yaml" | "yml" | "json" => LanguageFamily::YamlOrConfig,
         _ => LanguageFamily::Unknown,
@@ -60,6 +61,7 @@ mod tests {
         assert_eq!(classify(&rel("src/lib.rs")?), LanguageFamily::Rust);
         assert_eq!(classify(&rel("src/app.tsx")?), LanguageFamily::TypeScript);
         assert_eq!(classify(&rel("scripts/run.py")?), LanguageFamily::Python);
+        assert_eq!(classify(&rel("lib/main.dart")?), LanguageFamily::Dart);
         assert_eq!(classify(&rel("infra/main.tf")?), LanguageFamily::Terraform);
         assert_eq!(
             classify(&rel("k8s/pod.yaml")?),

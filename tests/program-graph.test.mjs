@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { buildGraphFromConfig, deriveState, listBlocked, listReady, validateGraph } from "../scripts/program-graph.mjs";
+import { buildGraphFromConfig, deriveState, listBlocked, listReady, selectNext, validateGraph } from "../scripts/program-graph.mjs";
 
 function fixture(rows, extra = {}) {
   const root = mkdtempSync(join(tmpdir(), "enforcer-program-graph-"));
@@ -104,4 +104,76 @@ test("configured lifecycle overrides and control-plane nodes are explicit", () =
   assert.ok(listBlocked(graph).find((node) => node.id.endsWith("/CP01")).reasons.some((reason) => reason.id === "WP/graph-bootstrap"));
   assert.equal(deriveState(graph, graph.nodes.get("WP/graph-bootstrap")), "active");
   assert.equal(validateGraph(graph).valid, true);
+});
+
+test("canonical intent matrix derives selectable native and retention packets", () => {
+  const { root, config } = fixture(["CP05", "CP08", "CP09", "CP11"], {
+    CP05: { status: "DONE" },
+    CP08: { status: "DONE" }
+  });
+  const matrixPath = join(root, "docs", "plans", "fixture-plan", "CYBERSKILLS_INTENT_MATRIX.json");
+  writeFileSync(matrixPath, JSON.stringify({
+    schemaVersion: 1,
+    matrixKind: "cyberskills-intent-driven-execution",
+    generatedFrom: {
+      availableSkillCount: 3,
+      protectedExcluded: ["protected-skill"],
+      sourceLicense: "Apache-2.0"
+    },
+    componentPolicy: { requiredNotProved: ["no live outcome"] },
+    routeQualification: { repositoryGraphSkillIds: [] },
+    families: [{
+      familyId: "IF/ai-security",
+      intent: "Assess supplied AI security manifests.",
+      skillCount: 3,
+      skillIds: ["skill-a", "skill-b", "skill-c"],
+      nativeRoute: "CP09",
+      nativeBatchLimit: 2,
+      retentionRoute: "CP11",
+      retentionBatchLimit: 10,
+      dependencies: ["WP/CP05", "WP/CP08"]
+    }]
+  }));
+  config.intentMatrices = [{
+    planKey: "fixture-plan",
+    path: "docs/plans/fixture-plan/CYBERSKILLS_INTENT_MATRIX.json",
+    containerWorkpacks: ["CP09", "CP11"]
+  }];
+  const graph = buildGraphFromConfig(root, config);
+  const nativeB01 = graph.nodes.get("WP/CP09/IF-ai-security/B01");
+  const nativeB02 = graph.nodes.get("WP/CP09/IF-ai-security/B02");
+  const retentionB01 = graph.nodes.get("WP/CP11/IF-ai-security/B01");
+  assert.deepEqual(nativeB01.metadata.skillIds, ["skill-a", "skill-b"]);
+  assert.equal(nativeB01.metadata.componentKinds[0], "native-predicate");
+  assert.equal(retentionB01.metadata.ownedKind, "advisory-manual");
+  assert.equal(deriveState(graph, nativeB01), "ready");
+  assert.equal(deriveState(graph, nativeB02), "ready");
+  assert.equal(deriveState(graph, retentionB01), "ready");
+  assert.equal(selectNext(graph, { plan: "fixture-plan" }).id, "WP/CP09/IF-ai-security/B01");
+  assert.equal(validateGraph(graph).valid, true);
+});
+
+test("intent matrix rejects protected skills and duplicate assignments", () => {
+  const { root, config } = fixture(["CP05", "CP08", "CP09", "CP11"], {
+    CP05: { status: "DONE" },
+    CP08: { status: "DONE" }
+  });
+  const matrixPath = join(root, "docs", "plans", "fixture-plan", "intent.json");
+  writeFileSync(matrixPath, JSON.stringify({
+    schemaVersion: 1,
+    matrixKind: "cyberskills-intent-driven-execution",
+    generatedFrom: { availableSkillCount: 2, protectedExcluded: ["protected-skill"] },
+    families: [{
+      familyId: "IF/bad",
+      intent: "invalid fixture",
+      skillCount: 2,
+      skillIds: ["protected-skill", "protected-skill"],
+      nativeRoute: "CP09",
+      nativeBatchLimit: 2,
+      retentionRoute: "CP11",
+      retentionBatchLimit: 10
+    }]
+  }));
+  config.intentMatrices = [{ planKey: "fixture-plan", path: "docs/plans/fixture-plan/intent.json", containerWorkpacks: ["CP09", "CP11"] }];
+  assert.throws(() => buildGraphFromConfig(root, config), /protected skill|more than one family/);
 });

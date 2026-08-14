@@ -80,13 +80,14 @@ use crate::onboard::OnboardArgs;
 use crate::verify::VerifyMode;
 
 /// The `enforcer` binary's top-level grammar.
+/// Top-level parsed command-line grammar.
 #[derive(Debug, Parser)]
 #[command(
     name = "enforcer",
     version,
     about = "Ocentra Enforcer -- mechanical enforcement, one binary."
 )]
-#[doc = "Top-level parsed command-line grammar."]
+/// Top-level parsed command-line grammar.
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -127,6 +128,8 @@ pub enum Command {
     Doctor,
     /// Plan/workpack scaffolding and validation (arc-20).
     Plan,
+    /// Query the repo-owned Cyber Plan execution graph.
+    Graph(GraphArgs),
     /// Proof-artifact recording/inspection (arc-17).
     Proof,
     /// Multi-agent coordination hub (arc-16). `full` feature only;
@@ -175,6 +178,51 @@ pub enum Command {
         #[command(subcommand)]
         action: HookAction,
     },
+}
+
+/// Arguments for the Cyber Plan graph control-plane commands.
+#[derive(Debug, Args)]
+pub struct GraphArgs {
+    /// Read-only graph view to render.
+    #[command(subcommand)]
+    pub action: GraphAction,
+}
+
+/// Read-only Cyber Plan graph views.
+#[derive(Debug, Subcommand)]
+pub enum GraphAction {
+    /// Render all workpack and catalog status counts.
+    Status(GraphOutputArgs),
+    /// Render workpacks whose hard dependencies are satisfied.
+    Ready(GraphOutputArgs),
+    /// Select the first dependency-legal workpack packet deterministically.
+    Next(GraphOutputArgs),
+    /// Render workpacks blocked by dependencies or graph integrity.
+    Blocked(GraphOutputArgs),
+    /// Validate IDs, endpoints, cycles, protected coverage, and DONE contracts.
+    Validate(GraphOutputArgs),
+    /// Inspect one stable graph ID.
+    Inspect(GraphInspectArgs),
+    /// Explain the first dependency chain blocking one stable graph ID.
+    Why(GraphInspectArgs),
+}
+
+/// Common output control for graph collection views.
+#[derive(Debug, Args)]
+pub struct GraphOutputArgs {
+    /// Emit pretty JSON for scripts and review tooling.
+    #[arg(long, default_value_t = true)]
+    pub json: bool,
+}
+
+/// Graph ID argument used by node-specific views.
+#[derive(Debug, Args)]
+pub struct GraphInspectArgs {
+    /// Stable graph identifier, such as `WP/CP08` or `SKILL/<catalog-id>`.
+    pub id: String,
+    /// Emit pretty JSON for scripts and review tooling.
+    #[arg(long, default_value_t = true)]
+    pub json: bool,
 }
 
 /// Supported harness hook entry points.
@@ -256,9 +304,10 @@ pub struct SbomArgs {
     pub output: PathBuf,
 }
 
+/// Required-test policy arguments.
 #[derive(Debug, Args)]
 pub struct RequiredTestsArgs {
-    /// Treat empty/placeholder-only test category directories as failures even
+    /// Treat empty/skeleton-only test category directories as failures even
     /// when the project configuration does not require strict empty trees.
     #[arg(long)]
     pub strict_empty_test_trees: bool,
@@ -267,12 +316,14 @@ pub struct RequiredTestsArgs {
     pub scope: ScopeArgs,
 }
 
+/// Generated-artifact policy arguments.
 #[derive(Debug, Args)]
 pub struct GeneratedArtifactsArgs {
     /// Include Git tracked files even when project configuration uses scope mode.
     #[arg(long)]
     pub tracked: bool,
 }
+/// Mutation-risk policy arguments.
 #[derive(Debug, Args)]
 pub struct MutationRiskArgs {
     /// Repository root containing the mutation set. Relative values are
@@ -285,11 +336,13 @@ pub struct MutationRiskArgs {
     pub scope: ScopeArgs,
 }
 
+/// Single-source contract policy arguments.
 #[derive(Debug, Args)]
 pub struct SingleSourceContractsArgs {
     #[arg(long)]
     pub config_path: Option<PathBuf>,
 }
+/// AI rule-index policy arguments.
 #[derive(Debug, Args)]
 pub struct AiRuleIndexArgs {
     #[arg(long)]
@@ -356,6 +409,7 @@ pub struct VerifyArgs {
 /// [`crate::scope::resolve_request`], not a clap-level requirement, since
 /// an empty invocation should read as "you forgot a scope", not a generic
 /// clap usage dump).
+/// Workspace scope arguments shared by command families.
 #[derive(Debug, Args)]
 #[command(group(
     ArgGroup::new("scope")
@@ -368,7 +422,7 @@ pub struct VerifyArgs {
         .args(["base", "head"])
         .multiple(true)
 ))]
-#[doc = "Parsed tri-modal workspace scope."]
+/// Parsed tri-modal workspace scope.
 pub struct ScopeArgs {
     /// Explicit file or directory paths (Windows or POSIX separators,
     /// either works -- normalized before comparison).

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP01",
+  "batch": "batch-05",
+  "baselineCommit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+  "scope": "Bounded closure of the four CyberSkills registry IDs absent from CP01 batches 01-04; no vendor inspection, ledger application, validator edits, or parity promotion.",
+  "rules": [
+    {
+      "ruleId": "CYBER-FRONTMATTER.1",
+      "implementation": "crates/enforcer-security/src/boundary/cyberskills/frontmatter_lint.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "sourceAvailability": "notApplicable",
+      "sourceReason": "This is a corpus-wide frontmatter contract, not a one-skill source mapping. The registry and fixture contract are retained, but CP01 accepts no vendor attribution for it.",
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/{bad/bad_attack_id.md,good/valid.md}; frontmatter corpus tests",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "Does not prove any individual vendor skill or whole-corpus frontmatter parity; the rule remains implementation inventory only."
+    },
+    {
+      "ruleId": "CYBER-FILELESS-MALWARE.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "sourceAvailability": "protectedUnavailable",
+      "sourceReason": "The relevant vendor source is inside the explicitly protected unresolved deletion boundary. No protected source file was read, materialized, hashed, or used as eligible coverage.",
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-malware/{bad/suspicious.ps1,good/admin.ps1}",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "Does not prove source attribution, fileless-malware detection parity, live telemetry, endpoint behavior, attribution, or any security outcome."
+    },
+    {
+      "ruleId": "CYBER-FILELESS-TELEMETRY.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "sourceAvailability": "protectedUnavailable",
+      "sourceReason": "The relevant vendor source is inside the explicitly protected unresolved deletion boundary. No protected source file was read, materialized, hashed, or used as eligible coverage.",
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-telemetry/{bad/baseline.json,good/baseline.json}",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "Does not prove source attribution, Sysmon or PowerShell telemetry availability, retention configuration, live collection, or security outcomes."
+    },
+    {
+      "ruleId": "CYBER-FILELESS-REPORT.1",
+      "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/fileless_malware.rs",
+      "registry": "crates/enforcer-rules/rules/cyberskills.json",
+      "status": "unproved",
+      "sourceAvailability": "protectedUnavailable",
+      "sourceReason": "The relevant vendor source is inside the explicitly protected unresolved deletion boundary. No protected source file was read, materialized, hashed, or used as eligible coverage.",
+      "coverageKind": "none",
+      "predicate": null,
+      "evidence": {
+        "failPass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-report/{bad/report.txt,good/report.txt}",
+        "cliMcpCi": "not re-proved by CP01"
+      },
+      "notProved": "Does not prove source attribution, acquisition evidence, IOC completeness, attack-chain reconstruction, analyst judgment, or incident-response outcomes."
+    }
+  ],
+  "derivedCounts": {
+    "registryRulesExpected": 41,
+    "rulesCoveredByBatches01Through04": 37,
+    "rulesAudited": 4,
+    "acceptedNarrowedPredicate": 0,
+    "unprovedOrRejected": 4,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0,
+    "uniqueCoveredAfterBatch05": 41,
+    "missingAfterBatch05": 0
+  },
+  "globalNotProved": [
+    "This artifact closes the CP01 registry partition only; it does not alter the 817-row disposition ledger.",
+    "No rule in this batch receives an accepted vendor mapping or native-complete disposition.",
+    "The protected vendor deletion remains excluded and was not read, materialized, hashed, or counted as eligible coverage.",
+    "A rule fixture or corpus test is not whole-skill parity, executable proof, live external behavior, or a security outcome.",
+    "CLI, MCP, CI, and live endpoint reachability were not freshly proved by this packet."
+  ]
+}

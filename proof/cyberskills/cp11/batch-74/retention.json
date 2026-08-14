@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-74",
+  "family": "IF/supply-chain-security",
+  "baselineCommit": "b607fb5373471a4266e2d4ce0676014a3d9c2a28",
+  "scope": "Retain software supply-chain, SBOM, dependency, package, signing, and provenance guidance from immutable CP08 evidence; native predicates are limited to static supplied package, dependency, repository, workflow, artifact, signature, provenance, owner, approval, and evidence manifests; registries, Snyk, Trivy, GitHub Advanced Security, signing authorities, secret scanners, CI runners, artifact stores, deployment systems, and production execution remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-sbom-for-supply-chain-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-sbom-for-supply-chain-vulnerabilities/SKILL.md",
+        "sha256": "23d96721e66fbe5327d25641115e76eb7711c065defbb0ccaadd585fe008a391",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing SBOM for Supply Chain Vulnerabilities:L48"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SBOM, dependency, package, vulnerability, ownership, provenance, signing, and remediation guidance.",
+        "notProved": [
+          "No live package, dependency, vulnerability, provenance, signature, CI, release, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, key custody, legal/privacy/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human approval, key custody, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-dependency-confusion",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-dependency-confusion/SKILL.md",
+        "sha256": "ff2ca0885efe1c4b64803468475708be658e5ac2d01dbdff15178c6302f0797d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Dependency Confusion:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive dependency, package, repository, provenance, vulnerability, and remediation guidance.",
+        "notProved": [
+          "No live package, dependency, malicious-package, vulnerability, detection, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human approval, package ownership, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-malicious-npm-packages",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-malicious-npm-packages/SKILL.md",
+        "sha256": "a1537f89b6a9f2eba7b3b4e61eca3ea89a73d080dd1b4a3c93db981266bf630c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Malicious npm Packages:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive package, dependency, artifact, provenance, vulnerability, and remediation guidance.",
+        "notProved": [
+          "No live package, registry, malicious-package, vulnerability, detection, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human package review, approval, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-typosquatting-packages",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-typosquatting-packages/SKILL.md",
+        "sha256": "ed5b6eb14f33f324bb238ab8cdeb41a5489dea4c34a9a78d2362391a551912be",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Typosquatting Packages:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive package identity, dependency, registry, provenance, vulnerability, and remediation guidance.",
+        "notProved": [
+          "No live package, registry, typosquatting, vulnerability, detection, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human package review, approval, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-typosquatting-packages-in-npm-pypi",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-typosquatting-packages-in-npm-pypi/SKILL.md",
+        "sha256": "b3d46c0184c4a0993b1c31f0e1d91e368d14a47063dd0083e9e51f87d4cfe0ed",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Typosquatting Packages in npm and PyPI:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive package identity, dependency, registry, provenance, vulnerability, and remediation guidance.",
+        "notProved": [
+          "No live package, registry, typosquatting, vulnerability, detection, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human package review, approval, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "generating-and-analyzing-sboms",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/generating-and-analyzing-sboms/SKILL.md",
+        "sha256": "350e27a43f2b1a33e2b425389f56901330fd52ac4a164a0555eb68ebc483ccd0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Generating and Analyzing SBOMs:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SBOM, dependency, package, vulnerability, ownership, provenance, signing, and remediation guidance.",
+        "notProved": [
+          "No live SBOM, package, dependency, vulnerability, provenance, signature, CI, release, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, key custody, legal/privacy/data review, severity, release, remediation, rollback, disclosure, and exception decisions.",
+        "notProved": [
+          "No human approval, key custody, release, remediation, rollback, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-sigstore-for-software-signing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-sigstore-for-software-signing/SKILL.md",
+        "sha256": "4f1db3501f4427d3e78bd6c07e95dcbd70b8af1fde4d8e77615106b9bea76418",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Sigstore for Software Signing:L67"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive software signing, key, provenance, artifact, release, and rollback guidance.",
+        "notProved": [
+          "No live signing authority, key, signature, provenance, artifact, release, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, key custody, owner validation, legal/data review, release approval, rollback, remediation, disclosure, and exception decisions.",
+        "notProved": [
+          "No human key custody, signing, release, rollback, remediation, disclosure, or exception decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "verifying-build-provenance-with-slsa-sigstore",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/verifying-build-provenance-with-slsa-sigstore/SKILL.md",
+        "sha256": "f2f8c711b28518e5beb56f167cd40faee104842ebec9ebdf6c59789b62dad263",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Verifying Build Provenance with SLSA and Sigstore:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive build provenance, artifact, signing, release, ownership, and rollback guidance.",
+        "notProved": [
+          "No live build, signing authority, signature, provenance, artifact, release, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, key custody, owner validation, legal/data review, release approval, rollback, remediation, disclosure, and exception decisions.",
+        "notProved": [
+          "No human key custody, provenance, release, rollback, remediation, disclosure, or exception decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 8,
+    "advisoryRetained": 8,
+    "manualRetained": 8,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live registry, package, dependency, scanner, CI runner, signing authority, key, artifact store, deployment, or production execution.",
+    "No malicious-package, typosquatting, vulnerability, secret, signature, provenance, CI, artifact, release, remediation, rollback, disclosure, or security outcome is proved.",
+    "This packet covers the complete eight-skill supply-chain-security family as retained advisory/manual evidence only; native implementation and executable proof remain absent.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, registries, scanners, signing authorities, CI runners, artifact stores, and deployment systems are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

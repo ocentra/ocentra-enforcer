@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL03",
+  "kind": "full-package-qa",
+  "baseCommit": "9283d61ced015986b9ec523e0990d4ad3577c29c",
+  "history": {
+    "source": "origin",
+    "isShallow": false,
+    "requiredCommitObjects": [
+      "83737deef99ea7dcc3bee1f56b4c5db7999574af",
+      "bbfec31e8fb5fbda903ff99e5b85f50494df5ab3",
+      "686846a02714f6c395e0557eed439ea7b680d1cd",
+      "0f6139ce375a986fedfa7be98e4babf6f0be7dc6",
+      "472f3de5ebff3a8f3aa4e0d18d5da2567bdefdbe",
+      "3c842c886cdeaa6af02f859ec5e4682bcb0116ea"
+    ]
+  },
+  "commands": [
+    {
+      "command": "git fetch --unshallow --no-tags origin",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --locked -p enforcer-memory --test feature_parity_harness -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 69,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-memory --tests",
+      "exitCode": 0
+    }
+  ],
+  "proves": [
+    "The complete-history enforcer-memory test package passes, including the full feature-parity harness.",
+    "The eight previously history-unavailable QA rows are executable and green when the authoritative commit objects are present.",
+    "UL03 may advance from validation to done in the engineering graph only for its syntax-extraction dependency state."
+  ],
+  "doesNotProve": [
+    "new parser facts, validator integration, enforcement rules, or native CyberSkills implementation",
+    "CyberSkills catalog decomposition, external-engine correctness, executable security proof, or security outcomes",
+    "overall Universal Language or CyberSkills plan completion"
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-50",
+  "family": "IF/network-security",
+  "baselineCommit": "88725c0bb1f5333ee64a06d2f737b87f940bc865",
+  "scope": "Retain advisory and manual content for the final network-security packet from immutable CP08 evidence; native predicates are limited to static supplied wireless, WiFi, DNS, route, scanner-configuration, and evidence manifests; no live network, host, DNS, wireless interface, packet capture, scanner, exploit, credential, session, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-wifi-password-cracking-with-aircrack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-wifi-password-cracking-with-aircrack/SKILL.md",
+        "sha256": "79afcda793901c69fd01bb0490d8bb3340ae3fbbed33c2a46e2d1be514169952",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing WiFi Password Cracking with Aircrack-ng:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain wireless security, WiFi configuration, encryption, monitoring, safe-lab, and defensive network-hardening guidance.",
+        "notProved": ["Guidance is not live password recovery, wireless access, packet capture, credential validity, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned lab and wireless scope, legal/privacy/safety review, stop conditions, data handling, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live radio, access point, endpoint, credential, session, exploit, packet, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-wireless-security-assessment-with-kismet",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-wireless-security-assessment-with-kismet/SKILL.md",
+        "sha256": "7243a60ff2f2137fc2551d752c250e11221248ee81ba3e68a45101b76d776f8d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Wireless Security Assessment with Kismet:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain wireless assessment, RF monitoring, access-point inventory, safety, privacy, and defensive WiFi guidance.",
+        "notProved": ["Guidance is not live Kismet, RF observation, wireless inventory, packet capture, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, radio and site ownership, legal/privacy/safety review, capture scope, stop conditions, analyst validation, remediation, and disclosure decisions.",
+        "notProved": ["No live wireless interface, access point, endpoint, credential, session, packet, exploit, or production assessment is proved."]
+      }
+    },
+    {
+      "catalogId": "scanning-network-with-nmap-advanced",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-network-with-nmap-advanced/SKILL.md",
+        "sha256": "424a3b39cdb31a1708bcb816bd918478300f9404ea94eaa7ada44c5f5231380d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Scanning Network with Nmap Advanced Techniques:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network inventory, scope design, scanner configuration, protocol review, risk handling, and defensive assessment guidance.",
+        "notProved": ["Guidance is not live Nmap discovery, host truth, port state, vulnerability validity, attribution, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, scan scope, rate limits, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live host, network, scanner, credential, session, exploit, packet, or production scan is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live network, host, DNS, wireless interface, packet capture, scanner, exploit, credential, session, or production action is proved.",
+    "No WiFi password, wireless inventory, Nmap discovery, endpoint state, vulnerability validity, attribution, enforcement, remediation, or security outcome is proved.",
+    "This packet contains the final 3 network-security skills; network-security retention is complete after this packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}
